@@ -164,10 +164,14 @@ const tabs=[{id:'facilities',l:'المنشآت',le:'Facilities'}]
 const fBtnS=a=>({padding:'6px 14px',borderRadius:8,fontSize:10,fontWeight:a?700:500,color:a?C.gold:'rgba(255,255,255,.4)',background:a?'rgba(201,168,76,.08)':'transparent',border:a?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',whiteSpace:'nowrap'})
 const SearchBar=<div style={{flex:1,minWidth:180,position:'relative'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2" style={{position:'absolute',top:12,[isAr?'right':'left']:12}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input value={q} onChange={e=>{setQ(e.target.value);setPage(0)}} placeholder={T('بحث ...','Search ...')} style={{width:'100%',height:38,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',border:'1.5px solid rgba(255,255,255,.08)',borderRadius:10,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none'}}/></div>
 
-return<div>
+return<div style={{paddingBottom:0}}>
+<div style={{marginBottom:16,marginTop:12}}>
+<div style={{fontSize:20,fontWeight:800,color:'var(--tx)'}}>{T('المنشآت','Facilities')}</div>
+<div style={{fontSize:11,color:'var(--tx5)',marginTop:4,marginBottom:32}}>{T('إدارة بيانات المنشآت والسجلات التجارية والامتثال','Manage facilities, commercial registrations & compliance')}</div>
+</div>
 
 {/* ═══ FACILITIES ═══ */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}}>
+<div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr',gap:12,marginBottom:40}}>
 {/* الإجمالي */}
 <div style={{padding:'20px 24px',borderRadius:14,background:'linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.03))',border:'1px solid rgba(201,168,76,.18)',display:'flex',alignItems:'center',gap:16}}>
 <div>
@@ -201,12 +205,7 @@ return<div>
 </div>
 </div>
 <div style={{borderTop:'1px solid var(--bd)',paddingTop:16,marginBottom:12}}>
-<div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)'}}>{filtered.length} {T('منشأة','facilities')}</span>
-{filtered.length!==data.length&&<span style={{fontSize:10,color:'var(--tx5)'}}>{T('من أصل','out of')} {data.length}</span>}
-</div>
-</div>
-<div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center'}}>
+<div style={{display:'flex',gap:8,marginBottom:10,alignItems:'center'}}>
 {SearchBar}
 <button onClick={()=>setShowAdvSearch(!showAdvSearch)} style={{height:38,padding:'0 14px',borderRadius:10,border:'1px solid '+(showAdvSearch?'rgba(201,168,76,.2)':'rgba(255,255,255,.08)'),background:showAdvSearch?'rgba(201,168,76,.06)':'rgba(255,255,255,.04)',color:showAdvSearch?C.gold:'var(--tx4)',fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>{T('بحث متقدم','Advanced')}</button>
@@ -234,6 +233,11 @@ return<div>
 </div>
 <button onClick={()=>{setAdvFilters({cr_number:'',owner:'',region:'',city:'',gosi_status:'',vat_status:'',mlsd_status:'',mudad_status:'',facility_status:'',nitaqat:''});setPage(0)}} style={{marginTop:10,height:28,padding:'0 14px',borderRadius:6,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:'var(--tx4)',fontFamily:F,fontSize:10,cursor:'pointer'}}>{T('مسح الفلاتر','Clear Filters')}</button>
 </div>}
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)'}}>{filtered.length} {T('منشأة','facilities')}</span>
+{filtered.length!==data.length&&<span style={{fontSize:10,color:'var(--tx5)'}}>{T('من أصل','out of')} {data.length}</span>}
+</div>
+</div>
 {loading?<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>:filtered.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)'}}>{T('لا توجد نتائج','No results')}</div>:<>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
 {paged.map(r=>{const nClr=sMap[r.nitaqat_color]||'#555';const hasExempt=r.is_original_exempt;const ownCount=partners.filter(p=>p.facility_id===r.id).length||1
@@ -284,9 +288,9 @@ return<div key={r.id} data-card onClick={()=>{setViewRow(r);setViewTab('basic')}
 {r.cr_expiry_date&&(()=>{const dLeft=Math.ceil((new Date(r.cr_expiry_date)-new Date())/(86400000));const expClr=dLeft<0?C.red:dLeft<30?'#e67e22':dLeft<90?C.gold:null;return expClr?<div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,background:expClr+'10',border:'1px solid '+expClr+'20',marginTop:2}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={expClr} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span style={{fontSize:9,fontWeight:700,color:expClr}}>{dLeft<0?T('السجل منتهي!','CR Expired!'):T('السجل ينتهي خلال ','CR expires in ')+dLeft+T(' يوم',' days')}</span></div>:null})()}
 {/* Branch + Actions */}
 <div style={{marginTop:10,borderTop:'1px solid rgba(255,255,255,.04)',paddingTop:10,position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-<span style={{fontSize:9,color:'var(--tx5)',display:'flex',alignItems:'center',gap:4}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M6 7V5a2 2 0 012-2h8a2 2 0 012 2v2"/></svg>
-{branches.find(b=>b.id===r.branch_id)?.name_ar||T('بدون مكتب','No branch')}
+<span style={{fontSize:9,fontWeight:600,color:'rgba(201,168,76,.5)',display:'flex',alignItems:'center',gap:4,padding:'3px 10px',borderRadius:6,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.06)'}}>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,.4)" strokeWidth="2"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M6 7V5a2 2 0 012-2h8a2 2 0 012 2v2"/></svg>
+{(()=>{const br=branches.find(b=>b.id===r.branch_id);return br?br.name_ar:T('بدون مكتب','No branch')})()}
 </span>
 {actionMenu===r.id&&<><div onClick={e=>{e.stopPropagation();setActionMenu(null)}} style={{position:'fixed',inset:0,zIndex:9998}}/>
 <div onClick={e=>e.stopPropagation()} style={{position:'fixed',top:menuPos.y,left:menuPos.x,width:140,background:'var(--sf)',border:'1px solid rgba(255,255,255,.1)',borderRadius:10,padding:'4px 0',zIndex:9999,boxShadow:'0 12px 40px rgba(0,0,0,.6)',backdropFilter:'blur(12px)'}}>
@@ -299,7 +303,7 @@ return<div key={r.id} data-card onClick={()=>{setViewRow(r);setViewTab('basic')}
 </div></>}
 </div>
 </div></div>})}</div>
-{totalPages>1&&(()=>{const btnS=(dis)=>({width:30,height:30,borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:dis?'rgba(255,255,255,.15)':'var(--tx4)',cursor:dis?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12});return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:18}}>
+{totalPages>1&&(()=>{const btnS=(dis)=>({width:30,height:30,borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:dis?'rgba(255,255,255,.15)':'var(--tx4)',cursor:dis?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12});return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:18,paddingBottom:8}}>
 <div style={{flex:1}}/>
 <div style={{display:'flex',gap:4,alignItems:'center'}}>
 <button onClick={()=>setPage(0)} disabled={page===0} style={btnS(page===0)}>{'«'}</button>
