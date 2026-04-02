@@ -470,16 +470,17 @@ return<div key={inv.id} style={{borderRadius:16,overflow:'hidden',border:'1px so
 </div>})}
 
 {/* ═══ PAGINATION ═══ */}
-{totalPages>1&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,padding:'20px 0'}}>
-<button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page<=1} style={{width:36,height:36,borderRadius:9,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',opacity:page<=1?.3:1}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-{Array.from({length:totalPages},(_,i)=>i+1).map(p=>
-<button key={p} onClick={()=>setPage(p)} style={{width:36,height:36,borderRadius:9,border:'1px solid '+(p===page?C.gold:'rgba(255,255,255,.1)'),background:p===page?C.gold:'transparent',color:p===page?C.dk:'rgba(255,255,255,.42)',fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer'}}>{p}</button>
-)}
-<button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page>=totalPages} style={{width:36,height:36,borderRadius:9,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',opacity:page>=totalPages?.3:1}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg></button>
-<span style={{fontSize:9,color:'var(--tx5)',margin:'0 10px'}}>صفحة {page} من {totalPages} — إجمالي {filtered.length} فاتورة</span>
-</div>}
+{totalPages>1&&(()=>{const btnS=(dis)=>({width:30,height:30,borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:dis?'rgba(255,255,255,.15)':'var(--tx4)',cursor:dis?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12});return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:18}}>
+<div style={{flex:1}}/>
+<div style={{display:'flex',gap:4,alignItems:'center'}}>
+<button onClick={()=>setPage(1)} disabled={page<=1} style={btnS(page<=1)}>{'«'}</button>
+<button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page<=1} style={btnS(page<=1)}>{'‹'}</button>
+<span style={{width:30,height:30,borderRadius:7,border:'1px solid rgba(201,168,76,.3)',background:'rgba(201,168,76,.15)',color:'#c9a84c',fontFamily:F,fontSize:12,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center'}}>{page}</span>
+<button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page>=totalPages} style={btnS(page>=totalPages)}>{'›'}</button>
+<button onClick={()=>setPage(totalPages)} disabled={page>=totalPages} style={btnS(page>=totalPages)}>{'»'}</button>
+</div>
+<div style={{flex:1,display:'flex',justifyContent:'flex-end'}}><span style={{fontSize:10,color:'var(--tx5)'}}>{T('عرض','Showing')} {(page-1)*PER_PAGE+1}-{Math.min(page*PER_PAGE,filtered.length)} {T('من','of')} {filtered.length}</span></div>
+</div>})()}
 </div>}
 
 {/* ═══ ADD/EDIT INVOICE — 6-STEP WIZARD ═══ */}

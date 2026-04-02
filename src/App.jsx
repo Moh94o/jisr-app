@@ -506,7 +506,7 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 </div>
 </div><Css/></div>)}
 
-function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState('home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),3000)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[stats,setStats]=useState(null);const[notifs,setNotifs]=useState([]);const[myNotifs,setMyNotifs]=useState([]);const[showNotifs,setShowNotifs]=useState(false);const[notifTab,setNotifTab]=useState('my');const[showAiChat,setShowAiChat]=useState(false);const[showChatPopup,setShowChatPopup]=useState(false);const[showUserMenu,setShowUserMenu]=useState(false);const[theme,setTheme]=useState(()=>localStorage.getItem('jisr_theme')||'dark');useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('jisr_theme',theme);const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',theme==='dark'?'#171717':'#faf8f3');document.body.style.background=theme==='dark'?'#171717':'#faf8f3'},[theme]);const toggleTheme=()=>setTheme(t=>t==='dark'?'light':'dark');const[dashBranch,setDashBranch]=useState(null);const[dashBranches,setDashBranches]=useState([]);const[sTabInfo,setSTabInfo]=useState({tab:'general',svcSubTab:'services'});const[searchQ,setSearchQ]=useState('');const[searchResults,setSearchResults]=useState([]);const[searchOpen,setSearchOpen]=useState(false);const[searchLoading,setSearchLoading]=useState(false);const[activityLog,setActivityLog]=useState([]);const[activityLoading,setActivityLoading]=useState(false);const[sideOpen,setSideOpen]=useState(false);const[taskCount,setTaskCount]=useState(0);const[approvalCount,setApprovalCount]=useState(0);const[todayAppointments,setTodayAppointments]=useState([]);const[lastWeeklyUpdate,setLastWeeklyUpdate]=useState(null);const[expanded,setExpanded]=useState({tasks_section:true,facilities_workforce:true,finance:true,data:false,reports:false,admin:false});
+function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState('home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),3000)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[stats,setStats]=useState(null);const[notifs,setNotifs]=useState([]);const[myNotifs,setMyNotifs]=useState([]);const[showNotifs,setShowNotifs]=useState(false);const[notifTab,setNotifTab]=useState('my');const[showAiChat,setShowAiChat]=useState(false);const[showUserMenu,setShowUserMenu]=useState(false);const[theme,setTheme]=useState(()=>localStorage.getItem('jisr_theme')||'dark');useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('jisr_theme',theme);const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',theme==='dark'?'#171717':'#faf8f3');document.body.style.background=theme==='dark'?'#171717':'#faf8f3'},[theme]);const toggleTheme=()=>setTheme(t=>t==='dark'?'light':'dark');const[dashBranch,setDashBranch]=useState(null);const[dashBranches,setDashBranches]=useState([]);const[sTabInfo,setSTabInfo]=useState({tab:'general',svcSubTab:'services'});const[searchQ,setSearchQ]=useState('');const[searchResults,setSearchResults]=useState([]);const[searchOpen,setSearchOpen]=useState(false);const[searchLoading,setSearchLoading]=useState(false);const[activityLog,setActivityLog]=useState([]);const[activityLoading,setActivityLoading]=useState(false);const[sideOpen,setSideOpen]=useState(false);const[taskCount,setTaskCount]=useState(0);const[approvalCount,setApprovalCount]=useState(0);const[todayAppointments,setTodayAppointments]=useState([]);const[lastWeeklyUpdate,setLastWeeklyUpdate]=useState(null);const[expanded,setExpanded]=useState({tasks_section:true,facilities_workforce:true,finance:true,data:false,reports:false,admin:false});
 const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches);
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
@@ -517,7 +517,7 @@ sb.from('tasks').select('id',{count:'exact',head:true}).is('deleted_at',null).in
 sb.from('approval_requests').select('id',{count:'exact',head:true}).eq('status','pending').then(({count})=>{setApprovalCount(count||0)});
 sb.from('appointments').select('*').is('deleted_at',null).eq('date',new Date().toISOString().slice(0,10)).in('status',['scheduled','confirmed']).then(({data})=>{setTodayAppointments(data||[])})},[sb,dashBranch]);useEffect(()=>{loadStats()},[pg,loadStats,dashBranch]);
 useEffect(()=>{if(!sb)return;const ch=sb.channel('jisr-realtime-sync').on('postgres_changes',{event:'*',schema:'public',table:'invoices'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'clients'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'workers'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'facilities'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'smart_alerts'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'attendance'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'activity_log'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'daily_stats'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'invoice_payments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'escalations'},()=>loadStats()).subscribe();return()=>{sb.removeChannel(ch)}},[sb,loadStats]);
-useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+k':()=>{const el=document.querySelector('.topbar-search-box input');if(el)el.focus()},'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+K بحث سريع | Ctrl+N إضافة جديد','Ctrl+K Quick Search | Ctrl+N New'))},'escape':()=>{setSideOpen(false);setShowNotifs(false);setShowAiChat(false);setShowChatPopup(false)}});return cleanup},[]);
+useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+k':()=>{const el=document.querySelector('.topbar-search-box input');if(el)el.focus()},'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+K بحث سريع | Ctrl+N إضافة جديد','Ctrl+K Quick Search | Ctrl+N New'))},'escape':()=>{setSideOpen(false);setShowNotifs(false);setShowAiChat(false)}});return cleanup},[]);
 const doSearch=useCallback(async(q)=>{if(!q||q.length<2){setSearchResults([]);return}setSearchLoading(true);try{const[fac,wrk,cli,inv]=await Promise.all([sb.from('facilities').select('id,name_ar,unified_national_number,cr_number').is('deleted_at',null).or(`name_ar.ilike.%${q}%,unified_national_number.ilike.%${q}%,cr_number.ilike.%${q}%`).limit(5),sb.from('workers').select('id,name_ar,iqama_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,iqama_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('clients').select('id,name_ar,id_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,id_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('invoices').select('id,invoice_number,total_amount,status').is('deleted_at',null).or(`invoice_number.ilike.%${q}%`).limit(5)]);const r=[];(fac.data||[]).forEach(d=>r.push({type:'facility',icon:'facility',label:d.name_ar,sub:d.cr_number||d.unified_national_number||'',pg:'facilities',id:d.id}));(wrk.data||[]).forEach(d=>r.push({type:'worker',icon:'worker',label:d.name_ar,sub:d.iqama_number||d.phone||'',pg:'workers',id:d.id}));(cli.data||[]).forEach(d=>r.push({type:'client',icon:'client',label:d.name_ar,sub:d.id_number||d.phone||'',pg:'clients',id:d.id}));(inv.data||[]).forEach(d=>r.push({type:'invoice',icon:'invoice',label:d.invoice_number,sub:Number(d.total_amount||0).toLocaleString()+' ر.س',pg:'invoices',id:d.id}));setSearchResults(r)}catch(e){setSearchResults([])}setSearchLoading(false)},[sb]);useEffect(()=>{const t=setTimeout(()=>doSearch(searchQ),300);return()=>clearTimeout(t)},[searchQ,doSearch]);
 const loadActivityLog=useCallback(async()=>{setActivityLoading(true);try{const{data}=await sb.from('activity_log').select('*,users:user_id(name_ar,name_en)').order('created_at',{ascending:false}).limit(100);setActivityLog(data||[])}catch(e){setActivityLog([])}setActivityLoading(false)},[sb]);
 const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);const nav=[
@@ -991,10 +991,11 @@ flds:[
 {/* ═══ MOBILE OVERLAY ═══ */}
 {sideOpen&&<div className='mob-overlay' onClick={()=>setSideOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.55)',backdropFilter:'blur(3px)',zIndex:199,display:'none'}}/>}
 {/* ═══ SIDEBAR — Design 5 Grouped ═══ */}
-<aside className={'dash-side'+(sideOpen?' side-open':'')} style={{width:240,background:'var(--sb)',display:'flex',flexDirection:'column',flexShrink:0,[lang==='ar'?'borderLeft':'borderRight']:'1px solid rgba(201,168,76,.12)'}}>
+<aside className={'dash-side'+(sideOpen?' side-open':'')} style={{width:210,background:'var(--sb)',display:'flex',flexDirection:'column',flexShrink:0,[lang==='ar'?'borderLeft':'borderRight']:'1px solid rgba(201,168,76,.12)'}}>
 {/* Logo */}
-<div style={{padding:'22px 24px 18px',borderBottom:'1px solid var(--bd)',textAlign:'center'}}>
+<div style={{padding:'14px 24px 14px',borderBottom:'1px solid var(--bd)',textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
 <div style={{fontSize:26,fontWeight:900,color:C.gold,letterSpacing:'-1px',lineHeight:1,fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif"}}>{lang==='ar'?'جسر':'JISR'}</div>
+<div style={{fontSize:10,fontWeight:500,color:'var(--sbtx3)',marginTop:8}}>{lang==='ar'?'جسر للأعمال':'Jisr Business'}</div>
 </div>
 {/* Nav */}
 <nav style={{flex:1,overflowY:'auto',padding:'8px 10px',scrollbarWidth:'none',msOverflowStyle:'none',WebkitOverflowScrolling:'touch'}}>
@@ -1068,7 +1069,7 @@ return null})}
 {/* ═══ MAIN AREA ═══ */}
 <div style={{flex:1,display:'flex',flexDirection:'column',background:'var(--sf)',minWidth:0}}>
 {/* ═══ TOPBAR ═══ */}
-<header className='dash-header' style={{height:52,background:'var(--hd)',display:'flex',alignItems:'center',padding:'0 20px',gap:12,borderBottom:'1px solid var(--bd)',flexShrink:0}}>
+<header className='dash-header' style={{height:64,background:'var(--bg)',display:'flex',alignItems:'center',padding:'0 24px',gap:14,borderBottom:'1px solid var(--bd)',flexShrink:0}}>
 <div className='mob-hamburger' onClick={()=>setSideOpen(!sideOpen)} style={{display:'none',width:36,height:36,borderRadius:8,background:sideOpen?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)',border:'1px solid '+(sideOpen?'rgba(201,168,76,.2)':'rgba(255,255,255,.08)'),alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={sideOpen?C.gold:'rgba(255,255,255,.5)'} strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="16" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
 <div className='breadcrumb-area' style={{display:'flex',alignItems:'center',gap:6}}>
 {(()=>{
@@ -1138,10 +1139,6 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 <div onClick={()=>setShowAiChat(!showAiChat)} title={lang==='ar'?'مساعد جسر الذكي':'Jisr AI'} style={{width:34,height:34,borderRadius:8,background:showAiChat?'rgba(201,168,76,.15)':'rgba(255,255,255,.04)',border:'1px solid '+(showAiChat?'rgba(201,168,76,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'.2s'}}>
 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={showAiChat?C.gold:'rgba(255,255,255,.35)'} strokeWidth="1.8"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><path d="M12 3v4M8 7h8"/><circle cx="12" cy="3" r="1"/></svg>
 </div>
-{/* المحادثات */}
-<div onClick={()=>setShowChatPopup(!showChatPopup)} title={lang==='ar'?'المحادثات':'Chat'} style={{width:34,height:34,borderRadius:8,background:showChatPopup?'rgba(52,131,180,.15)':'rgba(255,255,255,.04)',border:'1px solid '+(showChatPopup?'rgba(52,131,180,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'.2s'}}>
-<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={showChatPopup?C.blue:'rgba(255,255,255,.35)'} strokeWidth="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-</div>
 {/* البحث الذكي */}
 <div className='topbar-search-wrap' style={{position:'relative'}}>
 <div className='topbar-search-box' style={{height:34,padding:'0 10px',borderRadius:8,background:searchOpen?'rgba(201,168,76,.08)':'rgba(255,255,255,.04)',border:'1px solid '+(searchOpen?'rgba(201,168,76,.2)':'var(--bd)'),display:'flex',alignItems:'center',gap:6,minWidth:180,transition:'.2s'}}>
@@ -1165,7 +1162,7 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 </div>
 </header>
 {/* ═══ Content ═══ */}
-<div className='dash-content' style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'24px 28px 48px',msOverflowStyle:'none',scrollbarWidth:'none',WebkitOverflowScrolling:'touch'}}>
+<div className='dash-content' style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'20px 24px 48px',msOverflowStyle:'none',scrollbarWidth:'none',WebkitOverflowScrolling:'touch'}}>
 {pg==='home'&&<HomePage stats={stats} lang={lang} branches={dashBranches} selectedBranch={dashBranch} onBranchChange={setDashBranch} sb={sb} onNavigate={setPage} toast={tt}/>}
 {pg==='kpi'&&<KPIPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='auto_alerts'&&<AutoAlertsPage sb={sb} toast={tt} user={user} lang={lang}/>}
@@ -1186,8 +1183,6 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {pg==='admin'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='admin_staff'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultTab="users"/>}
-{pg==='chat'&&<div style={{textAlign:'center',padding:60,color:'var(--tx4)'}}>{lang==='ar'?'المحادثات متاحة من التوب بار':'Chat available from top bar'}</div>}
-{/* ai_chat moved to topbar popup */}
 {pg==='activity_log'&&<ActivityLogPage sb={sb} lang={lang} data={activityLog} loading={activityLoading} onLoad={loadActivityLog}/>}
 {pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
 {(pg==='tasks_regular'||pg==='tasks_periodic')&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang} defaultFilter={pg==='tasks_periodic'?'periodic':'regular'}/>}
@@ -1302,18 +1297,6 @@ tt(ar?'تم تحديث البيانات بنجاح':'Profile updated successfull
 </div>
 </div>
 </div>}
-{/* ═══ CHAT POPUP ═══ */}
-{showChatPopup&&<><div onClick={()=>setShowChatPopup(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(4px)',zIndex:9996,display:'flex',alignItems:'center',justifyContent:'center'}}/>
-<div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:'min(900px,96vw)',height:'min(700px,96vh)',background:'var(--sf)',borderRadius:'min(16px,2vw)',boxShadow:'0 20px 60px rgba(0,0,0,.6)',border:'1px solid rgba(52,131,180,.2)',zIndex:9997,display:'flex',flexDirection:'column',overflow:'hidden',direction:lang==='ar'?'rtl':'ltr',fontFamily:"'Cairo',sans-serif"}}>
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 18px',borderBottom:'1px solid rgba(52,131,180,.1)',background:'var(--sb)',flexShrink:0}}>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<div style={{width:36,height:36,borderRadius:10,background:'rgba(52,131,180,.12)',border:'1px solid rgba(52,131,180,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-<div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{T('المحادثات','Chat')}</div><div style={{fontSize:9,color:'rgba(52,131,180,.45)'}}>{T('الرسائل الداخلية','Internal Messages')}</div></div>
-</div>
-<button onClick={()=>setShowChatPopup(false)} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg></button>
-</div>
-<div style={{flex:1,overflow:'hidden'}}><ChatPage sb={sb} toast={tt} user={user} lang={lang}/></div>
-</div></>}
 {/* ═══ AI CHAT POPUP ═══ */}
 {showAiChat&&<><div onClick={()=>setShowAiChat(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(4px)',zIndex:9997,display:'flex',alignItems:'center',justifyContent:'center'}}/>
 <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:'min(520px,96vw)',height:'min(640px,96vh)',background:'var(--sf)',borderRadius:'min(16px,2vw)',boxShadow:'0 20px 60px rgba(0,0,0,.6)',border:'1px solid rgba(201,168,76,.2)',zIndex:9998,display:'flex',flexDirection:'column',overflow:'hidden',direction:lang==='ar'?'rtl':'ltr',fontFamily:"'Cairo',sans-serif"}}>
@@ -2883,187 +2866,7 @@ return<div key={t.id} style={{background:'var(--bg)',border:'1px solid '+(t.stat
 </div></div></div>}
 </div>}
 
-function ChatPage({sb,toast,user,lang}){
-const T=(a,e)=>lang==='ar'?a:e;const isAr=lang!=='en'
-const[txt,setTxt]=useState('');const[sending,setSending]=useState(false);const[loading,setLoading]=useState(true)
-const[msgs,setMsgs]=useState([]);const[users,setUsers]=useState([]);const[ch,setCh]=useState('general')
-const[replyTo,setReplyTo]=useState(null);const[pinnedOpen,setPinnedOpen]=useState(false)
-const[hoveredMsg,setHoveredMsg]=useState(null);const[directUser,setDirectUser]=useState(null)
-const msgEndRef=React.useRef(null)
-const prevCountRef=React.useRef(0)
-const fileRef=React.useRef(null)
-const userColors=['#c9a84c','#3483b4','#27a046','#9b59b6','#e67e22','#1abc9c','#e74c3c','#2ecc71']
-
-const load=useCallback(async()=>{setLoading(true)
-const[m,u]=await Promise.all([
-sb.from('internal_messages').select('*').order('created_at',{ascending:false}).limit(200),
-sb.from('users').select('id,name_ar,name_en').is('deleted_at',null)])
-const newMsgs=m.data||[]
-if(prevCountRef.current>0&&newMsgs.length>prevCountRef.current){
-const latest=newMsgs[0]
-if(latest&&latest.sender_id!==user.id){try{const a=new AudioContext();const o=a.createOscillator();const g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=latest.message_type==='announcement'?600:800;g.gain.value=latest.message_type==='announcement'?0.25:0.1;o.start();o.stop(a.currentTime+(latest.message_type==='announcement'?0.4:0.15))}catch(e){}}
-}
-prevCountRef.current=newMsgs.length
-setMsgs(newMsgs);setUsers(u.data||[]);setLoading(false)},[sb,user])
-useEffect(()=>{load();const iv=setInterval(load,10000);return()=>clearInterval(iv)},[load])
-useEffect(()=>{msgEndRef.current?.scrollIntoView({behavior:'smooth'})},[msgs,ch])
-
-const send=async()=>{if(!txt.trim())return;setSending(true)
-const row={sender_id:user.id,channel:ch==='direct'?'direct':ch,message:txt.trim(),message_type:ch==='announcements'?'announcement':'text'}
-// Only add optional fields if they have values (columns may not exist yet)
-try{if(replyTo?.id)row.reply_to=replyTo.id}catch{}
-try{if(ch==='direct'&&directUser)row.recipient_id=directUser}catch{}
-const{error}=await sb.from('internal_messages').insert(row)
-if(error){
-// If column error, try without optional fields
-if(error.message?.includes('column')){
-const basicRow={sender_id:user.id,channel:ch==='direct'?'direct':ch,message:txt.trim(),message_type:ch==='announcements'?'announcement':'text'}
-const{error:e2}=await sb.from('internal_messages').insert(basicRow)
-if(e2)toast(T('خطأ: ','Error: ')+e2.message?.slice(0,60))
-else{setTxt('');setReplyTo(null);load()}
-}else toast(T('خطأ: ','Error: ')+error.message?.slice(0,60))
-}else{setTxt('');setReplyTo(null);load()}
-setSending(false)}
-
-const togglePin=async(msg)=>{try{await sb.from('internal_messages').update({is_pinned:!msg.is_pinned}).eq('id',msg.id);load()}catch{toast(T('شغّل migration_chat.sql أولاً','Run migration_chat.sql first'))}}
-
-const filtered=ch==='direct'?msgs.filter(m=>m.channel==='direct'&&directUser&&((m.sender_id===user.id&&m.recipient_id===directUser)||(m.sender_id===directUser&&m.recipient_id===user.id))):msgs.filter(m=>m.channel===ch)
-const pinnedMsgs=filtered.filter(m=>m.is_pinned)
-const getName=id=>{const u=users.find(x=>x.id===id);return u?(isAr?u.name_ar:u.name_en||u.name_ar):'مجهول'}
-const getColor=id=>{const idx=users.findIndex(x=>x.id===id);return userColors[idx%userColors.length]||'#888'}
-const getReplyMsg=id=>id?msgs.find(m=>m.id===id):null
-const channels=[{id:'general',l:T('عام','General'),ico:'💬'},{id:'announcements',l:T('إعلانات','Announcements'),ico:'📢'},{id:'direct',l:T('خاص','Direct'),ico:'🔒'}]
-
-// Latest announcement for banner
-const latestAnn=msgs.find(m=>m.message_type==='announcement'&&m.channel==='announcements')
-const annAge=latestAnn?Math.floor((Date.now()-new Date(latestAnn.created_at).getTime())/60000):999
-const showAnnBanner=latestAnn&&annAge<60 // show for 1 hour
-
-const handleFile=async(e)=>{const file=e.target.files?.[0];if(!file)return
-if(file.size>5*1024*1024){toast(T('الحد الأقصى 5 ميجا','Max 5MB'));return}
-setSending(true)
-try{const ext=file.name.split('.').pop();const path=`chat/${Date.now()}.${ext}`
-const{error:upErr}=await sb.storage.from('documents').upload(path,file)
-if(upErr)throw upErr
-const{data:url}=sb.storage.from('documents').getPublicUrl(path)
-const row={sender_id:user.id,channel:ch,message:`📎 ${file.name}`,message_type:'file'}
-try{row.file_url=url.publicUrl;row.file_name=file.name}catch{}
-await sb.from('internal_messages').insert(row)
-setReplyTo(null);load()
-}catch(err){toast(T('خطأ في الرفع: ','Upload error: ')+(err.message||''))}
-setSending(false);if(fileRef.current)fileRef.current.value=''}
-
-return<div style={{display:'flex',gap:0,height:'100%',overflow:'hidden',background:'var(--bg)'}}>
-{/* ═══ Sidebar ═══ */}
-<div style={{width:200,background:'var(--sb)',borderLeft:'1px solid rgba(255,255,255,.04)',padding:'16px 10px',flexShrink:0,display:'flex',flexDirection:'column',overflowY:'auto'}}>
-<div style={{fontSize:14,fontWeight:800,color:'var(--tx2)',marginBottom:16,padding:'0 8px'}}>{T('المحادثات','Chat')}</div>
-{channels.map(c=><div key={c.id} onClick={()=>{setCh(c.id);setReplyTo(null);if(c.id!=='direct')setDirectUser(null)}} style={{padding:'10px 12px',borderRadius:10,marginBottom:4,fontSize:12,fontWeight:ch===c.id?700:500,color:ch===c.id?C.gold:'rgba(255,255,255,.4)',background:ch===c.id?'rgba(201,168,76,.08)':'transparent',border:ch===c.id?'1px solid rgba(201,168,76,.12)':'1px solid transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:8,transition:'.15s'}}>
-<span style={{fontSize:15}}>{c.ico}</span><span>{c.l}</span><span style={{flex:1}}/>
-<span style={{fontSize:9,fontWeight:700,color:ch===c.id?C.gold:'var(--tx6)',background:ch===c.id?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)',padding:'2px 7px',borderRadius:6,minWidth:20,textAlign:'center'}}>{c.id==='direct'?msgs.filter(m=>m.channel==='direct'&&(m.sender_id===user.id||m.recipient_id===user.id)).length:msgs.filter(m=>m.channel===c.id).length}</span>
-</div>)}
-
-{/* Staff - click for direct message */}
-<div style={{marginTop:16,borderTop:'1px solid var(--bd2)',paddingTop:12}}>
-<div style={{fontSize:10,fontWeight:600,color:'var(--tx6)',marginBottom:8,padding:'0 8px'}}>{T('الموظفين — اضغط للمراسلة','Staff — tap to message')}</div>
-{users.filter(u=>u.id!==user.id).map(u=>{const clr=getColor(u.id);const isSelected=ch==='direct'&&directUser===u.id
-return<div key={u.id} onClick={()=>{setCh('direct');setDirectUser(u.id);setReplyTo(null)}} style={{padding:'7px 10px',fontSize:11,color:isSelected?clr:'rgba(255,255,255,.4)',display:'flex',alignItems:'center',gap:8,borderRadius:8,cursor:'pointer',background:isSelected?clr+'10':'transparent',border:isSelected?'1px solid '+clr+'20':'1px solid transparent',transition:'.15s',marginBottom:2}}>
-<div style={{position:'relative',flexShrink:0}}>
-<div style={{width:28,height:28,borderRadius:8,background:clr+'15',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:clr}}>{(isAr?u.name_ar:u.name_en||u.name_ar)[0]}</div>
-<div style={{position:'absolute',bottom:-1,right:-1,width:8,height:8,borderRadius:'50%',background:'rgba(255,255,255,.15)',border:'2px solid var(--sb)'}}/>
-</div>
-<span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{isAr?u.name_ar:u.name_en||u.name_ar}</span>
-</div>})}
-</div>
-</div>
-
-{/* ═══ Messages Area ═══ */}
-<div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
-
-{/* Announcement banner */}
-{showAnnBanner&&ch!=='announcements'&&<div style={{padding:'10px 20px',background:'linear-gradient(90deg,rgba(52,131,180,.08),rgba(52,131,180,.02))',borderBottom:'1px solid rgba(52,131,180,.12)',display:'flex',alignItems:'center',gap:10,cursor:'pointer',animation:'slideDown .3s ease'}} onClick={()=>setCh('announcements')}>
-<span style={{fontSize:16}}>📢</span>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:10,fontWeight:700,color:C.blue}}>{T('إعلان جديد','New Announcement')} — {getName(latestAnn.sender_id)}</div>
-<div style={{fontSize:11,color:'var(--tx3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{latestAnn.message}</div>
-</div>
-<span style={{fontSize:8,color:'var(--tx5)'}}>{annAge<1?T('الآن','Now'):annAge+T(' دقيقة',' min')}</span>
-</div>}
-
-{/* Channel header */}
-<div style={{padding:'12px 20px',borderBottom:'1px solid var(--bd2)',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-{ch==='direct'&&directUser?<>
-<div style={{width:32,height:32,borderRadius:10,background:getColor(directUser)+'15',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:getColor(directUser)}}>{getName(directUser)[0]}</div>
-<div style={{flex:1}}><div style={{fontSize:14,fontWeight:700,color:'var(--tx2)'}}>{getName(directUser)}</div>
-<div style={{fontSize:9,color:'var(--tx5)'}}>{T('محادثة خاصة','Private chat')}</div></div>
-</>:<>
-<span style={{fontSize:18}}>{channels.find(c=>c.id===ch)?.ico}</span>
-<div style={{flex:1}}><div style={{fontSize:14,fontWeight:700,color:'var(--tx2)'}}>{channels.find(c=>c.id===ch)?.l}</div>
-<div style={{fontSize:9,color:'var(--tx5)'}}>{filtered.length} {T('رسالة','messages')}{ch==='general'?(' — '+T('يشوفها الجميع','visible to all')):''}</div></div>
-</>}
-{pinnedMsgs.length>0&&<button onClick={()=>setPinnedOpen(!pinnedOpen)} style={{height:28,padding:'0 12px',borderRadius:8,border:'1px solid rgba(201,168,76,.15)',background:pinnedOpen?'rgba(201,168,76,.1)':'transparent',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
-📌 {T('مثبتة','Pinned')} ({pinnedMsgs.length})</button>}
-</div>
-
-{/* Pinned messages */}
-{pinnedOpen&&pinnedMsgs.length>0&&<div style={{padding:'8px 20px',background:'rgba(201,168,76,.03)',borderBottom:'1px solid rgba(201,168,76,.08)',maxHeight:120,overflowY:'auto'}}>
-{pinnedMsgs.map(m=><div key={m.id} style={{padding:'6px 10px',borderRadius:8,background:'rgba(201,168,76,.06)',marginBottom:4,fontSize:11,color:'var(--tx3)',display:'flex',alignItems:'center',gap:8}}>
-📌 <span style={{fontWeight:700,color:getColor(m.sender_id),fontSize:10}}>{getName(m.sender_id)}</span>
-<span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.message}</span>
-</div>)}
-</div>}
-
-{/* Direct message: no user selected */}
-{ch==='direct'&&!directUser&&<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx5)',fontSize:12}}>{T('اختر موظف من القائمة للمراسلة','Select a staff member to message')}</div>}
-
-{/* Messages list */}
-{(ch!=='direct'||directUser)&&<div style={{flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column-reverse',gap:6,scrollbarWidth:'none'}}>
-{loading?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>...</div>:
-filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا توجد رسائل','No messages')}</div>:
-filtered.map(m=>{const isMine=m.sender_id===user.id;const isAnn=m.message_type==='announcement';const isFile=m.message_type==='file';const clr=getColor(m.sender_id);const replyMsg=m.reply_to?getReplyMsg(m.reply_to):null
-return<div key={m.id} onMouseEnter={()=>setHoveredMsg(m.id)} onMouseLeave={()=>setHoveredMsg(null)} style={{display:'flex',flexDirection:isMine?'row-reverse':'row',gap:8,maxWidth:'80%',alignSelf:isMine?'flex-end':'flex-start',position:'relative'}}>
-<div style={{width:34,height:34,borderRadius:10,background:clr+'18',border:'1.5px solid '+clr+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:clr,flexShrink:0,alignSelf:'flex-start'}}>{getName(m.sender_id)[0]}</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',gap:8,alignItems:'center',marginBottom:3}}>
-<span style={{fontSize:11,fontWeight:700,color:clr}}>{getName(m.sender_id)}</span>
-<span style={{fontSize:8,color:'var(--tx6)',direction:'ltr'}}>{new Date(m.created_at).toLocaleString('ar-SA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
-{isAnn&&<span style={{fontSize:7,fontWeight:700,color:C.blue,background:'rgba(52,131,180,.1)',padding:'1px 6px',borderRadius:4}}>📢 {T('إعلان','Ann.')}</span>}
-{m.is_pinned&&<span style={{fontSize:7,color:C.gold}}>📌</span>}
-</div>
-{replyMsg&&<div style={{padding:'4px 10px',marginBottom:4,borderRadius:8,background:'rgba(255,255,255,.03)',borderRight:'3px solid '+getColor(replyMsg.sender_id),fontSize:10,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-<span style={{fontWeight:700,color:getColor(replyMsg.sender_id),marginLeft:4}}>{getName(replyMsg.sender_id)}</span> {replyMsg.message?.slice(0,60)}
-</div>}
-<div style={{background:isAnn?'rgba(52,131,180,.06)':isMine?clr+'0c':'rgba(255,255,255,.03)',borderRadius:isMine?'14px 4px 14px 14px':'4px 14px 14px 14px',padding:isAnn?'12px 16px':'10px 14px',border:'1px solid '+(isAnn?'rgba(52,131,180,.12)':isMine?clr+'15':'rgba(255,255,255,.04)'),fontSize:isAnn?14:13,lineHeight:1.9,color:'var(--tx2)',fontWeight:isAnn?700:400}}>
-{isFile&&m.file_url?<a href={m.file_url} target="_blank" rel="noopener" style={{color:C.blue,textDecoration:'none',display:'flex',alignItems:'center',gap:6,fontSize:12}}>📎 {m.file_name||m.message}</a>:m.message}
-</div>
-{hoveredMsg===m.id&&<div style={{display:'flex',gap:3,marginTop:3}}>
-<button onClick={()=>setReplyTo(m)} style={{fontSize:8,color:'var(--tx5)',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',borderRadius:5,padding:'2px 8px',cursor:'pointer',fontFamily:'inherit'}}>↩ {T('رد','Reply')}</button>
-<button onClick={()=>togglePin(m)} style={{fontSize:8,color:m.is_pinned?C.gold:'var(--tx5)',background:m.is_pinned?'rgba(201,168,76,.08)':'rgba(255,255,255,.04)',border:'1px solid '+(m.is_pinned?'rgba(201,168,76,.12)':'rgba(255,255,255,.06)'),borderRadius:5,padding:'2px 8px',cursor:'pointer',fontFamily:'inherit'}}>📌</button>
-<button onClick={()=>{navigator.clipboard.writeText(m.message);toast(T('تم النسخ','Copied'))}} style={{fontSize:8,color:'var(--tx5)',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',borderRadius:5,padding:'2px 8px',cursor:'pointer',fontFamily:'inherit'}}>📋</button>
-</div>}
-</div></div>})}
-<div ref={msgEndRef}/>
-</div>}
-
-{/* Reply bar */}
-{replyTo&&<div style={{padding:'8px 20px',background:'rgba(52,131,180,.04)',borderTop:'1px solid rgba(52,131,180,.1)',display:'flex',alignItems:'center',gap:10}}>
-<div style={{flex:1,fontSize:10,color:'var(--tx4)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-↩ <span style={{fontWeight:700,color:getColor(replyTo.sender_id)}}>{getName(replyTo.sender_id)}:</span> {replyTo.message?.slice(0,80)}
-</div>
-<button onClick={()=>setReplyTo(null)} style={{width:22,height:22,borderRadius:6,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,flexShrink:0}}>✕</button>
-</div>}
-
-{/* Input */}
-{(ch!=='direct'||directUser)&&<div style={{padding:'12px 20px',borderTop:'1px solid var(--bd2)',display:'flex',gap:8,alignItems:'center',flexShrink:0}}>
-<input ref={fileRef} type="file" onChange={handleFile} accept="image/*,.pdf,.doc,.docx,.xlsx,.csv" style={{display:'none'}}/>
-<button onClick={()=>fileRef.current?.click()} title={T('مرفق','Attach')} style={{width:40,height:40,borderRadius:10,border:'1px solid rgba(255,255,255,.1)',background:'rgba(255,255,255,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="1.8" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-</button>
-<input value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder={replyTo?T('اكتب ردك...','Type reply...'):ch==='direct'?T('رسالة خاصة...','Private message...'):T('اكتب رسالة...','Type a message...')} style={{flex:1,height:42,padding:'0 16px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:"'Cairo',sans-serif",fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.05)',textAlign:isAr?'right':'left'}}/>
-<button onClick={send} disabled={sending||!txt.trim()} style={{height:42,padding:'0 20px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',opacity:(sending||!txt.trim())?.5:1,display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-{T('إرسال','Send')}</button>
-</div>}
-</div></div>}
+/* ChatPage removed */
 
 function AppointmentsPage({sb,toast,user,lang}){
 const T=(a,e)=>lang==='ar'?a:e;const[data,setData]=useState([]);const[loading,setLoading]=useState(true);const[pop,setPop]=useState(null);

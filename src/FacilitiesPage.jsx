@@ -3,12 +3,12 @@ const F="'Cairo',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#c9a84c',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const fS={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center'}
 const bS={height:38,padding:'0 20px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}
-const sMap={active:C.ok,issue:C.red,suspended:'#e67e22',cancelled:C.red,expired:'#999',inactive:'#999',red:C.red,yellow:'#e67e22',green_low:C.ok,green_mid:C.ok,green_high:C.ok,platinum:C.gold,pending_confirmation:C.gold,revoked:C.red}
+const sMap={active:C.ok,issue:C.red,suspended:'#e67e22',cancelled:C.red,expired:'#999',inactive:'#999',red:C.red,yellow:'#e67e22',green_low:C.ok,green_mid:C.ok,green_high:C.ok,platinum:C.gold,pending_confirmation:C.gold,revoked:C.red,compliant:C.ok,non_compliant:C.red,registered:C.ok,not_registered:'#999',deregistered:C.red,'نشط':C.ok,'نشطة':C.ok,'غير نشط':'#999','غير نشطة':'#999','معلّق':'#e67e22','ملغى':C.red,'منتهي':'#999','مشطوب':C.red,'ضمن فترة التأكيد':C.gold,'بها مشكلة':C.red,'متوافق':C.ok,'غير متوافق':C.red,'مسجّل':C.ok,'غير مسجّل':'#999','نعم':C.ok,'متاحة':C.ok,'مستخدمة':C.blue,'قيد المعالجة':'#e67e22','ملغاة':'#999','منتهية':C.red,'استقدام':C.blue,'نقل كفالة':'#e67e22','دائمة':C.ok,'مؤقتة':'#e67e22'}
 const nm=v=>Number(v||0).toLocaleString('en-US')
 const Badge=({v})=>{const cl=sMap[v]||'#888';return<span style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:6,background:cl+'18',color:cl,display:'inline-flex',alignItems:'center',gap:4}}><span style={{width:5,height:5,borderRadius:'50%',background:cl}}/>{v||'—'}</span>}
 const EditBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
 const DelBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.1)',background:'rgba(192,57,43,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
-const StatCard=({l,v,c,bg,bc})=><div style={{padding:'20px',borderRadius:14,background:bg,border:'1px solid '+bc}}><div style={{fontSize:11,fontWeight:600,color:c,marginBottom:10,opacity:.85}}>{l}</div><div style={{fontSize:32,fontWeight:900,color:c,lineHeight:1}}>{v}</div></div>
+const StatCard=({l,v,c,bg,bc})=><div style={{padding:'12px 16px',borderRadius:12,background:bg,border:'1px solid '+bc,minWidth:120,flex:'1 0 auto',display:'flex',alignItems:'center',gap:10}}><div style={{fontSize:24,fontWeight:900,color:c,lineHeight:1}}>{v}</div><div style={{fontSize:10,fontWeight:600,color:c,opacity:.85,whiteSpace:'nowrap'}}>{l}</div></div>
 const FieldView=({l,v,isStatus})=><div style={{padding:'12px 14px',background:'rgba(255,255,255,.02)',borderBottom:'1px solid var(--bd2)'}}><div style={{fontSize:9,fontWeight:600,color:'var(--tx5)',marginBottom:4}}>{l}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{isStatus?<Badge v={v}/>:String(v)}</div></div>
 const FieldInput=({f,form,setForm,isAr})=>{const v=form[f.k]||'';const set=val=>setForm(p=>({...p,[f.k]:val}))
 return<div style={{gridColumn:f.w?'1/-1':undefined}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx3)',marginBottom:6}}>{f.l}{f.r&&<span style={{color:C.red}}> *</span>}</div>
@@ -26,8 +26,8 @@ const[data,setData]=useState([]);const[owners,setOwners]=useState([]);const[subs
 const[branches,setBranches]=useState([]);const[regions,setRegions]=useState([]);const[cities,setCities]=useState([])
 const[loading,setLoading]=useState(false);const[q,setQ]=useState('');const[statusFilter,setStatusFilter]=useState('all');const[sortBy,setSortBy]=useState('created_at');const[nitaqatFilter,setNitaqatFilter]=useState('all')
 const[page,setPage]=useState(0);const[viewRow,setViewRow]=useState(null);const[viewTab,setViewTab]=useState('basic')
-const[wizard,setWizard]=useState(null);const[saving,setSaving]=useState(false);const[pop,setPop]=useState(null);const[form,setForm]=useState({})
-const PER_PAGE=8
+const[wizard,setWizard]=useState(null);const[saving,setSaving]=useState(false);const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[actionMenu,setActionMenu]=useState(null);const[menuPos,setMenuPos]=useState({x:0,y:0});const[showAdvSearch,setShowAdvSearch]=useState(false);const[visaFilter,setVisaFilter]=useState('all');const[facWorkersData,setFacWorkersData]=useState([]);const[facWorkersLoading,setFacWorkersLoading]=useState(false);const[facDocs,setFacDocs]=useState([]);const[docFilter,setDocFilter]=useState('all');const[facDebts,setFacDebts]=useState([]);const[facViolations,setFacViolations]=useState([]);const[violationFilter,setViolationFilter]=useState('all');const[advFilters,setAdvFilters]=useState({cr_number:'',owner:'',region:'',city:'',gosi_status:'',vat_status:'',mlsd_status:'',mudad_status:'',facility_status:'',nitaqat:''})
+const PER_PAGE=15
 useEffect(()=>{onTabChange&&onTabChange({tab})},[tab])
 
 const load=useCallback(async()=>{setLoading(true)
@@ -45,6 +45,8 @@ sb.from('facility_weekly_stats').select('*').order('week_date',{ascending:false}
 sb.from('facility_visas').select('*').is('deleted_at',null).order('created_at',{ascending:false})
 ]);setData(f.data||[]);setOwners(o.data||[]);setSubs(s.data||[]);setCreds(c.data||[]);setPartners(p.data||[]);setExemptions(ex.data||[]);setBranches(br.data||[]);setRegions(rg.data||[]);setCities(ct.data||[]);setWeeklyStats(ws.data||[]);setVisas(vi.data||[]);setLoading(false)},[sb])
 useEffect(()=>{load()},[load])
+const[occupationsMap,setOccupationsMap]=useState({})
+useEffect(()=>{if(!viewRow)return;setFacWorkersLoading(true);sb.from('workers').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('name_ar').then(({data:d})=>{setFacWorkersData(d||[]);setFacWorkersLoading(false);const occIds=[...new Set((d||[]).map(w=>w.occupation_id).filter(Boolean))];if(occIds.length)sb.from('lookup_items').select('id,value_ar').in('id',occIds).then(({data:o})=>{const m={};(o||[]).forEach(x=>m[x.id]=x.value_ar);setOccupationsMap(p=>({...p,...m}))})});sb.from('facility_documents').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('expiry_date').then(({data:d})=>setFacDocs(d||[]));sb.from('facility_debts').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('due_date').then(({data:d})=>setFacDebts(d||[]));sb.from('facility_violations').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('violation_date',{ascending:false}).then(({data:d})=>setFacViolations(d||[]))},[viewRow,sb])
 
 const del=async(t,id)=>{if(!confirm(T('حذف؟','Delete?')))return;await sb.from(t).update({deleted_at:new Date().toISOString()}).eq('id',id);toast(T('تم الحذف','Deleted'));load()}
 const saveGeneric=async(table,formData)=>{setSaving(true);try{const d={...formData};const id=d._id;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;if(d[k]==='true')d[k]=true;if(d[k]==='false')d[k]=false})
@@ -53,16 +55,21 @@ else{d.created_by=user?.id;const{error}=await sb.from(table).insert(d);if(error)
 setPop(null);load()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
 
 // === Stats ===
-const totalFac=data.length,activeFac=data.filter(r=>r.facility_status==='active'&&r.cr_status==='active').length
-const suspendedFac=data.filter(r=>r.cr_status==='suspended').length,issueFac=data.filter(r=>r.facility_status==='issue').length
-const redNitaqat=data.filter(r=>r.nitaqat_color==='red'||r.nitaqat_color==='yellow').length
-const totalVisas=data.reduce((s,r)=>s+(r.max_visas||0),0),totalWorkers=data.reduce((s,r)=>s+(r.total_workers||0),0),avgSaudi=data.length?Math.round(data.reduce((s,r)=>s+Number(r.saudization_percentage||0),0)/data.length):0
+const totalFac=data.length
+const pendingConfirmFac=data.filter(r=>r.cr_status==='pending_confirmation').length
+const suspendedFac=data.filter(r=>r.cr_status==='suspended').length
+const deletedCrFac=data.filter(r=>r.cr_delete_date!=null).length
+const issueFac=data.filter(r=>r.facility_status==='issue').length
+const soleEstablishments=data.filter(r=>r.legal_form==='sole_proprietorship').length
+const llcOnePerson=data.filter(r=>r.legal_form==='limited_liability'&&r.character_count==='one_person').length
+const llcTwoPlus=data.filter(r=>r.legal_form==='limited_liability'&&r.character_count!=='one_person').length
+const exemptFac=data.filter(r=>r.is_original_exempt===true).length
 const activeSubs=subs.filter(s=>s.subscription_status==='active').length,expiredSubs=subs.filter(s=>s.subscription_status==='expired').length
 const activeCreds=creds.filter(c=>c.status==='active').length,inactiveCreds=creds.filter(c=>c.status!=='active').length
 const exportCSV=()=>{const hdr=['الاسم','الرقم الموحد','السجل التجاري','النطاق','الحالة','العمال','التأشيرات','السعودة%','انتهاء السجل'];const rows=data.map(r=>[r.name_ar,r.unified_national_number,r.cr_number,r.nitaqat_color,r.facility_status,r.total_workers,r.max_visas,r.saudization_percentage,r.cr_expiry_date]);const csv='\uFEFF'+[hdr,...rows].map(r=>r.join(',')).join('\n');const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='facilities_'+new Date().toISOString().slice(0,10)+'.csv';a.click()}
 
 // === Filter ===
-let filtered=data.filter(r=>{if(statusFilter!=='all'&&r.facility_status!==statusFilter)return false;if(nitaqatFilter!=='all'&&r.nitaqat_color!==nitaqatFilter)return false;if(q){const s=q.toLowerCase();return(r.name_ar||'').includes(s)||(r.name_en||'').toLowerCase().includes(s)||(r.cr_number||'').includes(s)||(r.unified_national_number||'').includes(s)};return true})
+let filtered=data.filter(r=>{if(q){const s=q.toLowerCase();if(!((r.name_ar||'').includes(s)||(r.name_en||'').toLowerCase().includes(s)||(r.cr_number||'').includes(s)||(r.unified_national_number||'').includes(s)||(r.qiwa_file_number||'').includes(s)||(r.gosi_file_number||'').includes(s)||(r.mobile||'').includes(s)||(r.email||'').toLowerCase().includes(s)))return false};if(advFilters.facility_status&&r.facility_status!==advFilters.facility_status)return false;if(advFilters.nitaqat&&r.nitaqat_color!==advFilters.nitaqat)return false;if(advFilters.cr_number&&!(r.cr_number||'').includes(advFilters.cr_number))return false;if(advFilters.owner&&r.owner_id!==advFilters.owner)return false;if(advFilters.region&&r.region_id!==advFilters.region)return false;if(advFilters.city&&r.city_id!==advFilters.city)return false;if(advFilters.gosi_status&&r.gosi_status!==advFilters.gosi_status)return false;if(advFilters.vat_status&&r.vat_status!==advFilters.vat_status)return false;if(advFilters.mlsd_status&&r.mlsd_service_status!==advFilters.mlsd_status)return false;if(advFilters.mudad_status&&r.mudad_wps_compliance_status!==advFilters.mudad_status)return false;return true})
 if(sortBy==='name')filtered.sort((a,b)=>(a.name_ar||'').localeCompare(b.name_ar||''))
 else if(sortBy==='workers')filtered.sort((a,b)=>(b.total_workers||0)-(a.total_workers||0))
 const totalPages=Math.ceil(filtered.length/PER_PAGE),paged=filtered.slice(page*PER_PAGE,(page+1)*PER_PAGE)
@@ -153,153 +160,174 @@ const facCreds=viewRow?creds.filter(c=>c.facility_id===viewRow.id):[]
 const facPartners=viewRow?partners.filter(p=>p.facility_id===viewRow.id):[]
 const facExemptions=viewRow?exemptions.filter(e=>e.exempt_facility_id===viewRow.id||e.linked_facility_id===viewRow.id):[]
 
-const tabs=[{id:'facilities',l:'المنشآت',le:'Facilities'},{id:'owners',l:'الملّاك',le:'Owners'},{id:'subs',l:'الاشتراكات',le:'Subscriptions'},{id:'creds',l:'بيانات الدخول',le:'Credentials'}]
+const tabs=[{id:'facilities',l:'المنشآت',le:'Facilities'}]
 const fBtnS=a=>({padding:'6px 14px',borderRadius:8,fontSize:10,fontWeight:a?700:500,color:a?C.gold:'rgba(255,255,255,.4)',background:a?'rgba(201,168,76,.08)':'transparent',border:a?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',whiteSpace:'nowrap'})
 const SearchBar=<div style={{flex:1,minWidth:180,position:'relative'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2" style={{position:'absolute',top:12,[isAr?'right':'left']:12}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input value={q} onChange={e=>{setQ(e.target.value);setPage(0)}} placeholder={T('بحث ...','Search ...')} style={{width:'100%',height:38,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',border:'1.5px solid rgba(255,255,255,.08)',borderRadius:10,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none'}}/></div>
 
 return<div>
-{/* Title + Add */}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-<div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>{T('المنشآت','Facilities')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('إدارة المنشآت والملّاك والاشتراكات وبيانات الدخول','Manage facilities, owners, subscriptions & credentials')}</div></div>
-{tab==='facilities'&&<button onClick={openAdd} style={bS}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{T('منشأة','Facility')}</button>}
-{tab==='owners'&&<button onClick={()=>{setForm({name_ar:'',name_en:'',id_type:'',id_number:'',nationality:'',gender:'',mobile_personal:'',mobile_work:'',email:'',date_of_birth:'',date_of_birth_h:'',is_relative:'false',notes:''});setPop('owner')}} style={bS}>+ {T('مالك','Owner')}</button>}
-{tab==='subs'&&<button onClick={()=>{setForm({facility_id:'',subscription_status:'active',start_date:'',end_date:'',points_balance:'',notes:''});setPop('sub')}} style={bS}>+ {T('اشتراك','Sub')}</button>}
-{tab==='creds'&&<button onClick={()=>{setForm({credential_type:'',owner_id:'',facility_id:'',username:'',password:'',phone_linked:'',email_linked:'',status:'active',platform_url:'',notes:''});setPop('cred')}} style={bS}>+ {T('حساب','Credential')}</button>}
-</div>
 
-{/* Tabs */}
-<div style={{display:'flex',gap:0,marginBottom:22,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}}>{tabs.map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setPage(0);setStatusFilter('all')}} style={{padding:'10px 18px',fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{isAr?t.l:t.le}</div>)}</div>
-
-{/* ═══ FACILITIES TAB ═══ */}
-{tab==='facilities'&&<>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12,marginBottom:22}}>
-<StatCard l={T('إجمالي المنشآت','Total')} v={totalFac} c="rgba(201,168,76,.8)" bg="linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.02))" bc="rgba(201,168,76,.15)"/>
-<StatCard l={T('نشطة ومؤكدة','Active')} v={activeFac} c={C.ok} bg="linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))" bc="rgba(39,160,70,.15)"/>
-<StatCard l={T('معلّقة','Suspended')} v={suspendedFac} c="#e67e22" bg="linear-gradient(135deg,rgba(230,126,34,.08),rgba(230,126,34,.02))" bc="rgba(230,126,34,.15)"/>
-<StatCard l={T('بها مشاكل','Issues')} v={issueFac} c={C.red} bg="linear-gradient(135deg,rgba(192,57,43,.08),rgba(192,57,43,.02))" bc="rgba(192,57,43,.15)"/>
-<StatCard l={T('نطاق خطر','At Risk')} v={redNitaqat} c="#e74c3c" bg="linear-gradient(135deg,rgba(231,76,60,.08),rgba(231,76,60,.02))" bc="rgba(231,76,60,.15)"/>
-<StatCard l={T('تأشيرات متاحة','Visas')} v={totalVisas} c={C.blue} bg="linear-gradient(135deg,rgba(52,131,180,.08),rgba(52,131,180,.02))" bc="rgba(52,131,180,.15)"/>
-<StatCard l={T('متوسط السعودة','Avg Saudi%')} v={avgSaudi+'%'} c={C.ok} bg="linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))" bc="rgba(39,160,70,.15)"/>
+{/* ═══ FACILITIES ═══ */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}}>
+{/* الإجمالي */}
+<div style={{padding:'20px 24px',borderRadius:14,background:'linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.03))',border:'1px solid rgba(201,168,76,.18)',display:'flex',alignItems:'center',gap:16}}>
+<div>
+<div style={{fontSize:13,fontWeight:700,color:C.gold}}>{T('إجمالي المنشآت','Total Facilities')}</div>
+<div style={{fontSize:10,color:'rgba(201,168,76,.5)',marginTop:2}}>{T('مسجّلة في النظام','Registered')}</div>
 </div>
-<div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
+<div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
+<div style={{fontSize:38,fontWeight:900,color:C.gold,lineHeight:1}}>{totalFac}</div>
+{issueFac>0&&<div style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,padding:'2px 8px',borderRadius:5,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.12)'}}><div style={{width:5,height:5,borderRadius:'50%',background:C.red}}/><span style={{fontSize:9,fontWeight:600,color:C.red}}>{issueFac} {T('تحتاج متابعة','need attention')}</span></div>}
+</div>
+</div>
+{/* نوع المنشأة — في المنتصف */}
+<div style={{padding:'20px 18px',borderRadius:14,background:'linear-gradient(135deg,rgba(155,89,182,.08),rgba(155,89,182,.02))',border:'1px solid rgba(155,89,182,.15)'}}>
+<div style={{fontSize:10,fontWeight:600,color:'rgba(155,89,182,.7)',marginBottom:14}}>{T('نوع المنشآت','Facility Types')}</div>
+<div style={{display:'flex',gap:16}}>
+{[{l:T('مؤسسة فردية','Sole Est.'),v:soleEstablishments,c:'#9b59b6'},{l:T('شخص واحد','One Person'),v:llcOnePerson,c:'#1abc9c'},{l:T('شخصين فأكثر','Two+'),v:llcTwoPlus,c:'#3483b4'}].map((s,i)=><div key={i} style={{flex:1,textAlign:'center'}}>
+<div style={{fontSize:22,fontWeight:800,color:s.c,lineHeight:1}}>{s.v}</div>
+<div style={{fontSize:9,fontWeight:600,color:s.c,opacity:.7,marginTop:4}}>{s.l}</div>
+</div>)}
+</div>
+</div>
+{/* حالة السجل */}
+<div style={{padding:'20px 18px',borderRadius:14,background:'linear-gradient(135deg,rgba(52,131,180,.08),rgba(52,131,180,.02))',border:'1px solid rgba(52,131,180,.15)'}}>
+<div style={{fontSize:10,fontWeight:600,color:'rgba(52,131,180,.7)',marginBottom:14}}>{T('حالة السجل التجاري','CR Status')}</div>
+<div style={{display:'flex',gap:16}}>
+{[{l:T('ضمن فترة التأكيد','Pending'),v:pendingConfirmFac,c:C.blue},{l:T('معلّقة','Suspended'),v:suspendedFac,c:'#e67e22'},{l:T('مشطوبة','Deleted'),v:deletedCrFac,c:C.red}].map((s,i)=><div key={i} style={{flex:1,textAlign:'center'}}>
+<div style={{fontSize:22,fontWeight:800,color:s.c,lineHeight:1}}>{s.v}</div>
+<div style={{fontSize:9,fontWeight:600,color:s.c,opacity:.7,marginTop:4}}>{s.l}</div>
+</div>)}
+</div>
+</div>
+</div>
+<div style={{borderTop:'1px solid var(--bd)',paddingTop:16,marginBottom:12}}>
+<div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)'}}>{filtered.length} {T('منشأة','facilities')}</span>
+{filtered.length!==data.length&&<span style={{fontSize:10,color:'var(--tx5)'}}>{T('من أصل','out of')} {data.length}</span>}
+</div>
+</div>
+<div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center'}}>
 {SearchBar}
-<div style={{display:'flex',gap:4}}>{[{v:'all',l:T('الكل','All')},{v:'active',l:T('نشطة','Active')},{v:'issue',l:T('مشاكل','Issues')}].map(f=><div key={f.v} onClick={()=>{setStatusFilter(f.v);setPage(0)}} style={fBtnS(statusFilter===f.v)}>{f.l}</div>)}</div>
-<div style={{display:'flex',gap:3}}>{[{v:'all',l:T('كل النطاقات','All'),c:'#999'},{v:'red',l:T('أحمر','Red'),c:'#e74c3c'},{v:'yellow',l:T('أصفر','Yellow'),c:'#e67e22'},{v:'green_low',l:'G1',c:'#27a046'},{v:'green_mid',l:'G2',c:'#2ecc71'},{v:'green_high',l:'G3',c:'#1abc9c'},{v:'platinum',l:T('بلاتيني','Plat.'),c:'#c9a84c'}].map(f=><div key={f.v} onClick={()=>{setNitaqatFilter(f.v);setPage(0)}} style={{padding:'5px 10px',borderRadius:8,fontSize:10,fontWeight:nitaqatFilter===f.v?700:500,color:nitaqatFilter===f.v?f.c:'rgba(255,255,255,.35)',background:nitaqatFilter===f.v?f.c+'15':'transparent',border:nitaqatFilter===f.v?'1px solid '+f.c+'30':'1px solid rgba(255,255,255,.06)',cursor:'pointer',whiteSpace:'nowrap'}}>{f.v==='all'?f.l:<><span style={{display:'inline-block',width:6,height:6,borderRadius:'50%',background:f.c,marginLeft:4,verticalAlign:'middle'}}/> {f.l}</>}</div>)}</div>
-<select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{height:34,padding:'0 10px',borderRadius:8,border:'1px solid var(--bd)',background:'rgba(255,255,255,.04)',color:'rgba(255,255,255,.6)',fontFamily:F,fontSize:11,outline:'none',cursor:'pointer'}}><option value="created_at">{T('الأحدث','Newest')}</option><option value="name">{T('الاسم','Name')}</option><option value="workers">{T('العمال','Workers')}</option></select>
+<button onClick={()=>setShowAdvSearch(!showAdvSearch)} style={{height:38,padding:'0 14px',borderRadius:10,border:'1px solid '+(showAdvSearch?'rgba(201,168,76,.2)':'rgba(255,255,255,.08)'),background:showAdvSearch?'rgba(201,168,76,.06)':'rgba(255,255,255,.04)',color:showAdvSearch?C.gold:'var(--tx4)',fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>{T('بحث متقدم','Advanced')}</button>
 <button onClick={exportCSV} style={{height:34,padding:'0 12px',borderRadius:8,border:'1px solid rgba(52,131,180,.15)',background:'rgba(52,131,180,.06)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>{T('تصدير','Export')}</button>
 </div>
+{/* Advanced Search Panel */}
+{showAdvSearch&&<div style={{marginBottom:14,padding:'14px 16px',background:'rgba(255,255,255,.02)',borderRadius:12,border:'1px solid rgba(201,168,76,.1)'}}>
+<div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10}}>
+{[
+[T('رقم السجل','CR No.'),'cr_number','text'],
+[T('المالك','Owner'),'owner','select',owners.map(o=>({v:o.id,l:o.name_ar}))],
+[T('المنطقة','Region'),'region','select',regions.map(r=>({v:r.id,l:r.name_ar}))],
+[T('المدينة','City'),'city','select',cities.map(c=>({v:c.id,l:c.name_ar}))],
+[T('التأمينات','GOSI'),'gosi_status','select',[{v:'active',l:T('نشط','Active')},{v:'inactive',l:T('غير نشط','Inactive')}]],
+[T('الضريبة','VAT'),'vat_status','select',[{v:'registered',l:T('مسجّل','Registered')},{v:'not_registered',l:T('غير مسجّل','Not Reg.')}]],
+[T('خدمات العمل','Labor'),'mlsd_status','select',[{v:'active',l:T('نشط','Active')},{v:'suspended',l:T('معلّق','Suspended')}]],
+[T('مدد','Mudad'),'mudad_status','select',[{v:'compliant',l:T('متوافق','Compliant')},{v:'non_compliant',l:T('غير متوافق','Non-Comp.')}]],
+[T('حالة المنشأة','Status'),'facility_status','select',[{v:'active',l:T('نشطة','Active')},{v:'issue',l:T('مشاكل','Issues')}]],
+[T('لون النطاق','Nitaqat'),'nitaqat','select',[{v:'red',l:T('أحمر','Red')},{v:'yellow',l:T('أصفر','Yellow')},{v:'green_low',l:'G1'},{v:'green_mid',l:'G2'},{v:'green_high',l:'G3'},{v:'platinum',l:T('بلاتيني','Platinum')}]]
+].map(([label,key,type,opts],i)=><div key={i}>
+<div style={{fontSize:9,fontWeight:600,color:'var(--tx5)',marginBottom:4}}>{label}</div>
+{type==='text'?<input value={advFilters[key]} onChange={e=>{setAdvFilters(p=>({...p,[key]:e.target.value}));setPage(0)}} style={{width:'100%',height:32,padding:'0 10px',border:'1px solid rgba(255,255,255,.08)',borderRadius:7,fontFamily:F,fontSize:11,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none'}} placeholder="..."/>
+:<select value={advFilters[key]} onChange={e=>{setAdvFilters(p=>({...p,[key]:e.target.value}));setPage(0)}} style={{width:'100%',height:32,padding:'0 8px',border:'1px solid rgba(255,255,255,.08)',borderRadius:7,fontFamily:F,fontSize:10,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none',cursor:'pointer'}}><option value="">{T('الكل','All')}</option>{opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}</select>}
+</div>)}
+</div>
+<button onClick={()=>{setAdvFilters({cr_number:'',owner:'',region:'',city:'',gosi_status:'',vat_status:'',mlsd_status:'',mudad_status:'',facility_status:'',nitaqat:''});setPage(0)}} style={{marginTop:10,height:28,padding:'0 14px',borderRadius:6,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:'var(--tx4)',fontFamily:F,fontSize:10,cursor:'pointer'}}>{T('مسح الفلاتر','Clear Filters')}</button>
+</div>}
 {loading?<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>:filtered.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)'}}>{T('لا توجد نتائج','No results')}</div>:<>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12}}>
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
 {paged.map(r=>{const nClr=sMap[r.nitaqat_color]||'#555';const hasExempt=r.is_original_exempt;const ownCount=partners.filter(p=>p.facility_id===r.id).length||1
 const purposes=[];if(r.purpose_transfer)purposes.push(T('نقل','Transfer'));if(r.purpose_permanent_visa)purposes.push(T('تأشيرة دائمة','Perm. Visa'));if(r.purpose_temporary_visa)purposes.push(T('تأشيرة مؤقتة','Temp. Visa'));if(!purposes.length)purposes.push(T('نقل','Transfer'))
 const typeLabel=r.type==='company'?T('شركة','Company'):T('مؤسسة فردية','Establishment')
 const legalLabel=r.legal_form==='limited_liability'?T('ذ.م.م','LLC'):r.legal_form==='simplified_joint_stock'?T('مساهمة مبسطة','SJS'):''
 const alerts=[];if(r.facility_status==='issue')alerts.push(T('مشكلة','Issue'));if(r.cr_status==='suspended')alerts.push(T('معلّق','Suspended'));if(r.cr_status==='expired')alerts.push(T('منتهي','Expired'))
-return<div key={r.id} onClick={()=>{setViewRow(r);setViewTab('basic')}} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(201,168,76,.2)';e.currentTarget.style.background='#1c1c1c'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.background=C.dk}}>
-<div style={{padding:'16px 18px'}}>
-{/* Name + Icons */}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-<div style={{fontSize:16,fontWeight:800,color:'var(--tx)',flex:1}}>{r.name_ar}</div>
-<div style={{display:'flex',gap:4,flexShrink:0}}>
-<div style={{width:22,height:22,borderRadius:'50%',background:nClr+'20',border:'1.5px solid '+nClr+'40',display:'flex',alignItems:'center',justifyContent:'center'}} title={r.nitaqat_color}><div style={{width:8,height:8,borderRadius:'50%',background:nClr}}/></div>
-{hasExempt&&<div style={{height:22,padding:'0 8px',borderRadius:11,background:'rgba(201,168,76,.1)',border:'1px solid rgba(201,168,76,.15)',display:'flex',alignItems:'center',gap:4}} title={T('إعفاء أسبوعي','Weekly Exemption')}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span style={{fontSize:8,fontWeight:700,color:C.gold}}>{T('معفى','Exempt')}</span></div>}
+return<div key={r.id} data-card onClick={()=>{setViewRow(r);setViewTab('basic')}} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(201,168,76,.2)';e.currentTarget.style.background='#1c1c1c'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.background=C.dk}}>
+<div style={{padding:'18px 20px'}}>
+{/* Name + Menu */}
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+<div style={{width:20,height:20,borderRadius:'50%',background:nClr+'20',border:'1.5px solid '+nClr+'40',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}} title={r.nitaqat_color}><div style={{width:7,height:7,borderRadius:'50%',background:nClr}}/></div>
+<div style={{fontSize:16,fontWeight:800,color:'var(--tx)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name_ar}</div>
+{hasExempt&&<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" style={{flexShrink:0}} title={T('معفى','Exempt')}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
+<button onClick={e=>{e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();setMenuPos({x:rect.right-140,y:rect.bottom+6});setActionMenu(actionMenu===r.id?null:r.id)}} style={{width:32,height:32,borderRadius:8,border:'1px solid rgba(255,255,255,.06)',background:'rgba(255,255,255,.03)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0}} title={T('إجراءات','Actions')}>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
 </div>
-</div>
-{r.name_en&&<div style={{fontSize:10,color:'var(--tx5)',direction:'ltr',marginBottom:12}}>{r.name_en}</div>}
+{r.name_en&&<div style={{fontSize:10,color:'var(--tx4)',marginBottom:12,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textAlign:'right'}}>{r.name_en}</div>}
+{!r.name_en&&<div style={{marginBottom:12}}/>}
 {/* Type badges */}
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:14,flexWrap:'wrap'}}>
+<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:16,flexWrap:'wrap'}}>
 <span style={{fontSize:9,fontWeight:700,padding:'3px 10px',borderRadius:6,background:'rgba(52,131,180,.08)',color:'#3483b4',border:'1px solid rgba(52,131,180,.1)'}}>{typeLabel}</span>
-{legalLabel&&<span style={{fontSize:9,fontWeight:700,padding:'3px 10px',borderRadius:6,background:'rgba(201,168,76,.06)',color:'rgba(201,168,76,.6)',border:'1px solid rgba(201,168,76,.08)'}}>{legalLabel} · {ownCount} {T('ملّاك','owners')}</span>}
-{!legalLabel&&<span style={{fontSize:9,fontWeight:700,padding:'3px 10px',borderRadius:6,background:'rgba(201,168,76,.06)',color:'rgba(201,168,76,.6)',border:'1px solid rgba(201,168,76,.08)'}}>{ownCount} {T('ملّاك','owners')}</span>}
+<span style={{fontSize:9,fontWeight:700,padding:'3px 10px',borderRadius:6,background:'rgba(201,168,76,.06)',color:'rgba(201,168,76,.6)',border:'1px solid rgba(201,168,76,.08)'}}>{ownCount} {T('ملّاك','owners')}</span>
 <span style={{fontSize:9,padding:'3px 10px',borderRadius:6,background:'rgba(39,160,70,.06)',color:'rgba(39,160,70,.6)',border:'1px solid rgba(39,160,70,.08)'}}>{purposes.join(' + ')}</span>
 </div>
 {/* 3 Number boxes with copy */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:10}}>
-{[[r.unified_national_number,T('الرقم الموحد','Unified')],[r.gosi_file_number,T('التأمينات','GOSI')],[r.qiwa_file_number,T('قوى','Qiwa')]].map(([val,label],i)=><div key={i} style={{background:'rgba(255,255,255,.025)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(255,255,255,.03)',position:'relative'}}>
-<div style={{fontSize:7,fontWeight:600,color:'var(--tx6)',marginBottom:4,letterSpacing:.5,textAlign:'center'}}>{label}</div>
-<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-<div style={{fontSize:12,fontWeight:800,color:'rgba(255,255,255,.7)',direction:'ltr'}}>{val||'—'}</div>
-{val&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(val);toast(T('تم النسخ','Copied'))}} style={{width:18,height:18,borderRadius:4,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0}} title={T('نسخ','Copy')}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}
-</div></div>)}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:14}}>
+{[[r.unified_national_number,T('الرقم الموحد','Unified')],[r.gosi_file_number,T('التأمينات','GOSI')],[r.qiwa_file_number,T('قوى','Qiwa')]].map(([val,label],i)=><div key={i} style={{background:'rgba(255,255,255,.025)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(255,255,255,.03)',minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,marginBottom:4}}>
+<span style={{fontSize:8,fontWeight:700,color:'var(--tx4)',letterSpacing:.3}}>{label}</span>
+{val&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(val);toast(T('تم النسخ','Copied'))}} style={{width:16,height:16,borderRadius:4,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0}} title={T('نسخ','Copy')}><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}
+</div>
+<div style={{fontSize:11,fontWeight:800,color:'rgba(255,255,255,.7)',direction:'ltr',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{val||'—'}</div>
+</div>)}
 </div>
 {/* Confirmation date */}
-{r.cr_confirm_date&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginBottom:12,padding:'6px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}>
+{r.cr_confirm_date&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginBottom:14,padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}>
 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
 <span style={{fontSize:9,color:'var(--tx5)'}}>{T('التأكيد السنوي','Annual Confirm')}</span>
 <span style={{fontSize:10,fontWeight:700,color:'var(--tx3)',direction:'ltr'}}>{r.cr_confirm_date}</span>
 </div>}
 {/* Stats row */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6,marginBottom:6}}>
+<div style={{display:'grid',gridTemplateColumns:alerts.length>0?'1fr 1fr 1fr':'1fr 1fr',gap:8,marginBottom:8}}>
 <div style={{background:'rgba(201,168,76,.04)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(201,168,76,.06)',textAlign:'center'}}><div style={{fontSize:7,color:'rgba(201,168,76,.5)',marginBottom:3}}>{T('العمال','Workers')}</div><div style={{fontSize:18,fontWeight:900,color:'rgba(201,168,76,.7)',lineHeight:1}}>{r.total_workers||0}</div></div>
 <div style={{background:'rgba(52,131,180,.04)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(52,131,180,.06)',textAlign:'center'}}><div style={{fontSize:7,color:'rgba(52,131,180,.5)',marginBottom:3}}>{T('التأشيرات','Visas')}</div><div style={{fontSize:18,fontWeight:900,color:'rgba(52,131,180,.7)',lineHeight:1}}>{r.max_visas||0}</div></div>
-<div style={{background:'rgba(39,160,70,.04)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(39,160,70,.06)',textAlign:'center'}}><div style={{fontSize:7,color:'rgba(39,160,70,.5)',marginBottom:3}}>{T('السعودة','Saudi%')}</div><div style={{fontSize:18,fontWeight:900,color:'rgba(39,160,70,.7)',lineHeight:1}}>{Math.round(r.saudization_percentage||0)}%</div></div>
-{alerts.length>0?<div style={{background:'rgba(192,57,43,.04)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(192,57,43,.08)',textAlign:'center'}}><div style={{fontSize:7,color:'rgba(192,57,43,.5)',marginBottom:3}}>{T('تنبيه','Alert')}</div><div style={{fontSize:18,fontWeight:900,color:'rgba(192,57,43,.7)',lineHeight:1}}>{alerts.length}</div></div>
-:<div style={{background:'rgba(155,89,182,.04)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(155,89,182,.06)',textAlign:'center'}}><div style={{fontSize:7,color:'rgba(155,89,182,.5)',marginBottom:3}}>{T('سعودي/أجنبي','S/NS')}</div><div style={{fontSize:12,fontWeight:800,color:'rgba(155,89,182,.7)',lineHeight:1.4}}>{r.saudi_workers||0}/{r.non_saudi_workers||0}</div></div>}
+{alerts.length>0&&<div style={{background:'rgba(192,57,43,.04)',borderRadius:8,padding:'8px 10px',border:'1px solid rgba(192,57,43,.08)',textAlign:'center'}}><div style={{fontSize:7,color:'rgba(192,57,43,.5)',marginBottom:3}}>{T('تنبيه','Alert')}</div><div style={{fontSize:14,fontWeight:800,color:'rgba(192,57,43,.7)',lineHeight:1.2}}>{alerts.join(' · ')}</div></div>}
 </div>
 {r.cr_expiry_date&&(()=>{const dLeft=Math.ceil((new Date(r.cr_expiry_date)-new Date())/(86400000));const expClr=dLeft<0?C.red:dLeft<30?'#e67e22':dLeft<90?C.gold:null;return expClr?<div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,background:expClr+'10',border:'1px solid '+expClr+'20',marginTop:2}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={expClr} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span style={{fontSize:9,fontWeight:700,color:expClr}}>{dLeft<0?T('السجل منتهي!','CR Expired!'):T('السجل ينتهي خلال ','CR expires in ')+dLeft+T(' يوم',' days')}</span></div>:null})()}
+{/* Branch + Actions */}
+<div style={{marginTop:10,borderTop:'1px solid rgba(255,255,255,.04)',paddingTop:10,position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+<span style={{fontSize:9,color:'var(--tx5)',display:'flex',alignItems:'center',gap:4}}>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M6 7V5a2 2 0 012-2h8a2 2 0 012 2v2"/></svg>
+{branches.find(b=>b.id===r.branch_id)?.name_ar||T('بدون مكتب','No branch')}
+</span>
+{actionMenu===r.id&&<><div onClick={e=>{e.stopPropagation();setActionMenu(null)}} style={{position:'fixed',inset:0,zIndex:9998}}/>
+<div onClick={e=>e.stopPropagation()} style={{position:'fixed',top:menuPos.y,left:menuPos.x,width:140,background:'var(--sf)',border:'1px solid rgba(255,255,255,.1)',borderRadius:10,padding:'4px 0',zIndex:9999,boxShadow:'0 12px 40px rgba(0,0,0,.6)',backdropFilter:'blur(12px)'}}>
+{[[T('تعديل','Edit'),C.gold,()=>{openEdit(r);setActionMenu(null)}],
+[T('رفع التعليق','Unsuspend'),C.ok,()=>{sb.from('facilities').update({cr_status:'active',facility_status:'active',updated_by:user?.id}).eq('id',r.id).then(()=>{toast(T('تم رفع التعليق','Unsuspended'));load()});setActionMenu(null)}],
+[T('تجديد السجل','Renew CR'),C.blue,()=>{sb.from('facilities').update({cr_status:'active',cr_confirm_date:new Date(Date.now()+365*86400000).toISOString().slice(0,10),updated_by:user?.id}).eq('id',r.id).then(()=>{toast(T('تم التجديد','Renewed'));load()});setActionMenu(null)}],
+[T('شطب السجل','Delete CR'),'#e67e22',()=>{sb.from('facilities').update({cr_delete_date:new Date().toISOString().slice(0,10),cr_status:'cancelled',updated_by:user?.id}).eq('id',r.id).then(()=>{toast(T('تم الشطب','CR Deleted'));load()});setActionMenu(null)}],
+[T('حذف','Delete'),C.red,()=>{setActionMenu(null);del('facilities',r.id)}]
+].map(([l,c,fn],i)=><button key={i} onClick={fn} style={{width:'100%',height:34,border:'none',background:'transparent',color:c,fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer',textAlign:'right',padding:'0 14px'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>{l}</button>)}
+</div></>}
+</div>
 </div></div>})}</div>
-{totalPages>1&&<div style={{display:'flex',justifyContent:'center',gap:6,marginTop:18}}>{Array.from({length:totalPages},(_,i)=><div key={i} onClick={()=>setPage(i)} style={{width:32,height:32,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:page===i?700:500,color:page===i?C.gold:'rgba(255,255,255,.4)',background:page===i?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',border:page===i?'1px solid rgba(201,168,76,.2)':'1px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{i+1}</div>)}</div>}
-</>}</>}
-
-{/* ═══ OWNERS TAB ═══ */}
-{tab==='owners'&&<>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:12,marginBottom:22}}>
-<StatCard l={T('إجمالي الملّاك','Total')} v={owners.length} c="rgba(201,168,76,.8)" bg="linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.02))" bc="rgba(201,168,76,.15)"/>
-<StatCard l={T('ذكور','Males')} v={owners.filter(o=>o.gender==='male').length} c={C.blue} bg="linear-gradient(135deg,rgba(52,131,180,.08),rgba(52,131,180,.02))" bc="rgba(52,131,180,.15)"/>
-<StatCard l={T('إناث','Females')} v={owners.filter(o=>o.gender==='female').length} c="#9b59b6" bg="linear-gradient(135deg,rgba(155,89,182,.08),rgba(155,89,182,.02))" bc="rgba(155,89,182,.15)"/>
+{totalPages>1&&(()=>{const btnS=(dis)=>({width:30,height:30,borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:dis?'rgba(255,255,255,.15)':'var(--tx4)',cursor:dis?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12});return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:18}}>
+<div style={{flex:1}}/>
+<div style={{display:'flex',gap:4,alignItems:'center'}}>
+<button onClick={()=>setPage(0)} disabled={page===0} style={btnS(page===0)}>{'«'}</button>
+<button onClick={()=>setPage(Math.max(0,page-1))} disabled={page===0} style={btnS(page===0)}>{'‹'}</button>
+<span style={{width:30,height:30,borderRadius:7,border:'1px solid rgba(201,168,76,.3)',background:'rgba(201,168,76,.15)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center'}}>{page+1}</span>
+<button onClick={()=>setPage(Math.min(totalPages-1,page+1))} disabled={page===totalPages-1} style={btnS(page===totalPages-1)}>{'›'}</button>
+<button onClick={()=>setPage(totalPages-1)} disabled={page===totalPages-1} style={btnS(page===totalPages-1)}>{'»'}</button>
 </div>
-<div style={{marginBottom:14}}>{SearchBar}</div>
-<div style={{display:'flex',flexDirection:'column',gap:6}}>
-{filteredOwners.length===0?<div style={{textAlign:'center',padding:50,color:'var(--tx6)'}}>{T('لا يوجد ملّاك','No owners')}</div>:
-filteredOwners.map(r=><div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,padding:'14px 18px',display:'flex',alignItems:'center',gap:14,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(201,168,76,.15)';e.currentTarget.style.background='#1c1c1c'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.background=C.dk}}>
-<div style={{width:42,height:42,borderRadius:12,background:r.gender==='female'?'rgba(155,89,182,.1)':'rgba(52,131,180,.1)',border:'1px solid '+(r.gender==='female'?'rgba(155,89,182,.15)':'rgba(52,131,180,.15)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:800,color:r.gender==='female'?'#9b59b6':C.blue,flexShrink:0}}>{(r.name_ar||'م')[0]}</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}><span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{r.name_ar}</span>{r.name_en&&<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{r.name_en}</span>}<span style={{fontSize:9,fontWeight:600,padding:'2px 8px',borderRadius:5,background:r.gender==='female'?'rgba(155,89,182,.1)':'rgba(52,131,180,.1)',color:r.gender==='female'?'#9b59b6':C.blue}}>{r.gender==='female'?T('أنثى','Female'):T('ذكر','Male')}</span></div>
-<div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>{r.id_number&&<span style={{fontSize:11,color:'var(--tx4)',direction:'ltr'}}>{r.id_number}</span>}{r.mobile_personal&&<span style={{fontSize:11,color:'var(--tx4)',direction:'ltr'}}>{r.mobile_personal}</span>}{r.email&&<span style={{fontSize:11,color:'var(--tx4)',direction:'ltr'}}>{r.email}</span>}</div></div>
-<div style={{display:'flex',gap:4,flexShrink:0}}><EditBtn onClick={()=>{setForm({_id:r.id,name_ar:r.name_ar||'',name_en:r.name_en||'',id_type:r.id_type||'',id_number:r.id_number||'',nationality:r.nationality||'',gender:r.gender||'',mobile_personal:r.mobile_personal||'',mobile_work:r.mobile_work||'',email:r.email||'',date_of_birth:r.date_of_birth||'',date_of_birth_h:r.date_of_birth_h||'',is_relative:String(r.is_relative||false),notes:r.notes||''});setPop('owner')}}/><DelBtn onClick={()=>del('owners',r.id)}/></div>
-</div>)}</div></>}
-
-{/* ═══ SUBS TAB ═══ */}
-{tab==='subs'&&<>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:12,marginBottom:22}}>
-<StatCard l={T('الإجمالي','Total')} v={subs.length} c="rgba(201,168,76,.8)" bg="linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.02))" bc="rgba(201,168,76,.15)"/>
-<StatCard l={T('نشطة','Active')} v={activeSubs} c={C.ok} bg="linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))" bc="rgba(39,160,70,.15)"/>
-<StatCard l={T('منتهية','Expired')} v={expiredSubs} c={C.red} bg="linear-gradient(135deg,rgba(192,57,43,.08),rgba(192,57,43,.02))" bc="rgba(192,57,43,.15)"/>
-</div>
-<div style={{marginBottom:14}}>{SearchBar}</div>
-<div style={{display:'flex',flexDirection:'column',gap:6}}>{filteredSubs.length===0?<div style={{textAlign:'center',padding:50,color:'var(--tx6)'}}>{T('لا توجد اشتراكات','No subscriptions')}</div>:filteredSubs.map(r=>{const fac=data.find(f=>f.id===r.facility_id);return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,padding:'14px 18px',display:'flex',alignItems:'center',gap:14,transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.15)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}>
-<div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:'var(--tx2)',marginBottom:4}}>{fac?.name_ar||T('منشأة','Facility')}</div><div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}><Badge v={r.subscription_status}/><span style={{fontSize:10,color:'var(--tx4)',direction:'ltr'}}>{r.start_date||'—'} → {r.end_date||'—'}</span>{r.points_balance>0&&<span style={{fontSize:10,color:C.gold}}>{r.points_balance} {T('نقطة','pts')}</span>}</div>{r.notes&&<div style={{fontSize:10,color:'var(--tx6)',marginTop:4}}>{r.notes}</div>}</div>
-<div style={{display:'flex',gap:4,flexShrink:0}}><EditBtn onClick={()=>{setForm({_id:r.id,facility_id:r.facility_id||'',subscription_status:r.subscription_status||'',start_date:r.start_date||'',end_date:r.end_date||'',points_balance:r.points_balance||'',notes:r.notes||''});setPop('sub')}}/><DelBtn onClick={()=>del('facility_subscriptions',r.id)}/></div></div>})}</div></>}
-
-{/* ═══ CREDS TAB ═══ */}
-{tab==='creds'&&<>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:12,marginBottom:22}}>
-<StatCard l={T('الإجمالي','Total')} v={creds.length} c="rgba(201,168,76,.8)" bg="linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.02))" bc="rgba(201,168,76,.15)"/>
-<StatCard l={T('نشطة','Active')} v={activeCreds} c={C.ok} bg="linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))" bc="rgba(39,160,70,.15)"/>
-<StatCard l={T('معطّلة','Inactive')} v={inactiveCreds} c={C.red} bg="linear-gradient(135deg,rgba(192,57,43,.08),rgba(192,57,43,.02))" bc="rgba(192,57,43,.15)"/>
-</div>
-<div style={{marginBottom:14}}>{SearchBar}</div>
-<div style={{display:'flex',flexDirection:'column',gap:6}}>{filteredCreds.length===0?<div style={{textAlign:'center',padding:50,color:'var(--tx6)'}}>{T('لا توجد بيانات','No credentials')}</div>:filteredCreds.map(r=>{const fac=data.find(f=>f.id===r.facility_id);const own=owners.find(o=>o.id===r.owner_id);return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,padding:'14px 18px',display:'flex',alignItems:'center',gap:14,transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.15)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}>
-<div style={{flex:1}}><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}><span style={{fontSize:13,fontWeight:700,color:'var(--tx2)'}}>{r.credential_type?.toUpperCase()}</span><Badge v={r.status}/></div><div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>{r.username&&<span style={{fontSize:11,color:'var(--tx4)',direction:'ltr'}}>{r.username}</span>}{fac&&<span style={{fontSize:10,color:'var(--tx5)'}}>{fac.name_ar}</span>}{own&&<span style={{fontSize:10,color:'var(--tx5)'}}>{own.name_ar}</span>}</div></div>
-<div style={{display:'flex',gap:4,flexShrink:0}}><EditBtn onClick={()=>{setForm({_id:r.id,credential_type:r.credential_type||'',owner_id:r.owner_id||'',facility_id:r.facility_id||'',username:r.username||'',password:r.password||'',phone_linked:r.phone_linked||'',email_linked:r.email_linked||'',status:r.status||'',platform_url:r.platform_url||'',notes:r.notes||''});setPop('cred')}}/><DelBtn onClick={()=>del('platform_credentials',r.id)}/></div></div>})}</div></>}
+<div style={{flex:1,display:'flex',justifyContent:'flex-end'}}><span style={{fontSize:10,color:'var(--tx5)'}}>{T('عرض','Showing')} {page*PER_PAGE+1}-{Math.min((page+1)*PER_PAGE,filtered.length)} {T('من','of')} {filtered.length}</span></div>
+</div>})()}
+</>}
 
 {/* ═══ VIEW FACILITY POPUP — Side Tabs ═══ */}
-{viewRow&&(()=>{const facWorkers=[];const facVisas=visas.filter(v=>v.facility_id===viewRow.id);const facWeekly=weeklyStats.filter(w=>w.facility_id===viewRow.id);const nClr=sMap[viewRow.nitaqat_color]||'#555'
+{viewRow&&(()=>{const facWorkers=facWorkersData;const facVisas=visas.filter(v=>v.facility_id===viewRow.id);const facWeekly=weeklyStats.filter(w=>w.facility_id===viewRow.id);const nClr=sMap[viewRow.nitaqat_color]||'#555'
 const resolve=(k,v)=>{if(k==='branch_id')return branches.find(b=>b.id===v)?.name_ar||v;if(k==='owner_id'||k==='gosi_owner_id')return owners.find(o=>o.id===v)?.name_ar||v;if(k==='region_id')return regions.find(r=>r.id===v)?.name_ar||v;if(k==='city_id')return cities.find(c=>c.id===v)?.name_ar||v;if(k==='parent_facility_id')return data.find(f=>f.id===v)?.name_ar||v;return v}
 const InfoBox=({l,v,copy,isSt})=><div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:isSt?(sMap[v]||'rgba(255,255,255,.85)'):'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{isSt?<Badge v={v}/>:v}</div>{copy&&v&&v!=='—'&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast(T('تم النسخ','Copied'))}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}</div></div>
-const vtabs=[{id:'basic',l:T('البيانات الأساسية','Basic Info')},{id:'cr',l:T('السجل التجاري','Commercial Reg.')},{id:'fpartners',l:T('الملّاك','Owners'),n:facPartners.length},{id:'fworkers',l:T('العمال','Workers'),n:viewRow.total_workers||0},{id:'fvisas',l:T('التأشيرات','Visas'),n:facVisas.length},{id:'weekly',l:T('السجل الأسبوعي','Weekly Log'),n:facWeekly.length},{id:'fsubs',l:T('الاشتراكات','Subscriptions'),n:facSubs.length},{id:'fcreds',l:T('بيانات الدخول','Credentials'),n:facCreds.length}]
+const vtabs=[{id:'basic',l:T('البيانات الأساسية','Basic Info')},{id:'fpartners',l:T('الملّاك والشركاء','Owners & Partners'),n:facPartners.length},{id:'fworkers',l:T('العمال','Workers'),n:facWorkers.length},{id:'fvisas',l:T('تأشيرات العمل','Work Visas'),n:facVisas.length},{id:'weekly',l:T('السجل الأسبوعي','Weekly Log'),n:facWeekly.length},{id:'fdebts',l:T('المديونيات والمخالفات','Debts & Violations'),n:facDebts.length+facViolations.length},{id:'fsubs',l:T('الاشتراكات','Subscriptions'),n:facSubs.length},{id:'fcreds',l:T('بيانات الدخول','Credentials'),n:facCreds.length},{id:'fdocs',l:T('المستندات','Documents'),n:facDocs.length}]
 return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(920px,95vw)',maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.15)'}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(920px,95vw)',height:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.15)'}}>
 {/* Header */}
 <div style={{background:'var(--bg)',padding:'16px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(201,168,76,.12)'}}>
 <div style={{display:'flex',alignItems:'center',gap:12}}>
 <div style={{width:44,height:44,borderRadius:12,background:'rgba(201,168,76,.08)',border:'1.5px solid rgba(201,168,76,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:900,color:C.gold,flexShrink:0}}>{(viewRow.name_ar||'م')[0]}</div>
 <div>
-<div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:17,fontWeight:800,color:'var(--tx)'}}>{viewRow.name_ar}</span><Badge v={viewRow.facility_status}/><div style={{width:18,height:18,borderRadius:'50%',background:nClr+'20',border:'1.5px solid '+nClr+'40',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{width:6,height:6,borderRadius:'50%',background:nClr}}/></div></div>
-<div style={{fontSize:10,color:'var(--tx5)',marginTop:2,direction:'ltr'}}>{viewRow.name_en||''} · {viewRow.type==='company'?T('شركة','Company'):T('مؤسسة','Establishment')}{viewRow.legal_form==='limited_liability'?' · '+T('ذ.م.م','LLC'):''}</div>
+<div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:17,fontWeight:800,color:'var(--tx)'}}>{viewRow.name_ar}</span><Badge v={{active:T('نشطة','Active'),issue:T('بها مشكلة','Issue'),inactive:T('غير نشطة','Inactive'),deleted:T('محذوفة','Deleted')}[viewRow.facility_status]||viewRow.facility_status}/><div style={{width:18,height:18,borderRadius:'50%',background:nClr+'20',border:'1.5px solid '+nClr+'40',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{width:6,height:6,borderRadius:'50%',background:nClr}}/></div></div>
+{viewRow.name_en&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{viewRow.name_en}</div>}
 </div></div>
 <div style={{display:'flex',gap:6}}>
-<button onClick={()=>{setViewRow(null);openEdit(viewRow)}} style={{height:32,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.08)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>{T('تعديل','Edit')}</button>
 <button onClick={()=>{if(confirm(T('حذف؟','Delete?'))){del('facilities',viewRow.id);setViewRow(null)}}} style={{height:32,padding:'0 12px',borderRadius:8,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.06)',color:C.red,fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>{T('حذف','Delete')}</button>
 <button onClick={()=>setViewRow(null)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
 </div></div>
@@ -312,137 +340,459 @@ return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,backg
 {/* Content */}
 <div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}>
 
-{viewTab==='basic'&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<InfoBox l={T('النوع','Type')} v={viewRow.type==='company'?T('شركة','Company'):T('مؤسسة فردية','Establishment')}/>
-<InfoBox l={T('الشكل القانوني','Legal Form')} v={viewRow.legal_form||'—'}/>
-<InfoBox l={T('الحالة','Status')} v={viewRow.facility_status} isSt/>
-<InfoBox l={T('رأس المال','Capital')} v={viewRow.capital?nm(viewRow.capital)+' '+T('ر.س','SAR'):'—'}/>
-<InfoBox l={T('المكتب','Branch')} v={resolve('branch_id',viewRow.branch_id)||'—'}/>
-<InfoBox l={T('المالك','Owner')} v={resolve('owner_id',viewRow.owner_id)||'—'}/>
-<InfoBox l={T('المنطقة','Region')} v={resolve('region_id',viewRow.region_id)||'—'}/>
-<InfoBox l={T('المدينة','City')} v={resolve('city_id',viewRow.city_id)||'—'}/>
-<InfoBox l={T('الجوال','Phone')} v={viewRow.mobile||'—'} copy/>
-<InfoBox l={T('البريد','Email')} v={viewRow.email||'—'} copy/>
-{viewRow.address_ar&&<div style={{gridColumn:'1/-1'}}><InfoBox l={T('العنوان','Address')} v={viewRow.address_ar}/></div>}
-</div>}
-
-{viewTab==='cr'&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+{viewTab==='basic'&&<div style={{display:'flex',flexDirection:'column',gap:22}}>
+{/* 1. السجل التجاري */}
+<div>
+<div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h6M8 15h4"/></svg>{T('السجل التجاري','Commercial Reg.')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
 <InfoBox l={T('الرقم الموحد','Unified No.')} v={viewRow.unified_national_number||'—'} copy/>
-<InfoBox l={T('رقم السجل','CR No.')} v={viewRow.cr_number||'—'} copy/>
-<InfoBox l={T('حالة السجل','CR Status')} v={viewRow.cr_status} isSt/>
-<InfoBox l={T('سجل رئيسي','Main CR')} v={viewRow.is_main_cr?T('نعم','Yes'):T('لا','No')}/>
+<InfoBox l={T('رقم السجل','CR Number')} v={viewRow.cr_number||'—'} copy/>
+<InfoBox l={T('حالة السجل','CR Status')} v={{active:T('نشط','Active'),pending_confirmation:T('ضمن فترة التأكيد','Pending'),suspended:T('معلّق','Suspended'),cancelled:T('ملغى','Cancelled'),expired:T('منتهي','Expired'),deleted:T('مشطوب','Deleted')}[viewRow.cr_status]||viewRow.cr_status||'—'} isSt/>
 <InfoBox l={T('تاريخ الإصدار','Issue Date')} v={viewRow.cr_issue_date||'—'}/>
-<InfoBox l={T('تاريخ التصديق','Confirm Date')} v={viewRow.cr_confirm_date||'—'}/>
-<InfoBox l={T('تاريخ الانتهاء','Expiry Date')} v={viewRow.cr_expiry_date||'—'}/>
-{viewRow.cr_delete_date&&<InfoBox l={T('تاريخ الشطب','Delete Date')} v={viewRow.cr_delete_date}/>}
-{viewRow.cr_version_no&&<InfoBox l={T('رقم النسخة','Version')} v={viewRow.cr_version_no}/>}
+<InfoBox l={T('تاريخ التأكيد السنوي','Annual Confirm')} v={viewRow.cr_confirm_date||'—'}/>
+<InfoBox l={T('سجل رئيسي','Main CR')} v={viewRow.is_main_cr?T('نعم','Yes'):T('لا','No')}/>
+</div>
+</div>
+{/* 2. أرقام الملفات الحكومية */}
+<div>
+<div style={{fontSize:11,fontWeight:700,color:'#9b59b6',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{T('أرقام الملفات الحكومية','Gov. File Numbers')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
 <InfoBox l={T('ملف قوى','Qiwa File')} v={viewRow.qiwa_file_number||'—'} copy/>
-<InfoBox l={T('ملف التأمينات','GOSI File')} v={viewRow.gosi_file_number||'—'} copy/>
+<InfoBox l={T('ملف التأمينات الاجتماعية','GOSI File')} v={viewRow.gosi_file_number||'—'} copy/>
 {viewRow.chamber_membership_no&&<InfoBox l={T('الغرفة التجارية','Chamber')} v={viewRow.chamber_membership_no} copy/>}
 {viewRow.subl_file_number&&<InfoBox l={T('سُبل','Subl')} v={viewRow.subl_file_number} copy/>}
-{viewRow.vat_number&&<InfoBox l={T('ض.ق.م','VAT')} v={viewRow.vat_number} copy/>}
-{viewRow.zakat_unique_number&&<InfoBox l={T('الرقم المميز','Zakat')} v={viewRow.zakat_unique_number} copy/>}
-{viewRow.cr_activities&&<div style={{gridColumn:'1/-1'}}><InfoBox l={T('الأنشطة','Activities')} v={viewRow.cr_activities}/></div>}
+</div>
+</div>
+{/* 3. معلومات المنشأة */}
+<div>
+<div style={{fontSize:11,fontWeight:700,color:C.blue,marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><rect x="3" y="8" width="18" height="14" rx="2"/><path d="M7 8V4a2 2 0 012-2h6a2 2 0 012 2v4"/></svg>{T('معلومات المنشأة','Facility Info')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:8}}>
+<InfoBox l={T('النوع','Type')} v={viewRow.type==='company'?T('شركة','Company'):T('مؤسسة فردية','Establishment')}/>
+<InfoBox l={T('الشكل القانوني','Legal Form')} v={{sole_proprietorship:T('مؤسسة فردية','Sole Proprietorship'),limited_liability:T('ذات مسؤولية محدودة','LLC'),simplified_joint_stock:T('مساهمة مبسطة','Simplified Joint Stock'),general_partnership:T('تضامن','General Partnership'),limited_partnership:T('توصية بسيطة','Limited Partnership'),joint_stock:T('مساهمة','Joint Stock')}[viewRow.legal_form]||'—'}/>
+<InfoBox l={T('الحالة','Status')} v={{active:T('نشطة','Active'),issue:T('بها مشكلة','Issue'),inactive:T('غير نشطة','Inactive'),deleted:T('محذوفة','Deleted')}[viewRow.facility_status]||viewRow.facility_status||'—'} isSt/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+<InfoBox l={T('رأس المال','Capital')} v={viewRow.capital?nm(viewRow.capital)+' '+T('ر.س','SAR'):'—'}/>
+<div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}>
+<div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{T('الأغراض','Purposes')}</div>
+<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+{viewRow.purpose_transfer&&<span style={{fontSize:9,fontWeight:600,padding:'3px 10px',borderRadius:5,background:'rgba(26,188,156,.08)',color:'#1abc9c',border:'1px solid rgba(26,188,156,.12)'}}>{T('نقل خدمات','Transfer')}</span>}
+{viewRow.purpose_permanent_visa&&<span style={{fontSize:9,fontWeight:600,padding:'3px 10px',borderRadius:5,background:'rgba(52,131,180,.08)',color:C.blue,border:'1px solid rgba(52,131,180,.12)'}}>{T('تأشيرة دائمة','Permanent Visa')}</span>}
+{viewRow.purpose_temporary_visa&&<span style={{fontSize:9,fontWeight:600,padding:'3px 10px',borderRadius:5,background:'rgba(201,168,76,.08)',color:C.gold,border:'1px solid rgba(201,168,76,.12)'}}>{T('تأشيرة مؤقتة','Temporary Visa')}</span>}
+{!viewRow.purpose_transfer&&!viewRow.purpose_permanent_visa&&!viewRow.purpose_temporary_visa&&<span style={{fontSize:9,color:'var(--tx6)'}}>—</span>}
+</div>
+</div>
+</div>
+</div>
+{/* 5. الموقع والعنوان */}
+<div>
+<div style={{fontSize:11,fontWeight:700,color:'#1abc9c',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1abc9c" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>{T('الموقع والعنوان','Location & Address')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+<InfoBox l={T('المنطقة','Region')} v={resolve('region_id',viewRow.region_id)||'—'}/>
+<InfoBox l={T('المدينة','City')} v={resolve('city_id',viewRow.city_id)||'—'}/>
+<InfoBox l={T('العنوان المختصر','Short Address')} v={viewRow.short_address||'—'} copy/>
+<InfoBox l={T('الرمز البريدي','Postal Code')} v={viewRow.postal_code||'—'}/>
+</div>
+</div>
+{/* 6. الامتثال */}
+<div>
+<div style={{fontSize:11,fontWeight:700,color:'#e67e22',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e67e22" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>{T('الامتثال','Compliance')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+<InfoBox l={T('حالة التأمينات الاجتماعية','Social Insurance')} v={{active:T('نشط','Active'),inactive:T('غير نشط','Inactive')}[viewRow.gosi_status]||'—'} isSt/>
+<InfoBox l={T('خدمات العمل','Labor Services')} v={{active:T('نشط','Active'),suspended:T('معلّق','Suspended')}[viewRow.mlsd_service_status]||'—'} isSt/>
+<InfoBox l={T('حماية الأجور (مدد)','Wage Protection (Mudad)')} v={{compliant:T('متوافق','Compliant'),non_compliant:T('غير متوافق','Non-Compliant')}[viewRow.mudad_wps_compliance_status]||'—'} isSt/>
+{viewRow.is_original_exempt&&<InfoBox l={T('إعفاء أصلي','Original Exempt')} v={T('نعم','Yes')}/>}
+</div>
+</div>
+{/* 7. الالتزامات المالية الحكومية */}
+{(viewRow.vat_number||viewRow.zakat_unique_number||viewRow.vat_status)&&<div>
+<div style={{fontSize:11,fontWeight:700,color:'#e74c3c',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>{T('الالتزامات المالية الحكومية','Gov. Financial Obligations')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+<InfoBox l={T('رقم ضريبة القيمة المضافة','VAT Number')} v={viewRow.vat_number||'—'} copy/>
+<InfoBox l={T('الرقم المميز للزكاة','Zakat Unique No.')} v={viewRow.zakat_unique_number||'—'} copy/>
+<InfoBox l={T('رصيد الزكاة المستحق','Zakat Balance')} v={viewRow.zakat_outstanding_balance?nm(viewRow.zakat_outstanding_balance)+' '+T('ر.س','SAR'):'—'}/>
+</div>
+</div>}
+{/* 7. ملاحظات */}
+{viewRow.notes&&<div>
+<div style={{fontSize:11,fontWeight:700,color:'var(--tx4)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>{T('ملاحظات','Notes')}</div>
+<div style={{padding:'12px 16px',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)',fontSize:12,color:'var(--tx3)',lineHeight:1.8,whiteSpace:'pre-wrap'}}>{viewRow.notes}</div>
+</div>}
 </div>}
 
-{viewTab==='fpartners'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>{facPartners.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا يوجد ملّاك/شركاء','No partners')}</div>:facPartners.map(p=>{const own=owners.find(o=>o.id===p.owner_id);return<div key={p.id} style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)',display:'flex',alignItems:'center',gap:12}}>
-<div style={{width:38,height:38,borderRadius:10,background:'rgba(52,131,180,.1)',border:'1px solid rgba(52,131,180,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:800,color:C.blue,flexShrink:0}}>{(own?.name_ar||'م')[0]}</div>
-<div style={{flex:1}}><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}><span style={{fontSize:13,fontWeight:700,color:'var(--tx2)'}}>{own?.name_ar||T('مالك','Owner')}</span>{p.is_manager&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.1)',padding:'2px 8px',borderRadius:5,fontWeight:700}}>{T('مدير','Manager')}</span>}<Badge v={p.status}/></div>
-{p.ownership_percentage&&<span style={{fontSize:11,color:'var(--tx4)'}}>{T('نسبة الملكية','Ownership')}: <span style={{fontWeight:700,color:'rgba(255,255,255,.6)'}}>{p.ownership_percentage}%</span></span>}
-</div></div>})}</div>}
-
-{viewTab==='fworkers'&&<div style={{textAlign:'center',padding:40}}>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:20}}>
-<div style={{background:'rgba(201,168,76,.04)',borderRadius:10,padding:'16px',border:'1px solid rgba(201,168,76,.06)'}}><div style={{fontSize:9,color:'rgba(201,168,76,.5)',marginBottom:6}}>{T('إجمالي العمال','Total')}</div><div style={{fontSize:28,fontWeight:900,color:'rgba(201,168,76,.7)'}}>{viewRow.total_workers||0}</div></div>
-<div style={{background:'rgba(39,160,70,.04)',borderRadius:10,padding:'16px',border:'1px solid rgba(39,160,70,.06)'}}><div style={{fontSize:9,color:'rgba(39,160,70,.5)',marginBottom:6}}>{T('سعوديين','Saudis')}</div><div style={{fontSize:28,fontWeight:900,color:'rgba(39,160,70,.7)'}}>{viewRow.saudi_workers||0}</div></div>
-<div style={{background:'rgba(52,131,180,.04)',borderRadius:10,padding:'16px',border:'1px solid rgba(52,131,180,.06)'}}><div style={{fontSize:9,color:'rgba(52,131,180,.5)',marginBottom:6}}>{T('غير سعوديين','Non-Saudis')}</div><div style={{fontSize:28,fontWeight:900,color:'rgba(52,131,180,.7)'}}>{viewRow.non_saudi_workers||0}</div></div>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<InfoBox l={T('نسبة السعودة','Saudization')} v={viewRow.saudization_percentage?viewRow.saudization_percentage+'%':'—'}/>
-<InfoBox l={T('حد رخص العمل','Max Permits')} v={viewRow.max_work_permits||'—'}/>
-<InfoBox l={T('نطاقات','Nitaqat')} v={viewRow.nitaqat_color} isSt/>
-<InfoBox l={T('حجم نطاقات','Nitaqat Size')} v={viewRow.nitaqat_size||'—'}/>
-</div></div>}
-
-{viewTab==='fvisas'&&<div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:20}}>
-<div style={{background:'rgba(52,131,180,.04)',borderRadius:10,padding:'16px',border:'1px solid rgba(52,131,180,.06)'}}><div style={{fontSize:9,color:'rgba(52,131,180,.5)',marginBottom:6}}>{T('متاحة','Available')}</div><div style={{fontSize:28,fontWeight:900,color:'rgba(52,131,180,.7)'}}>{facVisas.filter(v=>v.status==='available').length}</div></div>
-<div style={{background:'rgba(39,160,70,.04)',borderRadius:10,padding:'16px',border:'1px solid rgba(39,160,70,.06)'}}><div style={{fontSize:9,color:'rgba(39,160,70,.5)',marginBottom:6}}>{T('مستخدمة','Used')}</div><div style={{fontSize:28,fontWeight:900,color:'rgba(39,160,70,.7)'}}>{facVisas.filter(v=>v.status==='used').length}</div></div>
-<div style={{background:'rgba(192,57,43,.04)',borderRadius:10,padding:'16px',border:'1px solid rgba(192,57,43,.06)'}}><div style={{fontSize:9,color:'rgba(192,57,43,.5)',marginBottom:6}}>{T('ملغاة','Cancelled')}</div><div style={{fontSize:28,fontWeight:900,color:'rgba(192,57,43,.7)'}}>{facVisas.filter(v=>v.status==='cancelled').length}</div></div>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-<InfoBox l={T('حد التأشيرات','Max Visas')} v={viewRow.max_visas||'—'}/>
-<InfoBox l={T('الأغراض','Purposes')} v={[viewRow.purpose_transfer&&T('نقل','Transfer'),viewRow.purpose_permanent_visa&&T('دائمة','Perm.'),viewRow.purpose_temporary_visa&&T('مؤقتة','Temp.')].filter(Boolean).join(' · ')||'—'}/>
-</div>
-{facVisas.length>0?<div style={{display:'flex',flexDirection:'column',gap:6}}>{facVisas.map(v=><div key={v.id} style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'12px 16px',border:'1px solid rgba(255,255,255,.03)',display:'flex',alignItems:'center',gap:12}}>
-<div style={{flex:1}}><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>{v.visa_number&&<span style={{fontSize:12,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.visa_number}</span>}<Badge v={v.status}/>{v.visa_type&&<span style={{fontSize:9,color:'var(--tx5)',background:'rgba(255,255,255,.04)',padding:'2px 6px',borderRadius:4}}>{v.visa_type}</span>}</div>
-<div style={{display:'flex',gap:10,fontSize:10,color:'var(--tx4)'}}>
-{v.border_number&&<span style={{direction:'ltr'}}>{T('حدود:','Border:')} {v.border_number}</span>}
-{v.issue_date&&<span>{T('إصدار:','Issue:')} {v.issue_date}</span>}
-{v.expiry_date&&<span>{T('انتهاء:','Expiry:')} {v.expiry_date}</span>}
-</div></div>
-<DelBtn onClick={()=>del('facility_visas',v.id)}/>
-</div>)}</div>:<div style={{textAlign:'center',padding:30,color:'var(--tx6)'}}>{T('لا توجد تأشيرات','No visas')}</div>}
-</div>}
-
-{viewTab==='weekly'&&<div>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-<div style={{fontSize:12,fontWeight:600,color:'var(--tx4)'}}>{facWeekly.length} {T('سجل','records')}</div>
-<button onClick={()=>{const last=facWeekly[0]||{};const today=new Date().toISOString().split('T')[0];setForm({_table:'weekly',facility_id:viewRow.id,week_date:today,nitaqat_color:last.nitaqat_color||viewRow.nitaqat_color||'',nitaqat_size:last.nitaqat_size||viewRow.nitaqat_size||'',total_workers:last.total_workers??'',saudi_workers:last.saudi_workers??'',non_saudi_workers:last.non_saudi_workers??'',total_workers_in_nitaqat:last.total_workers_in_nitaqat??'',saudization_percentage:last.saudization_percentage??'',contract_auth_pct:last.contract_auth_pct??'',wps_compliance_pct:last.wps_compliance_pct??'',authenticated_count:last.authenticated_count??'',unauthenticated_count:last.unauthenticated_count??'',has_weekly_exemption:String(last.has_weekly_exemption||false),gosi_total_contributors:last.gosi_total_contributors??'',gosi_saudi_contributors:last.gosi_saudi_contributors??'',gosi_non_saudi_contributors:last.gosi_non_saudi_contributors??'',gosi_active_contributors:last.gosi_active_contributors??'',gosi_non_active_contributors:last.gosi_non_active_contributors??'',gosi_total_contributions:last.gosi_total_contributions??'',gosi_total_debit:last.gosi_total_debit??'',gosi_penalties:last.gosi_penalties??'',gosi_total_obligations:last.gosi_total_obligations??'',mudad_wps_compliance_pct:last.mudad_wps_compliance_pct??'',ajeer_borrowed_workers_count:last.ajeer_borrowed_workers_count??'',ajeer_active_contracts:last.ajeer_active_contracts??''});setPop('weekly_add')}} style={{...bS,height:32,padding:'0 14px',fontSize:10}}>+ {T('إضافة سجل','Add Record')}</button>
-</div>
-{facWeekly.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا توجد بيانات أسبوعية بعد','No weekly data yet')}</div>:
-<div style={{display:'flex',flexDirection:'column',gap:10}}>
-{facWeekly.slice(0,12).map(w=><div key={w.id} style={{background:'rgba(255,255,255,.025)',borderRadius:12,padding:'16px',border:'1px solid rgba(255,255,255,.04)'}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+{viewTab==='fpartners'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gold,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><circle cx="9" cy="7" r="4"/><path d="M2 21v-1a5 5 0 0114 0v1"/><circle cx="19" cy="7" r="2"/><path d="M22 21v-1a3 3 0 00-3-3"/></svg>{T('الملّاك والشركاء','Owners & Partners')} ({facPartners.length})</div>
+{facPartners.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا يوجد ملّاك/شركاء','No partners')}</div>:facPartners.map(p=>{const own=owners.find(o=>o.id===p.owner_id);const ownerFac=p.owner_facility_id?data.find(f=>f.id===p.owner_facility_id):null;const isFacPartner=p.partner_type==='facility'&&ownerFac;return<div key={p.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'18px 20px',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{display:'flex',alignItems:'center',gap:14,marginBottom:12}}>
+<div style={{width:42,height:42,borderRadius:12,background:isFacPartner?'linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.04))':'linear-gradient(135deg,rgba(52,131,180,.12),rgba(52,131,180,.04))',border:'1px solid '+(isFacPartner?'rgba(201,168,76,.15)':'rgba(52,131,180,.15)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:900,color:isFacPartner?C.gold:C.blue,flexShrink:0}}>{isFacPartner?(ownerFac.name_ar||'م')[0]:(own?.name_ar||'م')[0]}</div>
+<div style={{flex:1}}>
 <div style={{display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{w.week_date}</span>
-{w.nitaqat_color&&<Badge v={w.nitaqat_color}/>}
+<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{isFacPartner?ownerFac.name_ar:(own?.name_ar||T('مالك','Owner'))}</span>
+{p.is_manager&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.1)',padding:'3px 10px',borderRadius:6,fontWeight:700}}>{T('مدير','Manager')}</span>}
+<span style={{fontSize:9,fontWeight:600,padding:'3px 8px',borderRadius:5,background:isFacPartner?'rgba(201,168,76,.08)':'rgba(52,131,180,.08)',color:isFacPartner?C.gold:C.blue,border:'1px solid '+(isFacPartner?'rgba(201,168,76,.12)':'rgba(52,131,180,.12)')}}>{isFacPartner?T('منشأة','Facility'):T('شخص','Person')}</span>
+</div>
+{isFacPartner?ownerFac.name_en&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{ownerFac.name_en}</div>:own?.name_en&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{own.name_en}</div>}
+</div>
+{p.ownership_percentage&&<div style={{textAlign:'center'}}><div style={{fontSize:20,fontWeight:800,color:C.gold}}>{p.ownership_percentage}%</div><div style={{fontSize:8,color:'var(--tx5)'}}>{T('الملكية','Ownership')}</div></div>}
+</div>
+{isFacPartner?<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('الرقم الموحد','Unified No.')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{ownerFac.unified_national_number||'—'}</div></div>
+<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('رقم السجل','CR Number')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{ownerFac.cr_number||'—'}</div></div>
+</div>:<>
+{/* البيانات الشخصية */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:8}}>
+{own?.id_number&&<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('رقم الهوية','ID Number')}</div><div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{own.id_number}</span><button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(own.id_number);toast(T('تم النسخ','Copied'))}} style={{width:18,height:18,borderRadius:4,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div></div>}
+<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ الميلاد','Date of Birth')}</div><div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{own?.date_of_birth||'—'}</span>{own?.date_of_birth&&<span style={{fontSize:8,fontWeight:700,color:C.gold,background:'rgba(201,168,76,.08)',padding:'1px 6px',borderRadius:4}}>{Math.floor((Date.now()-new Date(own.date_of_birth).getTime())/(365.25*86400000))} {T('سنة','y')}</span>}</div>{own?.date_of_birth_h&&<div style={{fontSize:9,color:'var(--tx5)',marginTop:3,direction:'ltr'}}>{own.date_of_birth_h} {T('هـ','H')}</div>}</div>
+{own?.gender&&<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('الجنس','Gender')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)'}}>{own.gender==='male'?T('ذكر','Male'):own.gender==='female'?T('أنثى','Female'):own.gender}</div></div>}
+</div>
+{/* التواصل */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+{own?.mobile_work&&<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('جوال العمل','Work Phone')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{own.mobile_work}</div></div>}
+{own?.mobile_personal&&<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('الجوال الشخصي','Personal Phone')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{own.mobile_personal}</div></div>}
+</div>
+</>}
+{p.notes&&<div style={{marginTop:8,padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)',fontSize:10,color:'var(--tx4)'}}>{p.notes}</div>}
+</div>})}</div>}
+
+{viewTab==='fworkers'&&(()=>{const expiredIqama=facWorkers.filter(w=>w.iqama_expiry_date&&new Date(w.iqama_expiry_date)<new Date()).length;const expiredWP=facWorkers.filter(w=>w.qiwa_contract_expiry_date&&new Date(w.qiwa_contract_expiry_date)<new Date()).length;const flagMap={'سعودي':'🇸🇦','سعودية':'🇸🇦','مصري':'🇪🇬','باكستاني':'🇵🇰','بنغلاديشي':'🇧🇩','هندي':'🇮🇳','فلبيني':'🇵🇭','إندونيسي':'🇮🇩','سوداني':'🇸🇩','إثيوبي':'🇪🇹','يمني':'🇾🇪','سوري':'🇸🇾','أردني':'🇯🇴','نيبالي':'🇳🇵','سريلانكي':'🇱🇰','ميانمار':'🇲🇲','كيني':'🇰🇪','أوغندي':'🇺🇬','تركي':'🇹🇷','مغربي':'🇲🇦','تونسي':'🇹🇳','أفغاني':'🇦🇫'};const dateStatus=(d)=>{if(!d)return null;const diff=Math.ceil((new Date(d)-new Date())/(86400000));return diff<0?'expired':diff<30?'warning':'ok'};return<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{/* إحصائيات */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8}}>
+{[[T('الإجمالي','Total'),facWorkers.length,C.gold],[T('سعوديين','Saudis'),facWorkers.filter(w=>w.nationality==='سعودي'||w.nationality==='سعودية').length,C.ok],[T('رخص عمل منتهية','Expired WP'),expiredWP,expiredWP>0?C.red:'#555'],[T('إقامات منتهية','Expired Iqama'),expiredIqama,expiredIqama>0?C.red:'#555']].map(([l,v,c],i)=>
+<div key={i} style={{background:c+'08',borderRadius:10,padding:'12px 10px',border:'1px solid '+c+'15',textAlign:'center'}}>
+<div style={{fontSize:8,color:c,opacity:.7,marginBottom:4}}>{l}</div>
+<div style={{fontSize:20,fontWeight:900,color:c,lineHeight:1}}>{v}</div>
+</div>)}
+</div>
+{/* قائمة العمال */}
+<div style={{fontSize:11,fontWeight:700,color:C.gold,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>{T('العمال','Workers')} ({facWorkers.length})</div>
+{facWorkersLoading?<div style={{textAlign:'center',padding:30,color:'var(--tx5)'}}>...</div>:
+facWorkers.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا يوجد عمال','No workers')}</div>:
+<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{facWorkers.map(w=>{const iqSt=dateStatus(w.iqama_expiry_date);const wpSt=dateStatus(w.qiwa_contract_expiry_date);const stClr=(st)=>st==='expired'?C.red:st==='warning'?'#e67e22':'var(--tx2)';const stBg=(st)=>st==='expired'?'rgba(192,57,43,.04)':st==='warning'?'rgba(230,126,34,.04)':'rgba(255,255,255,.02)';const stBd=(st)=>st==='expired'?'rgba(192,57,43,.1)':st==='warning'?'rgba(230,126,34,.1)':'rgba(255,255,255,.03)'
+return<div key={w.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'16px 18px',border:'1px solid '+(iqSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
+{/* هيدر */}
+<div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+<div style={{width:44,height:44,borderRadius:'50%',background:'linear-gradient(135deg,rgba(52,131,180,.12),rgba(52,131,180,.04))',border:'2px solid rgba(52,131,180,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:C.blue,flexShrink:0}}>{(w.name_ar||'ع')[0]}</div>
+<div style={{flex:1}}>
+<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+{w.nationality&&<img src={'https://flagcdn.com/20x15/'+({'سعودي':'sa','سعودية':'sa','مصري':'eg','باكستاني':'pk','بنغلاديشي':'bd','هندي':'in','فلبيني':'ph','إندونيسي':'id','سوداني':'sd','إثيوبي':'et','يمني':'ye','سوري':'sy','أردني':'jo','نيبالي':'np','سريلانكي':'lk','ميانمار':'mm','كيني':'ke','أوغندي':'ug','تركي':'tr','مغربي':'ma','تونسي':'tn','أفغاني':'af'}[w.nationality]||'xx')+'.png'} alt={w.nationality} title={w.nationality} style={{width:20,height:15,borderRadius:2,objectFit:'cover'}} onError={e=>{e.target.style.display='none'}}/>}
+<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{w.name_ar}</span>
+{w.worker_number&&<span style={{fontSize:9,color:'var(--tx5)',fontWeight:500}}>{w.worker_number}</span>}
+<Badge v={{active:T('نشط','Active'),inactive:T('غير نشط','Inactive'),transferred:T('منقول','Transferred'),final_exit:T('خروج نهائي','Final Exit')}[w.worker_status]||w.worker_status||'—'}/>
+{w.outside_kingdom&&<span style={{fontSize:8,fontWeight:700,padding:'2px 8px',borderRadius:4,background:'rgba(192,57,43,.08)',color:C.red,border:'1px solid rgba(192,57,43,.12)'}}>{T('خارج المملكة','Outside KSA')}</span>}
+</div>
+{w.name_en&&<div style={{fontSize:9,color:'var(--tx5)',marginTop:2}}>{w.name_en}</div>}
+</div>
+</div>
+{/* صف أول: الإقامة | المهنة | الجوال */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('رقم الإقامة','Iqama')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{w.iqama_number||'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المهنة','Occupation')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{occupationsMap[w.occupation_id]||'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('الجوال','Phone')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{w.phone||'—'}</div></div>
+</div>
+{/* صف ثاني: انتهاء الإقامة | انتهاء رخصة العمل | التأمين */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('اشتراك التأمينات','GOSI Subscription')}</div><div style={{fontSize:11,fontWeight:700}}><Badge v={{active:T('نشط','Active'),inactive:T('غير نشط','Inactive')}[w.gosi_status]||w.gosi_status||'—'}/></div></div>
+<div style={{padding:'8px 10px',background:stBg(wpSt),borderRadius:8,border:'1px solid '+stBd(wpSt)}}><div style={{fontSize:7,color:stClr(wpSt),marginBottom:3,display:'flex',alignItems:'center',gap:4}}>{T('انتهاء رخصة العمل','WP Expiry')}{wpSt==='expired'&&<span style={{fontSize:7,fontWeight:700,color:C.red,background:'rgba(192,57,43,.1)',padding:'0 4px',borderRadius:3}}>{T('منتهية','Expired')}</span>}</div><div style={{fontSize:11,fontWeight:700,color:stClr(wpSt),direction:'ltr'}}>{w.qiwa_contract_expiry_date||'—'}</div></div>
+<div style={{padding:'8px 10px',background:stBg(iqSt),borderRadius:8,border:'1px solid '+stBd(iqSt)}}><div style={{fontSize:7,color:stClr(iqSt),marginBottom:3,display:'flex',alignItems:'center',gap:4}}>{T('انتهاء الإقامة','Iqama Expiry')}{iqSt==='expired'&&<span style={{fontSize:7,fontWeight:700,color:C.red,background:'rgba(192,57,43,.1)',padding:'0 4px',borderRadius:3}}>{T('منتهية','Expired')}</span>}</div><div style={{fontSize:11,fontWeight:700,color:stClr(iqSt),direction:'ltr'}}>{w.iqama_expiry_date||'—'}</div></div>
+</div>
+{/* صف ثالث: الراتب | طريقة الانضمام */}
+<div style={{display:'grid',gridTemplateColumns:w.broker_id?'1fr 1fr 1fr':'1fr 1fr',gap:6}}>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('راتب التأمينات','GOSI Salary')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{w.gosi_salary?nm(w.gosi_salary)+' '+T('ر.س','SAR'):'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('طريقة الانضمام','Joining Method')}</div><div>{w.joining_method?<span style={{fontSize:9,fontWeight:700,padding:'3px 10px',borderRadius:5,background:w.joining_method==='transfer'?'rgba(230,126,34,.08)':'rgba(52,131,180,.08)',color:w.joining_method==='transfer'?'#e67e22':C.blue,border:'1px solid '+(w.joining_method==='transfer'?'rgba(230,126,34,.12)':'rgba(52,131,180,.12)')}}>{w.joining_method==='transfer'?T('نقل كفالة','Transfer'):w.joining_method==='recruitment'?T('استقدام','Recruitment'):w.joining_method==='visa'?T('تأشيرة','Visa'):w.joining_method}</span>:<span style={{fontSize:11,color:'var(--tx2)'}}>—</span>}</div></div>
+{w.broker_id&&<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('الوسيط','Broker')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{w.broker_id}</div></div>}
+</div>
+</div>})}
+</div>}
+</div>})()}
+
+{viewTab==='fvisas'&&(()=>{const vAvail=facVisas.filter(v=>v.status==='available').length;const vUsed=facVisas.filter(v=>v.status==='used').length;const vProc=facVisas.filter(v=>v.status==='processing').length;const vExpired=facVisas.filter(v=>v.expiry_date&&new Date(v.expiry_date)<new Date()&&v.status!=='cancelled').length;const vCanc=facVisas.filter(v=>v.status==='cancelled').length;const filteredVisas=visaFilter==='all'?facVisas:visaFilter==='expired'?facVisas.filter(v=>v.expiry_date&&new Date(v.expiry_date)<new Date()&&v.status!=='cancelled'):facVisas.filter(v=>v.status===visaFilter);const vDateSt=(d)=>{if(!d)return null;const diff=Math.ceil((new Date(d)-new Date())/(86400000));return diff<0?'expired':diff<30?'warning':'ok'};const vStLabel={'available':T('متاحة','Available'),'used':T('مستخدمة','Used'),'processing':T('قيد المعالجة','Processing'),'cancelled':T('ملغاة','Cancelled')};const vStClr={'available':C.ok,'used':C.blue,'processing':'#e67e22','cancelled':'#999'};return<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{/* إحصائيات */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr',gap:8}}>
+{[[T('متاحة','Available'),vAvail,C.ok],[T('مستخدمة','Used'),vUsed,C.blue],[T('قيد المعالجة','Processing'),vProc,vProc>0?'#e67e22':'#555'],[T('منتهية الصلاحية','Expired'),vExpired,vExpired>0?C.red:'#555'],[T('ملغاة','Cancelled'),vCanc,'#999']].map(([l,v,c],i)=>
+<div key={i} style={{background:c+'08',borderRadius:10,padding:'10px 6px',border:'1px solid '+c+'15',textAlign:'center'}}>
+<div style={{fontSize:7,color:c,opacity:.7,marginBottom:4}}>{l}</div>
+<div style={{fontSize:18,fontWeight:900,color:c,lineHeight:1}}>{v}</div>
+</div>)}
+</div>
+{/* فلتر */}
+<div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+{[['all',T('الكل','All')],['available',T('متاحة','Available')],['used',T('مستخدمة','Used')],['processing',T('قيد المعالجة','Processing')],['expired',T('منتهية','Expired')],['cancelled',T('ملغاة','Cancelled')]].map(([k,l])=><div key={k} onClick={()=>setVisaFilter(k)} style={{padding:'5px 12px',borderRadius:8,fontSize:10,fontWeight:visaFilter===k?700:500,color:visaFilter===k?C.gold:'rgba(255,255,255,.4)',background:visaFilter===k?'rgba(201,168,76,.08)':'transparent',border:visaFilter===k?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{l}</div>)}
+</div>
+{/* القائمة */}
+{filteredVisas.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="1.5" style={{marginBottom:8}}><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+<div>{T('لا توجد تأشيرات عمل','No work visas')}</div>
+</div>:
+<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{filteredVisas.map(v=>{const expSt=vDateSt(v.expiry_date);const linkedWorker=v.worker_id?facWorkers.find(w=>w.id===v.worker_id):null;return<div key={v.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'16px 18px',border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
+{/* هيدر */}
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)',direction:'ltr'}}>{v.visa_number||'—'}</span>
+{v.visa_type&&<span style={{fontSize:9,fontWeight:600,padding:'3px 8px',borderRadius:5,background:'rgba(255,255,255,.05)',color:'var(--tx4)',border:'1px solid rgba(255,255,255,.06)'}}>{v.visa_type}</span>}
+<Badge v={vStLabel[v.status]||v.status}/>
+<div style={{flex:1}}/>
+<DelBtn onClick={()=>del('facility_visas',v.id)}/>
+</div>
+{/* صف أول: الحدود | المهنة | الجنسية */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('رقم الحدود','Border No.')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.border_number||'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المهنة','Occupation')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{v.occupation||'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('الجنسية','Nationality')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{v.nationality||'—'}</div></div>
+</div>
+{/* صف ثاني: مدينة السفارة | المدة | تاريخ الإصدار */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('مدينة السفارة','Embassy City')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{v.embassy_city||'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المدة','Duration')}</div><div><Badge v={v.duration_type==='permanent'?T('دائمة','Permanent'):T('مؤقتة','Temporary')}/></div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('تاريخ الإصدار','Issue Date')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.issue_date||'—'}</div></div>
+</div>
+{/* صف ثالث: تاريخ الانتهاء */}
+<div style={{display:'grid',gridTemplateColumns:'1fr',gap:6}}>
+<div style={{padding:'8px 10px',background:expSt==='expired'?'rgba(192,57,43,.04)':expSt==='warning'?'rgba(230,126,34,.04)':'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.1)':expSt==='warning'?'rgba(230,126,34,.1)':'rgba(255,255,255,.03)')}}><div style={{fontSize:7,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx5)',marginBottom:3,display:'flex',alignItems:'center',gap:4}}>{T('تاريخ الانتهاء','Expiry Date')}{expSt==='expired'&&<span style={{fontSize:7,fontWeight:700,color:C.red,background:'rgba(192,57,43,.1)',padding:'0 4px',borderRadius:3}}>{T('منتهية','Expired')}</span>}</div><div style={{fontSize:11,fontWeight:700,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx2)',direction:'ltr'}}>{v.expiry_date||'—'}</div></div>
+</div>
+{/* العامل المرتبط */}
+{linkedWorker&&<div style={{marginTop:8,padding:'8px 12px',background:'rgba(52,131,180,.04)',borderRadius:8,border:'1px solid rgba(52,131,180,.08)',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}} onClick={()=>setViewTab('fworkers')}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>
+<span style={{fontSize:10,fontWeight:600,color:C.blue}}>{linkedWorker.name_ar}</span>
+<span style={{fontSize:9,color:'var(--tx5)'}}>{linkedWorker.worker_number}</span>
+</div>}
+</div>})}
+</div>}
+</div>})()}
+
+{viewTab==='weekly'&&(()=>{const last=facWeekly[0];const nitaqatAr={'red':T('أحمر','Red'),'yellow':T('أصفر','Yellow'),'green_low':T('أخضر منخفض','Green Low'),'green_mid':T('أخضر متوسط','Green Mid'),'green_high':T('أخضر عالي','Green High'),'platinum':T('بلاتيني','Platinum')};const diff=(cur,prev,k)=>{if(!prev||cur==null||prev[k]==null)return null;const d=Number(cur)-Number(prev[k]);return d===0?null:d};const diffIcon=(d)=>d>0?<span style={{color:C.ok,fontSize:9,marginRight:2}}>↑</span>:<span style={{color:C.red,fontSize:9,marginRight:2}}>↓</span>;const pctClr=(v,threshold)=>v!=null&&v<threshold?v<60?C.red:'#e67e22':'var(--tx3)';return<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{/* إحصائيات آخر سجل */}
+{last&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+<div style={{background:(sMap[last.nitaqat_color]||'#555')+'08',borderRadius:10,padding:'12px 10px',border:'1px solid '+(sMap[last.nitaqat_color]||'#555')+'15',textAlign:'center'}}>
+<div style={{fontSize:8,color:sMap[last.nitaqat_color]||'#555',opacity:.7,marginBottom:4}}>{T('النطاق الحالي','Current Nitaqat')}</div>
+<div style={{fontSize:16,fontWeight:900,color:sMap[last.nitaqat_color]||'#555'}}>{nitaqatAr[last.nitaqat_color]||last.nitaqat_color||'—'}</div>
+</div>
+<div style={{background:(last.saudization_percentage!=null&&last.saudization_percentage<20?C.red:C.ok)+'08',borderRadius:10,padding:'12px 10px',border:'1px solid '+(last.saudization_percentage!=null&&last.saudization_percentage<20?C.red:C.ok)+'15',textAlign:'center'}}>
+<div style={{fontSize:8,color:last.saudization_percentage!=null&&last.saudization_percentage<20?C.red:C.ok,opacity:.7,marginBottom:4}}>{T('نسبة السعودة','Saudization')}</div>
+<div style={{fontSize:20,fontWeight:900,color:last.saudization_percentage!=null&&last.saudization_percentage<20?C.red:C.ok}}>{last.saudization_percentage!=null?last.saudization_percentage+'%':'—'}</div>
+</div>
+<div style={{background:(pctClr(last.contract_auth_pct,80)==='var(--tx3)'?C.ok:pctClr(last.contract_auth_pct,80))+'08',borderRadius:10,padding:'12px 10px',border:'1px solid '+(pctClr(last.contract_auth_pct,80)==='var(--tx3)'?C.ok:pctClr(last.contract_auth_pct,80))+'15',textAlign:'center'}}>
+<div style={{fontSize:8,color:pctClr(last.contract_auth_pct,80)==='var(--tx3)'?C.ok:pctClr(last.contract_auth_pct,80),opacity:.7,marginBottom:4}}>{T('توثيق العقود','Contract Auth')}</div>
+<div style={{fontSize:20,fontWeight:900,color:pctClr(last.contract_auth_pct,80)==='var(--tx3)'?C.ok:pctClr(last.contract_auth_pct,80)}}>{last.contract_auth_pct!=null?last.contract_auth_pct+'%':'—'}</div>
+</div>
+</div>}
+{/* العنوان + إضافة */}
+<div style={{fontSize:11,fontWeight:700,color:C.gold,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>{T('السجل الأسبوعي','Weekly Log')} ({facWeekly.length})</div>
+{/* القائمة */}
+{facWeekly.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد بيانات أسبوعية بعد','No weekly data yet')}</div>:
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{facWeekly.slice(0,20).map((w,idx)=>{const prev=facWeekly[idx+1];return<div key={w.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.04)'}}>
+{/* هيدر */}
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{w.week_date}</span>
+<Badge v={nitaqatAr[w.nitaqat_color]||w.nitaqat_color||'—'}/>
 {w.has_weekly_exemption&&<span style={{fontSize:8,fontWeight:700,color:C.gold,background:'rgba(201,168,76,.1)',padding:'2px 6px',borderRadius:4}}>{T('معفى','Exempt')}</span>}
+<div style={{flex:1}}/>
+<span style={{fontSize:10,fontWeight:700,color:w.saudization_percentage!=null&&w.saudization_percentage<20?C.red:C.ok}}>{w.saudization_percentage!=null?w.saudization_percentage+'%':''}</span>
 </div>
-<span style={{fontSize:10,color:'var(--tx5)'}}>{w.saudization_percentage!=null?w.saudization_percentage+'%':''} {T('سعودة','')}</span>
+{/* العمالة — 3 مجموعات */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:8}}>
+{/* إجمالي */}
+<div style={{padding:'8px 6px',borderRadius:7,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.03)'}}>
+<div style={{fontSize:7,color:'var(--tx5)',marginBottom:4,textAlign:'center'}}>{T('إجمالي العمال','Total Workers')}</div>
+<div style={{display:'flex',justifyContent:'space-around'}}>
+{[[T('إجمالي','Total'),'total_workers','rgba(255,255,255,.6)'],[T('سعوديين','Saudi'),'saudi_workers',C.ok],[T('غير سعوديين','Non-Saudi'),'non_saudi_workers',C.blue]].map(([l,k,c],i)=>{const d=diff(w[k],prev,k);return<div key={i} style={{textAlign:'center'}}>
+<div style={{fontSize:13,fontWeight:800,color:c,display:'flex',alignItems:'center',justifyContent:'center',gap:1}}>{d!=null&&diffIcon(d)}{w[k]??'—'}</div>
+<div style={{fontSize:6,color:'var(--tx6)'}}>{l}</div>
+</div>})}
 </div>
-<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:10}}>
-{[
-[T('إجمالي','Total'),w.total_workers,'rgba(255,255,255,.6)'],
-[T('سعوديين','Saudis'),w.saudi_workers,C.ok],
-[T('غير سعوديين','Non-Saudi'),w.non_saudi_workers,C.blue],
-[T('في نطاقات','In Nitaqat'),w.total_workers_in_nitaqat,C.gold]
-].map(([l,v,c],i)=><div key={i} style={{textAlign:'center',padding:'8px 4px',borderRadius:8,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.03)'}}>
-<div style={{fontSize:8,color:'var(--tx5)',marginBottom:3}}>{l}</div>
-<div style={{fontSize:16,fontWeight:800,color:c}}>{v??'—'}</div>
+</div>
+{/* في نطاقات */}
+<div style={{padding:'8px 6px',borderRadius:7,background:'rgba(201,168,76,.03)',border:'1px solid rgba(201,168,76,.06)'}}>
+<div style={{fontSize:7,color:C.gold,opacity:.7,marginBottom:4,textAlign:'center'}}>{T('محسوبين في نطاقات','Counted in Nitaqat')}</div>
+<div style={{display:'flex',justifyContent:'space-around'}}>
+{[[T('إجمالي','Total'),'total_workers_in_nitaqat',C.gold],[T('سعوديين','Saudi'),'gosi_saudi_contributors',C.ok],[T('غير سعوديين','Non-Saudi'),'gosi_non_saudi_contributors',C.blue]].map(([l,k,c],i)=>{const d=diff(w[k],prev,k);return<div key={i} style={{textAlign:'center'}}>
+<div style={{fontSize:13,fontWeight:800,color:c,display:'flex',alignItems:'center',justifyContent:'center',gap:1}}>{d!=null&&diffIcon(d)}{w[k]??'—'}</div>
+<div style={{fontSize:6,color:'var(--tx6)'}}>{l}</div>
+</div>})}
+</div>
+</div>
+{/* التأمينات */}
+<div style={{padding:'8px 6px',borderRadius:7,background:'rgba(52,131,180,.03)',border:'1px solid rgba(52,131,180,.06)'}}>
+<div style={{fontSize:7,color:C.blue,opacity:.7,marginBottom:4,textAlign:'center'}}>{T('التأمينات الاجتماعية','Social Insurance')}</div>
+<div style={{display:'flex',justifyContent:'space-around'}}>
+{[[T('إجمالي','Total'),'gosi_total_contributors',C.blue],[T('نشيطين','Active'),'gosi_active_contributors',C.ok],[T('غير نشيطين','Inactive'),'gosi_non_active_contributors','#e67e22']].map(([l,k,c],i)=>{const d=diff(w[k],prev,k);return<div key={i} style={{textAlign:'center'}}>
+<div style={{fontSize:13,fontWeight:800,color:c,display:'flex',alignItems:'center',justifyContent:'center',gap:1}}>{d!=null&&diffIcon(d)}{w[k]??'—'}</div>
+<div style={{fontSize:6,color:'var(--tx6)'}}>{l}</div>
+</div>})}
+</div>
+</div>
+</div>
+{/* التفاصيل — 6 أعمدة مدمجة */}
+<div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:4}}>
+{[[T('توثيق العقود','Contracts'),w.contract_auth_pct!=null?w.contract_auth_pct+'%':'—',pctClr(w.contract_auth_pct,80)],
+[T('حماية الأجور','WPS'),w.wps_compliance_pct!=null?w.wps_compliance_pct+'%':'—',pctClr(w.wps_compliance_pct,80)],
+[T('مدد','Mudad'),w.mudad_wps_compliance_pct!=null?w.mudad_wps_compliance_pct+'%':'—',pctClr(w.mudad_wps_compliance_pct,80)],
+[T('مشتركين','GOSI'),w.gosi_total_contributors??'—','var(--tx3)'],
+[T('مديونية','Debt'),w.gosi_total_debit??'—',w.gosi_total_debit>0?C.red:'var(--tx3)'],
+[T('أجير','Ajeer'),w.ajeer_active_contracts??'—','var(--tx3)']
+].map(([l,v,c],i)=><div key={i} style={{padding:'4px 6px',background:'rgba(255,255,255,.015)',borderRadius:5,border:'1px solid rgba(255,255,255,.02)',textAlign:'center'}}>
+<div style={{fontSize:7,color:'var(--tx6)',marginBottom:1}}>{l}</div>
+<div style={{fontSize:10,fontWeight:700,color:c}}>{v}</div>
 </div>)}
 </div>
-<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,fontSize:9}}>
-{[
-[T('توثيق العقود','Contract Auth'),w.contract_auth_pct!=null?w.contract_auth_pct+'%':'—'],
-[T('حماية الأجور','WPS'),w.wps_compliance_pct!=null?w.wps_compliance_pct+'%':'—'],
-[T('مدد','Mudad'),w.mudad_wps_compliance_pct!=null?w.mudad_wps_compliance_pct+'%':'—'],
-[T('مشتركين التأمينات','GOSI Total'),w.gosi_total_contributors??'—'],
-[T('مديونية التأمينات','GOSI Debit'),w.gosi_total_debit??'—'],
-[T('أجير','Ajeer'),w.ajeer_active_contracts??'—']
-].map(([l,v],i)=><div key={i} style={{padding:'6px 8px',background:'rgba(255,255,255,.015)',borderRadius:6,border:'1px solid rgba(255,255,255,.025)'}}>
-<div style={{color:'var(--tx6)',marginBottom:2}}>{l}</div>
-<div style={{color:'var(--tx3)',fontWeight:700,fontSize:11}}>{v}</div>
+</div>})}
+</div>}
+</div>})()}
+
+{viewTab==='fsubs'&&(()=>{const activeSbs=facSubs.filter(s=>s.subscription_status==='active').length;const expiredSbs=facSubs.filter(s=>s.subscription_status==='expired'||(s.end_date&&new Date(s.end_date)<new Date())).length;const totalAmount=facSubs.reduce((sum,s)=>sum+Number(s.amount_paid||0),0);const subDateSt=(d)=>{if(!d)return null;const diff=Math.ceil((new Date(d)-new Date())/(86400000));return diff<0?'expired':diff<90?'warning':'ok'};const payLabel={'bank_transfer':T('تحويل بنكي','Bank Transfer'),'sadad':T('سداد','Sadad'),'credit_card':T('بطاقة ائتمان','Credit Card')};return<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{/* إحصائيات */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+{[[T('نشطة','Active'),activeSbs,C.ok],[T('منتهية','Expired'),expiredSbs,expiredSbs>0?C.red:'#555'],[T('إجمالي المبالغ','Total Paid'),nm(totalAmount)+' '+T('ر.س','SAR'),C.gold]].map(([l,v,c],i)=>
+<div key={i} style={{background:c+'08',borderRadius:10,padding:'12px 10px',border:'1px solid '+c+'15',textAlign:'center'}}>
+<div style={{fontSize:8,color:c,opacity:.7,marginBottom:4}}>{l}</div>
+<div style={{fontSize:i===2?14:20,fontWeight:900,color:c,lineHeight:1}}>{v}</div>
 </div>)}
+</div>
+{/* القائمة */}
+{facSubs.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد اشتراكات','No subscriptions')}</div>:facSubs.map(s=>{const endSt=subDateSt(s.end_date);const remaining=s.end_date?Math.ceil((new Date(s.end_date)-new Date())/(86400000)):null;const stClr=endSt==='expired'?C.red:endSt==='warning'?'#e67e22':'var(--tx2)';return<div key={s.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'16px 18px',border:'1px solid '+(endSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
+{/* هيدر */}
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{s.subscription_type==='muqeem'?T('اشتراك مقيم','Muqeem'):T('اشتراك قوى','Qiwa')}</span>
+<Badge v={{active:T('نشط','Active'),expired:T('منتهي','Expired'),pending:T('معلّق','Pending')}[s.subscription_status]||s.subscription_status}/>
+{s.points_balance>0&&<span style={{fontSize:9,fontWeight:700,color:C.gold,background:'rgba(201,168,76,.08)',padding:'2px 8px',borderRadius:5,border:'1px solid rgba(201,168,76,.12)'}}>{s.points_balance} {T('نقطة','pts')}</span>}
+</div>
+{/* صف أول: البداية | الانتهاء | المتبقي */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('تاريخ البداية','Start Date')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{s.start_date||'—'}</div></div>
+<div style={{padding:'8px 10px',background:endSt==='expired'?'rgba(192,57,43,.04)':endSt==='warning'?'rgba(230,126,34,.04)':'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid '+(endSt==='expired'?'rgba(192,57,43,.1)':endSt==='warning'?'rgba(230,126,34,.1)':'rgba(255,255,255,.03)')}}><div style={{fontSize:7,color:stClr,marginBottom:3,display:'flex',alignItems:'center',gap:4}}>{T('تاريخ الانتهاء','End Date')}{endSt==='expired'&&<span style={{fontSize:7,fontWeight:700,color:C.red,background:'rgba(192,57,43,.1)',padding:'0 4px',borderRadius:3}}>{T('منتهي','Expired')}</span>}</div><div style={{fontSize:11,fontWeight:700,color:stClr,direction:'ltr'}}>{s.end_date||'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المتبقي','Remaining')}</div><div style={{fontSize:11,fontWeight:700,color:remaining!=null&&remaining<0?C.red:remaining!=null&&remaining<30?'#e67e22':C.ok}}>{remaining!=null?(remaining<0?T('منتهي','Expired'):remaining+' '+T('يوم','days')):'—'}</div></div>
+</div>
+{/* صف ثاني: المبلغ | طريقة الدفع */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المبلغ المدفوع','Amount Paid')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{s.amount_paid?nm(s.amount_paid)+' '+T('ر.س','SAR'):'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('طريقة الدفع','Payment Method')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{payLabel[s.payment_method]||'—'}</div></div>
+</div>
+</div>})}
+</div>})()}
+
+{viewTab==='fcreds'&&(()=>{const platNames={'qiwa':[T('قوى','Qiwa'),'Qiwa'],'gosi':[T('التأمينات الاجتماعية','Social Insurance'),'GOSI'],'chamber':[T('الغرفة التجارية','Chamber of Commerce'),'Chamber'],'mudad':[T('مدد','Mudad'),'Mudad'],'absher':[T('أبشر','Absher'),'Absher']};return<div style={{display:'flex',flexDirection:'column',gap:12}}>
+<div style={{fontSize:11,fontWeight:700,color:'#9b59b6',display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2.5"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>{T('بيانات الدخول','Credentials')} ({facCreds.length})</div>
+{facCreds.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد بيانات دخول','No credentials')}</div>:facCreds.map(c=>{const own=owners.find(o=>o.id===c.owner_id);const pn=platNames[c.credential_type]||[c.credential_type?.toUpperCase(),c.credential_type];return<div key={c.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'16px 18px',border:'1px solid rgba(255,255,255,.04)'}}>
+{/* هيدر */}
+<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+<div style={{flex:1}}>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
+<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{pn[0]}</span>
+<Badge v={{active:T('نشط','Active'),inactive:T('غير نشط','Inactive'),expired:T('منتهي','Expired')}[c.status]||c.status}/>
+{c.platform_url&&<a href={c.platform_url} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{width:22,height:22,borderRadius:6,background:'rgba(52,131,180,.08)',border:'1px solid rgba(52,131,180,.12)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}} title={T('فتح المنصة','Open Platform')}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>}
+</div>
+<div style={{fontSize:9,color:'var(--tx5)',marginTop:2}}>{pn[1]}{own&&<span> · {own.name_ar}</span>}</div>
+</div>
+</div>
+{/* الحقول */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('اسم المستخدم','Username')}</div><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{c.username||'—'}</span>{c.username&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(c.username);toast(T('تم النسخ','Copied'))}} style={{width:16,height:16,borderRadius:3,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}}><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('الجوال المربوط','Linked Phone')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{c.phone_linked||'—'}</div></div>
+<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('آخر تحديث','Last Updated')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{c.updated_at?new Date(c.updated_at).toLocaleDateString('ar-SA'):'—'}</div></div>
+</div>
+</div>})}
+</div>})()}
+
+{viewTab==='fdocs'&&(()=>{const docSt=(d)=>{if(!d.file_url&&d.status==='no_file')return'no_file';if(d.expiry_date&&new Date(d.expiry_date)<new Date())return'expired';if(d.expiry_date&&new Date(d.expiry_date)<new Date(Date.now()+30*86400000))return'expiring';return'active'};const docsWithSt=facDocs.map(d=>({...d,_st:docSt(d)}));const activeD=docsWithSt.filter(d=>d._st==='active').length;const expiringD=docsWithSt.filter(d=>d._st==='expiring').length;const expiredD=docsWithSt.filter(d=>d._st==='expired').length;const filteredDocs=docFilter==='all'?docsWithSt:docsWithSt.filter(d=>d._st===docFilter);const catNames={'licenses':{l:T('التراخيص والسجلات','Licenses & Registrations'),c:C.gold,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h6"/></svg>},'certificates':{l:T('الشهادات الحكومية','Gov. Certificates'),c:C.blue,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>},'contracts':{l:T('العقود والتفويضات','Contracts & Authorizations'),c:'#9b59b6',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>},'other':{l:T('مستندات أخرى','Other Documents'),c:'#1abc9c',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1abc9c" strokeWidth="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>}};const stLabel={'active':T('ساري','Valid'),'expiring':T('تنتهي قريباً','Expiring Soon'),'expired':T('منتهي','Expired'),'no_file':T('بدون ملف','No File')};const stClr={'active':C.ok,'expiring':'#e67e22','expired':C.red,'no_file':'#555'};const cats=['licenses','certificates','contracts','other'];return<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{/* إحصائيات */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8}}>
+{[[T('الإجمالي','Total'),facDocs.length,C.gold],[T('سارية','Valid'),activeD,C.ok],[T('تنتهي قريباً','Expiring'),expiringD,expiringD>0?'#e67e22':'#555'],[T('منتهية','Expired'),expiredD,expiredD>0?C.red:'#555']].map(([l,v,c],i)=>
+<div key={i} style={{background:c+'08',borderRadius:10,padding:'10px 8px',border:'1px solid '+c+'15',textAlign:'center'}}>
+<div style={{fontSize:7,color:c,opacity:.7,marginBottom:4}}>{l}</div>
+<div style={{fontSize:18,fontWeight:900,color:c,lineHeight:1}}>{v}</div>
+</div>)}
+</div>
+{/* فلتر */}
+<div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+{[['all',T('الكل','All')],['active',T('سارية','Valid')],['expiring',T('تنتهي قريباً','Expiring')],['expired',T('منتهية','Expired')],['no_file',T('بدون ملف','No File')]].map(([k,l])=><div key={k} onClick={()=>setDocFilter(k)} style={{padding:'5px 12px',borderRadius:8,fontSize:10,fontWeight:docFilter===k?700:500,color:docFilter===k?C.gold:'rgba(255,255,255,.4)',background:docFilter===k?'rgba(201,168,76,.08)':'transparent',border:docFilter===k?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{l}</div>)}
+</div>
+{/* المستندات حسب الفئة */}
+{filteredDocs.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد مستندات','No documents')}</div>:
+cats.map(cat=>{const catDocs=filteredDocs.filter(d=>d.category===cat);if(!catDocs.length)return null;const cn=catNames[cat]||catNames.other;return<div key={cat}>
+<div style={{fontSize:11,fontWeight:700,color:cn.c,marginBottom:8,display:'flex',alignItems:'center',gap:6}}>{cn.icon}{cn.l}</div>
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{catDocs.map(d=><div key={d.id} style={{background:d._st==='no_file'?'transparent':'rgba(255,255,255,.02)',borderRadius:8,padding:d._st==='no_file'?'10px 14px':'10px 14px',border:d._st==='no_file'?'1.5px dashed rgba(255,255,255,.08)':'1px solid '+(d._st==='expired'?'rgba(192,57,43,.15)':d._st==='expiring'?'rgba(230,126,34,.1)':'rgba(255,255,255,.04)'),opacity:d._st==='no_file'?.7:1}}>
+{d._st==='no_file'?<div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)'}}>{d.document_name}</span>
+<label style={{fontSize:9,color:C.blue,background:'rgba(52,131,180,.08)',padding:'3px 10px',borderRadius:5,cursor:'pointer',border:'1px solid rgba(52,131,180,.12)'}}>{T('رفع ملف','Upload')}<input type="file" style={{display:'none'}} onChange={async e=>{const file=e.target.files?.[0];if(!file)return;const path='docs/'+viewRow.id+'/'+Date.now()+'.'+file.name.split('.').pop();const{error:upErr}=await sb.storage.from('documents').upload(path,file);if(upErr){toast(T('خطأ في الرفع','Upload error'));return}const{data:url}=sb.storage.from('documents').getPublicUrl(path);await sb.from('facility_documents').update({file_url:url.publicUrl,file_name:file.name,status:'active'}).eq('id',d.id);sb.from('facility_documents').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('expiry_date').then(({data:dd})=>setFacDocs(dd||[]));toast(T('تم الرفع','Uploaded'))}}/></label>
+</div>:<div style={{display:'flex',alignItems:'center',gap:10}}>
+{d.file_url&&(()=>{const isImg=d.file_name&&/\.(png|jpg|jpeg|gif|webp)$/i.test(d.file_name);const isPdf=d.file_name&&/\.pdf$/i.test(d.file_name);return<a href={d.file_url} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{width:80,height:50,borderRadius:8,border:'1px solid rgba(255,255,255,.08)',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,background:'rgba(255,255,255,.03)'}}>
+{isImg?<img src={d.file_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:isPdf?<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15v-2h2a1 1 0 110 2H9z" fill="rgba(231,76,60,.2)"/></svg>:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+</a>})()}
+<div style={{flex:1,minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<span style={{fontSize:11,fontWeight:700,color:'var(--tx)'}}>{d.document_name}</span>
+<Badge v={stLabel[d._st]}/>
+</div>
+<div style={{display:'flex',gap:8,marginTop:2}}>
+{d.reference_number&&<span style={{fontSize:8,color:'var(--tx5)',direction:'ltr'}}>{d.reference_number}</span>}
+{d.expiry_date&&<span style={{fontSize:8,fontWeight:600,color:stClr[d._st],direction:'ltr'}}>{d.expiry_date}</span>}
+{d.file_name&&<span style={{fontSize:8,color:'var(--tx6)'}}>{d.file_name}</span>}
+</div>
+</div>
+{d.file_url&&<a href={d.file_url} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{width:24,height:24,borderRadius:6,background:'rgba(52,131,180,.08)',border:'1px solid rgba(52,131,180,.12)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}} title={T('عرض','View')}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>}
+</div>}
+</div>)}
+</div>
+</div>}).filter(Boolean)}
+</div>})()}
+
+{viewTab==='fdebts'&&(()=>{const totalDebt=facDebts.filter(d=>d.status==='outstanding'||d.status==='scheduled').reduce((s,d)=>s+Number(d.amount||0),0);const pendingVio=facViolations.filter(v=>v.status==='pending').length;const paidVio=facViolations.filter(v=>v.status==='paid').length;const totalVioAmt=facViolations.reduce((s,v)=>s+Number(v.amount||0),0);const authNames={'gosi':T('التأمينات الاجتماعية','GOSI'),'zakat':T('الزكاة والدخل','Zakat & Income'),'labor_fees':T('رسوم العمالة','Labor Fees'),'municipality':T('البلدية','Municipality'),'labor':T('وزارة العمل','Labor Ministry'),'civil_defense':T('الدفاع المدني','Civil Defense'),'traffic':T('المرور','Traffic')};const debtStLabel={'outstanding':T('قائمة','Outstanding'),'paid':T('مسددة','Paid'),'scheduled':T('جدولة سداد','Scheduled')};const vioStLabel={'pending':T('معلقة','Pending'),'paid':T('مدفوعة','Paid'),'contested':T('معترض عليها','Contested'),'cancelled':T('ملغاة','Cancelled')};const filteredVio=violationFilter==='all'?facViolations:facViolations.filter(v=>v.status===violationFilter);return<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{/* إحصائيات */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8}}>
+{[[T('إجمالي المديونيات','Total Debts'),totalDebt>0?nm(totalDebt)+' '+T('ر.س','SAR'):'0',totalDebt>0?C.red:'#555'],[T('مخالفات معلقة','Pending'),pendingVio,pendingVio>0?C.red:'#555'],[T('مخالفات مدفوعة','Paid'),paidVio,C.ok],[T('إجمالي المخالفات','Total Vio.'),nm(totalVioAmt)+' '+T('ر.س','SAR'),C.gold]].map(([l,v,c],i)=>
+<div key={i} style={{background:c+'08',borderRadius:10,padding:'10px 8px',border:'1px solid '+c+'15',textAlign:'center'}}>
+<div style={{fontSize:7,color:c,opacity:.7,marginBottom:4}}>{l}</div>
+<div style={{fontSize:i===0||i===3?13:18,fontWeight:900,color:c,lineHeight:1}}>{v}</div>
+</div>)}
+</div>
+{/* المديونيات */}
+<div>
+<div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>{T('المديونيات','Debts')} ({facDebts.length})</div>
+{facDebts.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد مديونيات','No debts')}</div>:
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{facDebts.map(d=><div key={d.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid '+(d.status==='outstanding'?'rgba(192,57,43,.12)':'rgba(255,255,255,.04)')}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{authNames[d.authority]||d.authority}</span>
+<Badge v={debtStLabel[d.status]||d.status}/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:d.notes?6:0}}>
+<div style={{padding:'6px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('المبلغ المستحق','Amount')}</div><div style={{fontSize:11,fontWeight:700,color:d.status==='outstanding'?C.red:'var(--tx2)'}}>{nm(d.amount)} {T('ر.س','SAR')}</div></div>
+<div style={{padding:'6px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ الاستحقاق','Due Date')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{d.due_date||'—'}</div></div>
+<div style={{padding:'6px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('رقم المرجع','Reference')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{d.reference_number||'—'}</div></div>
+</div>
+{d.notes&&<div style={{padding:'6px 10px',background:'rgba(255,255,255,.015)',borderRadius:6,fontSize:10,color:'var(--tx4)'}}>{d.notes}</div>}
+</div>)}
+</div>}
+</div>
+{/* المخالفات */}
+<div>
+<div style={{fontSize:11,fontWeight:700,color:'#e67e22',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e67e22" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>{T('المخالفات','Violations')} ({facViolations.length})</div>
+{/* فلتر */}
+<div style={{display:'flex',gap:4,marginBottom:10,flexWrap:'wrap'}}>
+{[['all',T('الكل','All')],['pending',T('معلقة','Pending')],['paid',T('مدفوعة','Paid')],['contested',T('معترض عليها','Contested')],['cancelled',T('ملغاة','Cancelled')]].map(([k,l])=><div key={k} onClick={()=>setViolationFilter(k)} style={{padding:'4px 10px',borderRadius:6,fontSize:9,fontWeight:violationFilter===k?700:500,color:violationFilter===k?C.gold:'rgba(255,255,255,.4)',background:violationFilter===k?'rgba(201,168,76,.08)':'transparent',border:violationFilter===k?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{l}</div>)}
+</div>
+{filteredVio.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد مخالفات','No violations')}</div>:
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{filteredVio.map(v=><div key={v.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid '+(v.status==='pending'?'rgba(192,57,43,.12)':'rgba(255,255,255,.04)')}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{authNames[v.authority]||v.authority}</span>
+<Badge v={vioStLabel[v.status]||v.status}/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:v.description?6:0}}>
+<div style={{padding:'6px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('رقم المخالفة','Violation No.')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.violation_number||'—'}</div></div>
+<div style={{padding:'6px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('المبلغ','Amount')}</div><div style={{fontSize:11,fontWeight:700,color:v.status==='pending'?C.red:'var(--tx2)'}}>{nm(v.amount)} {T('ر.س','SAR')}</div></div>
+<div style={{padding:'6px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ المخالفة','Violation Date')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.violation_date||'—'}</div></div>
+</div>
+<div style={{display:'grid',gridTemplateColumns:v.payment_date?'1fr 1fr':'1fr',gap:6}}>
+{v.description&&<div style={{padding:'6px 10px',background:'rgba(255,255,255,.015)',borderRadius:6,fontSize:10,color:'var(--tx4)'}}>{v.description}</div>}
+{v.payment_date&&<div style={{padding:'6px 10px',background:'rgba(39,160,70,.04)',borderRadius:6,border:'1px solid rgba(39,160,70,.08)'}}><div style={{fontSize:7,color:C.ok,marginBottom:2}}>{T('تاريخ السداد','Payment Date')}</div><div style={{fontSize:10,fontWeight:700,color:C.ok,direction:'ltr'}}>{v.payment_date}</div></div>}
 </div>
 </div>)}
 </div>}
-</div>}
-
-{viewTab==='fsubs'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>{facSubs.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا توجد اشتراكات','No subscriptions')}</div>:facSubs.map(s=><div key={s.id} style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><Badge v={s.subscription_status}/><span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{s.start_date||'—'} → {s.end_date||'—'}</span></div>
-{s.points_balance>0&&<div style={{fontSize:11,color:C.gold,marginBottom:4}}>{s.points_balance} {T('نقطة','pts')}</div>}
-{s.notes&&<div style={{fontSize:10,color:'var(--tx5)'}}>{s.notes}</div>}
-</div>)}</div>}
-
-{viewTab==='fcreds'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>{facCreds.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا توجد بيانات دخول','No credentials')}</div>:facCreds.map(c=>{const own=owners.find(o=>o.id===c.owner_id);return<div key={c.id} style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><div style={{display:'flex',gap:8,alignItems:'center'}}><span style={{fontSize:13,fontWeight:700,color:'var(--tx2)'}}>{c.credential_type?.toUpperCase()}</span><Badge v={c.status}/></div>{own&&<span style={{fontSize:10,color:'var(--tx5)'}}>{own.name_ar}</span>}</div>
-<div style={{display:'flex',gap:12,fontSize:11,color:'var(--tx4)',flexWrap:'wrap'}}>
-{c.username&&<span style={{direction:'ltr'}}>{c.username}</span>}
-{c.phone_linked&&<span style={{direction:'ltr'}}>{c.phone_linked}</span>}
-{c.email_linked&&<span style={{direction:'ltr'}}>{c.email_linked}</span>}
-{c.platform_url&&<a href={c.platform_url} target="_blank" rel="noopener" style={{color:C.blue,fontSize:10}} onClick={e=>e.stopPropagation()}>{T('رابط المنصة','Platform URL')}</a>}
-</div></div>})}</div>}
+</div>
+</div>})()}
 
 </div></div></div></div>})()}
 
