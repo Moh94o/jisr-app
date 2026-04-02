@@ -993,9 +993,8 @@ flds:[
 {/* ═══ SIDEBAR — Design 5 Grouped ═══ */}
 <aside className={'dash-side'+(sideOpen?' side-open':'')} style={{width:240,background:'var(--sb)',display:'flex',flexDirection:'column',flexShrink:0,[lang==='ar'?'borderLeft':'borderRight']:'1px solid rgba(201,168,76,.12)'}}>
 {/* Logo */}
-<div style={{padding:'22px 24px 18px',borderBottom:'1px solid var(--bd)'}}>
+<div style={{padding:'22px 24px 18px',borderBottom:'1px solid var(--bd)',textAlign:'center'}}>
 <div style={{fontSize:26,fontWeight:900,color:C.gold,letterSpacing:'-1px',lineHeight:1,fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif"}}>{lang==='ar'?'جسر':'JISR'}</div>
-<div style={{fontSize:10,fontWeight:500,color:'var(--sbtx3)',marginTop:8}}>{lang==='ar'?'جسر للأعمال':'Jisr Business'}</div>
 </div>
 {/* Nav */}
 <nav style={{flex:1,overflowY:'auto',padding:'8px 10px',scrollbarWidth:'none',msOverflowStyle:'none',WebkitOverflowScrolling:'touch'}}>
