@@ -530,10 +530,7 @@ const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
 useEffect(()=>{const h=e=>{e.preventDefault();setInstallPrompt(e);if(!isStandalone&&!localStorage.getItem('jisr_install_dismissed'))setShowInstallBanner(true)};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h)},[isStandalone]);
 const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',operations:'transactions_external',finance_hub:'invoices',clients_hub:'clients',manpower_hub:'mp_dashboard',messaging_hub:'msg_send',admin_hub:'admin_offices',reports_hub:'report_periodic'};const setPage=(id)=>{const mapped=hubDefaults[id]||id;setPg(mapped);setSideOpen(false)};
-const loadStats=useCallback(()=>{const brId=dashBranch||null;sb.rpc('get_branch_stats',{p_branch_id:brId}).then(({data})=>{if(data)setStats(data)});sb.from('notifications_view').select('*').then(({data})=>{setNotifs(data||[])});sb.from('employee_notifications').select('*').eq('user_id',user?.id).order('created_at',{ascending:false}).limit(50).then(({data})=>{setMyNotifs(data||[])});sb.from('branches').select('id,name_ar').is('deleted_at',null).order('name_ar').then(({data})=>{setDashBranches(data||[])});sb.from('system_settings').select('setting_value').eq('setting_key','last_weekly_update').single().then(({data})=>{if(data?.setting_value)setLastWeeklyUpdate(new Date(data.setting_value))});
-sb.from('tasks').select('id',{count:'exact',head:true}).is('deleted_at',null).in('status',['pending','in_progress','overdue']).then(({count})=>{setTaskCount(count||0)});
-sb.from('approval_requests').select('id',{count:'exact',head:true}).eq('status','pending').then(({count})=>{setApprovalCount(count||0)});
-sb.from('appointments').select('*').is('deleted_at',null).eq('date',new Date().toISOString().slice(0,10)).in('status',['scheduled','confirmed']).then(({data})=>{setTodayAppointments(data||[])})},[sb,dashBranch]);useEffect(()=>{loadStats()},[pg,loadStats,dashBranch]);
+const loadStats=useCallback(()=>{const brId=dashBranch||null;const today=new Date().toISOString().slice(0,10);Promise.all([sb.rpc('get_branch_stats',{p_branch_id:brId}),sb.from('notifications_view').select('*'),sb.from('employee_notifications').select('*').eq('user_id',user?.id).order('created_at',{ascending:false}).limit(50),sb.from('branches').select('id,name_ar').is('deleted_at',null).order('name_ar'),sb.from('system_settings').select('setting_value').eq('setting_key','last_weekly_update').single(),sb.from('tasks').select('id',{count:'exact',head:true}).is('deleted_at',null).in('status',['pending','in_progress','overdue']),sb.from('approval_requests').select('id',{count:'exact',head:true}).eq('status','pending'),sb.from('appointments').select('*').is('deleted_at',null).eq('date',today).in('status',['scheduled','confirmed'])]).then(([statsR,notifsR,myNotifsR,branchesR,weeklyR,tasksR,approvalsR,apptsR])=>{if(statsR.data)setStats(statsR.data);setNotifs(notifsR.data||[]);setMyNotifs(myNotifsR.data||[]);setDashBranches(branchesR.data||[]);if(weeklyR.data?.setting_value)setLastWeeklyUpdate(new Date(weeklyR.data.setting_value));setTaskCount(tasksR.count||0);setApprovalCount(approvalsR.count||0);setTodayAppointments(apptsR.data||[])})},[sb,dashBranch]);useEffect(()=>{loadStats()},[loadStats]);
 useEffect(()=>{if(!sb)return;const ch=sb.channel('jisr-realtime-sync').on('postgres_changes',{event:'*',schema:'public',table:'invoices'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'clients'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'workers'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'facilities'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'smart_alerts'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'attendance'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'activity_log'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'daily_stats'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'invoice_payments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'escalations'},()=>loadStats()).subscribe();return()=>{sb.removeChannel(ch)}},[sb,loadStats]);
 useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+k':()=>{const el=document.querySelector('.topbar-search-box input');if(el)el.focus()},'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+K بحث سريع | Ctrl+N إضافة جديد','Ctrl+K Quick Search | Ctrl+N New'))},'escape':()=>{setSideOpen(false);setShowNotifs(false);setShowAiChat(false)}});return cleanup},[]);
 const doSearch=useCallback(async(q)=>{if(!q||q.length<2){setSearchResults([]);return}setSearchLoading(true);try{const[fac,wrk,cli,inv]=await Promise.all([sb.from('facilities').select('id,name_ar,unified_national_number,cr_number').is('deleted_at',null).or(`name_ar.ilike.%${q}%,unified_national_number.ilike.%${q}%,cr_number.ilike.%${q}%`).limit(5),sb.from('workers').select('id,name_ar,iqama_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,iqama_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('clients').select('id,name_ar,id_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,id_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('invoices').select('id,invoice_number,total_amount,status').is('deleted_at',null).or(`invoice_number.ilike.%${q}%`).limit(5)]);const r=[];(fac.data||[]).forEach(d=>r.push({type:'facility',icon:'facility',label:d.name_ar,sub:d.cr_number||d.unified_national_number||'',pg:'facilities',id:d.id}));(wrk.data||[]).forEach(d=>r.push({type:'worker',icon:'worker',label:d.name_ar,sub:d.iqama_number||d.phone||'',pg:'workers',id:d.id}));(cli.data||[]).forEach(d=>r.push({type:'client',icon:'client',label:d.name_ar,sub:d.id_number||d.phone||'',pg:'clients',id:d.id}));(inv.data||[]).forEach(d=>r.push({type:'invoice',icon:'invoice',label:d.invoice_number,sub:Number(d.total_amount||0).toLocaleString()+' ر.س',pg:'invoices',id:d.id}));setSearchResults(r)}catch(e){setSearchResults([])}setSearchLoading(false)},[sb]);useEffect(()=>{const t=setTimeout(()=>doSearch(searchQ),300);return()=>clearTimeout(t)},[searchQ,doSearch]);
@@ -1523,54 +1520,48 @@ const pctChange=(curr,prev)=>{if(!prev||prev===0)return null;const p=Math.round(
 const PctBadge=({curr,prev,invert})=>{const p=pctChange(curr,prev);if(p===null)return null;const up=invert?p<0:p>0;const clr=up?C.ok:p===0?'#999':C.red;return<span style={{fontSize:9,fontWeight:700,color:clr,background:clr+'12',padding:'1px 6px',borderRadius:4,marginRight:4,display:'inline-flex',alignItems:'center',gap:2}}>{p>0?'↑':p<0?'↓':'='}{Math.abs(p)}%</span>}
 
 useEffect(()=>{if(!sb)return
-// Load previous month stats for comparison
+const today=new Date().toISOString().slice(0,10)
 const prevMonth=new Date();prevMonth.setMonth(prevMonth.getMonth()-1);const pmStr=prevMonth.toISOString().slice(0,10)
-sb.from('daily_stats').select('*').is('branch_id',null).lte('stat_date',pmStr).order('stat_date',{ascending:false}).limit(1).then(({data})=>{
-if(data&&data[0])setPrevStats(data[0])
-else{sb.from('daily_stats').select('*').lte('stat_date',pmStr).order('stat_date',{ascending:false}).limit(5).then(({data:all})=>{
-if(!all||all.length===0)return;const agg={revenue:0,collected:0,expenses:0,total_facilities:0,total_workers:0,total_clients:0,total_transactions:0};all.forEach(r=>{Object.keys(agg).forEach(k=>{agg[k]+=Number(r[k])||0})});setPrevStats(agg)})}})
-// Load upcoming due dates (next 30 days)
-const today=new Date().toISOString().slice(0,10);const in30=new Date()
-sb.from('tasks').select('id,title_ar,status,priority,due_date').is('deleted_at',null).in('status',['pending','in_progress','overdue']).order('priority').limit(5).then(({data})=>setTodayTasks(data||[]))
-sb.from('appointments').select('id,title,time,type,status,clients:client_id(name_ar)').is('deleted_at',null).eq('date',today).in('status',['scheduled','confirmed']).order('time').then(({data})=>setTodayAppts(data||[]))
-const in30f=new Date();in30.setDate(in30.getDate()+30);const d30=in30.toISOString().slice(0,10)
+const in30=new Date();in30.setDate(in30.getDate()+30);const d30=in30.toISOString().slice(0,10)
+const periodDate=new Date();periodDate.setMonth(periodDate.getMonth()-chartPeriod);const pdStr=periodDate.toISOString().slice(0,10)
+const curMonth=new Date().toISOString().slice(0,8)+'01'
+// ALL homepage queries in ONE parallel batch
 Promise.all([
+sb.from('daily_stats').select('*').is('branch_id',null).lte('stat_date',pmStr).order('stat_date',{ascending:false}).limit(1),
+sb.from('tasks').select('id,title_ar,status,priority,due_date').is('deleted_at',null).in('status',['pending','in_progress','overdue']).order('priority').limit(5),
+sb.from('appointments').select('id,title,time,type,status,clients:client_id(name_ar)').is('deleted_at',null).eq('date',today).in('status',['scheduled','confirmed']).order('time'),
 sb.from('invoices').select('id,invoice_number,remaining_amount,due_date,clients:client_id(name_ar)').is('deleted_at',null).in('status',['unpaid','partial']).gte('due_date',today).lte('due_date',d30).order('due_date').limit(5),
 sb.from('iqama_cards').select('id,iqama_expiry_date,workers:worker_id(name_ar)').is('deleted_at',null).gte('iqama_expiry_date',today).lte('iqama_expiry_date',d30).order('iqama_expiry_date').limit(5),
 sb.from('work_permits').select('id,wp_expiry_date,workers:worker_id(name_ar)').is('deleted_at',null).gte('wp_expiry_date',today).lte('wp_expiry_date',d30).order('wp_expiry_date').limit(5),
-sb.from('facilities').select('id,name_ar,cr_expiry_date').is('deleted_at',null).gte('cr_expiry_date',today).lte('cr_expiry_date',d30).order('cr_expiry_date').limit(5)
-]).then(([inv,iq,wp,fac])=>{const dues=[];
-(inv.data||[]).forEach(r=>dues.push({type:'invoice',icon:'◎',color:'#e67e22',label:r.invoice_number+(r.clients?.name_ar?' — '+r.clients.name_ar:''),sub:nm(r.remaining_amount)+' ر.س',date:r.due_date}));
-(iq.data||[]).forEach(r=>dues.push({type:'iqama',icon:'▣',color:'#c0392b',label:r.workers?.name_ar||'عامل',sub:'إقامة',date:r.iqama_expiry_date}));
-(wp.data||[]).forEach(r=>dues.push({type:'permit',icon:'▤',color:'#c0392b',label:r.workers?.name_ar||'عامل',sub:'رخصة عمل',date:r.wp_expiry_date}));
-(fac.data||[]).forEach(r=>dues.push({type:'cr',icon:'▥',color:'#c9a84c',label:r.name_ar,sub:'سجل تجاري',date:r.cr_expiry_date}));
-dues.sort((a,b)=>(a.date||'').localeCompare(b.date||''));setUpcomingDues(dues.slice(0,8))})
-// Load nitaqat distribution
-sb.from('facilities').select('nitaqat_color').is('deleted_at',null).then(({data})=>{
-if(!data)return;const counts={};data.forEach(f=>{const c=f.nitaqat_color||'unknown';counts[c]=(counts[c]||0)+1})
-setNitaqatData(Object.entries(counts).map(([k,v])=>({name:k,value:v})))})
-// Load daily stats with period filter
-const periodDate=new Date();periodDate.setMonth(periodDate.getMonth()-chartPeriod);const pdStr=periodDate.toISOString().slice(0,10)
-sb.from('daily_stats').select('stat_date,revenue,collected,expenses,net_profit').is('branch_id',null).gte('stat_date',pdStr).order('stat_date',{ascending:true}).limit(60).then(({data})=>{
-if(data&&data.length>0){setDailyData(data.map(d=>({stat_date:d.stat_date,revenue:Number(d.revenue)||0,collected:Number(d.collected)||0,expenses:Number(d.expenses)||0})))}
-else{/* Fallback: aggregate from branch data */
-sb.from('daily_stats').select('stat_date,revenue,collected,expenses').order('stat_date',{ascending:true}).then(({data:all})=>{
-if(!all||all.length===0)return;const byDate={};all.forEach(r=>{const d=r.stat_date;if(!byDate[d])byDate[d]={stat_date:d,revenue:0,collected:0,expenses:0};byDate[d].revenue+=Number(r.revenue)||0;byDate[d].collected+=Number(r.collected)||0;byDate[d].expenses+=Number(r.expenses)||0});setDailyData(Object.values(byDate).sort((a,b)=>a.stat_date.localeCompare(b.stat_date)).slice(-12))})}})
-// Load monthly targets + alerts summary
-const curMonth=new Date().toISOString().slice(0,8)+'01'
-sb.from('monthly_targets').select('*').eq('target_month',curMonth).is('branch_id',null).then(({data})=>setMonthlyTargets(data||[]))
-sb.from('notifications_view').select('severity,type').limit(600).then(({data})=>{if(!data)return;const u=data.filter(n=>n.severity==='urgent').length;const w=data.filter(n=>n.severity==='warning').length;const byType={};data.forEach(n=>{byType[n.type]=(byType[n.type]||0)+1});setAlertsSummary({urgent:u,warning:w,total:data.length,byType})})
-// Load recent activity
-sb.from('activity_log').select('*,users:user_id(name_ar)').order('created_at',{ascending:false}).limit(8).then(({data})=>{
-if(data&&data.length>0)setRecentActivity(data)
-else{/* Fallback: load recent transactions and invoices as activity */
-Promise.all([sb.from('transactions').select('transaction_number,status,created_at,transaction_type').is('deleted_at',null).order('created_at',{ascending:false}).limit(4),
-sb.from('invoices').select('invoice_number,status,total_amount,created_at').is('deleted_at',null).order('created_at',{ascending:false}).limit(4)
-]).then(([t,inv])=>{const acts=[];
-(t.data||[]).forEach(r=>acts.push({action:'insert',entity_type:'transactions',description:r.transaction_number+' — '+r.status,created_at:r.created_at,users:{name_ar:'النظام'}}));
-(inv.data||[]).forEach(r=>acts.push({action:'insert',entity_type:'invoices',description:r.invoice_number+' — '+nm(r.total_amount)+' ر.س',created_at:r.created_at,users:{name_ar:'النظام'}}));
-acts.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));setRecentActivity(acts.slice(0,8))})}})
-},[sb,chartPeriod])
+sb.from('facilities').select('id,name_ar,cr_expiry_date').is('deleted_at',null).gte('cr_expiry_date',today).lte('cr_expiry_date',d30).order('cr_expiry_date').limit(5),
+sb.from('facilities').select('nitaqat_color').is('deleted_at',null),
+sb.from('daily_stats').select('stat_date,revenue,collected,expenses,net_profit').is('branch_id',null).gte('stat_date',pdStr).order('stat_date',{ascending:true}).limit(60),
+sb.from('monthly_targets').select('*').eq('target_month',curMonth).is('branch_id',null),
+sb.from('notifications_view').select('severity,type').limit(600),
+sb.from('activity_log').select('*,users:user_id(name_ar)').order('created_at',{ascending:false}).limit(8)
+]).then(([prevR,tasksR,apptsR,invR,iqR,wpR,facR,nitR,dailyR,targetsR,alertsR,actR])=>{
+// Previous stats
+if(prevR.data&&prevR.data[0])setPrevStats(prevR.data[0])
+// Tasks & appointments
+setTodayTasks(tasksR.data||[]);setTodayAppts(apptsR.data||[])
+// Upcoming dues
+const dues=[];
+(invR.data||[]).forEach(r=>dues.push({type:'invoice',icon:'◎',color:'#e67e22',label:r.invoice_number+(r.clients?.name_ar?' — '+r.clients.name_ar:''),sub:nm(r.remaining_amount)+' ر.س',date:r.due_date}));
+(iqR.data||[]).forEach(r=>dues.push({type:'iqama',icon:'▣',color:'#c0392b',label:r.workers?.name_ar||'عامل',sub:'إقامة',date:r.iqama_expiry_date}));
+(wpR.data||[]).forEach(r=>dues.push({type:'permit',icon:'▤',color:'#c0392b',label:r.workers?.name_ar||'عامل',sub:'رخصة عمل',date:r.wp_expiry_date}));
+(facR.data||[]).forEach(r=>dues.push({type:'cr',icon:'▥',color:'#c9a84c',label:r.name_ar,sub:'سجل تجاري',date:r.cr_expiry_date}));
+dues.sort((a,b)=>(a.date||'').localeCompare(b.date||''));setUpcomingDues(dues.slice(0,8))
+// Nitaqat
+if(nitR.data){const counts={};nitR.data.forEach(f=>{const c=f.nitaqat_color||'unknown';counts[c]=(counts[c]||0)+1});setNitaqatData(Object.entries(counts).map(([k,v])=>({name:k,value:v})))}
+// Daily stats
+if(dailyR.data&&dailyR.data.length>0)setDailyData(dailyR.data.map(d=>({stat_date:d.stat_date,revenue:Number(d.revenue)||0,collected:Number(d.collected)||0,expenses:Number(d.expenses)||0})))
+// Targets
+setMonthlyTargets(targetsR.data||[])
+// Alerts summary
+if(alertsR.data){const u=alertsR.data.filter(n=>n.severity==='urgent').length;const w=alertsR.data.filter(n=>n.severity==='warning').length;const byType={};alertsR.data.forEach(n=>{byType[n.type]=(byType[n.type]||0)+1});setAlertsSummary({urgent:u,warning:w,total:alertsR.data.length,byType})}
+// Recent activity
+if(actR.data&&actR.data.length>0)setRecentActivity(actR.data)
+})},[sb,chartPeriod])
 
 // Multi-branch: auto-load stats when selection changes
 const toggleBranch=(id)=>{setSelectedBranches(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id])}
