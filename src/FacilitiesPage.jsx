@@ -169,9 +169,12 @@ const fBtnS=a=>({padding:'6px 14px',borderRadius:8,fontSize:10,fontWeight:a?700:
 const SearchBar=<div style={{flex:1,minWidth:180,position:'relative'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2" style={{position:'absolute',top:12,[isAr?'right':'left']:12}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input value={q} onChange={e=>{setQ(e.target.value);setPage(0)}} placeholder={T('بحث ...','Search ...')} style={{width:'100%',height:38,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',border:'1.5px solid rgba(255,255,255,.08)',borderRadius:10,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none'}}/></div>
 
 return<div style={{paddingBottom:0}}>
-<div style={{marginBottom:16,marginTop:12}}>
+<div style={{marginBottom:16,marginTop:12,display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+<div>
 <div style={{fontSize:20,fontWeight:800,color:'var(--tx)'}}>{T('المنشآت','Facilities')}</div>
-<div style={{fontSize:11,color:'var(--tx5)',marginTop:4,marginBottom:32}}>{T('إدارة بيانات المنشآت والسجلات التجارية','Manage facilities & commercial registrations')}</div>
+<div style={{fontSize:11,color:'var(--tx5)',marginTop:4}}>{T('إدارة بيانات المنشآت والسجلات التجارية','Manage facilities & commercial registrations')}</div>
+</div>
+<button onClick={openAdd} style={{height:42,padding:'0 20px',borderRadius:10,border:'1.5px solid rgba(201,168,76,.25)',background:'linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05))',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>+ {T('منشأة جديدة','New Facility')}</button>
 </div>
 
 {/* ═══ FACILITIES ═══ */}
@@ -333,6 +336,7 @@ return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,backg
 {viewRow.name_en&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{viewRow.name_en}</div>}
 </div></div>
 <div style={{display:'flex',gap:6}}>
+<button onClick={()=>{setViewRow(null);openEdit(viewRow)}} style={{height:32,padding:'0 14px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.08)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>{T('تعديل','Edit')}</button>
 <button onClick={()=>{if(confirm(T('حذف؟','Delete?'))){del('facilities',viewRow.id);setViewRow(null)}}} style={{height:32,padding:'0 12px',borderRadius:8,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.06)',color:C.red,fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>{T('حذف','Delete')}</button>
 <button onClick={()=>setViewRow(null)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
 </div></div>
