@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jisr-v1.4.0';
+const CACHE_NAME = 'jisr-v1.5.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -33,16 +33,21 @@ self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
   
+  // Skip non-http(s) requests (chrome-extension, etc)
+  if (!request.url.startsWith('http')) return;
+
   // Skip API/Supabase requests (always go to network)
   if (request.url.includes('supabase.co') || request.url.includes('/rest/') || request.url.includes('/auth/')) return;
-  
+
   // For navigation requests, try network first
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          }
           return response;
         })
         .catch(() => caches.match('/index.html'))
@@ -55,8 +60,10 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       caches.match(request).then(cached => {
         const fetchPromise = fetch(request).then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          }
           return response;
         }).catch(() => cached);
         return cached || fetchPromise;
@@ -71,8 +78,10 @@ self.addEventListener('fetch', event => {
       caches.match(request).then(cached => {
         if (cached) return cached;
         return fetch(request).then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          }
           return response;
         });
       })
