@@ -11,12 +11,42 @@ const DelBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} s
 const StatCard=({l,v,c,bg,bc})=><div style={{padding:'12px 16px',borderRadius:12,background:bg,border:'1px solid '+bc,minWidth:120,flex:'1 0 auto',display:'flex',alignItems:'center',gap:10}}><div style={{fontSize:24,fontWeight:900,color:c,lineHeight:1}}>{v}</div><div style={{fontSize:10,fontWeight:600,color:c,opacity:.85,whiteSpace:'nowrap'}}>{l}</div></div>
 const FieldView=({l,v,isStatus})=><div style={{padding:'12px 14px',background:'rgba(255,255,255,.02)',borderBottom:'1px solid var(--bd2)'}}><div style={{fontSize:9,fontWeight:600,color:'var(--tx5)',marginBottom:4}}>{l}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{isStatus?<Badge v={v}/>:String(v)}</div></div>
 const fieldStyle={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.04)',transition:'.2s',boxSizing:'border-box'}
+
+// Custom dropdown component
+const CustomSelect=({value,options,onChange,placeholder,isAr})=>{
+const[open,setOpen]=React.useState(false);const ref=React.useRef(null);const[search,setSearch]=React.useState('')
+React.useEffect(()=>{if(!open)return;const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h)},[open])
+const allOpts=options||[];const filtered=search?allOpts.filter(o=>{const l=typeof o==='object'?o.l:o;return l?.toLowerCase().includes(search.toLowerCase())}):allOpts
+const selLabel=value?(()=>{const found=allOpts.find(o=>typeof o==='object'?o.v===value:o===value);return found?(typeof found==='object'?found.l:found):value})():null
+return<div ref={ref} style={{position:'relative'}}>
+<div onClick={()=>{setOpen(!open);setSearch('')}} style={{...fieldStyle,display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',background:open?'rgba(201,168,76,.04)':'rgba(255,255,255,.04)',borderColor:open?'rgba(201,168,76,.4)':'rgba(255,255,255,.1)'}}>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{transition:'.2s',transform:open?'rotate(180deg)':'none',opacity:.5,flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg>
+<span style={{flex:1,textAlign:'right',fontSize:13,fontWeight:600,color:selLabel?'var(--tx)':'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{selLabel||(placeholder||'— اختر —')}</span>
+</div>
+{open&&<div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:4,background:'#1e1e1e',border:'1.5px solid rgba(201,168,76,.2)',borderRadius:12,boxShadow:'0 12px 40px rgba(0,0,0,.6)',zIndex:50,maxHeight:220,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+{allOpts.length>5&&<div style={{padding:'8px 10px',borderBottom:'1px solid rgba(255,255,255,.06)',flexShrink:0}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder={isAr?'بحث...':'Search...'} style={{width:'100%',height:32,padding:'0 10px',border:'1px solid rgba(255,255,255,.08)',borderRadius:8,fontFamily:F,fontSize:11,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none',textAlign:'right'}}/></div>}
+<div style={{overflowY:'auto',scrollbarWidth:'thin'}}>
+<div onClick={()=>{onChange('');setOpen(false)}} style={{padding:'9px 14px',fontSize:12,color:'var(--tx5)',cursor:'pointer',textAlign:'right',borderBottom:'1px solid rgba(255,255,255,.03)'}}>{isAr?'— اختر —':'— Select —'}</div>
+{filtered.map((o,i)=>{const ov=typeof o==='object'?o.v:o;const ol=typeof o==='object'?o.l:o;const active=ov===value
+return<div key={ov||i} onClick={()=>{onChange(ov);setOpen(false)}} style={{padding:'9px 14px',fontSize:12,fontWeight:active?700:500,color:active?C.gold:'rgba(255,255,255,.75)',background:active?'rgba(201,168,76,.08)':'transparent',cursor:'pointer',textAlign:'right',borderBottom:'1px solid rgba(255,255,255,.02)',transition:'.1s'}} onMouseEnter={e=>e.target.style.background=active?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)'} onMouseLeave={e=>e.target.style.background=active?'rgba(201,168,76,.08)':'transparent'}>{ol}</div>})}
+{filtered.length===0&&<div style={{padding:'14px',textAlign:'center',fontSize:11,color:'var(--tx6)'}}>{isAr?'لا توجد نتائج':'No results'}</div>}
+</div></div>}
+</div>}
+
+// Custom date input
+const DateInput=({value,onChange})=>{
+return<div style={{position:'relative'}}>
+<input type="date" value={value} onChange={e=>onChange(e.target.value)} style={{...fieldStyle,direction:'ltr',colorScheme:'dark',paddingLeft:36}}/>
+<div style={{position:'absolute',top:'50%',left:12,transform:'translateY(-50%)',pointerEvents:'none',opacity:.4}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+</div></div>}
+
 const FieldInput=({f,form,setForm,isAr})=>{const v=form[f.k]||'';const set=val=>setForm(p=>({...p,[f.k]:val}))
 const onFocus=e=>{e.target.style.borderColor='rgba(201,168,76,.4)';e.target.style.background='rgba(201,168,76,.04)'}
 const onBlur=e=>{e.target.style.borderColor='rgba(255,255,255,.1)';e.target.style.background='rgba(255,255,255,.04)'}
 return<div style={{gridColumn:f.w?'1/-1':undefined}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{f.l}{f.r&&<span style={{color:C.red,marginRight:2}}> *</span>}</div>
-{f.opts?<select value={v} onChange={e=>set(e.target.value)} onFocus={onFocus} onBlur={onBlur} style={{...fieldStyle,textAlign:'right',paddingRight:14,appearance:'none',WebkitAppearance:'none',backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c9a84c' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",backgroundRepeat:'no-repeat',backgroundPosition:'14px center'}}><option value="">{isAr?'— اختر —':'— Select —'}</option>{f.opts.map(o=>typeof o==='object'?<option key={o.v} value={o.v}>{o.l}</option>:<option key={o} value={o}>{o}</option>)}</select>
-:f.t==='date'?<input type="date" value={v} onChange={e=>set(e.target.value)} onFocus={onFocus} onBlur={onBlur} style={{...fieldStyle,direction:'ltr',colorScheme:'dark'}}/>
+{f.opts?<CustomSelect value={v} options={f.opts} onChange={set} isAr={isAr}/>
+:f.t==='date'?<DateInput value={v} onChange={set}/>
 :f.t==='bool'?<div style={{display:'flex',gap:8}}>{[{v:'true',l:isAr?'نعم':'Yes',c:C.ok},{v:'false',l:isAr?'لا':'No',c:C.red}].map(o=><button key={o.v} onClick={()=>set(o.v)} style={{flex:1,height:42,borderRadius:10,border:'1.5px solid '+(v===o.v?o.c+'40':'rgba(255,255,255,.08)'),background:v===o.v?o.c+'12':'rgba(255,255,255,.03)',color:v===o.v?o.c:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:v===o.v?700:500,cursor:'pointer',transition:'.2s'}}>{o.l}</button>)}</div>
 :f.w?<textarea value={v} onChange={e=>set(e.target.value)} onFocus={onFocus} onBlur={onBlur} rows={3} style={{...fieldStyle,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/>
 :<input value={v} onChange={e=>set(e.target.value)} onFocus={onFocus} onBlur={onBlur} style={{...fieldStyle,textAlign:f.d?'left':'right',direction:f.d?'ltr':'rtl'}}/>}
