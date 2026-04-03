@@ -1112,7 +1112,7 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {/* ═══ HUB LAYOUT HELPER — Side tabs + content ═══ */}
 {(()=>{
 const hubTabs={
-  workforce:[{id:'facilities',l:T('المنشآت','Facilities')},{id:'workers',l:T('العمالة','Workers')},{id:'compliance',l:T('الامتثال','Compliance')},{id:'worker_leaves',l:T('الإجازات','Leaves')}],
+  workforce:[{id:'facilities',l:T('المنشآت','Facilities')},{id:'workers',l:T('العمالة','Workers')},{id:'compliance',l:T('الامتثال','Compliance')}],
   operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')},{id:'workflow',l:T('الأتمتة','Automation')},{id:'transfer_calc',l:T('نقل الكفالة','Transfer')}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'payments',l:T('المدفوعات','Payments')},{id:'pricing_calc',l:T('التسعير','Pricing')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'op_expenses',l:T('المصاريف','Expenses')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('الاستيراد','Import')}],
   clients_hub:[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'contracts',l:T('العقود','Contracts')},{id:'client_statement',l:T('كشف حساب','Statement')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}],
