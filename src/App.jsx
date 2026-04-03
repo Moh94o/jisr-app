@@ -18,6 +18,7 @@ import CalendarPage from './CalendarPage.jsx'
 import ProfitabilityPage from './ProfitabilityPage.jsx'
 import LiveMonitorPage from './LiveMonitorPage.jsx'
 import WorkflowPage from './WorkflowPage.jsx'
+import MessagingPage from './MessagingPage.jsx'
 import BranchComparisonPage from './BranchComparisonPage.jsx'
 import NPSPage from './NPSPage.jsx'
 import AttendancePage from './AttendancePage.jsx'
@@ -533,6 +534,12 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'tasks',l:T('المهام','Tasks'),i:'calendar',n:taskCount},
 {id:'sla_monitor',l:T('مراقبة SLA','SLA Monitor'),i:'chart'},
 {id:'workflow',l:T('الأتمتة','Automation'),i:'bolt'}]},
+{sec:'messaging',t:T('مركز الرسائل','Messaging'),children:[
+{id:'msg_send',l:T('إرسال رسالة','Send Message'),i:'message'},
+{id:'msg_templates',l:T('النماذج','Templates'),i:'message'},
+{id:'msg_log',l:T('سجل الرسائل','Message Log'),i:'message'},
+{id:'msg_groups',l:T('المجموعات','Groups'),i:'message'},
+{id:'msg_settings',l:T('إعدادات الرسائل','Settings'),i:'message'}]},
 {sec:'finance',t:T('المالية','Finance'),children:[
 {id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},
 {id:'payments',l:T('المدفوعات','Payments'),i:'expense'},
@@ -1162,6 +1169,8 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='sla_monitor'&&<SLAPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='workflow'&&<WorkflowPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{/* ── مركز الرسائل ── */}
+{(pg==='msg_send'||pg==='msg_templates'||pg==='msg_log'||pg==='msg_groups'||pg==='msg_settings')&&<MessagingPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {/* ── أقسام الفرع المحدد (مع branchId) ── */}
 {pg==='kpi'&&<KPIPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
