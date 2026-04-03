@@ -1563,7 +1563,7 @@ const[txnByCategory,setTxnByCategory]=useState([])
 const[txnByStatus,setTxnByStatus]=useState([])
 const[txnPerf,setTxnPerf]=useState([])
 const[txnStatusSummary,setTxnStatusSummary]=useState([])
-const[upcomingTasks,setUpcomingTasks]=useState([])
+const[upcomingTasks,setUpcomingTasks]=useState([]);const[branchDetail,setBranchDetail]=useState(null)
 
 // Load service demand data from invoices
 useEffect(()=>{if(!sb)return
@@ -1592,7 +1592,24 @@ setLoadingCompare(true)
 Promise.all(selectedBranches.map(bid=>sb.rpc('get_branch_stats',{p_branch_id:bid}).then(({data})=>{const br=branches.find(b=>b.id===bid);return{id:bid,name:br?.name_ar||'',data:data||{}}}))).then(results=>{
 const map={};const cmp=[];results.forEach(r=>{map[r.id]={name:r.name,...r.data};cmp.push({name:r.name,id:r.id,...r.data})})
 setBranchStatsMap(map);setCompareData(cmp);setCompareMode(selectedBranches.length>1)
-if(selectedBranches.length===1){setActiveStats(results[0]?.data||null)}
+if(selectedBranches.length===1){setActiveStats(results[0]?.data||null)
+// Load single-branch detail
+const bid=selectedBranches[0]
+Promise.all([
+sb.from('users').select('id,name_ar,name_en,role_id,roles:role_id(name_ar)').eq('branch_id',bid).is('deleted_at',null).eq('is_active',true),
+sb.from('branch_contracts').select('*').eq('branch_id',bid).is('deleted_at',null),
+sb.from('branches').select('*').eq('id',bid).single(),
+sb.from('v_transaction_sla').select('id,transaction_number,service_name_ar,status,days_remaining,sla_status,client_name').eq('branch_id',bid).order('created_at',{ascending:false}).limit(5),
+sb.from('workers').select('id,iqama_expiry_date,worker_status').eq('branch_id',bid).is('deleted_at',null),
+sb.from('facilities').select('id,nitaqat_color').eq('branch_id',bid).is('deleted_at',null)
+]).then(([team,contracts,branch,txns,wkrs,facs])=>{
+const w=wkrs.data||[];const f=facs.data||[]
+const safeIq=w.filter(x=>x.iqama_expiry_date&&new Date(x.iqama_expiry_date)>new Date(Date.now()+90*86400000)).length
+const warnIq=w.filter(x=>x.iqama_expiry_date&&new Date(x.iqama_expiry_date)>new Date()&&new Date(x.iqama_expiry_date)<=new Date(Date.now()+90*86400000)).length
+const expIq=w.filter(x=>x.iqama_expiry_date&&new Date(x.iqama_expiry_date)<new Date()).length
+const greenFac=f.filter(x=>['green_high','green_mid','green_low','platinum'].includes(x.nitaqat_color)).length
+setBranchDetail({team:team.data||[],contracts:contracts.data||[],branch:branch.data,txns:txns.data||[],iqama:{safe:safeIq,warn:warnIq,expired:expIq,total:w.length},facHealth:{green:greenFac,total:f.length}})
+})}
 else{const agg={};['total_facilities','active_facilities','at_risk_facilities','total_workers','active_workers','total_clients','total_brokers','total_providers','total_transactions','completed_transactions','active_transactions','total_invoices','total_revenue','total_paid','total_outstanding','paid_invoices','unpaid_invoices','total_expenses','expired_permits','expired_iqamas','expired_insurance','total_branches','total_users','available_visas','used_visas','active_subscriptions','active_credentials'].forEach(k=>{agg[k]=results.reduce((s,r)=>s+(Number(r.data?.[k])||0),0)});setActiveStats(agg)}
 setLoadingCompare(false)})
 },[selectedBranches,sb,branches])
@@ -1990,6 +2007,82 @@ return<div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'7px
 <button onClick={()=>onNavigate&&onNavigate('report_alerts')} style={{width:'100%',marginTop:10,height:30,borderRadius:6,border:'1px solid var(--bd)',background:'transparent',color:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:600,cursor:'pointer'}}>{T('عرض كل التنبيهات →','View all alerts →')}</button>
 </div>
 </div>
+
+{/* ═══ SINGLE BRANCH DASHBOARD ═══ */}
+{selectedBranches.length===1&&branchDetail&&(()=>{const bd=branchDetail;const br=bd.branch||{};const brName=branches.find(b=>b.id===selectedBranches[0])?.name_ar||'';const facPct=bd.facHealth.total>0?Math.round(bd.facHealth.green/bd.facHealth.total*100):0;const iqPct=bd.iqama.total>0?Math.round(bd.iqama.safe/bd.iqama.total*100):0;const licDays=br.license_expiry_date?Math.ceil((new Date(br.license_expiry_date)-new Date())/86400000):null;const cdDays=br.civil_defense_expiry?Math.ceil((new Date(br.civil_defense_expiry)-new Date())/86400000):null;const slaClr={on_time:C.ok,on_track:C.ok,warning:'#e67e22',critical:C.red,overdue:C.red};const stClr2={completed:C.ok,in_progress:C.blue,pending:C.gold,issue:C.red,cancelled:'#888'}
+return<div style={{borderRadius:16,background:'linear-gradient(145deg,rgba(20,22,28,.95),rgba(24,26,32,.95))',border:'1px solid rgba(201,168,76,.12)',padding:'20px',marginBottom:20}}>
+{/* Header */}
+<div style={{display:'flex',alignItems:'center',gap:12,marginBottom:18}}>
+<div style={{width:44,height:44,borderRadius:12,background:C.gold+'15',border:'1.5px solid '+C.gold+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>🏢</div>
+<div style={{flex:1}}><div style={{fontSize:17,fontWeight:800,color:'var(--tx)'}}>{brName} — {T('لوحة الأداء','Performance')}</div>
+{bd.team.length>0&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{bd.team.length} {T('موظف','employees')}</div>}</div>
+</div>
+{/* Stats row */}
+<div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,marginBottom:16}}>
+{[[T('المنشآت','Fac.'),S.total_facilities||0,C.gold,'🏢'],[T('العمّال','Workers'),S.total_workers||0,C.blue,'👥'],[T('العملاء','Clients'),S.total_clients||0,C.ok,'👤'],[T('المعاملات','Txns'),S.total_transactions||0,'#e67e22','📋'],[T('الإيرادات','Revenue'),nm(S.total_revenue),C.gold,'💰']].map(([l,v,c,ic],i)=>
+<div key={i} style={{padding:'12px',borderRadius:12,background:c+'06',border:'1px solid '+c+'12',textAlign:'center'}}>
+<div style={{fontSize:14}}>{ic}</div>
+<div style={{fontSize:20,fontWeight:800,color:c,marginTop:4}}>{v}</div>
+<div style={{fontSize:9,color:c,opacity:.6}}>{l}</div>
+</div>)}
+</div>
+{/* Health bars */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+<div style={{padding:'14px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:11,fontWeight:700,color:'var(--tx3)'}}>🏢 {T('صحة المنشآت','Facility Health')}</span><span style={{fontSize:12,fontWeight:800,color:facPct>=80?C.ok:facPct>=60?'#e67e22':C.red}}>{facPct}%</span></div>
+<div style={{height:6,borderRadius:3,background:'rgba(255,255,255,.06)',overflow:'hidden',marginBottom:6}}><div style={{height:'100%',width:facPct+'%',borderRadius:3,background:facPct>=80?C.ok:facPct>=60?'#e67e22':C.red}}/></div>
+<div style={{fontSize:9,color:'var(--tx5)'}}>{bd.facHealth.green} {T('أخضر','green')} · {bd.facHealth.total-bd.facHealth.green} {T('أخرى','other')}</div>
+</div>
+<div style={{padding:'14px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:11,fontWeight:700,color:'var(--tx3)'}}>🪪 {T('صحة الإقامات','Iqama Health')}</span><span style={{fontSize:12,fontWeight:800,color:iqPct>=80?C.ok:iqPct>=60?'#e67e22':C.red}}>{iqPct}%</span></div>
+<div style={{height:6,borderRadius:3,background:'rgba(255,255,255,.06)',overflow:'hidden',marginBottom:6}}><div style={{height:'100%',width:iqPct+'%',borderRadius:3,background:iqPct>=80?C.ok:iqPct>=60?'#e67e22':C.red}}/></div>
+<div style={{fontSize:9,color:'var(--tx5)'}}>{bd.iqama.safe} {T('سارية','valid')} · {bd.iqama.warn} {T('تحذير','warn')} · {bd.iqama.expired} {T('منتهية','expired')}</div>
+</div>
+</div>
+{/* Team + Licenses */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+{/* Team */}
+<div style={{padding:'14px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{fontSize:11,fontWeight:700,color:'var(--tx3)',marginBottom:10}}>👥 {T('فريق الفرع','Branch Team')} ({bd.team.length})</div>
+{bd.team.length===0?<div style={{fontSize:10,color:'var(--tx5)',textAlign:'center',padding:12}}>{T('لا يوجد موظفين','No employees')}</div>:
+bd.team.slice(0,5).map(u=><div key={u.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid var(--bd2)'}}>
+<div style={{width:28,height:28,borderRadius:8,background:C.blue+'12',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:C.blue,flexShrink:0}}>{(u.name_ar||'?')[0]}</div>
+<div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.name_ar}</div><div style={{fontSize:9,color:'var(--tx5)'}}>{u.roles?.name_ar||''}</div></div>
+</div>)}
+</div>
+{/* Licenses + Contracts */}
+<div style={{padding:'14px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{fontSize:11,fontWeight:700,color:'var(--tx3)',marginBottom:10}}>📋 {T('التراخيص والمرافق','Licenses & Facilities')}</div>
+{licDays!==null&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid var(--bd2)'}}>
+<span style={{fontSize:10,color:'var(--tx4)'}}>{T('رخصة بلدية','Municipal')}</span>
+<span style={{fontSize:11,fontWeight:700,color:licDays>90?C.ok:licDays>30?'#e67e22':C.red}}>{licDays>0?licDays+' '+T('يوم','days'):T('منتهية','Expired')}</span>
+</div>}
+{cdDays!==null&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid var(--bd2)'}}>
+<span style={{fontSize:10,color:'var(--tx4)'}}>{T('الدفاع المدني','Civil Defense')}</span>
+<span style={{fontSize:11,fontWeight:700,color:cdDays>90?C.ok:cdDays>30?'#e67e22':C.red}}>{cdDays>0?cdDays+' '+T('يوم','days'):T('منتهية','Expired')}</span>
+</div>}
+{bd.contracts.slice(0,4).map(c=>{const isExp=c.contract_end&&new Date(c.contract_end)<new Date();const typeAr={rent:T('إيجار','Rent'),electricity:T('كهرباء','Elec'),water:T('ماء','Water'),internet:T('إنترنت','Internet'),phone:T('هاتف','Phone'),cleaning:T('نظافة','Cleaning')}
+return<div key={c.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid var(--bd2)'}}>
+<span style={{fontSize:10,color:'var(--tx4)'}}>{typeAr[c.contract_type]||c.contract_type}</span>
+<div style={{display:'flex',alignItems:'center',gap:4}}>
+{c.amount>0&&<span style={{fontSize:10,color:C.gold}}>{nm(c.amount)}</span>}
+{isExp&&<span style={{fontSize:8,padding:'1px 4px',borderRadius:3,background:C.red+'12',color:C.red}}>⚠</span>}
+</div>
+</div>})}
+</div>
+</div>
+{/* Recent transactions */}
+{bd.txns.length>0&&<div style={{padding:'14px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{fontSize:11,fontWeight:700,color:'var(--tx3)',marginBottom:10}}>📊 {T('آخر المعاملات','Recent Transactions')}</div>
+{bd.txns.map(t=><div key={t.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid var(--bd2)'}}>
+<div style={{width:6,height:6,borderRadius:'50%',background:stClr2[t.status]||'#999',flexShrink:0}}/>
+<span style={{fontSize:10,fontWeight:700,color:C.gold,direction:'ltr',flexShrink:0}}>{t.transaction_number}</span>
+<span style={{fontSize:10,color:'var(--tx3)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.service_name_ar||''}</span>
+{t.client_name&&<span style={{fontSize:9,color:'var(--tx5)'}}>{t.client_name}</span>}
+{t.days_remaining!=null&&<span style={{fontSize:9,fontWeight:700,color:slaClr[t.sla_status]||'#999'}}>{t.days_remaining<0?t.days_remaining:'+'+t.days_remaining}{T('ي','d')}</span>}
+</div>)}
+</div>}
+</div>})()}
 
 {/* Branch Comparison — auto-shown when >1 branch selected */}
 {compareMode&&compareData.length>1&&<div style={{borderRadius:14,background:'rgba(255,255,255,.02)',border:'1px solid rgba(201,168,76,.1)',padding:'18px',marginBottom:20}}>
