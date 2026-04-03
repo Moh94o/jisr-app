@@ -22,6 +22,7 @@ const[form,setForm]=useState({})
 const[saving,setSaving]=useState(false)
 const[viewRow,setViewRow]=useState(null)
 const[viewTab,setViewTab]=useState('info')
+const[bvTab,setBvTab]=useState('info')
 const[q,setQ]=useState('')
 const[idTypes,setIdTypes]=useState([])
 const[genders,setGenders]=useState([])
@@ -174,7 +175,7 @@ const isClient=tab==='clients';const isBroker=tab==='brokers'
 const rate=isClient?Number(r.commitment_rate)||0:0;const rateCl=rate>=80?C.ok:rate>=50?C.gold:rate>0?C.red:'var(--tx5)'
 const owed=Number(r.remaining_amount)||0;const isBlk=r.is_blacklisted
 const borderClr=isBlk?'rgba(192,57,43,.25)':r.is_vip?'rgba(201,168,76,.2)':'var(--bd)'
-return<div key={r.id} onClick={()=>{setViewRow(r);setViewTab('info')}} style={{background:'var(--bg)',border:'1px solid '+borderClr,borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.2)'} onMouseLeave={e=>e.currentTarget.style.borderColor=borderClr}>
+return<div key={r.id} onClick={()=>{setViewRow(r);setViewTab('info');setBvTab('info')}} style={{background:'var(--bg)',border:'1px solid '+borderClr,borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.2)'} onMouseLeave={e=>e.currentTarget.style.borderColor=borderClr}>
 {/* Header */}
 <div style={{padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
 <div style={{width:44,height:44,borderRadius:12,background:r.is_vip?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)',border:'1.5px solid '+(r.is_vip?'rgba(201,168,76,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:r.is_vip?C.gold:'var(--tx4)',flexShrink:0}}>{(r.name_ar||'?')[0]}</div>
@@ -268,7 +269,7 @@ return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,backg
 {viewTab==='notes'&&<div>{r.notes?<div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'16px',border:'1px solid rgba(255,255,255,.03)',fontSize:13,lineHeight:2,color:'rgba(255,255,255,.7)'}}>{r.notes}</div>:<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا توجد ملاحظات','No notes')}</div>}</div>}
 </div></div></div></div>})()}
 
-{viewRow&&tab!=='clients'&&(()=>{const r=viewRow;const[bvTab,setBvTab]=useState('info')
+{viewRow&&tab!=='clients'&&(()=>{const r=viewRow
 const IB=({l,v,copy})=><div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast(T('تم النسخ','Copied'))}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}</div></div>
 const btabs=tab==='brokers'?[{id:'info',l:T('البيانات','Info')},{id:'bank',l:T('الحساب البنكي','Bank')},{id:'notes',l:T('ملاحظات','Notes')}]:[{id:'info',l:T('البيانات','Info')},{id:'bank',l:T('الحساب البنكي','Bank')},{id:'notes',l:T('ملاحظات','Notes')}]
 return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16}}>
