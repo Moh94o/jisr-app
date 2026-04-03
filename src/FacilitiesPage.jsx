@@ -171,25 +171,22 @@ const SearchBar=<div style={{flex:1,minWidth:180,position:'relative'}}><svg widt
 return<div style={{paddingBottom:0}}>
 <div style={{marginBottom:16,marginTop:12}}>
 <div style={{fontSize:20,fontWeight:800,color:'var(--tx)'}}>{T('المنشآت','Facilities')}</div>
-<div style={{fontSize:11,color:'var(--tx5)',marginTop:4,marginBottom:32}}>{T('إدارة بيانات المنشآت والسجلات التجارية والامتثال','Manage facilities, commercial registrations & compliance')}</div>
+<div style={{fontSize:11,color:'var(--tx5)',marginTop:4,marginBottom:32}}>{T('إدارة بيانات المنشآت والسجلات التجارية','Manage facilities & commercial registrations')}</div>
 </div>
 
 {/* ═══ FACILITIES ═══ */}
 <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr',gap:12,marginBottom:40}}>
 {/* الإجمالي */}
 <div style={{padding:'20px 24px',borderRadius:14,background:'linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.03))',border:'1px solid rgba(201,168,76,.18)',display:'flex',alignItems:'center',gap:16}}>
-<div>
-<div style={{fontSize:13,fontWeight:700,color:C.gold}}>{T('إجمالي المنشآت','Total Facilities')}</div>
-<div style={{fontSize:10,color:'rgba(201,168,76,.5)',marginTop:2}}>{T('مسجّلة في النظام','Registered')}</div>
-</div>
-<div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
-<div style={{fontSize:38,fontWeight:900,color:C.gold,lineHeight:1}}>{totalFac}</div>
+<div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
+<div style={{fontSize:42,fontWeight:900,color:C.gold,lineHeight:1}}>{totalFac}</div>
+<div style={{fontSize:13,fontWeight:700,color:C.gold,marginTop:8}}>{T('إجمالي المنشآت','Total Facilities')}</div>
 {issueFac>0&&<div style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,padding:'2px 8px',borderRadius:5,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.12)'}}><div style={{width:5,height:5,borderRadius:'50%',background:C.red}}/><span style={{fontSize:9,fontWeight:600,color:C.red}}>{issueFac} {T('تحتاج متابعة','need attention')}</span></div>}
 </div>
 </div>
 {/* نوع المنشأة — في المنتصف */}
 <div style={{padding:'20px 18px',borderRadius:14,background:'linear-gradient(135deg,rgba(155,89,182,.08),rgba(155,89,182,.02))',border:'1px solid rgba(155,89,182,.15)'}}>
-<div style={{fontSize:10,fontWeight:600,color:'rgba(155,89,182,.7)',marginBottom:14}}>{T('نوع المنشآت','Facility Types')}</div>
+<div style={{fontSize:13,fontWeight:700,color:'rgba(155,89,182,.8)',marginBottom:14}}>{T('نوع المنشآت','Facility Types')}</div>
 <div style={{display:'flex',gap:16}}>
 {[{l:T('مؤسسة فردية','Sole Est.'),v:soleEstablishments,c:'#9b59b6'},{l:T('شخص واحد','One Person'),v:llcOnePerson,c:'#1abc9c'},{l:T('شخصين فأكثر','Two+'),v:llcTwoPlus,c:'#3483b4'}].map((s,i)=><div key={i} style={{flex:1,textAlign:'center'}}>
 <div style={{fontSize:22,fontWeight:800,color:s.c,lineHeight:1}}>{s.v}</div>
@@ -199,9 +196,9 @@ return<div style={{paddingBottom:0}}>
 </div>
 {/* حالة السجل */}
 <div style={{padding:'20px 18px',borderRadius:14,background:'linear-gradient(135deg,rgba(52,131,180,.08),rgba(52,131,180,.02))',border:'1px solid rgba(52,131,180,.15)'}}>
-<div style={{fontSize:10,fontWeight:600,color:'rgba(52,131,180,.7)',marginBottom:14}}>{T('حالة السجل التجاري','CR Status')}</div>
+<div style={{fontSize:13,fontWeight:700,color:'rgba(52,131,180,.8)',marginBottom:14}}>{T('حالة السجل التجاري','CR Status')}</div>
 <div style={{display:'flex',gap:16}}>
-{[{l:T('ضمن فترة التأكيد','Pending'),v:pendingConfirmFac,c:C.blue},{l:T('معلّقة','Suspended'),v:suspendedFac,c:'#e67e22'},{l:T('مشطوبة','Deleted'),v:deletedCrFac,c:C.red}].map((s,i)=><div key={i} style={{flex:1,textAlign:'center'}}>
+{[{l:T('ضمن فترة التأكيد','Pending'),v:pendingConfirmFac,c:C.blue},{l:T('معلّق','Suspended'),v:suspendedFac,c:'#e67e22'},{l:T('مشطوب','Deleted'),v:deletedCrFac,c:C.red}].map((s,i)=><div key={i} style={{flex:1,textAlign:'center'}}>
 <div style={{fontSize:22,fontWeight:800,color:s.c,lineHeight:1}}>{s.v}</div>
 <div style={{fontSize:9,fontWeight:600,color:s.c,opacity:.7,marginTop:4}}>{s.l}</div>
 </div>)}
