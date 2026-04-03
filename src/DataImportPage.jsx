@@ -78,16 +78,16 @@ const totalReceipts=receipts.length;const linked=receipts.filter(r=>r.is_linked)
 
 if(loading)return<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>
 return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
-<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>📥 {T('استيراد البيانات التاريخية','Historical Data Import')}</div>
+<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>{T('استيراد البيانات التاريخية','Historical Data Import')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginBottom:20}}>{T('استيراد فواتير من إكسل + إدخال سندات قبض ورقية','Import invoices from Excel + enter paper receipts')}</div>
 
 {/* Layout: side tabs + content */}
 <div style={{display:'flex',gap:0,minHeight:400}}>
 {/* Side sub-tabs - RIGHT side in RTL */}
-<div style={{width:120,flexShrink:0,borderLeft:lang==='ar'?'1px solid rgba(255,255,255,.06)':'none',borderRight:lang!=='ar'?'1px solid rgba(255,255,255,.06)':'none',padding:'4px 6px'}}>
-{[{id:'overview',l:T('نظرة عامة','Overview'),ic:'📊'},{id:'excel',l:T('استيراد إكسل','Excel'),ic:'📊'},{id:'receipts',l:T('سندات القبض','Receipts'),ic:'📝',n:totalReceipts},{id:'batches',l:T('الدفعات','Batches'),ic:'📦',n:batches.length}].map(t=>
-<div key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 10px',borderRadius:8,marginBottom:2,fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.3)',background:tab===t.id?'rgba(201,168,76,.06)':'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',borderRight:lang==='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:lang!=='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent'}}>
-<span style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:11}}>{t.ic}</span>{t.l}</span>
+<div style={{width:105,flexShrink:0,borderLeft:lang==='ar'?'1px solid rgba(255,255,255,.06)':'none',borderRight:lang!=='ar'?'1px solid rgba(255,255,255,.06)':'none',padding:'2px 4px'}}>
+{[{id:'overview',l:T('نظرة عامة','Overview')},{id:'excel',l:T('استيراد إكسل','Excel')},{id:'receipts',l:T('سندات القبض','Receipts'),n:totalReceipts},{id:'batches',l:T('الدفعات','Batches'),n:batches.length}].map(t=>
+<div key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 10px',borderRadius:8,marginBottom:1,fontSize:11,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.35)',background:tab===t.id?'rgba(201,168,76,.06)':'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',borderRight:lang==='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:lang!=='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent'}}>
+<span>{t.l}</span>
 {t.n>0&&<span style={{fontSize:8,fontWeight:700,color:tab===t.id?C.gold:'rgba(255,255,255,.15)',background:tab===t.id?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',padding:'1px 5px',borderRadius:6}}>{t.n}</span>}
 </div>)}
 </div>
@@ -97,7 +97,7 @@ return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
 {/* ═══ OVERVIEW ═══ */}
 {tab==='overview'&&<div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-{[[T('دفعات الاستيراد','Batches'),batches.length,C.gold,'📦'],[T('سندات قبض','Receipts'),totalReceipts,C.blue,'📝'],[T('مربوطة بفاتورة','Linked'),linked,C.ok,'🔗'],[T('بدون ربط','Unlinked'),unlinked,unlinked>0?'#e67e22':'#888','⚠']].map(([l,v,c,ic],i)=>
+{[[T('دفعات الاستيراد','Batches'),batches.length,C.gold,''],[T('سندات قبض','Receipts'),totalReceipts,C.blue,''],[T('مربوطة بفاتورة','Linked'),linked,C.ok,''],[T('بدون ربط','Unlinked'),unlinked,unlinked>0?'#e67e22':'#888','']].map(([l,v,c,ic],i)=>
 <div key={i} style={{padding:'14px',borderRadius:12,background:c+'08',border:'1px solid '+c+'15',textAlign:'center'}}>
 <div style={{fontSize:16}}>{ic}</div><div style={{fontSize:22,fontWeight:800,color:c,marginTop:4}}>{v}</div><div style={{fontSize:9,color:c,opacity:.6}}>{l}</div>
 </div>)}
@@ -133,7 +133,7 @@ return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
 <div style={{fontSize:14,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>{T('رفع ملف إكسل أو CSV','Upload Excel or CSV file')}</div>
 <div style={{fontSize:11,color:'var(--tx5)',marginBottom:16}}>{T('الملف يجب أن يحتوي أعمدة: رقم الفاتورة، اسم العميل، المبلغ، التاريخ','File should have: invoice number, client name, amount, date')}</div>
 <label style={{display:'inline-flex',alignItems:'center',gap:6,height:42,padding:'0 24px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.1)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer'}}>
-📎 {T('اختر ملف','Choose File')}
+{T('اختر ملف','Choose File')}
 <input type="file" accept=".csv,.txt,.xlsx" onChange={handleExcel} style={{display:'none'}}/>
 </label>
 </div>}
@@ -148,7 +148,7 @@ return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
 </div>
 {excelData.length>10&&<div style={{fontSize:10,color:'var(--tx5)',marginBottom:12}}>+{excelData.length-10} {T('صف آخر','more rows')}</div>}
 <div style={{padding:'12px 16px',borderRadius:10,background:'rgba(230,126,34,.06)',border:'1px solid rgba(230,126,34,.12)',marginBottom:16}}>
-<span style={{fontSize:10,color:'#e67e22'}}>⚠ {T('هذه البيانات ستُعلّم كـ "مستوردة" ولن تؤثر على إحصائيات اليوم','Data will be tagged as "imported" and won\'t affect today\'s stats')}</span>
+<span style={{fontSize:10,color:'#e67e22'}}>{T('هذه البيانات ستُعلّم كـ "مستوردة" ولن تؤثر على إحصائيات اليوم','Data will be tagged as "imported" and won\'t affect today\'s stats')}</span>
 </div>
 <div style={{display:'flex',gap:8}}>
 <button onClick={()=>{setExcelStep(0);setExcelData([])}} style={{height:42,padding:'0 20px',borderRadius:10,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>{T('إلغاء','Cancel')}</button>
@@ -165,7 +165,7 @@ return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
 </div>
 {receipts.map(r=>{
 return<div key={r.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',borderRadius:10,background:r.is_linked?'rgba(39,160,70,.03)':'rgba(255,255,255,.02)',border:'1px solid '+(r.is_linked?'rgba(39,160,70,.08)':'rgba(255,255,255,.06)'),marginBottom:6}}>
-<div style={{width:36,height:36,borderRadius:10,background:r.is_linked?C.ok+'12':C.gold+'12',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>{r.is_linked?'🔗':'📝'}</div>
+<div style={{width:36,height:36,borderRadius:10,background:r.is_linked?C.ok+'12':C.gold+'12',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>{r.is_linked?'':''}</div>
 <div style={{flex:1}}>
 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
 <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{r.receipt_number}</span>
@@ -191,7 +191,7 @@ return<div key={b.id} style={{padding:'14px 16px',borderRadius:12,background:b.s
 {b.status==='completed'&&<button onClick={()=>rollbackBatch(b.id)} style={{height:28,padding:'0 10px',borderRadius:6,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.06)',color:C.red,fontFamily:F,fontSize:9,fontWeight:700,cursor:'pointer'}}>↩ {T('تراجع','Rollback')}</button>}
 </div>
 <div style={{fontSize:10,color:'var(--tx5)'}}>
-{b.source_type==='excel'?'📊 ':' 📝 '}{b.total_invoices>0?b.total_invoices+' '+T('فاتورة','invoices')+' · ':''}{b.total_payments>0?b.total_payments+' '+T('دفعة','payments')+' · ':''}{nm(b.total_amount)} {T('ر.س','SAR')}
+{b.source_type==='excel'?'':' '}{b.total_invoices>0?b.total_invoices+' '+T('فاتورة','invoices')+' · ':''}{b.total_payments>0?b.total_payments+' '+T('دفعة','payments')+' · ':''}{nm(b.total_amount)} {T('ر.س','SAR')}
 {b.imported_at&&<span> · {new Date(b.imported_at).toLocaleDateString('ar-SA',{month:'short',day:'numeric'})}</span>}
 </div>
 </div>})}
@@ -203,7 +203,7 @@ return<div key={b.id} style={{padding:'14px 16px',borderRadius:12,background:b.s
 {rcPop&&<div onClick={()=>setRcPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
 <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(520px,96vw)',maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',border:'1px solid var(--bd)'}}>
 <div style={{height:3,background:`linear-gradient(90deg,transparent,${C.blue},transparent)`}}/>
-<div style={{padding:'16px 22px',borderBottom:'1px solid var(--bd)',fontSize:14,fontWeight:800,color:'var(--tx)'}}>{rcPop==='new'?T('📝 إدخال سند قبض','📝 New Receipt'):T('تعديل سند','Edit Receipt')}</div>
+<div style={{padding:'16px 22px',borderBottom:'1px solid var(--bd)',fontSize:14,fontWeight:800,color:'var(--tx)'}}>{rcPop==='new'?T('إدخال سند قبض','New Receipt'):T('تعديل سند','Edit Receipt')}</div>
 <div style={{padding:'16px 22px',overflowY:'auto',display:'flex',flexDirection:'column',gap:10}}>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 <div><div style={{fontSize:10,color:'var(--tx4)',marginBottom:4}}>{T('رقم السند','Receipt #')} *</div><input value={rcForm.receipt_number||''} onChange={e=>setRcForm(p=>({...p,receipt_number:e.target.value}))} style={fS}/></div>
@@ -232,7 +232,7 @@ return<div key={b.id} style={{padding:'14px 16px',borderRadius:12,background:b.s
 {linkPop&&<div onClick={()=>setLinkPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
 <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(460px,96vw)',border:'1px solid var(--bd)',overflow:'hidden'}}>
 <div style={{height:3,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`}}/>
-<div style={{padding:'16px 22px',borderBottom:'1px solid var(--bd)',fontSize:14,fontWeight:800,color:'var(--tx)'}}>🔗 {T('ربط سند القبض بفاتورة','Link Receipt to Invoice')}</div>
+<div style={{padding:'16px 22px',borderBottom:'1px solid var(--bd)',fontSize:14,fontWeight:800,color:'var(--tx)'}}>{T('ربط سند القبض بفاتورة','Link Receipt to Invoice')}</div>
 <div style={{padding:'16px 22px',maxHeight:300,overflowY:'auto'}}>
 {invoices.length===0?<div style={{textAlign:'center',padding:20,color:'var(--tx5)'}}>{T('لا توجد فواتير غير مسددة','No unpaid invoices')}</div>:
 invoices.map(inv=><div key={inv.id} onClick={()=>setLinkInvoice(inv.id)} style={{padding:'10px 12px',borderRadius:8,background:linkInvoice===inv.id?'rgba(201,168,76,.08)':'rgba(255,255,255,.02)',border:'1.5px solid '+(linkInvoice===inv.id?'rgba(201,168,76,.2)':'rgba(255,255,255,.06)'),marginBottom:4,cursor:'pointer',display:'flex',justifyContent:'space-between'}}>
@@ -242,7 +242,7 @@ invoices.map(inv=><div key={inv.id} onClick={()=>setLinkInvoice(inv.id)} style={
 </div>
 <div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'flex-end',gap:8}}>
 <button onClick={()=>setLinkPop(null)} style={{height:38,padding:'0 16px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,cursor:'pointer'}}>{T('إلغاء','Cancel')}</button>
-<button onClick={()=>linkReceipt(linkPop)} disabled={!linkInvoice} style={{height:38,padding:'0 20px',borderRadius:10,border:'none',background:C.gold,color:'#111',fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',opacity:linkInvoice?1:.4}}>🔗 {T('ربط','Link')}</button>
+<button onClick={()=>linkReceipt(linkPop)} disabled={!linkInvoice} style={{height:38,padding:'0 20px',borderRadius:10,border:'none',background:C.gold,color:'#111',fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',opacity:linkInvoice?1:.4}}>{T('ربط','Link')}</button>
 </div>
 </div></div>}
 </div>}

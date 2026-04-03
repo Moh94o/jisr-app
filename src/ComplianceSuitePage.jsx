@@ -12,7 +12,7 @@ const active=data.filter(d=>d.status==='active').length;const expiring=data.filt
 const stClr={active:C.ok,draft:'#888',expired:C.red,terminated:C.red};const stLbl={active:T('نشط','Active'),draft:T('مسودة','Draft'),expired:T('منتهي','Expired'),terminated:T('ملغي','Terminated')}
 if(loading)return<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>
 return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
-<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>📑 {T('العقود والاتفاقيات','Contracts')}</div>
+<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>{T('العقود والاتفاقيات','Contracts')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginBottom:20}}>{T('عقود العملاء والخدمات','Client & service contracts')}</div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
 {[[T('إجمالي','Total'),data.length,C.gold],[T('نشط','Active'),active,C.ok],[T('ينتهي قريباً','Expiring'),expiring,'#e67e22'],[T('منتهي','Expired'),expired,C.red]].map(([l,v,c],i)=>
@@ -46,7 +46,7 @@ const expiring=data.filter(d=>d.expiry_date&&new Date(d.expiry_date)<new Date(Da
 const expired=data.filter(d=>d.expiry_date&&new Date(d.expiry_date)<new Date()).length
 if(loading)return<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>
 return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
-<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>📁 {T('الأرشيف والمستندات','Document Archive')}</div>
+<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>{T('الأرشيف والمستندات','Document Archive')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginBottom:20}}>{T('أرشيف مركزي للوثائق والملفات','Central document repository')}</div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
 {[[T('إجمالي','Total'),data.length,C.gold],[T('حرجة','Critical'),data.filter(d=>d.is_critical).length,C.red],[T('منتهية','Expired'),expired,C.red],[T('تنتهي قريباً','Expiring'),expiring,'#e67e22']].map(([l,v,c],i)=>
@@ -68,7 +68,7 @@ return<div key={d.id} style={{display:'flex',alignItems:'center',gap:12,padding:
 <div style={{fontSize:9,color:'var(--tx5)',marginTop:2}}>{d.file_name||''}{d.entity_type?' · '+d.entity_type:''}</div>
 </div>
 <span style={{fontSize:8,padding:'2px 6px',borderRadius:4,background:c+'12',color:c}}>{catLabels[d.category]||d.category}</span>
-{d.is_critical&&<span style={{fontSize:8,padding:'2px 6px',borderRadius:4,background:C.red+'12',color:C.red}}>⚠ {T('حرج','Critical')}</span>}
+{d.is_critical&&<span style={{fontSize:8,padding:'2px 6px',borderRadius:4,background:C.red+'12',color:C.red}}>{T('حرج','Critical')}</span>}
 {daysLeft!==null&&<span style={{fontSize:10,fontWeight:700,color:daysLeft<0?C.red:daysLeft<30?'#e67e22':C.ok}}>{daysLeft<0?T('منتهي','Exp'):daysLeft+T('ي','d')}</span>}
 </div>})}
 </div>}
@@ -82,7 +82,7 @@ const typeLabels={recruitment:T('استقدام','Recruitment'),insurance:T('ت�
 const typeColors={recruitment:C.blue,insurance:'#9b59b6',real_estate:C.gold,maintenance:'#e67e22',government:C.red,other:'#888'}
 if(loading)return<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>
 return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
-<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>🏪 {T('الموردين والمتعاقدين','Suppliers')}</div>
+<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>{T('الموردين والمتعاقدين','Suppliers')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginBottom:20}}>{T('شركات الاستقدام والتأمين والعقارات','Recruitment, insurance & real estate vendors')}</div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
 {[[T('إجمالي','Total'),data.length,C.gold],[T('نشط','Active'),data.filter(d=>d.is_active).length,C.ok],[T('متوسط التقييم','Avg Rating'),(data.length>0?(data.reduce((s,d)=>s+(d.rating||0),0)/data.length).toFixed(1):'—'),'#e67e22']].map(([l,v,c],i)=>
@@ -116,7 +116,7 @@ const stLbl={pending:T('معلّقة','Pending'),approved:T('مقبولة','Appr
 const pending=data.filter(d=>d.status==='pending').length
 if(loading)return<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>
 return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
-<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>🏖 {T('الإجازات والمغادرات','Leaves & Departures')}</div>
+<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>{T('الإجازات والمغادرات','Leaves & Departures')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginBottom:20}}>{T('إجازات العمال والمغادرات','Worker leaves management')}</div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
 {[[T('إجمالي','Total'),data.length,C.gold],[T('معلّقة','Pending'),pending,'#e67e22'],[T('مقبولة','Approved'),data.filter(d=>d.status==='approved').length,C.ok],[T('مكتملة','Done'),data.filter(d=>d.status==='completed').length,C.blue]].map(([l,v,c],i)=>
@@ -146,7 +146,7 @@ const catColors={salaries:C.blue,rent:C.gold,government:C.red,operations:'#e67e2
 const totalBudget=data.reduce((s,d)=>s+Number(d.budget_amount||0),0);const totalActual=data.reduce((s,d)=>s+Number(d.actual_amount||0),0);const usagePct=totalBudget>0?Math.round(totalActual/totalBudget*100):0
 if(loading)return<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>
 return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
-<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>💼 {T('الميزانية والموازنة','Budget')}</div>
+<div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>{T('الميزانية والموازنة','Budget')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginBottom:20}}>{T('متابعة الصرف مقابل الميزانية المخططة','Track spending vs planned budget')}</div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
 {[[T('الميزانية','Budget'),nm(totalBudget),C.gold],[T('المصروف','Spent'),nm(totalActual),totalActual>totalBudget?C.red:'#e67e22'],[T('الاستخدام','Usage'),usagePct+'%',usagePct>100?C.red:usagePct>80?'#e67e22':C.ok]].map(([l,v,c],i)=>

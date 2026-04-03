@@ -72,7 +72,7 @@ const totalSent=campaigns.reduce((s,c)=>s+c.total_recipients,0);const totalDeliv
 if(loading)return<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>
 return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
-<div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>📱 {T('مركز الرسائل','Messaging Center')}</div>
+<div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>{T('مركز الرسائل','Messaging Center')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('إرسال رسائل واتساب فردية وجماعية للعمال والعملاء','Send WhatsApp messages to workers & clients')}</div></div>
 <div style={{display:'flex',alignItems:'center',gap:8}}>
 <div style={{width:8,height:8,borderRadius:'50%',background:config?.is_connected?C.ok:C.red}}/>
@@ -170,7 +170,7 @@ return<div key={i} style={{padding:'10px 12px',borderRadius:8,background:'rgba(3
 </div>
 <div style={{display:'flex',gap:8}}>
 <button onClick={()=>setSendStep(2)} style={{flex:1,height:42,borderRadius:10,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>{T('← تعديل','← Edit')}</button>
-<button onClick={sendCampaign} style={{flex:2,height:42,borderRadius:10,border:'none',background:C.ok,color:'#fff',fontFamily:F,fontSize:13,fontWeight:800,cursor:'pointer'}}>📤 {T('إرسال الآن','Send Now')} ({filteredRecipients.length})</button>
+<button onClick={sendCampaign} style={{flex:2,height:42,borderRadius:10,border:'none',background:C.ok,color:'#fff',fontFamily:F,fontSize:13,fontWeight:800,cursor:'pointer'}}>{T('إرسال الآن','Send Now')} ({filteredRecipients.length})</button>
 </div>
 </div>}
 </div>}
@@ -265,7 +265,7 @@ return<div key={g.id} style={{padding:'14px 16px',borderRadius:12,background:'rg
 {/* ═══ TAB: SETTINGS ═══ */}
 {tab==='settings'&&<div style={{maxWidth:500}}>
 <div style={{padding:'16px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)',marginBottom:14}}>
-<div style={{fontSize:13,fontWeight:700,color:'var(--tx3)',marginBottom:12}}>📱 {T('ربط واتساب','WhatsApp Connection')}</div>
+<div style={{fontSize:13,fontWeight:700,color:'var(--tx3)',marginBottom:12}}>{T('ربط واتساب','WhatsApp Connection')}</div>
 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
 <div style={{width:10,height:10,borderRadius:'50%',background:config?.is_connected?C.ok:C.red}}/>
 <span style={{fontSize:12,fontWeight:600,color:config?.is_connected?C.ok:C.red}}>{config?.is_connected?T('متصل — جاهز للإرسال','Connected — Ready'):T('غير متصل — يحتاج إعداد API','Not connected — API setup needed')}</span>

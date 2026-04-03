@@ -525,16 +525,16 @@ useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+k':()=>{const el=docu
 const doSearch=useCallback(async(q)=>{if(!q||q.length<2){setSearchResults([]);return}setSearchLoading(true);try{const[fac,wrk,cli,inv]=await Promise.all([sb.from('facilities').select('id,name_ar,unified_national_number,cr_number').is('deleted_at',null).or(`name_ar.ilike.%${q}%,unified_national_number.ilike.%${q}%,cr_number.ilike.%${q}%`).limit(5),sb.from('workers').select('id,name_ar,iqama_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,iqama_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('clients').select('id,name_ar,id_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,id_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('invoices').select('id,invoice_number,total_amount,status').is('deleted_at',null).or(`invoice_number.ilike.%${q}%`).limit(5)]);const r=[];(fac.data||[]).forEach(d=>r.push({type:'facility',icon:'facility',label:d.name_ar,sub:d.cr_number||d.unified_national_number||'',pg:'facilities',id:d.id}));(wrk.data||[]).forEach(d=>r.push({type:'worker',icon:'worker',label:d.name_ar,sub:d.iqama_number||d.phone||'',pg:'workers',id:d.id}));(cli.data||[]).forEach(d=>r.push({type:'client',icon:'client',label:d.name_ar,sub:d.id_number||d.phone||'',pg:'clients',id:d.id}));(inv.data||[]).forEach(d=>r.push({type:'invoice',icon:'invoice',label:d.invoice_number,sub:Number(d.total_amount||0).toLocaleString()+' ر.س',pg:'invoices',id:d.id}));setSearchResults(r)}catch(e){setSearchResults([])}setSearchLoading(false)},[sb]);useEffect(()=>{const t=setTimeout(()=>doSearch(searchQ),300);return()=>clearTimeout(t)},[searchQ,doSearch]);
 const loadActivityLog=useCallback(async()=>{setActivityLoading(true);try{const{data}=await sb.from('activity_log').select('*,users:user_id(name_ar,name_en)').order('created_at',{ascending:false}).limit(100);setActivityLog(data||[])}catch(e){setActivityLog([])}setActivityLoading(false)},[sb]);
 const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);const nav=[
-{id:'home',l:T('🏠 الرئيسية','🏠 Dashboard'),i:'home'},
-{id:'workforce',l:T('👷 العمالة والمنشآت','👷 Workforce'),i:'worker'},
-{id:'operations',l:T('📋 العمليات','📋 Operations'),i:'transaction',n:taskCount},
-{id:'finance_hub',l:T('💰 المالية','💰 Finance'),i:'invoice'},
-{id:'clients_hub',l:T('👥 العملاء والحسابات','👥 Clients'),i:'client'},
-{id:'manpower_hub',l:T('🏗 المانباور','🏗 Manpower'),i:'facility'},
-{id:'messaging_hub',l:T('📱 التواصل','📱 Messaging'),i:'message'},
-{id:'admin_hub',l:T('🏢 الإدارة','🏢 Admin'),i:'settings'},
-{id:'reports_hub',l:T('📊 التقارير','📊 Reports'),i:'chart'},
-{id:'settings',l:T('⚙ الإعدادات','⚙ Settings'),i:'settings'}
+{id:'home',l:T('الرئيسية','Dashboard'),i:'home'},
+{id:'workforce',l:T('العمالة والمنشآت','Workforce'),i:'worker'},
+{id:'operations',l:T('العمليات','Operations'),i:'transaction',n:taskCount},
+{id:'finance_hub',l:T('المالية','Finance'),i:'invoice'},
+{id:'clients_hub',l:T('العملاء والحسابات','Clients'),i:'client'},
+{id:'manpower_hub',l:T('المانباور','Manpower'),i:'facility'},
+{id:'messaging_hub',l:T('التواصل','Messaging'),i:'message'},
+{id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'},
+{id:'reports_hub',l:T('التقارير','Reports'),i:'chart'},
+{id:'settings',l:T('الإعدادات','Settings'),i:'settings'}
 ];const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
 cols:[['name_ar',T('الاسم','Name')],['unified_national_number',T('الرقم الموحد','Unified No.')],['cr_number',T('السجل','CR No.')],['cr_status',T('حالة السجل','CR Status')],['facility_status',T('الحالة','Status')],['nitaqat_color',T('نطاقات','Nitaqat')]],
