@@ -75,8 +75,11 @@
     <script type="module" src="/src/main.jsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for(var r of regs) r.unregister();
+        });
+        caches.keys().then(function(keys) {
+          for(var k of keys) caches.delete(k);
         });
       }
       if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
