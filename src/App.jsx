@@ -1109,34 +1109,42 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 <div className='dash-content' style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'32px 24px 0',msOverflowStyle:'none',scrollbarWidth:'none',WebkitOverflowScrolling:'touch'}}>
 {pg==='home'&&<HomePage stats={stats} lang={lang} branches={dashBranches} selectedBranch={dashBranch} onBranchChange={setDashBranch} sb={sb} onNavigate={setPage} toast={tt}/>}
 
-{/* ═══ HUB: العمالة والمنشآت ═══ */}
-{['facilities','workers','compliance','worker_leaves'].includes(pg)&&<>
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto'}} className="dash-content">
-{[{id:'facilities',l:T('المنشآت','Facilities')},{id:'workers',l:T('العمالة','Workers')},{id:'compliance',l:T('الامتثال','Compliance')},{id:'worker_leaves',l:T('الإجازات','Leaves')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'10px 16px',fontSize:12,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</div>)}
+{/* ═══ HUB LAYOUT HELPER — Side tabs + content ═══ */}
+{(()=>{
+const hubTabs={
+  workforce:[{id:'facilities',l:T('المنشآت','Facilities')},{id:'workers',l:T('العمالة','Workers')},{id:'compliance',l:T('الامتثال','Compliance')},{id:'worker_leaves',l:T('الإجازات','Leaves')}],
+  operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')},{id:'workflow',l:T('الأتمتة','Automation')},{id:'transfer_calc',l:T('نقل الكفالة','Transfer')}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'payments',l:T('المدفوعات','Payments')},{id:'pricing_calc',l:T('التسعير','Pricing')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'op_expenses',l:T('المصاريف','Expenses')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('الاستيراد','Import')}],
+  clients_hub:[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'contracts',l:T('العقود','Contracts')},{id:'client_statement',l:T('كشف حساب','Statement')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}],
+  admin_hub:[{id:'admin_offices',l:T('الفروع','Branches')},{id:'admin_staff',l:T('الفريق','Team')},{id:'attendance',l:T('الحضور','Attendance')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'archive',l:T('الأرشيف','Archive')},{id:'suppliers',l:T('الموردين','Suppliers')},{id:'activity_log',l:T('السجل','Log')}],
+  reports_hub:[{id:'report_periodic',l:T('الدورية','Periodic')},{id:'emp_performance',l:T('الأداء','Performance')},{id:'branch_compare',l:T('الفروع','Branches')},{id:'invoice_followups',l:T('تقادم الفواتير','Aging')},{id:'weekly_report',l:T('الأسبوعي','Weekly')},{id:'live_monitor',l:T('المراقبة','Monitor')},{id:'report_alerts',l:T('التنبيهات','Alerts')}]
+}
+const allHubPages=Object.values(hubTabs).flat().map(t=>t.id)
+const currentHub=Object.entries(hubTabs).find(([,tabs])=>tabs.some(t=>t.id===pg))
+if(!currentHub||!allHubPages.includes(pg))return null
+const[hubKey,tabs]=currentHub
+return<div style={{display:'flex',gap:0,margin:'-32px -24px 0',minHeight:'calc(100vh - 48px)'}}>
+{/* Side tab panel */}
+<div style={{width:110,flexShrink:0,background:'var(--bg)',borderLeft:lang==='ar'?'1px solid var(--bd)':'none',borderRight:lang==='ar'?'none':'1px solid var(--bd)',padding:'12px 6px',overflowY:'auto'}} className="dash-content">
+{tabs.map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'8px 10px',borderRadius:7,marginBottom:2,fontSize:10,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.35)',background:pg===t.id?'rgba(201,168,76,.08)':'transparent',cursor:'pointer',transition:'.15s',display:'flex',alignItems:'center',gap:5}}>
+{pg===t.id&&<div style={{width:2,height:14,borderRadius:2,background:C.gold,flexShrink:0}}/>}
+<span>{t.l}</span>
+</div>)}
 </div>
+{/* Content area */}
+<div style={{flex:1,padding:'32px 24px',overflowY:'auto',minWidth:0}} className="dash-content">
+{/* العمالة */}
 {pg==='facilities'&&<FacilitiesPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='workers'&&<WorkforcePage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='compliance'&&<CompliancePage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='worker_leaves'&&<WorkerLeavesPage sb={sb} toast={tt} user={user} lang={lang}/>}
-</>}
-
-{/* ═══ HUB: العمليات ═══ */}
-{['transactions_internal','transactions_external','tasks','sla_monitor','workflow','transfer_calc'].includes(pg)&&<>
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto'}} className="dash-content">
-{[{id:'transactions_external',l:T('معاملات خارجية','External')},{id:'transactions_internal',l:T('معاملات داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('مراقبة SLA','SLA')},{id:'workflow',l:T('الأتمتة','Automation')},{id:'transfer_calc',l:T('نقل الكفالة','Transfer')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'10px 16px',fontSize:12,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</div>)}
-</div>
+{/* العمليات */}
 {(pg==='transactions_internal'||pg==='transactions_external')&&<TransactionsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultType={pg==='transactions_internal'?'internal':'external'}/>}
 {pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='sla_monitor'&&<SLAPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='workflow'&&<WorkflowPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='transfer_calc'&&<TransferCalcPage sb={sb} toast={tt} user={user} lang={lang}/>}
-</>}
-
-{/* ═══ HUB: المالية ═══ */}
-{['invoices','payments','ext_payments','pricing_calc','cash_flow','audit','op_expenses','budget','data_import'].includes(pg)&&<>
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto'}} className="dash-content">
-{[{id:'invoices',l:T('الفواتير','Invoices')},{id:'payments',l:T('المدفوعات','Payments')},{id:'pricing_calc',l:T('التسعير','Pricing')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'op_expenses',l:T('المصاريف','Expenses')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('📥 الاستيراد','📥 Import')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'10px 16px',fontSize:12,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</div>)}
-</div>
+{/* المالية */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='ext_payments'&&<ExtPaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
@@ -1146,31 +1154,13 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {pg==='op_expenses'&&<OpExpensesPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='budget'&&<BudgetPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='data_import'&&<DataImportPage sb={sb} toast={tt} user={user} lang={lang}/>}
-</>}
-
-{/* ═══ HUB: العملاء والحسابات ═══ */}
-{['clients','brokers','providers','client_statement','profitability','nps','contracts'].includes(pg)&&<>
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto'}} className="dash-content">
-{[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'contracts',l:T('العقود','Contracts')},{id:'client_statement',l:T('كشف حساب','Statement')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'10px 16px',fontSize:12,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</div>)}
-</div>
+{/* العملاء */}
 {(pg==='clients'||pg==='brokers'||pg==='providers')&&<DataPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultTab={pg} branchId={dashBranch}/>}
 {pg==='contracts'&&<ContractsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='client_statement'&&<ClientStatementPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='profitability'&&<ProfitabilityPage sb={sb} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='nps'&&<NPSPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
-</>}
-
-{/* ═══ HUB: المانباور ═══ */}
-{['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg)&&<ManpowerPage sb={sb} toast={tt} user={user} lang={lang}/>}
-
-{/* ═══ HUB: التواصل ═══ */}
-{['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg)&&<MessagingPage sb={sb} toast={tt} user={user} lang={lang}/>}
-
-{/* ═══ HUB: الإدارة ═══ */}
-{['admin_offices','admin_staff','attendance','approvals','activity_log','auto_alerts','archive','suppliers'].includes(pg)&&<>
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto'}} className="dash-content">
-{[{id:'admin_offices',l:T('الفروع','Branches')},{id:'admin_staff',l:T('الفريق','Team')},{id:'attendance',l:T('الحضور','Attendance')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'archive',l:T('الأرشيف','Archive')},{id:'suppliers',l:T('الموردين','Suppliers')},{id:'activity_log',l:T('السجل','Log')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'10px 16px',fontSize:12,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</div>)}
-</div>
+{/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='admin_staff'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultTab="users" branchId={dashBranch}/>}
 {pg==='attendance'&&<AttendancePage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
@@ -1179,13 +1169,7 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {pg==='archive'&&<ArchivePage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='suppliers'&&<SuppliersPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='activity_log'&&<ActivityLogPage sb={sb} lang={lang} data={activityLog} loading={activityLoading} onLoad={loadActivityLog}/>}
-</>}
-
-{/* ═══ HUB: التقارير ═══ */}
-{['report_periodic','emp_performance','branch_compare','live_monitor','weekly_report','invoice_followups','report_alerts','report_performance'].includes(pg)&&<>
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto'}} className="dash-content">
-{[{id:'report_periodic',l:T('الدورية','Periodic')},{id:'emp_performance',l:T('الأداء','Performance')},{id:'branch_compare',l:T('الفروع','Branches')},{id:'invoice_followups',l:T('تقادم الفواتير','Aging')},{id:'weekly_report',l:T('الأسبوعي','Weekly')},{id:'live_monitor',l:T('المراقبة','Monitor')},{id:'report_alerts',l:T('التنبيهات','Alerts')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'10px 16px',fontSize:12,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</div>)}
-</div>
+{/* التقارير */}
 {pg==='report_periodic'&&<ReportPeriodicPage sb={sb} lang={lang} branchId={dashBranch}/>}
 {pg==='emp_performance'&&<EmployeePerformancePage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='branch_compare'&&<BranchComparisonPage sb={sb} toast={tt} lang={lang}/>}
@@ -1194,7 +1178,13 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {pg==='invoice_followups'&&<InvoiceFollowupsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='report_alerts'&&<ReportAlertsPage sb={sb} lang={lang}/>}
 {pg==='report_performance'&&<ReportPerformancePage sb={sb} lang={lang} branchId={dashBranch}/>}
-</>}
+</div></div>})()}
+
+{/* ═══ HUB: المانباور (has own tabs) ═══ */}
+{['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg)&&<ManpowerPage sb={sb} toast={tt} user={user} lang={lang}/>}
+
+{/* ═══ HUB: التواصل (has own tabs) ═══ */}
+{['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg)&&<MessagingPage sb={sb} toast={tt} user={user} lang={lang}/>}
 
 {/* ═══ الإعدادات ═══ */}
 {pg==='settings'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
