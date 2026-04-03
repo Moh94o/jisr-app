@@ -4,9 +4,11 @@ const F="'Cairo','Tajawal',sans-serif"
 const C={gold:'#c9a84c',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const nm=v=>Number(v||0).toLocaleString('en-US')
 
-export default function ManpowerPage({sb,toast,user,lang}){
+export default function ManpowerPage({sb,toast,user,lang,defaultTab}){
 const T=(a,e)=>lang==='ar'?a:e
-const[tab,setTab]=useState('dashboard')
+const pgToTab={mp_dashboard:'dashboard',mp_projects:'projects',mp_workers:'workers',mp_extracts:'extracts',mp_partners:'partners'}
+const[tab,setTab]=useState(pgToTab[defaultTab]||'dashboard')
+useEffect(()=>{if(defaultTab&&pgToTab[defaultTab])setTab(pgToTab[defaultTab])},[defaultTab])
 const[projects,setProjects]=useState([]);const[workers,setWorkers]=useState([]);const[extracts,setExtracts]=useState([])
 const[partners,setPartners]=useState([]);const[commissions,setCommissions]=useState([]);const[loading,setLoading]=useState(true)
 const[viewProject,setViewProject]=useState(null);const[viewTab,setViewTab]=useState('info')

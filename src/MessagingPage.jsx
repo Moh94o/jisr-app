@@ -3,9 +3,11 @@ const F="'Cairo','Tajawal',sans-serif"
 const C={gold:'#c9a84c',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const nm=v=>Number(v||0).toLocaleString('en-US')
 
-export default function MessagingPage({sb,toast,user,lang}){
+export default function MessagingPage({sb,toast,user,lang,defaultTab}){
 const T=(a,e)=>lang==='ar'?a:e
-const[tab,setTab]=useState('send')
+const pgToTab={msg_send:'send',msg_templates:'templates',msg_log:'log',msg_groups:'groups',msg_settings:'settings'}
+const[tab,setTab]=useState(pgToTab[defaultTab]||'send')
+useEffect(()=>{if(defaultTab&&pgToTab[defaultTab])setTab(pgToTab[defaultTab])},[defaultTab])
 const[templates,setTemplates]=useState([]);const[groups,setGroups]=useState([]);const[campaigns,setCampaigns]=useState([])
 const[workers,setWorkers]=useState([]);const[clients,setClients]=useState([]);const[branches,setBranches]=useState([])
 const[config,setConfig]=useState(null);const[loading,setLoading]=useState(true)
