@@ -98,7 +98,7 @@ const[subSvcs,setSubSvcs]=useState([])
 const[subSteps,setSubSteps]=useState([])
 const[tplts,setTplts]=useState([])
 const[tplLinks,setTplLinks]=useState([])
-const[svcSubTab,setSvcSubTab]=useState('services')
+const[svcSubTab,setSvcSubTab]=useState('services');const[stepFieldCounts,setStepFieldCounts]=useState({});const[txnCounts,setTxnCounts]=useState({});const[svcCatFilter,setSvcCatFilter]=useState('all')
 
 const toggle=id=>setOpen(p=>({...p,[id]:!p[id]}))
 useEffect(()=>{onTabChange&&onTabChange({tab,svcSubTab})},[tab,svcSubTab,onTabChange])
@@ -124,7 +124,11 @@ sb.from('municipalities').select('*').order('sort_order').order('name_ar')
 ])
 setSData(s.data||[]);setSLoading(false);setRegions(rg.data||[]);setCities(ct.data||[]);setDistrictsList(di.data||[]);setAuthoritiesList(au.data||[]);setMunicipalitiesList(mn.data||[])
 setCountries(co.data||[]);setEmbassies(em.data||[])
-setLLists(ll.data||[]);setLItems(li.data||[]);setDocs(dc.data||[]);setSubSvcs(sv.data||[]);setSubSteps(ss.data||[]);setTplts(tp.data||[]);setTplLinks(tl.data||[]);setLoading(false)
+setLLists(ll.data||[]);setLItems(li.data||[]);setDocs(dc.data||[]);setSubSvcs(sv.data||[]);setSubSteps(ss.data||[]);setTplts(tp.data||[]);setTplLinks(tl.data||[])
+// Load step_fields counts per step and txn counts per service
+sb.from('step_fields').select('step_id').then(({data:sfData})=>{const counts={};(sfData||[]).forEach(f=>{counts[f.step_id]=(counts[f.step_id]||0)+1});setStepFieldCounts(counts)})
+sb.from('transactions').select('service_id').is('deleted_at',null).then(({data:txData})=>{const counts={};(txData||[]).forEach(t=>{if(t.service_id)counts[t.service_id]=(counts[t.service_id]||0)+1});setTxnCounts(counts)})
+setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
 
@@ -453,26 +457,65 @@ docs.map((d,i)=><tr key={d.id} style={{borderBottom:'1px solid var(--bd2)'}}>
 {[{id:'services',l:'الخدمات',le:'Services'},{id:'templates',l:'المعاملات',le:'Transactions'}].map(st=><div key={st.id} onClick={()=>setSvcSubTab(st.id)} style={{padding:'8px 14px',fontSize:11,fontWeight:svcSubTab===st.id?700:500,color:svcSubTab===st.id?C.gold:'rgba(255,255,255,.35)',borderBottom:svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{isAr?st.l:st.le}</div>)}
 </div>
 
-{/* All sub-services with scope badge */}
-{svcSubTab==='services'&&<>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'الخدمات الفرعية':'Sub Services'}<MetaText t={subSvcs.length+' '+(isAr?'خدمة':'services')}/></div>
-<div style={{display:'flex',gap:6}}>
+{/* ═══ SERVICES — GROUPED BY CATEGORY ═══ */}
+{svcSubTab==='services'&&(()=>{
+const categories=[...new Set(subSvcs.map(s=>s.category||'أخرى'))].sort();const catCounts={};categories.forEach(c=>{catCounts[c]=subSvcs.filter(s=>(s.category||'أخرى')===c).length})
+const filteredSvcs=svcCatFilter==='all'?subSvcs:subSvcs.filter(s=>(s.category||'أخرى')===svcCatFilter)
+const readyCount=subSvcs.filter(sv=>{const steps=subSteps.filter(s=>s.sub_service_id===sv.id);return steps.length>0&&steps.some(st=>stepFieldCounts[st.id]>0)}).length
+const noStepCount=subSvcs.filter(sv=>subSteps.filter(s=>s.sub_service_id===sv.id).length===0).length
+return<>
+{/* Stats summary */}
+<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
+{[[isAr?'إجمالي الخدمات':'Total',subSvcs.length,C.gold],[isAr?'جاهزة (فيها حقول)':'Ready',readyCount,C.ok],[isAr?'بدون خطوات':'No Steps',noStepCount,C.red],[isAr?'خارجية / داخلية':'Ext/Int',subSvcs.filter(s=>s.service_scope==='client').length+' / '+subSvcs.filter(s=>s.service_scope!=='client').length,C.blue]].map(([l,v,c],i)=>
+<div key={i} style={{padding:'10px 12px',borderRadius:10,background:c+'08',border:'1px solid '+c+'15'}}>
+<div style={{fontSize:9,color:c,opacity:.7}}>{l}</div>
+<div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div>
+</div>)}
+</div>
+
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap',gap:8}}>
+<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'الخدمات الفرعية':'Sub Services'}<MetaText t={filteredSvcs.length+' '+(isAr?'خدمة':'services')}/></div>
+{/* Category filter chips */}
+<div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
+<span onClick={()=>setSvcCatFilter('all')} style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontWeight:svcCatFilter==='all'?700:500,color:svcCatFilter==='all'?C.gold:'rgba(255,255,255,.35)',background:svcCatFilter==='all'?'rgba(201,168,76,.08)':'rgba(255,255,255,.04)',border:svcCatFilter==='all'?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)'}}>{isAr?'الكل':'All'}</span>
+{categories.map(c=><span key={c} onClick={()=>setSvcCatFilter(c)} style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontWeight:svcCatFilter===c?700:500,color:svcCatFilter===c?C.gold:'rgba(255,255,255,.35)',background:svcCatFilter===c?'rgba(201,168,76,.08)':'rgba(255,255,255,.04)',border:svcCatFilter===c?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)'}}>{c} ({catCounts[c]})</span>)}
+</div>
+</div>
 <button onClick={()=>{setForm({_table:'sub_services',name_ar:'',name_en:'',service_scope:'client',sort_order:'',notes:''});setPop('sv')}} style={bS}>{isAr?'خدمة فرعية':'Sub Service'} +</button>
-</div></div>
-<div style={cardS}>{subSvcs.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد خدمات':'No services'}</div>:
-subSvcs.map(sv=>{const svSt=subSteps.filter(s=>s.sub_service_id===sv.id);const io=open['sv_'+sv.id]
+</div>
+
+{/* Grouped services */}
+{svcCatFilter==='all'?categories.map(cat=>{const catSvcs=subSvcs.filter(s=>(s.category||'أخرى')===cat);if(catSvcs.length===0)return null;const catOpen=open['cat_'+cat]!==false
+return<div key={cat} style={{marginBottom:12}}>
+{/* Category header */}
+<div onClick={()=>setOpen(p=>({...p,['cat_'+cat]:!catOpen}))} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.08)',cursor:'pointer',marginBottom:catOpen?6:0}}>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{transform:catOpen?'rotate(90deg)':'',transition:'.2s'}}><polyline points="9 6 15 12 9 18" stroke={C.gold} strokeWidth="2.5"/></svg>
+<span style={{fontSize:12,fontWeight:700,color:C.gold}}>{cat}</span>
+<span style={{fontSize:10,color:'rgba(201,168,76,.5)'}}>{catSvcs.length} {isAr?'خدمة':'svc'}</span>
+<div style={{flex:1}}/>
+<span style={{fontSize:9,color:C.ok}}>{catSvcs.filter(sv=>{const steps=subSteps.filter(s=>s.sub_service_id===sv.id);return steps.length>0&&steps.some(st=>stepFieldCounts[st.id]>0)}).length} {isAr?'جاهزة':'ready'}</span>
+</div>
+{catOpen&&<div style={cardS}>{catSvcs.map(sv=>{const svSt=subSteps.filter(s=>s.sub_service_id===sv.id);const io=open['sv_'+sv.id];const hasFields=svSt.some(st=>stepFieldCounts[st.id]>0);const txnCount=txnCounts[sv.id]||0
 return<div key={sv.id}>
 <div style={parentRow} onClick={()=>toggle('sv_'+sv.id)}>
 <ArrowIcon isOpen={io}/>
 <div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
-<span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{sv.name_en||''}</span>
+<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'wrap'}}>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
+<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{sv.name_en||''}</span>
 <span style={{fontSize:9,color:sv.service_scope==='client'?C.gold:C.blue,background:sv.service_scope==='client'?'rgba(201,168,76,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{sv.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
+{/* Readiness indicator */}
+{svSt.length>0&&hasFields&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.08)',padding:'2px 6px',borderRadius:6}}>✓ {isAr?'جاهزة':'Ready'}</span>}
+{svSt.length>0&&!hasFields&&<span style={{fontSize:8,color:'#e67e22',background:'rgba(230,126,34,.08)',padding:'2px 6px',borderRadius:6}}>⚠ {isAr?'بدون حقول':'No Fields'}</span>}
+{svSt.length===0&&<span style={{fontSize:8,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 6px',borderRadius:6}}>✗ {isAr?'بدون خطوات':'No Steps'}</span>}
 </div>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
+<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
 <span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{svSt.length} {isAr?'خطوة':'steps'}</span>
+{sv.expected_sla_days&&<span style={{fontSize:9,color:'rgba(255,255,255,.3)'}}>SLA: {sv.expected_sla_days}{isAr?'ي':'d'}</span>}
+{sv.default_price>0&&<span style={{fontSize:9,color:C.ok}}>{sv.default_price} {isAr?'ر.س':'SAR'}</span>}
+{sv.platform_code&&<span style={{fontSize:8,color:C.blue,background:'rgba(52,131,180,.06)',padding:'1px 5px',borderRadius:4}}>{sv.platform_code}</span>}
+{txnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.06)',padding:'2px 6px',borderRadius:6}}>{txnCount} {isAr?'معاملة':'txn'}</span>}
 </div>
 </div>
 <div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
@@ -482,21 +525,68 @@ return<div key={sv.id}>
 </div></div>
 {io&&<div style={{background:'rgba(255,255,255,.015)'}}>
 {svSt.length===0?<div style={{...childRow,color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد خطوات':'No steps'}</div>:
-svSt.map(st=><div key={st.id} style={childRow}>
+svSt.map(st=>{const fCount=stepFieldCounts[st.id]||0;return<div key={st.id} style={childRow}>
 <span style={{fontSize:11,fontWeight:700,color:C.gold,width:20,textAlign:'center',flexShrink:0}}>{st.step_order}</span>
 <div style={{flex:1,display:'flex',alignItems:'center',gap:8}}>
 <span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{st.step_name_ar}</span>
 <span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{st.step_name_en||''}</span>
+{fCount>0&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.06)',padding:'1px 5px',borderRadius:4}}>{fCount} {isAr?'حقل':'fields'}</span>}
+{fCount===0&&<span style={{fontSize:8,color:'rgba(255,255,255,.2)'}}>—</span>}
 </div>
 {st.sadad_requirement!=='none'&&<span style={{fontSize:9,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 7px',borderRadius:6}}>{st.sadad_requirement==='required_blocking'?(isAr?'سداد (حظر)':'Blocking'):st.sadad_requirement==='required_one_step_grace'?(isAr?'سداد (مهلة)':'Grace'):(isAr?'سداد قبل الإنهاء':'Before Complete')}{st.default_sadad_amount?' · '+st.default_sadad_amount:''}</span>}
 <div style={{display:'flex',gap:4}}>
 <EditBtn onClick={()=>{setForm({_table:'sub_service_steps',_id:st.id,sub_service_id:st.sub_service_id||'',step_name_ar:st.step_name_ar||'',step_name_en:st.step_name_en||'',step_order:st.step_order||'',sadad_requirement:st.sadad_requirement||'none',default_sadad_amount:st.default_sadad_amount||''});setPop('ss')}}/>
 <DelBtn onClick={()=>askDel('sub_service_steps',st.id,st.step_name_ar)}/>
-</div></div>)}
+</div></div>})}
 </div>}
-</div>})}</div></>}
+</div>})}</div>}
+</div>})
+/* Single category filter view */
+:<div style={cardS}>{filteredSvcs.map(sv=>{const svSt=subSteps.filter(s=>s.sub_service_id===sv.id);const io=open['sv_'+sv.id];const hasFields=svSt.some(st=>stepFieldCounts[st.id]>0);const txnCount=txnCounts[sv.id]||0
+return<div key={sv.id}>
+<div style={parentRow} onClick={()=>toggle('sv_'+sv.id)}>
+<ArrowIcon isOpen={io}/>
+<div style={{flex:1}}>
+<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'wrap'}}>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
+<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{sv.name_en||''}</span>
+<span style={{fontSize:9,color:sv.service_scope==='client'?C.gold:C.blue,background:sv.service_scope==='client'?'rgba(201,168,76,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{sv.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
+{svSt.length>0&&hasFields&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.08)',padding:'2px 6px',borderRadius:6}}>✓ {isAr?'جاهزة':'Ready'}</span>}
+{svSt.length>0&&!hasFields&&<span style={{fontSize:8,color:'#e67e22',background:'rgba(230,126,34,.08)',padding:'2px 6px',borderRadius:6}}>⚠ {isAr?'بدون حقول':'No Fields'}</span>}
+{svSt.length===0&&<span style={{fontSize:8,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 6px',borderRadius:6}}>✗ {isAr?'بدون خطوات':'No Steps'}</span>}
+</div>
+<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{svSt.length} {isAr?'خطوة':'steps'}</span>
+{sv.expected_sla_days&&<span style={{fontSize:9,color:'rgba(255,255,255,.3)'}}>SLA: {sv.expected_sla_days}{isAr?'ي':'d'}</span>}
+{sv.default_price>0&&<span style={{fontSize:9,color:C.ok}}>{sv.default_price} {isAr?'ر.س':'SAR'}</span>}
+{sv.platform_code&&<span style={{fontSize:8,color:C.blue,background:'rgba(52,131,180,.06)',padding:'1px 5px',borderRadius:4}}>{sv.platform_code}</span>}
+{txnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.06)',padding:'2px 6px',borderRadius:6}}>{txnCount} {isAr?'معاملة':'txn'}</span>}
+</div>
+</div>
+<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
+<button onClick={()=>{setForm({_table:'sub_service_steps',step_name_ar:'',step_name_en:'',step_order:'',sadad_requirement:'none',default_sadad_amount:'',sub_service_id:sv.id});setPop('ss')}} style={{height:28,padding:'0 10px',borderRadius:8,border:'1px solid rgba(52,131,180,.25)',background:'rgba(52,131,180,.1)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{isAr?'خطوة':'Step'}</button>
+<EditBtn onClick={()=>{setForm({_table:'sub_services',_id:sv.id,name_ar:sv.name_ar||'',name_en:sv.name_en||'',service_scope:sv.service_scope||'client',sort_order:sv.sort_order||'',notes:sv.notes||''});setPop('sv')}}/>
+<DelBtn onClick={()=>askDel('sub_services',sv.id,sv.name_ar)}/>
+</div></div>
+{io&&<div style={{background:'rgba(255,255,255,.015)'}}>
+{svSt.length===0?<div style={{...childRow,color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد خطوات':'No steps'}</div>:
+svSt.map(st=>{const fCount=stepFieldCounts[st.id]||0;return<div key={st.id} style={childRow}>
+<span style={{fontSize:11,fontWeight:700,color:C.gold,width:20,textAlign:'center',flexShrink:0}}>{st.step_order}</span>
+<div style={{flex:1,display:'flex',alignItems:'center',gap:8}}>
+<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{st.step_name_ar}</span>
+<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{st.step_name_en||''}</span>
+{fCount>0&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.06)',padding:'1px 5px',borderRadius:4}}>{fCount} {isAr?'حقل':'fields'}</span>}
+</div>
+{st.sadad_requirement!=='none'&&<span style={{fontSize:9,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 7px',borderRadius:6}}>{st.sadad_requirement==='required_blocking'?(isAr?'سداد (حظر)':'Blocking'):st.sadad_requirement==='required_one_step_grace'?(isAr?'سداد (مهلة)':'Grace'):(isAr?'سداد قبل الإنهاء':'Before Complete')}{st.default_sadad_amount?' · '+st.default_sadad_amount:''}</span>}
+<div style={{display:'flex',gap:4}}>
+<EditBtn onClick={()=>{setForm({_table:'sub_service_steps',_id:st.id,sub_service_id:st.sub_service_id||'',step_name_ar:st.step_name_ar||'',step_name_en:st.step_name_en||'',step_order:st.step_order||'',sadad_requirement:st.sadad_requirement||'none',default_sadad_amount:st.default_sadad_amount||''});setPop('ss')}}/>
+<DelBtn onClick={()=>askDel('sub_service_steps',st.id,st.step_name_ar)}/>
+</div></div>})}
+</div>}
+</div>})}</div>}
+</>})()}
 
-{/* Transaction Templates */}
+{/* ═══ TRANSACTION TEMPLATES — WITH STATS ═══ */}
 {svcSubTab==='templates'&&<>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
 <div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'قوالب المعاملات':'Transaction Templates'}<MetaText t={tplts.length+' '+(isAr?'قالب':'templates')}/></div>
@@ -505,6 +595,8 @@ svSt.map(st=><div key={st.id} style={childRow}>
 </div></div>
 <div style={cardS}>{tplts.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد قوالب':'No templates'}</div>:
 tplts.map(tp=>{const tpLinks=tplLinks.filter(l=>l.template_id===tp.id).sort((a,b)=>a.step_order-b.step_order);const io=open['tp_'+tp.id]
+// Count transactions using this template's service_category
+const tplTxnCount=Object.values(txnCounts).reduce((s,v)=>s+v,0)>0?tpLinks.reduce((s,lk)=>s+(txnCounts[lk.sub_service_id]||0),0):0
 return<div key={tp.id}>
 <div style={parentRow} onClick={()=>toggle('tp_'+tp.id)}>
 <ArrowIcon isOpen={io}/>
@@ -516,6 +608,7 @@ return<div key={tp.id}>
 </div>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
 <span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{tpLinks.length} {isAr?'خدمة فرعية':'sub services'}</span>
+{tplTxnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.06)',padding:'2px 6px',borderRadius:6}}>{tplTxnCount} {isAr?'معاملة':'txn'}</span>}
 </div>
 </div>
 <div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>

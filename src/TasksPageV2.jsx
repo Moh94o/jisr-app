@@ -19,7 +19,7 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
   // Filters
   const [filter, setFilter] = useState('all')
   const [catFilter, setCatFilter] = useState('all')
-  const [typeTab, setTypeTab] = useState(defaultFilter === 'periodic' ? 'recurring' : 'all')
+  const [typeTab, setTypeTab] = useState(defaultFilter === 'periodic' ? 'recurring' : defaultFilter === 'regular' ? 'adhoc' : 'all')
   const [searchQ, setSearchQ] = useState('')
   
   // Create modal
@@ -42,13 +42,13 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
   const [assignees, setAssignees] = useState([])
   const [taskBranches, setTaskBranches] = useState([])
   const [taskPartners, setTaskPartners] = useState([])
-  const [taskAttachments, setTaskAttachments] = useState([])
+  const [taskAttachments, setTaskAttachments] = useState([]);const [taskTxns, setTaskTxns] = useState([])
 
   // ═══ LOAD ═══
   const load = useCallback(async () => {
     setLoading(true)
     const [t, tmpl, u, fac, br, svc] = await Promise.all([
-      sb.from('tasks').select('*, assigned:assigned_to(name_ar,name_en)').order('due_date').order('priority'),
+      sb.from('tasks').select('*, assigned:assigned_to(name_ar,name_en), branch:branch_id(name_ar)').order('due_date').order('priority'),
       sb.from('task_templates').select('*').eq('is_active', true).order('recurrence').order('title_ar'),
       sb.from('users').select('id,name_ar,name_en').is('deleted_at', null),
       sb.from('facilities').select('id,name_ar'),
@@ -82,6 +82,8 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
     setTaskBranches(tb.data || [])
     setTaskPartners(tp.data || [])
     setTaskAttachments(ta.data || [])
+    // Load linked transactions
+    sb.from('v_transaction_sla').select('*').eq('branch_id', task.branch_id).is('deleted_at', null).limit(20).then(({data})=>setTaskTxns(data||[]))
   }
 
   // ═══ ACTIONS ═══
@@ -203,166 +205,162 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
   const priClr = { high: C.red, urgent: C.red, normal: C.gold, low: '#888' }
 
   // ═══ DETAIL VIEW ═══
-  if (selectedTask) {
+  /* ═══ TASK DETAIL — SIDE PANEL ═══ */
+  const renderDetailPanel = () => {
+    if (!selectedTask) return null
     const t = selectedTask
     const sc = stClr[t.status] || '#888'
     const pc = priClr[t.priority] || C.gold
     const catObj = cats.find(c => c.v === t.category)
     const daysLeft = Math.ceil((new Date(t.due_date) - new Date()) / 86400000)
-    const progressPct = t.status === 'completed' ? 100 : t.status === 'in_progress' ? 50 : t.status === 'overdue' ? 30 : 10
+    const progressPct = t.total_transactions > 0 ? Math.round((t.completed_transactions || 0) / t.total_transactions * 100) : t.status === 'completed' ? 100 : t.status === 'in_progress' ? 50 : t.status === 'overdue' ? 30 : 10
+    const brName = t.branch?.name_ar || branches.find(b => b.id === t.branch_id)?.name_ar
+    const entityName = t.entity_type === 'facility' ? facilities.find(f => f.id === t.entity_id)?.name_ar : ''
+    const stLabel = {pending:T('معلّقة','Pending'),in_progress:T('قيد التنفيذ','In Progress'),completed:T('مكتملة','Done'),overdue:T('متأخرة','Overdue'),skipped:T('مُتخطاة','Skipped')}
+    const priLabel = {urgent:T('عاجل','Urgent'),high:T('عالي','High'),normal:T('عادي','Normal'),low:T('منخفض','Low')}
 
-    return (
-      <div style={{ fontFamily: F, direction: isAr ? 'rtl' : 'ltr' }}>
-        {/* Back button */}
-        <button onClick={() => setSelectedTask(null)}
-          style={{ height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid var(--bd)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 5 }}>
-          ← {T('رجوع', 'Back')}
-        </button>
-
-        {/* Task card */}
-        <div style={{ padding: 24, borderRadius: 16, background: 'var(--sf)', border: `1px solid ${sc}20`, marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--tx)' }}>{t.title_ar}</div>
-              {t.description && <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 6 }}>{t.description}</div>}
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: sc + '12', color: sc, fontWeight: 700 }}>
-                {t.status === 'pending' ? T('معلّقة','Pending') : t.status === 'in_progress' ? T('قيد التنفيذ','In Progress') : t.status === 'completed' ? T('مكتملة','Done') : t.status === 'overdue' ? T('متأخرة','Overdue') : T('مُتخطاة','Skipped')}
-              </span>
-              <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: pc + '12', color: pc, fontWeight: 700 }}>{t.priority}</span>
+    return <><div onClick={()=>setSelectedTask(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(4px)',zIndex:997}}/>
+    <div style={{position:'fixed',top:0,[isAr?'left':'right']:0,width:'min(520px,96vw)',height:'100vh',background:'var(--sf)',zIndex:998,display:'flex',flexDirection:'column',fontFamily:F,direction:isAr?'rtl':'ltr',boxShadow:'-8px 0 40px rgba(0,0,0,.5)',borderRight:isAr?'none':'1px solid rgba(201,168,76,.12)',borderLeft:isAr?'1px solid rgba(201,168,76,.12)':'none',animation:'slideIn .25s ease'}}>
+      {/* Header */}
+      <div style={{padding:'18px 20px',borderBottom:`2px solid ${sc}20`,flexShrink:0}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:16,fontWeight:800,color:'var(--tx)',marginBottom:6}}>{t.title_ar}</div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              <span style={{fontSize:9,padding:'3px 10px',borderRadius:6,background:sc+'12',color:sc,fontWeight:700}}>{stLabel[t.status]||t.status}</span>
+              <span style={{fontSize:9,padding:'3px 10px',borderRadius:6,background:pc+'12',color:pc,fontWeight:700}}>{priLabel[t.priority]||t.priority}</span>
+              {catObj&&catObj.v!=='all'&&<span style={{fontSize:9,padding:'3px 10px',borderRadius:6,background:catObj.c+'12',color:catObj.c}}>{catObj.l}</span>}
+              <span style={{fontSize:9,padding:'3px 10px',borderRadius:6,background:'rgba(255,255,255,.06)',color:'var(--tx4)'}}>{t.task_type==='recurring'?T('دورية','Recurring'):T('اعتيادية','Regular')}</span>
             </div>
           </div>
-
-          {/* Progress bar */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 10, color: 'var(--tx5)' }}>{T('التقدم', 'Progress')}</span>
-              <span style={{ fontSize: 10, color: sc, fontWeight: 700 }}>{progressPct}%</span>
-            </div>
-            <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progressPct}%`, background: sc, borderRadius: 3, transition: '.3s' }} />
-            </div>
-          </div>
-
-          {/* Meta */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
-            <div><div style={{ fontSize: 9, color: 'var(--tx5)' }}>{T('التصنيف', 'Category')}</div><div style={{ fontSize: 12, fontWeight: 700, color: catObj?.c || '#888', marginTop: 2 }}>{catObj?.l}</div></div>
-            <div><div style={{ fontSize: 9, color: 'var(--tx5)' }}>{T('تاريخ الاستحقاق', 'Due Date')}</div><div style={{ fontSize: 12, fontWeight: 700, color: daysLeft < 0 ? C.red : C.gold, marginTop: 2 }}>{t.due_date} ({daysLeft}{T('ي', 'd')})</div></div>
-            <div><div style={{ fontSize: 9, color: 'var(--tx5)' }}>{T('المكلّف', 'Assignee')}</div><div style={{ fontSize: 12, fontWeight: 700, color: C.blue, marginTop: 2 }}>{t.assigned?.name_ar || T('غير معيّن', 'Unassigned')}</div></div>
-            <div><div style={{ fontSize: 9, color: 'var(--tx5)' }}>{T('النوع', 'Type')}</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginTop: 2 }}>{t.task_type === 'recurring' ? T('دورية', 'Recurring') : T('طارئة', 'Ad-hoc')}</div></div>
-          </div>
-
-          {/* Action buttons */}
-          {t.status !== 'completed' && t.status !== 'skipped' && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--bd)' }}>
-              <button onClick={() => { complete(t.id); setSelectedTask(null) }} style={{ ...btnGold, height: 34, fontSize: 11 }}>{T('إنجاز ✓', 'Complete ✓')}</button>
-              <button onClick={() => { skip(t.id); setSelectedTask(null) }} style={{ height: 34, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{T('تخطي', 'Skip')}</button>
-            </div>
-          )}
+          <button onClick={()=>setSelectedTask(null)} style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg></button>
         </div>
-
-        {/* 4 tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-          {[
-            { v: 'info', l: T('التفاصيل', 'Details') },
-            { v: 'team', l: T('الفريق', 'Team'), n: assignees.length },
-            { v: 'comments', l: T('التعليقات', 'Comments'), n: comments.length },
-            { v: 'attachments', l: T('المرفقات', 'Attachments'), n: taskAttachments.length },
-          ].map(tab => (
-            <div key={tab.v} onClick={() => setDetailTab(tab.v)}
-              style={{ padding: '8px 16px', borderRadius: 8, fontSize: 11, fontWeight: detailTab === tab.v ? 700 : 500, color: detailTab === tab.v ? C.gold : 'rgba(255,255,255,.4)', background: detailTab === tab.v ? C.gold + '10' : 'transparent', border: detailTab === tab.v ? `1.5px solid ${C.gold}25` : '1px solid rgba(255,255,255,.06)', cursor: 'pointer' }}>
-              {tab.l} {tab.n !== undefined && <span style={{ fontSize: 9, opacity: 0.6 }}>({tab.n})</span>}
-            </div>
-          ))}
+        {t.description&&<div style={{fontSize:11,color:'var(--tx4)',marginBottom:10,lineHeight:1.6}}>{t.description}</div>}
+        {/* Progress */}
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+          <div style={{flex:1,height:5,borderRadius:3,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:progressPct+'%',background:progressPct===100?C.ok:sc,borderRadius:3,transition:'.3s'}}/></div>
+          <span style={{fontSize:10,fontWeight:700,color:progressPct===100?C.ok:sc}}>{progressPct}%</span>
         </div>
-
-        <div style={{ background: 'var(--sf)', borderRadius: 14, border: '1px solid var(--bd)', padding: 20, minHeight: 200 }}>
-          {detailTab === 'info' && (
-            <div style={{ display: 'grid', gap: 16 }}>
-              {taskBranches.length > 0 && (
-                <div>
-                  <div style={labelS}>{T('الفروع', 'Branches')}</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {taskBranches.map(b => (
-                      <span key={b.id} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, background: C.purple + '10', color: C.purple, border: `1px solid ${C.purple}20` }}>
-                        {b.branch?.name_ar} {b.transaction_count ? `(${b.transaction_count})` : ''}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {taskPartners.length > 0 && (
-                <div>
-                  <div style={labelS}>{T('الملاك/الشركاء', 'Partners')}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {taskPartners.map(p => (
-                      <div key={p.id} style={{ fontSize: 12, color: 'var(--tx3)' }}>
-                        {p.partner_name} {p.id_number && <span style={{ fontSize: 10, color: 'var(--tx5)' }}>({p.id_number})</span>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {detailTab === 'team' && (
-            <div>
-              {assignees.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--tx6)', fontSize: 12 }}>{T('لا يوجد فريق معيّن', 'No team assigned')}</div>
-              ) : assignees.map(a => (
-                <div key={a.id} style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: C.blue + '12', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: C.blue }}>{(a.user?.name_ar || '?')[0]}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)' }}>{a.user?.name_ar}</div>
-                    <div style={{ fontSize: 10, color: 'var(--tx5)' }}>{a.branch?.name_ar || ''} — {a.role}</div>
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: C.gold }}>{a.transaction_count || 0}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {detailTab === 'comments' && (
-            <div>
-              {comments.map(c => (
-                <div key={c.id} style={{ padding: '10px 14px', borderRadius: 10, background: c.comment_type === 'system' ? 'rgba(201,168,76,.04)' : 'rgba(255,255,255,.02)', border: '1px solid var(--bd)', marginBottom: 6 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: C.blue }}>{c.user?.name_ar || T('النظام', 'System')}</span>
-                    <span style={{ fontSize: 9, color: 'var(--tx5)' }}>{c.created_at?.slice(0, 16).replace('T', ' ')}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--tx3)', lineHeight: 1.5 }}>{c.body}</div>
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <input type="text" value={newComment} onChange={e => setNewComment(e.target.value)}
-                  placeholder={T('اكتب تعليق...', 'Write a comment...')}
-                  onKeyDown={e => e.key === 'Enter' && addComment()}
-                  style={{ ...inputS, flex: 1 }} />
-                <button onClick={addComment} style={{ ...btnGold, height: 42, padding: '0 18px', fontSize: 11 }}>{T('إرسال', 'Send')}</button>
-              </div>
-            </div>
-          )}
-
-          {detailTab === 'attachments' && (
-            <div>
-              {taskAttachments.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--tx6)', fontSize: 12 }}>{T('لا توجد مرفقات', 'No attachments')}</div>
-              ) : taskAttachments.map(a => (
-                <div key={a.id} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--bd)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>{a.file_name}</div>
-                    <div style={{ fontSize: 9, color: 'var(--tx5)' }}>{a.created_at?.slice(0, 10)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Meta grid */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+          {[[T('الاستحقاق','Due'),t.due_date?new Date(t.due_date).toLocaleDateString('ar-SA',{month:'short',day:'numeric'}):'—',daysLeft<0?C.red:daysLeft===0?C.gold:'var(--tx3)'],
+          [T('المكلّف','Assignee'),t.assigned?.name_ar||T('غير معيّن','—'),C.blue],
+          [T('الفرع','Branch'),brName||'—','#9b59b6']
+          ].map(([l,v,c],i)=><div key={i} style={{background:'rgba(255,255,255,.03)',borderRadius:8,padding:'8px 10px'}}>
+            <div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{l}</div>
+            <div style={{fontSize:11,fontWeight:700,color:c}}>{v}</div>
+          </div>)}
         </div>
+        {/* Quick info chips */}
+        <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+          {entityName&&<span style={{fontSize:9,padding:'3px 8px',borderRadius:6,background:C.gold+'08',border:'1px solid '+C.gold+'15',color:C.gold}}>🏢 {entityName}</span>}
+          {t.total_transactions>0&&<span style={{fontSize:9,padding:'3px 8px',borderRadius:6,background:C.ok+'08',border:'1px solid '+C.ok+'15',color:C.ok}}>📋 {t.completed_transactions||0}/{t.total_transactions} {T('معاملة','txn')}</span>}
+          {daysLeft<0&&t.status!=='completed'&&<span style={{fontSize:9,padding:'3px 8px',borderRadius:6,background:C.red+'12',color:C.red,fontWeight:700}}>⚠ {T('متأخرة','Late')} {Math.abs(daysLeft)}{T('ي','d')}</span>}
+        </div>
+        {/* Actions */}
+        {t.status!=='completed'&&t.status!=='skipped'&&<div style={{display:'flex',gap:8,marginTop:12}}>
+          <button onClick={()=>{complete(t.id);setSelectedTask(null)}} style={{...btnGold,height:34,fontSize:11,flex:1}}>{T('إنجاز ✓','Complete ✓')}</button>
+          <button onClick={()=>{skip(t.id);setSelectedTask(null)}} style={{height:34,padding:'0 16px',borderRadius:8,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx4)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>{T('تخطي','Skip')}</button>
+        </div>}
       </div>
-    )
+      {/* Tabs */}
+      <div style={{display:'flex',borderBottom:'1px solid var(--bd)',padding:'0 16px',flexShrink:0}} className="dash-content">
+        {[{v:'info',l:T('التفاصيل','Details'),icon:'📋'},{v:'team',l:T('الفريق','Team'),n:assignees.length,icon:'👥'},{v:'comments',l:T('التعليقات','Comments'),n:comments.length,icon:'💬'},{v:'attachments',l:T('المرفقات','Files'),n:taskAttachments.length,icon:'📎'},{v:'transactions',l:T('المعاملات','Txns'),n:taskTxns.length,icon:'📊'}].map(tab=>
+          <div key={tab.v} onClick={()=>setDetailTab(tab.v)} style={{padding:'10px 10px',fontSize:10,fontWeight:detailTab===tab.v?700:500,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.4)',borderBottom:detailTab===tab.v?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:3}}>
+            <span style={{fontSize:11}}>{tab.icon}</span>{tab.l}{tab.n!==undefined&&tab.n>0&&<span style={{fontSize:8,fontWeight:700,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.2)',background:detailTab===tab.v?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',padding:'1px 5px',borderRadius:8}}>{tab.n}</span>}
+          </div>)}
+      </div>
+      {/* Tab content */}
+      <div className="dash-content" style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
+        {detailTab==='info'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
+          {/* Dates */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div style={{background:'rgba(255,255,255,.03)',borderRadius:10,padding:'10px 12px',border:'1px solid rgba(255,255,255,.04)'}}>
+              <div style={{fontSize:9,color:'var(--tx5)',marginBottom:4}}>📅 {T('تاريخ الإنشاء','Created')}</div>
+              <div style={{fontSize:11,fontWeight:600,color:'var(--tx3)'}}>{t.created_at?new Date(t.created_at).toLocaleDateString('ar-SA',{year:'numeric',month:'short',day:'numeric'}):'—'}</div>
+            </div>
+            <div style={{background:'rgba(255,255,255,.03)',borderRadius:10,padding:'10px 12px',border:'1px solid rgba(255,255,255,.04)'}}>
+              <div style={{fontSize:9,color:'var(--tx5)',marginBottom:4}}>⏰ {T('تاريخ الاستحقاق','Due Date')}</div>
+              <div style={{fontSize:11,fontWeight:600,color:daysLeft<0?C.red:C.gold}}>{t.due_date?new Date(t.due_date).toLocaleDateString('ar-SA',{year:'numeric',month:'short',day:'numeric'}):'—'}</div>
+            </div>
+          </div>
+          {t.completed_date&&<div style={{background:'rgba(39,160,70,.04)',borderRadius:10,padding:'10px 12px',border:'1px solid rgba(39,160,70,.1)'}}>
+            <div style={{fontSize:9,color:C.ok,marginBottom:4}}>✅ {T('تاريخ الإنجاز','Completed')}</div>
+            <div style={{fontSize:11,fontWeight:600,color:C.ok}}>{new Date(t.completed_date).toLocaleDateString('ar-SA',{year:'numeric',month:'short',day:'numeric'})}</div>
+          </div>}
+          {/* Result notes */}
+          {t.result_notes&&<div style={{background:'rgba(255,255,255,.03)',borderRadius:10,padding:'12px 14px',border:'1px solid rgba(255,255,255,.04)'}}>
+            <div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('نتيجة التنفيذ','Result Notes')}</div>
+            <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.8}}>{t.result_notes}</div>
+          </div>}
+          {/* Branches */}
+          {taskBranches.length>0&&<div style={{background:'rgba(255,255,255,.03)',borderRadius:10,padding:'12px 14px',border:'1px solid rgba(255,255,255,.04)'}}>
+            <div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:8}}>{T('الفروع المرتبطة','Branches')}</div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{taskBranches.map(b=><span key={b.id} style={{fontSize:10,padding:'4px 10px',borderRadius:6,background:'rgba(155,89,182,.08)',color:'#9b59b6',border:'1px solid rgba(155,89,182,.15)'}}>{b.branch?.name_ar} {b.transaction_count?`(${b.transaction_count})`:''}</span>)}</div>
+          </div>}
+          {/* Partners */}
+          {taskPartners.length>0&&<div style={{background:'rgba(255,255,255,.03)',borderRadius:10,padding:'12px 14px',border:'1px solid rgba(255,255,255,.04)'}}>
+            <div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:8}}>{T('الملاك/الشركاء','Partners')}</div>
+            {taskPartners.map(p=><div key={p.id} style={{fontSize:11,color:'var(--tx3)',padding:'4px 0'}}>{p.partner_name} {p.id_number&&<span style={{fontSize:10,color:'var(--tx5)'}}>({p.id_number})</span>}</div>)}
+          </div>}
+          {/* Empty state if nothing */}
+          {!t.result_notes&&taskBranches.length===0&&taskPartners.length===0&&!t.completed_date&&<div style={{textAlign:'center',padding:'20px 0',color:'var(--tx5)',fontSize:11}}>{T('بيانات المهمة الأساسية معروضة في الأعلى','Basic task info is shown in the header above')}</div>}
+        </div>}
+
+        {detailTab==='team'&&<div>
+          {assignees.length===0?<div style={{textAlign:'center',padding:40}}>
+            <div style={{fontSize:32,marginBottom:8}}>👥</div>
+            <div style={{fontSize:12,color:'var(--tx5)'}}>{T('لا يوجد فريق معيّن','No team assigned')}</div>
+            <div style={{fontSize:10,color:'var(--tx6)',marginTop:4}}>{T('المكلّف الحالي:','Current assignee:')} <span style={{color:C.blue}}>{t.assigned?.name_ar||'—'}</span></div>
+          </div>:assignees.map(a=><div key={a.id} style={{padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',marginBottom:6,display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:36,height:36,borderRadius:10,background:C.blue+'12',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:800,color:C.blue}}>{(a.user?.name_ar||'?')[0]}</div>
+            <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:'var(--tx2)'}}>{a.user?.name_ar}</div><div style={{fontSize:10,color:'var(--tx5)'}}>{a.branch?.name_ar||''}{a.role?' — '+a.role:''}</div></div>
+            {a.transaction_count>0&&<div style={{textAlign:'center'}}><div style={{fontSize:14,fontWeight:800,color:C.gold}}>{a.transaction_count}</div><div style={{fontSize:8,color:'var(--tx5)'}}>{T('معاملة','txn')}</div></div>}
+          </div>)}
+        </div>}
+
+        {detailTab==='comments'&&<div>
+          {comments.length===0&&<div style={{textAlign:'center',padding:'20px 0',color:'var(--tx6)',fontSize:11,marginBottom:12}}>{T('لا توجد تعليقات بعد','No comments yet')}</div>}
+          {comments.map(c=><div key={c.id} style={{padding:'10px 14px',borderRadius:10,background:c.comment_type==='system'?'rgba(201,168,76,.04)':'rgba(255,255,255,.02)',border:'1px solid var(--bd)',marginBottom:6}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+              <span style={{fontSize:11,fontWeight:700,color:c.comment_type==='system'?C.gold:C.blue}}>{c.user?.name_ar||T('النظام','System')}</span>
+              <span style={{fontSize:9,color:'var(--tx5)'}}>{new Date(c.created_at).toLocaleDateString('ar-SA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+            </div>
+            <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.6}}>{c.body}</div>
+          </div>)}
+          <div style={{display:'flex',gap:8,marginTop:8}}>
+            <input type="text" value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder={T('اكتب تعليق...','Write a comment...')} onKeyDown={e=>e.key==='Enter'&&addComment()} style={{...inputS,flex:1,height:38}}/>
+            <button onClick={addComment} style={{...btnGold,height:38,padding:'0 18px',fontSize:11}}>{T('إرسال','Send')}</button>
+          </div>
+        </div>}
+
+        {detailTab==='attachments'&&<div>
+          {taskAttachments.length===0?<div style={{textAlign:'center',padding:40}}>
+            <div style={{fontSize:32,marginBottom:8}}>📎</div>
+            <div style={{fontSize:12,color:'var(--tx5)'}}>{T('لا توجد مرفقات','No attachments')}</div>
+          </div>:taskAttachments.map(a=><div key={a.id} style={{padding:'10px 14px',borderRadius:10,border:'1px solid var(--bd)',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
+            <div style={{width:32,height:32,borderRadius:8,background:C.gold+'12',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>📄</div>
+            <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx2)'}}>{a.file_name}</div><div style={{fontSize:9,color:'var(--tx5)'}}>{a.created_at?.slice(0,10)}</div></div>
+          </div>)}
+        </div>}
+
+        {detailTab==='transactions'&&<div>
+          {taskTxns.length===0?<div style={{textAlign:'center',padding:40}}>
+            <div style={{fontSize:32,marginBottom:8}}>📊</div>
+            <div style={{fontSize:12,color:'var(--tx5)'}}>{T('لا توجد معاملات مرتبطة','No linked transactions')}</div>
+          </div>:taskTxns.map(txn=>{const slaC={on_time:C.ok,warning:'#e67e22',critical:C.red,overdue:C.red}[txn.sla_status]||'#999';const stC={completed:C.ok,in_progress:C.blue,pending:C.gold,issue:C.red}[txn.status]||'#999'
+          return<div key={txn.id} style={{padding:'10px 14px',borderRadius:10,border:'1px solid var(--bd)',marginBottom:6,display:'flex',alignItems:'center',gap:10,background:txn.status==='issue'?'rgba(192,57,43,.03)':'rgba(255,255,255,.02)'}}>
+            <div style={{width:8,height:8,borderRadius:'50%',background:stC,flexShrink:0}}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}><span style={{fontSize:11,fontWeight:700,color:C.gold,direction:'ltr'}}>{txn.transaction_number}</span><span style={{fontSize:8,padding:'1px 5px',borderRadius:4,background:(txn.service_color||C.gold)+'12',color:txn.service_color||C.gold}}>{isAr?txn.service_name_ar:txn.service_name_en}</span></div>
+              <div style={{fontSize:10,color:'var(--tx5)'}}>{txn.client_name||''}{txn.facility_name?' · '+txn.facility_name:''}</div>
+            </div>
+            {txn.total_steps>0&&<div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}><div style={{width:40,height:3,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:(txn.steps_pct||0)+'%',borderRadius:2,background:txn.steps_pct>=100?C.ok:C.gold}}/></div><span style={{fontSize:8,color:'var(--tx5)'}}>{txn.steps_pct||0}%</span></div>}
+            {txn.days_remaining!=null&&<div style={{fontSize:10,fontWeight:700,color:slaC,flexShrink:0}}>{txn.days_remaining<0?txn.days_remaining:'+'+txn.days_remaining}{T('ي','d')}</div>}
+          </div>})}
+        </div>}
+      </div>
+    </div></>
   }
 
   // ═══ CREATE MODAL ═══
@@ -524,17 +522,32 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
   return (
     <div style={{ fontFamily: F, direction: isAr ? 'rtl' : 'ltr' }}>
       {renderCreateModal()}
+      {renderDetailPanel()}
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--tx)' }}>{T('المهام', 'Tasks')}</div>
-          <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 4 }}>{T('إدارة المهام الدورية والطارئة', 'Manage recurring & ad-hoc tasks')}</div>
+          <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 4 }}>{T('إدارة المهام الدورية والاعتيادية', 'Manage recurring & ad-hoc tasks')}</div>
         </div>
         <button onClick={() => { setShowCreate(true); setCreateStep(1) }}
           style={{ ...btnGold, display: 'flex', alignItems: 'center', gap: 6 }}>
           + {T('مهمة جديدة', 'New Task')}
         </button>
+      </div>
+
+      {/* Main type tabs */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--bd)' }}>
+        {[
+          { v: 'all', l: T('الكل', 'All'), n: tasks.length },
+          { v: 'adhoc', l: T('الاعتيادية', 'Regular'), n: stats.adhoc },
+          { v: 'recurring', l: T('الدورية', 'Recurring'), n: stats.recurring },
+        ].map(t => (
+          <div key={t.v} onClick={() => setTypeTab(t.v)}
+            style={{ padding: '10px 18px', fontSize: 12, fontWeight: typeTab === t.v ? 700 : 500, color: typeTab === t.v ? C.gold : 'rgba(255,255,255,.4)', borderBottom: typeTab === t.v ? '2px solid ' + C.gold : '2px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {t.l} <span style={{ fontSize: 10, fontWeight: 600, color: typeTab === t.v ? C.gold : 'rgba(255,255,255,.2)', background: typeTab === t.v ? 'rgba(201,168,76,.1)' : 'rgba(255,255,255,.04)', padding: '1px 8px', borderRadius: 10 }}>{t.n}</span>
+          </div>
+        ))}
       </div>
 
       {/* Search */}
@@ -544,31 +557,19 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
           style={{ ...inputS, maxWidth: 360 }} />
       </div>
 
-      {/* Type tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
-        {[
-          { v: 'all', l: T('الكل', 'All'), n: tasks.length, c: '#999' },
-          { v: 'recurring', l: T('دورية', 'Recurring'), n: stats.recurring, c: C.gold },
-          { v: 'adhoc', l: T('طارئة', 'Ad-hoc'), n: stats.adhoc, c: C.blue },
-        ].map(t => (
-          <div key={t.v} onClick={() => setTypeTab(t.v)}
-            style={{ padding: '8px 16px', borderRadius: 8, fontSize: 11, fontWeight: typeTab === t.v ? 700 : 500, color: typeTab === t.v ? t.c : 'rgba(255,255,255,.4)', background: typeTab === t.v ? t.c + '12' : 'transparent', border: typeTab === t.v ? `1.5px solid ${t.c}30` : '1px solid rgba(255,255,255,.06)', cursor: 'pointer' }}>
-            {t.l} <span style={{ fontSize: 9, opacity: 0.6 }}>({t.n})</span>
-          </div>
-        ))}
-      </div>
-
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(150px,100%), 1fr))', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: 18 }}>
         {[
-          { l: T('معلّقة', 'Pending'), n: stats.pending, c: C.gold },
-          { l: T('متأخرة', 'Overdue'), n: stats.overdue, c: C.red },
-          { l: T('مكتملة', 'Done'), n: stats.completed, c: C.ok },
-          { l: T('اليوم', 'Today'), n: stats.today, c: C.blue },
+          { l: T('الإجمالي', 'Total'), n: filtered.length, c: C.gold, sub: '' },
+          { l: T('معلّقة', 'Pending'), n: stats.pending, c: '#e67e22', sub: '' },
+          { l: T('متأخرة', 'Overdue'), n: stats.overdue, c: C.red, sub: stats.overdue > 0 ? '⚠' : '' },
+          { l: T('مكتملة', 'Done'), n: stats.completed, c: C.ok, sub: filtered.length > 0 ? Math.round(stats.completed / filtered.length * 100) + '%' : '' },
+          { l: T('اليوم', 'Today'), n: stats.today, c: C.blue, sub: '' },
         ].map((s, i) => (
-          <div key={i} style={{ padding: 14, borderRadius: 12, background: s.c + '06', border: `1px solid ${s.c}10` }}>
-            <div style={{ fontSize: 10, color: s.c, opacity: 0.7, marginBottom: 6 }}>{s.l}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: s.c }}>{s.n}</div>
+          <div key={i} style={{ padding: 14, borderRadius: 12, background: s.c + '08', border: `1px solid ${s.c}15` }}>
+            <div style={{ fontSize: 9, color: s.c, opacity: 0.7, marginBottom: 4 }}>{s.l}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: s.c }}>{s.n}</div>
+            {s.sub && <div style={{ fontSize: 9, color: s.c, opacity: 0.5, marginTop: 2 }}>{s.sub}</div>}
           </div>
         ))}
       </div>
@@ -606,13 +607,16 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
             const daysLeft = Math.ceil((new Date(t.due_date) - new Date()) / 86400000)
             const isToday = daysLeft === 0
             const isPast = daysLeft < 0
-            
+            const progPct = t.total_transactions > 0 ? Math.round((t.completed_transactions || 0) / t.total_transactions * 100) : t.status === 'completed' ? 100 : 0
+            const brName = t.branch?.name_ar
+            const entityName = t.entity_type === 'facility' ? facilities.find(f => f.id === t.entity_id)?.name_ar : t.entity_type === 'client' ? '' : ''
+
             return (
               <div key={t.id} onClick={() => loadDetail(t)}
-                style={{ background: 'var(--sf)', border: `1px solid ${t.status === 'overdue' ? 'rgba(192,57,43,.15)' : 'var(--bd)'}`, borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', transition: '.15s' }}
+                style={{ background: 'var(--sf)', border: `1px solid ${t.status === 'overdue' ? 'rgba(192,57,43,.2)' : 'var(--bd)'}`, borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', transition: '.15s', borderRight: t.status === 'overdue' ? `3px solid ${C.red}` : undefined, borderLeft: t.status === 'overdue' ? `3px solid ${C.red}` : undefined }}
                 onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,.03)'}
                 onMouseOut={e => e.currentTarget.style.background = 'var(--sf)'}>
-                
+
                 {/* Complete button */}
                 {t.status !== 'completed' && t.status !== 'skipped' ? (
                   <div onClick={e => { e.stopPropagation(); complete(t.id) }}
@@ -627,20 +631,31 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
 
                 {/* Content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: t.status === 'completed' ? 'var(--tx5)' : 'var(--tx2)', textDecoration: t.status === 'completed' ? 'line-through' : 'none' }}>{t.title_ar}</span>
                     {catObj && catObj.v !== 'all' && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, background: catObj.c + '12', color: catObj.c }}>{catObj.l}</span>}
-                    <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, background: pc + '12', color: pc }}>{t.priority}</span>
+                    <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, background: pc + '12', color: pc }}>{t.priority === 'urgent' ? T('عاجل','Urgent') : t.priority === 'high' ? T('عالي','High') : t.priority === 'normal' ? T('عادي','Normal') : T('منخفض','Low')}</span>
+                    {brName && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, background: 'rgba(155,89,182,.1)', color: '#9b59b6' }}>{brName}</span>}
+                    {isPast && t.status !== 'completed' && t.status !== 'skipped' && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, background: C.red + '12', color: C.red, fontWeight: 700 }}>{T('متأخرة','Overdue')} {Math.abs(daysLeft)}{T('ي','d')}</span>}
                   </div>
                   {t.description && <div style={{ fontSize: 11, color: 'var(--tx5)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description}</div>}
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {t.assigned?.name_ar && <span style={{ fontSize: 10, color: C.blue }}>{t.assigned.name_ar}</span>}
-                    <select value={t.assigned_to || ''} onChange={e => { e.stopPropagation(); assign(t.id, e.target.value) }} onClick={e => e.stopPropagation()}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {t.assigned?.name_ar && <span style={{ fontSize: 10, color: C.blue }}>👤 {t.assigned.name_ar}</span>}
+                    {entityName && <span style={{ fontSize: 9, color: 'var(--tx5)' }}>🏢 {entityName}</span>}
+                    {t.total_transactions > 0 && <span style={{ fontSize: 9, color: C.gold }}>📋 {t.completed_transactions||0}/{t.total_transactions}</span>}
+                    {!t.assigned?.name_ar && <select value={t.assigned_to || ''} onChange={e => { e.stopPropagation(); assign(t.id, e.target.value) }} onClick={e => e.stopPropagation()}
                       style={{ height: 22, padding: '0 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'var(--tx5)', fontFamily: F, fontSize: 9, outline: 'none', cursor: 'pointer' }}>
                       <option value="">{T('تعيين', 'Assign')}</option>
                       {users.map(u => <option key={u.id} value={u.id}>{u.name_ar}</option>)}
-                    </select>
+                    </select>}
                   </div>
+                  {/* Progress bar for tasks with transactions */}
+                  {t.total_transactions > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                    <div style={{ flex: 1, height: 3, borderRadius: 2, background: 'rgba(255,255,255,.06)', overflow: 'hidden', maxWidth: 120 }}>
+                      <div style={{ height: '100%', width: progPct + '%', borderRadius: 2, background: progPct === 100 ? C.ok : C.gold, transition: '.3s' }} />
+                    </div>
+                    <span style={{ fontSize: 9, color: progPct === 100 ? C.ok : C.gold, fontWeight: 700 }}>{progPct}%</span>
+                  </div>}
                 </div>
 
                 {/* Due date */}

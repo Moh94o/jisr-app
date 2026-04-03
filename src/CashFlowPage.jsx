@@ -49,6 +49,12 @@ return<div>
 <div><div style={{fontSize:12,fontWeight:700,color:C.red}}>{T('تحذير: يوجد عجز نقدي متوقع','Warning: Cash deficit forecasted')}</div>
 <div style={{fontSize:11,color:'rgba(192,57,43,.6)',marginTop:2}}>{T('المصاريف المتوقعة قد تتجاوز الدخل في بعض الأسابيع','Expected expenses may exceed income in some weeks')}</div></div>
 </div>}
+{/* Recommendation */}
+{summary.net<0&&<div style={{padding:'12px 16px',borderRadius:12,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)',marginBottom:16,display:'flex',alignItems:'flex-start',gap:10}}>
+<span style={{fontSize:16,flexShrink:0}}>💡</span>
+<div><div style={{fontSize:12,fontWeight:700,color:C.gold}}>{T('توصية','Recommendation')}</div>
+<div style={{fontSize:11,color:'var(--tx3)',marginTop:4,lineHeight:1.8}}>{T('تحصيل المستحقات المعلّقة من العملاء يمكن أن يغطي جزءاً من العجز المتوقع. راجع أعمار الديون في صفحة الفواتير.','Collecting outstanding receivables from clients can cover part of the expected deficit. Review aging in the invoices page.')}</div></div>
+</div>}
 
 {/* Summary Cards */}
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(200px,100%),1fr))',gap:12,marginBottom:20}}>

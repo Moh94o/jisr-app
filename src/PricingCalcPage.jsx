@@ -104,14 +104,19 @@ style={{padding:'8px 16px',borderRadius:8,border:'1px solid '+(selected?.service
 <div style={{fontSize:13,fontWeight:700,color:'var(--tx3)',marginBottom:10}}>{T('الرسوم الحكومية المسجّلة','Government Fees')}</div>
 <div style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,overflow:'hidden'}}>
 <table style={{width:'100%',borderCollapse:'collapse'}}>
-<thead><tr>{[T('الرسم','Fee'),T('الكود','Code'),T('التصنيف','Category'),T('المبلغ','Amount'),''].map(h=><th key={h} style={{padding:'10px 12px',fontSize:11,fontWeight:700,color:'var(--tx3)',textAlign:'right',borderBottom:'1px solid var(--bd)'}}>{h}</th>)}</tr></thead>
-<tbody>{fees.map(f=><tr key={f.id} style={{borderBottom:'1px solid var(--bd2)'}}>
+<thead><tr>{[T('الرسم','Fee'),T('التصنيف','Category'),T('المبلغ','Amount'),''].map(h=><th key={h} style={{padding:'10px 12px',fontSize:11,fontWeight:700,color:'var(--tx3)',textAlign:'right',borderBottom:'1px solid var(--bd)'}}>{h}</th>)}</tr></thead>
+<tbody>{fees.map(f=>{const catAr={commercial:T('تجاري','Commercial'),immigration:T('جوازات','Immigration'),labor:T('عمل','Labor'),insurance:T('تأمين','Insurance'),municipal:T('بلدي','Municipal'),other:T('أخرى','Other')};const catClr={commercial:C.gold,immigration:C.blue,labor:'#e67e22',insurance:'#9b59b6',municipal:'#1abc9c',other:'#888'};return<tr key={f.id} style={{borderBottom:'1px solid var(--bd2)'}}>
 <td style={{padding:'8px 12px',fontSize:12,fontWeight:600,color:'var(--tx)'}}>{f.name_ar}</td>
-<td style={{padding:'8px 12px',fontSize:10,color:'var(--tx4)',fontFamily:'monospace'}}>{f.fee_code}</td>
-<td style={{padding:'8px 12px',fontSize:11,color:'var(--tx4)'}}>{f.category}</td>
+<td style={{padding:'8px 12px'}}><span style={{fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:5,background:(catClr[f.category]||'#888')+'12',color:catClr[f.category]||'#888'}}>{catAr[f.category]||f.category}</span></td>
 <td style={{padding:'8px 12px',fontSize:13,fontWeight:700,color:C.gold,direction:'ltr',textAlign:'left'}}>{num(f.amount)}</td>
 <td style={{padding:'8px 12px'}}><button onClick={()=>{setForm({...f});setEditPop(f.id)}} style={{fontSize:9,padding:'2px 8px',borderRadius:4,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx4)',cursor:'pointer',fontFamily:F}}>✎</button></td>
-</tr>)}</tbody></table></div>
+</tr>})}</tbody></table>
+{/* Total summary */}
+<div style={{padding:'10px 14px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(201,168,76,.03)'}}>
+<span style={{fontSize:11,fontWeight:700,color:'var(--tx4)'}}>{T('إجمالي الرسوم الحكومية','Total Gov Fees')}</span>
+<span style={{fontSize:14,fontWeight:800,color:C.gold}}>{num(fees.reduce((s,f)=>s+Number(f.amount||0),0))} {T('ر.س','SAR')}</span>
+</div>
+</div>
 
 {/* Edit popup */}
 {editPop&&<div onClick={()=>setEditPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
