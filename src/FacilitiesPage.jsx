@@ -183,7 +183,7 @@ const wizardSteps=[
 {k:'notes',l:T('ملاحظات','Notes'),w:1}
 ]}]
 
-const allFieldsFlat=wizardSteps.flatMap(s=>s.fields)
+const allFieldsFlat=wizardSteps.flatMap(s=>s.fields||[])
 const initForm=()=>Object.fromEntries(allFieldsFlat.map(f=>([f.k,''])))
 const openAdd=()=>setWizard({step:0,data:{...initForm(),type:'establishment',facility_status:'active',cr_status:'active',is_main_cr:'true'}})
 const openEdit=r=>{const d={};allFieldsFlat.forEach(f=>d[f.k]=r[f.k]!=null?String(r[f.k]):'');setWizard({step:0,editId:r.id,data:d})}
