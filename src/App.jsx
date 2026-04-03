@@ -1011,6 +1011,7 @@ if(n.sec){const isOpen=expanded[n.sec];const hasActive=n.children.some(c=>c.id==
 return<div key={n.sec} style={{marginTop:i>1?2:0}}>
 <div onClick={()=>toggleSec(n.sec)} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 12px',cursor:'pointer',borderRadius:10,background:hasActive?'rgba(201,168,76,.05)':'transparent',border:hasActive?'1px solid rgba(201,168,76,.08)':'1px solid transparent',transition:'.2s'}}>
 <span style={{fontSize:11,fontWeight:700,color:hasActive?'rgba(201,168,76,.65)':'rgba(255,255,255,.28)',flex:1,transition:'.2s'}}>{n.t}</span>
+{dashBranch&&['finance','data','reports','admin'].includes(n.sec)&&<span style={{fontSize:7,padding:'1px 5px',borderRadius:4,background:'rgba(52,131,180,.1)',color:'#3483b4',fontWeight:600,maxWidth:60,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{dashBranches.find(b=>b.id===dashBranch)?.name_ar||''}</span>}
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{transform:isOpen?'rotate(90deg)':'rotate(0deg)',transition:'.25s cubic-bezier(.4,0,.2,1)',flexShrink:0}}><path d={lang==='ar'?"M15 18l-6-6 6-6":"M9 18l6-6-6-6"} stroke={hasActive?'rgba(201,168,76,.4)':'rgba(255,255,255,.15)'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
 </div>
 {isOpen&&<div style={{padding:'3px 0 3px 0',marginTop:2}}>
@@ -1153,45 +1154,47 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {/* ═══ Content ═══ */}
 <div className='dash-content' style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'32px 24px 0',msOverflowStyle:'none',scrollbarWidth:'none',WebkitOverflowScrolling:'touch'}}>
 {pg==='home'&&<HomePage stats={stats} lang={lang} branches={dashBranches} selectedBranch={dashBranch} onBranchChange={setDashBranch} sb={sb} onNavigate={setPage} toast={tt}/>}
-{pg==='kpi'&&<KPIPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='auto_alerts'&&<AutoAlertsPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='emp_performance'&&<EmployeePerformancePage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='cash_flow'&&<CashFlowPage sb={sb} toast={tt} lang={lang}/>}
-{pg==='sla_monitor'&&<SLAPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='calendar_unified'&&<CalendarPage sb={sb} toast={tt} user={user} lang={lang} onNavigate={setPage}/>}
-{pg==='profitability'&&<ProfitabilityPage sb={sb} toast={tt} lang={lang}/>}
-{pg==='live_monitor'&&<LiveMonitorPage sb={sb} toast={tt} lang={lang}/>}
-{pg==='workflow'&&<WorkflowPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='branch_compare'&&<BranchComparisonPage sb={sb} toast={tt} lang={lang}/>}
-{pg==='nps'&&<NPSPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='attendance'&&<AttendancePage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='weekly_report'&&<WeeklyReportPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='pricing_calc'&&<PricingCalcPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='compliance'&&<CompliancePage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='settings'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
-{pg==='admin'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
-{pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='admin_staff'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultTab="users"/>}
-{pg==='activity_log'&&<ActivityLogPage sb={sb} lang={lang} data={activityLog} loading={activityLoading} onLoad={loadActivityLog}/>}
-{pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='report_periodic'&&<ReportPeriodicPage sb={sb} lang={lang}/>}
-{pg==='report_performance'&&<ReportPerformancePage sb={sb} lang={lang}/>}
-{pg==='report_alerts'&&<ReportAlertsPage sb={sb} lang={lang}/>}
-{pg==='transfer_calc'&&<TransferCalcPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='audit'&&<AuditPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='invoice_followups'&&<InvoiceFollowupsPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='ext_payments'&&<ExtPaymentsPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='payments'&&<PaymentsPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang}/>}
+{/* ── أقسام كل المكاتب (بدون branchId) ── */}
 {pg==='facilities'&&<FacilitiesPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='workers'&&<WorkforcePage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
+{pg==='compliance'&&<CompliancePage sb={sb} toast={tt} user={user} lang={lang}/>}
 {(pg==='transactions_internal'||pg==='transactions_external')&&<TransactionsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultType={pg==='transactions_internal'?'internal':'external'}/>}
-{(pg==='clients'||pg==='brokers'||pg==='providers')&&<DataPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultTab={pg}/>}
+{pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='sla_monitor'&&<SLAPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='workflow'&&<WorkflowPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{/* ── أقسام الفرع المحدد (مع branchId) ── */}
+{pg==='kpi'&&<KPIPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='payments'&&<PaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='ext_payments'&&<ExtPaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='pricing_calc'&&<PricingCalcPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='cash_flow'&&<CashFlowPage sb={sb} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='transfer_calc'&&<TransferCalcPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='audit'&&<AuditPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='op_expenses'&&<OpExpensesPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{(pg==='clients'||pg==='brokers'||pg==='providers')&&<DataPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultTab={pg} branchId={dashBranch}/>}
+{pg==='client_statement'&&<ClientStatementPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='profitability'&&<ProfitabilityPage sb={sb} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='nps'&&<NPSPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='report_periodic'&&<ReportPeriodicPage sb={sb} lang={lang} branchId={dashBranch}/>}
+{pg==='emp_performance'&&<EmployeePerformancePage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='branch_compare'&&<BranchComparisonPage sb={sb} toast={tt} lang={lang}/>}
+{pg==='live_monitor'&&<LiveMonitorPage sb={sb} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='weekly_report'&&<WeeklyReportPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='invoice_followups'&&<InvoiceFollowupsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='report_alerts'&&<ReportAlertsPage sb={sb} lang={lang}/>}
+{pg==='report_performance'&&<ReportPerformancePage sb={sb} lang={lang} branchId={dashBranch}/>}
+{pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='admin_staff'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultTab="users" branchId={dashBranch}/>}
+{pg==='admin'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} branchId={dashBranch}/>}
+{pg==='attendance'&&<AttendancePage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='auto_alerts'&&<AutoAlertsPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='approvals'&&<ApprovalsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='settings'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
+{pg==='activity_log'&&<ActivityLogPage sb={sb} lang={lang} data={activityLog} loading={activityLoading} onLoad={loadActivityLog}/>}
+{pg==='calendar_unified'&&<CalendarPage sb={sb} toast={tt} user={user} lang={lang} onNavigate={setPage}/>}
 {(pg==='installments'||pg==='expenses')&&pageConf&&<CrudPage sb={sb} user={user} conf={pageConf} toast={tt} onRefresh={loadStats} lang={lang}/>}
-{pg==='appointments'&&<AppointmentsPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='op_expenses'&&<OpExpensesPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='client_statement'&&<ClientStatementPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='approvals'&&<ApprovalsPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='appointments'&&<AppointmentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 </div>
 </div>
 {toastMsg&&(()=>{const isErr=toastMsg.includes('خطأ');const isDel=toastMsg.includes('حذف');const clr=isErr?C.red:isDel?'#e67e22':C.ok;const bg=isErr?'rgba(192,57,43,.12)':isDel?'rgba(230,126,34,.12)':'rgba(39,160,70,.12)';const bdr=isErr?'rgba(192,57,43,.2)':isDel?'rgba(230,126,34,.2)':'rgba(39,160,70,.2)';return<div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:9999,background:bg,color:clr,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,padding:'12px 24px',borderRadius:12,boxShadow:'0 8px 30px rgba(0,0,0,.5)',border:'1px solid '+bdr,display:'flex',alignItems:'center',gap:8,animation:'slideDown .3s ease'}}>{isErr?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>:isDel?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}{toastMsg}</div>})()}
@@ -2449,10 +2452,10 @@ return<div>
 </div></div>}
 </div>}
 
-function AuditPage({sb,toast,user,lang}){
+function AuditPage({sb,toast,user,lang,branchId}){
 const T=(a,e)=>lang==='ar'?a:e;const nm=v=>Number(v||0).toLocaleString('en-US')
 const[data,setData]=useState([]);const[filter,setFilter]=useState('all');const[uploading,setUploading]=useState(false)
-const reload=()=>sb.from('bank_reconciliation').select('*').is('deleted_at',null).order('transaction_date',{ascending:false}).then(({data})=>setData(data||[]))
+const reload=()=>{let q=sb.from('bank_reconciliation').select('*').is('deleted_at',null);if(branchId)q=q.eq('branch_id',branchId);q.order('transaction_date',{ascending:false}).then(({data})=>setData(data||[]))}
 useEffect(()=>{reload()},[sb])
 const filtered=filter==='all'?data:data.filter(r=>r.match_status===filter)
 const stClr={pending:C.gold,matched:C.ok,unmatched:C.red,disputed:'#e67e22'}
@@ -2530,7 +2533,7 @@ return<>
 </div>})}
 </div></div>}
 
-function InvoiceFollowupsPage({sb,toast,user,lang}){
+function InvoiceFollowupsPage({sb,toast,user,lang,branchId}){
 const T=(a,e)=>lang==='ar'?a:e;const nm=v=>Number(v||0).toLocaleString('en-US')
 const[data,setData]=useState([]);const[pop,setPop]=useState(false);const[form,setForm]=useState({})
 const[saving,setSaving]=useState(false);const[invoices,setInvoices]=useState([])
@@ -2642,7 +2645,7 @@ return<div>
 </div>})}
 </div></div>}
 
-function PaymentsPage({sb,toast,user,lang}){
+function PaymentsPage({sb,toast,user,lang,branchId}){
 const T=(a,e)=>lang==='ar'?a:e;const isAr=lang!=='en';const nm=v=>Number(v||0).toLocaleString('en-US')
 const C={gold:'#c9a84c',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
 const[tab,setTab]=useState('office')
@@ -3230,11 +3233,11 @@ return<div key={a.id} onClick={()=>{setF({...a});setPop(a.id)}} style={{padding:
 </div></div></div>}
 </div>}
 
-function OpExpensesPage({sb,toast,user,lang}){
+function OpExpensesPage({sb,toast,user,lang,branchId}){
 const T=(a,e)=>lang==='ar'?a:e;const[data,setData]=useState([]);const[loading,setLoading]=useState(true);const[pop,setPop]=useState(null);const[month,setMonth]=useState(new Date().toISOString().slice(0,7));
 const[f,setF]=useState({amount:'',category:'other',description:'',date:new Date().toISOString().slice(0,10),payment_method:'cash',vendor_name:'',is_recurring:false});
 const cats={rent:T('إيجار','Rent'),salary:T('رواتب','Salary'),gov_fee:T('رسوم حكومية','Gov. Fee'),transport:T('نقل','Transport'),utilities:T('خدمات','Utilities'),office_supplies:T('مستلزمات مكتبية','Office Supplies'),maintenance:T('صيانة','Maintenance'),marketing:T('تسويق','Marketing'),insurance:T('تأمين','Insurance'),telecom:T('اتصالات','Telecom'),legal:T('قانوني','Legal'),other:T('أخرى','Other')};
-const load=useCallback(async()=>{setLoading(true);const{data:d}=await sb.from('operational_expenses').select('*,users:created_by(name_ar)').is('deleted_at',null).gte('date',month+'-01').lte('date',month+'-31').order('date',{ascending:false});setData(d||[]);setLoading(false)},[sb,month]);
+const load=useCallback(async()=>{setLoading(true);let q=sb.from('operational_expenses').select('*,users:created_by(name_ar)').is('deleted_at',null).gte('date',month+'-01').lte('date',month+'-31');if(branchId)q=q.eq('branch_id',branchId);const{data:d}=await q.order('date',{ascending:false});setData(d||[]);setLoading(false)},[sb,month,branchId]);
 useEffect(()=>{load()},[load]);
 const total=data.reduce((s,r)=>s+Number(r.amount||0),0);
 const save=async()=>{if(!f.amount){toast(T('خطأ: المبلغ مطلوب','Error: Amount required'));return}
