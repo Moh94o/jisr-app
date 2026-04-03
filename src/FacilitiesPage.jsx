@@ -10,13 +10,16 @@ const EditBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} 
 const DelBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.1)',background:'rgba(192,57,43,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
 const StatCard=({l,v,c,bg,bc})=><div style={{padding:'12px 16px',borderRadius:12,background:bg,border:'1px solid '+bc,minWidth:120,flex:'1 0 auto',display:'flex',alignItems:'center',gap:10}}><div style={{fontSize:24,fontWeight:900,color:c,lineHeight:1}}>{v}</div><div style={{fontSize:10,fontWeight:600,color:c,opacity:.85,whiteSpace:'nowrap'}}>{l}</div></div>
 const FieldView=({l,v,isStatus})=><div style={{padding:'12px 14px',background:'rgba(255,255,255,.02)',borderBottom:'1px solid var(--bd2)'}}><div style={{fontSize:9,fontWeight:600,color:'var(--tx5)',marginBottom:4}}>{l}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{isStatus?<Badge v={v}/>:String(v)}</div></div>
+const fieldStyle={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.04)',transition:'.2s',boxSizing:'border-box'}
 const FieldInput=({f,form,setForm,isAr})=>{const v=form[f.k]||'';const set=val=>setForm(p=>({...p,[f.k]:val}))
-return<div style={{gridColumn:f.w?'1/-1':undefined}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx3)',marginBottom:6}}>{f.l}{f.r&&<span style={{color:C.red}}> *</span>}</div>
-{f.opts?<select value={v} onChange={e=>set(e.target.value)} style={fS}><option value="">{isAr?'— اختر —':'— Select —'}</option>{f.opts.map(o=>typeof o==='object'?<option key={o.v} value={o.v}>{o.l}</option>:<option key={o} value={o}>{o}</option>)}</select>
-:f.t==='date'?<input type="date" value={v} onChange={e=>set(e.target.value)} style={{...fS,direction:'ltr'}}/>
-:f.t==='bool'?<select value={v} onChange={e=>set(e.target.value)} style={fS}><option value="">{isAr?'— اختر —':'— Select —'}</option><option value="true">{isAr?'نعم':'Yes'}</option><option value="false">{isAr?'لا':'No'}</option></select>
-:f.w?<textarea value={v} onChange={e=>set(e.target.value)} rows={3} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/>
-:<input value={v} onChange={e=>set(e.target.value)} style={{...fS,direction:f.d?'ltr':'rtl'}}/>}
+const onFocus=e=>{e.target.style.borderColor='rgba(201,168,76,.4)';e.target.style.background='rgba(201,168,76,.04)'}
+const onBlur=e=>{e.target.style.borderColor='rgba(255,255,255,.1)';e.target.style.background='rgba(255,255,255,.04)'}
+return<div style={{gridColumn:f.w?'1/-1':undefined}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{f.l}{f.r&&<span style={{color:C.red,marginRight:2}}> *</span>}</div>
+{f.opts?<select value={v} onChange={e=>set(e.target.value)} onFocus={onFocus} onBlur={onBlur} style={{...fieldStyle,textAlign:'right',paddingRight:14,appearance:'none',WebkitAppearance:'none',backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c9a84c' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",backgroundRepeat:'no-repeat',backgroundPosition:'14px center'}}><option value="">{isAr?'— اختر —':'— Select —'}</option>{f.opts.map(o=>typeof o==='object'?<option key={o.v} value={o.v}>{o.l}</option>:<option key={o} value={o}>{o}</option>)}</select>
+:f.t==='date'?<input type="date" value={v} onChange={e=>set(e.target.value)} onFocus={onFocus} onBlur={onBlur} style={{...fieldStyle,direction:'ltr',colorScheme:'dark'}}/>
+:f.t==='bool'?<div style={{display:'flex',gap:8}}>{[{v:'true',l:isAr?'نعم':'Yes',c:C.ok},{v:'false',l:isAr?'لا':'No',c:C.red}].map(o=><button key={o.v} onClick={()=>set(o.v)} style={{flex:1,height:42,borderRadius:10,border:'1.5px solid '+(v===o.v?o.c+'40':'rgba(255,255,255,.08)'),background:v===o.v?o.c+'12':'rgba(255,255,255,.03)',color:v===o.v?o.c:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:v===o.v?700:500,cursor:'pointer',transition:'.2s'}}>{o.l}</button>)}</div>
+:f.w?<textarea value={v} onChange={e=>set(e.target.value)} onFocus={onFocus} onBlur={onBlur} rows={3} style={{...fieldStyle,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/>
+:<input value={v} onChange={e=>set(e.target.value)} onFocus={onFocus} onBlur={onBlur} style={{...fieldStyle,textAlign:f.d?'left':'right',direction:f.d?'ltr':'rtl'}}/>}
 </div>}
 
 export default function FacilitiesPage({sb,toast,user,lang,onTabChange}){
@@ -123,6 +126,8 @@ const wizardSteps=[
 {k:'region_id',l:T('المنطقة','Region'),opts:regions.map(r=>({v:r.id,l:r.name_ar})),r:1},
 {k:'city_id',l:T('المدينة','City'),opts:cities.map(c=>({v:c.id,l:c.name_ar})),r:1},
 {k:'address_ar',l:T('العنوان','Address'),w:1},
+{k:'short_address',l:T('العنوان المختصر','Short Address'),d:1},
+{k:'postal_code',l:T('الرمز البريدي','Postal Code'),d:1},
 {k:'mobile',l:T('الجوال','Phone'),d:1},
 {k:'email',l:T('البريد','Email'),d:1}
 ]},
@@ -805,17 +810,38 @@ cats.map(cat=>{const catDocs=filteredDocs.filter(d=>d.category===cat);if(!catDoc
 
 </div></div></div></div>})()}
 
-{/* ═══ WIZARD (6 Steps) ═══ */}
+{/* ═══ ADD/EDIT FACILITY — Side-tab modal matching view layout ═══ */}
 {wizard&&<div onClick={()=>setWizard(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(700px,95vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.12)'}}>
-<div style={{height:3,background:`linear-gradient(90deg,transparent,${C.gold} 30%,#dcc06e 50%,${C.gold} 70%,transparent)`}}/>
-<div style={{background:'var(--bg)',padding:'16px 24px',display:'flex',justifyContent:'space-between',alignItems:'center'}}><div style={{fontSize:16,fontWeight:700,color:'var(--tx)'}}>{wizard.editId?T('تعديل منشأة','Edit Facility'):T('إضافة منشأة','Add Facility')}</div><button onClick={()=>setWizard(null)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button></div>
-<div style={{display:'flex',gap:0,padding:'0 16px',background:'rgba(255,255,255,.02)',overflowX:'auto',scrollbarWidth:'none'}}>{wizardSteps.map((s,i)=><div key={i} onClick={()=>setWizard(p=>({...p,step:i}))} style={{flex:'0 0 auto',padding:'10px 12px',textAlign:'center',fontSize:10,fontWeight:wizard.step===i?700:500,color:wizard.step===i?C.gold:i<wizard.step?'rgba(39,160,70,.6)':'rgba(255,255,255,.3)',borderBottom:wizard.step===i?'2px solid '+C.gold:i<wizard.step?'2px solid rgba(39,160,70,.3)':'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}><div style={{fontSize:14,fontWeight:800,marginBottom:2}}>{i+1}</div>{s.title}</div>)}</div>
-<div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>{wizardSteps[wizard.step].fields.map(f=><FieldInput key={f.k} f={f} form={WZ} setForm={v=>setWizard(p=>({...p,data:{...p.data,...(typeof v==='function'?v(p.data):v)}}))} isAr={isAr}/>)}</div></div>
-<div style={{padding:'16px 24px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between'}}>
-<button onClick={()=>wizard.step>0?setWizard(p=>({...p,step:p.step-1})):setWizard(null)} style={{height:42,padding:'0 20px',borderRadius:10,border:'1.5px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx3)',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>{wizard.step>0?T('← السابق','← Back'):T('إلغاء','Cancel')}</button>
-{wizard.step<wizardSteps.length-1?<button onClick={()=>setWizard(p=>({...p,step:p.step+1}))} style={{...bS,height:42,minWidth:120}}>{T('التالي →','Next →')}</button>:<button onClick={saveWizard} disabled={saving} style={{...bS,height:42,minWidth:140,opacity:saving?.6:1}}>{saving?'...':wizard.editId?T('حفظ','Save'):T('إضافة','Add')}</button>}
-</div></div></div>}
+<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(920px,95vw)',height:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.15)'}}>
+{/* Header */}
+<div style={{background:'var(--bg)',padding:'16px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(201,168,76,.12)',flexShrink:0}}>
+<div style={{display:'flex',alignItems:'center',gap:12}}>
+<div style={{width:44,height:44,borderRadius:12,background:'linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05))',border:'1.5px solid rgba(201,168,76,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:900,color:C.gold}}>{wizard.editId?'✎':'+'}</div>
+<div><div style={{fontSize:17,fontWeight:800,color:'var(--tx)'}}>{wizard.editId?T('تعديل منشأة','Edit Facility'):T('إضافة منشأة جديدة','Add New Facility')}</div>
+<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{T('تعبئة جميع بيانات المنشأة','Fill in all facility details')}</div></div>
+</div>
+<div style={{display:'flex',gap:6}}>
+<button onClick={saveWizard} disabled={saving} style={{...bS,height:36,minWidth:100,opacity:saving?.6:1}}>{saving?'...':wizard.editId?T('حفظ','Save'):T('إضافة','Add')}</button>
+<button onClick={()=>setWizard(null)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+</div></div>
+{/* Body: Side tabs + Form */}
+<div style={{display:'flex',flex:1,overflow:'hidden'}}>
+{/* Side tabs */}
+<div style={{width:170,background:'rgba(255,255,255,.015)',borderLeft:isAr?'1px solid rgba(255,255,255,.04)':'none',borderRight:!isAr?'1px solid rgba(255,255,255,.04)':'none',padding:'12px 0',flexShrink:0,overflowY:'auto'}}>
+{wizardSteps.map((s,i)=>{const active=wizard.step===i;return<div key={i} onClick={()=>setWizard(p=>({...p,step:i}))} style={{padding:'10px 16px',fontSize:11,fontWeight:active?700:500,color:active?C.gold:'rgba(255,255,255,.4)',background:active?'rgba(201,168,76,.06)':'transparent',borderRight:isAr&&active?'3px solid '+C.gold:'3px solid transparent',borderLeft:!isAr&&active?'3px solid '+C.gold:'3px solid transparent',cursor:'pointer',transition:'.15s'}}>{s.title}</div>})}
+</div>
+{/* Form content */}
+<div style={{flex:1,overflowY:'auto',padding:'24px 28px'}}>
+<div style={{fontSize:13,fontWeight:700,color:C.gold,marginBottom:16,display:'flex',alignItems:'center',gap:8}}>
+<span style={{width:24,height:24,borderRadius:6,background:'rgba(201,168,76,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:C.gold}}>{wizard.step+1}</span>
+{wizardSteps[wizard.step].title}
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+{wizardSteps[wizard.step].fields.map(f=><FieldInput key={f.k} f={f} form={WZ} setForm={v=>setWizard(p=>({...p,data:{...p.data,...(typeof v==='function'?v(p.data):v)}}))} isAr={isAr}/>)}
+</div>
+</div>
+</div>
+</div></div>}
 
 {/* ═══ OWNER FORM ═══ */}
 {pop==='owner'&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
