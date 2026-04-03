@@ -514,7 +514,7 @@ const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matc
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
 useEffect(()=>{const h=e=>{e.preventDefault();setInstallPrompt(e);if(!isStandalone&&!localStorage.getItem('jisr_install_dismissed'))setShowInstallBanner(true)};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h)},[isStandalone]);
-const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const setPage=(id)=>{setPg(id);setSideOpen(false);for(const n of nav){if(n.children?.some(c=>c.id===id)){setExpanded(p=>({...p,[n.sec]:true}))}}};
+const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',operations:'transactions_external',finance_hub:'invoices',clients_hub:'clients',manpower_hub:'mp_dashboard',messaging_hub:'msg_send',admin_hub:'admin_offices',reports_hub:'report_periodic'};const setPage=(id)=>{const mapped=hubDefaults[id]||id;setPg(mapped);setSideOpen(false)};
 const loadStats=useCallback(()=>{const brId=dashBranch||null;sb.rpc('get_branch_stats',{p_branch_id:brId}).then(({data})=>{if(data)setStats(data)});sb.from('notifications_view').select('*').then(({data})=>{setNotifs(data||[])});sb.from('employee_notifications').select('*').eq('user_id',user?.id).order('created_at',{ascending:false}).limit(50).then(({data})=>{setMyNotifs(data||[])});sb.from('branches').select('id,name_ar').is('deleted_at',null).order('name_ar').then(({data})=>{setDashBranches(data||[])});sb.from('system_settings').select('setting_value').eq('setting_key','last_weekly_update').single().then(({data})=>{if(data?.setting_value)setLastWeeklyUpdate(new Date(data.setting_value))});
 sb.from('tasks').select('id',{count:'exact',head:true}).is('deleted_at',null).in('status',['pending','in_progress','overdue']).then(({count})=>{setTaskCount(count||0)});
 sb.from('approval_requests').select('id',{count:'exact',head:true}).eq('status','pending').then(({count})=>{setApprovalCount(count||0)});
@@ -524,66 +524,16 @@ useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+k':()=>{const el=docu
 const doSearch=useCallback(async(q)=>{if(!q||q.length<2){setSearchResults([]);return}setSearchLoading(true);try{const[fac,wrk,cli,inv]=await Promise.all([sb.from('facilities').select('id,name_ar,unified_national_number,cr_number').is('deleted_at',null).or(`name_ar.ilike.%${q}%,unified_national_number.ilike.%${q}%,cr_number.ilike.%${q}%`).limit(5),sb.from('workers').select('id,name_ar,iqama_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,iqama_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('clients').select('id,name_ar,id_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,id_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('invoices').select('id,invoice_number,total_amount,status').is('deleted_at',null).or(`invoice_number.ilike.%${q}%`).limit(5)]);const r=[];(fac.data||[]).forEach(d=>r.push({type:'facility',icon:'facility',label:d.name_ar,sub:d.cr_number||d.unified_national_number||'',pg:'facilities',id:d.id}));(wrk.data||[]).forEach(d=>r.push({type:'worker',icon:'worker',label:d.name_ar,sub:d.iqama_number||d.phone||'',pg:'workers',id:d.id}));(cli.data||[]).forEach(d=>r.push({type:'client',icon:'client',label:d.name_ar,sub:d.id_number||d.phone||'',pg:'clients',id:d.id}));(inv.data||[]).forEach(d=>r.push({type:'invoice',icon:'invoice',label:d.invoice_number,sub:Number(d.total_amount||0).toLocaleString()+' ر.س',pg:'invoices',id:d.id}));setSearchResults(r)}catch(e){setSearchResults([])}setSearchLoading(false)},[sb]);useEffect(()=>{const t=setTimeout(()=>doSearch(searchQ),300);return()=>clearTimeout(t)},[searchQ,doSearch]);
 const loadActivityLog=useCallback(async()=>{setActivityLoading(true);try{const{data}=await sb.from('activity_log').select('*,users:user_id(name_ar,name_en)').order('created_at',{ascending:false}).limit(100);setActivityLog(data||[])}catch(e){setActivityLog([])}setActivityLoading(false)},[sb]);
 const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);const nav=[
-{id:'home',l:T('الرئيسية','Dashboard'),i:'home'},
-{id:'kpi',l:T('الأهداف','KPI'),i:'chart'},
-{sec:'facilities_workforce',t:T('المنشآت والعمالة','Facilities & Workforce'),children:[
-{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},
-{id:'workers',l:T('العمالة','Workforce'),i:'worker'},
-{id:'compliance',l:T('الامتثال','Compliance'),i:'alert'}]},
-{sec:'tasks_section',t:T('العمليات والمهام','Operations & Tasks'),children:[
-{id:'transactions_internal',l:T('داخلية','Internal'),i:'transaction'},
-{id:'transactions_external',l:T('خارجية','External'),i:'transaction'},
-{id:'tasks',l:T('المهام','Tasks'),i:'calendar',n:taskCount},
-{id:'sla_monitor',l:T('مراقبة SLA','SLA Monitor'),i:'chart'},
-{id:'workflow',l:T('الأتمتة','Automation'),i:'bolt'}]},
-{sec:'messaging',t:T('مركز الرسائل','Messaging'),children:[
-{id:'msg_send',l:T('إرسال رسالة','Send Message'),i:'message'},
-{id:'msg_templates',l:T('النماذج','Templates'),i:'message'},
-{id:'msg_log',l:T('سجل الرسائل','Message Log'),i:'message'},
-{id:'msg_groups',l:T('المجموعات','Groups'),i:'message'},
-{id:'msg_settings',l:T('إعدادات الرسائل','Settings'),i:'message'}]},
-{sec:'manpower',t:T('المانباور','Manpower'),children:[
-{id:'mp_dashboard',l:T('لوحة التحكم','Dashboard'),i:'chart'},
-{id:'mp_projects',l:T('المشاريع','Projects'),i:'transaction'},
-{id:'mp_workers',l:T('عمال المشاريع','Workers'),i:'worker'},
-{id:'mp_extracts',l:T('المستخلصات','Extracts'),i:'invoice'},
-{id:'mp_partners',l:T('الشراكات','Partners'),i:'worker'}]},
-{sec:'finance',t:T('المالية','Finance'),children:[
-{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},
-{id:'payments',l:T('المدفوعات','Payments'),i:'expense'},
-{id:'pricing_calc',l:T('حاسبة التسعير','Pricing'),i:'payment'},
-{id:'cash_flow',l:T('التدفق النقدي','Cash Flow'),i:'chart'},
-{id:'transfer_calc',l:T('نقل الكفالة','Transfer'),i:'worker'},
-{id:'audit',l:T('التدقيق','Audit'),i:'payment'},
-{id:'op_expenses',l:T('المصاريف','Expenses'),i:'expense'},
-{id:'budget',l:T('الميزانية','Budget'),i:'chart'}]},
-{sec:'data',t:T('الحسابات','Accounts'),children:[
-{id:'contracts',l:T('العقود','Contracts'),i:'transaction'},
-{id:'clients',l:T('العملاء','Clients'),i:'client'},
-{id:'brokers',l:T('الوسطاء','Brokers'),i:'broker'},
-{id:'providers',l:T('المعقّبين','Providers'),i:'broker'},
-{id:'client_statement',l:T('كشف حساب','Statement'),i:'payment'},
-{id:'profitability',l:T('الربحية','Profitability'),i:'chart'},
-{id:'nps',l:T('رضا العملاء','Satisfaction'),i:'users'}]},
-{sec:'reports',t:T('التقارير والمتابعة','Reports'),children:[
-{id:'report_periodic',l:T('الدورية','Periodic'),i:'chart'},
-{id:'emp_performance',l:T('أداء الموظفين','Staff Perf.'),i:'users'},
-{id:'branch_compare',l:T('مقارنة الفروع','Branches'),i:'branch'},
-{id:'live_monitor',l:T('المراقبة الحية','Live Monitor'),i:'alert'},
-{id:'weekly_report',l:T('التقرير الأسبوعي','Weekly'),i:'notes'},
-{id:'invoice_followups',l:T('تقادم الفواتير','Aging'),i:'invoice'},
-{id:'report_alerts',l:T('التنبيهات','Alerts'),i:'alert'}]},
-{sec:'admin',t:T('الإدارة','Admin'),children:[
-{id:'admin_offices',l:T('الفروع','Branches'),i:'branch'},
-{id:'admin_staff',l:T('الفريق','Team'),i:'users'},
-{id:'attendance',l:T('الحضور','Attendance'),i:'calendar'},
-{id:'auto_alerts',l:T('التنبيهات التلقائية','Auto Alerts'),i:'alert'},
-{id:'approvals',l:T('الموافقات','Approvals'),i:'notes'},
-{id:'settings',l:T('الإعدادات','Settings'),i:'settings'},
-{id:'worker_leaves',l:T('الإجازات','Leaves'),i:'calendar'},
-{id:'archive',l:T('الأرشيف','Archive'),i:'notes'},
-{id:'suppliers',l:T('الموردين','Suppliers'),i:'broker'},
-{id:'activity_log',l:T('سجل النظام','System Log'),i:'notes'}]}
+{id:'home',l:T('🏠 الرئيسية','🏠 Dashboard'),i:'home'},
+{id:'workforce',l:T('👷 العمالة والمنشآت','👷 Workforce'),i:'worker'},
+{id:'operations',l:T('📋 العمليات','📋 Operations'),i:'transaction',n:taskCount},
+{id:'finance_hub',l:T('💰 المالية','💰 Finance'),i:'invoice'},
+{id:'clients_hub',l:T('👥 العملاء والحسابات','👥 Clients'),i:'client'},
+{id:'manpower_hub',l:T('🏗 المانباور','🏗 Manpower'),i:'facility'},
+{id:'messaging_hub',l:T('📱 التواصل','📱 Messaging'),i:'message'},
+{id:'admin_hub',l:T('🏢 الإدارة','🏢 Admin'),i:'settings'},
+{id:'reports_hub',l:T('📊 التقارير','📊 Reports'),i:'chart'},
+{id:'settings',l:T('⚙ الإعدادات','⚙ Settings'),i:'settings'}
 ];const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
 cols:[['name_ar',T('الاسم','Name')],['unified_national_number',T('الرقم الموحد','Unified No.')],['cr_number',T('السجل','CR No.')],['cr_status',T('حالة السجل','CR Status')],['facility_status',T('الحالة','Status')],['nitaqat_color',T('نطاقات','Nitaqat')]],
@@ -1020,33 +970,16 @@ flds:[
 <style>{'aside nav::-webkit-scrollbar{display:none}'}</style>
 <div style={{display:'flex',flexDirection:'column',gap:3}}>
 {nav.map((n,i)=>{
-if(n.id)return<div key={n.id} onClick={()=>setPage(n.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderRadius:10,cursor:'pointer',fontSize:13,fontWeight:pg===n.id?700:500,color:pg===n.id?C.gold:'rgba(255,255,255,.5)',background:pg===n.id?'rgba(201,168,76,.08)':'transparent',border:pg===n.id?'1px solid rgba(201,168,76,.12)':'1px solid transparent',transition:'.2s'}}>
-<span style={{width:16,height:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:pg===n.id?1:.4}}>{DT(pg===n.id?C.gold:'rgba(255,255,255,.5)')[n.i]}</span>
+const isActive=pg===n.id||(n.id==='workforce'&&['facilities','workers','compliance','worker_leaves'].includes(pg))||(n.id==='operations'&&['transactions_internal','transactions_external','tasks','sla_monitor','workflow','transfer_calc'].includes(pg))||(n.id==='finance_hub'&&['invoices','payments','pricing_calc','cash_flow','audit','op_expenses','budget','ext_payments'].includes(pg))||(n.id==='clients_hub'&&['clients','brokers','providers','client_statement','profitability','nps','contracts'].includes(pg))||(n.id==='manpower_hub'&&['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg))||(n.id==='messaging_hub'&&['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg))||(n.id==='admin_hub'&&['admin_offices','admin_staff','attendance','approvals','activity_log','auto_alerts','archive','suppliers'].includes(pg))||(n.id==='reports_hub'&&['report_periodic','emp_performance','branch_compare','live_monitor','weekly_report','invoice_followups','report_alerts','report_performance'].includes(pg))||(n.id==='settings'&&pg==='settings')
+const isSep=n.id==='settings'
+return<div key={n.id}>
+{isSep&&<div style={{height:1,background:'rgba(255,255,255,.06)',margin:'8px 14px'}}/>}
+<div onClick={()=>setPage(n.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderRadius:10,cursor:'pointer',fontSize:13,fontWeight:isActive?700:500,color:isActive?C.gold:'rgba(255,255,255,.5)',background:isActive?'rgba(201,168,76,.08)':'transparent',border:isActive?'1px solid rgba(201,168,76,.12)':'1px solid transparent',transition:'.2s',position:'relative'}}>
+{isActive&&<div style={{position:'absolute',[lang==='ar'?'right':'left']:0,top:'50%',transform:'translateY(-50%)',width:3,height:22,borderRadius:3,background:C.gold}}/>}
 <span style={{flex:1}}>{n.l}</span>
-{pg===n.id&&<div style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>}
+{n.n>0&&<span style={{fontSize:9,fontWeight:700,background:C.red,color:'#fff',padding:'1px 6px',borderRadius:8,minWidth:16,textAlign:'center'}}>{n.n}</span>}
 </div>
-
-if(n.sec){const isOpen=expanded[n.sec];const hasActive=n.children.some(c=>c.id===pg)
-
-return<div key={n.sec} style={{marginTop:i>1?2:0}}>
-<div onClick={()=>toggleSec(n.sec)} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 12px',cursor:'pointer',borderRadius:10,background:hasActive?'rgba(201,168,76,.05)':'transparent',border:hasActive?'1px solid rgba(201,168,76,.08)':'1px solid transparent',transition:'.2s'}}>
-<span style={{fontSize:11,fontWeight:700,color:hasActive?'rgba(201,168,76,.65)':'rgba(255,255,255,.28)',flex:1,transition:'.2s'}}>{n.t}</span>
-{dashBranch&&['finance','data','reports','admin'].includes(n.sec)&&<span style={{fontSize:7,padding:'1px 5px',borderRadius:4,background:'rgba(52,131,180,.1)',color:'#3483b4',fontWeight:600,maxWidth:60,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{dashBranches.find(b=>b.id===dashBranch)?.name_ar||''}</span>}
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{transform:isOpen?'rotate(90deg)':'rotate(0deg)',transition:'.25s cubic-bezier(.4,0,.2,1)',flexShrink:0}}><path d={lang==='ar'?"M15 18l-6-6 6-6":"M9 18l6-6-6-6"} stroke={hasActive?'rgba(201,168,76,.4)':'rgba(255,255,255,.15)'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-</div>
-{isOpen&&<div style={{padding:'3px 0 3px 0',marginTop:2}}>
-{n.children.map(c=>{const isActive=pg===c.id
-return<div key={c.id} onClick={()=>setPage(c.id)} style={{display:'flex',alignItems:'center',gap:9,padding:'8px 14px 8px 18px',borderRadius:8,cursor:'pointer',fontSize:12,fontWeight:isActive?700:500,color:isActive?C.gold:'rgba(255,255,255,.4)',background:isActive?'rgba(201,168,76,.07)':'transparent',transition:'.15s',marginBottom:1,position:'relative'}}>
-{isActive&&<div style={{position:'absolute',[lang==='ar'?'right':'left']:0,top:'50%',transform:'translateY(-50%)',width:3,height:18,borderRadius:3,background:C.gold}}/>}
-{!isActive&&<div style={{position:'absolute',[lang==='ar'?'right':'left']:9,top:'50%',transform:'translateY(-50%)',width:4,height:4,borderRadius:'50%',background:'rgba(255,255,255,.07)'}}/>}
-<span style={{width:14,height:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:isActive?.85:.35,[lang==='ar'?'marginRight':'marginLeft']:4}}>{DT(isActive?C.gold:'rgba(255,255,255,.5)')[c.i]}</span>
-<span style={{flex:1}}>{c.l}</span>
-{(c.id==='tasks_regular'||c.id==='tasks_periodic')&&taskCount>0&&<span style={{fontSize:9,fontWeight:700,background:C.red,color:'#fff',padding:'1px 5px',borderRadius:8,minWidth:16,textAlign:'center'}}>{taskCount}</span>}
-{c.id==='approvals'&&approvalCount>0&&<span style={{fontSize:9,fontWeight:700,background:'#e67e22',color:'#fff',padding:'1px 5px',borderRadius:8,minWidth:16,textAlign:'center'}}>{approvalCount}</span>}
 </div>})}
-</div>}
-</div>}
-return null})}
 </div>
 </nav>
 </aside>
