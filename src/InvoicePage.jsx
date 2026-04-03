@@ -314,20 +314,6 @@ return<><div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,m
 </div>)}
 </div>
 
-{/* ═══ ENHANCED AGING — with gradient colors + alert ═══ */}
-<div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',whiteSpace:'nowrap'}}>أعمار الديون:</span>
-{[{bracket:'0-30',label:'0-30 يوم',color:C.ok,emoji:'🟢'},{bracket:'31-60',label:'31-60 يوم',color:'#e67e22',emoji:'🟡'},{bracket:'61-90',label:'61-90 يوم',color:C.red,emoji:'🟠'},{bracket:'90+',label:'90+ يوم',color:'#8e44ad',emoji:'🔴'}].map(a=>{const d=aging.find(x=>x.bracket===a.bracket);const hasAmount=d&&Number(d.total_amount)>0;return<div key={a.bracket} onClick={()=>setAgingFilter(agingFilter===a.bracket?null:a.bracket)} style={{padding:'8px 14px',borderRadius:10,background:agingFilter===a.bracket?a.color+'15':hasAmount?a.color+'06':'rgba(255,255,255,.02)',border:'1.5px solid '+(agingFilter===a.bracket?a.color+'35':hasAmount?a.color+'15':'rgba(255,255,255,.05)'),cursor:'pointer',textAlign:'center',minWidth:80,transition:'.2s'}}>
-<div style={{fontSize:8,color:a.color,opacity:.7,marginBottom:3}}>{a.emoji} {a.label}</div>
-<div style={{fontSize:16,fontWeight:800,color:d&&hasAmount?a.color:'var(--tx6)'}}>{d?num(d.total_amount):'0'}</div>
-<div style={{fontSize:8,color:'var(--tx6)',marginTop:1}}>{d?d.invoice_count:0} فاتورة</div>
-</div>})}
-</div>
-{/* Alert for 90+ aging */}
-{aging.find(a=>a.bracket==='90+'&&Number(a.total_amount)>0)&&<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(142,68,173,.06)',border:'1px solid rgba(142,68,173,.15)',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:14}}>⚠️</span>
-<span style={{fontSize:10,color:'#8e44ad',fontWeight:600}}>يوجد {aging.find(a=>a.bracket==='90+')?.invoice_count||0} فاتورة متأخرة أكثر من 90 يوم بمبلغ {num(aging.find(a=>a.bracket==='90+')?.total_amount||0)} ر.س</span>
-</div>}
 </>})()}
 
 {/* ═══ SEARCH + FILTER ═══ */}
