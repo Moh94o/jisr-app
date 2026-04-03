@@ -20,6 +20,7 @@ import LiveMonitorPage from './LiveMonitorPage.jsx'
 import WorkflowPage from './WorkflowPage.jsx'
 import MessagingPage from './MessagingPage.jsx'
 import ManpowerPage from './ManpowerPage.jsx'
+import { ContractsPage, ArchivePage, SuppliersPage, WorkerLeavesPage, BudgetPage } from './ComplianceSuitePage.jsx'
 import BranchComparisonPage from './BranchComparisonPage.jsx'
 import NPSPage from './NPSPage.jsx'
 import AttendancePage from './AttendancePage.jsx'
@@ -554,8 +555,10 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'cash_flow',l:T('التدفق النقدي','Cash Flow'),i:'chart'},
 {id:'transfer_calc',l:T('نقل الكفالة','Transfer'),i:'worker'},
 {id:'audit',l:T('التدقيق','Audit'),i:'payment'},
-{id:'op_expenses',l:T('المصاريف','Expenses'),i:'expense'}]},
+{id:'op_expenses',l:T('المصاريف','Expenses'),i:'expense'},
+{id:'budget',l:T('الميزانية','Budget'),i:'chart'}]},
 {sec:'data',t:T('الحسابات','Accounts'),children:[
+{id:'contracts',l:T('العقود','Contracts'),i:'transaction'},
 {id:'clients',l:T('العملاء','Clients'),i:'client'},
 {id:'brokers',l:T('الوسطاء','Brokers'),i:'broker'},
 {id:'providers',l:T('المعقّبين','Providers'),i:'broker'},
@@ -577,6 +580,9 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'auto_alerts',l:T('التنبيهات التلقائية','Auto Alerts'),i:'alert'},
 {id:'approvals',l:T('الموافقات','Approvals'),i:'notes'},
 {id:'settings',l:T('الإعدادات','Settings'),i:'settings'},
+{id:'worker_leaves',l:T('الإجازات','Leaves'),i:'calendar'},
+{id:'archive',l:T('الأرشيف','Archive'),i:'notes'},
+{id:'suppliers',l:T('الموردين','Suppliers'),i:'broker'},
 {id:'activity_log',l:T('سجل النظام','System Log'),i:'notes'}]}
 ];const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
@@ -1176,6 +1182,12 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='sla_monitor'&&<SLAPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='workflow'&&<WorkflowPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{/* ── الأقسام الجديدة ── */}
+{pg==='contracts'&&<ContractsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='archive'&&<ArchivePage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='suppliers'&&<SuppliersPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='worker_leaves'&&<WorkerLeavesPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='budget'&&<BudgetPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {/* ── المانباور ── */}
 {(pg==='mp_dashboard'||pg==='mp_projects'||pg==='mp_workers'||pg==='mp_extracts'||pg==='mp_partners')&&<ManpowerPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {/* ── مركز الرسائل ── */}
