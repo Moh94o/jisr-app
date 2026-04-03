@@ -1719,21 +1719,66 @@ return<div key={t.id} style={{display:'flex',alignItems:'center',gap:6,fontSize:
 </div>
 </div>
 
-{/* Row 1: Main Stats */}
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(160px,100%),1fr))',gap:10,marginBottom:16}}>
-<SC l={T('المنشآت','Facilities')} v={<>{S.total_facilities||0}<PctBadge curr={S.total_facilities} prev={prevStats?.total_facilities}/></>} c={C.gold} sub={T((S.active_facilities||0)+' نشطة · '+(S.at_risk_facilities||0)+' خطر',(S.active_facilities||0)+' active · '+(S.at_risk_facilities||0)+' at risk')} ic={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><rect x="3" y="8" width="18" height="14" rx="2"/><path d="M7 8V4a2 2 0 012-2h6a2 2 0 012 2v4"/></svg>}/>
-<SC l={T('العمّال','Workers')} v={<>{S.total_workers||0}<PctBadge curr={S.total_workers} prev={prevStats?.total_workers}/></>} c={C.blue} sub={T((S.active_workers||0)+' نشط',(S.active_workers||0)+' active')} ic={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>}/>
-<SC l={T('العملاء','Clients')} v={<>{S.total_clients||0}<PctBadge curr={S.total_clients} prev={prevStats?.total_clients}/></>} c={C.ok} sub={T((S.total_brokers||0)+' وسيط · '+(S.total_providers||0)+' معقّب',(S.total_brokers||0)+' brokers')} ic={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="1.8"><circle cx="9" cy="7" r="4"/><path d="M2 21v-1a5 5 0 0114 0v1"/></svg>}/>
-<SC l={T('المعاملات','Transactions')} v={<>{S.total_transactions||0}<PctBadge curr={S.total_transactions} prev={prevStats?.total_transactions}/></>} c="#e67e22" sub={T((S.completed_transactions||0)+' مكتملة · '+(S.active_transactions||0)+' جارية',(S.completed_transactions||0)+' done')} ic={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e67e22" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10h8M8 14h5"/></svg>}/>
+{/* ═══ ENHANCED ROW 1: Operations Overview ═══ */}
+{(()=>{const totalInvAmt=(S.total_paid||0)+(S.total_outstanding||0);const collPct=totalInvAmt>0?Math.min(100,Math.round((S.total_paid||0)/totalInvAmt*100)):0;const txnDonePct=(S.total_transactions||0)>0?Math.round((S.completed_transactions||0)/(S.total_transactions)*100):0;const facRiskPct=(S.total_facilities||0)>0?Math.round((S.at_risk_facilities||0)/(S.total_facilities)*100):0
+return<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}}>
+{/* Card 1: المنشآت والعمالة */}
+<div style={{padding:'20px',borderRadius:14,background:'linear-gradient(145deg,rgba(20,22,28,.95),rgba(24,26,32,.95))',border:'1px solid rgba(201,168,76,.1)'}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx3)'}}>{T('المنشآت والعمالة','Facilities & Workers')}</span>
+<span style={{width:36,height:36,borderRadius:10,background:C.gold+'12',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><rect x="3" y="8" width="18" height="14" rx="2"/><path d="M7 8V4a2 2 0 012-2h6a2 2 0 012 2v4"/></svg></span>
 </div>
-
-{/* Row 2: Financial */}
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(160px,100%),1fr))',gap:10,marginBottom:20}}>
-<div style={{padding:'18px',borderRadius:14,background:C.gold+'08',border:'1px solid '+C.gold+'18'}}><div style={{fontSize:10,fontWeight:600,color:C.gold,opacity:.7,marginBottom:10,display:'flex',alignItems:'center',gap:4}}>{T('الإيرادات','Revenue')}<PctBadge curr={S.total_revenue} prev={prevStats?.revenue}/></div><div style={{fontSize:24,fontWeight:800,color:C.gold}}>{nm(S.total_revenue)}</div><div style={{fontSize:9,color:C.gold,opacity:.4,marginTop:4}}>{S.total_invoices||0} {T('فاتورة','invoices')}</div></div>
-<div style={{padding:'18px',borderRadius:14,background:C.blue+'08',border:'1px solid '+C.blue+'18'}}><div style={{fontSize:10,fontWeight:600,color:C.blue,opacity:.7,marginBottom:10,display:'flex',alignItems:'center',gap:4}}>{T('المحصّل','Collected')}<PctBadge curr={S.total_paid} prev={prevStats?.collected}/></div><div style={{fontSize:24,fontWeight:800,color:C.blue}}>{nm(S.total_paid)}</div><div style={{fontSize:9,color:C.blue,opacity:.4,marginTop:4}}>{S.paid_invoices||0} {T('مدفوعة','paid')}</div></div>
-<div style={{padding:'18px',borderRadius:14,background:C.red+'08',border:'1px solid '+C.red+'18'}}><div style={{fontSize:10,fontWeight:600,color:C.red,opacity:.7,marginBottom:10,display:'flex',alignItems:'center',gap:4}}>{T('المتبقي','Outstanding')}<PctBadge curr={S.total_outstanding} prev={prevStats?.outstanding} invert/></div><div style={{fontSize:24,fontWeight:800,color:C.red}}>{nm(S.total_outstanding)}</div><div style={{fontSize:9,color:C.red,opacity:.4,marginTop:4}}>{S.unpaid_invoices||0} {T('غير مدفوعة','unpaid')}</div></div>
-<div style={{padding:'18px',borderRadius:14,background:profitColor+'08',border:'1px solid '+profitColor+'18'}}><div style={{fontSize:10,fontWeight:600,color:profitColor,opacity:.7,marginBottom:10,display:'flex',alignItems:'center',gap:4}}>{T('صافي الربح','Net Profit')}<PctBadge curr={profit} prev={prevStats?Number(prevStats.collected||0)-Number(prevStats.expenses||0):null}/></div><div style={{fontSize:24,fontWeight:800,color:profitColor}}>{nm(Math.abs(profit))}</div><div style={{fontSize:9,color:profitColor,opacity:.4,marginTop:4}}>{profit>=0?T('ربح','profit'):T('خسارة','loss')}</div></div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+<div><div style={{fontSize:26,fontWeight:800,color:C.gold}}>{S.total_facilities||0}</div><div style={{fontSize:10,color:'var(--tx5)'}}>{T('منشأة','facilities')}</div></div>
+<div><div style={{fontSize:26,fontWeight:800,color:C.blue}}>{S.total_workers||0}</div><div style={{fontSize:10,color:'var(--tx5)'}}>{T('عامل','workers')}</div></div>
 </div>
+<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:9,padding:'3px 8px',borderRadius:5,background:C.ok+'12',color:C.ok}}>{S.active_facilities||0} {T('نشطة','active')}</span>
+{(S.at_risk_facilities||0)>0&&<span style={{fontSize:9,padding:'3px 8px',borderRadius:5,background:C.red+'12',color:C.red}}>⚠ {S.at_risk_facilities} {T('خطر','at risk')} ({facRiskPct}%)</span>}
+<span style={{fontSize:9,padding:'3px 8px',borderRadius:5,background:C.blue+'12',color:C.blue}}>{S.active_workers||0} {T('نشط','active')}</span>
+</div>
+</div>
+{/* Card 2: العملاء والمعاملات */}
+<div style={{padding:'20px',borderRadius:14,background:'linear-gradient(145deg,rgba(20,22,28,.95),rgba(24,26,32,.95))',border:'1px solid rgba(201,168,76,.1)'}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx3)'}}>{T('العملاء والمعاملات','Clients & Transactions')}</span>
+<span style={{width:36,height:36,borderRadius:10,background:'rgba(230,126,34,.12)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e67e22" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10h8M8 14h5"/></svg></span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+<div><div style={{fontSize:26,fontWeight:800,color:C.ok}}>{S.total_clients||0}</div><div style={{fontSize:10,color:'var(--tx5)'}}>{T('عميل','clients')} · {S.total_brokers||0} {T('وسيط','brokers')}</div></div>
+<div><div style={{fontSize:26,fontWeight:800,color:'#e67e22'}}>{S.total_transactions||0}</div><div style={{fontSize:10,color:'var(--tx5)'}}>{T('معاملة','transactions')}</div></div>
+</div>
+{/* Transaction progress */}
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<div style={{flex:1,height:4,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:txnDonePct+'%',borderRadius:2,background:C.ok}}/></div>
+<span style={{fontSize:9,fontWeight:700,color:C.ok}}>{txnDonePct}% {T('مكتملة','done')}</span>
+</div>
+<div style={{display:'flex',gap:6,marginTop:6}}>
+<span style={{fontSize:9,padding:'3px 8px',borderRadius:5,background:C.ok+'12',color:C.ok}}>{S.completed_transactions||0} {T('مكتملة','done')}</span>
+<span style={{fontSize:9,padding:'3px 8px',borderRadius:5,background:C.blue+'12',color:C.blue}}>{S.active_transactions||0} {T('جارية','active')}</span>
+</div>
+</div>
+{/* Card 3: المالية */}
+<div style={{padding:'20px',borderRadius:14,background:'linear-gradient(145deg,rgba(20,22,28,.95),rgba(24,26,32,.95))',border:'1px solid rgba(201,168,76,.1)'}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx3)'}}>{T('الملخص المالي','Financial Summary')}</span>
+<span style={{width:36,height:36,borderRadius:10,background:profitColor+'12',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={profitColor} strokeWidth="1.8"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+<div><div style={{fontSize:9,color:C.gold,marginBottom:2}}>{T('الإيرادات','Revenue')}</div><div style={{fontSize:18,fontWeight:800,color:C.gold}}>{nm(S.total_revenue)}</div></div>
+<div><div style={{fontSize:9,color:C.ok,marginBottom:2}}>{T('المحصّل','Collected')}</div><div style={{fontSize:18,fontWeight:800,color:C.ok}}>{nm(S.total_paid)}</div></div>
+<div><div style={{fontSize:9,color:C.red,marginBottom:2}}>{T('المتبقي','Outstanding')}</div><div style={{fontSize:16,fontWeight:800,color:C.red}}>{nm(S.total_outstanding)}</div></div>
+<div><div style={{fontSize:9,color:profitColor,marginBottom:2}}>{T('صافي الربح','Net Profit')}</div><div style={{fontSize:16,fontWeight:800,color:profitColor}}>{nm(Math.abs(profit))}</div></div>
+</div>
+{/* Collection rate */}
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<span style={{fontSize:9,color:'var(--tx5)'}}>{T('نسبة التحصيل','Collection')}</span>
+<div style={{flex:1,height:4,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:collPct+'%',borderRadius:2,background:collPct>=70?C.ok:collPct>=50?'#e67e22':C.red}}/></div>
+<span style={{fontSize:10,fontWeight:800,color:collPct>=70?C.ok:collPct>=50?'#e67e22':C.red}}>{collPct}%</span>
+</div>
+<div style={{fontSize:9,color:'var(--tx5)',marginTop:4}}>{S.total_invoices||0} {T('فاتورة','invoices')} · {S.paid_invoices||0} {T('مدفوعة','paid')} · {S.unpaid_invoices||0} {T('معلّقة','pending')}</div>
+</div>
+</div>})()}
 
 {/* Charts Row */}
 <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:14,marginBottom:20}}>
