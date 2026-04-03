@@ -77,13 +77,18 @@ return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
 <span style={{fontSize:10,color:config?.is_connected?C.ok:C.red}}>{config?.is_connected?T('متصل','Connected'):T('غير متصل','Disconnected')}</span>
 </div></div>
 
-{/* Tabs */}
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)'}}>
-{[{id:'send',l:T('📤 إرسال','📤 Send')},{id:'templates',l:T('📋 النماذج','📋 Templates'),n:templates.length},{id:'log',l:T('📊 السجل','📊 Log'),n:campaigns.length},{id:'groups',l:T('👥 المجموعات','👥 Groups'),n:groups.length},{id:'settings',l:T('⚙️ الإعدادات','⚙️ Settings')}].map(t=>
-<div key={t.id} onClick={()=>setTab(t.id)} style={{padding:'10px 16px',fontSize:11,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
-{t.l}{t.n!==undefined&&<span style={{fontSize:9,fontWeight:700,color:tab===t.id?C.gold:'rgba(255,255,255,.2)',background:tab===t.id?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',padding:'1px 6px',borderRadius:8}}>{t.n}</span>}
+{/* Layout: side tabs + content */}
+<div style={{display:'flex',gap:0,minHeight:400}}>
+{/* Side sub-tabs */}
+<div style={{width:110,flexShrink:0,borderLeft:lang==='ar'?'1px solid rgba(255,255,255,.06)':'none',borderRight:lang!=='ar'?'1px solid rgba(255,255,255,.06)':'none',padding:'4px 6px'}}>
+{[{id:'send',l:T('إرسال','Send'),ic:'📤'},{id:'templates',l:T('النماذج','Templates'),ic:'📋',n:templates.length},{id:'log',l:T('السجل','Log'),ic:'📊',n:campaigns.length},{id:'groups',l:T('المجموعات','Groups'),ic:'👥',n:groups.length},{id:'settings',l:T('الإعدادات','Settings'),ic:'⚙️'}].map(t=>
+<div key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 10px',borderRadius:8,marginBottom:2,fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.3)',background:tab===t.id?'rgba(201,168,76,.06)':'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',borderRight:lang==='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:lang!=='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent'}}>
+<span style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:10}}>{t.ic}</span>{t.l}</span>
+{t.n>0&&<span style={{fontSize:8,fontWeight:700,color:tab===t.id?C.gold:'rgba(255,255,255,.15)',background:tab===t.id?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',padding:'1px 5px',borderRadius:6}}>{t.n}</span>}
 </div>)}
 </div>
+{/* Content */}
+<div style={{flex:1}}>
 
 {/* ═══ TAB: SEND ═══ */}
 {tab==='send'&&<div>
@@ -286,4 +291,6 @@ return<div key={g.id} style={{padding:'14px 16px',borderRadius:12,background:'rg
 <div style={{fontSize:10,color:'var(--tx5)',marginTop:4}}>{T('لن يتم إرسال رسائل خارج هذه الأوقات','No messages will be sent outside these hours')}</div>
 </div>
 </div>}
+</div>
+</div>
 </div>}

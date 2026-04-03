@@ -81,13 +81,18 @@ return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
 <div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>📥 {T('استيراد البيانات التاريخية','Historical Data Import')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginBottom:20}}>{T('استيراد فواتير من إكسل + إدخال سندات قبض ورقية','Import invoices from Excel + enter paper receipts')}</div>
 
-{/* Tabs */}
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)'}}>
-{[{id:'overview',l:T('📊 نظرة عامة','📊 Overview')},{id:'excel',l:T('📊 استيراد إكسل','📊 Excel Import')},{id:'receipts',l:T('📝 سندات القبض','📝 Receipts'),n:totalReceipts},{id:'batches',l:T('📦 دفعات الاستيراد','📦 Batches'),n:batches.length}].map(t=>
-<div key={t.id} onClick={()=>setTab(t.id)} style={{padding:'10px 16px',fontSize:11,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
-{t.l}{t.n!==undefined&&<span style={{fontSize:9,fontWeight:700,color:tab===t.id?C.gold:'rgba(255,255,255,.2)',background:tab===t.id?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',padding:'1px 6px',borderRadius:8}}>{t.n}</span>}
+{/* Layout: side tabs + content */}
+<div style={{display:'flex',gap:0,minHeight:400}}>
+{/* Side sub-tabs - RIGHT side in RTL */}
+<div style={{width:120,flexShrink:0,borderLeft:lang==='ar'?'1px solid rgba(255,255,255,.06)':'none',borderRight:lang!=='ar'?'1px solid rgba(255,255,255,.06)':'none',padding:'4px 6px'}}>
+{[{id:'overview',l:T('نظرة عامة','Overview'),ic:'📊'},{id:'excel',l:T('استيراد إكسل','Excel'),ic:'📊'},{id:'receipts',l:T('سندات القبض','Receipts'),ic:'📝',n:totalReceipts},{id:'batches',l:T('الدفعات','Batches'),ic:'📦',n:batches.length}].map(t=>
+<div key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 10px',borderRadius:8,marginBottom:2,fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.3)',background:tab===t.id?'rgba(201,168,76,.06)':'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',borderRight:lang==='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:lang!=='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent'}}>
+<span style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:11}}>{t.ic}</span>{t.l}</span>
+{t.n>0&&<span style={{fontSize:8,fontWeight:700,color:tab===t.id?C.gold:'rgba(255,255,255,.15)',background:tab===t.id?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',padding:'1px 5px',borderRadius:6}}>{t.n}</span>}
 </div>)}
 </div>
+{/* Content */}
+<div style={{flex:1}}>
 
 {/* ═══ OVERVIEW ═══ */}
 {tab==='overview'&&<div>
@@ -192,6 +197,8 @@ return<div key={b.id} style={{padding:'14px 16px',borderRadius:12,background:b.s
 </div>})}
 </div>}
 
+</div>
+</div>
 {/* ═══ RECEIPT FORM POPUP ═══ */}
 {rcPop&&<div onClick={()=>setRcPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
 <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(520px,96vw)',maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',border:'1px solid var(--bd)'}}>
