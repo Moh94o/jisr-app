@@ -1493,6 +1493,7 @@ const[branchDropOpen,setBranchDropOpen]=useState(false)
 const[prevStats,setPrevStats]=useState(null)
 const[upcomingDues,setUpcomingDues]=useState([])
 const[chartPeriod,setChartPeriod]=useState(6);const[todayTasks,setTodayTasks]=useState([]);const[todayAppts,setTodayAppts]=useState([])
+const[monthlyTargets,setMonthlyTargets]=useState([]);const[alertsSummary,setAlertsSummary]=useState({urgent:0,warning:0,items:[]});const[analyticsOpen,setAnalyticsOpen]=useState(false);const[alertDismissed,setAlertDismissed]=useState(false)
 
 const T=(ar,en)=>lang==='ar'?ar:en
 const nm=v=>Number(v||0).toLocaleString('en-US')
@@ -1534,6 +1535,10 @@ if(data&&data.length>0){setDailyData(data.map(d=>({stat_date:d.stat_date,revenue
 else{/* Fallback: aggregate from branch data */
 sb.from('daily_stats').select('stat_date,revenue,collected,expenses').order('stat_date',{ascending:true}).then(({data:all})=>{
 if(!all||all.length===0)return;const byDate={};all.forEach(r=>{const d=r.stat_date;if(!byDate[d])byDate[d]={stat_date:d,revenue:0,collected:0,expenses:0};byDate[d].revenue+=Number(r.revenue)||0;byDate[d].collected+=Number(r.collected)||0;byDate[d].expenses+=Number(r.expenses)||0});setDailyData(Object.values(byDate).sort((a,b)=>a.stat_date.localeCompare(b.stat_date)).slice(-12))})}})
+// Load monthly targets + alerts summary
+const curMonth=new Date().toISOString().slice(0,8)+'01'
+sb.from('monthly_targets').select('*').eq('target_month',curMonth).is('branch_id',null).then(({data})=>setMonthlyTargets(data||[]))
+sb.from('notifications_view').select('severity,type').limit(600).then(({data})=>{if(!data)return;const u=data.filter(n=>n.severity==='urgent').length;const w=data.filter(n=>n.severity==='warning').length;const byType={};data.forEach(n=>{byType[n.type]=(byType[n.type]||0)+1});setAlertsSummary({urgent:u,warning:w,total:data.length,byType})})
 // Load recent activity
 sb.from('activity_log').select('*,users:user_id(name_ar)').order('created_at',{ascending:false}).limit(8).then(({data})=>{
 if(data&&data.length>0)setRecentActivity(data)
@@ -1613,22 +1618,75 @@ const Alert=({l,v,c})=>v>0?<div style={{display:'flex',alignItems:'center',gap:1
 
 return<div>
 {/* Quick Actions + Title */}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,flexWrap:'wrap',gap:12}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16,flexWrap:'wrap',gap:12}}>
 <div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>{T('لوحة التحكم','Dashboard')}</div><div style={{fontSize:12,color:'var(--tx4)'}}>{T('نظرة شاملة على بيانات النظام','Comprehensive system overview')}</div></div>
 </div>
 
-{/* ═══ TODAY PANEL ═══ */}
-{(todayTasks.length>0||todayAppts.length>0||upcomingDues.length>0)&&<div style={{marginBottom:16,padding:'14px 16px',borderRadius:14,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)'}}>
+{/* ═══ 1. URGENT ALERTS BAR ═══ */}
+{!alertDismissed&&alertsSummary.urgent>0&&<div style={{padding:'10px 16px',borderRadius:10,background:'rgba(192,57,43,.06)',border:'1px solid rgba(192,57,43,.15)',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
+<span style={{fontSize:16}}>🚨</span>
+<div style={{flex:1,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+<span style={{fontSize:11,fontWeight:700,color:C.red}}>{alertsSummary.urgent} {T('تنبيه عاجل','urgent alerts')}</span>
+{alertsSummary.byType?.iqama_expired>0&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(192,57,43,.1)',color:C.red}}>🪪 {alertsSummary.byType.iqama_expired} {T('إقامة منتهية','expired iqamas')}</span>}
+{alertsSummary.byType?.task_overdue>0&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(192,57,43,.1)',color:C.red}}>📋 {alertsSummary.byType.task_overdue} {T('مهمة متأخرة','overdue tasks')}</span>}
+{alertsSummary.byType?.transaction_issue>0&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(192,57,43,.1)',color:C.red}}>⚠ {alertsSummary.byType.transaction_issue} {T('معاملة بمشكلة','issue txns')}</span>}
+</div>
+{alertsSummary.warning>0&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(230,126,34,.1)',color:'#e67e22'}}>{alertsSummary.warning} {T('تحذير','warnings')}</span>}
+<button onClick={()=>onNavigate&&onNavigate('report_alerts')} style={{fontSize:10,fontWeight:700,color:C.red,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.15)',borderRadius:6,padding:'4px 10px',cursor:'pointer',fontFamily:"'Cairo',sans-serif"}}>{T('عرض التفاصيل →','Details →')}</button>
+<button onClick={()=>setAlertDismissed(true)} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',color:'var(--tx5)',cursor:'pointer',fontSize:10,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+</div>}
+{!alertDismissed&&alertsSummary.urgent===0&&alertsSummary.warning>0&&<div style={{padding:'10px 16px',borderRadius:10,background:'rgba(230,126,34,.04)',border:'1px solid rgba(230,126,34,.1)',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
+<span style={{fontSize:14}}>⚠️</span>
+<span style={{fontSize:11,fontWeight:600,color:'#e67e22',flex:1}}>{alertsSummary.warning} {T('تحذير يحتاج متابعة','warnings need attention')}</span>
+<button onClick={()=>onNavigate&&onNavigate('report_alerts')} style={{fontSize:10,fontWeight:600,color:'#e67e22',background:'transparent',border:'1px solid rgba(230,126,34,.2)',borderRadius:6,padding:'3px 10px',cursor:'pointer',fontFamily:"'Cairo',sans-serif"}}>{T('عرض →','View →')}</button>
+<button onClick={()=>setAlertDismissed(true)} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.04)',color:'var(--tx5)',cursor:'pointer',fontSize:10,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+</div>}
+
+{/* ═══ 2. TODAY TASKS + MONTHLY GOALS (side by side) ═══ */}
+<div style={{display:'grid',gridTemplateColumns:monthlyTargets.length>0?'3fr 2fr':'1fr',gap:12,marginBottom:16}}>
+{/* Left: Today Panel */}
+<div style={{padding:'14px 16px',borderRadius:14,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)'}}>
 <div style={{fontSize:13,fontWeight:800,color:C.gold,marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> {T('مهام اليوم','Today')}</div>
 <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
-{todayAppts.length>0&&<div style={{flex:1,minWidth:200}}><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:6}}>{T('المواعيد','Appointments')} ({todayAppts.length})</div>
+{todayAppts.length>0&&<div style={{flex:1,minWidth:180}}><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:6}}>{T('المواعيد','Appointments')} ({todayAppts.length})</div>
 {todayAppts.slice(0,3).map(a=><div key={a.id} style={{fontSize:11,color:'var(--tx2)',padding:'4px 0',display:'flex',gap:6}}><span style={{color:C.blue,fontWeight:700,minWidth:40}}>{a.time?.slice(0,5)}</span><span>{a.title}</span>{a.clients?.name_ar&&<span style={{color:'var(--tx4)'}}>— {a.clients.name_ar}</span>}</div>)}
 </div>}
-{todayTasks.length>0&&<div style={{flex:1,minWidth:200}}><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:6}}>{T('المهام المطلوبة','Tasks')} ({todayTasks.length})</div>
-{todayTasks.slice(0,3).map(t=><div key={t.id} style={{fontSize:11,color:'var(--tx2)',padding:'4px 0',display:'flex',gap:6}}><span style={{width:6,height:6,borderRadius:'50%',background:t.priority==='urgent'?C.red:t.priority==='high'?'#e67e22':C.gold,flexShrink:0,marginTop:5}}/><span>{t.title_ar||'—'}</span></div>)}
+{todayTasks.length>0&&<div style={{flex:1,minWidth:180}}><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:6}}>{T('المهام المطلوبة','Tasks')} ({todayTasks.length})</div>
+{todayTasks.slice(0,4).map(t=><div key={t.id} style={{fontSize:11,color:'var(--tx2)',padding:'4px 0',display:'flex',gap:6}}><span style={{width:6,height:6,borderRadius:'50%',background:t.priority==='urgent'?C.red:t.priority==='high'?'#e67e22':C.gold,flexShrink:0,marginTop:5}}/><span>{t.title_ar||'—'}</span></div>)}
 </div>}
+{todayAppts.length===0&&todayTasks.length===0&&<div style={{flex:1,textAlign:'center',padding:'12px 0',color:'var(--tx5)',fontSize:11}}>✅ {T('لا توجد مهام أو مواعيد اليوم','No tasks or appointments today')}</div>}
 </div>
-</div>}
+<button onClick={()=>onNavigate&&onNavigate('tasks')} style={{width:'100%',marginTop:10,height:30,borderRadius:6,border:'1px solid var(--bd)',background:'transparent',color:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:600,cursor:'pointer'}}>{T('كل المهام →','All tasks →')}</button>
+</div>
+{/* Right: Monthly Goals Summary */}
+{monthlyTargets.length>0&&(()=>{const metricLabels={revenue:T('الإيرادات','Revenue'),collection:T('التحصيل','Collection'),transactions_completed:T('المعاملات','Txns'),new_clients:T('عملاء جدد','New Clients'),expenses_limit:T('سقف المصاريف','Expenses'),invoices_issued:T('فواتير','Invoices')};const metricIcons={revenue:'💰',collection:'💳',transactions_completed:'📋',new_clients:'👥',expenses_limit:'📊',invoices_issued:'🧾'}
+const totalPct=monthlyTargets.length>0?Math.round(monthlyTargets.reduce((s,t)=>{const pct=Number(t.target_value)>0?Math.min(100,Math.round(Number(t.actual_value||0)/Number(t.target_value)*100)):0;return s+pct},0)/monthlyTargets.length):0
+const overallClr=totalPct>=70?C.ok:totalPct>=50?'#e67e22':C.red
+return<div style={{padding:'14px 16px',borderRadius:14,background:'rgba(52,131,180,.03)',border:'1px solid rgba(52,131,180,.08)'}}>
+<div style={{fontSize:13,fontWeight:800,color:C.blue,marginBottom:8,display:'flex',alignItems:'center',gap:6}}>🎯 {T('أهداف '+new Date().toLocaleDateString('ar-SA',{month:'long'}),'Monthly Goals')}</div>
+{/* Overall progress */}
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<div style={{fontSize:22,fontWeight:900,color:overallClr}}>{totalPct}%</div>
+<div style={{flex:1}}>
+<div style={{height:6,borderRadius:3,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:totalPct+'%',borderRadius:3,background:overallClr,transition:'width .5s'}}/></div>
+<div style={{fontSize:9,color:'var(--tx5)',marginTop:2}}>{T('الأداء العام','Overall Performance')}</div>
+</div>
+</div>
+{/* Individual metrics */}
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+{monthlyTargets.map(t=>{const pct=Number(t.target_value)>0?Math.min(100,Math.round(Number(t.actual_value||0)/Number(t.target_value)*100)):0;const clr=pct>=70?C.ok:pct>=50?'#e67e22':C.red;const isExpense=t.metric_key==='expenses_limit';const displayPct=isExpense?(pct<=100?pct:pct):pct;const expClr=isExpense?(pct<=100?C.ok:C.red):clr
+return<div key={t.id} style={{display:'flex',alignItems:'center',gap:6,fontSize:10}}>
+<span style={{width:14,textAlign:'center'}}>{metricIcons[t.metric_key]||'📌'}</span>
+<span style={{width:60,color:'var(--tx4)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{metricLabels[t.metric_key]||t.metric_key}</span>
+<div style={{flex:1,height:3,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:Math.min(100,displayPct)+'%',borderRadius:2,background:expClr}}/></div>
+<span style={{fontSize:9,fontWeight:700,color:expClr,minWidth:28,textAlign:'center'}}>{displayPct}%</span>
+</div>})}
+</div>
+<button onClick={()=>onNavigate&&onNavigate('kpi')} style={{width:'100%',marginTop:8,height:28,borderRadius:6,border:'1px solid rgba(52,131,180,.15)',background:'rgba(52,131,180,.04)',color:C.blue,fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:600,cursor:'pointer'}}>{T('تفاصيل الأهداف →','Goal details →')}</button>
+</div>})()}
+</div>
+
+{/* (Today panel merged into section 2 above) */}
 {/* ═══ STATS SECTION ═══ */}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,flexWrap:'wrap',gap:12}}>
 <div style={{visibility:'hidden',height:0,overflow:'hidden'}}></div>
@@ -1715,6 +1773,13 @@ return<div>
 </div>
 </div>
 
+{/* ═══ COLLAPSIBLE ANALYTICS ═══ */}
+<div onClick={()=>setAnalyticsOpen(!analyticsOpen)} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',borderRadius:10,background:'rgba(201,168,76,.03)',border:'1px solid rgba(201,168,76,.08)',cursor:'pointer',marginBottom:analyticsOpen?14:20}}>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{transform:analyticsOpen?'rotate(90deg)':'',transition:'.2s'}}><polyline points="9 6 15 12 9 18" stroke={C.gold} strokeWidth="2.5"/></svg>
+<span style={{fontSize:12,fontWeight:700,color:C.gold}}>📊 {T('التحليلات التفصيلية','Detailed Analytics')}</span>
+<span style={{fontSize:10,color:'var(--tx5)'}}>{T('الطلب على الخدمات · توزيع المبالغ · حالة المعاملات','Service demand · Revenue breakdown · Transaction status')}</span>
+</div>
+{analyticsOpen&&<>
 {/* Service Demand Charts */}
 <div style={{display:'grid',gridTemplateColumns:'3fr 2fr',gap:14,marginBottom:20}}>
 {/* Bar: Service demand by count */}
@@ -1800,6 +1865,7 @@ return<div>
 </div>
 </div>}
 
+</>}
 {/* Alerts + Activity + Tasks + Upcoming */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:14,marginBottom:20}}>
 {/* Alerts */}
@@ -1825,11 +1891,11 @@ return<div>
 {T('آخر الأحداث','Recent Activity')}</div>
 <div style={{display:'flex',flexDirection:'column',gap:6}}>
 {recentActivity.length===0?<div style={{textAlign:'center',padding:16,color:'var(--tx5)',fontSize:11}}>{T('لا توجد أحداث','No activity')}</div>:
-recentActivity.map((a,i)=>{const actC={insert:C.ok,update:C.blue,delete:C.red}[a.action]||'#999';const entL={transactions:T('معاملة','Transaction'),invoices:T('فاتورة','Invoice'),facilities:T('منشأة','Facility'),workers:T('عامل','Worker'),expenses:T('مصروف','Expense')}[a.entity_type]||a.entity_type||''
+recentActivity.map((a,i)=>{const actC={insert:C.ok,update:C.blue,delete:C.red}[a.action]||'#999';const actL={insert:T('إنشاء','Create'),update:T('تحديث','Update'),delete:T('حذف','Delete')}[a.action]||a.action||'';const entL={transactions:T('معاملة','Transaction'),invoices:T('فاتورة','Invoice'),facilities:T('منشأة','Facility'),workers:T('عامل','Worker'),expenses:T('مصروف','Expense'),tasks:T('مهمة','Task'),clients:T('عميل','Client'),users:T('مستخدم','User'),bank_accounts:T('حساب بنكي','Bank'),attendance:T('حضور','Attendance')}[a.entity_type]||a.entity_type||''
 return<div key={i} style={{display:'flex',alignItems:'flex-start',gap:8,padding:'6px 0',borderBottom:'1px solid var(--bd2)'}}>
 <div style={{width:6,height:6,borderRadius:'50%',background:actC,marginTop:5,flexShrink:0}}/>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:11,color:'var(--tx3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.description||entL}</div>
+<div style={{fontSize:11,color:'var(--tx3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.description||(actL+' '+entL)}</div>
 <div style={{fontSize:9,color:'var(--tx5)'}}>{a.users?.name_ar||''}{a.created_at?' · '+new Date(a.created_at).toLocaleDateString(lang==='ar'?'ar-SA':'en-US',{day:'numeric',month:'short'}):''}</div>
 </div>
 <span style={{fontSize:8,padding:'1px 5px',borderRadius:3,background:actC+'15',color:actC,flexShrink:0}}>{entL}</span>
