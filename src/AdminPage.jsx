@@ -80,6 +80,12 @@ const[loginLogs,setLoginLogs]=useState([])
 const[empLangs,setEmpLangs]=useState([])
 const[empSpecs,setEmpSpecs]=useState([])
 const[userTasks,setUserTasks]=useState([])
+const[perfData,setPerfData]=useState([])
+const[allAttendance,setAllAttendance]=useState([])
+const[perfSort,setPerfSort]=useState('performance_score')
+const[perfBranch,setPerfBranch]=useState(null)
+const[attBranch,setAttBranch]=useState(null)
+const[attDate,setAttDate]=useState(new Date().toISOString().slice(0,10))
 
 useEffect(()=>{onTabChange&&onTabChange({tab,svcSubTab:tab})},[tab,onTabChange])
 
@@ -98,6 +104,10 @@ sb.from('lookup_items').select('*').order('sort_order'),
 sb.from('bank_accounts').select('*').order('is_primary',{ascending:false}).order('bank_name')
 ])
 setBranches(br.data||[]);setUsers(us.data||[]);setRoles(rl.data||[]);setPerms(pm.data||[]);setRolePerms(rp.data||[]);setRegions(rg.data||[]);setCities(ct.data||[]);setLLists(ll.data||[]);setLItems(li.data||[]);setBankAccs(ba.data||[])
+if(defaultTab==='users'){
+sb.from('v_employee_performance_detailed').select('*').then(({data:pd})=>setPerfData(pd||[]))
+sb.from('attendance').select('*').order('date',{ascending:false}).limit(200).then(({data:ad})=>setAllAttendance(ad||[]))
+}
 setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
@@ -154,7 +164,7 @@ const s=q.toLowerCase()
 return(b.name_ar||'').includes(s)||(b.name_en||'').toLowerCase().includes(s)||(b.code||'').toLowerCase().includes(s)||(b.mobile||'').includes(s)||(b.email||'').toLowerCase().includes(s)
 })
 
-const allTabs=[{id:'branches',l:'المكاتب',le:'Branches'},{id:'bank_accounts',l:'الحسابات البنكية',le:'Bank Accounts'},{id:'users',l:'الموظفين',le:'Users'},{id:'roles',l:'الأدوار والصلاحيات',le:'Roles & Permissions'}];const tabs=defaultTab==='users'?allTabs.filter(t=>t.id==='users'||t.id==='roles'):allTabs
+const allTabs=[{id:'branches',l:'المكاتب',le:'Branches'},{id:'bank_accounts',l:'الحسابات البنكية',le:'Bank Accounts'},{id:'users',l:'الموظفين',le:'Users'},{id:'roles',l:'الأدوار والصلاحيات',le:'Roles & Permissions'}];const tabs=defaultTab==='users'?[{id:'users',l:'الموظفين'},{id:'performance',l:'الأداء'},{id:'attendance_tab',l:'الحضور'},{id:'roles',l:'الأدوار والصلاحيات'}]:allTabs
 
 const openAdd=()=>{setForm({_table:'branches',name_ar:'',name_en:'',code:'',region_id:'',city_id:'',mobile:'',email:'',color:'#c9a84c',manager_id:'',work_from:'08:00',work_to:'17:00',work_days:'الأحد,الاثنين,الثلاثاء,الأربعاء,الخميس',opening_balance:'',daily_cash_limit:'',is_active:'true',address:'',google_maps_url:'',notes:''});setStep(1);setPop('add')}
 const openEdit=(b)=>{setForm({_table:'branches',_id:b.id,name_ar:b.name_ar||'',name_en:b.name_en||'',code:b.code?b.code.split('-').pop():'',region_id:b.region_id||'',city_id:b.city_id||'',mobile:b.mobile?b.mobile.replace('+966',''):'',email:b.email||'',color:b.color||'#c9a84c',manager_id:b.manager_id||'',work_from:b.work_from||'08:00',work_to:b.work_to||'17:00',work_days:b.work_days||'الأحد,الاثنين,الثلاثاء,الأربعاء,الخميس',opening_balance:b.opening_balance||'',daily_cash_limit:b.daily_cash_limit||'',is_active:String(b.is_active!==false),address:b.address||'',google_maps_url:b.google_maps_url||'',notes:b.notes||''});setStep(1);setPop('edit')}
@@ -429,6 +439,81 @@ return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 </div>
 </div>})}
 </div>
+</>})()}
+
+{/* ═══ PERFORMANCE TAB ═══ */}
+{tab==='performance'&&(()=>{const scoreColor=s=>s>=50?C.ok:s>=20?C.gold:s>=0?'#e67e22':C.red;const medals=['🥇','🥈','🥉'];const filtered=perfData.filter(e=>!perfBranch||e.branch_id===perfBranch).sort((a,b)=>(Number(b[perfSort])||0)-(Number(a[perfSort])||0));return<>
+{/* Stat cards */}
+{defaultTab==='users'&&<div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr auto',gap:12,marginBottom:20}}>
+<div style={{padding:'16px 20px',borderRadius:14,background:'linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))',border:'1px solid rgba(39,160,70,.15)',minWidth:140,textAlign:'center'}}>
+<div style={{fontSize:11,fontWeight:600,color:C.ok,marginBottom:8}}>الموظفين</div>
+<div style={{fontSize:32,fontWeight:900,color:C.ok,lineHeight:1}}>{perfData.length}</div>
+</div>
+<div style={{padding:'16px 20px',borderRadius:14,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)',textAlign:'center'}}>
+<div style={{fontSize:11,fontWeight:600,color:C.gold,marginBottom:8}}>متوسط الأداء</div>
+<div style={{fontSize:32,fontWeight:900,color:C.gold,lineHeight:1}}>{perfData.length>0?Math.round(perfData.reduce((s,e)=>s+Number(e.performance_score||0),0)/perfData.length):0}</div>
+</div>
+<div style={{padding:'16px 20px',borderRadius:14,background:'rgba(52,131,180,.04)',border:'1px solid rgba(52,131,180,.1)',textAlign:'center'}}>
+<div style={{fontSize:11,fontWeight:600,color:C.blue,marginBottom:8}}>إجمالي المعاملات</div>
+<div style={{fontSize:32,fontWeight:900,color:C.blue,lineHeight:1}}>{perfData.reduce((s,e)=>s+Number(e.txn_completed||0),0)}</div>
+</div>
+<div style={{padding:'16px 20px',borderRadius:14,background:'rgba(192,57,43,.04)',border:'1px solid rgba(192,57,43,.1)',minWidth:140,textAlign:'center'}}>
+<div style={{fontSize:11,fontWeight:600,color:C.red,marginBottom:8}}>متأخرات</div>
+<div style={{fontSize:32,fontWeight:900,color:C.red,lineHeight:1}}>{perfData.reduce((s,e)=>s+Number(e.tasks_overdue||0),0)}</div>
+</div>
+</div>}
+{/* Filters */}
+<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+<select value={perfBranch||''} onChange={e=>setPerfBranch(e.target.value||null)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
+<option value="">كل المكاتب</option>{branches.map(b=><option key={b.id} value={b.id}>{b.name_ar}</option>)}
+</select>
+<select value={perfSort} onChange={e=>setPerfSort(e.target.value)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
+<option value="performance_score">النقاط</option><option value="txn_completed">المعاملات</option><option value="amount_collected">التحصيل</option><option value="tasks_done">المهام</option>
+</select>
+</div>
+{/* Leaderboard */}
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{filtered.map((e,i)=>{const sc=Number(e.performance_score)||0;return<div key={e.user_id} style={{padding:'14px 18px',borderRadius:12,background:'var(--bg)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',gap:14}}>
+<div style={{width:36,height:36,borderRadius:'50%',background:i<3?'rgba(201,168,76,.1)':'rgba(255,255,255,.05)',border:'1.5px solid '+(i<3?'rgba(201,168,76,.2)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?16:12,fontWeight:800,color:i<3?C.gold:'var(--tx4)',flexShrink:0}}>{i<3?medals[i]:i+1}</div>
+<div style={{flex:1,minWidth:0}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+<div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{e.name_ar}</div><div style={{fontSize:10,color:'var(--tx4)',marginTop:2}}>{e.role_name||'—'}{e.branch_name?' · '+e.branch_name:''}</div></div>
+<div style={{textAlign:'center'}}><div style={{fontSize:24,fontWeight:800,color:scoreColor(sc)}}>{sc}</div><div style={{fontSize:9,color:'var(--tx5)'}}>نقطة</div></div>
+</div>
+<div style={{display:'flex',gap:12,marginTop:10,flexWrap:'wrap'}}>
+{[['معاملات',e.txn_completed,C.blue],['تحصيل',num(e.amount_collected),C.ok],['مهام',e.tasks_done,C.gold],['متأخرة',e.tasks_overdue,C.red],['تصعيدات',e.escalations,'#e67e22'],['م.الأيام',e.avg_completion_days,'#9b59b6']].map(([l,v,c])=>
+<div key={l} style={{textAlign:'center',minWidth:55}}><div style={{fontSize:14,fontWeight:700,color:c}}>{v||0}</div><div style={{fontSize:9,color:'var(--tx5)'}}>{l}</div></div>)}
+</div>
+</div></div>})}
+</div>
+</>})()}
+
+{/* ═══ ATTENDANCE TAB ═══ */}
+{tab==='attendance_tab'&&(()=>{const dayAtt=allAttendance.filter(a=>a.date===attDate);const brAtt=attBranch?dayAtt.filter(a=>a.branch_id===attBranch):dayAtt;const totalDays=allAttendance.length;const lateDays=allAttendance.filter(a=>a.is_late).length;const avgHrs=totalDays>0?(allAttendance.reduce((s,a)=>s+Number(a.work_hours||0),0)/totalDays).toFixed(1):0;const uniqueDates=[...new Set(allAttendance.map(a=>a.date))].sort().reverse().slice(0,30);return<>
+{/* Stat cards */}
+<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
+{[['إجمالي السجلات',totalDays,C.gold],['في الوقت',totalDays-lateDays,C.ok],['متأخر',lateDays,lateDays>0?C.red:'var(--tx5)'],['متوسط الساعات',avgHrs,C.blue]].map(([l,v,c],i)=><div key={i} style={{padding:14,borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.04)',textAlign:'center'}}><div style={{fontSize:22,fontWeight:900,color:c}}>{v}</div><div style={{fontSize:9,color:c,opacity:.6,marginTop:4}}>{l}</div></div>)}
+</div>
+{/* Filters */}
+<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
+<input type="date" value={attDate} onChange={e=>setAttDate(e.target.value)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12,direction:'ltr'}}/>
+<select value={attBranch||''} onChange={e=>setAttBranch(e.target.value||null)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
+<option value="">كل المكاتب</option>{branches.map(b=><option key={b.id} value={b.id}>{b.name_ar}</option>)}
+</select>
+<span style={{fontSize:11,color:'var(--tx4)'}}>{brAtt.length} سجل في {attDate}</span>
+</div>
+{/* Table */}
+{brAtt.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد سجل حضور لهذا اليوم</div>:
+<div style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,overflow:'hidden'}}>
+<table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
+<thead><tr style={{background:'rgba(255,255,255,.03)'}}>{['الموظف','الدخول','الخروج','الساعات','الحالة'].map((h,i)=><th key={i} style={{padding:'10px 14px',fontSize:10,fontWeight:600,color:'var(--tx4)',textAlign:i===4?'center':'right'}}>{h}</th>)}</tr></thead>
+<tbody>{brAtt.map(a=>{const u=users.find(x=>x.id===a.user_id);const cin=a.check_in_at?new Date(a.check_in_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const cout=a.check_out_at?new Date(a.check_out_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';return<tr key={a.id} style={{borderBottom:'1px solid rgba(255,255,255,.03)'}}>
+<td style={{padding:'10px 14px'}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx2)'}}>{u?.name_ar||'—'}</div>{u?.roles&&<div style={{fontSize:9,color:u.roles.color||'var(--tx5)'}}>{u.roles.name_ar}</div>}</td>
+<td style={{padding:'10px 14px',fontSize:12,color:'var(--tx3)',direction:'ltr'}}>{cin}</td>
+<td style={{padding:'10px 14px',fontSize:12,color:'var(--tx3)',direction:'ltr'}}>{cout}</td>
+<td style={{padding:'10px 14px',fontSize:13,fontWeight:700,color:C.gold}}>{Number(a.work_hours||0).toFixed(1)}</td>
+<td style={{padding:'10px 14px',textAlign:'center'}}>{a.is_late?<span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(230,126,34,.1)',color:'#e67e22',fontWeight:600}}>+{a.late_minutes}د</span>:<span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(39,160,70,.1)',color:C.ok}}>✓</span>}</td>
+</tr>})}</tbody></table></div>}
 </>})()}
 
 {/* ═══ EMPLOYEE DETAIL SIDE PANEL ═══ */}
