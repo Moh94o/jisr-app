@@ -73,6 +73,7 @@ const[permSaving,setPermSaving]=useState(false)
 const[selPerms,setSelPerms]=useState([])
 const[viewUser,setViewUser]=useState(null)
 const[userTab,setUserTab]=useState('data')
+const[roleFilter,setRoleFilter]=useState('all')
 const[attendance,setAttendance]=useState([])
 const[loginLogs,setLoginLogs]=useState([])
 const[empLangs,setEmpLangs]=useState([])
@@ -351,6 +352,7 @@ return<div key={a.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 {tab==='users'&&(()=>{const filtUsers=users.filter(u=>{
 if(filterStatus==='active'&&!u.is_active)return false;if(filterStatus==='inactive'&&u.is_active)return false
 if(filterRegion!=='all'&&u.branch_id!==filterRegion)return false
+if(roleFilter!=='all'&&u.role_id!==roleFilter)return false
 if(!q)return true;const s=q.toLowerCase();return(u.name_ar||'').includes(s)||(u.name_en||'').toLowerCase().includes(s)||(u.email||'').toLowerCase().includes(s)||(u.phone||'').includes(s)
 });const roleClrs={'المدير العام':'#e8c547','مدير فرع':'#85B7EB','محاسب':'#AFA9EC','موظف استقبال':'#5DCAA5'};const roleCounts={};users.forEach(u=>{const rn=u.roles?.name_ar||'—';roleCounts[rn]=(roleCounts[rn]||0)+1});const taskCount=16;const usersWithTasks=2;return<>
 {/* Stat cards for team page */}
@@ -387,7 +389,7 @@ if(!q)return true;const s=q.toLowerCase();return(u.name_ar||'').includes(s)||(u.
 <div key={k} onClick={()=>setFilterRegion(k)} style={{padding:'6px 12px',borderRadius:8,fontSize:10,fontWeight:filterRegion===k?700:500,color:filterRegion===k?C.gold:'rgba(255,255,255,.4)',background:filterRegion===k?'rgba(201,168,76,.08)':'transparent',border:filterRegion===k?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',whiteSpace:'nowrap',fontFamily:F}}>{l}</div>)}
 <span style={{fontSize:10,color:'var(--tx5)',marginRight:6}}>الدور:</span>
 {[['all','الكل']].concat(roles.map(r=>[r.id,r.name_ar])).map(([k,l])=>
-<div key={k} onClick={()=>{if(k==='all')setFilterStatus('all');else setFilterStatus(k)}} style={{padding:'6px 12px',borderRadius:8,fontSize:10,fontWeight:filterStatus===k?700:500,color:filterStatus===k?C.gold:'rgba(255,255,255,.4)',background:filterStatus===k?'rgba(201,168,76,.08)':'transparent',border:filterStatus===k?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',whiteSpace:'nowrap',fontFamily:F}}>{l}</div>)}
+<div key={k} onClick={()=>setRoleFilter(k)} style={{padding:'6px 12px',borderRadius:8,fontSize:10,fontWeight:roleFilter===k?700:500,color:roleFilter===k?C.gold:'rgba(255,255,255,.4)',background:roleFilter===k?'rgba(201,168,76,.08)':'transparent',border:roleFilter===k?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',whiteSpace:'nowrap',fontFamily:F}}>{l}</div>)}
 </div>
 {/* Employee Cards Grid */}
 {filtUsers.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد موظفين</div>:
