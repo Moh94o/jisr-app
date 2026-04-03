@@ -48,18 +48,7 @@ return<div style={{fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
 <div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('إدارة مشاريع توفير العمالة والمستخلصات','Manpower projects, extracts & payroll')}</div></div>
 </div>
 
-{/* Layout: side tabs + content */}
-<div style={{display:'flex',gap:0,minHeight:400}}>
-{/* Side sub-tabs */}
-<div style={{width:110,flexShrink:0,borderLeft:lang==='ar'?'1px solid rgba(255,255,255,.06)':'none',borderRight:lang!=='ar'?'1px solid rgba(255,255,255,.06)':'none',padding:'4px 6px'}}>
-{[{id:'dashboard',l:T('لوحة التحكم','Dashboard'),ic:'📊'},{id:'projects',l:T('المشاريع','Projects'),ic:'📁',n:projects.length},{id:'workers',l:T('العمال','Workers'),ic:'👷',n:totalAssigned},{id:'extracts',l:T('المستخلصات','Extracts'),ic:'📄',n:extracts.length},{id:'partners',l:T('الشراكات','Partners'),ic:'🤝',n:partners.length}].map(t=>
-<div key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 10px',borderRadius:8,marginBottom:2,fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.3)',background:tab===t.id?'rgba(201,168,76,.06)':'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',borderRight:lang==='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:lang!=='ar'&&tab===t.id?'2px solid '+C.gold:'2px solid transparent'}}>
-<span style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:10}}>{t.ic}</span>{t.l}</span>
-{t.n>0&&<span style={{fontSize:8,fontWeight:700,color:tab===t.id?C.gold:'rgba(255,255,255,.15)',background:tab===t.id?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',padding:'1px 5px',borderRadius:6}}>{t.n}</span>}
-</div>)}
-</div>
-{/* Content */}
-<div style={{flex:1}}>
+<div>
 
 {/* ═══ DASHBOARD ═══ */}
 {tab==='dashboard'&&<div>
@@ -247,6 +236,5 @@ return<div key={p.id} style={{padding:'16px',borderRadius:12,background:'rgba(25
 </div>}
 </div>})}
 </div>}
-</div>
 </div>
 </div>}

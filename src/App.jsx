@@ -1177,11 +1177,21 @@ return<div>
 {pg==='report_performance'&&<ReportPerformancePage sb={sb} lang={lang} branchId={dashBranch}/>}
 </div></div>})()}
 
-{/* ═══ HUB: المانباور (has own tabs) ═══ */}
-{['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg)&&<ManpowerPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{/* ═══ HUB: المانباور ═══ */}
+{['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg)&&<>
+<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}} className="dash-content">
+{[{id:'mp_dashboard',l:T('لوحة التحكم','Dashboard')},{id:'mp_projects',l:T('المشاريع','Projects')},{id:'mp_workers',l:T('العمال','Workers')},{id:'mp_extracts',l:T('المستخلصات','Extracts')},{id:'mp_partners',l:T('الشراكات','Partners')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'8px 14px',fontSize:11,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.35)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap',transition:'.15s'}}>{t.l}</div>)}
+</div>
+<ManpowerPage sb={sb} toast={tt} user={user} lang={lang}/>
+</>}
 
-{/* ═══ HUB: التواصل (has own tabs) ═══ */}
-{['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg)&&<MessagingPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{/* ═══ HUB: التواصل ═══ */}
+{['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg)&&<>
+<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}} className="dash-content">
+{[{id:'msg_send',l:T('إرسال','Send')},{id:'msg_templates',l:T('النماذج','Templates')},{id:'msg_log',l:T('السجل','Log')},{id:'msg_groups',l:T('المجموعات','Groups')},{id:'msg_settings',l:T('الإعدادات','Settings')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'8px 14px',fontSize:11,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.35)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap',transition:'.15s'}}>{t.l}</div>)}
+</div>
+<MessagingPage sb={sb} toast={tt} user={user} lang={lang}/>
+</>}
 
 {/* ═══ الإعدادات ═══ */}
 {pg==='settings'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
