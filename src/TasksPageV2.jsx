@@ -536,19 +536,21 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
         </button>
       </div>
 
-      {/* Main type tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--bd)' }}>
+      {/* Type tabs + content layout */}
+      <div style={{ display: 'flex', gap: 0 }}>
+      <div style={{ width: 80, flexShrink: 0, borderLeft: isAr ? '1px solid rgba(255,255,255,.05)' : 'none', borderRight: !isAr ? '1px solid rgba(255,255,255,.05)' : 'none', paddingTop: 2 }}>
         {[
           { v: 'all', l: T('الكل', 'All'), n: tasks.length },
           { v: 'adhoc', l: T('الاعتيادية', 'Regular'), n: stats.adhoc },
           { v: 'recurring', l: T('الدورية', 'Recurring'), n: stats.recurring },
         ].map(t => (
           <div key={t.v} onClick={() => setTypeTab(t.v)}
-            style={{ padding: '10px 18px', fontSize: 12, fontWeight: typeTab === t.v ? 700 : 500, color: typeTab === t.v ? C.gold : 'rgba(255,255,255,.4)', borderBottom: typeTab === t.v ? '2px solid ' + C.gold : '2px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            {t.l} <span style={{ fontSize: 10, fontWeight: 600, color: typeTab === t.v ? C.gold : 'rgba(255,255,255,.2)', background: typeTab === t.v ? 'rgba(201,168,76,.1)' : 'rgba(255,255,255,.04)', padding: '1px 8px', borderRadius: 10 }}>{t.n}</span>
+            style={{ padding: '6px 8px', fontSize: 10, fontWeight: typeTab === t.v ? 700 : 500, color: typeTab === t.v ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRight: isAr && typeTab === t.v ? '2px solid ' + C.gold : '2px solid transparent', borderLeft: !isAr && typeTab === t.v ? '2px solid ' + C.gold : '2px solid transparent', transition: '.1s' }}>
+            <span>{t.l}</span><span style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>{t.n}</span>
           </div>
         ))}
       </div>
+      <div style={{ flex: 1, paddingRight: isAr ? 8 : 0, paddingLeft: !isAr ? 8 : 0 }}>
 
       {/* Search */}
       <div style={{ marginBottom: 14 }}>
@@ -680,6 +682,7 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
         </div>
       )}
 
+      </div></div>
       {/* Templates section */}
       <div style={{ marginTop: 24, borderTop: '1px solid var(--bd)', paddingTop: 18 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx3)', marginBottom: 12 }}>{T('القوالب المجدولة', 'Scheduled Templates')} <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 500 }}>({templates.length})</span></div>

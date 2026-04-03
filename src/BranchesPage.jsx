@@ -729,10 +729,12 @@ export default function BranchesPage({ sb, toast, user, lang }) {
       <button onClick={openAdd} style={{ height: 38, padding: '0 20px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ مكتب</button>
     </div>
 
-    {/* Main tabs */}
-    <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '2px solid var(--bd2,rgba(255,255,255,.06))' }}>
-      {[['branches', 'المكاتب', branches.length], ['bank_accounts', 'الحسابات البنكية', banks.length]].map(([k, l, n]) => <div key={k} onClick={() => setMainTab(k)} style={{ padding: '10px 24px', marginBottom: '-2px', borderBottom: mainTab === k ? '2.5px solid ' + C.gold : '2.5px solid transparent', color: mainTab === k ? C.gold : 'var(--tx4)', fontSize: 13, fontWeight: mainTab === k ? 700 : 500, cursor: 'pointer', transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 8 }}>{l}{n > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 6, background: mainTab === k ? 'rgba(201,168,76,.12)' : 'var(--hoverBg,rgba(255,255,255,.04))', color: mainTab === k ? C.gold : 'var(--tx5)' }}>{n}</span>}</div>)}
+    {/* Sub-tabs: side list */}
+    <div style={{ display: 'flex', gap: 0 }}>
+    <div style={{ width: 90, flexShrink: 0, borderLeft: lang === 'ar' ? '1px solid rgba(255,255,255,.05)' : 'none', borderRight: lang !== 'ar' ? '1px solid rgba(255,255,255,.05)' : 'none', paddingTop: 2 }}>
+      {[['branches', 'المكاتب', branches.length], ['bank_accounts', 'الحسابات البنكية', banks.length]].map(([k, l, n]) => <div key={k} onClick={() => setMainTab(k)} style={{ padding: '6px 8px', fontSize: 10, fontWeight: mainTab === k ? 700 : 500, color: mainTab === k ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRight: lang === 'ar' && mainTab === k ? '2px solid ' + C.gold : '2px solid transparent', borderLeft: lang !== 'ar' && mainTab === k ? '2px solid ' + C.gold : '2px solid transparent', transition: '.1s' }}><span>{l}</span>{n > 0 && <span style={{ fontSize: 7, fontWeight: 700, color: 'rgba(255,255,255,.2)', padding: '0 4px' }}>{n}</span>}</div>)}
     </div>
+    <div style={{ flex: 1, paddingRight: lang === 'ar' ? 8 : 0, paddingLeft: lang !== 'ar' ? 8 : 0 }}>
 
     {/* Branches tab */}
     {mainTab === 'branches' && <>
@@ -810,6 +812,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
     </>}
 
     {mainTab === 'bank_accounts' && <BankAccountsTab sb={sb} toast={toast} user={user} lang={lang} branches={branches} banks={banks} contracts={contracts} docs={docs} reload={load} />}
+    </div></div>
 
     <BranchDetailModal viewRow={viewRow} setViewRow={setViewRow} openEdit={openEdit} del={del} users={users} banks={banks} contracts={contracts} bills={bills} docs={docs} toast={toast} T={T} />
 
