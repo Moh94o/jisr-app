@@ -59,7 +59,7 @@ const[data,setData]=useState([]);const[owners,setOwners]=useState([]);const[subs
 const[branches,setBranches]=useState([]);const[regions,setRegions]=useState([]);const[cities,setCities]=useState([])
 const[loading,setLoading]=useState(false);const[q,setQ]=useState('');const[statusFilter,setStatusFilter]=useState('all');const[sortBy,setSortBy]=useState('created_at');const[nitaqatFilter,setNitaqatFilter]=useState('all')
 const[page,setPage]=useState(0);const[viewRow,setViewRow]=useState(null);const[viewTab,setViewTab]=useState('basic')
-const[wizard,setWizard]=useState(null);const[saving,setSaving]=useState(false);const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[actionMenu,setActionMenu]=useState(null);const[menuPos,setMenuPos]=useState({x:0,y:0});const[showAdvSearch,setShowAdvSearch]=useState(false);const[visaFilter,setVisaFilter]=useState('all');const[facWorkersData,setFacWorkersData]=useState([]);const[facWorkersLoading,setFacWorkersLoading]=useState(false);const[facDocs,setFacDocs]=useState([]);const[docFilter,setDocFilter]=useState('all');const[facDebts,setFacDebts]=useState([]);const[facViolations,setFacViolations]=useState([]);const[violationFilter,setViolationFilter]=useState('all');const[advFilters,setAdvFilters]=useState({cr_number:'',owner:'',region:'',city:'',gosi_status:'',vat_status:'',mlsd_status:'',mudad_status:'',facility_status:'',nitaqat:''})
+const[wizard,setWizard]=useState(null);const[saving,setSaving]=useState(false);const[ownerMode,setOwnerMode]=useState('existing');const[newOwner,setNewOwner]=useState({name_ar:'',name_en:'',id_type:'national_id',id_number:'',nationality:'سعودي',gender:'male',mobile_personal:'',email:'',date_of_birth:''});const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[actionMenu,setActionMenu]=useState(null);const[menuPos,setMenuPos]=useState({x:0,y:0});const[showAdvSearch,setShowAdvSearch]=useState(false);const[visaFilter,setVisaFilter]=useState('all');const[facWorkersData,setFacWorkersData]=useState([]);const[facWorkersLoading,setFacWorkersLoading]=useState(false);const[facDocs,setFacDocs]=useState([]);const[docFilter,setDocFilter]=useState('all');const[facDebts,setFacDebts]=useState([]);const[facViolations,setFacViolations]=useState([]);const[violationFilter,setViolationFilter]=useState('all');const[advFilters,setAdvFilters]=useState({cr_number:'',owner:'',region:'',city:'',gosi_status:'',vat_status:'',mlsd_status:'',mudad_status:'',facility_status:'',nitaqat:''})
 const PER_PAGE=15
 useEffect(()=>{onTabChange&&onTabChange({tab})},[tab])
 
@@ -148,9 +148,9 @@ const wizardSteps=[
 {k:'zakat_unique_number',l:T('الرقم المميز للزكاة','Zakat No.'),d:1},
 {k:'zakat_outstanding_balance',l:T('رصيد الزكاة المستحق','Zakat Balance'),d:1}
 ]},
+{title:T('المالك','Owner'),custom:'owner'},
 {title:T('الربط والموقع','Links & Location'),fields:[
 {k:'branch_id',l:T('المكتب','Branch'),opts:branches.map(b=>({v:b.id,l:b.name_ar})),r:1},
-{k:'owner_id',l:T('المالك','Owner'),opts:owners.map(o=>({v:o.id,l:o.name_ar})),r:1},
 {k:'gosi_owner_id',l:T('مالك التأمينات','GOSI Owner'),opts:owners.map(o=>({v:o.id,l:o.name_ar}))},
 {k:'parent_facility_id',l:T('المنشأة الأم','Parent Facility'),opts:data.map(f=>({v:f.id,l:f.name_ar}))},
 {k:'region_id',l:T('المنطقة','Region'),opts:regions.map(r=>({v:r.id,l:r.name_ar})),r:1},
@@ -189,6 +189,8 @@ const openAdd=()=>setWizard({step:0,data:{...initForm(),type:'establishment',fac
 const openEdit=r=>{const d={};allFieldsFlat.forEach(f=>d[f.k]=r[f.k]!=null?String(r[f.k]):'');setWizard({step:0,editId:r.id,data:d})}
 const WZ=wizard?.data||{};const setWZ=(k,v)=>setWizard(p=>({...p,data:{...p.data,[k]:v}}))
 const saveWizard=async()=>{setSaving(true);try{const d={...wizard.data};Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;if(d[k]==='true')d[k]=true;if(d[k]==='false')d[k]=false})
+// If new owner mode, create owner first
+if(ownerMode==='new'&&!wizard.editId&&newOwner.name_ar){const ownerData={...newOwner};Object.keys(ownerData).forEach(k=>{if(ownerData[k]==='')ownerData[k]=null});ownerData.created_by=user?.id;const{data:createdOwner,error:ownerErr}=await sb.from('owners').insert(ownerData).select('id').single();if(ownerErr)throw ownerErr;d.owner_id=createdOwner.id;if(!d.gosi_owner_id)d.gosi_owner_id=createdOwner.id}
 // Auto calc cr_expiry_date
 if(d.cr_confirm_date&&!wizard.data.cr_expiry_date){const dt=new Date(d.cr_confirm_date);dt.setDate(dt.getDate()+90);d.cr_expiry_date=dt.toISOString().split('T')[0]}
 if(wizard.editId){d.updated_by=user?.id;const{error}=await sb.from('facilities').update(d).eq('id',wizard.editId);if(error)throw error;toast(T('تم التعديل','Updated'))}else{d.created_by=user?.id;const{error}=await sb.from('facilities').insert(d);if(error)throw error;toast(T('تمت الإضافة','Added'))};setWizard(null);load()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
@@ -866,9 +868,45 @@ cats.map(cat=>{const catDocs=filteredDocs.filter(d=>d.category===cat);if(!catDoc
 <span style={{width:24,height:24,borderRadius:6,background:'rgba(201,168,76,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:C.gold}}>{wizard.step+1}</span>
 {wizardSteps[wizard.step].title}
 </div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-{wizardSteps[wizard.step].fields.map(f=><FieldInput key={f.k} f={f} form={WZ} setForm={v=>setWizard(p=>({...p,data:{...p.data,...(typeof v==='function'?v(p.data):v)}}))} isAr={isAr}/>)}
+
+{/* Custom owner step */}
+{wizardSteps[wizard.step].custom==='owner'?<div>
+{/* Toggle: existing / new */}
+<div style={{display:'flex',gap:0,marginBottom:20,borderRadius:10,overflow:'hidden',border:'1.5px solid rgba(201,168,76,.2)'}}>
+{[{v:'existing',l:T('مالك موجود','Existing Owner'),ic:'👤'},{v:'new',l:T('مالك جديد','New Owner'),ic:'＋'}].map(o=><button key={o.v} onClick={()=>setOwnerMode(o.v)} style={{flex:1,height:44,border:'none',background:ownerMode===o.v?'rgba(201,168,76,.12)':'rgba(255,255,255,.02)',color:ownerMode===o.v?C.gold:'var(--tx5)',fontFamily:F,fontSize:13,fontWeight:ownerMode===o.v?700:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,transition:'.2s'}}>{o.ic} {o.l}</button>)}
 </div>
+
+{ownerMode==='existing'?<div>
+<div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:8}}>{T('اختر المالك','Select Owner')} <span style={{color:C.red}}>*</span></div>
+<CustomSelect value={WZ.owner_id||''} options={owners.map(o=>({v:o.id,l:o.name_ar+(o.id_number?' — '+o.id_number:'')}))} onChange={v=>setWZ('owner_id',v)} isAr={isAr} placeholder={T('ابحث عن مالك...','Search owner...')}/>
+{WZ.owner_id&&(()=>{const ow=owners.find(o=>o.id===WZ.owner_id);return ow?<div style={{marginTop:14,padding:'16px 18px',borderRadius:12,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)'}}>
+<div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:8}}>{ow.name_ar}{ow.name_en&&<span style={{fontSize:11,color:'var(--tx5)',marginRight:8}}>{ow.name_en}</span>}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,fontSize:11,color:'var(--tx4)'}}>
+{ow.id_number&&<div>{T('الهوية:','ID:')} <span style={{color:'var(--tx2)',direction:'ltr',display:'inline-block'}}>{ow.id_number}</span></div>}
+{ow.nationality&&<div>{T('الجنسية:','Nationality:')} {ow.nationality}</div>}
+{ow.mobile_personal&&<div>{T('الجوال:','Phone:')} <span style={{direction:'ltr',display:'inline-block'}}>{ow.mobile_personal}</span></div>}
+{ow.email&&<div>{T('البريد:','Email:')} {ow.email}</div>}
+</div></div>:null})()}
+</div>:
+
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+{[
+{k:'name_ar',l:T('اسم المالك بالعربي','Owner Name (AR)'),r:1},
+{k:'name_en',l:T('الاسم بالإنجليزي','Name (EN)'),d:1},
+{k:'id_type',l:T('نوع الهوية','ID Type'),opts:[{v:'national_id',l:T('هوية وطنية','National ID')},{v:'iqama',l:T('إقامة','Iqama')},{v:'gcc_id',l:T('هوية خليجية','GCC ID')},{v:'passport',l:T('جواز سفر','Passport')}],r:1},
+{k:'id_number',l:T('رقم الهوية','ID Number'),d:1,r:1},
+{k:'nationality',l:T('الجنسية','Nationality'),r:1},
+{k:'gender',l:T('الجنس','Gender'),opts:[{v:'male',l:T('ذكر','Male')},{v:'female',l:T('أنثى','Female')}],r:1},
+{k:'mobile_personal',l:T('الجوال','Phone'),d:1},
+{k:'email',l:T('البريد الإلكتروني','Email'),d:1},
+{k:'date_of_birth',l:T('تاريخ الميلاد','Birth Date'),t:'date'}
+].map(f=><FieldInput key={f.k} f={f} form={newOwner} setForm={setNewOwner} isAr={isAr}/>)}
+</div>}
+</div>:
+
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+{(wizardSteps[wizard.step].fields||[]).map(f=><FieldInput key={f.k} f={f} form={WZ} setForm={v=>setWizard(p=>({...p,data:{...p.data,...(typeof v==='function'?v(p.data):v)}}))} isAr={isAr}/>)}
+</div>}
 </div>
 </div>
 </div></div>}
