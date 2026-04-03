@@ -186,9 +186,11 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 </div>
 
 
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}}>
-{[...tabs].map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setFilterStatus('all');setFilterRegion('all')}} style={{padding:'10px 16px',fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.42)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap',flexShrink:0}}>{t.l}</div>)}
+<div style={{display:'flex',gap:0}}>
+<div style={{width:90,flexShrink:0,borderLeft:'1px solid rgba(255,255,255,.05)',paddingTop:2}}>
+{[...tabs].map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setFilterStatus('all');setFilterRegion('all')}} style={{padding:'6px 8px',fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.3)',cursor:'pointer',borderRight:tab===t.id?'2px solid '+C.gold:'2px solid transparent',transition:'.1s'}}>{t.l}</div>)}
 </div>
+<div style={{flex:1,paddingRight:8}}>
 
 {/* ═══════════════ BRANCHES TAB ═══════════════ */}
 {tab==='branches'&&<>
@@ -929,6 +931,7 @@ return<div key={mod} style={{marginBottom:12}}>
 <button onClick={saveForm} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':(form._id?'حفظ':'إضافة')}</button>
 </div></div></div>}
 
+</div></div>
 {/* DELETE POPUP */}
 {delTarget&&<DeletePopup itemName={delTarget.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}
 </div>}

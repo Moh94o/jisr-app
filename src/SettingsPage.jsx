@@ -452,10 +452,12 @@ docs.map((d,i)=><tr key={d.id} style={{borderBottom:'1px solid var(--bd2)'}}>
 
 {/* SERVICES */}
 {tab==='services'&&<>
-{/* Sub-tabs */}
-<div style={{display:'flex',gap:0,marginBottom:14,borderBottom:'1px solid var(--bd2)'}}>
-{[{id:'services',l:'الخدمات',le:'Services'},{id:'templates',l:'المعاملات',le:'Transactions'}].map(st=><div key={st.id} onClick={()=>setSvcSubTab(st.id)} style={{padding:'8px 14px',fontSize:11,fontWeight:svcSubTab===st.id?700:500,color:svcSubTab===st.id?C.gold:'rgba(255,255,255,.35)',borderBottom:svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{isAr?st.l:st.le}</div>)}
+{/* Sub-tabs: side list */}
+<div style={{display:'flex',gap:0}}>
+<div style={{width:80,flexShrink:0,borderLeft:isAr?'1px solid rgba(255,255,255,.05)':'none',borderRight:!isAr?'1px solid rgba(255,255,255,.05)':'none',paddingTop:2}}>
+{[{id:'services',l:'الخدمات',le:'Services'},{id:'templates',l:'المعاملات',le:'Transactions'}].map(st=><div key={st.id} onClick={()=>setSvcSubTab(st.id)} style={{padding:'6px 8px',fontSize:10,fontWeight:svcSubTab===st.id?700:500,color:svcSubTab===st.id?C.gold:'rgba(255,255,255,.3)',cursor:'pointer',borderRight:isAr&&svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:!isAr&&svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',transition:'.1s'}}>{isAr?st.l:st.le}</div>)}
 </div>
+<div style={{flex:1,paddingRight:isAr?8:0,paddingLeft:!isAr?8:0}}>
 
 {/* ═══ SERVICES — GROUPED BY CATEGORY ═══ */}
 {svcSubTab==='services'&&(()=>{
@@ -632,6 +634,7 @@ tpLinks.map(lk=>{const sv=subSvcs.find(s=>s.id===lk.sub_service_id);return<div k
 </div></div>})}
 </div>}
 </div>})}</div></>}
+</div></div>
 </>}
 
 {/* FORM POPUP */}
