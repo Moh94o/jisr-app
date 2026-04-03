@@ -2737,17 +2737,15 @@ return<div>
 function PaymentsPage({sb,toast,user,lang,branchId}){
 const T=(a,e)=>lang==='ar'?a:e;const isAr=lang!=='en';const nm=v=>Number(v||0).toLocaleString('en-US')
 const C={gold:'#c9a84c',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
-const[mainTab,setMainTab]=useState('payments')
 const[tab,setTab]=useState('office')
-// If mainTab is 'op_expenses', render OpExpensesPage inline
-if(mainTab==='op_expenses')return<div><div style={{display:'flex',gap:6,marginBottom:16}}>{[{v:'payments',l:T('مدفوعات الفواتير','Invoice Payments')},{v:'op_expenses',l:T('مصاريف تشغيلية','Operational Expenses')}].map(t=><div key={t.v} onClick={()=>{setMainTab(t.v)}} style={{padding:'8px 18px',borderRadius:10,fontSize:12,fontWeight:t.v===mainTab?700:500,color:t.v===mainTab?C.gold:'rgba(255,255,255,.4)',background:t.v===mainTab?'rgba(201,168,76,.1)':'transparent',border:t.v===mainTab?'1.5px solid rgba(201,168,76,.2)':'1.5px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{t.l}</div>)}</div><OpExpensesPage sb={sb} toast={toast} user={user} lang={lang} branchId={branchId}/></div>
-const[expenses,setExpenses]=useState([]);const[extPayments,setExtPayments]=useState([]);const[loading,setLoading]=useState(true)
+const[expenses,setExpenses]=useState([]);const[extPayments,setExtPayments]=useState([]);const[opExpenses,setOpExpenses]=useState([]);const[loading,setLoading]=useState(true)
 const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[saving,setSaving]=useState(false)
 const[q,setQ]=useState('')
-const load=useCallback(async()=>{setLoading(true);const[ex,ep]=await Promise.all([sb.from('expenses').select('*,facilities:facility_id(name_ar),users:created_by(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}),sb.from('external_payments').select('*,providers:provider_id(name_ar),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false})]);setExpenses(ex.data||[]);setExtPayments(ep.data||[]);setLoading(false)},[sb])
+const load=useCallback(async()=>{setLoading(true);const[ex,ep,op]=await Promise.all([sb.from('expenses').select('*,facilities:facility_id(name_ar),users:created_by(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}),sb.from('external_payments').select('*,facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}),sb.from('operational_expenses').select('*,users:created_by(name_ar)').is('deleted_at',null).order('date',{ascending:false})]);setExpenses(ex.data||[]);setExtPayments(ep.data||[]);setOpExpenses(op.data||[]);setLoading(false)},[sb])
 useEffect(()=>{load()},[load])
 const saveExp=async()=>{setSaving(true);try{const d={...form};const id=d._id;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null});if(id){d.updated_by=user?.id;await sb.from('expenses').update(d).eq('id',id)}else{d.created_by=user?.id;await sb.from('expenses').insert(d)};toast(T('تم الحفظ','Saved'));setPop(null);load()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
 const saveExt=async()=>{setSaving(true);try{const d={...form};const id=d._id;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null});if(id){await sb.from('external_payments').update(d).eq('id',id)}else{d.created_by=user?.id;await sb.from('external_payments').insert(d)};toast(T('تم الحفظ','Saved'));setPop(null);load()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
+const saveOp=async()=>{setSaving(true);try{const d={...form};const id=d._id;delete d._id;delete d.users;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null});if(d.amount)d.amount=Number(d.amount);if(id){const{error}=await sb.from('operational_expenses').update(d).eq('id',id);if(error)throw error}else{d.created_by=user?.id;const{error}=await sb.from('operational_expenses').insert(d);if(error)throw error};toast(T('تم الحفظ','Saved'));setPop(null);load()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
 const del=async(table,id)=>{if(!confirm(T('حذف؟','Delete?')))return;await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id);toast(T('تم الحذف','Deleted'));load()}
 
 const officeExp=expenses.filter(e=>e.expense_group==='office'||e.expense_type==='branch_expense'||e.expense_type==='employee_expense')
@@ -2757,9 +2755,10 @@ const extExp=extPayments
 const totalOffice=officeExp.reduce((s,e)=>s+Number(e.amount||0),0)
 const totalGov=govExp.reduce((s,e)=>s+Number(e.amount||0),0)
 const totalExt=extExp.reduce((s,e)=>s+Number(e.amount||0),0)
-const totalAll=totalOffice+totalGov+totalExt
+const totalOp=opExpenses.reduce((s,e)=>s+Number(e.amount||0),0)
+const totalAll=totalOffice+totalGov+totalExt+totalOp
 
-const allCurrent=tab==='office'?officeExp:tab==='government'?govExp:extExp
+const allCurrent=tab==='office'?officeExp:tab==='government'?govExp:tab==='operational'?opExpenses:extExp
 const filtered=allCurrent.filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q.toLowerCase()))
 
 const Badge=({v,c})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:(c||'#999')+'15',color:c||'#999'}}>{v}</span>
@@ -2768,10 +2767,9 @@ const bS={height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,1
 const fBtnS=a=>({padding:'6px 14px',borderRadius:8,fontSize:11,fontWeight:a?700:500,color:a?C.gold:'rgba(255,255,255,.4)',background:a?'rgba(201,168,76,.08)':'transparent',border:a?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer'})
 
 return<div>
-<div style={{display:'flex',gap:6,marginBottom:16}}>{[{v:'payments',l:T('مدفوعات الفواتير','Invoice Payments')},{v:'op_expenses',l:T('مصاريف تشغيلية','Operational Expenses')}].map(t=><div key={t.v} onClick={()=>{setMainTab(t.v)}} style={{padding:'8px 18px',borderRadius:10,fontSize:12,fontWeight:t.v===mainTab?700:500,color:t.v===mainTab?C.gold:'rgba(255,255,255,.4)',background:t.v===mainTab?'rgba(201,168,76,.1)':'transparent',border:t.v===mainTab?'1.5px solid rgba(201,168,76,.2)':'1.5px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{t.l}</div>)}</div>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
-<div><div style={{fontSize:20,fontWeight:700,color:'rgba(255,255,255,.93)'}}>{T('المدفوعات','Payments')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('مصاريف المكتب والسدادات الحكومية والحوالات الخارجية','Office expenses, gov payments & external transfers')}</div></div>
-<button onClick={()=>{setForm(tab==='external'?{amount:'',payment_type:'',provider_id:'',facility_id:'',payment_date:'',reference_number:'',notes:''}:{expense_type:tab==='office'?'branch_expense':'sadad_payment',expense_group:tab==='government'?'government':'office',amount:'',description:'',facility_id:'',expense_date:'',notes:''});setPop(tab==='external'?'ext':'exp')}} style={bS}>+ {T('إضافة','Add')}</button>
+<div><div style={{fontSize:20,fontWeight:700,color:'rgba(255,255,255,.93)'}}>{T('المدفوعات والمصاريف','Payments & Expenses')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('مصاريف المكتب والسدادات الحكومية والحوالات والمصاريف التشغيلية','Office, gov payments, transfers & operational expenses')}</div></div>
+<button onClick={()=>{if(tab==='operational'){setForm({amount:'',category:'other',description:'',date:new Date().toISOString().slice(0,10),payment_method:'cash',vendor_name:'',is_recurring:false});setPop('op')}else if(tab==='external'){setForm({amount:'',payment_type:'',payment_to:'',facility_id:'',payment_date:'',reference_number:'',notes:''});setPop('ext')}else{setForm({expense_type:tab==='office'?'branch_expense':'sadad_payment',expense_group:tab==='government'?'government':'office',amount:'',facility_id:'',payment_date:'',notes:''});setPop('exp')}}} style={bS}>+ {T('إضافة','Add')}</button>
 </div>
 {/* Stats */}
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(160px,100%),1fr))',gap:10,marginBottom:18}}>
@@ -2779,41 +2777,47 @@ return<div>
 <div style={{padding:'14px',borderRadius:12,background:'rgba(52,131,180,.06)',border:'1px solid rgba(52,131,180,.1)',cursor:'pointer'}} onClick={()=>setTab('office')}><div style={{fontSize:9,color:C.blue,opacity:.7,marginBottom:4}}>{T('مصاريف المكتب','Office')}</div><div style={{fontSize:22,fontWeight:800,color:C.blue}}>{nm(totalOffice)}</div></div>
 <div style={{padding:'14px',borderRadius:12,background:'rgba(230,126,34,.06)',border:'1px solid rgba(230,126,34,.1)',cursor:'pointer'}} onClick={()=>setTab('government')}><div style={{fontSize:9,color:'#e67e22',opacity:.7,marginBottom:4}}>{T('سدادات حكومية','Gov')}</div><div style={{fontSize:22,fontWeight:800,color:'#e67e22'}}>{nm(totalGov)}</div></div>
 <div style={{padding:'14px',borderRadius:12,background:'rgba(155,89,182,.06)',border:'1px solid rgba(155,89,182,.1)',cursor:'pointer'}} onClick={()=>setTab('external')}><div style={{fontSize:9,color:'#9b59b6',opacity:.7,marginBottom:4}}>{T('حوالات خارجية','External')}</div><div style={{fontSize:22,fontWeight:800,color:'#9b59b6'}}>{nm(totalExt)}</div></div>
+<div style={{padding:'14px',borderRadius:12,background:'rgba(39,160,70,.06)',border:'1px solid rgba(39,160,70,.1)',cursor:'pointer'}} onClick={()=>setTab('operational')}><div style={{fontSize:9,color:C.ok,opacity:.7,marginBottom:4}}>{T('مصاريف تشغيلية','Operational')}</div><div style={{fontSize:22,fontWeight:800,color:C.ok}}>{nm(totalOp)}</div></div>
 </div>
 {/* Tabs */}
 <div style={{display:'flex',gap:4,marginBottom:14}}>
-{[{v:'office',l:T('مصاريف المكتب','Office'),n:officeExp.length},{v:'government',l:T('سدادات حكومية','Government'),n:govExp.length},{v:'external',l:T('حوالات خارجية','External'),n:extExp.length}].map(t=><div key={t.v} onClick={()=>{setTab(t.v);setQ('')}} style={fBtnS(tab===t.v)}>{t.l} <span style={{fontSize:9,opacity:.6}}>({t.n})</span></div>)}
+{[{v:'office',l:T('مصاريف المكتب','Office'),n:officeExp.length},{v:'government',l:T('سدادات حكومية','Government'),n:govExp.length},{v:'external',l:T('حوالات خارجية','External'),n:extExp.length},{v:'operational',l:T('مصاريف تشغيلية','Operational'),n:opExpenses.length}].map(t=><div key={t.v} onClick={()=>{setTab(t.v);setQ('')}} style={fBtnS(tab===t.v)}>{t.l} <span style={{fontSize:9,opacity:.6}}>({t.n})</span></div>)}
 </div>
 <input value={q} onChange={e=>setQ(e.target.value)} placeholder={T('بحث...','Search...')} style={{width:'100%',height:36,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.08)',borderRadius:8,fontFamily:F,fontSize:11,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none',marginBottom:12}}/>
 {loading?<div style={{textAlign:'center',padding:50,color:'var(--tx5)'}}>...</div>:filtered.length===0?<div style={{textAlign:'center',padding:50,color:'var(--tx6)'}}>{T('لا توجد بيانات','No data')}</div>:
 <div style={{display:'flex',flexDirection:'column',gap:6}}>
 {filtered.map(r=>{const amt=Number(r.amount||0);return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,padding:'14px 18px',display:'flex',alignItems:'center',gap:14}}>
 <div style={{flex:1}}>
-<div style={{fontSize:13,fontWeight:700,color:'var(--tx2)',marginBottom:4}}>{r.description||r.payment_type||r.expense_type||'—'}</div>
+<div style={{fontSize:13,fontWeight:700,color:'var(--tx2)',marginBottom:4}}>{r.description||r.vendor_name||r.payment_to||r.payment_type||r.expense_type||r.notes||'—'}</div>
 <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',fontSize:10,color:'var(--tx5)'}}>
 {r.facilities?.name_ar&&<span>{r.facilities.name_ar}</span>}
-{r.providers?.name_ar&&<span>{r.providers.name_ar}</span>}
-{(r.expense_date||r.payment_date)&&<span style={{direction:'ltr'}}>{r.expense_date||r.payment_date}</span>}
+{r.vendor_name&&<span>{r.vendor_name}</span>}
+{r.payment_to&&<span>{r.payment_to}</span>}
+{(r.expense_date||r.payment_date||r.date)&&<span style={{direction:'ltr'}}>{r.expense_date||r.payment_date||r.date}</span>}
 {r.reference_number&&<span style={{direction:'ltr'}}>#{r.reference_number}</span>}
-<Badge v={r.expense_type||r.payment_type} c={tab==='office'?C.blue:tab==='government'?'#e67e22':'#9b59b6'}/>
+{r.category&&<Badge v={r.category} c={C.ok}/>}
+{(r.expense_type||r.payment_type)&&<Badge v={r.expense_type||r.payment_type} c={tab==='office'?C.blue:tab==='government'?'#e67e22':tab==='operational'?C.ok:'#9b59b6'}/>}
+{r.payment_method&&<span style={{opacity:.6}}>{r.payment_method}</span>}
 </div>
 </div>
 <div style={{fontSize:18,fontWeight:800,color:C.red,flexShrink:0}}>{nm(amt)}</div>
-<button onClick={()=>del(tab==='external'?'external_payments':'expenses',r.id)} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.12)',background:'rgba(192,57,43,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+<button onClick={()=>del(tab==='external'?'external_payments':tab==='operational'?'operational_expenses':'expenses',r.id)} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.12)',background:'rgba(192,57,43,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
 </div>})}
 </div>}
 {/* Add popup */}
 {pop&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
 <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(500px,96vw)',maxHeight:'80vh',display:'flex',flexDirection:'column',overflow:'hidden',border:'1px solid var(--bd)'}}>
 <div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)'}}/>
-<div style={{padding:'16px 22px',borderBottom:'1px solid var(--bd)',fontSize:15,fontWeight:700,color:'var(--tx)'}}>{T(pop==='ext'?'حوالة خارجية':'مصروف','Add')}</div>
+<div style={{padding:'16px 22px',borderBottom:'1px solid var(--bd)',fontSize:15,fontWeight:700,color:'var(--tx)'}}>{T(pop==='ext'?'حوالة خارجية':pop==='op'?'مصروف تشغيلي':'مصروف',pop==='ext'?'External Payment':pop==='op'?'Operational Expense':'Expense')}</div>
 <div style={{padding:'18px 22px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 <div style={{gridColumn:'1/-1'}}><div style={{fontSize:11,color:'var(--tx4)',marginBottom:4}}>{T('المبلغ','Amount')}</div><input value={form.amount||''} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} style={{width:'100%',height:40,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:14,fontWeight:700,color:'var(--tx)',background:'rgba(255,255,255,.07)',outline:'none',textAlign:'center',direction:'ltr'}} type="number"/></div>
 <div><div style={{fontSize:11,color:'var(--tx4)',marginBottom:4}}>{T('الوصف','Description')}</div><input value={form.description||form.notes||''} onChange={e=>setForm(p=>({...p,description:e.target.value,notes:e.target.value}))} style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.06)',outline:'none'}}/></div>
-<div><div style={{fontSize:11,color:'var(--tx4)',marginBottom:4}}>{T('التاريخ','Date')}</div><input type="date" value={form.expense_date||form.payment_date||''} onChange={e=>setForm(p=>({...p,expense_date:e.target.value,payment_date:e.target.value}))} style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.06)',outline:'none',direction:'ltr'}}/></div>
+<div><div style={{fontSize:11,color:'var(--tx4)',marginBottom:4}}>{T('التاريخ','Date')}</div><input type="date" value={form.expense_date||form.payment_date||form.date||''} onChange={e=>setForm(p=>({...p,expense_date:e.target.value,payment_date:e.target.value,date:e.target.value}))} style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.06)',outline:'none',direction:'ltr'}}/></div>
+{pop==='op'&&<><div><div style={{fontSize:11,color:'var(--tx4)',marginBottom:4}}>{T('الجهة','Vendor')}</div><input value={form.vendor_name||''} onChange={e=>setForm(p=>({...p,vendor_name:e.target.value}))} style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.06)',outline:'none'}}/></div>
+<div><div style={{fontSize:11,color:'var(--tx4)',marginBottom:4}}>{T('التصنيف','Category')}</div><select value={form.category||'other'} onChange={e=>setForm(p=>({...p,category:e.target.value}))} style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.06)',outline:'none'}}>{[['rent','إيجار'],['salary','رواتب'],['gov_fee','رسوم حكومية'],['transport','نقل'],['utilities','خدمات'],['office_supplies','مستلزمات مكتبية'],['maintenance','صيانة'],['marketing','تسويق'],['insurance','تأمين'],['telecom','اتصالات'],['legal','قانوني'],['other','أخرى']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div></>}
 </div>
 <div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',flexDirection:'row-reverse'}}>
-<button onClick={pop==='ext'?saveExt:saveExp} disabled={saving} style={{...bS,height:40,minWidth:120,opacity:saving?.6:1}}>{saving?'...':T('حفظ','Save')}</button>
+<button onClick={pop==='ext'?saveExt:pop==='op'?saveOp:saveExp} disabled={saving} style={{...bS,height:40,minWidth:120,opacity:saving?.6:1}}>{saving?'...':T('حفظ','Save')}</button>
 <button onClick={()=>setPop(null)} style={{height:40,padding:'0 16px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,cursor:'pointer'}}>{T('إلغاء','Cancel')}</button>
 </div></div></div>}
 </div>}
