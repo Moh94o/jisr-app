@@ -167,53 +167,67 @@ return<div>
 </div>
 
 {loading?<div style={{textAlign:'center',padding:50,color:'var(--tx5)'}}>...</div>:
-<div style={cardS}><table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
-<thead><tr style={{background:'rgba(255,255,255,.04)',borderBottom:'1px solid var(--bd)'}}>
-{tab==='clients'?<>
-<th style={thS}>{T('العميل','Client')}</th><th style={thS}>{T('الهوية','ID')}</th><th style={thS}>{T('الجوال','Phone')}</th>
-<th style={thS}>{T('الفواتير','Inv')}</th><th style={thS}>{T('المستحقات','Owed')}</th><th style={thS}>{T('الالتزام','%')}</th>
-<th style={thS}>{T('الحالة','St')}</th><th style={{...thS,width:80}}></th>
-</>:tab==='brokers'?<>
-<th style={thS}>{T('الاسم','Name')}</th><th style={thS}>{T('الهوية','ID')}</th><th style={thS}>{T('الجوال','Phone')}</th>
-<th style={thS}>{T('العمولة','Comm')}</th><th style={thS}>{T('الحالة','St')}</th><th style={{...thS,width:80}}></th>
-</>:<>
-<th style={thS}>{T('الاسم','Name')}</th><th style={thS}>{T('التخصص','Spec')}</th><th style={thS}>{T('الجوال','Phone')}</th>
-<th style={thS}>{T('الحالة','St')}</th><th style={{...thS,width:80}}></th>
-</>}
-</tr></thead>
-<tbody>{filtered.length===0?<tr><td colSpan={10} style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا توجد بيانات','No data')}</td></tr>:
-filtered.map(r=><tr key={r.id} onClick={()=>{setViewRow(r);setViewTab('info')}} style={{borderBottom:'1px solid rgba(255,255,255,.025)',cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(201,168,76,.03)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-{tab==='clients'?<>
-<td style={tdS}><div style={{display:'flex',alignItems:'center',gap:8}}>
-<div style={{width:32,height:32,borderRadius:9,background:r.is_vip?'rgba(201,168,76,.15)':'rgba(255,255,255,.05)',border:r.is_vip?'1.5px solid rgba(201,168,76,.3)':'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:r.is_vip?C.gold:'var(--tx4)',flexShrink:0}}>{(r.name_ar||'?')[0]}</div>
-<div><div style={{fontWeight:700,color:'var(--tx2)',display:'flex',alignItems:'center',gap:5}}>{r.name_ar}{r.is_vip&&<span style={{fontSize:8,padding:'1px 5px',borderRadius:4,background:'rgba(201,168,76,.15)',color:C.gold,fontWeight:700}}>VIP</span>}</div>
-<div style={{fontSize:10,color:'var(--tx5)'}}>{r.client_number}</div></div></div></td>
-<td style={{...tdS,direction:'ltr',color:'var(--tx3)'}}>{r.id_number||'—'}</td>
-<td style={{...tdS,direction:'ltr',color:'var(--tx3)',fontSize:11}}>{r.phone||'—'}</td>
-<td style={tdS}><span style={{fontSize:13,fontWeight:700,color:C.blue}}>{r.total_invoices||0}</span></td>
-<td style={tdS}><span style={{fontSize:12,fontWeight:700,color:Number(r.remaining_amount)>0?C.red:C.ok,direction:'ltr'}}>{nm(r.remaining_amount||0)}</span></td>
-<td style={tdS}>{(()=>{const rate=Number(r.commitment_rate)||0;const cl=rate>=80?C.ok:rate>=50?C.gold:rate>0?C.red:'var(--tx5)';return<div style={{display:'flex',alignItems:'center',gap:5}}>
-<div style={{width:36,height:5,borderRadius:3,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{width:Math.min(rate,100)+'%',height:'100%',borderRadius:3,background:cl}}/></div>
-<span style={{fontSize:11,fontWeight:700,color:cl}}>{rate}%</span></div>})()}</td>
-<td style={tdS}><Badge v={r.status} l={r.status==='active'?T('نشط','Active'):T('غير نشط','Inactive')}/></td>
-<td style={{padding:'8px',textAlign:'center'}} onClick={e=>e.stopPropagation()}><div style={{display:'flex',gap:4,justifyContent:'center'}}>
-{r.phone&&<button onClick={()=>{const ph=r.phone.replace(/\D/g,'').replace(/^0/,'966');window.open('https://wa.me/'+ph,'_blank')}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(39,160,70,.15)',background:'rgba(39,160,70,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#27a046" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>}
-<EditBtn onClick={()=>openEdit(r)}/><DelBtn onClick={()=>del('clients',r.id)}/></div></td>
-</>:tab==='brokers'?<>
-<td style={tdS}><div style={{fontWeight:700,color:'var(--tx2)'}}>{r.name_ar}</div>{r.name_en&&<div style={{fontSize:10,color:'var(--tx5)'}}>{r.name_en}</div>}</td>
-<td style={{...tdS,direction:'ltr',color:'var(--tx3)'}}>{r.id_number||'—'}</td>
-<td style={{...tdS,direction:'ltr',color:'var(--tx3)'}}>{r.phone||'—'}</td>
-<td style={tdS}>{r.default_commission_rate?<span style={{fontWeight:700,color:C.gold}}>{r.default_commission_rate}{r.default_commission_type==='percentage'?'%':' '+T('ر.س','SAR')}</span>:'—'}</td>
-<td style={tdS}><Badge v={r.status}/></td>
-<td style={{padding:'8px',textAlign:'center'}} onClick={e=>e.stopPropagation()}><div style={{display:'flex',gap:4,justifyContent:'center'}}><EditBtn onClick={()=>openEdit(r)}/><DelBtn onClick={()=>del('brokers',r.id)}/></div></td>
-</>:<>
-<td style={tdS}><div style={{fontWeight:700,color:'var(--tx2)'}}>{r.name_ar}</div></td>
-<td style={tdS}>{r.specialty||'—'}</td>
-<td style={{...tdS,direction:'ltr',color:'var(--tx3)'}}>{r.phone||'—'}</td>
-<td style={tdS}><Badge v={r.status}/></td>
-<td style={{padding:'8px',textAlign:'center'}} onClick={e=>e.stopPropagation()}><div style={{display:'flex',gap:4,justifyContent:'center'}}><EditBtn onClick={()=>openEdit(r)}/><DelBtn onClick={()=>del('providers',r.id)}/></div></td>
-</>}
-</tr>)}</tbody></table></div>}
+filtered.length===0?<div style={{textAlign:'center',padding:50,color:'var(--tx6)'}}>{T('لا توجد بيانات','No data')}</div>:
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(360px,1fr))',gap:14}}>
+{filtered.map(r=>{
+const isClient=tab==='clients';const isBroker=tab==='brokers'
+const rate=isClient?Number(r.commitment_rate)||0:0;const rateCl=rate>=80?C.ok:rate>=50?C.gold:rate>0?C.red:'var(--tx5)'
+const owed=Number(r.remaining_amount)||0;const isBlk=r.is_blacklisted
+const borderClr=isBlk?'rgba(192,57,43,.25)':r.is_vip?'rgba(201,168,76,.2)':'var(--bd)'
+return<div key={r.id} onClick={()=>{setViewRow(r);setViewTab('info')}} style={{background:'var(--bg)',border:'1px solid '+borderClr,borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.2)'} onMouseLeave={e=>e.currentTarget.style.borderColor=borderClr}>
+{/* Header */}
+<div style={{padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
+<div style={{width:44,height:44,borderRadius:12,background:r.is_vip?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)',border:'1.5px solid '+(r.is_vip?'rgba(201,168,76,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:r.is_vip?C.gold:'var(--tx4)',flexShrink:0}}>{(r.name_ar||'?')[0]}</div>
+<div style={{flex:1,minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{r.name_ar}</span>
+<Badge v={r.status} l={r.status==='active'?T('نشط','Active'):T('غير نشط','Inactive')}/>
+</div>
+<div style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
+{isClient&&r.client_number&&<span style={{fontSize:9,color:'var(--tx5)',direction:'ltr'}}>{r.client_number}</span>}
+{isClient&&r.is_vip&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(201,168,76,.15)',color:C.gold,fontWeight:700}}>VIP</span>}
+{isClient&&isBlk&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(192,57,43,.15)',color:C.red,fontWeight:700}}>محظور</span>}
+{isBroker&&r.default_commission_rate&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(201,168,76,.08)',color:C.gold,fontWeight:600}}>{r.default_commission_type==='percentage'?'نسبة '+r.default_commission_rate+'%':'مبلغ ثابت '+r.default_commission_rate+' ر.س'}</span>}
+{!isClient&&!isBroker&&r.specialty&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(52,131,180,.08)',color:C.blue,fontWeight:600}}>{r.specialty}</span>}
+{r.branch_id&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(39,160,70,.06)',color:'rgba(39,160,70,.7)',fontWeight:600}}>{branchName(r.branch_id)}</span>}
+</div>
+</div>
+<div style={{display:'flex',gap:4,flexShrink:0}} onClick={e=>e.stopPropagation()}>
+{isClient&&r.phone&&<button onClick={()=>{const ph=r.phone.replace(/\D/g,'').replace(/^0/,'966');window.open('https://wa.me/'+ph,'_blank')}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(39,160,70,.15)',background:'rgba(39,160,70,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#27a046" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>}
+<EditBtn onClick={()=>openEdit(r)}/></div>
+</div>
+{/* Client: 4 indicators */}
+{isClient&&<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.04)',background:'rgba(255,255,255,.01)'}}>
+{[[(r.total_invoices||0),'فاتورة',C.blue],[nm(r.total_invoices_amount||0),'إجمالي',C.gold],[nm(owed),'مستحقات',owed>0?C.red:C.ok],[rate+'%','الالتزام',rateCl]].map(([v,l,c],j)=>
+<div key={j} style={{flex:1,padding:'8px 6px',textAlign:'center',borderLeft:j>0?'1px solid rgba(255,255,255,.03)':'none'}}>
+<div style={{fontSize:14,fontWeight:700,color:c}}>{v}</div>
+<div style={{fontSize:7,color:'var(--tx5)',marginTop:2}}>{l}</div>
+</div>)}
+</div>}
+{/* Client: commitment bar */}
+{isClient&&rate>0&&<div style={{padding:'4px 14px 6px'}}>
+<div style={{height:4,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:Math.min(rate,100)+'%',borderRadius:2,background:rateCl}}/></div>
+</div>}
+{/* Broker: indicators */}
+{isBroker&&<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.04)',background:'rgba(255,255,255,.01)'}}>
+{[[(r.total_transactions||0),'عمولة',C.gold],[nm(r.total_amount||0),'إجمالي ر.س',C.ok],[(r.workers_count||0),'عمال معوّلين',C.blue]].map(([v,l,c],j)=>
+<div key={j} style={{flex:1,padding:'8px 6px',textAlign:'center',borderLeft:j>0?'1px solid rgba(255,255,255,.03)':'none'}}>
+<div style={{fontSize:14,fontWeight:700,color:c}}>{v}</div>
+<div style={{fontSize:7,color:'var(--tx5)',marginTop:2}}>{l}</div>
+</div>)}
+</div>}
+{/* Footer: phone + ID */}
+<div style={{padding:'6px 14px',borderTop:'1px solid rgba(255,255,255,.03)',display:'flex',justifyContent:'space-between',background:'rgba(255,255,255,.015)'}}>
+<span style={{fontSize:9,color:'var(--tx5)',direction:'ltr'}}>{r.phone||'—'}</span>
+{r.id_number&&<span style={{fontSize:9,color:'var(--tx5)',direction:'ltr'}}>{r.id_number}</span>}
+{!isClient&&r.bank_name&&<span style={{fontSize:9,color:'var(--tx5)'}}>{r.bank_name}</span>}
+</div>
+{/* Client: overdue alert */}
+{isClient&&Number(r.overdue_count)>0&&<div style={{padding:'5px 14px',background:'rgba(192,57,43,.04)',borderTop:'1px solid rgba(192,57,43,.08)'}}>
+<span style={{fontSize:9,color:C.red,fontWeight:600}}>{r.overdue_count} فاتورة متأخرة</span>
+</div>}
+</div>})}
+</div>}
 
 {viewRow&&tab==='clients'&&(()=>{
 const r=viewRow;const rate=Number(r.commitment_rate)||0;const rateCl=rate>=80?C.ok:rate>=50?C.gold:rate>0?C.red:'var(--tx5)'
