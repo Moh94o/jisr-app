@@ -732,7 +732,7 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
     {/* Sub-tabs: side list */}
     <div style={{ display: 'flex', gap: 0 }}>
     <div style={{ width: 90, flexShrink: 0, borderLeft: lang === 'ar' ? '1px solid rgba(255,255,255,.05)' : 'none', borderRight: lang !== 'ar' ? '1px solid rgba(255,255,255,.05)' : 'none', paddingTop: 2 }}>
-      {[['branches', 'المكاتب', branches.length], ['bank_accounts', 'الحسابات البنكية', banks.length], ...(showStaff ? [['staff', 'الموظفين', 0]] : [])].map(([k, l, n]) => <div key={k} onClick={() => setMainTab(k)} style={{ padding: '6px 8px', fontSize: 10, fontWeight: mainTab === k ? 700 : 500, color: mainTab === k ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRight: lang === 'ar' && mainTab === k ? '2px solid ' + C.gold : '2px solid transparent', borderLeft: lang !== 'ar' && mainTab === k ? '2px solid ' + C.gold : '2px solid transparent', transition: '.1s' }}><span>{l}</span>{n > 0 && <span style={{ fontSize: 7, fontWeight: 700, color: 'rgba(255,255,255,.2)', padding: '0 4px' }}>{n}</span>}</div>)}
+      {[['branches', 'المكاتب', branches.length], ['bank_accounts', 'البنكية', banks.length], ...(showStaff ? [['staff', 'الموظفين', 0],['performance', 'الأداء', 0],['attendance_tab', 'الحضور', 0],['roles', 'الأدوار', 0]] : [])].map(([k, l, n]) => <div key={k} onClick={() => setMainTab(k)} style={{ padding: '6px 8px', fontSize: 10, fontWeight: mainTab === k ? 700 : 500, color: mainTab === k ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRight: lang === 'ar' && mainTab === k ? '2px solid ' + C.gold : '2px solid transparent', borderLeft: lang !== 'ar' && mainTab === k ? '2px solid ' + C.gold : '2px solid transparent', transition: '.1s' }}><span>{l}</span>{n > 0 && <span style={{ fontSize: 7, fontWeight: 700, color: 'rgba(255,255,255,.2)', padding: '0 4px' }}>{n}</span>}</div>)}
     </div>
     <div style={{ flex: 1, paddingRight: lang === 'ar' ? 8 : 0, paddingLeft: lang !== 'ar' ? 8 : 0 }}>
 
@@ -812,7 +812,7 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
     </>}
 
     {mainTab === 'bank_accounts' && <BankAccountsTab sb={sb} toast={toast} user={user} lang={lang} branches={branches} banks={banks} contracts={contracts} docs={docs} reload={load} />}
-    {mainTab === 'staff' && AdminPage && <AdminPage {...adminProps} />}
+    {['staff','performance','attendance_tab','roles'].includes(mainTab) && AdminPage && <AdminPage {...adminProps} defaultTab={mainTab==='staff'?'users':mainTab} />}
     </div></div>
 
     <BranchDetailModal viewRow={viewRow} setViewRow={setViewRow} openEdit={openEdit} del={del} users={users} banks={banks} contracts={contracts} bills={bills} docs={docs} toast={toast} T={T} />

@@ -47,7 +47,7 @@ return<div onClick={onCancel} style={{position:'fixed',inset:0,background:'rgba(
 // ═══ Main Component ═══
 export default function AdminPage({sb,toast,user,lang,onTabChange,defaultTab}){
 const isAr=lang!=='en'
-const[tab,setTab]=useState(defaultTab||'branches')
+const[tab,setTab]=useState(defaultTab||'branches');useEffect(()=>{if(defaultTab)setTab(defaultTab)},[defaultTab])
 const[branches,setBranches]=useState([])
 const[users,setUsers]=useState([])
 const[roles,setRoles]=useState([])
@@ -174,8 +174,8 @@ const permModules=[...new Set(perms.map(p=>p.module))]
 return<div>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
 <div>
-<div style={{fontSize:20,fontWeight:700,color:'rgba(255,255,255,.93)'}}>الإدارة</div>
-<div style={{fontSize:12,color:'var(--tx4)',marginTop:6}}>إدارة المكاتب والموظفين والأدوار والصلاحيات</div>
+{!defaultTab&&<><div style={{fontSize:20,fontWeight:700,color:'rgba(255,255,255,.93)'}}>الإدارة</div>
+<div style={{fontSize:12,color:'var(--tx4)',marginTop:6}}>إدارة المكاتب والموظفين والأدوار والصلاحيات</div></>}
 </div>
 <button onClick={()=>{
 if(tab==='branches')openAdd()
@@ -187,10 +187,10 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 
 
 <div style={{display:'flex',gap:0}}>
-<div style={{width:90,flexShrink:0,borderLeft:'1px solid rgba(255,255,255,.05)',paddingTop:2}}>
+{!defaultTab&&<div style={{width:90,flexShrink:0,borderLeft:'1px solid rgba(255,255,255,.05)',paddingTop:2}}>
 {[...tabs].map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setFilterStatus('all');setFilterRegion('all')}} style={{padding:'6px 8px',fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.3)',cursor:'pointer',borderRight:tab===t.id?'2px solid '+C.gold:'2px solid transparent',transition:'.1s'}}>{t.l}</div>)}
-</div>
-<div style={{flex:1,paddingRight:8}}>
+</div>}
+<div style={{flex:1,...(!defaultTab?{paddingRight:8}:{})}}>
 
 {/* ═══════════════ BRANCHES TAB ═══════════════ */}
 {tab==='branches'&&<>
