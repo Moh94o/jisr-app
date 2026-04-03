@@ -1116,7 +1116,7 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities')},{id:'workers',l:T('العمالة','Workers')},{id:'compliance',l:T('الامتثال','Compliance')},{id:'worker_leaves',h:true}],
   operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')},{id:'transfer_calc',l:T('حاسبة نقل الكفالة','Transfer Calc')}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'payments',l:T('المدفوعات','Payments')},{id:'pricing_calc',l:T('التسعير','Pricing')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'op_expenses',l:T('المصاريف','Expenses')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('الاستيراد','Import')},{id:'ext_payments',h:true}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'payments',l:T('المدفوعات والمصاريف','Payments & Expenses')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('الاستيراد','Import')}],
   clients_hub:[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'contracts',l:T('العقود','Contracts')},{id:'client_statement',l:T('كشف حساب','Statement')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}],
   admin_hub:[{id:'admin_offices',l:T('المكاتب والموظفين','Offices & Staff')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'archive',l:T('الأرشيف','Archive')},{id:'suppliers',l:T('الموردين','Suppliers')},{id:'activity_log',l:T('السجل','Log')},{id:'attendance',h:true},{id:'admin_staff',h:true},{id:'auto_alerts',h:true}],
   reports_hub:[{id:'report_periodic',l:T('الدورية','Periodic')},{id:'emp_performance',l:T('الأداء','Performance')},{id:'branch_compare',l:T('الفروع','Branches')},{id:'invoice_followups',l:T('تقادم الفواتير','Aging')},{id:'weekly_report',l:T('الأسبوعي','Weekly')},{id:'live_monitor',l:T('المراقبة','Monitor')},{id:'report_alerts',l:T('التنبيهات','Alerts')},{id:'report_performance',h:true}]
@@ -1146,10 +1146,8 @@ return<div>
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='ext_payments'&&<ExtPaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
-{pg==='pricing_calc'&&<PricingCalcPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='cash_flow'&&<CashFlowPage sb={sb} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='audit'&&<AuditPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
-{pg==='op_expenses'&&<OpExpensesPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='budget'&&<BudgetPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='data_import'&&<DataImportPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {/* العملاء */}
@@ -2739,7 +2737,10 @@ return<div>
 function PaymentsPage({sb,toast,user,lang,branchId}){
 const T=(a,e)=>lang==='ar'?a:e;const isAr=lang!=='en';const nm=v=>Number(v||0).toLocaleString('en-US')
 const C={gold:'#c9a84c',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
+const[mainTab,setMainTab]=useState('payments')
 const[tab,setTab]=useState('office')
+// If mainTab is 'op_expenses', render OpExpensesPage inline
+if(mainTab==='op_expenses')return<div><div style={{display:'flex',gap:6,marginBottom:16}}>{[{v:'payments',l:T('مدفوعات الفواتير','Invoice Payments')},{v:'op_expenses',l:T('مصاريف تشغيلية','Operational Expenses')}].map(t=><div key={t.v} onClick={()=>{setMainTab(t.v)}} style={{padding:'8px 18px',borderRadius:10,fontSize:12,fontWeight:t.v===mainTab?700:500,color:t.v===mainTab?C.gold:'rgba(255,255,255,.4)',background:t.v===mainTab?'rgba(201,168,76,.1)':'transparent',border:t.v===mainTab?'1.5px solid rgba(201,168,76,.2)':'1.5px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{t.l}</div>)}</div><OpExpensesPage sb={sb} toast={toast} user={user} lang={lang} branchId={branchId}/></div>
 const[expenses,setExpenses]=useState([]);const[extPayments,setExtPayments]=useState([]);const[loading,setLoading]=useState(true)
 const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[saving,setSaving]=useState(false)
 const[q,setQ]=useState('')
@@ -2767,6 +2768,7 @@ const bS={height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,1
 const fBtnS=a=>({padding:'6px 14px',borderRadius:8,fontSize:11,fontWeight:a?700:500,color:a?C.gold:'rgba(255,255,255,.4)',background:a?'rgba(201,168,76,.08)':'transparent',border:a?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer'})
 
 return<div>
+<div style={{display:'flex',gap:6,marginBottom:16}}>{[{v:'payments',l:T('مدفوعات الفواتير','Invoice Payments')},{v:'op_expenses',l:T('مصاريف تشغيلية','Operational Expenses')}].map(t=><div key={t.v} onClick={()=>{setMainTab(t.v)}} style={{padding:'8px 18px',borderRadius:10,fontSize:12,fontWeight:t.v===mainTab?700:500,color:t.v===mainTab?C.gold:'rgba(255,255,255,.4)',background:t.v===mainTab?'rgba(201,168,76,.1)':'transparent',border:t.v===mainTab?'1.5px solid rgba(201,168,76,.2)':'1.5px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{t.l}</div>)}</div>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
 <div><div style={{fontSize:20,fontWeight:700,color:'rgba(255,255,255,.93)'}}>{T('المدفوعات','Payments')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('مصاريف المكتب والسدادات الحكومية والحوالات الخارجية','Office expenses, gov payments & external transfers')}</div></div>
 <button onClick={()=>{setForm(tab==='external'?{amount:'',payment_type:'',provider_id:'',facility_id:'',payment_date:'',reference_number:'',notes:''}:{expense_type:tab==='office'?'branch_expense':'sadad_payment',expense_group:tab==='government'?'government':'office',amount:'',description:'',facility_id:'',expense_date:'',notes:''});setPop(tab==='external'?'ext':'exp')}} style={bS}>+ {T('إضافة','Add')}</button>
