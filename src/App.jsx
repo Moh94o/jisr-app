@@ -1,42 +1,33 @@
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
-
-// Lazy-load page components for code splitting
-const InvoicePageFull = lazy(() => import('./InvoicePage.jsx'))
-const SettingsPageFull = lazy(() => import('./SettingsPage.jsx'))
-const AdminPageFull = lazy(() => import('./AdminPage.jsx'))
-const BranchesPage = lazy(() => import('./BranchesPage.jsx'))
-const FacilitiesPage = lazy(() => import('./FacilitiesPage.jsx'))
-const WorkforcePage = lazy(() => import('./WorkforcePage.jsx'))
-const TransactionsPage = lazy(() => import('./DynamicTransactionEngine.jsx'))
-const TasksPageV2 = lazy(() => import('./TasksPageV2.jsx'))
-const DataPage = lazy(() => import('./DataPage.jsx'))
-const KPIPage = lazy(() => import('./KPIPage.jsx'))
-const AutoAlertsPage = lazy(() => import('./AutoAlertsPage.jsx'))
-const EmployeePerformancePage = lazy(() => import('./EmployeePerformancePage.jsx'))
-const CashFlowPage = lazy(() => import('./CashFlowPage.jsx'))
-const SLAPage = lazy(() => import('./SLAPage.jsx'))
-const CalendarPage = lazy(() => import('./CalendarPage.jsx'))
-const ProfitabilityPage = lazy(() => import('./ProfitabilityPage.jsx'))
-const LiveMonitorPage = lazy(() => import('./LiveMonitorPage.jsx'))
-const WorkflowPage = lazy(() => import('./WorkflowPage.jsx'))
-const MessagingPage = lazy(() => import('./MessagingPage.jsx'))
-const ManpowerPage = lazy(() => import('./ManpowerPage.jsx'))
-const ComplianceSuiteModule = lazy(() => import('./ComplianceSuitePage.jsx'))
-const DataImportPage = lazy(() => import('./DataImportPage.jsx'))
-const BranchComparisonPage = lazy(() => import('./BranchComparisonPage.jsx'))
-const NPSPage = lazy(() => import('./NPSPage.jsx'))
-const AttendancePage = lazy(() => import('./AttendancePage.jsx'))
-const WeeklyReportPage = lazy(() => import('./WeeklyReportPage.jsx'))
-const PricingCalcPage = lazy(() => import('./PricingCalcPage.jsx'))
-const CompliancePage = lazy(() => import('./CompliancePage.jsx'))
-
-// Lazy wrappers for named exports from ComplianceSuitePage
-const ContractsPage = lazy(() => import('./ComplianceSuitePage.jsx').then(m => ({ default: m.ContractsPage })))
-const ArchivePage = lazy(() => import('./ComplianceSuitePage.jsx').then(m => ({ default: m.ArchivePage })))
-const SuppliersPage = lazy(() => import('./ComplianceSuitePage.jsx').then(m => ({ default: m.SuppliersPage })))
-const WorkerLeavesPage = lazy(() => import('./ComplianceSuitePage.jsx').then(m => ({ default: m.WorkerLeavesPage })))
-const BudgetPage = lazy(() => import('./ComplianceSuitePage.jsx').then(m => ({ default: m.BudgetPage })))
+import InvoicePageFull from './InvoicePage.jsx'
+import SettingsPageFull from './SettingsPage.jsx'
+import AdminPageFull from './AdminPage.jsx'
+import BranchesPage from './BranchesPage.jsx'
+import FacilitiesPage from './FacilitiesPage.jsx'
+import WorkforcePage from './WorkforcePage.jsx'
+import TransactionsPage from './DynamicTransactionEngine.jsx'
+import TasksPageV2 from './TasksPageV2.jsx'
+import DataPage from './DataPage.jsx'
+import KPIPage from './KPIPage.jsx'
+import AutoAlertsPage from './AutoAlertsPage.jsx'
+import EmployeePerformancePage from './EmployeePerformancePage.jsx'
+import CashFlowPage from './CashFlowPage.jsx'
+import SLAPage from './SLAPage.jsx'
+import CalendarPage from './CalendarPage.jsx'
+import ProfitabilityPage from './ProfitabilityPage.jsx'
+import LiveMonitorPage from './LiveMonitorPage.jsx'
+import WorkflowPage from './WorkflowPage.jsx'
+import MessagingPage from './MessagingPage.jsx'
+import ManpowerPage from './ManpowerPage.jsx'
+import { ContractsPage, ArchivePage, SuppliersPage, WorkerLeavesPage, BudgetPage } from './ComplianceSuitePage.jsx'
+import DataImportPage from './DataImportPage.jsx'
+import BranchComparisonPage from './BranchComparisonPage.jsx'
+import NPSPage from './NPSPage.jsx'
+import AttendancePage from './AttendancePage.jsx'
+import WeeklyReportPage from './WeeklyReportPage.jsx'
+import PricingCalcPage from './PricingCalcPage.jsx'
+import CompliancePage from './CompliancePage.jsx'
 
 import { getSupabase, saveConfig, clearConfig, getSavedConfig } from './lib/supabase.js'
 import { exportToExcel, importFromCSV, sendWhatsApp, buildWhatsAppMessage, printContent, generateClientStatement, checkDuplicate, setupKeyboardShortcuts, calculateNitaqat, num as numFmt } from './lib/utils.js'
@@ -1118,7 +1109,6 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 </header>
 {/* ═══ Content ═══ */}
 <div className='dash-content' style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'32px 24px 0',msOverflowStyle:'none',scrollbarWidth:'none',WebkitOverflowScrolling:'touch'}}>
-<Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:200,color:'var(--tx4)',fontFamily:F,fontSize:13}}>جاري التحميل...</div>}>
 {pg==='home'&&<HomePage stats={stats} lang={lang} branches={dashBranches} selectedBranch={dashBranch} onBranchChange={setDashBranch} sb={sb} onNavigate={setPage} toast={tt}/>}
 
 {/* ═══ HUB LAYOUT HELPER — Side tabs + content ═══ */}
@@ -1209,7 +1199,6 @@ return<div>
 {pg==='calendar_unified'&&<CalendarPage sb={sb} toast={tt} user={user} lang={lang} onNavigate={setPage}/>}
 {(pg==='installments'||pg==='expenses')&&pageConf&&<CrudPage sb={sb} user={user} conf={pageConf} toast={tt} onRefresh={loadStats} lang={lang}/>}
 {pg==='appointments'&&<AppointmentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
-</Suspense>
 </div>
 </div>
 {toastMsg&&(()=>{const isErr=toastMsg.includes('خطأ');const isDel=toastMsg.includes('حذف');const clr=isErr?C.red:isDel?'#e67e22':C.ok;const bg=isErr?'rgba(192,57,43,.12)':isDel?'rgba(230,126,34,.12)':'rgba(39,160,70,.12)';const bdr=isErr?'rgba(192,57,43,.2)':isDel?'rgba(230,126,34,.2)':'rgba(39,160,70,.2)';return<div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:9999,background:bg,color:clr,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,padding:'12px 24px',borderRadius:12,boxShadow:'0 8px 30px rgba(0,0,0,.5)',border:'1px solid '+bdr,display:'flex',alignItems:'center',gap:8,animation:'slideDown .3s ease'}}>{isErr?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>:isDel?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}{toastMsg}</div>})()}
