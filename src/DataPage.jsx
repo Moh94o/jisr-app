@@ -12,7 +12,7 @@ const nm=v=>{const n=Number(v);return isNaN(n)?'0':n.toLocaleString('en-US')}
 export default function DataPage({sb,toast,user,lang,onTabChange,defaultTab}){
 const isAr=lang!=='en'
 const T=(a,e)=>isAr?a:e
-const[tab,setTab]=useState(defaultTab||'clients')
+const[tab,setTab]=useState(defaultTab||'clients');useEffect(()=>{if(defaultTab)setTab(defaultTab)},[defaultTab])
 const[clients,setClients]=useState([])
 const[brokers,setBrokers]=useState([])
 const[providers,setProviders]=useState([])
@@ -137,9 +137,7 @@ return<div>
 </div>
 </div>
 
-<div style={{display:'flex',gap:0,marginBottom:20,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}}>
-{tabs.map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setViewRow(null)}} style={{padding:'10px 16px',fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.42)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{isAr?t.l:t.le}</div>)}
-</div>
+{/* Tabs removed — handled by hub tabs in App.jsx */}
 
 {tab==='clients'&&<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
 {[[T('إجمالي','Total'),totalClients,C.blue,'rgba(52,131,180,.06)','rgba(52,131,180,.1)'],[T('نشط','Active'),activeClients,C.ok,'rgba(39,160,70,.06)','rgba(39,160,70,.1)'],[T('مميز','VIP'),vipClients,C.gold,'rgba(201,168,76,.06)','rgba(201,168,76,.1)'],[T('مستحقات','Owed'),nm(totalOwed)+' '+T('ر.س','SAR'),C.red,'rgba(192,57,43,.06)','rgba(192,57,43,.1)']].map(([l,v,c,bg,bc],i)=>
