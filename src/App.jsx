@@ -1118,7 +1118,7 @@ const hubTabs={
   operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')},{id:'transfer_calc',l:T('حاسبة نقل الكفالة','Transfer Calc')}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'invoice_followups',l:T('متابعة التحصيل','Collections')},{id:'payments',l:T('المدفوعات والمصاريف','Payments & Expenses')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('الاستيراد','Import')}],
   clients_hub:[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}],
-  admin_hub:[{id:'admin_offices',l:T('المكاتب والموظفين','Offices & Staff')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'archive',l:T('الأرشيف','Archive')},{id:'activity_log',l:T('السجل','Log')},{id:'attendance',h:true},{id:'admin_staff',h:true},{id:'auto_alerts',h:true}],
+  admin_hub:[{id:'admin_offices',l:T('المكاتب والموظفين','Offices & Staff')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'archive',l:T('الأرشيف','Archive')},{id:'activity_log',l:T('السجل','Log')},{id:'admin_automation',l:T('الأتمتة','Automation')},{id:'admin_pricing',l:T('التسعير','Pricing')},{id:'attendance',h:true},{id:'admin_staff',h:true},{id:'auto_alerts',h:true}],
   reports_hub:[{id:'report_periodic',l:T('الدورية','Periodic')},{id:'emp_performance',l:T('الأداء','Performance')},{id:'branch_compare',l:T('الفروع','Branches')},{id:'live_monitor',l:T('المراقبة','Monitor')},{id:'report_alerts',l:T('التنبيهات','Alerts')},{id:'report_performance',h:true},{id:'weekly_report',h:true}]
 }
 const allHubPages=Object.values(hubTabs).flat().map(t=>t.id)
@@ -1164,6 +1164,8 @@ return<div>
 {pg==='archive'&&<ArchivePage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='suppliers'&&<SuppliersPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='activity_log'&&<ActivityLogPage sb={sb} lang={lang} data={activityLog} loading={activityLoading} onLoad={loadActivityLog}/>}
+{pg==='admin_automation'&&<WorkflowPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='admin_pricing'&&<PricingCalcPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {/* التقارير */}
 {pg==='report_periodic'&&<ReportPeriodicPage sb={sb} lang={lang} branchId={dashBranch}/>}
 {pg==='emp_performance'&&<EmployeePerformancePage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}

@@ -163,8 +163,6 @@ const tabs=[
 {id:'regions_cities',l:'المناطق والمدن',le:'Regions & Cities'},
 {id:'authorities_muni',l:'الأمانات والبلديات',le:'Authorities & Municipalities'},
 {id:'documents',l:'الوثائق',le:'Documents'},
-{id:'automation',l:'الأتمتة',le:'Automation'},
-{id:'pricing',l:'التسعير',le:'Pricing'}
 ]
 
 const popFields={
@@ -641,8 +639,6 @@ tpLinks.map(lk=>{const sv=subSvcs.find(s=>s.id===lk.sub_service_id);return<div k
 </div></div>
 </>}
 
-{tab==='automation'&&<WorkflowPage sb={sb} toast={toast} user={user} lang={lang}/>}
-{tab==='pricing'&&<PricingCalcPage sb={sb} toast={toast} user={user} lang={lang}/>}
 
 {/* FORM POPUP */}
 {pop&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
