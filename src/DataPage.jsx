@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useCallback} from 'react'
+import { generateClientStatement, exportToExcel, printContent } from './lib/utils.js'
 const F="'Cairo',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#c9a84c',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const fS={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center'}
@@ -22,6 +23,8 @@ const[form,setForm]=useState({})
 const[saving,setSaving]=useState(false)
 const[viewRow,setViewRow]=useState(null)
 const[viewTab,setViewTab]=useState('info')
+const[stmtRows,setStmtRows]=useState([])
+const[stmtLoading,setStmtLoading]=useState(false)
 const[bvTab,setBvTab]=useState('info')
 const[q,setQ]=useState('')
 const[idTypes,setIdTypes]=useState([])
@@ -173,7 +176,7 @@ const isClient=tab==='clients';const isBroker=tab==='brokers'
 const rate=isClient?Number(r.commitment_rate)||0:0;const rateCl=rate>=80?C.ok:rate>=50?C.gold:rate>0?C.red:'var(--tx5)'
 const owed=Number(r.remaining_amount)||0;const isBlk=r.is_blacklisted
 const borderClr=isBlk?'rgba(192,57,43,.25)':r.is_vip?'rgba(201,168,76,.2)':'var(--bd)'
-return<div key={r.id} onClick={()=>{setViewRow(r);setViewTab('info');setBvTab('info')}} style={{background:'var(--bg)',border:'1px solid '+borderClr,borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.2)'} onMouseLeave={e=>e.currentTarget.style.borderColor=borderClr}>
+return<div key={r.id} onClick={()=>{setViewRow(r);setViewTab('info');setBvTab('info');setStmtRows([]);setStmtLoading(false)}} style={{background:'var(--bg)',border:'1px solid '+borderClr,borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.2)'} onMouseLeave={e=>e.currentTarget.style.borderColor=borderClr}>
 {/* Header */}
 <div style={{padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
 <div style={{width:44,height:44,borderRadius:12,background:r.is_vip?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)',border:'1.5px solid '+(r.is_vip?'rgba(201,168,76,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:r.is_vip?C.gold:'var(--tx4)',flexShrink:0}}>{(r.name_ar||'?')[0]}</div>
@@ -231,7 +234,7 @@ return<div key={r.id} onClick={()=>{setViewRow(r);setViewTab('info');setBvTab('i
 {viewRow&&tab==='clients'&&(()=>{
 const r=viewRow;const rate=Number(r.commitment_rate)||0;const rateCl=rate>=80?C.ok:rate>=50?C.gold:rate>0?C.red:'var(--tx5)'
 const IB=({l,v,copy,c})=><div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:c||'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&v!=='—'&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast(T('تم النسخ','Copied'))}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}</div></div>
-const vtabs=[{id:'info',l:T('البيانات','Info')},{id:'financial',l:T('المالية','Financial')},{id:'contact',l:T('التواصل','Contact')},{id:'notes',l:T('ملاحظات','Notes')}]
+const vtabs=[{id:'info',l:T('البيانات','Info')},{id:'financial',l:T('المالية','Financial')},{id:'statement',l:T('كشف حساب','Statement')},{id:'contact',l:T('التواصل','Contact')},{id:'notes',l:T('ملاحظات','Notes')}]
 return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16}}>
 <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(860px,95vw)',height:'min(540px,85vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.15)'}}>
 <div style={{background:'var(--bg)',padding:'18px 24px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',borderBottom:'1px solid rgba(201,168,76,.12)',flexShrink:0}}>
@@ -264,6 +267,16 @@ return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,backg
 <div style={{gridColumn:'1/-1'}}><IB l={T('العنوان','Address')} v={r.address}/></div>
 {r.phone&&<div style={{gridColumn:'1/-1'}}><button onClick={()=>{const ph=r.phone.replace(/\D/g,'');window.open('https://wa.me/'+ph,'_blank')}} style={{width:'100%',height:42,borderRadius:10,border:'1px solid rgba(39,160,70,.2)',background:'rgba(39,160,70,.08)',color:C.ok,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer'}}>{T('تواصل واتساب','WhatsApp')}</button></div>}
 </div>}
+{viewTab==='statement'&&(()=>{
+if(!stmtLoading&&stmtRows.length===0&&viewRow){setStmtLoading(true);Promise.all([sb.from('invoices').select('*').eq('client_id',r.id).is('deleted_at',null).order('created_at'),sb.from('invoice_payments').select('*').is('deleted_at',null)]).then(([inv,pay])=>{const rows=generateClientStatement(r,inv.data||[],pay.data||[],lang);setStmtRows(rows);setStmtLoading(false)})}
+return stmtLoading?<div style={{textAlign:'center',padding:40,color:'var(--tx5)'}}>...</div>:stmtRows.length>0?<div>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+<span style={{fontSize:14,fontWeight:800,color:stmtRows[stmtRows.length-1]?.balance>0?C.red:C.ok}}>{T('الرصيد:','Balance:')} {Number(stmtRows[stmtRows.length-1]?.balance||0).toLocaleString()} {T('ر.س','SAR')}</span>
+<div style={{display:'flex',gap:6}}><button onClick={()=>{const html='<table><thead><tr><th>التاريخ</th><th>النوع</th><th>المرجع</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead><tbody>'+stmtRows.map(x=>'<tr><td>'+x.date+'</td><td>'+x.type+'</td><td>'+x.ref+'</td><td>'+(x.debit?Number(x.debit).toLocaleString():'')+'</td><td>'+(x.credit?Number(x.credit).toLocaleString():'')+'</td><td>'+Number(x.balance).toLocaleString()+'</td></tr>').join('')+'</tbody></table>';printContent('كشف حساب — '+r.name_ar,html,lang)}} style={{height:30,padding:'0 12px',borderRadius:7,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx3)',fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer'}}>🖨</button>
+<button onClick={()=>exportToExcel(stmtRows,[['date','التاريخ'],['type','النوع'],['ref','المرجع'],['debit','مدين'],['credit','دائن'],['balance','الرصيد']],'statement_'+r.name_ar)} style={{height:30,padding:'0 12px',borderRadius:7,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx3)',fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer'}}>Excel</button></div></div>
+<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{[T('التاريخ','Date'),T('النوع','Type'),T('المرجع','Ref'),T('مدين','Debit'),T('دائن','Credit'),T('الرصيد','Balance')].map(h=><th key={h} style={{padding:'7px 10px',fontSize:10,fontWeight:700,color:'var(--tx3)',textAlign:'right',borderBottom:'1px solid var(--bd)'}}>{h}</th>)}</tr></thead>
+<tbody>{stmtRows.map((x,i)=><tr key={i} style={{borderBottom:'1px solid var(--bd2)'}}><td style={{padding:'7px 10px',fontSize:10,color:'var(--tx4)'}}>{x.date}</td><td style={{padding:'7px 10px',fontSize:10,fontWeight:600,color:x.type.includes('فاتورة')?C.red:C.ok}}>{x.type}</td><td style={{padding:'7px 10px',fontSize:10,color:'var(--tx4)'}}>{x.ref}</td><td style={{padding:'7px 10px',fontSize:11,fontWeight:600,color:C.red,direction:'ltr',textAlign:'left'}}>{x.debit?Number(x.debit).toLocaleString():''}</td><td style={{padding:'7px 10px',fontSize:11,fontWeight:600,color:C.ok,direction:'ltr',textAlign:'left'}}>{x.credit?Number(x.credit).toLocaleString():''}</td><td style={{padding:'7px 10px',fontSize:11,fontWeight:700,direction:'ltr',textAlign:'left'}}>{Number(x.balance).toLocaleString()}</td></tr>)}</tbody></table>
+</div>:<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا توجد حركات','No transactions')}</div>})()}
 {viewTab==='notes'&&<div>{r.notes?<div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'16px',border:'1px solid rgba(255,255,255,.03)',fontSize:13,lineHeight:2,color:'rgba(255,255,255,.7)'}}>{r.notes}</div>:<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>{T('لا توجد ملاحظات','No notes')}</div>}</div>}
 </div></div></div></div>})()}
 
