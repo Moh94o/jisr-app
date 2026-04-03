@@ -1620,6 +1620,32 @@ return<div>
 {/* Quick Actions + Title */}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16,flexWrap:'wrap',gap:12}}>
 <div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)',marginBottom:4}}>{T('لوحة التحكم','Dashboard')}</div><div style={{fontSize:12,color:'var(--tx4)'}}>{T('نظرة شاملة على بيانات النظام','Comprehensive system overview')}</div></div>
+<div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+{/* Branch Filter — moved to top */}
+<div style={{position:'relative'}}>
+<button onClick={()=>setBranchDropOpen(!branchDropOpen)} style={{height:34,padding:'0 14px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:selectedBranches.length>0?'rgba(201,168,76,.12)':'rgba(201,168,76,.06)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M12 7V3M6 7V5M18 7V5"/></svg>
+{selectedBranches.length===0?T('كل المكاتب','All Branches'):selectedBranches.length===branches.length?T('كل المكاتب','All Branches'):selectedBranches.length===1?branches.find(b=>b.id===selectedBranches[0])?.name_ar||T('مكتب','Branch'):selectedBranches.length+' '+T('مكاتب','branches')}
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{transition:'.2s',transform:branchDropOpen?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg></button>
+{branchDropOpen&&<><div onClick={()=>setBranchDropOpen(false)} style={{position:'fixed',inset:0,zIndex:98}}/>
+<div style={{position:'absolute',top:'calc(100% + 4px)',[lang==='ar'?'right':'left']:0,width:'min(260px,90vw)',background:'#252525',border:'1px solid rgba(255,255,255,.12)',borderRadius:10,boxShadow:'0 12px 36px rgba(0,0,0,.5)',zIndex:99,maxHeight:380,overflowY:'auto'}}>
+<div onClick={selectAll} style={{padding:'10px 14px',fontSize:12,fontWeight:700,color:C.gold,cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8,position:'sticky',top:0,background:'#252525',zIndex:1}}>
+<div style={{width:16,height:16,borderRadius:4,border:(branches.length>0&&selectedBranches.length===branches.length)?'none':'1.5px solid rgba(255,255,255,.2)',background:(branches.length>0&&selectedBranches.length===branches.length)?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
+{branches.length>0&&selectedBranches.length===branches.length&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#141414" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+</div>{T('تحديد الكل','Select all')} <span style={{fontSize:10,color:'rgba(255,255,255,.25)',marginRight:'auto',marginLeft:'auto'}}>({branches.length})</span></div>
+<div onClick={()=>{setSelectedBranches([]);setBranchDropOpen(false)}} style={{padding:'10px 14px',fontSize:12,color:selectedBranches.length===0?C.gold:'rgba(255,255,255,.5)',cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,.08)',display:'flex',alignItems:'center',gap:8,background:selectedBranches.length===0?'rgba(201,168,76,.06)':'transparent'}}>
+<div style={{width:16,height:16,borderRadius:4,border:selectedBranches.length===0?'none':'1.5px solid rgba(255,255,255,.15)',background:selectedBranches.length===0?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
+{selectedBranches.length===0&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#141414" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+</div>{T('الإجمالي (كل المكاتب)','Total (all branches)')}</div>
+{(branches||[]).map(b=>{const sel=selectedBranches.includes(b.id);return<div key={b.id} onClick={()=>toggleBranch(b.id)} style={{padding:'10px 14px',fontSize:12,color:sel?C.gold:'rgba(255,255,255,.65)',cursor:'pointer',display:'flex',alignItems:'center',gap:8,borderBottom:'1px solid rgba(255,255,255,.04)',background:sel?'rgba(201,168,76,.04)':'transparent'}}>
+<div style={{width:16,height:16,borderRadius:4,border:sel?'none':'1.5px solid rgba(255,255,255,.15)',background:sel?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+{sel&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#141414" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+</div><span style={{flex:1}}>{b.name_ar}</span></div>})}
+</div></>}
+</div>
+{loadingCompare&&<div style={{width:16,height:16,border:'2px solid rgba(201,168,76,.2)',borderTopColor:C.gold,borderRadius:'50%',animation:'spin .7s linear infinite'}}/>}
+{selectedBranches.length>0&&<button onClick={()=>setSelectedBranches([])} style={{height:28,padding:'0 10px',borderRadius:6,border:'1px solid rgba(255,255,255,.1)',background:'rgba(255,255,255,.04)',color:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:600,cursor:'pointer'}}>✕ {T('إلغاء الفلتر','Clear')}</button>}
+</div>
 </div>
 
 {/* ═══ 1. URGENT ALERTS BAR ═══ */}
@@ -1687,37 +1713,7 @@ return<div key={t.id} style={{display:'flex',alignItems:'center',gap:6,fontSize:
 </div>
 
 {/* (Today panel merged into section 2 above) */}
-{/* ═══ STATS SECTION ═══ */}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,flexWrap:'wrap',gap:12}}>
-<div style={{visibility:'hidden',height:0,overflow:'hidden'}}></div>
-<div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-{/* Multi-Branch Filter */}
-<div style={{position:'relative'}}>
-<button onClick={()=>setBranchDropOpen(!branchDropOpen)} style={{height:34,padding:'0 14px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:selectedBranches.length>0?'rgba(201,168,76,.12)':'rgba(201,168,76,.06)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M12 7V3M6 7V5M18 7V5"/></svg>
-{selectedBranches.length===0?T('كل المكاتب','All Branches'):selectedBranches.length===branches.length?T('كل المكاتب','All Branches'):selectedBranches.length===1?branches.find(b=>b.id===selectedBranches[0])?.name_ar||T('مكتب','Branch'):selectedBranches.length+' '+T('مكاتب','branches')}
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{transition:'.2s',transform:branchDropOpen?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg></button>
-{branchDropOpen&&<><div onClick={()=>setBranchDropOpen(false)} style={{position:'fixed',inset:0,zIndex:98}}/>
-<div style={{position:'absolute',top:'calc(100% + 4px)',[lang==='ar'?'right':'left']:0,width:'min(260px,90vw)',background:'#252525',border:'1px solid rgba(255,255,255,.12)',borderRadius:10,boxShadow:'0 12px 36px rgba(0,0,0,.5)',zIndex:99,maxHeight:380,overflowY:'auto'}}>
-<div onClick={selectAll} style={{padding:'10px 14px',fontSize:12,fontWeight:700,color:C.gold,cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8,position:'sticky',top:0,background:'#252525',zIndex:1}}>
-<div style={{width:16,height:16,borderRadius:4,border:(branches.length>0&&selectedBranches.length===branches.length)?'none':'1.5px solid rgba(255,255,255,.2)',background:(branches.length>0&&selectedBranches.length===branches.length)?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
-{branches.length>0&&selectedBranches.length===branches.length&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#141414" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-</div>{T('تحديد الكل','Select all')} <span style={{fontSize:10,color:'rgba(255,255,255,.25)',marginRight:'auto',marginLeft:'auto'}}>({branches.length})</span></div>
-<div onClick={()=>{setSelectedBranches([]);setBranchDropOpen(false)}} style={{padding:'10px 14px',fontSize:12,color:selectedBranches.length===0?C.gold:'rgba(255,255,255,.5)',cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,.08)',display:'flex',alignItems:'center',gap:8,background:selectedBranches.length===0?'rgba(201,168,76,.06)':'transparent'}}>
-<div style={{width:16,height:16,borderRadius:4,border:selectedBranches.length===0?'none':'1.5px solid rgba(255,255,255,.15)',background:selectedBranches.length===0?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
-{selectedBranches.length===0&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#141414" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-</div>{T('الإجمالي (كل المكاتب)','Total (all branches)')}</div>
-{branches.length===0?<div style={{padding:'16px',textAlign:'center',color:'var(--tx5)',fontSize:11}}>{T('جاري التحميل...','Loading...')}</div>:
-(branches||[]).map(b=>{const sel=selectedBranches.includes(b.id);return<div key={b.id} onClick={()=>toggleBranch(b.id)} style={{padding:'10px 14px',fontSize:12,color:sel?C.gold:'rgba(255,255,255,.65)',cursor:'pointer',display:'flex',alignItems:'center',gap:8,borderBottom:'1px solid rgba(255,255,255,.04)',background:sel?'rgba(201,168,76,.04)':'transparent'}}>
-<div style={{width:16,height:16,borderRadius:4,border:sel?'none':'1.5px solid rgba(255,255,255,.15)',background:sel?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-{sel&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#141414" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-</div><span style={{flex:1}}>{b.name_ar}</span></div>})}
-</div></>}
-</div>
-{loadingCompare&&<div style={{width:16,height:16,border:'2px solid rgba(201,168,76,.2)',borderTopColor:C.gold,borderRadius:'50%',animation:'spin .7s linear infinite'}}/>}
-{selectedBranches.length>0&&<button onClick={()=>setSelectedBranches([])} style={{height:28,padding:'0 10px',borderRadius:6,border:'1px solid rgba(255,255,255,.1)',background:'rgba(255,255,255,.04)',color:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:600,cursor:'pointer'}}>✕ {T('إلغاء الفلتر','Clear')}</button>}
-</div>
-</div>
+{/* Branch filter moved to header above */}
 
 {/* ═══ ENHANCED ROW 1: Operations Overview ═══ */}
 {(()=>{const totalInvAmt=(S.total_paid||0)+(S.total_outstanding||0);const collPct=totalInvAmt>0?Math.min(100,Math.round((S.total_paid||0)/totalInvAmt*100)):0;const txnDonePct=(S.total_transactions||0)>0?Math.round((S.completed_transactions||0)/(S.total_transactions)*100):0;const facRiskPct=(S.total_facilities||0)>0?Math.round((S.at_risk_facilities||0)/(S.total_facilities)*100):0
