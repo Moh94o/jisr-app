@@ -441,58 +441,118 @@ return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 </div>
 </>})()}
 
-{/* ═══ PERFORMANCE TAB ═══ */}
-{tab==='performance'&&(()=>{const scoreColor=s=>s>=50?C.ok:s>=20?C.gold:s>=0?'#e67e22':C.red;const medals=['🥇','🥈','🥉'];const filtered=perfData.filter(e=>!perfBranch||e.branch_id===perfBranch).sort((a,b)=>(Number(b[perfSort])||0)-(Number(a[perfSort])||0));return<>
-{/* Stat cards */}
-{defaultTab==='users'&&<div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr auto',gap:12,marginBottom:20}}>
-<div style={{padding:'16px 20px',borderRadius:14,background:'linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))',border:'1px solid rgba(39,160,70,.15)',minWidth:140,textAlign:'center'}}>
+{/* ═══ PERFORMANCE TAB (Enhanced) ═══ */}
+{tab==='performance'&&(()=>{const MAX_SCORE=150;const scoreColor=s=>s>=80?C.ok:s>=50?C.gold:s>=20?'#e67e22':C.red;const medals=['🥇','🥈','🥉'];const filtered=perfData.filter(e=>!perfBranch||e.branch_id===perfBranch).filter(e=>!roleFilter||roleFilter==='all'||e.role_id===roleFilter).sort((a,b)=>(Number(b[perfSort])||0)-(Number(a[perfSort])||0))
+const avgScore=perfData.length>0?Math.round(perfData.reduce((s,e)=>s+Number(e.performance_score||0),0)/perfData.length):0
+const avgScorePrev=perfData.length>0?Math.round(perfData.reduce((s,e)=>s+Number(e.performance_score_prev||e.performance_score||0),0)/perfData.length):0
+const totalTxn=perfData.reduce((s,e)=>s+Number(e.txn_completed||0),0)
+const totalTxnAll=perfData.reduce((s,e)=>s+Number(e.txn_completed||0)+Number(e.txn_completed_prev||0),0)
+const totalOverdue=perfData.reduce((s,e)=>s+Number(e.tasks_overdue||0),0)
+const overdueUsers=perfData.filter(e=>Number(e.tasks_overdue||0)>0).length
+const scoreDiff=avgScore-avgScorePrev
+return<>
+{/* Enhanced Stat cards */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:12,marginBottom:20}}>
+{/* Employees */}
+<div style={{padding:'16px 18px',borderRadius:14,background:'linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))',border:'1px solid rgba(39,160,70,.15)',textAlign:'center'}}>
 <div style={{fontSize:11,fontWeight:600,color:C.ok,marginBottom:8}}>الموظفين</div>
-<div style={{fontSize:32,fontWeight:900,color:C.ok,lineHeight:1}}>{perfData.length}</div>
+<div style={{fontSize:28,fontWeight:900,color:C.ok,lineHeight:1}}>{filtered.length}</div>
+<div style={{fontSize:9,color:'var(--tx5)',marginTop:6}}>{perfData.length} إجمالي</div>
 </div>
-<div style={{padding:'16px 20px',borderRadius:14,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)',textAlign:'center'}}>
-<div style={{fontSize:11,fontWeight:600,color:C.gold,marginBottom:8}}>متوسط الأداء</div>
-<div style={{fontSize:32,fontWeight:900,color:C.gold,lineHeight:1}}>{perfData.length>0?Math.round(perfData.reduce((s,e)=>s+Number(e.performance_score||0),0)/perfData.length):0}</div>
+{/* Avg Score with comparison */}
+<div style={{padding:'16px 18px',borderRadius:14,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)',textAlign:'center'}}>
+<div style={{fontSize:11,fontWeight:600,color:C.gold,marginBottom:8}}>متوسط النقاط</div>
+<div style={{fontSize:28,fontWeight:900,color:C.gold,lineHeight:1}}>{avgScore}<span style={{fontSize:12,fontWeight:500,opacity:.5}}>/{MAX_SCORE}</span></div>
+{scoreDiff!==0&&<div style={{fontSize:10,fontWeight:700,color:scoreDiff>0?C.ok:C.red,marginTop:6}}>{scoreDiff>0?'▲':'▼'} {Math.abs(scoreDiff)} عن الشهر السابق</div>}
 </div>
-<div style={{padding:'16px 20px',borderRadius:14,background:'rgba(52,131,180,.04)',border:'1px solid rgba(52,131,180,.1)',textAlign:'center'}}>
-<div style={{fontSize:11,fontWeight:600,color:C.blue,marginBottom:8}}>إجمالي المعاملات</div>
-<div style={{fontSize:32,fontWeight:900,color:C.blue,lineHeight:1}}>{perfData.reduce((s,e)=>s+Number(e.txn_completed||0),0)}</div>
+{/* Total Transactions */}
+<div style={{padding:'16px 18px',borderRadius:14,background:'rgba(52,131,180,.04)',border:'1px solid rgba(52,131,180,.1)',textAlign:'center'}}>
+<div style={{fontSize:11,fontWeight:600,color:C.blue,marginBottom:8}}>المعاملات المنجزة</div>
+<div style={{fontSize:28,fontWeight:900,color:C.blue,lineHeight:1}}>{totalTxn}</div>
+<div style={{fontSize:9,color:'var(--tx5)',marginTop:6}}>نسبة الإنجاز: {totalTxnAll>0?Math.round(totalTxn/totalTxnAll*100):0}%</div>
 </div>
-<div style={{padding:'16px 20px',borderRadius:14,background:'rgba(192,57,43,.04)',border:'1px solid rgba(192,57,43,.1)',minWidth:140,textAlign:'center'}}>
-<div style={{fontSize:11,fontWeight:600,color:C.red,marginBottom:8}}>متأخرات</div>
-<div style={{fontSize:32,fontWeight:900,color:C.red,lineHeight:1}}>{perfData.reduce((s,e)=>s+Number(e.tasks_overdue||0),0)}</div>
+{/* Overdue */}
+<div style={{padding:'16px 18px',borderRadius:14,background:totalOverdue>0?'rgba(192,57,43,.06)':'rgba(255,255,255,.02)',border:'1px solid '+(totalOverdue>0?'rgba(192,57,43,.12)':'rgba(255,255,255,.04)'),textAlign:'center'}}>
+<div style={{fontSize:11,fontWeight:600,color:totalOverdue>0?C.red:'var(--tx4)',marginBottom:8}}>المتأخرات</div>
+<div style={{fontSize:28,fontWeight:900,color:totalOverdue>0?C.red:'var(--tx5)',lineHeight:1}}>{totalOverdue}</div>
+<div style={{fontSize:9,color:totalOverdue>0?C.red:'var(--tx5)',marginTop:6,opacity:.7}}>{overdueUsers} موظف عنده متأخرات</div>
 </div>
-</div>}
+</div>
 {/* Filters */}
-<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
 <select value={perfBranch||''} onChange={e=>setPerfBranch(e.target.value||null)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
 <option value="">كل المكاتب</option>{branches.map(b=><option key={b.id} value={b.id}>{b.name_ar}</option>)}
+</select>
+<select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
+<option value="all">كل الأدوار</option>{roles.map(r=><option key={r.id} value={r.id}>{r.name_ar}</option>)}
 </select>
 <select value={perfSort} onChange={e=>setPerfSort(e.target.value)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
 <option value="performance_score">النقاط</option><option value="txn_completed">المعاملات</option><option value="amount_collected">التحصيل</option><option value="tasks_done">المهام</option>
 </select>
+<span style={{fontSize:10,color:'var(--tx5)'}}>{filtered.length} موظف</span>
 </div>
-{/* Leaderboard */}
-<div style={{display:'flex',flexDirection:'column',gap:8}}>
-{filtered.map((e,i)=>{const sc=Number(e.performance_score)||0;return<div key={e.user_id} style={{padding:'14px 18px',borderRadius:12,background:'var(--bg)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:36,height:36,borderRadius:'50%',background:i<3?'rgba(201,168,76,.1)':'rgba(255,255,255,.05)',border:'1.5px solid '+(i<3?'rgba(201,168,76,.2)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?16:12,fontWeight:800,color:i<3?C.gold:'var(--tx4)',flexShrink:0}}>{i<3?medals[i]:i+1}</div>
+{/* Enhanced Leaderboard */}
+<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{filtered.map((e,i)=>{const sc=Number(e.performance_score)||0;const scPrev=Number(e.performance_score_prev||sc);const pct=Math.round(sc/MAX_SCORE*100);const diff=sc-scPrev;const hasOverdue=Number(e.tasks_overdue||0)>0;const isWeak=sc<50;const borderClr=hasOverdue&&Number(e.tasks_overdue)>10?'rgba(192,57,43,.2)':isWeak?'rgba(230,126,34,.15)':'var(--bd)'
+return<div key={e.user_id} style={{borderRadius:14,background:'var(--bg)',border:'1px solid '+borderClr,overflow:'hidden'}}>
+{/* Header */}
+<div style={{padding:'14px 18px',display:'flex',alignItems:'center',gap:14}}>
+<div style={{width:38,height:38,borderRadius:'50%',background:i<3?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)',border:'1.5px solid '+(i<3?'rgba(201,168,76,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?16:13,fontWeight:800,color:i<3?C.gold:'var(--tx4)',flexShrink:0}}>
+{i<3?medals[i]:'#'+(i+1)}
+</div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{e.name_ar}</div><div style={{fontSize:10,color:'var(--tx4)',marginTop:2}}>{e.role_name||'—'}{e.branch_name?' · '+e.branch_name:''}</div></div>
-<div style={{textAlign:'center'}}><div style={{fontSize:24,fontWeight:800,color:scoreColor(sc)}}>{sc}</div><div style={{fontSize:9,color:'var(--tx5)'}}>نقطة</div></div>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
+<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{e.name_ar}</span>
+{hasOverdue&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:3,background:'rgba(192,57,43,.1)',color:C.red,fontWeight:600}}>متأخرات</span>}
 </div>
-<div style={{display:'flex',gap:12,marginTop:10,flexWrap:'wrap'}}>
-{[['معاملات',e.txn_completed,C.blue],['تحصيل',num(e.amount_collected),C.ok],['مهام',e.tasks_done,C.gold],['متأخرة',e.tasks_overdue,C.red],['تصعيدات',e.escalations,'#e67e22'],['م.الأيام',e.avg_completion_days,'#9b59b6']].map(([l,v,c])=>
-<div key={l} style={{textAlign:'center',minWidth:55}}><div style={{fontSize:14,fontWeight:700,color:c}}>{v||0}</div><div style={{fontSize:9,color:'var(--tx5)'}}>{l}</div></div>)}
+<div style={{fontSize:10,color:'var(--tx4)'}}>{e.role_name||'—'}{e.branch_name?' · '+e.branch_name:''}</div>
 </div>
-</div></div>})}
+{/* Score with max */}
+<div style={{textAlign:'center',flexShrink:0,minWidth:90}}>
+<div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:2}}>
+<span style={{fontSize:26,fontWeight:900,color:scoreColor(sc)}}>{sc}</span>
+<span style={{fontSize:11,color:'var(--tx5)'}}>/ {MAX_SCORE}</span>
+</div>
+{diff!==0&&<div style={{fontSize:9,fontWeight:700,color:diff>0?C.ok:C.red,marginTop:2}}>{diff>0?'▲ +':'▼ '}{Math.abs(diff)} عن السابق</div>}
+</div>
+</div>
+{/* Progress bar */}
+<div style={{padding:'0 18px 6px'}}>
+<div style={{height:6,borderRadius:3,background:'rgba(255,255,255,.06)',overflow:'hidden'}}>
+<div style={{height:'100%',width:Math.min(100,pct)+'%',borderRadius:3,background:scoreColor(sc),transition:'width .3s'}}/>
+</div>
+<div style={{fontSize:8,color:'var(--tx5)',marginTop:3,textAlign:'left'}}>الإنتاجية {pct}%</div>
+</div>
+{/* Metrics */}
+<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.04)',background:'rgba(255,255,255,.01)'}}>
+{[['معاملات',e.txn_completed,C.blue],['تحصيل',num(e.amount_collected),C.ok],['مهام',e.tasks_done,C.gold],['متأخرة',e.tasks_overdue,Number(e.tasks_overdue)>0?C.red:'var(--tx5)'],['تصعيدات',e.escalations,Number(e.escalations)>0?'#e67e22':'var(--tx5)'],['م.الأيام',e.avg_completion_days,'#9b59b6']].map(([l,v,c],j)=>
+<div key={l} style={{flex:1,padding:'8px 4px',textAlign:'center',borderLeft:j>0?'1px solid rgba(255,255,255,.03)':'none'}}>
+<div style={{fontSize:14,fontWeight:700,color:c}}>{v||0}</div>
+<div style={{fontSize:7,color:'var(--tx5)',marginTop:2}}>{l}</div>
+</div>)}
+</div>
+</div>})}
 </div>
 </>})()}
 
-{/* ═══ ATTENDANCE TAB ═══ */}
-{tab==='attendance_tab'&&(()=>{const dayAtt=allAttendance.filter(a=>a.date===attDate);const brAtt=attBranch?dayAtt.filter(a=>a.branch_id===attBranch):dayAtt;const totalDays=allAttendance.length;const lateDays=allAttendance.filter(a=>a.is_late).length;const avgHrs=totalDays>0?(allAttendance.reduce((s,a)=>s+Number(a.work_hours||0),0)/totalDays).toFixed(1):0;const uniqueDates=[...new Set(allAttendance.map(a=>a.date))].sort().reverse().slice(0,30);return<>
-{/* Stat cards */}
-<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
-{[['إجمالي السجلات',totalDays,C.gold],['في الوقت',totalDays-lateDays,C.ok],['متأخر',lateDays,lateDays>0?C.red:'var(--tx5)'],['متوسط الساعات',avgHrs,C.blue]].map(([l,v,c],i)=><div key={i} style={{padding:14,borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.04)',textAlign:'center'}}><div style={{fontSize:22,fontWeight:900,color:c}}>{v}</div><div style={{fontSize:9,color:c,opacity:.6,marginTop:4}}>{l}</div></div>)}
+{/* ═══ ATTENDANCE TAB (Enhanced) ═══ */}
+{tab==='attendance_tab'&&(()=>{const dayAtt=allAttendance.filter(a=>a.date===attDate);const brAtt=attBranch?dayAtt.filter(a=>a.branch_id===attBranch):dayAtt
+const dayOnTime=brAtt.filter(a=>!a.is_late).length;const dayLate=brAtt.filter(a=>a.is_late).length
+const dayAvgHrs=brAtt.length>0?(brAtt.reduce((s,a)=>s+Number(a.work_hours||0),0)/brAtt.length).toFixed(1):0
+const activeUsers=users.filter(u=>u.is_active&&u.deleted_at===null&&(!attBranch||u.branch_id===attBranch))
+const absent=activeUsers.filter(u=>!brAtt.some(a=>a.user_id===u.id))
+const dayOfWeek=new Date(attDate).toLocaleDateString('en',{weekday:'short'}).toLowerCase()
+const dayNameAr={'sun':'الأحد','mon':'الاثنين','tue':'الثلاثاء','wed':'الأربعاء','thu':'الخميس','fri':'الجمعة','sat':'السبت'}
+const isHoliday=dayOfWeek==='fri'||dayOfWeek==='sat'
+return<>
+{/* Holiday alert */}
+{isHoliday&&brAtt.length===0&&<div style={{padding:'12px 18px',borderRadius:12,background:'rgba(201,168,76,.06)',border:'1px solid rgba(201,168,76,.12)',marginBottom:16,display:'flex',alignItems:'center',gap:8}}>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+<span style={{fontSize:12,fontWeight:600,color:C.gold}}>يوم إجازة — {dayNameAr[dayOfWeek]||dayOfWeek}</span>
+</div>}
+{/* Dynamic Stat cards */}
+<div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,marginBottom:20}}>
+{[['الحاضرين',brAtt.length,C.ok],['في الوقت',dayOnTime,C.ok],['متأخر',dayLate,dayLate>0?'#e67e22':'var(--tx5)'],['غائب',absent.length,absent.length>0?C.red:'var(--tx5)'],['متوسط الساعات',dayAvgHrs,C.blue]].map(([l,v,c],i)=><div key={i} style={{padding:12,borderRadius:10,background:c==='var(--tx5)'?'rgba(255,255,255,.02)':c+'06',border:'1px solid '+(c==='var(--tx5)'?'rgba(255,255,255,.04)':c+'12'),textAlign:'center'}}><div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div><div style={{fontSize:8,color:c,opacity:.7,marginTop:4}}>{l}</div></div>)}
 </div>
 {/* Filters */}
 <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
@@ -500,20 +560,43 @@ return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 <select value={attBranch||''} onChange={e=>setAttBranch(e.target.value||null)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
 <option value="">كل المكاتب</option>{branches.map(b=><option key={b.id} value={b.id}>{b.name_ar}</option>)}
 </select>
-<span style={{fontSize:11,color:'var(--tx4)'}}>{brAtt.length} سجل في {attDate}</span>
+<span style={{fontSize:10,color:'var(--tx5)'}}>|</span>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)'}}>{dayNameAr[dayOfWeek]||''} · {brAtt.length} حاضر · {absent.length} غائب</span>
 </div>
-{/* Table */}
-{brAtt.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد سجل حضور لهذا اليوم</div>:
-<div style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,overflow:'hidden'}}>
-<table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
-<thead><tr style={{background:'rgba(255,255,255,.03)'}}>{['الموظف','الدخول','الخروج','الساعات','الحالة'].map((h,i)=><th key={i} style={{padding:'10px 14px',fontSize:10,fontWeight:600,color:'var(--tx4)',textAlign:i===4?'center':'right'}}>{h}</th>)}</tr></thead>
-<tbody>{brAtt.map(a=>{const u=users.find(x=>x.id===a.user_id);const cin=a.check_in_at?new Date(a.check_in_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const cout=a.check_out_at?new Date(a.check_out_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';return<tr key={a.id} style={{borderBottom:'1px solid rgba(255,255,255,.03)'}}>
-<td style={{padding:'10px 14px'}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx2)'}}>{u?.name_ar||'—'}</div>{u?.roles&&<div style={{fontSize:9,color:u.roles.color||'var(--tx5)'}}>{u.roles.name_ar}</div>}</td>
-<td style={{padding:'10px 14px',fontSize:12,color:'var(--tx3)',direction:'ltr'}}>{cin}</td>
-<td style={{padding:'10px 14px',fontSize:12,color:'var(--tx3)',direction:'ltr'}}>{cout}</td>
-<td style={{padding:'10px 14px',fontSize:13,fontWeight:700,color:C.gold}}>{Number(a.work_hours||0).toFixed(1)}</td>
-<td style={{padding:'10px 14px',textAlign:'center'}}>{a.is_late?<span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(230,126,34,.1)',color:'#e67e22',fontWeight:600}}>+{a.late_minutes}د</span>:<span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(39,160,70,.1)',color:C.ok}}>✓</span>}</td>
-</tr>})}</tbody></table></div>}
+{/* Attendance Cards */}
+{brAtt.length===0&&!isHoliday?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد سجل حضور لهذا اليوم</div>:
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{/* Present employees */}
+{brAtt.map(a=>{const u=users.find(x=>x.id===a.user_id);const rc=u?.roles?.color||C.gold;const cin=a.check_in_at?new Date(a.check_in_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const cout=a.check_out_at?new Date(a.check_out_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const isLate=a.is_late
+return<div key={a.id} style={{borderRadius:12,background:'var(--bg)',border:'1px solid '+(isLate?'rgba(230,126,34,.15)':'var(--bd)'),overflow:'hidden'}}>
+<div style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
+<div style={{width:38,height:38,borderRadius:10,background:rc+'15',border:'1px solid '+rc+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:800,color:rc,flexShrink:0}}>{(u?.name_ar||'?')[0]}</div>
+<div style={{flex:1}}>
+<div style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{u?.name_ar||'—'}</div>
+<div style={{fontSize:9,color:'var(--tx4)',marginTop:2}}>{u?.roles?.name_ar||'—'}{a.branch_id?' · '+(branches.find(b=>b.id===a.branch_id)?.name_ar||''):''}</div>
+</div>
+<span style={{fontSize:10,padding:'3px 10px',borderRadius:6,background:isLate?'rgba(230,126,34,.1)':'rgba(39,160,70,.1)',color:isLate?'#e67e22':C.ok,fontWeight:700}}>{isLate?'⏰ متأخر '+a.late_minutes+' د':'✓ في الوقت'}</span>
+</div>
+<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.04)',background:'rgba(255,255,255,.01)'}}>
+{[['الدخول',cin,C.ok],['الخروج',cout,C.blue],['الساعات',Number(a.work_hours||0).toFixed(1)+' ساعة',C.gold],['الحالة',isLate?'+'+a.late_minutes+' دقيقة':'في الوقت',isLate?'#e67e22':C.ok]].map(([l,v,c],j)=>
+<div key={l} style={{flex:1,padding:'8px 10px',textAlign:'center',borderLeft:j>0?'1px solid rgba(255,255,255,.03)':'none'}}>
+<div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{l}</div>
+<div style={{fontSize:11,fontWeight:700,color:c,direction:'ltr'}}>{v}</div>
+</div>)}
+</div>
+{a.check_in_distance_meters&&<div style={{padding:'4px 16px 6px',fontSize:9,color:'var(--tx5)'}}>📍 المسافة: {a.check_in_distance_meters}م من الموقع المحدد</div>}
+</div>})}
+{/* Absent employees */}
+{absent.length>0&&!isHoliday&&<>
+<div style={{fontSize:11,fontWeight:700,color:C.red,marginTop:12,marginBottom:6,paddingBottom:6,borderBottom:'1px solid rgba(192,57,43,.12)'}}>غائبين ({absent.length})</div>
+{absent.slice(0,10).map(u=>{const rc=u.roles?.color||'#999';return<div key={u.id} style={{padding:'10px 16px',borderRadius:10,background:'rgba(192,57,43,.02)',border:'1px solid rgba(192,57,43,.06)',display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:32,height:32,borderRadius:8,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:C.red,flexShrink:0}}>{(u.name_ar||'?')[0]}</div>
+<div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx3)'}}>{u.name_ar}</div><div style={{fontSize:9,color:'var(--tx5)'}}>{u.roles?.name_ar||'—'}</div></div>
+<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(192,57,43,.08)',color:C.red,fontWeight:600}}>✕ غائب</span>
+</div>})}
+{absent.length>10&&<div style={{textAlign:'center',fontSize:10,color:'var(--tx5)',padding:8}}>+ {absent.length-10} موظفين آخرين</div>}
+</>}
+</div>}
 </>})()}
 
 {/* ═══ EMPLOYEE DETAIL SIDE PANEL ═══ */}
