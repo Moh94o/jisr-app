@@ -971,7 +971,7 @@ flds:[
 <style>{'aside nav::-webkit-scrollbar{display:none}'}</style>
 <div style={{display:'flex',flexDirection:'column',gap:3}}>
 {nav.map((n,i)=>{
-const isActive=pg===n.id||(n.id==='workforce'&&['facilities','workers','compliance','worker_leaves'].includes(pg))||(n.id==='operations'&&['transactions_internal','transactions_external','tasks','sla_monitor','workflow','transfer_calc'].includes(pg))||(n.id==='finance_hub'&&['invoices','payments','pricing_calc','cash_flow','audit','op_expenses','budget','ext_payments','data_import'].includes(pg))||(n.id==='clients_hub'&&['clients','brokers','providers','client_statement','profitability','nps','contracts'].includes(pg))||(n.id==='manpower_hub'&&['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg))||(n.id==='messaging_hub'&&['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg))||(n.id==='admin_hub'&&['admin_offices','attendance','approvals','activity_log','auto_alerts','archive','suppliers'].includes(pg))||(n.id==='reports_hub'&&['report_periodic','emp_performance','branch_compare','live_monitor','weekly_report','invoice_followups','report_alerts','report_performance'].includes(pg))||(n.id==='settings'&&(pg==='settings'||pg==='workflow'))
+const isActive=pg===n.id||(n.id==='workforce'&&['facilities','workers','compliance','worker_leaves'].includes(pg))||(n.id==='operations'&&['transactions_internal','transactions_external','tasks','sla_monitor','workflow','transfer_calc'].includes(pg))||(n.id==='finance_hub'&&['invoices','payments','pricing_calc','cash_flow','audit','op_expenses','budget','ext_payments','data_import'].includes(pg))||(n.id==='clients_hub'&&['clients','brokers','providers','client_statement','profitability','nps','contracts'].includes(pg))||(n.id==='manpower_hub'&&['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg))||(n.id==='messaging_hub'&&['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg))||(n.id==='admin_hub'&&['admin_offices','attendance','approvals','activity_log','auto_alerts','archive','suppliers'].includes(pg))||(n.id==='reports_hub'&&['report_periodic','emp_performance','branch_compare','live_monitor','weekly_report','invoice_followups','report_alerts','report_performance'].includes(pg))||(n.id==='settings'&&pg==='settings')
 const isSep=n.id==='settings'
 return<div key={n.id}>
 {isSep&&<div style={{height:1,background:'rgba(255,255,255,.06)',margin:'8px 14px'}}/>}
@@ -1113,7 +1113,7 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {(()=>{
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities')},{id:'workers',l:T('العمالة','Workers')},{id:'compliance',l:T('الامتثال','Compliance')}],
-  operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')},{id:'transfer_calc',l:T('نقل الكفالة','Transfer')}],
+  operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')},{id:'transfer_calc',l:T('حاسبة نقل الكفالة','Transfer Calc')}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'payments',l:T('المدفوعات','Payments')},{id:'pricing_calc',l:T('التسعير','Pricing')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'op_expenses',l:T('المصاريف','Expenses')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('الاستيراد','Import')}],
   clients_hub:[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'contracts',l:T('العقود','Contracts')},{id:'client_statement',l:T('كشف حساب','Statement')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}],
   admin_hub:[{id:'admin_offices',l:T('المكاتب والموظفين','Offices & Staff')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'archive',l:T('الأرشيف','Archive')},{id:'suppliers',l:T('الموردين','Suppliers')},{id:'activity_log',l:T('السجل','Log')}],
@@ -1192,13 +1192,7 @@ return<div>
 </>}
 
 {/* ═══ الإعدادات ═══ */}
-{(pg==='settings'||pg==='workflow')&&<>
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}} className="dash-content">
-{[{id:'settings',l:T('الإعدادات','Settings')},{id:'workflow',l:T('الأتمتة','Automation')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'8px 14px',fontSize:11,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.35)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap',transition:'.15s'}}>{t.l}</div>)}
-</div>
 {pg==='settings'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
-{pg==='workflow'&&<WorkflowPage sb={sb} toast={tt} user={user} lang={lang}/>}
-</>}
 {pg==='kpi'&&<KPIPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='calendar_unified'&&<CalendarPage sb={sb} toast={tt} user={user} lang={lang} onNavigate={setPage}/>}
 {(pg==='installments'||pg==='expenses')&&pageConf&&<CrudPage sb={sb} user={user} conf={pageConf} toast={tt} onRefresh={loadStats} lang={lang}/>}
