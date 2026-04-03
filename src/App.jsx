@@ -21,6 +21,7 @@ import WorkflowPage from './WorkflowPage.jsx'
 import MessagingPage from './MessagingPage.jsx'
 import ManpowerPage from './ManpowerPage.jsx'
 import { ContractsPage, ArchivePage, SuppliersPage, WorkerLeavesPage, BudgetPage } from './ComplianceSuitePage.jsx'
+import DataImportPage from './DataImportPage.jsx'
 import BranchComparisonPage from './BranchComparisonPage.jsx'
 import NPSPage from './NPSPage.jsx'
 import AttendancePage from './AttendancePage.jsx'
@@ -970,7 +971,7 @@ flds:[
 <style>{'aside nav::-webkit-scrollbar{display:none}'}</style>
 <div style={{display:'flex',flexDirection:'column',gap:3}}>
 {nav.map((n,i)=>{
-const isActive=pg===n.id||(n.id==='workforce'&&['facilities','workers','compliance','worker_leaves'].includes(pg))||(n.id==='operations'&&['transactions_internal','transactions_external','tasks','sla_monitor','workflow','transfer_calc'].includes(pg))||(n.id==='finance_hub'&&['invoices','payments','pricing_calc','cash_flow','audit','op_expenses','budget','ext_payments'].includes(pg))||(n.id==='clients_hub'&&['clients','brokers','providers','client_statement','profitability','nps','contracts'].includes(pg))||(n.id==='manpower_hub'&&['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg))||(n.id==='messaging_hub'&&['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg))||(n.id==='admin_hub'&&['admin_offices','admin_staff','attendance','approvals','activity_log','auto_alerts','archive','suppliers'].includes(pg))||(n.id==='reports_hub'&&['report_periodic','emp_performance','branch_compare','live_monitor','weekly_report','invoice_followups','report_alerts','report_performance'].includes(pg))||(n.id==='settings'&&pg==='settings')
+const isActive=pg===n.id||(n.id==='workforce'&&['facilities','workers','compliance','worker_leaves'].includes(pg))||(n.id==='operations'&&['transactions_internal','transactions_external','tasks','sla_monitor','workflow','transfer_calc'].includes(pg))||(n.id==='finance_hub'&&['invoices','payments','pricing_calc','cash_flow','audit','op_expenses','budget','ext_payments','data_import'].includes(pg))||(n.id==='clients_hub'&&['clients','brokers','providers','client_statement','profitability','nps','contracts'].includes(pg))||(n.id==='manpower_hub'&&['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg))||(n.id==='messaging_hub'&&['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg))||(n.id==='admin_hub'&&['admin_offices','admin_staff','attendance','approvals','activity_log','auto_alerts','archive','suppliers'].includes(pg))||(n.id==='reports_hub'&&['report_periodic','emp_performance','branch_compare','live_monitor','weekly_report','invoice_followups','report_alerts','report_performance'].includes(pg))||(n.id==='settings'&&pg==='settings')
 const isSep=n.id==='settings'
 return<div key={n.id}>
 {isSep&&<div style={{height:1,background:'rgba(255,255,255,.06)',margin:'8px 14px'}}/>}
@@ -1132,9 +1133,9 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 </>}
 
 {/* ═══ HUB: المالية ═══ */}
-{['invoices','payments','ext_payments','pricing_calc','cash_flow','audit','op_expenses','budget'].includes(pg)&&<>
+{['invoices','payments','ext_payments','pricing_calc','cash_flow','audit','op_expenses','budget','data_import'].includes(pg)&&<>
 <div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto'}} className="dash-content">
-{[{id:'invoices',l:T('الفواتير','Invoices')},{id:'payments',l:T('المدفوعات','Payments')},{id:'pricing_calc',l:T('التسعير','Pricing')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'op_expenses',l:T('المصاريف','Expenses')},{id:'budget',l:T('الميزانية','Budget')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'10px 16px',fontSize:12,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</div>)}
+{[{id:'invoices',l:T('الفواتير','Invoices')},{id:'payments',l:T('المدفوعات','Payments')},{id:'pricing_calc',l:T('التسعير','Pricing')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'op_expenses',l:T('المصاريف','Expenses')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('📥 الاستيراد','📥 Import')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'10px 16px',fontSize:12,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</div>)}
 </div>
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
@@ -1144,6 +1145,7 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {pg==='audit'&&<AuditPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='op_expenses'&&<OpExpensesPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='budget'&&<BudgetPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='data_import'&&<DataImportPage sb={sb} toast={tt} user={user} lang={lang}/>}
 </>}
 
 {/* ═══ HUB: العملاء والحسابات ═══ */}
