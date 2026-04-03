@@ -71,6 +71,13 @@ const[step,setStep]=useState(1)
 const[permPop,setPermPop]=useState(null)
 const[permSaving,setPermSaving]=useState(false)
 const[selPerms,setSelPerms]=useState([])
+const[viewUser,setViewUser]=useState(null)
+const[userTab,setUserTab]=useState('data')
+const[attendance,setAttendance]=useState([])
+const[loginLogs,setLoginLogs]=useState([])
+const[empLangs,setEmpLangs]=useState([])
+const[empSpecs,setEmpSpecs]=useState([])
+const[userTasks,setUserTasks]=useState([])
 
 useEffect(()=>{onTabChange&&onTabChange({tab,svcSubTab:tab})},[tab,onTabChange])
 
@@ -92,6 +99,14 @@ setBranches(br.data||[]);setUsers(us.data||[]);setRoles(rl.data||[]);setPerms(pm
 setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
+useEffect(()=>{if(!viewUser||!sb)return;const uid=viewUser.id
+Promise.all([
+sb.from('attendance').select('*').eq('user_id',uid).order('date',{ascending:false}).limit(20),
+sb.from('login_log').select('*').eq('user_id',uid).order('created_at',{ascending:false}).limit(10),
+sb.from('employee_languages').select('*').eq('user_id',uid),
+sb.from('employee_specialties').select('*').eq('user_id',uid),
+sb.from('task_assignees').select('*,tasks:task_id(title,status,priority,due_date)').eq('user_id',uid)
+]).then(([at,ll,el,es,ta])=>{setAttendance(at.data||[]);setLoginLogs(ll.data||[]);setEmpLangs(el.data||[]);setEmpSpecs(es.data||[]);setUserTasks((ta.data||[]).filter(t=>t.tasks))})},[viewUser,sb])
 
 const saveForm=async()=>{setSaving(true);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
 if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
@@ -377,7 +392,7 @@ if(!q)return true;const s=q.toLowerCase();return(u.name_ar||'').includes(s)||(u.
 {/* Employee Cards Grid */}
 {filtUsers.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد موظفين</div>:
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(380px,1fr))',gap:14}}>
-{filtUsers.map(u=>{const br=branches.find(b=>b.id===u.branch_id);const rc=roleClrs[u.roles?.name_ar]||u.roles?.color||'#888';const yrs=u.experience_years||Math.max(0,new Date().getFullYear()-(u.hire_date?new Date(u.hire_date).getFullYear():new Date().getFullYear()));return<div key={u.id} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden',borderRight:'3px solid '+rc}}>
+{filtUsers.map(u=>{const br=branches.find(b=>b.id===u.branch_id);const rc=roleClrs[u.roles?.name_ar]||u.roles?.color||'#888';const yrs=u.experience_years||Math.max(0,new Date().getFullYear()-(u.hire_date?new Date(u.hire_date).getFullYear():new Date().getFullYear()));return<div key={u.id} onClick={()=>{setViewUser(u);setUserTab('data')}} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden',borderRight:'3px solid '+rc,cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.2)'} onMouseLeave={e=>e.currentTarget.style.borderColor='var(--bd)'}>
 {/* Header */}
 <div style={{padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
 <div style={{width:44,height:44,borderRadius:12,background:rc+'15',border:'1px solid '+rc+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:rc,flexShrink:0}}>{(u.name_ar||'?')[0]}</div>
@@ -439,6 +454,92 @@ return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 </div>})}
 </div>
 </>})()}
+
+{/* ═══ EMPLOYEE DETAIL SIDE PANEL ═══ */}
+{viewUser&&(()=>{const u=viewUser;const br=branches.find(b=>b.id===u.branch_id);const rc=u.roles?.color||C.gold;const activeTasks=userTasks.filter(t=>t.tasks&&t.tasks.status!=='completed'&&t.tasks.status!=='cancelled');const completedTasks=userTasks.filter(t=>t.tasks&&t.tasks.status==='completed');const attDays=attendance.length;const onTime=attendance.filter(a=>!a.is_late).length;const lateDays=attendance.filter(a=>a.is_late).length;const avgHrs=attDays>0?(attendance.reduce((s,a)=>s+Number(a.work_hours||0),0)/attDays).toFixed(1):0;const SH3=({t,c})=><div style={{fontSize:12,fontWeight:700,color:c||C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid '+(c||C.gold)+'20'}}>{t}</div>;const priClr={urgent:C.red,high:'#e67e22',medium:C.gold,low:C.ok};const priLbl={urgent:'عاجل',high:'عالي',medium:'متوسط',low:'منخفض'};const stLbl={in_progress:'جاري',pending:'معلّق',completed:'مكتمل',cancelled:'ملغى'}
+const utabs=[{id:'data',l:'البيانات'},{id:'tasks',l:'المهام',n:activeTasks.length},{id:'attend',l:'الحضور',n:attDays},{id:'logins',l:'سجل الدخول',n:loginLogs.length}]
+return<div onClick={()=>setViewUser(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(920px,95vw)',height:'min(650px,88vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid rgba(201,168,76,.15)'}}>
+{/* Header */}
+<div style={{background:'var(--bg)',padding:'18px 24px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',borderBottom:'1px solid rgba(201,168,76,.12)',flexShrink:0}}>
+<div style={{display:'flex',gap:12,alignItems:'center'}}>
+<div style={{width:48,height:48,borderRadius:14,background:rc+'15',border:'1.5px solid '+rc+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:800,color:rc}}>{(u.name_ar||'?')[0]}</div>
+<div>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><span style={{fontSize:18,fontWeight:800,color:'var(--tx)'}}>{u.name_ar}</span><span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:u.is_active?'rgba(39,160,70,.1)':'rgba(153,153,153,.1)',color:u.is_active?C.ok:'#999',fontWeight:700}}>{u.is_active?'نشط':'معطّل'}</span></div>
+{u.name_en&&<div style={{fontSize:12,color:'var(--tx4)',direction:'ltr'}}>{u.name_en}</div>}
+<div style={{display:'flex',gap:4,marginTop:4}}>{u.roles&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:rc+'15',color:rc,fontWeight:700}}>{u.roles.name_ar}</span>}{br&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(52,131,180,.08)',color:C.blue}}>{br.name_ar}</span>}{u.is_super_admin&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(201,168,76,.1)',color:C.gold}}>نظامي</span>}</div>
+</div></div>
+<div style={{display:'flex',gap:6}}>
+<button onClick={()=>{setViewUser(null);setForm({_table:'users',_id:u.id,name_ar:u.name_ar||'',name_en:u.name_en||'',email:u.email||'',phone:u.phone||'',id_number:u.id_number||'',nationality:u.nationality||'',role_id:u.role_id||'',branch_id:u.branch_id||'',is_active:String(u.is_active!==false),notes:u.notes||''});setPop('edit_user')}} style={{height:32,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.08)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>تعديل</button>
+<button onClick={()=>setViewUser(null)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+</div></div>
+{/* Body */}
+<div style={{flex:1,display:'flex',overflow:'hidden'}}>
+<div style={{width:140,background:'var(--bg)',borderLeft:'1px solid var(--bd2)',padding:'12px 6px',flexShrink:0,overflowY:'auto',scrollbarWidth:'none'}}>
+{utabs.map(t=><div key={t.id} onClick={()=>setUserTab(t.id)} style={{padding:'10px 10px',borderRadius:8,marginBottom:3,fontSize:11,fontWeight:userTab===t.id?700:500,color:userTab===t.id?C.gold:'var(--tx4)',background:userTab===t.id?'rgba(201,168,76,.08)':'transparent',border:userTab===t.id?'1px solid rgba(201,168,76,.12)':'1px solid transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'.15s'}}>
+<span>{t.l}</span>{t.n!==undefined&&t.n>0&&<span style={{fontSize:9,fontWeight:700,color:userTab===t.id?C.gold:'var(--tx6)',background:userTab===t.id?'rgba(201,168,76,.15)':'rgba(255,255,255,.04)',padding:'1px 6px',borderRadius:4,minWidth:18,textAlign:'center'}}>{t.n}</span>}
+</div>)}
+</div>
+<div style={{flex:1,overflowY:'auto',padding:'20px 24px',scrollbarWidth:'none'}}>
+
+{/* TAB 1: البيانات */}
+{userTab==='data'&&<div style={{display:'flex',flexDirection:'column',gap:18}}>
+<div><SH3 t="البيانات الشخصية" c={C.gold}/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><IB l="الاسم بالعربي" v={u.name_ar} toast={toast}/><IB l="بالإنجليزي" v={u.name_en} toast={toast}/><IB l="رقم الهوية" v={u.id_number} copy toast={toast}/><IB l="الجنسية" v={u.nationality} toast={toast}/></div><div style={{display:'grid',gridTemplateColumns:'1fr',gap:10,marginTop:8}}><IB l="الإيميل" v={u.email} copy toast={toast}/><IB l="الجوال" v={u.phone} copy toast={toast}/></div></div>
+<div><SH3 t="الوظيفة" c="#e67e22"/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{u.roles&&<div style={{background:rc+'08',borderRadius:10,padding:'14px 16px',border:'1px solid '+rc+'15',borderRight:'3px solid '+rc}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>الدور</div><div style={{fontSize:14,fontWeight:700,color:rc}}>{u.roles.name_ar}</div></div>}<IB l="الفرع" v={br?.name_ar} toast={toast}/><IB l="تاريخ التعيين" v={u.hire_date} toast={toast}/><IB l="سنوات الخبرة" v={u.experience_years?u.experience_years+' سنوات':null} toast={toast}/><IB l="الحد الأقصى للمعاملات" v={u.max_concurrent_transactions} toast={toast}/>{u.is_all_branches?<div style={{background:'rgba(201,168,76,.06)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(201,168,76,.1)',borderRight:'3px solid '+C.gold}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>الفروع</div><div style={{fontSize:14,fontWeight:700,color:C.gold}}>كل الفروع</div></div>:null}</div></div>
+{empLangs.length>0&&<div><SH3 t="اللغات" c={C.blue}/><div style={{display:'flex',flexDirection:'column',gap:6}}>{empLangs.map(l=><div key={l.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 14px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><span style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{l.language}</span><span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:l.proficiency==='native'?'rgba(39,160,70,.1)':'rgba(230,126,34,.1)',color:l.proficiency==='native'?C.ok:'#e67e22',fontWeight:600}}>{l.proficiency==='native'?'لغة أم':l.proficiency==='advanced'?'متقدم':l.proficiency==='intermediate'?'متوسط':'مبتدئ'}</span></div>)}</div></div>}
+{empSpecs.length>0&&<div><SH3 t="التخصصات" c={C.ok}/><div style={{display:'flex',flexDirection:'column',gap:6}}>{empSpecs.map(s=><div key={s.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 14px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div><div style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{s.service_name||'تخصص'}</div><div style={{fontSize:9,color:'var(--tx5)',marginTop:2}}>مستوى: {s.skill_level==='expert'?'خبير':s.skill_level==='advanced'?'متقدم':'متوسط'}</div></div>{s.certified&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(39,160,70,.1)',color:C.ok,fontWeight:600}}>✓ معتمد</span>}</div>)}</div></div>}
+</div>}
+
+{/* TAB 2: المهام */}
+{userTab==='tasks'&&<div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+<div style={{padding:14,borderRadius:10,background:'rgba(52,131,180,.04)',border:'1px solid rgba(52,131,180,.08)',textAlign:'center'}}><div style={{fontSize:24,fontWeight:900,color:C.blue}}>{activeTasks.length}</div><div style={{fontSize:9,color:C.blue,opacity:.6,marginTop:4}}>مهام نشطة</div></div>
+<div style={{padding:14,borderRadius:10,background:'rgba(39,160,70,.04)',border:'1px solid rgba(39,160,70,.08)',textAlign:'center'}}><div style={{fontSize:24,fontWeight:900,color:C.ok}}>{completedTasks.length}</div><div style={{fontSize:9,color:C.ok,opacity:.6,marginTop:4}}>مكتملة هذا الشهر</div></div>
+</div>
+{activeTasks.length===0&&completedTasks.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا توجد مهام</div>:
+<div style={{display:'flex',flexDirection:'column',gap:6}}>
+{activeTasks.map(ta=>{const t=ta.tasks;const pc=priClr[t.priority]||C.gold;return<div key={ta.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.03)',borderRight:'3px solid '+pc}}>
+<div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx2)',marginBottom:3}}>{t.title}</div><div style={{display:'flex',gap:6,alignItems:'center'}}><span style={{fontSize:9,color:pc,fontWeight:700}}>{priLbl[t.priority]||t.priority}</span><span style={{fontSize:9,color:'var(--tx5)'}}>الاستحقاق: {t.due_date||'—'}</span></div></div>
+<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:t.status==='in_progress'?'rgba(52,131,180,.1)':'rgba(230,126,34,.1)',color:t.status==='in_progress'?C.blue:'#e67e22',fontWeight:600}}>{stLbl[t.status]||t.status}</span>
+</div>})}
+</div>}
+</div>}
+
+{/* TAB 3: الحضور */}
+{userTab==='attend'&&<div>
+<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
+{[[attDays,'أيام حضور',C.gold],[onTime,'في الوقت',C.ok],[lateDays,'متأخر',lateDays>0?C.red:'var(--tx5)'],[avgHrs,'متوسط ساعات',C.blue]].map(([v,l,c],i)=><div key={i} style={{padding:12,borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.04)',textAlign:'center'}}><div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div><div style={{fontSize:8,color:c,opacity:.6,marginTop:4}}>{l}</div></div>)}
+</div>
+{attendance.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد سجل حضور</div>:
+<div style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,overflow:'hidden'}}>
+<table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
+<thead><tr style={{background:'rgba(255,255,255,.03)'}}>{['التاريخ','الدخول','الخروج','الساعات','الحالة'].map((h,i)=><th key={i} style={{padding:'10px 14px',fontSize:10,fontWeight:600,color:'var(--tx4)',textAlign:i===4?'center':'right'}}>{h}</th>)}</tr></thead>
+<tbody>{attendance.slice(0,15).map(a=>{const cin=a.check_in_at?new Date(a.check_in_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const cout=a.check_out_at?new Date(a.check_out_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';return<tr key={a.id} style={{borderBottom:'1px solid rgba(255,255,255,.03)'}}>
+<td style={{padding:'8px 14px',fontSize:11,color:'var(--tx3)'}}>{a.date}</td>
+<td style={{padding:'8px 14px',fontSize:11,color:'var(--tx3)',direction:'ltr'}}>{cin}</td>
+<td style={{padding:'8px 14px',fontSize:11,color:'var(--tx3)',direction:'ltr'}}>{cout}</td>
+<td style={{padding:'8px 14px',fontSize:12,fontWeight:700,color:C.gold}}>{Number(a.work_hours||0).toFixed(1)}</td>
+<td style={{padding:'8px 14px',textAlign:'center'}}>{a.is_late?<span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(230,126,34,.1)',color:'#e67e22',fontWeight:600}}>+{a.late_minutes}د</span>:<span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(39,160,70,.1)',color:C.ok}}>✓</span>}</td>
+</tr>})}</tbody></table></div>}
+</div>}
+
+{/* TAB 4: سجل الدخول */}
+{userTab==='logins'&&<div>
+<div style={{fontSize:11,color:'var(--tx4)',marginBottom:14}}>آخر {loginLogs.length} عمليات دخول</div>
+{loginLogs.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد سجل</div>:
+<div style={{display:'flex',flexDirection:'column',gap:6}}>
+{loginLogs.map(l=>{const ua=l.user_agent||'';const isMobile=ua.includes('iPhone')||ua.includes('Android');const browser=ua.includes('Safari')&&!ua.includes('Chrome')?'Safari':ua.includes('Chrome')?'Chrome':ua.includes('Firefox')?'Firefox':'Other';const os=ua.includes('iPhone')?'iPhone':ua.includes('Android')?'Android':ua.includes('Windows')?'Windows':ua.includes('Mac')?'Mac':'Other';const ip=(l.ip_address||'').replace(/\d+\.\d+$/,'xx.xx');return<div key={l.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.03)'}}>
+<div style={{width:8,height:8,borderRadius:'50%',background:l.success?C.ok:C.red,flexShrink:0}}/>
+<div style={{flex:1}}>
+<div style={{fontSize:12,fontWeight:600,color:l.success?'var(--tx2)':C.red}}>{browser} / {os}</div>
+<div style={{fontSize:9,color:'var(--tx5)',direction:'ltr',marginTop:2}}>{ip} · {l.created_at?new Date(l.created_at).toLocaleString('en',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):''}</div>
+</div>
+<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:l.success?'rgba(39,160,70,.1)':'rgba(230,126,34,.1)',color:l.success?C.ok:'#e67e22',fontWeight:600}}>{l.success?'ناجح':'فشل'}</span>
+</div>})}
+</div>}
+</div>}
+
+</div></div></div></div>})()}
 
 {/* ═══ VIEW BRANCH POPUP ═══ */}
 {viewPop&&(()=>{const bUsers=users.filter(u=>u.branch_id===viewPop.id);const bAccs=bankAccs.filter(a=>a.branch_id===viewPop.id);const typeMap={deposit:{l:'إيداع',c:C.gold},sadad:{l:'سداد',c:C.blue},international:{l:'حوالات خارجية',c:C.ok}}
