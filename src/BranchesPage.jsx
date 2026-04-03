@@ -125,7 +125,9 @@ function ExpenseInfo({ amount, date, sadad, count, label, color }) {
    ═══════════════════════════════════════════════════════════════ */
 function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, contracts, bills, docs, toast, T }) {
   const [viewTab, setViewTab] = useState('info');
+  const [openUtil, setOpenUtil] = useState(null);
   if (!viewRow) return null;
+  const now = new Date();
   const bU = users.filter(u => u.branch_id === viewRow.branch_id);
   const bB = banks.filter(a => a.branch_id === viewRow.branch_id);
   const brContracts = contracts.filter(c => c.branch_id === viewRow.branch_id);
@@ -134,26 +136,34 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
   const elecC = brContracts.filter(c => c.contract_type === 'electricity');
   const netC = brContracts.filter(c => c.contract_type === 'internet');
   const waterC = brContracts.filter(c => c.contract_type === 'water');
+  const totalContracts = brContracts.length;
+  const licDays = viewRow.license_expiry_date ? Math.ceil((new Date(viewRow.license_expiry_date) - now) / 86400000) : null;
+  const cdDays = viewRow.civil_defense_expiry ? Math.ceil((new Date(viewRow.civil_defense_expiry) - now) / 86400000) : null;
+  const dClr = d => d === null ? '#555' : d < 0 ? C.red : d < 30 ? '#e67e22' : d < 90 ? '#e8c547' : C.ok;
+  const totalBalance = bB.reduce((s, a) => s + Number(a.current_balance || 0), 0);
+  const dayNames = { sat: 'السبت', sun: 'الأحد', mon: 'الاثنين', tue: 'الثلاثاء', wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة' };
+  const SH = ({ t, c }) => <div style={{ fontSize: 12, fontWeight: 700, color: c || C.gold, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid ' + (c || C.gold) + '20' }}>{t}</div>;
+  const HealthBar = ({ days, label }) => { const c = dClr(days); const pct = days === null ? 0 : days < 0 ? 0 : Math.min(100, days / 365 * 100); return <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: c + '08', border: '1px solid ' + c + '15' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}><span style={{ fontSize: 11, fontWeight: 700, color: c }}>{label}</span><span style={{ fontSize: 12, fontWeight: 800, color: c }}>{days === null ? '—' : days < 0 ? 'منتهية!' : days + ' يوم متبقي'}</span></div><div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}><div style={{ height: '100%', width: pct + '%', borderRadius: 3, background: c, transition: 'width .3s' }} /></div></div>; };
+  const roleClr = { 'المدير العام': '#e8c547', 'مدير فرع': '#85B7EB', 'محاسب': '#AFA9EC', 'موظف استقبال': '#5DCAA5' };
   const vt = [
-    { id: 'info', l: 'البيانات' }, { id: 'licenses', l: 'الرخص' }, { id: 'safety', l: 'السلامة' },
-    { id: 'rent', l: 'الإيجار', n: rentC.length }, { id: 'electricity', l: 'الكهرباء', n: elecC.length },
-    { id: 'internet', l: 'الإنترنت', n: netC.length }, { id: 'water', l: 'الماء', n: waterC.length },
+    { id: 'info', l: 'البيانات' }, { id: 'permits', l: 'التراخيص' },
+    { id: 'utilities', l: 'المرافق', n: totalContracts },
     { id: 'staff', l: 'الموظفين', n: bU.length }, { id: 'stats', l: 'الإحصائيات' },
     { id: 'banks', l: 'الحسابات', n: bB.length }
   ];
 
   return <div onClick={() => setViewRow(null)} style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg,rgba(14,14,14,.8))', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 16 }}>
-    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(900px,95vw)', height: 'min(600px,88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.4)', border: '1px solid rgba(201,168,76,.15)' }}>
+    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(920px,95vw)', height: 'min(650px,88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.4)', border: '1px solid rgba(201,168,76,.15)' }}>
       {/* Header */}
       <div style={{ background: 'var(--bg)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(201,168,76,.12)', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(201,168,76,.1)', border: '1.5px solid rgba(201,168,76,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" /></svg>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: viewRow.is_active !== false ? 'rgba(39,160,70,.08)' : 'rgba(153,153,153,.08)', border: '1.5px solid ' + (viewRow.is_active !== false ? 'rgba(39,160,70,.12)' : 'rgba(153,153,153,.1)'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={viewRow.is_active !== false ? C.ok : '#999'} strokeWidth="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" /></svg>
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>{viewRow.name_ar}</div>
-              <StatusBadge status={viewRow.municipal_license_status} alert={viewRow.license_alert} />
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: viewRow.is_active !== false ? 'rgba(39,160,70,.1)' : 'rgba(153,153,153,.1)', color: viewRow.is_active !== false ? C.ok : '#999' }}>{viewRow.is_active !== false ? 'نشط' : 'معطّل'}</span>
             </div>
             {viewRow.name_en && <div style={{ fontSize: 12, color: 'var(--tx4)', direction: 'ltr' }}>{viewRow.name_en}</div>}
             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
@@ -164,112 +174,135 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={() => openEdit(viewRow)} style={{ height: 32, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.08)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>تعديل</button>
-          <button onClick={() => del(viewRow.branch_id)} style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(192,57,43,.15)', background: 'rgba(192,57,43,.04)', color: C.red, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>حذف</button>
           <button onClick={() => setViewRow(null)} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--hoverBg)', border: '1px solid var(--bd)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
       </div>
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div style={{ width: 160, background: 'var(--bg)', borderLeft: '1px solid var(--bd2)', padding: '12px 8px', flexShrink: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
-          {vt.map(t => <div key={t.id} onClick={() => setViewTab(t.id)} style={{ padding: '10px 12px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: viewTab === t.id ? 700 : 500, color: viewTab === t.id ? C.gold : 'var(--tx4)', background: viewTab === t.id ? 'rgba(201,168,76,.08)' : 'transparent', border: viewTab === t.id ? '1px solid rgba(201,168,76,.12)' : '1px solid transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>{t.l}</span>{t.n !== undefined && <span style={{ fontSize: 9, fontWeight: 700, color: viewTab === t.id ? C.gold : 'var(--tx6)', background: viewTab === t.id ? 'rgba(201,168,76,.15)' : 'var(--hoverBg)', padding: '1px 6px', borderRadius: 4, minWidth: 18, textAlign: 'center' }}>{t.n}</span>}
+        <div style={{ width: 140, background: 'var(--bg)', borderLeft: '1px solid var(--bd2)', padding: '12px 6px', flexShrink: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
+          {vt.map(t => <div key={t.id} onClick={() => setViewTab(t.id)} style={{ padding: '10px 10px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: viewTab === t.id ? 700 : 500, color: viewTab === t.id ? C.gold : 'var(--tx4)', background: viewTab === t.id ? 'rgba(201,168,76,.08)' : 'transparent', border: viewTab === t.id ? '1px solid rgba(201,168,76,.12)' : '1px solid transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '.15s' }}>
+            <span>{t.l}</span>{t.n !== undefined && <span style={{ fontSize: 9, fontWeight: 700, color: viewTab === t.id ? C.gold : 'var(--tx6)', background: viewTab === t.id ? 'rgba(201,168,76,.15)' : 'var(--hoverBg,rgba(255,255,255,.04))', padding: '1px 6px', borderRadius: 4, minWidth: 18, textAlign: 'center' }}>{t.n}</span>}
           </div>)}
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', scrollbarWidth: 'none' }}>
-          {/* البيانات */}
-          {viewTab === 'info' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <IB l="الاسم" v={viewRow.name_ar} toast={toast} />
-            <IB l="بالإنجليزي" v={viewRow.name_en} toast={toast} />
-            <IB l="الكود" v={viewRow.code} copy toast={toast} />
-            <IB l="الجوال" v={viewRow.phone} copy toast={toast} />
-            <IB l="المنطقة" v={viewRow.region_name} toast={toast} />
-            <IB l="المدينة" v={viewRow.city_name} toast={toast} />
-            <IB l="الحي" v={viewRow.district_name} toast={toast} />
-            <IB l="رقم المبنى" v={viewRow.building_number} toast={toast} />
-            <IB l="الشارع" v={viewRow.street} toast={toast} />
-            <IB l="الرمز البريدي" v={viewRow.postal_code} copy toast={toast} />
-            {viewRow.location_url && <div style={{ gridColumn: '1/-1' }}><IB l="الموقع" v={<a href={viewRow.location_url} target="_blank" rel="noopener noreferrer" style={{ color: C.blue, textDecoration: 'none', fontSize: 12 }}>فتح في Google Maps ↗</a>} toast={toast} /></div>}
-            <IB l="المدير" v={viewRow.manager_user_name} toast={toast} />
-            <IB l="أيام العمل" v={(() => { const dayNames = {sat:'السبت',sun:'الأحد',mon:'الاثنين',tue:'الثلاثاء',wed:'الأربعاء',thu:'الخميس',fri:'الجمعة'}; const days = viewRow.working_days || []; return Array.isArray(days) ? days.map(d => dayNames[d] || d).join('، ') : '—'; })()} toast={toast} />
-            <IB l="بداية الدوام" v={viewRow.work_start_time?.slice(0, 5)} toast={toast} />
-            <IB l="نهاية الدوام" v={viewRow.work_end_time?.slice(0, 5)} toast={toast} />
+
+          {/* ═══ TAB 1: البيانات ═══ */}
+          {viewTab === 'info' && <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div><SH t="المعلومات الأساسية" c={C.gold} /><div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 8 }}><IB l="الاسم" v={viewRow.name_ar} toast={toast} /></div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}><IB l="بالإنجليزي" v={viewRow.name_en} toast={toast} /><IB l="الكود" v={viewRow.code} copy toast={toast} /><IB l="الجوال" v={viewRow.phone} copy toast={toast} /></div></div>
+            <div><SH t="المدير" c={C.blue} />{viewRow.manager_user_name ? <div style={{ background: 'rgba(52,131,180,.04)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(52,131,180,.08)', display: 'flex', alignItems: 'center', gap: 12 }}><div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(52,131,180,.1)', border: '1px solid rgba(52,131,180,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: C.blue }}>{(viewRow.manager_user_name || '?')[0]}</div><div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{viewRow.manager_user_name}</div></div></div> : <div style={{ fontSize: 11, color: 'var(--tx5)' }}>لم يتم تعيين مدير</div>}</div>
+            <div><SH t="العنوان" c={C.ok} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="المنطقة" v={viewRow.region_name} toast={toast} /><IB l="المدينة" v={viewRow.city_name} toast={toast} /><IB l="الحي" v={viewRow.district_name} toast={toast} /><IB l="رقم المبنى" v={viewRow.building_number} toast={toast} /></div><div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginTop: 8 }}><IB l="الشارع" v={viewRow.street} toast={toast} /><IB l="الرمز البريدي" v={viewRow.postal_code} copy toast={toast} /></div>{viewRow.location_url && <a href={viewRow.location_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, padding: '10px 16px', borderRadius: 10, background: 'rgba(52,131,180,.06)', border: '1px solid rgba(52,131,180,.12)', color: C.blue, textDecoration: 'none', fontSize: 12, fontWeight: 700 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>فتح في Google Maps ↗</a>}</div>
+            <div><SH t="الدوام" c="#9b59b6" /><div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}><IB l="أيام العمل" v={(() => { const days = viewRow.working_days || []; return Array.isArray(days) ? days.map(d => dayNames[d] || d).join('، ') : '—'; })()} toast={toast} /></div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}><IB l="بداية الدوام" v={viewRow.work_start_time?.slice(0, 5)} toast={toast} /><IB l="نهاية الدوام" v={viewRow.work_end_time?.slice(0, 5)} toast={toast} /></div></div>
           </div>}
 
-          {/* الرخص */}
-          {viewTab === 'licenses' && <div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-              <button onClick={() => openEdit(viewRow)} style={{ height: 30, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.08)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
-                تعديل بيانات الرخصة
-              </button>
-            </div>
-            <div style={{ borderRadius: 12, padding: 16, background: viewRow.license_alert === 'expired' ? 'rgba(192,57,43,.04)' : viewRow.license_alert === 'expiring_soon' ? 'rgba(230,126,34,.04)' : 'rgba(39,160,70,.04)', border: '1px solid ' + (viewRow.license_alert === 'expired' ? 'rgba(192,57,43,.1)' : viewRow.license_alert === 'expiring_soon' ? 'rgba(230,126,34,.1)' : 'rgba(39,160,70,.1)') }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>رخصة بلدي</span>
-                <StatusBadge status={viewRow.municipal_license_status} alert={viewRow.license_alert} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <IB l="رقم الرخصة" v={viewRow.municipal_license_number} copy toast={toast} />
-                <IB l="رقم الطلب" v={viewRow.baladi_request_number} copy toast={toast} />
-                <IB l="النشاط" v={viewRow.activity_name} toast={toast} />
-                <IB l="حساب بلدي" v={viewRow.baladi_user_name} toast={toast} />
-                <IB l="تاريخ الإصدار" v={viewRow.license_issue_date} toast={toast} />
-                <IB l="تاريخ الانتهاء" v={viewRow.license_expiry_date} toast={toast} />
-                {viewRow.shop_area_sqm && <IB l="المساحة" v={viewRow.shop_area_sqm + ' م²'} toast={toast} />}
-                <IB l="البلدية" v={viewRow.municipality_name} toast={toast} />
-              </div>
-            </div>
-            <ExpenseInfo amount={viewRow.license_last_amount} date={viewRow.license_last_date} sadad={viewRow.license_last_sadad} count={viewRow.license_payments_count} label="رخصة البلدية" color={C.gold} />
+          {/* ═══ TAB 2: التراخيص ═══ */}
+          {viewTab === 'permits' && <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div><SH t="رخصة بلدي" c={C.gold} /><HealthBar days={licDays} label="الرخصة البلدية" /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="رقم الرخصة" v={viewRow.municipal_license_number} copy toast={toast} /><IB l="رقم الطلب" v={viewRow.baladi_request_number} copy toast={toast} /><IB l="النشاط" v={viewRow.activity_name} toast={toast} /><IB l="المساحة" v={viewRow.shop_area_sqm ? viewRow.shop_area_sqm + ' م²' : null} toast={toast} /><IB l="تاريخ الإصدار" v={viewRow.license_issue_date} toast={toast} /><IB l={'تاريخ الانتهاء'} v={viewRow.license_expiry_date} toast={toast} /><IB l="البلدية" v={viewRow.municipality_name} toast={toast} /></div></div>
+            <div><SH t="شهادة السلامة (الدفاع المدني)" c={C.blue} /><HealthBar days={cdDays} label="شهادة الدفاع المدني" /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="رقم الشهادة" v={viewRow.civil_defense_cert_number} copy toast={toast} /><IB l="تاريخ الانتهاء" v={viewRow.civil_defense_expiry} toast={toast} /><IB l="الأمانة" v={viewRow.authority_name} toast={toast} /></div></div>
           </div>}
 
-          {/* السلامة */}
-          {viewTab === 'safety' && <div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-              <button onClick={() => openEdit(viewRow)} style={{ height: 30, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.08)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
-                تعديل بيانات السلامة
-              </button>
-            </div>
-            <div style={{ borderRadius: 12, padding: 16, background: viewRow.civil_defense_alert === 'expired' ? 'rgba(192,57,43,.04)' : viewRow.civil_defense_alert === 'expiring_soon' ? 'rgba(230,126,34,.04)' : 'rgba(39,160,70,.04)', border: '1px solid ' + (viewRow.civil_defense_alert === 'expired' ? 'rgba(192,57,43,.1)' : viewRow.civil_defense_alert === 'expiring_soon' ? 'rgba(230,126,34,.1)' : 'rgba(39,160,70,.1)') }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>شهادة السلامة</span>
-                <StatusBadge status={viewRow.civil_defense_status} alert={viewRow.civil_defense_alert} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <IB l="رقم الشهادة" v={viewRow.civil_defense_cert_number} copy toast={toast} />
-                <IB l="تاريخ الانتهاء" v={viewRow.civil_defense_expiry} toast={toast} />
-                <IB l="الأمانة" v={viewRow.authority_name} toast={toast} />
-              </div>
-            </div>
-            <ExpenseInfo amount={viewRow.safety_last_amount} date={viewRow.safety_last_date} sadad={viewRow.safety_last_sadad} count={viewRow.safety_payments_count} label="شهادة السلامة" color={C.blue} />
+          {/* ═══ TAB 3: المرافق (Accordion) ═══ */}
+          {viewTab === 'utilities' && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[['rent', 'الإيجار', C.gold, rentC], ['electricity', 'الكهرباء', '#e67e22', elecC], ['internet', 'الإنترنت', C.blue, netC], ['water', 'الماء', C.ok, waterC]].map(([type, label, color, cList]) => {
+              const isOpen = openUtil === type;
+              const cBills = brBills.filter(b => cList.some(c => c.id === b.contract_id));
+              const totalAmt = cList.reduce((s, c) => s + Number(c.amount || c.annual_rent || 0), 0);
+              return <div key={type} style={{ borderRadius: 12, border: '1px solid ' + (isOpen ? color + '25' : 'rgba(255,255,255,.04)'), overflow: 'hidden', transition: '.2s' }}>
+                <div onClick={() => setOpenUtil(isOpen ? null : type)} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: isOpen ? color + '06' : 'transparent', borderRight: '4px solid ' + color }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', flex: 1 }}>{label}</span>
+                  {cList.length > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: color, background: color + '12', padding: '2px 8px', borderRadius: 5 }}>{totalAmt > 0 ? nm(totalAmt) + ' ر.س' : cList.length}</span>}
+                  {cList.length === 0 && <span style={{ fontSize: 9, color: 'var(--tx5)' }}>—</span>}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: '.2s' }}><polyline points="6 9 12 15 18 9" stroke={color} strokeWidth="2.5" fill="none" /></svg>
+                </div>
+                {isOpen && <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,.04)' }}>
+                  {cList.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: 'var(--tx6)', fontSize: 11 }}>لا توجد عقود</div> :
+                    cList.map(c => <div key={c.id} style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <IB l="المزود" v={c.provider_name || c.lessor_name} toast={toast} />
+                        <IB l="المبلغ" v={c.amount || c.annual_rent ? nm(c.amount || c.annual_rent) + ' ر.س' : null} toast={toast} />
+                        {c.account_number && <IB l="رقم الحساب" v={c.account_number} copy toast={toast} />}
+                        {c.meter_number && <IB l="رقم العداد" v={c.meter_number} copy toast={toast} />}
+                        {c.ejar_contract_number && <IB l="رقم عقد إيجار" v={c.ejar_contract_number} copy toast={toast} />}
+                        {c.service_speed && <IB l="السرعة" v={c.service_speed} toast={toast} />}
+                        <IB l="البداية" v={c.contract_start} toast={toast} />
+                        <IB l="النهاية" v={c.contract_end} toast={toast} />
+                        {c.next_payment_date && <IB l="السداد القادم" v={c.next_payment_date} toast={toast} />}
+                      </div>
+                      {cBills.filter(b => b.contract_id === c.id).length > 0 && <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: color, marginBottom: 6 }}>سجل الفواتير ({cBills.filter(b => b.contract_id === c.id).length})</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, fontSize: 9 }}>
+                          <div style={{ padding: '4px 8px', background: 'rgba(255,255,255,.04)', fontWeight: 600, color: 'var(--tx4)' }}>الشهر</div>
+                          <div style={{ padding: '4px 8px', background: 'rgba(255,255,255,.04)', fontWeight: 600, color: 'var(--tx4)' }}>المبلغ</div>
+                          <div style={{ padding: '4px 8px', background: 'rgba(255,255,255,.04)', fontWeight: 600, color: 'var(--tx4)' }}>الاستهلاك</div>
+                          {cBills.filter(b => b.contract_id === c.id).slice(0, 6).map((b, i) => <React.Fragment key={i}>
+                            <div style={{ padding: '4px 8px', color: 'var(--tx5)', borderBottom: '1px solid rgba(255,255,255,.02)' }}>{b.bill_month}</div>
+                            <div style={{ padding: '4px 8px', color: color, fontWeight: 700, borderBottom: '1px solid rgba(255,255,255,.02)' }}>{nm(b.amount)}</div>
+                            <div style={{ padding: '4px 8px', color: 'var(--tx5)', borderBottom: '1px solid rgba(255,255,255,.02)' }}>{b.consumption || '—'}</div>
+                          </React.Fragment>)}
+                        </div>
+                      </div>}
+                    </div>)}
+                </div>}
+              </div>;
+            })}
           </div>}
 
-          {viewTab === 'rent' && <UtilityTab contracts={rentC} brBills={brBills} color={C.gold} emptyMsg="لا توجد عقود إيجار" summaryLabel="إجمالي الإيجار السنوي" toast={toast} />}
-          {viewTab === 'electricity' && <UtilityTab contracts={elecC} brBills={brBills} color="#e67e22" emptyMsg="لا توجد حسابات كهرباء" summaryLabel="فواتير الكهرباء" toast={toast} />}
-          {viewTab === 'internet' && <UtilityTab contracts={netC} brBills={brBills} color={C.blue} emptyMsg="لا توجد خدمات إنترنت" summaryLabel="الإنترنت الشهري" toast={toast} />}
-          {viewTab === 'water' && <UtilityTab contracts={waterC} brBills={brBills} color="#3498db" emptyMsg="لا توجد حسابات مياه" summaryLabel="فاتورة المياه" toast={toast} />}
+          {/* ═══ TAB 4: الموظفين ═══ */}
+          {viewTab === 'staff' && <div>{bU.length === 0 ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--tx6)' }}>لا يوجد موظفين</div> :
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{bU.map(u => {
+              const rc = roleClr[u.role_name] || roleClr[u.roles?.name_ar] || '#888';
+              const isManager = viewRow.manager_user_id === u.id;
+              return <div key={u.id} style={{ background: 'var(--hoverBg,rgba(255,255,255,.025))', borderRadius: 10, padding: '12px 16px', border: '1px solid var(--bd2,rgba(255,255,255,.04))', display: 'flex', alignItems: 'center', gap: 12, borderRight: '3px solid ' + rc }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: rc + '15', border: '1px solid ' + rc + '25', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: rc, flexShrink: 0 }}>{(u.name_ar || '?')[0]}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{u.name_ar}</div>
+                  <div style={{ fontSize: 10, color: rc, marginTop: 2 }}>{u.role_name || u.roles?.name_ar || '—'}</div>
+                </div>
+                {isManager && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>المدير</span>}
+              </div>;
+            })}</div>}</div>}
 
-          {viewTab === 'staff' && <div>{bU.length === 0 ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--tx6)' }}>لا يوجد</div> :
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{bU.map(u => <div key={u.id} style={{ background: 'var(--hoverBg)', borderRadius: 10, padding: '12px 16px', border: '1px solid var(--bd2)', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{(u.name_ar || '?')[0]}</div>
-              <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{u.name_ar}</div>{u.name_en && <div style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr' }}>{u.name_en}</div>}</div>
-              {viewRow.manager_user_id === u.id && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.1)', padding: '2px 8px', borderRadius: 4 }}>مدير</span>}
-            </div>)}</div>}</div>}
-
-          {viewTab === 'stats' && <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
-              {[['منشآت', viewRow.facilities_count, C.blue], ['عمال', viewRow.workers_count, C.ok], ['نشطين', viewRow.active_workers, C.ok], ['معاملات', viewRow.transactions_count, C.gold], ['مكتملة', viewRow.completed_txn, C.ok], ['عملاء', viewRow.clients_count, '#9b59b6']].map(([l, v, c], i) => <div key={i} style={{ padding: 14, borderRadius: 10, background: c + '08', border: '1px solid ' + c + '15', textAlign: 'center' }}><div style={{ fontSize: 9, color: c, opacity: .6, marginBottom: 6 }}>{l}</div><div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v || 0}</div></div>)}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-              {[['إيرادات', nm(viewRow.total_revenue), C.gold, 'rgba(201,168,76,.04)', 'rgba(201,168,76,.08)'], ['محصّل', nm(viewRow.collected_amount), C.ok, 'rgba(39,160,70,.04)', 'rgba(39,160,70,.08)'], ['مصروفات', nm(viewRow.total_expenses), C.red, 'rgba(192,57,43,.04)', 'rgba(192,57,43,.08)']].map(([l, v, c, bg, bd], i) => <div key={i} style={{ padding: 16, borderRadius: 12, background: bg, border: '1px solid ' + bd, textAlign: 'center' }}><div style={{ fontSize: 9, color: c, opacity: .6, marginBottom: 6 }}>{l}</div><div style={{ fontSize: 20, fontWeight: 900, color: c }}>{v}</div></div>)}
-            </div>
+          {/* ═══ TAB 5: الإحصائيات ═══ */}
+          {viewTab === 'stats' && <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div><SH t="التشغيل" c={C.ok} /><div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+              {[['منشآت', viewRow.facilities_count, C.blue], ['عمال', viewRow.workers_count, C.ok], ['نشطين', viewRow.active_workers, C.ok]].map(([l, v, c], i) => <div key={i} style={{ padding: 14, borderRadius: 10, background: c + '08', border: '1px solid ' + c + '15', textAlign: 'center' }}><div style={{ fontSize: 9, color: c, opacity: .7, marginBottom: 6 }}>{l}</div><div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v || 0}</div></div>)}
+            </div></div>
+            <div><SH t="المعاملات" c={C.blue} /><div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+              {[['معاملات', viewRow.transactions_count, C.gold], ['مكتملة', viewRow.completed_txn, C.ok], ['عملاء', viewRow.clients_count, '#9b59b6']].map(([l, v, c], i) => <div key={i} style={{ padding: 14, borderRadius: 10, background: c + '08', border: '1px solid ' + c + '15', textAlign: 'center' }}><div style={{ fontSize: 9, color: c, opacity: .7, marginBottom: 6 }}>{l}</div><div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v || 0}</div></div>)}
+            </div></div>
+            <div><SH t="المالية" c={C.gold} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              {[['إيرادات', nm(viewRow.total_revenue), C.gold], ['محصّل', nm(viewRow.collected_amount), C.ok], ['مصروفات', nm(viewRow.total_expenses), C.red]].map(([l, v, c], i) => <div key={i} style={{ padding: 18, borderRadius: 12, background: c + '06', border: '1px solid ' + c + '12', textAlign: 'center' }}><div style={{ fontSize: 9, color: c, opacity: .7, marginBottom: 8 }}>{l}</div><div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v}</div><div style={{ fontSize: 8, color: c, opacity: .4, marginTop: 4 }}>ر.س</div></div>)}
+            </div></div>
           </div>}
 
-          {viewTab === 'banks' && <div>{bB.length === 0 ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--tx6)' }}>لا توجد</div> :
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{bB.map(a => <div key={a.id} style={{ background: 'var(--hoverBg)', borderRadius: 10, padding: '14px 16px', border: '1px solid var(--bd2)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{a.bank_name}</span>{a.is_primary && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.1)', padding: '2px 8px', borderRadius: 4 }}>رئيسي</span>}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="رقم الحساب" v={a.account_number} copy toast={toast} /><IB l="سويفت" v={a.swift_code} copy toast={toast} /><div style={{ gridColumn: '1/-1' }}><IB l="الآيبان" v={a.iban} copy toast={toast} /></div></div>
-            </div>)}</div>}</div>}
+          {/* ═══ TAB 6: الحسابات البنكية ═══ */}
+          {viewTab === 'banks' && <div>
+            {bB.length > 0 && <div style={{ padding: '16px 18px', borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.1)', marginBottom: 14, textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: C.ok, opacity: .7, marginBottom: 6 }}>إجمالي الأرصدة</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: C.ok }}>{nm(totalBalance)}</div>
+              <div style={{ fontSize: 9, color: C.ok, opacity: .4, marginTop: 4 }}>ر.س</div>
+            </div>}
+            {bB.length === 0 ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--tx6)' }}>لا توجد حسابات</div> :
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{bB.map(a => {
+                const lowBal = a.min_balance_alert && Number(a.current_balance || 0) < Number(a.min_balance_alert);
+                return <div key={a.id} style={{ background: 'var(--hoverBg,rgba(255,255,255,.025))', borderRadius: 12, padding: '14px 16px', border: '1px solid ' + (lowBal ? 'rgba(230,126,34,.15)' : 'var(--bd2,rgba(255,255,255,.04))') }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{a.bank_name}</span>
+                      {a.account_purpose && <span style={{ fontSize: 8, color: 'var(--tx5)', background: 'rgba(255,255,255,.04)', padding: '2px 6px', borderRadius: 4 }}>{a.account_purpose}</span>}
+                    </div>
+                    {a.is_primary && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>رئيسي</span>}
+                  </div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: lowBal ? '#e67e22' : C.ok, marginBottom: 8 }}>{nm(a.current_balance || 0)} <span style={{ fontSize: 10, opacity: .5 }}>ر.س</span></div>
+                  {lowBal && <div style={{ fontSize: 9, color: '#e67e22', background: 'rgba(230,126,34,.06)', padding: '4px 8px', borderRadius: 5, marginBottom: 8, display: 'inline-block' }}>رصيد منخفض — الحد الأدنى {nm(a.min_balance_alert)}</div>}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <IB l="رقم الحساب" v={a.account_number} copy toast={toast} />
+                    <IB l="سويفت" v={a.swift_code} copy toast={toast} />
+                  </div>
+                  <div style={{ marginTop: 8 }}><IB l="الآيبان" v={a.iban} copy toast={toast} /></div>
+                </div>;
+              })}</div>}
+          </div>}
+
         </div>
       </div>
     </div>
@@ -287,6 +320,8 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
   const [filter, setFilter] = useState('all');
   const [recon, setRecon] = useState([]);
   const [viewAcct, setViewAcct] = useState(null);
+  const [acctTab, setAcctTab] = useState('data');
+  const [txnFilter, setTxnFilter] = useState('all');
   useEffect(() => { sb.from('bank_reconciliation').select('*').is('deleted_at', null).order('transaction_date', { ascending: false }).then(({ data }) => setRecon(data || [])); }, [sb]);
   const filtered = filter === 'all' ? banks : banks.filter(b => b.branch_id === filter);
   const saveBankAccount = async () => {
@@ -299,32 +334,275 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
   const hasAlert = banks.some(b => Number(b.current_balance || 0) <= Number(b.min_balance_alert || 0) && Number(b.min_balance_alert) > 0);
   const alertCount = banks.filter(b => Number(b.current_balance || 0) <= Number(b.min_balance_alert || 0) && Number(b.min_balance_alert) > 0).length;
 
+  const totalBal = banks.reduce((s, b) => s + Number(b.current_balance || 0), 0);
+  const purposeGroups = {};
+  banks.forEach(b => { const p = b.account_purpose || 'عام'; if (!purposeGroups[p]) purposeGroups[p] = { count: 0, total: 0 }; purposeGroups[p].count++; purposeGroups[p].total += Number(b.current_balance || 0); });
+  const purposeArr = Object.entries(purposeGroups).sort((a, b) => b[1].total - a[1].total);
+  const maxPurpose = Math.max(...purposeArr.map(([, v]) => v.total), 1);
+  const purposeClr = { 'إيداع': C.ok, 'سداد': C.red, 'تحويلات': C.blue, 'رواتب': '#9b59b6', 'ادخار': C.gold, 'عام': '#888' };
+  const [bankFilter, setBankFilter] = useState('all');
+  const [purposeFilter, setPurposeFilter] = useState('all');
+  const bankNames = [...new Set(banks.map(b => b.bank_name).filter(Boolean))];
+  const purposeNames = [...new Set(banks.map(b => b.account_purpose || 'عام').filter(Boolean))];
+  const filtered2 = filtered.filter(b => {
+    if (bankFilter !== 'all' && b.bank_name !== bankFilter) return false;
+    if (purposeFilter !== 'all' && (b.account_purpose || 'عام') !== purposeFilter) return false;
+    return true;
+  });
+
   return <div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
-      <div style={{ padding: 16, borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.08)', textAlign: 'center' }}><div style={{ fontSize: 10, color: 'rgba(39,160,70,.5)', marginBottom: 6 }}>إجمالي الأرصدة</div><div style={{ fontSize: 22, fontWeight: 900, color: C.ok, direction: 'ltr' }}>{nm(banks.reduce((s, b) => s + Number(b.current_balance || 0), 0))}</div></div>
-      <div style={{ padding: 16, borderRadius: 12, background: 'rgba(201,168,76,.04)', border: '1px solid rgba(201,168,76,.08)', textAlign: 'center' }}><div style={{ fontSize: 10, color: 'rgba(201,168,76,.5)', marginBottom: 6 }}>عدد الحسابات</div><div style={{ fontSize: 22, fontWeight: 900, color: C.gold }}>{banks.length}</div></div>
-      <div style={{ padding: 16, borderRadius: 12, textAlign: 'center', background: hasAlert ? 'rgba(192,57,43,.04)' : 'rgba(52,131,180,.04)', border: '1px solid ' + (hasAlert ? 'rgba(192,57,43,.08)' : 'rgba(52,131,180,.08)') }}><div style={{ fontSize: 10, color: hasAlert ? 'rgba(192,57,43,.5)' : 'rgba(52,131,180,.5)', marginBottom: 6 }}>تنبيهات</div><div style={{ fontSize: 22, fontWeight: 900, color: hasAlert ? C.red : C.blue }}>{alertCount}</div></div>
-    </div>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-        <button onClick={() => setFilter('all')} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: filter === 'all' ? 700 : 500, color: filter === 'all' ? C.gold : 'var(--tx4)', background: filter === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: filter === 'all' ? '1px solid rgba(201,168,76,.15)' : '1px solid var(--bd)', cursor: 'pointer', fontFamily: F }}>الكل ({banks.length})</button>
-        {branches.map(br => <button key={br.branch_id} onClick={() => setFilter(br.branch_id)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: filter === br.branch_id ? 700 : 500, color: filter === br.branch_id ? C.gold : 'var(--tx4)', background: filter === br.branch_id ? 'rgba(201,168,76,.08)' : 'transparent', border: filter === br.branch_id ? '1px solid rgba(201,168,76,.15)' : '1px solid var(--bd)', cursor: 'pointer', fontFamily: F }}>{br.name_ar}</button>)}
+    {/* 3 Stat Cards */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 12, marginBottom: 20 }}>
+      {/* Total Balance */}
+      <div style={{ padding: '20px 24px', borderRadius: 14, background: 'linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))', border: '1px solid rgba(39,160,70,.15)', minWidth: 200, textAlign: 'center' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.ok, marginBottom: 8 }}>إجمالي الأرصدة</div>
+        <div style={{ fontSize: 32, fontWeight: 900, color: C.ok, direction: 'ltr' }}>{nm(totalBal)} <span style={{ fontSize: 12, fontWeight: 500 }}>ر.س</span></div>
+        <div style={{ fontSize: 9, color: 'var(--tx5)', marginTop: 6 }}>آخر تحديث: {new Date().toISOString().slice(0, 10)}</div>
+        <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 4 }}>{filtered2.length} حساب معروض</div>
       </div>
-      <button onClick={() => { setForm({ _table: 'bank_accounts', bank_name: '', account_name: '', account_number: '', iban: '', swift_code: '', account_type: 'deposit', branch_id: '', is_primary: 'false', is_active: 'true', notes: '' }); setPop(true); }} style={{ height: 36, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>+ حساب</button>
+      {/* Distribution by Purpose */}
+      <div style={{ padding: '16px 20px', borderRadius: 14, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.1)' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, marginBottom: 12 }}>التوزيع حسب الغرض</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {purposeArr.map(([p, v]) => { const pc = purposeClr[p] || '#888'; return <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, color: 'var(--tx3)', minWidth: 80, textAlign: 'right' }}>{purposeMap[p] || p} ({v.count})</span>
+            <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}><div style={{ height: '100%', width: (v.total / maxPurpose * 100) + '%', borderRadius: 3, background: pc }} /></div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: pc, minWidth: 70, direction: 'ltr' }}>{nm(v.total)}</span>
+          </div>; })}
+        </div>
+      </div>
+      {/* Alerts */}
+      <div style={{ padding: '16px 20px', borderRadius: 14, background: hasAlert ? 'rgba(192,57,43,.04)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (hasAlert ? 'rgba(192,57,43,.1)' : 'rgba(255,255,255,.04)'), minWidth: 140 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: hasAlert ? C.red : 'var(--tx4)', marginBottom: 12 }}>التنبيهات</div>
+        {alertCount > 0 ? <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.red }} />
+          <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>{alertCount} حساب بدون رصيد</span>
+        </div> : <div style={{ fontSize: 10, color: 'var(--tx5)' }}>لا توجد تنبيهات</div>}
+        <div style={{ fontSize: 9, color: 'var(--tx5)', marginTop: 8 }}>{banks.length} حساب معروض</div>
+      </div>
     </div>
-    {filtered.length === 0 ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx6)' }}>لا توجد حسابات</div> :
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gap: 12 }}>{filtered.map(a => {
+    {/* Filters Row 1: Branch */}
+    <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <span style={{ fontSize: 10, color: 'var(--tx5)', marginLeft: 4 }}>الفرع:</span>
+      <button onClick={() => setFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: filter === 'all' ? 700 : 500, color: filter === 'all' ? C.gold : 'var(--tx4)', background: filter === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: filter === 'all' ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل ({banks.length})</button>
+      {branches.map(br => <button key={br.branch_id} onClick={() => setFilter(br.branch_id)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: filter === br.branch_id ? 700 : 500, color: filter === br.branch_id ? C.gold : 'var(--tx4)', background: filter === br.branch_id ? 'rgba(201,168,76,.08)' : 'transparent', border: filter === br.branch_id ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{br.name_ar}</button>)}
+    </div>
+    {/* Filters Row 2: Bank + Purpose */}
+    <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <span style={{ fontSize: 10, color: 'var(--tx5)', marginLeft: 4 }}>الغرض:</span>
+      <button onClick={() => setPurposeFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: purposeFilter === 'all' ? 700 : 500, color: purposeFilter === 'all' ? C.gold : 'var(--tx4)', background: purposeFilter === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: purposeFilter === 'all' ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل ({filtered.length})</button>
+      {purposeNames.map(p => { const cnt = filtered.filter(b => (b.account_purpose || 'عام') === p).length; return <button key={p} onClick={() => setPurposeFilter(p)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: purposeFilter === p ? 700 : 500, color: purposeFilter === p ? C.gold : 'var(--tx4)', background: purposeFilter === p ? 'rgba(201,168,76,.08)' : 'transparent', border: purposeFilter === p ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{purposeMap[p] || p} ({cnt})</button>; })}
+      <span style={{ fontSize: 10, color: 'var(--tx5)', marginRight: 8, marginLeft: 12 }}>البنك:</span>
+      <button onClick={() => setBankFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: bankFilter === 'all' ? 700 : 500, color: bankFilter === 'all' ? C.gold : 'var(--tx4)', background: bankFilter === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: bankFilter === 'all' ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل</button>
+      {bankNames.map(n => <button key={n} onClick={() => setBankFilter(n)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: bankFilter === n ? 700 : 500, color: bankFilter === n ? C.gold : 'var(--tx4)', background: bankFilter === n ? 'rgba(201,168,76,.08)' : 'transparent', border: bankFilter === n ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{n}</button>)}
+    </div>
+    {filtered2.length === 0 ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx6)' }}>لا توجد حسابات</div> :
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gap: 14 }}>{filtered2.map(a => {
         const br = branches.find(b => b.branch_id === a.branch_id); const bal = Number(a.current_balance || 0); const minA = Number(a.min_balance_alert || 0); const isLow = minA > 0 && bal <= minA;
-        return <div key={a.id} onClick={() => setViewAcct(a)} style={{ background: 'var(--bg)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.15)' : 'var(--bd)'), borderRadius: 14, padding: 18, cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = isLow ? 'rgba(192,57,43,.15)' : 'var(--bd)'}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><div style={{ width: 40, height: 40, borderRadius: 12, background: isLow ? 'rgba(192,57,43,.08)' : 'rgba(201,168,76,.08)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.12)' : 'rgba(201,168,76,.12)'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isLow ? C.red : C.gold} strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M2 10h20" /></svg></div><div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{a.bank_name}</div>{a.account_name && <div style={{ fontSize: 10, color: 'var(--tx4)' }}>{a.account_name}</div>}</div></div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>{a.is_primary && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.1)', padding: '2px 8px', borderRadius: 4 }}>رئيسي</span>}{br && <span style={{ fontSize: 9, color: 'var(--tx5)', background: 'var(--hoverBg)', padding: '2px 8px', borderRadius: 4 }}>{br.name_ar}</span>}</div>
+        return <div key={a.id} onClick={() => { setViewAcct(a); setAcctTab('data'); setTxnFilter('all'); }} style={{ background: 'var(--bg)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.2)' : 'var(--bd)'), borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = isLow ? 'rgba(192,57,43,.2)' : 'var(--bd)'}>
+          {isLow && <div style={{ padding: '5px 14px', background: 'rgba(192,57,43,.06)', borderBottom: '1px solid rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.red }} />
+            <span style={{ fontSize: 9, fontWeight: 600, color: C.red }}>رصيد منخفض</span>
+          </div>}
+          <div style={{ padding: '14px 18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: isLow ? 'rgba(192,57,43,.08)' : 'rgba(201,168,76,.08)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.12)' : 'rgba(201,168,76,.12)'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isLow ? C.red : C.gold} strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M2 10h20" /></svg></div>
+                <div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{a.bank_name}</div>{a.account_name && <div style={{ fontSize: 10, color: 'var(--tx4)' }}>{a.account_name}</div>}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                {a.account_purpose && <span style={{ fontSize: 8, padding: '2px 7px', borderRadius: 4, background: (purposeClr[a.account_purpose] || '#888') + '12', border: '1px solid ' + (purposeClr[a.account_purpose] || '#888') + '20', color: purposeClr[a.account_purpose] || '#888', fontWeight: 600 }}>{purposeMap[a.account_purpose] || a.account_purpose}</span>}
+                {a.is_primary && <span style={{ fontSize: 8, padding: '2px 7px', borderRadius: 4, background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.15)', color: C.gold, fontWeight: 700 }}>رئيسي</span>}
+              </div>
+            </div>
+            {br && <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" /></svg>
+              <span style={{ fontSize: 9, color: 'var(--tx5)' }}>{br.name_ar}</span>
+            </div>}
           </div>
-          <div style={{ padding: '12px 14px', borderRadius: 10, background: isLow ? 'rgba(192,57,43,.04)' : 'rgba(39,160,70,.04)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.08)' : 'rgba(39,160,70,.08)'), marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: 10, color: isLow ? C.red : C.ok }}>الرصيد</span><span style={{ fontSize: 18, fontWeight: 900, color: isLow ? C.red : C.ok, direction: 'ltr' }}>{nm(bal)} <span style={{ fontSize: 10, fontWeight: 500 }}>ر.س</span></span></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="رقم الحساب" v={a.account_number} copy toast={toast} /><IB l="الغرض" v={purposeMap[a.account_purpose] || 'عام'} toast={toast} /></div>
+          {/* Balance */}
+          <div style={{ padding: '14px 18px', background: isLow ? 'rgba(192,57,43,.03)' : 'rgba(39,160,70,.03)', borderTop: '1px solid ' + (isLow ? 'rgba(192,57,43,.06)' : 'rgba(39,160,70,.06)'), borderBottom: '1px solid ' + (isLow ? 'rgba(192,57,43,.06)' : 'rgba(39,160,70,.06)') }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: isLow ? C.red : C.ok }}>الرصيد</span>
+              <div style={{ textAlign: 'left' }}>
+                <span style={{ fontSize: 22, fontWeight: 900, color: isLow ? '#e67e22' : C.ok, direction: 'ltr' }}>{nm(bal)} <span style={{ fontSize: 10, fontWeight: 500 }}>ر.س</span></span>
+                {a.balance_updated_at && <div style={{ fontSize: 8, color: 'var(--tx5)', marginTop: 2 }}>آخر تحديث: {String(a.balance_updated_at).slice(0, 10)}</div>}
+              </div>
+            </div>
+          </div>
+          {/* Account details */}
+          <div style={{ padding: '10px 18px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <IB l="رقم الحساب" v={a.account_number} copy toast={toast} />
+              <IB l="سويفت" v={a.swift_code} copy toast={toast} />
+            </div>
+            <div style={{ marginTop: 8 }}><IB l="الآيبان" v={a.iban} copy toast={toast} /></div>
+          </div>
         </div>;
       })}</div>}
-    {/* Bank account detail + add/edit modals would go here - keeping compact for now */}
+    {/* Bank Account Detail Side Panel */}
+    {viewAcct && (() => {
+      const a = viewAcct;
+      const br = branches.find(b => b.branch_id === a.branch_id);
+      const bal = Number(a.current_balance || 0);
+      const txns = recon.filter(r => r.bank_account_id === a.id);
+      const payments = [];
+      const totalIn = txns.filter(t => t.amount > 0).reduce((s, t) => s + Number(t.amount), 0);
+      const totalOut = txns.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+      const matched = txns.filter(t => t.match_status === 'matched').length;
+      const pending = txns.filter(t => t.match_status === 'pending').length;
+      const matchPct = txns.length > 0 ? Math.round(matched / txns.length * 100) : 0;
+      const filteredTxns = txnFilter === 'all' ? txns : txns.filter(t => {
+        if (txnFilter === 'deposit') return t.transaction_type === 'deposit';
+        if (txnFilter === 'withdrawal') return t.transaction_type === 'withdrawal';
+        if (txnFilter === 'transfer_in') return t.transaction_type === 'transfer_in';
+        if (txnFilter === 'transfer_out') return t.transaction_type === 'transfer_out';
+        return true;
+      });
+      const txnIcon = { deposit: '↓', withdrawal: '↑', transfer_in: '←', transfer_out: '→' };
+      const txnClr = { deposit: C.ok, withdrawal: C.red, transfer_in: C.blue, transfer_out: '#e67e22' };
+      const txnLbl = { deposit: 'إيداع', withdrawal: 'سحب', transfer_in: 'تحويل وارد', transfer_out: 'تحويل صادر' };
+      const SH2 = ({ t, c }) => <div style={{ fontSize: 12, fontWeight: 700, color: c || C.gold, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid ' + (c || C.gold) + '20' }}>{t}</div>;
+      const atabs = [{ id: 'data', l: 'البيانات' }, { id: 'txns', l: 'الحركات', n: txns.length }, { id: 'payments', l: 'المدفوعات', n: 0 }, { id: 'recon', l: 'التسويات', n: pending }];
+      return <div onClick={() => setViewAcct(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 16 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(920px,95vw)', height: 'min(650px,88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.4)', border: '1px solid rgba(201,168,76,.15)' }}>
+          {/* Header */}
+          <div style={{ background: 'var(--bg)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(201,168,76,.12)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(201,168,76,.08)', border: '1.5px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M2 10h20" /></svg></div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>{a.bank_name}</span>
+                  {a.is_primary && <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 5, background: 'rgba(201,168,76,.1)', color: C.gold, fontWeight: 700 }}>رئيسي</span>}
+                  {a.account_purpose && <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 5, background: (purposeClr[a.account_purpose] || '#888') + '12', color: purposeClr[a.account_purpose] || '#888', fontWeight: 600 }}>{purposeMap[a.account_purpose] || a.account_purpose}</span>}
+                </div>
+                {a.account_name && <div style={{ fontSize: 12, color: 'var(--tx4)' }}>{a.account_name}</div>}
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  {br && <span style={{ fontSize: 10, color: 'var(--tx5)' }}>{br.name_ar}</span>}
+                  <span style={{ fontSize: 10, color: 'var(--tx5)', direction: 'ltr' }}>{a.account_number}</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => { setViewAcct(null); setForm({ _id: a.id, bank_name: a.bank_name || '', account_name: a.account_name || '', account_number: a.account_number || '', iban: a.iban || '', swift_code: a.swift_code || '', branch_id: a.branch_id || '', is_primary: String(a.is_primary || false), is_active: String(a.is_active !== false), notes: a.notes || '' }); setPop(true); }} style={{ height: 32, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.08)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>تعديل</button>
+              <button onClick={() => setViewAcct(null)} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--hoverBg)', border: '1px solid var(--bd)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+          </div>
+          {/* Body */}
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <div style={{ width: 140, background: 'var(--bg)', borderLeft: '1px solid var(--bd2)', padding: '12px 6px', flexShrink: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
+              {atabs.map(t => <div key={t.id} onClick={() => setAcctTab(t.id)} style={{ padding: '10px 10px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: acctTab === t.id ? 700 : 500, color: acctTab === t.id ? C.gold : 'var(--tx4)', background: acctTab === t.id ? 'rgba(201,168,76,.08)' : 'transparent', border: acctTab === t.id ? '1px solid rgba(201,168,76,.12)' : '1px solid transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '.15s' }}>
+                <span>{t.l}</span>{t.n !== undefined && t.n > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: acctTab === t.id ? C.gold : 'var(--tx6)', background: acctTab === t.id ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.04)', padding: '1px 6px', borderRadius: 4, minWidth: 18, textAlign: 'center' }}>{t.n}</span>}
+              </div>)}
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', scrollbarWidth: 'none' }}>
+
+              {/* TAB 1: البيانات */}
+              {acctTab === 'data' && <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {/* Balance card */}
+                <div style={{ padding: '20px', borderRadius: 14, background: 'rgba(39,160,70,.04)', border: '1.5px solid rgba(39,160,70,.12)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: C.ok, opacity: .7, marginBottom: 8 }}>الرصيد الحالي</div>
+                  <div style={{ fontSize: 34, fontWeight: 900, color: C.ok, direction: 'ltr' }}>{nm(bal)} <span style={{ fontSize: 12, fontWeight: 500 }}>ر.س</span></div>
+                  <div style={{ fontSize: 9, color: 'var(--tx5)', marginTop: 6 }}>آخر تحديث: {a.balance_updated_at ? String(a.balance_updated_at).slice(0, 10) : new Date().toISOString().slice(0, 10)}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 12 }}>
+                    <div><div style={{ fontSize: 16, fontWeight: 800, color: C.ok }}>{nm(totalIn)}</div><div style={{ fontSize: 9, color: C.ok, opacity: .6 }}>وارد (هذا الشهر)</div></div>
+                    <div style={{ width: 1, background: 'rgba(255,255,255,.06)' }} />
+                    <div><div style={{ fontSize: 16, fontWeight: 800, color: '#e67e22' }}>{nm(totalOut)}</div><div style={{ fontSize: 9, color: '#e67e22', opacity: .6 }}>صادر (هذا الشهر)</div></div>
+                  </div>
+                </div>
+                {/* Info */}
+                <div><SH2 t="معلومات الحساب" c={C.gold} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><IB l="اسم البنك" v={a.bank_name} toast={toast} /><IB l="اسم الحساب" v={a.account_name} toast={toast} /><IB l="رقم الحساب" v={a.account_number} copy toast={toast} /><IB l="رمز سويفت" v={a.swift_code} copy toast={toast} /></div><div style={{ marginTop: 8 }}><IB l="الآيبان (IBAN)" v={a.iban} copy toast={toast} /></div></div>
+                {/* Classification */}
+                <div><SH2 t="التصنيف" c={C.ok} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><IB l="الغرض" v={purposeMap[a.account_purpose] || a.account_purpose || 'عام'} toast={toast} /><IB l="النوع" v={a.account_type || 'جاري'} toast={toast} />{br && <IB l="الفرع" v={br.name_ar} toast={toast} />}{a.min_balance_alert && <IB l="الحد الأدنى للتنبيه" v={nm(a.min_balance_alert) + ' ر.س'} toast={toast} />}</div></div>
+                {/* Quick summary */}
+                <div><SH2 t="ملخص سريع" c={C.blue} /><div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                  {[['مطابقة', matched, C.ok], ['معلّقة', pending, pending > 0 ? '#e67e22' : 'var(--tx5)'], ['حركة', txns.length, C.gold], ['دفعة', 0, 'var(--tx5)']].map(([l, v, c], i) => <div key={i} style={{ padding: 12, borderRadius: 10, background: c === 'var(--tx5)' ? 'rgba(255,255,255,.02)' : c + '08', border: '1px solid ' + (c === 'var(--tx5)' ? 'rgba(255,255,255,.04)' : c + '12'), textAlign: 'center' }}><div style={{ fontSize: 20, fontWeight: 900, color: c }}>{v}</div><div style={{ fontSize: 8, color: c, opacity: .7, marginTop: 4 }}>{l}</div></div>)}
+                </div></div>
+              </div>}
+
+              {/* TAB 2: الحركات */}
+              {acctTab === 'txns' && <div>
+                {/* Summary cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
+                  {[['إجمالي الوارد', nm(totalIn), C.ok], ['إجمالي الصادر', nm(totalOut), '#e67e22'], ['الصافي', (totalIn - totalOut >= 0 ? '+' : '') + nm(totalIn - totalOut), totalIn - totalOut >= 0 ? C.ok : C.red]].map(([l, v, c], i) => <div key={i} style={{ padding: 14, borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', textAlign: 'center' }}><div style={{ fontSize: 18, fontWeight: 800, color: c }}>{v}</div><div style={{ fontSize: 9, color: c, opacity: .6, marginTop: 4 }}>{l}</div></div>)}
+                </div>
+                {/* Filter chips */}
+                <div style={{ display: 'flex', gap: 4, marginBottom: 14, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {[['all', 'الكل', txns.length], ['deposit', 'إيداع', txns.filter(t => t.transaction_type === 'deposit').length], ['withdrawal', 'سحب', txns.filter(t => t.transaction_type === 'withdrawal').length], ['transfer_in', 'وارد', txns.filter(t => t.transaction_type === 'transfer_in').length], ['transfer_out', 'صادر', txns.filter(t => t.transaction_type === 'transfer_out').length]].map(([k, l, n]) => <button key={k} onClick={() => setTxnFilter(k)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: txnFilter === k ? 700 : 500, color: txnFilter === k ? C.gold : 'var(--tx4)', background: txnFilter === k ? 'rgba(201,168,76,.08)' : 'transparent', border: txnFilter === k ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{l} ({n})</button>)}
+                </div>
+                {/* Transaction list */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {filteredTxns.length === 0 ? <div style={{ textAlign: 'center', padding: 30, color: 'var(--tx6)' }}>لا توجد حركات</div> :
+                    filteredTxns.map(t => { const c = txnClr[t.transaction_type] || '#888'; const isIn = Number(t.amount) > 0; return <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.03)' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: c + '12', border: '1px solid ' + c + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: c, flexShrink: 0 }}>{txnIcon[t.transaction_type] || '•'}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', marginBottom: 2 }}>{t.description}</div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr' }}>{t.transaction_date}</span>
+                          <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr' }}>{t.reference_number}</span>
+                          <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: t.match_status === 'matched' ? 'rgba(39,160,70,.08)' : 'rgba(230,126,34,.08)', color: t.match_status === 'matched' ? C.ok : '#e67e22', fontWeight: 600 }}>{t.match_status === 'matched' ? 'مطابق' : 'معلّق'}</span>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'left', flexShrink: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: isIn ? C.ok : C.red }}>{isIn ? '+' : ''}{nm(t.amount)}</div>
+                        <div style={{ fontSize: 8, color: isIn ? C.ok : C.red, opacity: .6 }}>{txnLbl[t.transaction_type] || '—'}</div>
+                      </div>
+                    </div>; })}
+                </div>
+              </div>}
+
+              {/* TAB 3: المدفوعات */}
+              {acctTab === 'payments' && <div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--tx6)', fontSize: 11 }}>سيتم ربط المدفوعات بالحساب البنكي قريباً</div>
+              </div>}
+
+              {/* TAB 4: التسويات */}
+              {acctTab === 'recon' && <div>
+                {/* Summary */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
+                  {[['مطابقة', matched, C.ok], ['معلّقة', pending, pending > 0 ? '#e67e22' : 'var(--tx5)'], ['نسبة المطابقة', matchPct + '%', matchPct >= 80 ? C.ok : matchPct >= 50 ? '#e67e22' : C.red]].map(([l, v, c], i) => <div key={i} style={{ padding: 14, borderRadius: 10, background: c === 'var(--tx5)' ? 'rgba(255,255,255,.02)' : c + '08', border: '1px solid ' + (c === 'var(--tx5)' ? 'rgba(255,255,255,.04)' : c + '12'), textAlign: 'center' }}><div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v}</div><div style={{ fontSize: 9, color: c, opacity: .7, marginTop: 4 }}>{l}</div></div>)}
+                </div>
+                {/* Progress bar */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ height: 8, borderRadius: 4, overflow: 'hidden', display: 'flex', background: 'rgba(255,255,255,.06)' }}>
+                    <div style={{ width: matchPct + '%', background: C.ok, transition: 'width .3s' }} />
+                    <div style={{ width: (100 - matchPct) + '%', background: '#e67e22', transition: 'width .3s' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                    <span style={{ fontSize: 9, color: C.ok }}>مطابقة {matched}/{txns.length}</span>
+                    <span style={{ fontSize: 9, color: '#e67e22' }}>معلّقة {pending}/{txns.length}</span>
+                  </div>
+                </div>
+                {/* Pending transactions */}
+                {pending > 0 && <><SH2 t={'حركات تحتاج مطابقة (' + pending + ')'} c="#e67e22" />
+                  {txns.filter(t => t.match_status === 'pending').map(t => { const isIn = Number(t.amount) > 0; return <div key={t.id} style={{ background: 'rgba(230,126,34,.03)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(230,126,34,.08)', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <div><div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>{t.description}</div><div style={{ fontSize: 9, color: 'var(--tx5)', marginTop: 2 }}>{t.transaction_date}  {t.reference_number}</div></div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: isIn ? C.ok : C.red }}>{isIn ? '+' : ''}{nm(t.amount)}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button style={{ flex: 1, height: 32, borderRadius: 8, border: '1px solid rgba(39,160,70,.2)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>مطابقة مع فاتورة</button>
+                      <button style={{ flex: 1, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx4)', fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>مطابقة يدوية</button>
+                      <button style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(192,57,43,.15)', background: 'rgba(192,57,43,.04)', color: C.red, fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>تنازع</button>
+                    </div>
+                  </div>; })}</>}
+                {/* Matched transactions */}
+                {matched > 0 && <><SH2 t={'حركات مطابقة (' + matched + ')'} c={C.ok} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {txns.filter(t => t.match_status === 'matched').slice(0, 4).map(t => { const isIn = Number(t.amount) > 0; const c = txnClr[t.transaction_type] || '#888'; return <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,.015)' }}>
+                      <span style={{ fontSize: 12, color: c }}>{txnIcon[t.transaction_type]}</span>
+                      <span style={{ flex: 1, fontSize: 11, color: 'var(--tx3)' }}>{t.description}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: isIn ? C.ok : C.red }}>{isIn ? '+' : ''}{nm(t.amount)}</span>
+                    </div>; })}
+                    {matched > 4 && <div style={{ textAlign: 'center', fontSize: 10, color: 'var(--tx5)', padding: 8 }}>+ {matched - 4} حركات أخرى</div>}
+                  </div></>}
+              </div>}
+
+            </div>
+          </div>
+        </div>
+      </div>;
+    })()}
     {pop && <div onClick={() => setPop(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(560px,95vw)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.12)' }}>
         <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,' + C.gold + ',transparent)' }} />
@@ -458,31 +736,76 @@ export default function BranchesPage({ sb, toast, user, lang }) {
 
     {/* Branches tab */}
     {mainTab === 'branches' && <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 22 }}>
-        {[['المكاتب', branches.length, C.gold], ['منشآت', branches.reduce((s, b) => s + (b.facilities_count || 0), 0), C.blue], ['عمال', branches.reduce((s, b) => s + (b.workers_count || 0), 0), C.ok], ['إيرادات', nm(totalRev), C.gold]].map(([l, v, c], i) => <div key={i} style={{ padding: 16, borderRadius: 12, background: c + '08', border: '1px solid ' + c + '18' }}><div style={{ fontSize: 10, fontWeight: 600, color: c, opacity: .7, marginBottom: 8 }}>{l}</div><div style={{ fontSize: 26, fontWeight: 900, color: c }}>{v}</div></div>)}
+      {/* Stats header badge */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, alignItems: 'center' }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{branches.length} فرع</span>
+        <span style={{ fontSize: 10, color: 'var(--tx5)' }}>·</span>
+        <span style={{ fontSize: 11, color: C.ok }}>{branches.filter(b => b.is_active !== false).length} نشط</span>
+        <span style={{ fontSize: 10, color: 'var(--tx5)' }}>·</span>
+        <span style={{ fontSize: 11, color: '#999' }}>{branches.filter(b => b.is_active === false).length} معطّل</span>
       </div>
       {loading ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx6)' }}>...</div> :
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
-          {branches.map(b => <div key={b.branch_id} onClick={() => { setViewRow(b); }} style={{ background: 'var(--bg)', border: '1px solid var(--bd)', borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--bd)'}>
-            <div style={{ padding: '16px 18px', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(201,168,76,.1)', border: '1.5px solid rgba(201,168,76,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" /></svg></div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}><span style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name_ar}</span><StatusBadge alert={b.license_alert} /></div>
-                <div style={{ display: 'flex', gap: 6 }}>{b.code && <span style={{ fontSize: 10, color: C.gold, background: 'rgba(201,168,76,.08)', padding: '1px 8px', borderRadius: 4, direction: 'ltr', fontWeight: 600 }}>{b.code}</span>}{b.city_name && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{b.city_name}</span>}</div>
+          {branches.map(b => {
+            const isActive = b.is_active !== false;
+            const now = new Date();
+            const licDays = b.license_expiry_date ? Math.ceil((new Date(b.license_expiry_date) - now) / 86400000) : null;
+            const cdDays = b.civil_defense_expiry ? Math.ceil((new Date(b.civil_defense_expiry) - now) / 86400000) : null;
+            const licClr = licDays === null ? '#555' : licDays < 0 ? C.red : licDays < 30 ? '#e67e22' : licDays < 90 ? C.gold : C.ok;
+            const cdClr = cdDays === null ? '#555' : cdDays < 0 ? C.red : cdDays < 30 ? '#e67e22' : cdDays < 90 ? C.gold : C.ok;
+            const borderClr = !isActive ? 'rgba(153,153,153,.15)' : (licDays !== null && licDays < 30) ? 'rgba(192,57,43,.2)' : 'rgba(39,160,70,.15)';
+            const licAlert = licDays !== null && licDays > 0 && licDays <= 30;
+            return <div key={b.branch_id} onClick={() => { setViewRow(b); }} style={{ background: 'var(--bg)', border: '1.5px solid ' + borderClr, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s', opacity: isActive ? 1 : .6 }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = borderClr}>
+              {/* Alert banner */}
+              {licAlert && <div style={{ padding: '5px 14px', background: 'rgba(192,57,43,.06)', borderBottom: '1px solid rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
+                <span style={{ fontSize: 9, fontWeight: 600, color: C.red }}>رخصة بلدية تنتهي خلال {licDays} يوماً</span>
+              </div>}
+              {!isActive && <div style={{ padding: '5px 14px', background: 'rgba(153,153,153,.04)', borderBottom: '1px solid rgba(153,153,153,.08)' }}>
+                <span style={{ fontSize: 9, fontWeight: 600, color: '#999' }}>معطّل</span>
+              </div>}
+              {/* Header */}
+              <div style={{ padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: isActive ? 'rgba(39,160,70,.08)' : 'rgba(153,153,153,.08)', border: '1px solid ' + (isActive ? 'rgba(39,160,70,.12)' : 'rgba(153,153,153,.1)'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isActive ? C.ok : '#999'} strokeWidth="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" /></svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{b.name_ar}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: isActive ? 'rgba(39,160,70,.1)' : 'rgba(153,153,153,.1)', color: isActive ? C.ok : '#999' }}>{isActive ? 'نشط' : 'معطّل'}</span>
+                  </div>
+                  {b.code && <div style={{ fontSize: 10, color: 'var(--tx5)', direction: 'ltr' }}>{b.code}</div>}
+                </div>
+                <div onClick={e => { e.stopPropagation(); openEdit(b); }} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(201,168,76,.15)', background: 'rgba(201,168,76,.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+                </div>
               </div>
-              <div onClick={e => { e.stopPropagation(); openEdit(b); }} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(201,168,76,.15)', background: 'rgba(201,168,76,.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg></div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderTop: '1px solid var(--bd2)', background: 'var(--hoverBg)' }}>
-              {[['منشآت', b.facilities_count, C.blue], ['عمال', b.workers_count, C.ok], ['معاملات', b.transactions_count, C.gold], ['فواتير', b.invoices_count, '#9b59b6']].map(([l, v, c], i) => <div key={i} style={{ padding: 10, textAlign: 'center', borderLeft: i > 0 ? '1px solid var(--bd2)' : 'none' }}><div style={{ fontSize: 8, color: 'var(--tx5)', marginBottom: 3 }}>{l}</div><div style={{ fontSize: 16, fontWeight: 800, color: c }}>{v || 0}</div></div>)}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid var(--bd2)' }}>
-              {[['إيرادات', nm(b.total_revenue), C.gold], ['محصّل', nm(b.collected_amount), C.ok], ['متبقي', nm(b.outstanding), Number(b.outstanding) > 0 ? C.red : 'var(--tx5)']].map(([l, v, c], i) => <div key={i} style={{ padding: '8px 10px', textAlign: 'center', borderLeft: i > 0 ? '1px solid var(--bd2)' : 'none' }}><div style={{ fontSize: 8, color: 'var(--tx6)', marginBottom: 2 }}>{l}</div><div style={{ fontSize: 12, fontWeight: 700, color: c }}>{v}</div></div>)}
-            </div>
-            <div style={{ padding: '8px 16px', borderTop: '1px solid var(--bd2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{b.phone && <span style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr' }}>{b.phone}</span>}{Number(b.monthly_operating_cost) > 0 && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.06)', padding: '2px 8px', borderRadius: 4 }}>{nm(Math.round(Number(b.monthly_operating_cost)))} شهري</span>}</div>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>{b.civil_defense_alert === 'expiring_soon' && <span style={{ fontSize: 8, color: '#e67e22', background: 'rgba(230,126,34,.08)', padding: '2px 6px', borderRadius: 3 }}>سلامة</span>}{b.manager_user_name && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.08)', padding: '2px 8px', borderRadius: 4 }}>{b.manager_user_name}</span>}</div>
-            </div>
-          </div>)}
+              {/* 4 Indicators */}
+              <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,.04)', background: 'rgba(255,255,255,.01)' }}>
+                {[
+                  [b.workers_count || 0, 'عامل', C.ok],
+                  [b.facilities_count || 0, 'منشأة', C.blue],
+                  [licDays === null ? '—' : licDays < 0 ? 'منتهية' : licDays + ' يوم', 'الرخصة', licClr],
+                  [cdDays === null ? '—' : cdDays < 0 ? 'منتهية' : cdDays + ' أيام', 'الدفاع المدني', cdClr]
+                ].map(([val, lbl, clr], i) => <div key={i} style={{ flex: 1, padding: '8px 6px', textAlign: 'center', borderLeft: i > 0 ? '1px solid rgba(255,255,255,.03)' : 'none' }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: clr, lineHeight: 1, marginBottom: 3 }}>{val}</div>
+                  <div style={{ fontSize: 7, fontWeight: 600, color: clr, opacity: .7 }}>{lbl}</div>
+                </div>)}
+              </div>
+              {/* Footer: Manager + Working hours */}
+              <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,.015)' }}>
+                {b.manager_user_name ? <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                  <span style={{ fontSize: 9, color: C.gold }}>{b.manager_user_name}</span>
+                </div> : <span />}
+                {(b.work_start_time || b.work_end_time) ? <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                  <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr' }}>{(b.work_start_time || '').slice(0, 5)} - {(b.work_end_time || '').slice(0, 5)}</span>
+                  <span style={{ fontSize: 8, color: 'var(--tx6)' }}>الدوام</span>
+                </div> : <span />}
+              </div>
+            </div>;
+          })}
         </div>}
     </>}
 
