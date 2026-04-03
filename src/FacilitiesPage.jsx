@@ -31,19 +31,23 @@ const PER_PAGE=15
 useEffect(()=>{onTabChange&&onTabChange({tab})},[tab])
 
 const load=useCallback(async()=>{setLoading(true)
-const[f,o,s,c,p,ex,br,rg,ct,ws,vi]=await Promise.all([
+// Phase 1: Essential data first — show facilities list immediately
+const[f,o,br,rg,ct]=await Promise.all([
 sb.from('facilities').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
 sb.from('owners').select('*').is('deleted_at',null).order('name_ar'),
+sb.from('branches').select('id,name_ar').is('deleted_at',null),
+sb.from('regions').select('id,name_ar').order('name_ar'),
+sb.from('cities').select('id,name_ar,region_id').order('name_ar')
+]);setData(f.data||[]);setOwners(o.data||[]);setBranches(br.data||[]);setRegions(rg.data||[]);setCities(ct.data||[]);setLoading(false)
+// Phase 2: Detail data in background
+Promise.all([
 sb.from('facility_subscriptions').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
 sb.from('platform_credentials').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
 sb.from('facility_partners').select('*').is('deleted_at',null),
 sb.from('facility_exemption_log').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
-sb.from('branches').select('id,name_ar').is('deleted_at',null),
-sb.from('regions').select('id,name_ar').order('name_ar'),
-sb.from('cities').select('id,name_ar,region_id').order('name_ar'),
 sb.from('facility_weekly_stats').select('*').order('week_date',{ascending:false}).limit(500),
 sb.from('facility_visas').select('*').is('deleted_at',null).order('created_at',{ascending:false})
-]);setData(f.data||[]);setOwners(o.data||[]);setSubs(s.data||[]);setCreds(c.data||[]);setPartners(p.data||[]);setExemptions(ex.data||[]);setBranches(br.data||[]);setRegions(rg.data||[]);setCities(ct.data||[]);setWeeklyStats(ws.data||[]);setVisas(vi.data||[]);setLoading(false)},[sb])
+]).then(([s,c,p,ex,ws,vi])=>{setSubs(s.data||[]);setCreds(c.data||[]);setPartners(p.data||[]);setExemptions(ex.data||[]);setWeeklyStats(ws.data||[]);setVisas(vi.data||[])})},[sb])
 useEffect(()=>{load()},[load])
 const[occupationsMap,setOccupationsMap]=useState({})
 useEffect(()=>{if(!viewRow)return;setFacWorkersLoading(true);sb.from('workers').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('name_ar').then(({data:d})=>{setFacWorkersData(d||[]);setFacWorkersLoading(false);const occIds=[...new Set((d||[]).map(w=>w.occupation_id).filter(Boolean))];if(occIds.length)sb.from('lookup_items').select('id,value_ar').in('id',occIds).then(({data:o})=>{const m={};(o||[]).forEach(x=>m[x.id]=x.value_ar);setOccupationsMap(p=>({...p,...m}))})});sb.from('facility_documents').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('expiry_date').then(({data:d})=>setFacDocs(d||[]));sb.from('facility_debts').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('due_date').then(({data:d})=>setFacDebts(d||[]));sb.from('facility_violations').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('violation_date',{ascending:false}).then(({data:d})=>setFacViolations(d||[]))},[viewRow,sb])

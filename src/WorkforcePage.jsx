@@ -34,10 +34,16 @@ const[branches,setBranches]=useState([])
 const[showAdv,setShowAdv]=useState(false)
 const PER_PAGE=9
 useEffect(()=>{onTabChange&&onTabChange({tab:'workers'})},[])
-const load=useCallback(async()=>{setLoading(true);const[w,f,b,wp,iq,ins,tr,niq,pp,lic,dep,ctr,sh,vi,vh,tl,treq,gs,att,br]=await Promise.all([
+const load=useCallback(async()=>{setLoading(true);
+// Phase 1: Essential data first (workers list + lookups) — show UI immediately
+const[w,f,b,br]=await Promise.all([
 sb.from('workers').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
 sb.from('facilities').select('id,name_ar,unified_national_number').is('deleted_at',null),
 sb.from('brokers').select('id,name_ar').is('deleted_at',null),
+sb.from('branches').select('id,name_ar').is('deleted_at',null)
+]);setWorkers(w.data||[]);setFacilities(f.data||[]);setBrokers(b.data||[]);setBranches(br.data||[]);setLoading(false);
+// Phase 2: Detail data in background — no blocking
+Promise.all([
 sb.from('work_permits').select('*').is('deleted_at',null).order('wp_expiry_date',{ascending:false}),
 sb.from('iqama_cards').select('*').is('deleted_at',null).order('iqama_expiry_date',{ascending:false}),
 sb.from('worker_insurance').select('*').is('deleted_at',null).order('end_date',{ascending:false}),
@@ -53,9 +59,8 @@ sb.from('worker_vehicles').select('*').order('created_at',{ascending:false}),
 sb.from('worker_timeline').select('*').order('event_date',{ascending:false}),
 sb.from('transfer_requests').select('*').order('created_at',{ascending:false}),
 sb.from('gosi_subscriptions').select('*').order('created_at',{ascending:false}),
-sb.from('attachments').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
-sb.from('branches').select('id,name_ar').is('deleted_at',null)
-]);setWorkers(w.data||[]);setFacilities(f.data||[]);setBrokers(b.data||[]);setPermits(wp.data||[]);setIqamas(iq.data||[]);setInsurance(ins.data||[]);setTransfers(tr.data||[]);setNewIqamas(niq.data||[]);setPassports(pp.data||[]);setLicenses(lic.data||[]);setDependents(dep.data||[]);setContracts(ctr.data||[]);setSalaryHistory(sh.data||[]);setVisas(vi.data||[]);setVehicles(vh.data||[]);setTimeline(tl.data||[]);setTransferReqs(treq.data||[]);setGosiSubs(gs.data||[]);setAttFiles(att.data||[]);setBranches(br.data||[]);setLoading(false)},[sb])
+sb.from('attachments').select('*').is('deleted_at',null).order('created_at',{ascending:false})
+]).then(([wp,iq,ins,tr,niq,pp,lic,dep,ctr,sh,vi,vh,tl,treq,gs,att])=>{setPermits(wp.data||[]);setIqamas(iq.data||[]);setInsurance(ins.data||[]);setTransfers(tr.data||[]);setNewIqamas(niq.data||[]);setPassports(pp.data||[]);setLicenses(lic.data||[]);setDependents(dep.data||[]);setContracts(ctr.data||[]);setSalaryHistory(sh.data||[]);setVisas(vi.data||[]);setVehicles(vh.data||[]);setTimeline(tl.data||[]);setTransferReqs(treq.data||[]);setGosiSubs(gs.data||[]);setAttFiles(att.data||[])})},[sb])
 useEffect(()=>{load()},[load])
 useEffect(()=>{if(!sb)return;sb.from('v_worker_completeness').select('worker_id,completion_pct,has_valid_permit,has_valid_iqama,has_valid_insurance,nearest_expiry').then(({data})=>{if(data){const m={};data.forEach(r=>{m[r.worker_id]=r});setCompletionMap(m)}})},[sb,workers])
 useEffect(()=>{if(!sb||!workers.length)return;const ids=[...new Set(workers.map(w=>w.occupation_id).filter(Boolean))];if(!ids.length)return;sb.from('lookup_items').select('id,value_ar').in('id',ids).then(({data})=>{if(data){const m={};data.forEach(r=>m[r.id]=r.value_ar);setOccMap(m)}})},[sb,workers])
