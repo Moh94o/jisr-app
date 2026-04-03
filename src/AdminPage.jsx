@@ -6,6 +6,7 @@ const num=v=>Number(v||0).toLocaleString('en-US')
 const fS={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center'}
 const bS={height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5}
 const lblS={fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:5}
+const IB=({l,v,copy,toast})=><div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast&&toast('تم النسخ')}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:'var(--tx5)'}}>⎘</button>}</div></div>
 
 const BadgeStatus=({v})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'rgba(192,57,43,.1)',color:v?C.ok:C.red}}>{v?'نشط':'معطّل'}</span>
 
@@ -174,33 +175,6 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 }} style={bS}>{{branches:'مكتب +',bank_accounts:'حساب بنكي +',users:'موظف +',roles:'دور +'}[tab]}</button>
 </div>
 
-{/* ═══ SHARED STATS CARDS ═══ */}
-<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-{/* المكاتب */}
-<div onClick={()=>{setTab('branches');setQ('');setFilterStatus('all');setFilterRegion('all')}} style={{padding:'14px 16px',borderRadius:12,background:'linear-gradient(145deg,rgba(28,24,16,.95),rgba(34,30,18,.95))',border:tab==='branches'?'1.5px solid rgba(201,168,76,.3)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',transition:'.15s'}}>
-<div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:11,fontWeight:600,color:'var(--tx3)'}}>المكاتب</span><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/></div>
-<div style={{fontSize:24,fontWeight:700,color:C.gold,lineHeight:1,marginBottom:8}}>{branches.length}</div>
-<div style={{display:'flex',gap:8}}><span style={{fontSize:9,color:C.ok}}>{brActive} نشط</span><span style={{fontSize:9,color:C.red}}>{brInactive} معطّل</span></div>
-</div>
-{/* الحسابات البنكية */}
-<div onClick={()=>{setTab('bank_accounts');setQ('');setFilterStatus('all')}} style={{padding:'14px 16px',borderRadius:12,background:'linear-gradient(145deg,rgba(16,18,28,.95),rgba(18,22,38,.95))',border:tab==='bank_accounts'?'1.5px solid rgba(52,131,180,.3)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',transition:'.15s'}}>
-<div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:11,fontWeight:600,color:'var(--tx3)'}}>الحسابات البنكية</span><span style={{width:6,height:6,borderRadius:'50%',background:C.blue}}/></div>
-<div style={{fontSize:24,fontWeight:700,color:C.blue,lineHeight:1,marginBottom:8}}>{bankAccs.length}</div>
-<div style={{display:'flex',gap:6,flexWrap:'wrap'}}><span style={{fontSize:9,color:C.ok}}>{baActive} نشط</span><span style={{fontSize:9,color:C.red}}>{baInactive} معطّل</span><span style={{fontSize:9,color:'var(--tx5)'}}>|</span><span style={{fontSize:9,color:C.gold}}>{baDeposit} إيداع</span><span style={{fontSize:9,color:C.blue}}>{baSadad} سداد</span><span style={{fontSize:9,color:C.ok}}>{baIntl} خارجي</span></div>
-</div>
-{/* الموظفين */}
-<div onClick={()=>{setTab('users');setQ('');setFilterStatus('all')}} style={{padding:'14px 16px',borderRadius:12,background:'linear-gradient(145deg,rgba(20,28,20,.95),rgba(22,34,22,.95))',border:tab==='users'?'1.5px solid rgba(39,160,70,.3)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',transition:'.15s'}}>
-<div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:11,fontWeight:600,color:'var(--tx3)'}}>الموظفين</span><span style={{width:6,height:6,borderRadius:'50%',background:C.ok}}/></div>
-<div style={{fontSize:24,fontWeight:700,color:C.ok,lineHeight:1,marginBottom:8}}>{totalUsers}</div>
-<div style={{display:'flex',gap:8}}><span style={{fontSize:9,color:C.ok}}>{usActive} نشط</span><span style={{fontSize:9,color:C.red}}>{usInactive} معطّل</span></div>
-</div>
-{/* الأدوار */}
-<div onClick={()=>{setTab('roles');setQ('');setFilterStatus('all')}} style={{padding:'14px 16px',borderRadius:12,background:'linear-gradient(145deg,rgba(28,16,28,.95),rgba(34,18,34,.95))',border:tab==='roles'?'1.5px solid rgba(160,100,200,.3)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',transition:'.15s'}}>
-<div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:11,fontWeight:600,color:'var(--tx3)'}}>الأدوار والصلاحيات</span><span style={{width:6,height:6,borderRadius:'50%',background:'#a064c8'}}/></div>
-<div style={{fontSize:24,fontWeight:700,color:'#a064c8',lineHeight:1,marginBottom:8}}>{roles.length}</div>
-<div style={{display:'flex',gap:8}}><span style={{fontSize:9,color:'var(--tx4)'}}>{perms.length} صلاحية</span></div>
-</div>
-</div>
 
 <div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}}>
 {[...tabs].map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setFilterStatus('all');setFilterRegion('all')}} style={{padding:'10px 16px',fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.42)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap',flexShrink:0}}>{t.l}</div>)}
