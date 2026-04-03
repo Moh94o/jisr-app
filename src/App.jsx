@@ -3100,32 +3100,58 @@ return<div style={{display:'flex',flexDirection:'column',height:'100%',overflow:
 </div>}
 
 function ActivityLogPage({sb,lang,data,loading,onLoad}){
-const T=(a,e)=>lang==='ar'?a:e;const isAr=lang!=='en'
-const[logs,setLogs]=useState(data||[]);const[busy,setBusy]=useState(loading)
+const T=(a,e)=>lang==='ar'?a:e;const isAr=lang!=='en';const F="'Cairo',sans-serif";const C={gold:'#c9a84c',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
+const[logs,setLogs]=useState(data||[]);const[busy,setBusy]=useState(loading);const[filter,setFilter]=useState('all');const[q,setQ]=useState('')
 useEffect(()=>{if(onLoad)onLoad();loadLogs()},[])
 useEffect(()=>{setLogs(data||[]);setBusy(loading)},[data,loading])
-const loadLogs=async()=>{setBusy(true);try{const{data:d}=await sb.from('activity_log').select('*,users:user_id(name_ar,name_en)').order('created_at',{ascending:false}).limit(200);setLogs(d||[])}catch(e){}setBusy(false)}
-const actionMap={insert:{l:isAr?'إضافة':'Add',c:'#27a046'},update:{l:isAr?'تعديل':'Edit',c:'#3483b4'},delete:{l:isAr?'حذف':'Delete',c:'#c0392b'},login:{l:isAr?'دخول':'Login',c:'#c9a84c'}}
-const entityMap={facilities:isAr?'منشأة':'Facility',workers:isAr?'عامل':'Worker',clients:isAr?'عميل':'Client',invoices:isAr?'فاتورة':'Invoice',transactions:isAr?'معاملة':'Transaction',expenses:isAr?'مصروف':'Expense',brokers:isAr?'وسيط':'Broker',users:isAr?'مستخدم':'User'}
+const loadLogs=async()=>{setBusy(true);try{const{data:d}=await sb.from('activity_log').select('*,users:user_id(name_ar,name_en)').order('created_at',{ascending:false}).limit(500);setLogs(d||[])}catch(e){}setBusy(false)}
+const actionMap={insert:{l:isAr?'إضافة':'Add',c:C.ok,ic:'＋'},update:{l:isAr?'تعديل':'Edit',c:C.blue,ic:'✎'},delete:{l:isAr?'حذف':'Delete',c:C.red,ic:'✕'},login:{l:isAr?'دخول':'Login',c:C.gold,ic:'→'}}
+const entityMap={facilities:{l:isAr?'منشأة':'Facility',ic:'🏢',c:'#e67e22'},workers:{l:isAr?'عامل':'Worker',ic:'👤',c:C.blue},clients:{l:isAr?'عميل':'Client',ic:'👥',c:'#9b59b6'},invoices:{l:isAr?'فاتورة':'Invoice',ic:'📄',c:C.gold},transactions:{l:isAr?'معاملة':'Transaction',ic:'📋',c:'#1abc9c'},expenses:{l:isAr?'مصروف':'Expense',ic:'💰',c:C.red},brokers:{l:isAr?'وسيط':'Broker',ic:'🤝',c:'#e67e22'},users:{l:isAr?'مستخدم':'User',ic:'⚙',c:'#888'}}
+const filtered=logs.filter(l=>{if(filter!=='all'&&l.action!==filter)return false;if(q&&!JSON.stringify(l).toLowerCase().includes(q.toLowerCase()))return false;return true})
+const counts={all:logs.length,insert:logs.filter(l=>l.action==='insert').length,update:logs.filter(l=>l.action==='update').length,delete:logs.filter(l=>l.action==='delete').length}
+// Group by day
+const byDay={};filtered.forEach(l=>{const d=l.created_at?.slice(0,10)||'unknown';if(!byDay[d])byDay[d]=[];byDay[d].push(l)})
+const dayName=(d)=>{const dt=new Date(d);return dt.toLocaleDateString(isAr?'ar-SA':'en-US',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+const timeStr=(t)=>{if(!t)return'';const dt=new Date(t);return dt.toLocaleTimeString(isAr?'ar-SA':'en-US',{hour:'2-digit',minute:'2-digit'})}
+const fBtn=(v,l,n,c)=>({padding:'8px 16px',borderRadius:10,fontSize:11,fontWeight:filter===v?700:500,color:filter===v?(c||C.gold):'rgba(255,255,255,.35)',background:filter===v?(c||C.gold)+'12':'transparent',border:filter===v?'1.5px solid '+(c||C.gold)+'30':'1.5px solid rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',gap:6})
 return<div>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,flexWrap:'wrap',gap:12}}>
 <div><div style={{fontSize:20,fontWeight:800,color:'var(--tx)'}}>{T('سجل النشاطات','Activity Log')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('تتبع جميع التغييرات في النظام','Track all system changes')}</div></div>
-<button onClick={loadLogs} style={{height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:'#c9a84c',fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>{T('تحديث','Refresh')}</button>
+<button onClick={loadLogs} style={{height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>{T('تحديث','Refresh')}</button>
 </div>
+{/* Stats badges */}
+<div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}>
+{[['all',T('إجمالي','Total'),counts.all,'#999'],['update',T('تعديل','Edit'),counts.update,C.blue],['insert',T('إضافة','Add'),counts.insert,C.ok],['delete',T('حذف','Delete'),counts.delete,C.red]].map(([v,l,n,c])=><div key={v} onClick={()=>setFilter(v)} style={fBtn(v,l,n,c)}>{l}: <span style={{fontWeight:800}}>{n}</span></div>)}
+</div>
+{/* Search */}
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={T('ابحث باسم المستخدم أو الكيان...','Search by user or entity...')} style={{width:'100%',height:42,padding:'0 18px',border:'1.5px solid rgba(255,255,255,.08)',borderRadius:12,fontFamily:F,fontSize:12,color:'var(--tx)',background:'rgba(255,255,255,.03)',outline:'none',marginBottom:20}}/>
 {busy?<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>:
-logs.length===0?<div style={{textAlign:'center',padding:60}}><div style={{fontSize:13,color:'var(--tx4)'}}>{T('لا توجد سجلات بعد','No activity logs yet')}</div><div style={{fontSize:11,color:'var(--tx5)',marginTop:8}}>{T('ملاحظة: يجب إنشاء جدول activity_log في قاعدة البيانات','Note: Create activity_log table in database')}</div></div>:
-<div style={{borderRadius:14,overflow:'hidden',border:'1px solid var(--bd)'}}>
-<div style={{display:'grid',gridTemplateColumns:'140px 80px 100px 1fr 160px',padding:'10px 16px',background:'var(--bg)',borderBottom:'1px solid var(--bd)',fontSize:10,fontWeight:700,color:'var(--tx4)'}}>
-<div>{T('المستخدم','User')}</div><div>{T('الإجراء','Action')}</div><div>{T('الكيان','Entity')}</div><div>{T('التفاصيل','Details')}</div><div>{T('الوقت','Time')}</div>
+filtered.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>{T('لا توجد سجلات','No logs')}</div>:
+<div style={{display:'flex',flexDirection:'column',gap:24}}>
+{Object.entries(byDay).map(([day,items])=><div key={day}>
+<div style={{fontSize:13,fontWeight:700,color:'var(--tx3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.05)'}}>{dayName(day)}</div>
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{items.map((log,i)=>{const act=actionMap[log.action]||{l:log.action,c:'#999',ic:'•'};const ent=entityMap[log.entity_type]||{l:log.entity_type||'—',ic:'•',c:'#999'};const userName=isAr?log.users?.name_ar:log.users?.name_en||log.users?.name_ar||'—';const initials=userName?userName.split(' ').map(w=>w[0]).join('').slice(0,2):'?'
+return<div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',background:'var(--bg)',borderRadius:14,border:'1px solid rgba(255,255,255,.04)'}}>
+{/* Avatar */}
+<div style={{width:40,height:40,borderRadius:12,background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:800,color:C.gold,flexShrink:0}}>{initials}</div>
+{/* Entity icon */}
+<div style={{width:32,height:32,borderRadius:8,background:ent.c+'12',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{ent.ic}</div>
+{/* Content */}
+<div style={{flex:1,minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4,flexWrap:'wrap'}}>
+<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{userName}</span>
+<span style={{fontSize:10,fontWeight:600,padding:'2px 10px',borderRadius:6,background:act.c+'15',color:act.c}}>{act.l}</span>
+<span style={{fontSize:10,fontWeight:600,padding:'2px 10px',borderRadius:6,background:'rgba(255,255,255,.05)',color:'var(--tx3)'}}>{ent.l}</span>
 </div>
-{logs.map((log,i)=>{const act=actionMap[log.action]||{l:log.action,c:'#999'};const ent=entityMap[log.entity_type]||log.entity_type||'—'
-return<div key={i} style={{display:'grid',gridTemplateColumns:'140px 80px 100px 1fr 160px',padding:'10px 16px',borderBottom:'1px solid var(--bd2)',fontSize:12,alignItems:'center'}}>
-<div style={{fontWeight:600,color:'var(--tx2)'}}>{isAr?log.users?.name_ar:log.users?.name_en||log.users?.name_ar||'—'}</div>
-<div><span style={{fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:5,background:act.c+'15',color:act.c}}>{act.l}</span></div>
-<div style={{color:'var(--tx3)'}}>{ent}</div>
-<div style={{color:'var(--tx4)',fontSize:11,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{log.description||log.entity_name||'—'}</div>
-<div style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{log.created_at?new Date(log.created_at).toLocaleString(isAr?'ar-SA':'en-US',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div>
+<div style={{fontSize:12,color:'var(--tx4)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{log.description||log.entity_name||'—'}</div>
+{log.changes&&<div style={{fontSize:10,color:'rgba(201,168,76,.4)',marginTop:3,cursor:'pointer'}}>{T('اضغط لعرض التغييرات','Click to view changes')}</div>}
+</div>
+{/* Time */}
+<div style={{fontSize:11,color:'var(--tx5)',flexShrink:0,textAlign:'left',direction:'ltr'}}>{timeStr(log.created_at)}</div>
 </div>})}
+</div>
+</div>)}
 </div>}
 </div>}
 
