@@ -2175,24 +2175,70 @@ return<div>
 
 function ReportAlertsPage({sb,lang}){
 const T=(a,e)=>lang==='ar'?a:e
-const[notifs,setNotifs]=useState([]);const[filter,setFilter]=useState('all')
-useEffect(()=>{sb.from('notifications_view').select('*').then(({data})=>setNotifs(data||[]))},[sb])
-const filtered=filter==='all'?notifs:notifs.filter(n=>n.severity===filter)
+const[notifs,setNotifs]=useState([]);const[filter,setFilter]=useState('all');const[typeFilter,setTypeFilter]=useState('all');const[expanded,setExpanded]=useState({})
+useEffect(()=>{sb.from('notifications_view').select('*').limit(500).then(({data})=>setNotifs(data||[]))},[sb])
 const urgentCount=notifs.filter(n=>n.severity==='urgent').length
 const warnCount=notifs.filter(n=>n.severity==='warning').length
+const typeLabels={iqama_expired:T('إقامات منتهية','Expired Iqamas'),iqama_expiring:T('إقامات تنتهي قريباً','Expiring Iqamas'),task_overdue:T('مهام متأخرة','Overdue Tasks'),transaction_issue:T('معاملات بمشكلة','Issue Transactions'),invoice_overdue:T('فواتير متأخرة','Overdue Invoices'),passport_expiring:T('جوازات تنتهي','Expiring Passports')}
+const typeIcons={iqama_expired:'🪪',iqama_expiring:'🪪',task_overdue:'📋',transaction_issue:'⚠️',invoice_overdue:'🧾',passport_expiring:'✈️'}
+const typeColors={iqama_expired:C.red,iqama_expiring:'#e67e22',task_overdue:C.red,transaction_issue:C.red,invoice_overdue:'#e67e22',passport_expiring:'#e67e22'}
+// Group by type
+const groups={};notifs.forEach(n=>{if(!groups[n.type])groups[n.type]={items:[],severity:n.severity};groups[n.type].items.push(n)})
+const filtered1=filter==='all'?notifs:notifs.filter(n=>n.severity===filter)
+const filtered2=typeFilter==='all'?filtered1:filtered1.filter(n=>n.type===typeFilter)
 return<div>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
-<div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>{T('التنبيهات','Alerts')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{notifs.length} {T('تنبيه','alerts')}</div></div>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,flexWrap:'wrap',gap:12}}>
+<div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>{T('التنبيهات الذكية','Smart Alerts')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('تنبيهات مُولّدة تلقائياً من بيانات النظام','Auto-generated alerts from system data')}</div></div>
 <div style={{display:'flex',gap:6}}>
-{[['all',T('الكل','All'),notifs.length,'rgba(255,255,255,.4)'],['urgent',T('عاجل','Urgent'),urgentCount,C.red],['warning',T('تحذير','Warning'),warnCount,'#e67e22']].map(([k,l,n,c])=><button key={k} onClick={()=>setFilter(k)} style={{height:34,padding:'0 14px',borderRadius:8,border:'1.5px solid '+(filter===k?c+'40':'rgba(255,255,255,.08)'),background:filter===k?c+'12':'transparent',color:filter===k?c:'rgba(255,255,255,.4)',fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>{l} <span style={{fontSize:10,fontWeight:700,background:c+'20',padding:'0 5px',borderRadius:4}}>{n}</span></button>)}
+{[['all',T('الكل','All'),notifs.length,'rgba(255,255,255,.4)'],['urgent',T('عاجل','Urgent'),urgentCount,C.red],['warning',T('تحذير','Warning'),warnCount,'#e67e22']].map(([k,l,n,c])=><button key={k} onClick={()=>{setFilter(k);setTypeFilter('all')}} style={{height:34,padding:'0 14px',borderRadius:8,border:'1.5px solid '+(filter===k?c+'40':'rgba(255,255,255,.08)'),background:filter===k?c+'12':'transparent',color:filter===k?c:'rgba(255,255,255,.4)',fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>{l} <span style={{fontSize:10,fontWeight:700,background:c+'20',padding:'0 5px',borderRadius:4}}>{n}</span></button>)}
 </div></div>
-{filtered.length===0?<div style={{textAlign:'center',padding:60,color:'rgba(39,160,70,.5)'}}>{T('لا توجد تنبيهات ✓','No alerts ✓')}</div>:
-<div style={{display:'flex',flexDirection:'column',gap:8}}>
-{filtered.map((n,i)=>{const isU=n.severity==='urgent';const clr=isU?C.red:'#e67e22';const ico=n.type==='facility_risk'?'⬡':n.type==='worker_absconded'?'!':n.type.includes('permit')?'▤':n.type.includes('iqama')?'▣':n.type.includes('insurance')?'◈':n.type.includes('invoice')?'◎':'△'
-return<div key={i} style={{background:isU?'rgba(192,57,43,.04)':'#171717',border:'1px solid '+(isU?'rgba(192,57,43,.12)':'rgba(255,255,255,.06)'),borderRadius:12,padding:'14px 18px',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:42,height:42,borderRadius:12,background:clr+'12',border:'1px solid '+clr+'20',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{ico}</div>
-<div style={{flex:1}}><div style={{fontSize:14,fontWeight:700,color:'var(--tx2)',marginBottom:3}}>{n.title}</div><div style={{fontSize:11,color:'var(--tx4)',lineHeight:1.6}}>{lang==='ar'?n.message_ar:n.message_en}</div>{n.facility_name&&<div style={{fontSize:10,color:'rgba(201,168,76,.4)',marginTop:3}}>{n.facility_name}</div>}</div>
-<div style={{fontSize:9,fontWeight:700,color:clr,background:clr+'15',padding:'4px 10px',borderRadius:6,flexShrink:0}}>{isU?T('عاجل','Urgent'):T('تحذير','Warning')}</div>
+{/* Summary cards by type */}
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(200px,100%),1fr))',gap:10,marginBottom:18}}>
+{Object.entries(groups).sort((a,b)=>b[1].items.length-a[1].items.length).map(([type,g])=>{const c=typeColors[type]||'#888';const isActive=typeFilter===type;return<div key={type} onClick={()=>setTypeFilter(isActive?'all':type)} style={{padding:'14px 16px',borderRadius:12,background:isActive?c+'12':c+'06',border:'1.5px solid '+(isActive?c+'30':c+'12'),cursor:'pointer',transition:'.2s'}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+<span style={{fontSize:18}}>{typeIcons[type]||'📌'}</span>
+<span style={{fontSize:11,fontWeight:700,color:c}}>{typeLabels[type]||type}</span>
+</div>
+<div style={{fontSize:26,fontWeight:800,color:c}}>{g.items.length}</div>
+<div style={{fontSize:9,color:c,opacity:.6}}>{g.severity==='urgent'?T('عاجل','Urgent'):T('تحذير','Warning')}</div>
+</div>})}
+</div>
+{/* Alert for critical count */}
+{urgentCount>0&&<div style={{padding:'12px 16px',borderRadius:10,background:'rgba(192,57,43,.06)',border:'1px solid rgba(192,57,43,.15)',marginBottom:16,display:'flex',alignItems:'center',gap:10}}>
+<span style={{fontSize:16}}>🚨</span>
+<div style={{flex:1}}><span style={{fontSize:12,fontWeight:700,color:C.red}}>{urgentCount} {T('تنبيه عاجل يحتاج إجراء فوري','urgent alerts need immediate action')}</span></div>
+</div>}
+{/* Grouped list */}
+{filtered2.length===0?<div style={{textAlign:'center',padding:60,color:'rgba(39,160,70,.5)'}}>
+<div style={{fontSize:40,marginBottom:10}}>✅</div>
+<div style={{fontSize:14,fontWeight:600,color:C.ok}}>{T('لا توجد تنبيهات من هذا النوع','No alerts of this type')}</div>
+</div>:
+typeFilter!=='all'?
+/* Flat list when type is selected */
+<div style={{display:'flex',flexDirection:'column',gap:6}}>
+{filtered2.slice(0,50).map((n,i)=>{const isU=n.severity==='urgent';const clr=isU?C.red:'#e67e22'
+return<div key={i} style={{background:isU?'rgba(192,57,43,.03)':'rgba(255,255,255,.02)',border:'1px solid '+(isU?'rgba(192,57,43,.1)':'rgba(255,255,255,.06)'),borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',gap:10}}>
+<span style={{fontSize:14}}>{typeIcons[n.type]||'📌'}</span>
+<div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx2)'}}>{n.title}</div><div style={{fontSize:10,color:'var(--tx4)',marginTop:1}}>{lang==='ar'?n.message_ar:n.message_en}</div></div>
+<span style={{fontSize:9,fontWeight:700,color:clr,background:clr+'15',padding:'3px 8px',borderRadius:5}}>{isU?T('عاجل','Urgent'):T('تحذير','Warning')}</span>
+</div>})}
+{filtered2.length>50&&<div style={{textAlign:'center',padding:10,color:'var(--tx5)',fontSize:10}}>+{filtered2.length-50} {T('تنبيه آخر','more alerts')}</div>}
+</div>:
+/* Grouped view when "all" */
+<div style={{display:'flex',flexDirection:'column',gap:12}}>
+{Object.entries(groups).sort((a,b)=>b[1].items.length-a[1].items.length).map(([type,g])=>{const c=typeColors[type]||'#888';const isOpen=expanded[type];const items=g.items.filter(n=>filter==='all'||n.severity===filter)
+if(items.length===0)return null
+return<div key={type} style={{background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)',borderRadius:12,overflow:'hidden'}}>
+<div onClick={()=>setExpanded(p=>({...p,[type]:!isOpen}))} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 16px',cursor:'pointer',background:c+'04'}}>
+<span style={{fontSize:16}}>{typeIcons[type]||'📌'}</span>
+<span style={{fontSize:12,fontWeight:700,color:c,flex:1}}>{typeLabels[type]||type}</span>
+<span style={{fontSize:14,fontWeight:800,color:c}}>{items.length}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{transform:isOpen?'rotate(90deg)':'',transition:'.2s'}}><polyline points="9 6 15 12 9 18" stroke={c} strokeWidth="2.5"/></svg>
+</div>
+{isOpen&&<div style={{padding:'4px 8px 8px'}}>
+{items.slice(0,20).map((n,i)=><div key={i} style={{padding:'8px 12px',borderBottom:i<Math.min(items.length,20)-1?'1px solid var(--bd2)':'none',fontSize:11,color:'var(--tx3)'}}>{lang==='ar'?n.message_ar:n.message_en}</div>)}
+{items.length>20&&<div style={{padding:'8px 12px',fontSize:10,color:'var(--tx5)',textAlign:'center'}}>+{items.length-20} {T('تنبيه آخر','more')}</div>}
+</div>}
 </div>})}
 </div>}
 </div>}
