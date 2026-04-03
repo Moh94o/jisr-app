@@ -68,6 +68,38 @@
         -webkit-user-select: text;
         user-select: text;
       }
+      /* ═══ Dark theme: dropdowns, dates, inputs ═══ */
+      select, input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"] {
+        color-scheme: dark;
+      }
+      select {
+        background-color: rgba(255,255,255,.04) !important;
+        color: rgba(255,255,255,.85) !important;
+      }
+      select option {
+        background: #1e1e1e;
+        color: rgba(255,255,255,.85);
+        padding: 8px 12px;
+      }
+      select:focus, input:focus, textarea:focus {
+        border-color: rgba(201,168,76,.4) !important;
+        outline: none;
+      }
+      input[type="date"]::-webkit-calendar-picker-indicator,
+      input[type="time"]::-webkit-calendar-picker-indicator,
+      input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        filter: invert(0.7) sepia(1) saturate(3) hue-rotate(15deg);
+        cursor: pointer;
+        opacity: 0.6;
+      }
+      input[type="date"]::-webkit-calendar-picker-indicator:hover,
+      input[type="time"]::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+      }
+      /* Scrollbar for dropdowns */
+      select::-webkit-scrollbar { width: 6px; }
+      select::-webkit-scrollbar-track { background: #1e1e1e; }
+      select::-webkit-scrollbar-thumb { background: rgba(201,168,76,.3); border-radius: 3px; }
     </style>
   </head>
   <body>
