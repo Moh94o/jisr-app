@@ -1125,10 +1125,11 @@ if(!currentHub||!allHubPages.includes(pg))return null
 const[hubKey,tabs]=currentHub
 return<div style={{display:'flex',gap:0,margin:'-32px -24px 0',minHeight:'calc(100vh - 48px)'}}>
 {/* Side tab panel */}
-<div style={{width:110,flexShrink:0,background:'var(--bg)',borderLeft:lang==='ar'?'1px solid var(--bd)':'none',borderRight:lang==='ar'?'none':'1px solid var(--bd)',padding:'12px 6px',overflowY:'auto'}} className="dash-content">
-{tabs.map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'8px 10px',borderRadius:7,marginBottom:2,fontSize:10,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.35)',background:pg===t.id?'rgba(201,168,76,.08)':'transparent',cursor:'pointer',transition:'.15s',display:'flex',alignItems:'center',gap:5}}>
-{pg===t.id&&<div style={{width:2,height:14,borderRadius:2,background:C.gold,flexShrink:0}}/>}
-<span>{t.l}</span>
+<div style={{width:130,flexShrink:0,background:'var(--sb)',borderLeft:lang==='ar'?'1px solid rgba(201,168,76,.08)':'none',borderRight:lang==='ar'?'none':'1px solid rgba(201,168,76,.08)',padding:'14px 8px',overflowY:'auto',display:'flex',flexDirection:'column',gap:2}} className="dash-content">
+{/* Section title */}
+<div style={{fontSize:9,fontWeight:700,color:'rgba(201,168,76,.4)',padding:'4px 10px 8px',letterSpacing:1,textTransform:'uppercase'}}>{hubKey==='workforce'?T('العمالة والمنشآت','Workforce'):hubKey==='operations'?T('العمليات','Operations'):hubKey==='finance_hub'?T('المالية','Finance'):hubKey==='clients_hub'?T('العملاء','Clients'):hubKey==='admin_hub'?T('الإدارة','Admin'):T('التقارير','Reports')}</div>
+{tabs.map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'9px 12px',borderRadius:8,fontSize:11,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',background:pg===t.id?'rgba(201,168,76,.1)':'transparent',cursor:'pointer',transition:'.15s',borderRight:lang!=='ar'&&pg===t.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:lang==='ar'&&pg===t.id?'2px solid '+C.gold:'2px solid transparent'}}>
+{t.l}
 </div>)}
 </div>
 {/* Content area */}
