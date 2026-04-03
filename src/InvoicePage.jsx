@@ -255,7 +255,7 @@ const overlayS={position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdro
 const popupS={background:'var(--sf)',borderRadius:16,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid rgba(201,168,76,.12)'}
 const headS={background:'var(--bg)',padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}
 const closeS={width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}
-const goldBtnS={height:42,padding:'0 22px',borderRadius:10,border:'none',background:'rgba(201,168,76,.12)',border:'1px solid rgba(201,168,76,.2)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}
+const goldBtnS={height:42,padding:'0 22px',borderRadius:10,background:'rgba(201,168,76,.12)',border:'1px solid rgba(201,168,76,.2)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}
 const ghostBtnS={height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,cursor:'pointer'}
 
 return<div>
