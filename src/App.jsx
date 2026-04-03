@@ -1123,17 +1123,13 @@ const allHubPages=Object.values(hubTabs).flat().map(t=>t.id)
 const currentHub=Object.entries(hubTabs).find(([,tabs])=>tabs.some(t=>t.id===pg))
 if(!currentHub||!allHubPages.includes(pg))return null
 const[hubKey,tabs]=currentHub
-return<div style={{display:'flex',gap:0,margin:'-32px -24px 0',minHeight:'calc(100vh - 48px)'}}>
-{/* Side tab panel */}
-<div style={{width:130,flexShrink:0,background:'var(--sb)',borderLeft:lang==='ar'?'1px solid rgba(201,168,76,.08)':'none',borderRight:lang==='ar'?'none':'1px solid rgba(201,168,76,.08)',padding:'14px 8px',overflowY:'auto',display:'flex',flexDirection:'column',gap:2}} className="dash-content">
-{/* Section title */}
-<div style={{fontSize:9,fontWeight:700,color:'rgba(201,168,76,.4)',padding:'4px 10px 8px',letterSpacing:1,textTransform:'uppercase'}}>{hubKey==='workforce'?T('العمالة والمنشآت','Workforce'):hubKey==='operations'?T('العمليات','Operations'):hubKey==='finance_hub'?T('المالية','Finance'):hubKey==='clients_hub'?T('العملاء','Clients'):hubKey==='admin_hub'?T('الإدارة','Admin'):T('التقارير','Reports')}</div>
-{tabs.map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'9px 12px',borderRadius:8,fontSize:11,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.4)',background:pg===t.id?'rgba(201,168,76,.1)':'transparent',cursor:'pointer',transition:'.15s',borderRight:lang!=='ar'&&pg===t.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:lang==='ar'&&pg===t.id?'2px solid '+C.gold:'2px solid transparent'}}>
-{t.l}
-</div>)}
+return<div>
+{/* Horizontal sub-tabs */}
+<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}} className="dash-content">
+{tabs.map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'8px 14px',fontSize:11,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.35)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap',transition:'.15s'}}>{t.l}</div>)}
 </div>
-{/* Content area */}
-<div style={{flex:1,padding:'32px 24px',overflowY:'auto',minWidth:0}} className="dash-content">
+{/* Content */}
+<div>
 {/* العمالة */}
 {pg==='facilities'&&<FacilitiesPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='workers'&&<WorkforcePage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
