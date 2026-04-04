@@ -180,68 +180,67 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const SENDERS = [{k:'*',l:'الكل'},{k:'qiwa',l:'قوى'},{k:'nafath',l:'نفاذ'},{k:'absher',l:'أبشر'},{k:'moi',l:'داخلية'},{k:'gosi',l:'GOSI'},{k:'muqeem',l:'مقيم'},{k:'chamber',l:'الغرفة التجارية'}]
   const ROLES = [{v:'admin',l:'مدير',desc:'صلاحيات كاملة',ic:'♛',c:C.gold},{v:'pro',l:'PRO',desc:'منصات حكومية',ic:'⚙',c:'#9b59b6'},{v:'employee',l:'موظف',desc:'عرض فقط',ic:'👤',c:C.blue}]
 
+  const mainCats = [{v:'all',l:'الكل',c:C.gold,n:messages.length},{v:'gov',l:'حكومية',c:'#1abc9c',n:govMsgs.length+facMsgs.length+workerMsgs.length},{v:'bank',l:'بنكية',c:'#e67e22',n:bankMsgs.length},{v:'other',l:'أخرى',c:'#999',n:otherMsgs.length}]
+  const subCats = {
+    gov: [{v:'gov',l:'الكل',c:'#1abc9c'},{v:'otp',l:'رموز تحقق',c:C.ok},{v:'facility',l:'منشآت',c:C.blue},{v:'worker',l:'عمال',c:'#9b59b6'},{v:'violation',l:'مخالفات',c:C.red}],
+    bank: [{v:'bank',l:'الكل',c:'#e67e22'},{v:'transfer',l:'حوالات',c:'#e67e22'},{v:'purchase',l:'مشتريات',c:'#FF6F00'}],
+  }
+  const [mainCat, setMainCat] = useState('all')
+  const activeSubCats = subCats[mainCat] || []
+
   return (
-    <div style={{ fontFamily: F, direction: 'rtl' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--tx)' }}>رسائل التحقق</div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setShowSetupDrawer(true)} style={{ height: 34, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx4)', fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>⚙ الإعدادات</button>
-          <button onClick={() => setShowAdd(true)} style={{ height: 34, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.1)', color: C.gold, fontFamily: F, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>+ إضافة شخص</button>
-        </div>
-      </div>
+    <div style={{ fontFamily: F, direction: 'rtl', display: 'flex', gap: 0, minHeight: 400 }}>
 
-      {/* Stats: gov breakdown | bank | facilities+workers | total */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
-        <div onClick={() => setFilter('gov')} style={{ padding: '10px', borderRadius: 10, background: filter === 'gov' ? 'rgba(26,188,156,.06)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (filter === 'gov' ? 'rgba(26,188,156,.15)' : 'rgba(255,255,255,.05)'), cursor: 'pointer' }}>
-          <div style={{ fontSize: 9, color: '#1abc9c', marginBottom: 6 }}>الحكومية</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#1abc9c', marginBottom: 4 }}>{govMsgs.length + facMsgs.length + workerMsgs.length}</div>
-          <div style={{ display: 'flex', gap: 6, fontSize: 8, color: 'var(--tx5)' }}>
-            <span>نفاذ {nafathCount}</span><span>قوى {qiwaCount}</span><span>أبشر {absherCount}</span>
+      {/* ═══ Sidebar: Persons ═══ */}
+      <div style={{ width: 140, flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,.04)', paddingLeft: 10 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--tx5)', marginBottom: 8, padding: '0 4px' }}>الأشخاص</div>
+        <div onClick={() => setSelPerson('all')} style={{ padding: '8px 10px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: selPerson === 'all' ? 700 : 500, color: selPerson === 'all' ? C.gold : 'rgba(255,255,255,.4)', background: selPerson === 'all' ? 'rgba(201,168,76,.06)' : 'transparent', borderRight: selPerson === 'all' ? '3px solid ' + C.gold : '3px solid transparent', cursor: 'pointer' }}>الكل <span style={{ fontSize: 9, color: 'var(--tx6)' }}>({messages.length})</span></div>
+        {persons.map(p => {
+          const pCount = messages.filter(m => m.person_id === p.id).length
+          return <div key={p.id} onClick={() => setSelPerson(selPerson === p.id ? 'all' : p.id)} style={{ padding: '8px 10px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: selPerson === p.id ? 700 : 500, color: !p.is_active ? '#e67e22' : selPerson === p.id ? C.gold : 'rgba(255,255,255,.4)', background: selPerson === p.id ? 'rgba(201,168,76,.06)' : 'transparent', borderRight: selPerson === p.id ? '3px solid ' + C.gold : '3px solid transparent', cursor: 'pointer' }}>
+            {p.name}{!p.is_active ? ' ⏸' : ''} <span style={{ fontSize: 8, color: 'var(--tx6)' }}>({pCount})</span>
           </div>
-        </div>
-        <div onClick={() => setFilter('bank')} style={{ padding: '10px', borderRadius: 10, background: filter === 'bank' ? 'rgba(230,126,34,.06)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (filter === 'bank' ? 'rgba(230,126,34,.15)' : 'rgba(255,255,255,.05)'), cursor: 'pointer' }}>
-          <div style={{ fontSize: 9, color: '#e67e22', marginBottom: 6 }}>البنكية</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#e67e22' }}>{bankMsgs.length}</div>
-        </div>
-        <div onClick={() => setFilter('facility')} style={{ padding: '10px', borderRadius: 10, background: filter === 'facility' ? 'rgba(52,131,180,.06)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (filter === 'facility' ? 'rgba(52,131,180,.15)' : 'rgba(255,255,255,.05)'), cursor: 'pointer' }}>
-          <div style={{ fontSize: 9, color: C.blue, marginBottom: 6 }}>المنشآت</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: C.blue }}>{facMsgs.length}</div>
-          <div style={{ fontSize: 7, color: 'var(--tx6)' }}>رقم موحد · قوى · تأمينات</div>
-        </div>
-        <div onClick={() => setFilter('worker')} style={{ padding: '10px', borderRadius: 10, background: filter === 'worker' ? 'rgba(155,89,182,.06)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (filter === 'worker' ? 'rgba(155,89,182,.15)' : 'rgba(255,255,255,.05)'), cursor: 'pointer' }}>
-          <div style={{ fontSize: 9, color: '#9b59b6', marginBottom: 6 }}>العمال</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#9b59b6' }}>{workerMsgs.length}</div>
-          <div style={{ fontSize: 7, color: 'var(--tx6)' }}>إقامة · حدود · كفالة</div>
+        })}
+        <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.04)' }}>
+          <button onClick={() => setShowAdd(true)} style={{ width: '100%', height: 30, borderRadius: 6, border: '1px solid rgba(201,168,76,.15)', background: 'rgba(201,168,76,.06)', color: C.gold, fontFamily: F, fontSize: 9, fontWeight: 700, cursor: 'pointer', marginBottom: 4 }}>+ إضافة</button>
+          <button onClick={() => setShowSetupDrawer(true)} style={{ width: '100%', height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', color: 'var(--tx5)', fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer' }}>⚙ الإعدادات</button>
         </div>
       </div>
 
-      {/* Status warnings */}
-      {(()=>{
-        const disabledPersons = persons.filter(p => !p.is_active)
-        const partialPersons = persons.filter(p => p.is_active && (p.disabled_senders || []).length > 0)
-        if (disabledPersons.length === 0 && partialPersons.length === 0) return null
-        return <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-          {disabledPersons.length > 0 && <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: 'rgba(230,126,34,.06)', border: '1px solid rgba(230,126,34,.1)', color: '#e67e22' }}>⏸ معطّل كلياً: {disabledPersons.map(p => p.name).join('، ')}</span>}
-          {partialPersons.map(p => <span key={p.id} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: 'rgba(230,126,34,.04)', border: '1px solid rgba(230,126,34,.08)', color: '#e67e22' }}>{p.name}: {(p.disabled_senders||[]).length} جهة معطّلة</span>)}
+      {/* ═══ Main Content ═══ */}
+      <div style={{ flex: 1, paddingRight: 12 }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>رسائل التحقق</div>
+          {expCount > 0 && <button onClick={clearExpired} style={{ height: 28, padding: '0 10px', borderRadius: 6, fontSize: 9, fontWeight: 600, color: C.red, background: 'rgba(192,57,43,.04)', border: '1px solid rgba(192,57,43,.1)', cursor: 'pointer', fontFamily: F }}>مسح المنتهية ({expCount})</button>}
         </div>
-      })()}
 
-      {/* Person tabs first */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
-        <button onClick={() => setSelPerson('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: selPerson === 'all' ? 700 : 500, color: selPerson === 'all' ? C.gold : 'rgba(255,255,255,.3)', background: selPerson === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: '1px solid ' + (selPerson === 'all' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>الكل</button>
-        {persons.map(p => (
-          <button key={p.id} onClick={() => setSelPerson(selPerson === p.id ? 'all' : p.id)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: selPerson === p.id ? 700 : 500, color: !p.is_active ? '#e67e22' : selPerson === p.id ? C.gold : 'rgba(255,255,255,.3)', background: !p.is_active ? 'rgba(230,126,34,.06)' : selPerson === p.id ? 'rgba(201,168,76,.08)' : 'transparent', border: '1px solid ' + (!p.is_active ? 'rgba(230,126,34,.15)' : selPerson === p.id ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>{p.name}{!p.is_active ? ' ⏸' : ''}</button>
-        ))}
-      </div>
+        {/* Main category tabs */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 8, borderRadius: 10, overflow: 'hidden', border: '1.5px solid rgba(255,255,255,.06)' }}>
+          {mainCats.map(c => (
+            <button key={c.v} onClick={() => { setMainCat(c.v); setFilter(c.v) }} style={{ flex: 1, height: 38, border: 'none', fontFamily: F, fontSize: 11, fontWeight: mainCat === c.v ? 700 : 500, color: mainCat === c.v ? c.c : 'rgba(255,255,255,.3)', background: mainCat === c.v ? c.c + '10' : 'rgba(255,255,255,.02)', borderBottom: mainCat === c.v ? '2.5px solid ' + c.c : '2.5px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              {c.l} <span style={{ fontSize: 9, opacity: .5 }}>({c.n})</span>
+            </button>
+          ))}
+        </div>
 
-      {/* Category filters */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
-        {[{v:'all',l:'الكل',c:C.gold},{v:'gov',l:'حكومية',c:'#1abc9c'},{v:'bank',l:'بنكية',c:'#e67e22'},{v:'facility',l:'منشآت',c:C.blue},{v:'worker',l:'عمال',c:'#9b59b6'},{v:'otp',l:'رموز تحقق',c:C.ok},{v:'transfer',l:'حوالات',c:'#e67e22'},{v:'purchase',l:'مشتريات',c:'#FF6F00'},{v:'violation',l:'مخالفات',c:C.red},{v:'other',l:'أخرى',c:'#999'}].map(f2 => (
-          <button key={f2.v} onClick={() => setFilter(f2.v)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: filter === f2.v ? 700 : 500, color: filter === f2.v ? f2.c : 'rgba(255,255,255,.25)', background: filter === f2.v ? f2.c + '10' : 'transparent', border: '1px solid ' + (filter === f2.v ? f2.c + '20' : 'rgba(255,255,255,.05)'), cursor: 'pointer', fontFamily: F }}>{f2.l}</button>
-        ))}
-        {expCount > 0 && <button onClick={clearExpired} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: 600, color: C.red, background: 'rgba(192,57,43,.04)', border: '1px solid rgba(192,57,43,.1)', cursor: 'pointer', fontFamily: F, marginRight: 'auto' }}>مسح المنتهية ({expCount})</button>}
-      </div>
+        {/* Sub-category tabs */}
+        {activeSubCats.length > 0 && <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+          {activeSubCats.map(s => (
+            <button key={s.v} onClick={() => setFilter(s.v)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: filter === s.v ? 700 : 500, color: filter === s.v ? s.c : 'rgba(255,255,255,.25)', background: filter === s.v ? s.c + '10' : 'transparent', border: '1px solid ' + (filter === s.v ? s.c + '20' : 'rgba(255,255,255,.05)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>
+          ))}
+        </div>}
+
+        {/* Status warnings */}
+        {(()=>{
+          const disabledPersons = persons.filter(p => !p.is_active)
+          const partialPersons = persons.filter(p => p.is_active && (p.disabled_senders || []).length > 0)
+          if (disabledPersons.length === 0 && partialPersons.length === 0) return null
+          return <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+            {disabledPersons.length > 0 && <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: 'rgba(230,126,34,.06)', border: '1px solid rgba(230,126,34,.1)', color: '#e67e22' }}>⏸ معطّل: {disabledPersons.map(p => p.name).join('، ')}</span>}
+            {partialPersons.map(p => <span key={p.id} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: 'rgba(230,126,34,.04)', border: '1px solid rgba(230,126,34,.08)', color: '#e67e22' }}>{p.name}: {(p.disabled_senders||[]).length} جهة معطّلة</span>)}
+          </div>
+        })()}
 
       {/* Messages */}
       {loading ? <div style={{ textAlign: 'center', padding: 50, color: 'var(--tx5)' }}>...</div> :
@@ -512,6 +511,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             })}
           </div>
       }
+
+      </div>{/* end main content */}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
