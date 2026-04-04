@@ -28,11 +28,34 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   useEffect(() => { load() }, [load])
 
-  // Auto-refresh every 10 seconds
+  // Request browser notification permission on mount
   useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
+  const sendBrowserNotif = (msg) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const title = msg.otp_code ? `رمز تحقق: ${msg.otp_code}` : 'رسالة جديدة'
+      const body = `${msg.person_name || '—'} — ${msg.phone_from || ''}\n${msg.message_body?.substring(0, 80) || ''}`
+      new Notification(title, { body, icon: '/icons/icon-192.png', tag: msg.id })
+    }
+  }
+
+  // Auto-refresh every 10 seconds + browser notification for new messages
+  useEffect(() => {
+    const prevIds = new Set(messages.map(m => m.id))
     const interval = setInterval(() => {
       sb.from('otp_messages').select('*').order('received_at', { ascending: false }).limit(200).then(({ data }) => {
-        if (data && data.length !== messages.length) {
+        if (data && data.length > messages.length) {
+          // Find new messages and notify
+          data.forEach(m => {
+            if (!prevIds.has(m.id)) {
+              sendBrowserNotif(m)
+              toast && toast(`${m.person_name}: ${m.otp_code || 'رسالة جديدة'} — ${m.phone_from || ''}`)
+            }
+          })
           setMessages(data)
         }
       })
@@ -193,11 +216,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(201,168,76,.08)', border: '1px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{(m.person_name || '?')[0]}</div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{m.person_name || person?.name || '—'}</div>
-                        <div style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr', display: 'inline' }}>{m.phone_from || ''}</div>
+                        <div style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr', display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ fontSize: 9, color: 'var(--tx6)' }}>{T('من:', 'From:')}</span> {m.phone_from || '—'}</div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 9, color: 'var(--tx6)' }}>{timeAgo(m.received_at)}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                      <span style={{ fontSize: 9, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                      <span style={{ fontSize: 8, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' }) : ''}</span>
                       {!m.is_read && <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.gold }} />}
                     </div>
                   </div>
