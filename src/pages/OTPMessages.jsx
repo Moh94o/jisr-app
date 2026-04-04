@@ -306,11 +306,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           const accountMatch = body.match(/(?:Account|حساب)[:\s]*\**(\d+)/i) || body.match(/من[:\s]*(\d+)\*/i)
                           const isIncoming = /واردة|incoming|إيداع/i.test(body)
                           const clr = isIncoming ? C.ok : '#e67e22'
-                          return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                            {accountMatch && <span style={{ fontSize: 10, color: 'var(--tx5)', direction: 'ltr' }}>حساب **{accountMatch[1]}</span>}
-                            <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{isIncoming ? (fromMatch?.[1]?.substring(0, 25) || '') : (toMatch?.[1]?.substring(0, 25) || '')}</span>
-                            {amountMatch && <span style={{ fontSize: 15, fontWeight: 900, color: clr, direction: 'ltr' }}>{amountMatch[1]} SAR</span>}
+                          return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', direction: 'rtl' }}>
                             <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: clr + '10', color: clr, border: '1px solid ' + clr + '15' }}>{isIncoming ? 'واردة' : 'صادرة'}</span>
+                            {amountMatch && <span style={{ fontSize: 15, fontWeight: 900, color: clr, direction: 'ltr' }}>{amountMatch[1]} SAR</span>}
+                            <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{isIncoming ? (fromMatch?.[1]?.substring(0, 25) || '') : (toMatch?.[1]?.substring(0, 25) || '')}</span>
+                            {accountMatch && <span style={{ fontSize: 10, color: 'var(--tx5)', direction: 'ltr' }}>حساب **{accountMatch[1]}</span>}
                           </div>
                         })()}
                       </div>
