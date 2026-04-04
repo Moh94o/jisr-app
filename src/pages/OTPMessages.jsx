@@ -170,7 +170,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   // Filter
   let filtered = selPerson === 'all' ? messages : messages.filter(m => m.person_id === selPerson)
-  if (filter !== 'all') filtered = filtered.filter(m => detectMsgCat(m) === filter)
+  if (filter === 'otp') filtered = filtered.filter(m => m.otp_code)
+  else if (filter === 'transfer') filtered = filtered.filter(m => /حوالة|transfer|تحويل/i.test(m.message_body || ''))
+  else if (filter === 'purchase') filtered = filtered.filter(m => /purchase|مشتريات|mada|شراء/i.test(m.message_body || ''))
+  else if (filter === 'violation') filtered = filtered.filter(m => /مخالفة|violation/i.test(m.message_body || ''))
+  else if (filter !== 'all') filtered = filtered.filter(m => detectMsgCat(m) === filter)
 
   const sF = { width: '100%', height: 42, padding: '0 14px', border: '1.5px solid rgba(255,255,255,.1)', borderRadius: 10, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)', outline: 'none', background: 'rgba(255,255,255,.04)', boxSizing: 'border-box' }
   const SENDERS = [{k:'*',l:'الكل'},{k:'qiwa',l:'قوى'},{k:'nafath',l:'نفاذ'},{k:'absher',l:'أبشر'},{k:'moi',l:'داخلية'},{k:'gosi',l:'GOSI'},{k:'muqeem',l:'مقيم'},{k:'chamber',l:'الغرفة التجارية'}]
@@ -233,7 +237,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
       {/* Category filters */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
-        {[{v:'all',l:'الكل',c:C.gold},{v:'gov',l:'الحكومية',c:'#1abc9c'},{v:'bank',l:'البنكية',c:'#e67e22'},{v:'facility',l:'المنشآت',c:C.blue},{v:'worker',l:'العمال',c:'#9b59b6'},{v:'other',l:'أخرى',c:'#999'}].map(f2 => (
+        {[{v:'all',l:'الكل',c:C.gold},{v:'gov',l:'حكومية',c:'#1abc9c'},{v:'bank',l:'بنكية',c:'#e67e22'},{v:'facility',l:'منشآت',c:C.blue},{v:'worker',l:'عمال',c:'#9b59b6'},{v:'otp',l:'رموز تحقق',c:C.ok},{v:'transfer',l:'حوالات',c:'#e67e22'},{v:'purchase',l:'مشتريات',c:'#FF6F00'},{v:'violation',l:'مخالفات',c:C.red},{v:'other',l:'أخرى',c:'#999'}].map(f2 => (
           <button key={f2.v} onClick={() => setFilter(f2.v)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: filter === f2.v ? 700 : 500, color: filter === f2.v ? f2.c : 'rgba(255,255,255,.25)', background: filter === f2.v ? f2.c + '10' : 'transparent', border: '1px solid ' + (filter === f2.v ? f2.c + '20' : 'rgba(255,255,255,.05)'), cursor: 'pointer', fontFamily: F }}>{f2.l}</button>
         ))}
         {expCount > 0 && <button onClick={clearExpired} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: 600, color: C.red, background: 'rgba(192,57,43,.04)', border: '1px solid rgba(192,57,43,.1)', cursor: 'pointer', fontFamily: F, marginRight: 'auto' }}>مسح المنتهية ({expCount})</button>}
@@ -294,8 +298,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       {/* Actions LEFT */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <button onClick={() => copyCode(m.otp_code, m)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid ' + (exp ? 'rgba(255,255,255,.08)' : 'rgba(39,160,70,.15)'), background: exp ? 'rgba(255,255,255,.03)' : 'rgba(39,160,70,.06)', color: exp ? 'var(--tx4)' : C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>
-                        <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>☰</button>
-                        <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
+                        <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} title="عرض الرسالة الأصلية" style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>☰</button>
+                        <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,.06)' }} />
+                        <button onClick={() => setDeleteConfirm(m.id)} title="حذف" style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(192,57,43,.1)', background: 'rgba(192,57,43,.04)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
                       </div>
                     </> : <>
                       <div style={{ flex: 1 }}>
@@ -458,8 +463,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           </div>
                         })()}
                       </div>
-                      <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>☰</button>
-                      <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>×</button>
+                      <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} title="عرض الرسالة الأصلية" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>☰</button>
+                      <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,.06)' }} />
+                      <button onClick={() => setDeleteConfirm(m.id)} title="حذف" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(192,57,43,.1)', background: 'rgba(192,57,43,.04)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>×</button>
                     </>}
                   </div>
 
