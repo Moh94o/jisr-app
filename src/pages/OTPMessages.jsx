@@ -339,6 +339,79 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                                 <span style={{ fontSize: 10, color: 'var(--tx5)' }}>{body.length > 80 ? body.substring(0, 80) + '...' : body}</span>
                               </div>
                             }
+                            // GOSI: تسجيل مشترك
+                            const isGosi = /تم تسجيل|اشتراك|المشترك/i.test(body)
+                            if (isGosi) {
+                              const nameM = body.match(/المشترك\s+(.+?)\s+رقم/i) || body.match(/تسجيل\s+(.+?)\s+بنجاح/i)
+                              const idM = body.match(/المنتهية ب(\d+)/i)
+                              const subM = body.match(/اشتراك\s*\(?(\d+)/i)
+                              return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, direction: 'rtl' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(39,160,70,.1)', color: C.ok, border: '1px solid rgba(39,160,70,.15)' }}>تسجيل مشترك</span>
+                                  {nameM && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{nameM[1]}</span>}
+                                </div>
+                                <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--tx4)' }}>
+                                  {idM && <span>هوية: ***{idM[1]}</span>}
+                                  {subM && <span>رقم الاشتراك: {subM[1]}</span>}
+                                </div>
+                              </div>
+                            }
+                            // Jawazat: نقل كفالة
+                            const isJawazat = /تم نقل|هوية إقامته|صاحب العمل/i.test(body)
+                            if (isJawazat) {
+                              const iqM = body.match(/إقامته\s+(\d+\*+)/i)
+                              const empM = body.match(/صاحب العمل.*?(\d+\*+)/i)
+                              return <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'rtl' }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(52,131,180,.1)', color: C.blue, border: '1px solid rgba(52,131,180,.15)' }}>نقل خدمات</span>
+                                {iqM && <span style={{ fontSize: 11, color: 'var(--tx3)' }}>إقامة: {iqM[1]}</span>}
+                                {empM && <span style={{ fontSize: 11, color: 'var(--tx4)' }}>← صاحب العمل: {empM[1]}</span>}
+                              </div>
+                            }
+                            // Efaa: مخالفة
+                            const isViolation = /مخالفة|قيد مخالفة|ريال.*الصادرة/i.test(body)
+                            if (isViolation) {
+                              const vNumM = body.match(/مخالفة رقم\s*(\d+)/i)
+                              const vAmtM = body.match(/وقيمة\s*(\d+)/i) || body.match(/(\d+)\s*ريال/i)
+                              const vDateM = body.match(/بتاريخ\s*([\d\/]+)/i)
+                              return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, direction: 'rtl' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(192,57,43,.1)', color: C.red, border: '1px solid rgba(192,57,43,.15)' }}>مخالفة</span>
+                                  {vAmtM && <span style={{ fontSize: 15, fontWeight: 900, color: C.red }}>{vAmtM[1]} ر.س</span>}
+                                </div>
+                                <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--tx4)' }}>
+                                  {vNumM && <span>رقم: {vNumM[1]}</span>}
+                                  {vDateM && <span>تاريخ: {vDateM[1]}</span>}
+                                </div>
+                              </div>
+                            }
+                            // Purchase: مشتريات مدى
+                            const isPurchase = /purchase|مشتريات|mada/i.test(body)
+                            if (isPurchase) {
+                              const pAmtM = body.match(/Amount[:\s]*SAR\s*([0-9,.]+)/i) || body.match(/SAR\s*([0-9,.]+)/i)
+                              const pAtM = body.match(/At[:\s]*([^\n]+)/i)
+                              const pCardM = body.match(/card[:\s]*(\d+\*)/i)
+                              const isOnline = /online/i.test(body)
+                              return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, direction: 'rtl' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(230,126,34,.1)', color: '#e67e22', border: '1px solid rgba(230,126,34,.15)' }}>{isOnline ? 'شراء أونلاين' : 'شراء مدى'}</span>
+                                  {pAmtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#e67e22' }}>{pAmtM[1]} ر.س</span>}
+                                </div>
+                                <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--tx4)' }}>
+                                  {pAtM && <span>{pAtM[1].trim()}</span>}
+                                  {pCardM && <span>بطاقة: *{pCardM[1]}</span>}
+                                </div>
+                              </div>
+                            }
+                            // Mobily bill
+                            const isMobilyBill = /فاتورتك|bill.*issued|المستحق/i.test(body)
+                            if (isMobilyBill) {
+                              const bAmtM = body.match(/بمبلغ\s*([0-9,.]+)/i) || body.match(/amount.*?SAR\s*([0-9,.]+)/i)
+                              return <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'rtl' }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(155,89,182,.1)', color: '#9b59b6', border: '1px solid rgba(155,89,182,.15)' }}>فاتورة</span>
+                                {bAmtM && <span style={{ fontSize: 14, fontWeight: 900, color: '#9b59b6' }}>{bAmtM[1]} ر.س</span>}
+                              </div>
+                            }
+                            // Default: show truncated text
                             return <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right' }}>{body.length > 100 ? body.substring(0, 100) + '...' : body}</div>
                           }
                           // Parse all fields from the message
