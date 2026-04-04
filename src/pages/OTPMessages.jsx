@@ -101,15 +101,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   const copyCode = (code, msg) => {
     navigator.clipboard.writeText(code); toast && toast(T('تم نسخ الرمز', 'Copied'))
+    const copyName = user?.name_ar || 'مستخدم'
+    // Save copied_by in message (persistent)
+    if (msg?.id) sb.from('otp_messages').update({ copied_by: copyName }).eq('id', msg.id)
+    setMessages(prev => prev.map(x => x.id === msg?.id ? { ...x, copied_by: copyName } : x))
     // Log the copy
-    sb.from('otp_copy_log').insert({
-      message_id: msg?.id || null,
-      user_id: user?.id || null,
-      user_name: user?.name_ar || null,
-      otp_code: code,
-      person_name: msg?.person_name || null,
-      sender: msg?.phone_from || null
-    })
+    sb.from('otp_copy_log').insert({ message_id: msg?.id || null, user_id: user?.id || null, user_name: copyName, otp_code: code, person_name: msg?.person_name || null, sender: msg?.phone_from || null })
   }
 
   const confirmDelete = async () => {
@@ -237,22 +234,25 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
               return (
                 <div key={m.id} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.05)', opacity: exp ? .4 : 1, transition: '.3s' }}>
-                  {/* Layer 1: Service + person + time */}
-                  <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,.025)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {/* Layer 1: Person RIGHT | Service CENTER-LEFT | Time+countdown LEFT */}
+                  <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,.025)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {/* Person name — RIGHT */}
+                    {person && <div style={{ padding: '8px 14px', borderRadius: 10, background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.1)', flexShrink: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>{person.name}</div>
+                    </div>}
+                    {/* Service */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                       <SvcLogo sender={m.phone_from} size={36} />
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)' }}>{svc.name}</div>
-                        <div style={{ fontSize: 9, color: 'var(--tx6)', direction: 'ltr', marginTop: 3 }}>{svc.domain}</div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{svc.name}</div>
+                        <div style={{ fontSize: 9, color: 'var(--tx6)', marginTop: 2 }}>{svc.domain}</div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 10, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>
-                        {m.otp_code && tl > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: expClr + '12', color: expClr, border: '1px solid ' + expClr + '20' }}>ينتهي خلال {fmtTime(tl)}</span>}
-                        {exp && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(192,57,43,.08)', color: C.red }}>انتهت الصلاحية</span>}
-                      </div>
-                      {person && <span style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{person.name}</span>}
+                    {/* Time + countdown — LEFT */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>
+                      {m.otp_code && tl > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: expClr + '12', color: expClr, border: '1px solid ' + expClr + '20' }}>ينتهي خلال {fmtTime(tl)}</span>}
+                      {exp && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(192,57,43,.08)', color: C.red }}>انتهت الصلاحية</span>}
                     </div>
                   </div>
 
@@ -267,11 +267,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             return <div key={i} style={{ width: 36, height: 44, borderRadius: 8, background: exp ? 'rgba(255,255,255,.03)' : hidden ? 'rgba(201,168,76,.08)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (exp ? 'rgba(255,255,255,.06)' : hidden ? 'rgba(201,168,76,.15)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: exp ? 'var(--tx6)' : hidden ? C.gold : C.ok, fontFamily: 'monospace' }}>{exp ? d : hidden ? '?' : d}</div>
                           })}
                         </div>
-                        {m._copiedBy && <span style={{ fontSize: 9, color: '#9b59b6', fontWeight: 600 }}>نسخ: {m._copiedBy}</span>}
+                        {m.copied_by && <span style={{ fontSize: 9, color: '#9b59b6', fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: 'rgba(155,89,182,.06)', border: '1px solid rgba(155,89,182,.08)' }}>نسخ: {m.copied_by}</span>}
                       </div>
                       {/* Actions LEFT */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {!exp && <button onClick={() => { copyCode(m.otp_code, m); setMessages(prev => prev.map(x => x.id === m.id ? { ...x, _copiedBy: user?.name_ar || 'أنت' } : x)) }} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(39,160,70,.15)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>}
+                        {!exp && <button onClick={() => copyCode(m.otp_code, m)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(39,160,70,.15)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>}
                         <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
                       </div>
                     </> : <>
