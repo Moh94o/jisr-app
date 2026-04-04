@@ -43,7 +43,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
     setLoading(true)
     const [p, m, perm] = await Promise.all([
       sb.from('otp_persons').select('*').order('created_at'),
-      sb.from('otp_messages').select('*').order('received_at', { ascending: false }).limit(200),
+      sb.from('otp_messages').select('*').order('created_at', { ascending: false }).limit(200),
       sb.from('otp_permissions').select('*')
     ])
     setPersons(p.data || []); setMessages(m.data || []); setPermissions(perm.data || []); setLoading(false)
@@ -57,7 +57,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   useEffect(() => {
     const prevIds = new Set(messages.map(m => m.id))
     const interval = setInterval(() => {
-      sb.from('otp_messages').select('*').order('received_at', { ascending: false }).limit(200).then(({ data }) => {
+      sb.from('otp_messages').select('*').order('created_at', { ascending: false }).limit(200).then(({ data }) => {
         if (data && data.length > messages.length) {
           data.forEach(m => { if (!prevIds.has(m.id)) { /* new message — no toast */ } })
           setMessages(data)
