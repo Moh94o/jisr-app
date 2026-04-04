@@ -77,6 +77,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
     return OTP_TTL - Math.floor((now - t) / 1000)
   }
   const fmtTime = (s) => { if (s <= 0) return ''; return `0:${String(Math.min(s, 59)).padStart(2, '0')}` }
+  // No Hindi numerals - ensure all numbers use Western Arabic (0-9)
   const isExp = (m) => m.otp_code && getTimeLeft(m.created_at || m.received_at) <= 0
 
   // Message category detection
@@ -253,7 +254,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               const permUserIds = msgPerms.map(pm => pm.user_id)
 
               return (
-                <div key={m.id} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.05)', opacity: exp ? .4 : 1, transition: '.3s' }}>
+                <div key={m.id} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid ' + (exp ? 'rgba(192,57,43,.1)' : 'rgba(255,255,255,.05)'), transition: '.3s' }}>
                   {/* Layer 1: Service RIGHT | Person | Time LEFT */}
                   <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,.025)', display: 'flex', alignItems: 'center', gap: 12 }}>
                     {/* Service — RIGHT */}
@@ -271,7 +272,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     <div style={{ flex: 1 }} />
                     {/* Time + countdown — LEFT */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      <span style={{ fontSize: 10, color: 'var(--tx6)' }}>{(m.created_at || m.received_at) ? new Date(m.created_at || m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>
+                      <span style={{ fontSize: 10, color: 'var(--tx6)', direction: 'ltr' }}>{(m.created_at || m.received_at) ? new Date(m.created_at || m.received_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : ''}</span>
                       {m.otp_code && tl > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: expClr + '12', color: expClr, border: '1px solid ' + expClr + '20' }}>ينتهي خلال {fmtTime(tl)}</span>}
                       {exp && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(192,57,43,.08)', color: C.red }}>انتهت الصلاحية</span>}
                     </div>
@@ -680,7 +681,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           <span style={{ color: 'var(--tx4)' }}>{detectService(m.phone_from).name}</span>
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                             {m.otp_code && <code style={{ color: C.ok, fontWeight: 700, fontSize: 10, direction: 'ltr' }}>{m.otp_code}</code>}
-                            <span style={{ color: 'var(--tx6)', fontSize: 8 }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                            <span style={{ color: 'var(--tx6)', fontSize: 8 }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                           </div>
                         </div>
                       ))}
