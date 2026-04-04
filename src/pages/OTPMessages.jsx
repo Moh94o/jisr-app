@@ -298,19 +298,17 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             {/* Connection info — TOP */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, marginBottom: 8 }}>بيانات الاتصال</div>
-              <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.08)', marginBottom: 6 }}>
-                <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>Webhook URL</div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <button onClick={() => { navigator.clipboard.writeText('https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp'); toast && toast('تم') }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(52,131,180,.12)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
-                  <code style={{ fontSize: 8, color: C.blue, direction: 'ltr', flex: 1, wordBreak: 'break-all', textAlign: 'left' }}>https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp</code>
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.08)', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.blue }}>Webhook URL</span>
+                  <button onClick={() => { navigator.clipboard.writeText('https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp'); toast && toast('تم') }} style={{ fontSize: 10, padding: '5px 14px', borderRadius: 6, border: '1px solid rgba(52,131,180,.15)', background: 'rgba(52,131,180,.08)', color: C.blue, cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>نسخ</button>
                 </div>
+                <code style={{ fontSize: 11, color: 'rgba(91,155,213,.8)', direction: 'ltr', display: 'block', textAlign: 'left', wordBreak: 'break-all', lineHeight: 1.6 }}>https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp</code>
               </div>
-              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(201,168,76,.03)', border: '1px solid rgba(201,168,76,.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button onClick={() => { navigator.clipboard.writeText('%s|||%m|||%d'); toast && toast('تم') }} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <code style={{ fontSize: 11, color: C.gold, fontWeight: 700, direction: 'ltr' }}>%s|||%m|||%d</code>
-                  <span style={{ fontSize: 9, color: 'var(--tx5)' }}>Text template</span>
-                </div>
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(201,168,76,.03)', border: '1px solid rgba(201,168,76,.08)', display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx5)', flexShrink: 0 }}>Text template</span>
+                <code style={{ flex: 1, fontSize: 13, color: C.gold, fontWeight: 800, direction: 'ltr', textAlign: 'center' }}>%s|||%m|||%d</code>
+                <button onClick={() => { navigator.clipboard.writeText('%s|||%m|||%d'); toast && toast('تم') }} style={{ fontSize: 10, padding: '5px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>نسخ</button>
               </div>
             </div>
 
@@ -351,12 +349,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     </div>
 
                     {/* Device key */}
-                    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', marginBottom: 10 }}>
-                      <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>Subject (مفتاح الجهاز)</div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
-                        <code style={{ fontSize: 9, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontWeight: 600, textAlign: 'left' }}>{p.device_key}</code>
+                    <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(201,168,76,.03)', border: '1px solid rgba(201,168,76,.06)', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx5)' }}>Subject (مفتاح الجهاز)</span>
+                        <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 10, padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>نسخ</button>
                       </div>
+                      <code style={{ fontSize: 11, color: C.gold, direction: 'ltr', display: 'block', textAlign: 'left', wordBreak: 'break-all', fontWeight: 700 }}>{p.device_key}</code>
                     </div>
 
                     {/* Allowed senders */}
