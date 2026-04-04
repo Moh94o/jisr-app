@@ -219,10 +219,10 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
     const stLabel = {pending:T('معلّقة','Pending'),in_progress:T('قيد التنفيذ','In Progress'),completed:T('مكتملة','Done'),overdue:T('متأخرة','Overdue'),skipped:T('مُتخطاة','Skipped')}
     const priLabel = {urgent:T('عاجل','Urgent'),high:T('عالي','High'),normal:T('عادي','Normal'),low:T('منخفض','Low')}
 
-    return <><div onClick={()=>setSelectedTask(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(4px)',zIndex:997}}/>
-    <div style={{position:'fixed',top:0,[isAr?'left':'right']:0,width:'min(520px,96vw)',height:'100vh',background:'var(--sf)',zIndex:998,display:'flex',flexDirection:'column',fontFamily:F,direction:isAr?'rtl':'ltr',boxShadow:'-8px 0 40px rgba(0,0,0,.5)',borderRight:isAr?'none':'1px solid rgba(201,168,76,.12)',borderLeft:isAr?'1px solid rgba(201,168,76,.12)':'none',animation:'slideIn .25s ease'}}>
+    return <div onClick={()=>setSelectedTask(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16}}>
+    <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(900px,96vw)',height:'min(620px,90vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.12)',fontFamily:F,direction:isAr?'rtl':'ltr'}}>
       {/* Header */}
-      <div style={{padding:'18px 20px',borderBottom:`2px solid ${sc}20`,flexShrink:0}}>
+      <div style={{padding:'18px 22px',borderBottom:'1px solid rgba(201,168,76,.1)',flexShrink:0,background:'var(--bg)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
           <div style={{flex:1}}>
             <div style={{fontSize:16,fontWeight:800,color:'var(--tx)',marginBottom:6}}>{t.title_ar}</div>
@@ -263,15 +263,18 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
           <button onClick={()=>{skip(t.id);setSelectedTask(null)}} style={{height:34,padding:'0 16px',borderRadius:8,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx4)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>{T('تخطي','Skip')}</button>
         </div>}
       </div>
-      {/* Tabs */}
-      <div style={{display:'flex',borderBottom:'1px solid var(--bd)',padding:'0 16px',flexShrink:0}} className="dash-content">
-        {[{v:'info',l:T('التفاصيل','Details'),icon:'📋'},{v:'team',l:T('الفريق','Team'),n:assignees.length,icon:'👥'},{v:'comments',l:T('التعليقات','Comments'),n:comments.length,icon:'💬'},{v:'attachments',l:T('المرفقات','Files'),n:taskAttachments.length,icon:'📎'},{v:'transactions',l:T('المعاملات','Txns'),n:taskTxns.length,icon:'📊'}].map(tab=>
-          <div key={tab.v} onClick={()=>setDetailTab(tab.v)} style={{padding:'10px 10px',fontSize:10,fontWeight:detailTab===tab.v?700:500,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.4)',borderBottom:detailTab===tab.v?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:3}}>
-            <span style={{fontSize:11}}>{tab.icon}</span>{tab.l}{tab.n!==undefined&&tab.n>0&&<span style={{fontSize:8,fontWeight:700,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.2)',background:detailTab===tab.v?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',padding:'1px 5px',borderRadius:8}}>{tab.n}</span>}
-          </div>)}
-      </div>
-      {/* Tab content */}
-      <div className="dash-content" style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
+      {/* Content with sidebar tabs — like transactions */}
+      <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+        {/* Sidebar tabs */}
+        <div style={{width:130,background:'var(--bg)',borderLeft:isAr?'none':'1px solid rgba(255,255,255,.04)',borderRight:isAr?'1px solid rgba(255,255,255,.04)':'none',padding:'12px 8px',flexShrink:0}}>
+          {[{v:'info',l:T('التفاصيل','Details'),icon:'📋'},{v:'team',l:T('الفريق','Team'),n:assignees.length,icon:'👥'},{v:'comments',l:T('التعليقات','Comments'),n:comments.length,icon:'💬'},{v:'attachments',l:T('المرفقات','Files'),n:taskAttachments.length,icon:'📎'},{v:'transactions',l:T('المعاملات','Txns'),n:taskTxns.length,icon:'📊'}].map(tab=>
+            <div key={tab.v} onClick={()=>setDetailTab(tab.v)} style={{padding:'10px 10px',borderRadius:8,marginBottom:3,fontSize:10,fontWeight:detailTab===tab.v?700:500,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.38)',background:detailTab===tab.v?'rgba(201,168,76,.08)':'transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:4}}>
+              <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:12}}>{tab.icon}</span>{tab.l}</span>
+              {tab.n!==undefined&&tab.n>0&&<span style={{fontSize:9,fontWeight:700,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.2)',background:detailTab===tab.v?'rgba(201,168,76,.15)':'rgba(255,255,255,.04)',padding:'1px 6px',borderRadius:4}}>{tab.n}</span>}
+            </div>)}
+        </div>
+        {/* Tab content */}
+        <div className="dash-content" style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
         {detailTab==='info'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
           {/* Dates */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
@@ -360,7 +363,9 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
           </div>})}
         </div>}
       </div>
-    </div></>
+    </div>
+    </div>
+    </div>
   }
 
   // ═══ CREATE MODAL ═══

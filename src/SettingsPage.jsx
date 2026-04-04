@@ -100,6 +100,8 @@ const[subSvcs,setSubSvcs]=useState([])
 const[subSteps,setSubSteps]=useState([])
 const[tplts,setTplts]=useState([])
 const[tplLinks,setTplLinks]=useState([])
+const[instPlans,setInstPlans]=useState([])
+const[msList,setMsList]=useState([])
 const[svcSubTab,setSvcSubTab]=useState('services');const[stepFieldCounts,setStepFieldCounts]=useState({});const[txnCounts,setTxnCounts]=useState({});const[svcCatFilter,setSvcCatFilter]=useState('all')
 
 const toggle=id=>setOpen(p=>({...p,[id]:!p[id]}))
@@ -130,6 +132,8 @@ setLLists(ll.data||[]);setLItems(li.data||[]);setDocs(dc.data||[]);setSubSvcs(sv
 // Load step_fields counts per step and txn counts per service
 sb.from('step_fields').select('step_id').then(({data:sfData})=>{const counts={};(sfData||[]).forEach(f=>{counts[f.step_id]=(counts[f.step_id]||0)+1});setStepFieldCounts(counts)})
 sb.from('transactions').select('service_id').is('deleted_at',null).then(({data:txData})=>{const counts={};(txData||[]).forEach(t=>{if(t.service_id)counts[t.service_id]=(counts[t.service_id]||0)+1});setTxnCounts(counts)})
+sb.from('service_installment_plans').select('*').order('installment_order').then(({data})=>setInstPlans(data||[]))
+sb.from('service_type_milestones').select('*').eq('is_active',true).order('sort_order').then(({data})=>setMsList(data||[]))
 setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
@@ -177,10 +181,11 @@ di:[{k:'name_ar',l:isAr?'اسم الحي بالعربي':'District (Arabic)',r:1
 au:[{k:'name_ar',l:isAr?'اسم الأمانة بالعربي':'Authority (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشطة':'Active'},{v:'false',l:isAr?'معطّلة':'Inactive'}]}],
 mu:[{k:'name_ar',l:isAr?'اسم البلدية بالعربي':'Municipality (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشطة':'Active'},{v:'false',l:isAr?'معطّلة':'Inactive'}]}],
 doc:[{k:'title',l:isAr?'العنوان':'Title',r:1},{k:'document_type',l:isAr?'النوع':'Type'},{k:'entity_type',l:isAr?'نوع الكيان':'Entity Type'},{k:'description',l:isAr?'الوصف':'Description',w:1}],
-sv:[{k:'name_ar',l:isAr?'اسم الخدمة بالعربي':'Service (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'service_scope',l:isAr?'النوع':'Scope',opts:[{v:'client',l:isAr?'خارجي (عميل)':'Client'},{v:'internal',l:isAr?'داخلي':'Internal'},{v:'office',l:isAr?'مكتب':'Office'}]},{k:'default_price',l:isAr?'السعر الافتراضي':'Default Price',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشطة':'Active'},{v:'false',l:isAr?'معطّلة':'Inactive'}]},{k:'notes',l:isAr?'ملاحظات':'Notes',w:1}],
+sv:[{k:'name_ar',l:isAr?'اسم الخدمة بالعربي':'Service (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'category',l:isAr?'التصنيف':'Category'},{k:'service_scope',l:isAr?'النوع':'Scope',opts:[{v:'client',l:isAr?'خارجي (عميل)':'Client'},{v:'internal',l:isAr?'داخلي':'Internal'},{v:'office',l:isAr?'مكتب':'Office'}]},{k:'default_price',l:isAr?'السعر الافتراضي':'Default Price',d:1},{k:'gov_fee',l:isAr?'الرسوم الحكومية':'Gov. Fee',d:1},{k:'is_free',l:isAr?'مجانية':'Free',opts:[{v:'true',l:isAr?'نعم (مجاني)':'Yes (Free)'},{v:'false',l:isAr?'لا (بفلوس)':'No (Paid)'}]},{k:'vat_included',l:isAr?'شامل الضريبة':'VAT Included',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'show_in_request_popup',l:isAr?'تظهر في رفع طلب':'Show in Request',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'requires_client',l:isAr?'يتطلب عميل':'Requires Client',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'requires_worker',l:isAr?'يتطلب عامل':'Requires Worker',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'requires_facility',l:isAr?'يتطلب منشأة':'Requires Facility',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشطة':'Active'},{v:'false',l:isAr?'معطّلة':'Inactive'}]},{k:'pricing_notes',l:isAr?'ملاحظات التسعير':'Pricing Notes'},{k:'description_ar',l:isAr?'وصف الخدمة':'Description',w:1},{k:'notes',l:isAr?'ملاحظات':'Notes',w:1}],
 ss:[{k:'name_ar',l:isAr?'اسم الخطوة':'Step (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'step_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'is_required',l:isAr?'مطلوبة':'Required',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'sadad_requirement',l:isAr?'متطلب سداد':'SADAD',opts:[{v:'none',l:isAr?'بدون':'None'},{v:'required_blocking',l:isAr?'مطلوب (حظر)':'Blocking'},{v:'required_before_complete',l:isAr?'قبل الإنهاء':'Before Complete'}]},{k:'default_sadad_amount',l:isAr?'مبلغ سداد':'Amount',d:1},{k:'description',l:isAr?'الوصف':'Description',w:1}],
 tp:[{k:'name_ar',l:isAr?'اسم القالب بالعربي':'Template (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'transaction_type',l:isAr?'نوع المعاملة':'Type',opts:[{v:'recruitment',l:isAr?'استقدام':'Recruitment'},{v:'transfer',l:isAr?'نقل خدمات':'Transfer'},{v:'exit',l:isAr?'خروج':'Exit'},{v:'renewal',l:isAr?'تجديد':'Renewal'},{v:'other',l:isAr?'أخرى':'Other'}]},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]},{k:'notes',l:isAr?'ملاحظات':'Notes',w:1}],
-tl:[{k:'sub_service_id',l:isAr?'الخدمة الفرعية':'Sub Service',r:1,opts:subSvcs.map(s=>({v:s.id,l:isAr?s.name_ar:s.name_en||s.name_ar}))},{k:'step_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'step_group',l:isAr?'مجموعة تبديل':'Swap Group',d:1},{k:'is_conditional',l:isAr?'شرطية؟':'Conditional?',opts:[{v:'false',l:isAr?'لا':'No'},{v:'true',l:isAr?'نعم':'Yes'}]},{k:'condition_note',l:isAr?'وصف الشرط':'Condition Note',w:1}]
+tl:[{k:'sub_service_id',l:isAr?'الخدمة الفرعية':'Sub Service',r:1,opts:subSvcs.map(s=>({v:s.id,l:isAr?s.name_ar:s.name_en||s.name_ar}))},{k:'step_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'step_group',l:isAr?'مجموعة تبديل':'Swap Group',d:1},{k:'is_conditional',l:isAr?'شرطية؟':'Conditional?',opts:[{v:'false',l:isAr?'لا':'No'},{v:'true',l:isAr?'نعم':'Yes'}]},{k:'condition_note',l:isAr?'وصف الشرط':'Condition Note',w:1}],
+ip:[{k:'service_id',l:isAr?'الخدمة':'Service',r:1,opts:subSvcs.map(s=>({v:s.id,l:isAr?s.name_ar:s.name_en||s.name_ar}))},{k:'label_ar',l:isAr?'اسم القسط':'Label (AR)',r:1},{k:'label_en',l:isAr?'بالإنجليزي':'Label (EN)',d:1},{k:'installment_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'percentage',l:isAr?'النسبة %':'Percentage',d:1},{k:'fixed_amount',l:isAr?'مبلغ ثابت':'Fixed Amount',d:1},{k:'due_type',l:isAr?'نوع الاستحقاق':'Due Type',r:1,opts:[{v:'on_request',l:isAr?'عند رفع الطلب':'On Request'},{v:'after_days',l:isAr?'بعد عدد أيام':'After Days'},{v:'on_milestone',l:isAr?'عند إنجاز مرحلة':'On Milestone'},{v:'on_completion',l:isAr?'عند اكتمال المعاملة':'On Completion'}]},{k:'due_days',l:isAr?'عدد الأيام':'Days',d:1},{k:'milestone_id',l:isAr?'المرحلة':'Milestone',opts:[{v:'',l:'—'},...msList.map(m=>({v:m.id,l:m.name_ar}))]},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]}]
 }
 const popTitles={
 r:form._id?(isAr?'تعديل منطقة':'Edit Region'):(isAr?'إضافة منطقة':'Add Region'),
@@ -197,7 +202,8 @@ doc:form._id?(isAr?'تعديل وثيقة':'Edit Document'):(isAr?'إضافة و
 sv:form._id?(isAr?'تعديل خدمة فرعية':'Edit Sub Service'):(isAr?'إضافة خدمة فرعية':'Add Sub Service'),
 ss:form._id?(isAr?'تعديل خطوة':'Edit Step'):(isAr?'إضافة خطوة':'Add Step'),
 tp:form._id?(isAr?'تعديل قالب':'Edit Template'):(isAr?'إضافة قالب معاملة':'Add Template'),
-tl:form._id?(isAr?'تعديل ربط':'Edit Link'):(isAr?'ربط خدمة فرعية بقالب':'Link Sub Service')
+tl:form._id?(isAr?'تعديل ربط':'Edit Link'):(isAr?'ربط خدمة فرعية بقالب':'Link Sub Service'),
+ip:form._id?(isAr?'تعديل قسط':'Edit Installment'):(isAr?'إضافة قسط جديد':'Add Installment')
 }
 
 const fLItems=lItems.filter(i=>{if(listFilter&&i.category_id!==listFilter)return false;if(q)return(i.value_ar||'').includes(q)||(i.value_en||'').toLowerCase().includes(q.toLowerCase());return true})
@@ -457,7 +463,7 @@ docs.map((d,i)=><tr key={d.id} style={{borderBottom:'1px solid var(--bd2)'}}>
 {/* Sub-tabs: side list */}
 <div style={{display:'flex',gap:0}}>
 <div style={{width:80,flexShrink:0,borderLeft:isAr?'1px solid rgba(255,255,255,.05)':'none',borderRight:!isAr?'1px solid rgba(255,255,255,.05)':'none',paddingTop:2}}>
-{[{id:'services',l:'الخدمات',le:'Services'},{id:'templates',l:'المعاملات',le:'Transactions'}].map(st=><div key={st.id} onClick={()=>setSvcSubTab(st.id)} style={{padding:'6px 8px',fontSize:10,fontWeight:svcSubTab===st.id?700:500,color:svcSubTab===st.id?C.gold:'rgba(255,255,255,.3)',cursor:'pointer',borderRight:isAr&&svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:!isAr&&svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',transition:'.1s'}}>{isAr?st.l:st.le}</div>)}
+{[{id:'services',l:'الخدمات',le:'Services'},{id:'installments',l:'الأقساط',le:'Installments'},{id:'templates',l:'المعاملات',le:'Transactions'}].map(st=><div key={st.id} onClick={()=>setSvcSubTab(st.id)} style={{padding:'6px 8px',fontSize:10,fontWeight:svcSubTab===st.id?700:500,color:svcSubTab===st.id?C.gold:'rgba(255,255,255,.3)',cursor:'pointer',borderRight:isAr&&svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:!isAr&&svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',transition:'.1s'}}>{isAr?st.l:st.le}</div>)}
 </div>
 <div style={{flex:1,paddingRight:isAr?8:0,paddingLeft:!isAr?8:0}}>
 
@@ -636,6 +642,60 @@ tpLinks.map(lk=>{const sv=subSvcs.find(s=>s.id===lk.sub_service_id);return<div k
 </div></div>})}
 </div>}
 </div>})}</div></>}
+
+{/* ═══ INSTALLMENT PLANS — PER SERVICE ═══ */}
+{svcSubTab==='installments'&&<>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+<div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{isAr?'خطط الأقساط لكل خدمة':'Installment Plans per Service'}</div>
+<button onClick={()=>{setForm({_table:'service_installment_plans',service_id:'',label_ar:'',label_en:'',installment_order:'1',percentage:'',fixed_amount:'',due_type:'on_request',due_days:'',is_active:'true'});setPop('ip')}} style={bS}>+ {isAr?'إضافة قسط':'Add Plan'}</button>
+</div>
+<div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>{isAr?'حدد لكل خدمة كم قسط ومتى يحل كل قسط (عند الطلب، بعد أيام، عند إنجاز مرحلة، عند الاكتمال)':'Define installment count and due conditions per service'}</div>
+
+{/* Group by service */}
+{(()=>{
+const svcsWithPlans=[...new Set(instPlans.map(p=>p.service_id))]
+const svcsAll=subSvcs.filter(s=>Number(s.default_price||0)>0||svcsWithPlans.includes(s.id))
+return<div style={cardS}>
+{svcsAll.length===0&&<div style={{padding:20,textAlign:'center',fontSize:11,color:'var(--tx5)'}}>{isAr?'لا توجد خدمات مدفوعة':'No paid services'}</div>}
+{svcsAll.map(sv=>{
+const plans=instPlans.filter(p=>p.service_id===sv.id).sort((a,b)=>(a.installment_order||0)-(b.installment_order||0))
+const isOpen=open['ip_'+sv.id]
+return<div key={sv.id}>
+<div onClick={()=>toggle('ip_'+sv.id)} style={{...parentRow,justifyContent:'space-between'}}>
+<div style={{display:'flex',alignItems:'center',gap:8,flex:1}}>
+<ArrowIcon isOpen={isOpen}/>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
+<span style={{fontSize:9,color:C.gold,fontWeight:600}}>{sv.default_price?sv.default_price+' ر.س':''}</span>
+</div>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
+{plans.length>0?<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(39,160,70,.08)',color:C.ok,fontWeight:600}}>{plans.length} {isAr?'قسط':'inst'}</span>
+:<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.05)',color:'var(--tx5)',fontWeight:500}}>{isAr?'دفع كامل':'Full pay'}</span>}
+<button onClick={e=>{e.stopPropagation();setForm({_table:'service_installment_plans',service_id:sv.id,label_ar:'',label_en:'',installment_order:String(plans.length+1),percentage:'',fixed_amount:'',due_type:'on_request',due_days:'',is_active:'true'});setPop('ip')}} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:C.gold,fontFamily:F}}>+</button>
+</div>
+</div>
+{isOpen&&plans.length>0&&<div>
+{plans.map((pl,idx)=>{
+const dueLabel=pl.due_type==='on_request'?(isAr?'عند رفع الطلب':'On request'):pl.due_type==='after_days'?(isAr?'بعد '+pl.due_days+' يوم':'After '+pl.due_days+' days'):pl.due_type==='on_milestone'?(msList.find(m=>m.id===pl.milestone_id)?.name_ar||(isAr?'مرحلة':'Milestone')):(isAr?'عند الاكتمال':'On completion')
+return<div key={pl.id} style={childRow}>
+<div style={{width:20,height:20,borderRadius:'50%',background:C.gold,color:C.dk,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:800,flexShrink:0}}>{pl.installment_order||idx+1}</div>
+<div style={{flex:1}}>
+<span style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{pl.label_ar}</span>
+<div style={{display:'flex',gap:10,marginTop:2,fontSize:9,color:'var(--tx5)'}}>
+{pl.percentage>0&&<span>{pl.percentage}%</span>}
+{pl.fixed_amount>0&&<span>{pl.fixed_amount} ر.س</span>}
+<span style={{color:C.blue}}>{dueLabel}</span>
+</div>
+</div>
+<BadgeStatus v={pl.is_active} isAr={isAr}/>
+<EditBtn onClick={()=>{setForm({_table:'service_installment_plans',_id:pl.id,service_id:pl.service_id,label_ar:pl.label_ar||'',label_en:pl.label_en||'',installment_order:pl.installment_order||'',percentage:pl.percentage||'',fixed_amount:pl.fixed_amount||'',due_type:pl.due_type||'on_request',due_days:pl.due_days||'',milestone_id:pl.milestone_id||'',is_active:String(pl.is_active!==false)});setPop('ip')}}/>
+<DelBtn onClick={()=>askDel('service_installment_plans',pl.id,pl.label_ar)}/>
+</div>})}
+</div>}
+{isOpen&&plans.length===0&&<div style={{padding:'12px 42px',fontSize:10,color:'var(--tx5)'}}>{isAr?'لم يتم تعريف أقساط — سيكون الدفع كاملاً':'No installments defined — full payment'}</div>}
+</div>})}
+</div>})()}
+</>}
+
 </div></div>
 </>}
 

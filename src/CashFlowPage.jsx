@@ -8,16 +8,28 @@ export default function CashFlowPage({sb,toast,lang}){
 const T=(a,e)=>lang==='ar'?a:e
 const[data,setData]=useState([]);const[loading,setLoading]=useState(true)
 const[summary,setSummary]=useState({inflow:0,outflow:0,net:0})
+const[actual,setActual]=useState({income:0,expense:0})
+const[overBudget,setOverBudget]=useState(false)
 
 const load=useCallback(async()=>{
   setLoading(true)
-  const{data:d}=await sb.from('v_cash_flow_forecast').select('*')
+  const[{data:d},{data:br},{data:op}]=await Promise.all([
+    sb.from('v_cash_flow_forecast').select('*'),
+    sb.from('bank_reconciliation').select('transaction_type,amount').is('deleted_at',null),
+    sb.from('operational_expenses').select('amount').is('deleted_at',null)
+  ])
   setData(d||[])
   if(d&&d.length>0){
     const inf=d.reduce((s,r)=>s+Number(r.expected_inflow||0),0)
     const out=d.reduce((s,r)=>s+Number(r.expected_outflow||0),0)
     setSummary({inflow:inf,outflow:out,net:inf-out})
   }
+  // Actual from bank
+  const isInc=t=>t==='bank_transfer_in'||t==='cash_in'||t==='deposit'||t==='transfer_in'
+  const actIncome=(br||[]).filter(r=>isInc(r.transaction_type)).reduce((s,r)=>s+Number(r.amount||0),0)
+  const actExpense=(op||[]).reduce((s,r)=>s+Number(r.amount||0),0)
+  setActual({income:actIncome,expense:actExpense})
+  setOverBudget(actExpense>summary.outflow&&summary.outflow>0)
   setLoading(false)
 },[sb])
 useEffect(()=>{load()},[load])
@@ -41,6 +53,38 @@ return<div>
 <div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>{T('التدفق النقدي','Cash Flow')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('توقعات الدخل والمصاريف لـ 8 أسابيع قادمة','8-week income & expense forecast')}</div></div>
 <button onClick={load} style={{height:36,padding:'0 14px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx3)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>↻ {T('تحديث','Refresh')}</button>
+</div>
+
+{/* تنبيه تجاوز الميزانية */}
+{actual.expense>0&&summary.outflow>0&&actual.expense>summary.outflow&&<div style={{padding:'12px 16px',borderRadius:12,background:'rgba(192,57,43,.06)',border:'1px solid rgba(192,57,43,.15)',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+<div><div style={{fontSize:12,fontWeight:700,color:C.red}}>{T('الصرف الفعلي تجاوز المتوقع!','Actual spending exceeded forecast!')}</div>
+<div style={{fontSize:11,color:'rgba(192,57,43,.6)',marginTop:2}}>{T('الفعلي: ','Actual: ')}{num(actual.expense)} — {T('المتوقع: ','Expected: ')}{num(summary.outflow)} — {T('الفرق: ','Diff: ')}{num(actual.expense-summary.outflow)}</div></div>
+</div>}
+
+{/* Actual vs Expected */}
+<div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:16}}>
+<div style={{padding:'14px 16px',borderRadius:12,background:'rgba(39,160,70,.04)',border:'1px solid rgba(39,160,70,.08)'}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+<span style={{fontSize:10,fontWeight:700,color:C.ok}}>{T('الدخل','Income')}</span>
+</div>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end'}}>
+<div><div style={{fontSize:8,color:'var(--tx6)'}}>الفعلي</div><div style={{fontSize:20,fontWeight:900,color:C.ok}}>{num(actual.income)}</div></div>
+<div style={{textAlign:'left'}}><div style={{fontSize:8,color:'var(--tx6)'}}>المتوقع</div><div style={{fontSize:14,fontWeight:600,color:'var(--tx5)'}}>{num(summary.inflow)}</div></div>
+</div>
+{summary.inflow>0&&<div style={{height:4,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden',marginTop:8}}><div style={{height:'100%',width:Math.min(100,Math.round(actual.income/summary.inflow*100))+'%',borderRadius:2,background:C.ok}}/></div>}
+</div>
+<div style={{padding:'14px 16px',borderRadius:12,background:'rgba(192,57,43,.04)',border:'1px solid rgba(192,57,43,.08)'}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+<span style={{fontSize:10,fontWeight:700,color:C.red}}>{T('المصاريف','Expenses')}</span>
+{actual.expense>summary.outflow&&summary.outflow>0&&<span style={{fontSize:8,fontWeight:700,padding:'2px 6px',borderRadius:4,background:'rgba(192,57,43,.15)',color:C.red}}>تجاوز!</span>}
+</div>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end'}}>
+<div><div style={{fontSize:8,color:'var(--tx6)'}}>الفعلي</div><div style={{fontSize:20,fontWeight:900,color:C.red}}>{num(actual.expense)}</div></div>
+<div style={{textAlign:'left'}}><div style={{fontSize:8,color:'var(--tx6)'}}>المتوقع</div><div style={{fontSize:14,fontWeight:600,color:'var(--tx5)'}}>{num(summary.outflow)}</div></div>
+</div>
+{summary.outflow>0&&<div style={{height:4,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden',marginTop:8}}><div style={{height:'100%',width:Math.min(100,Math.round(actual.expense/summary.outflow*100))+'%',borderRadius:2,background:actual.expense>summary.outflow?C.red:'#e67e22'}}/></div>}
+</div>
 </div>
 
 {/* تنبيه العجز */}

@@ -271,50 +271,6 @@ return<div>
 </button>
 </div>
 
-{/* ═══ PERIOD TABS ═══ */}
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:14}}>
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-<span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>
-<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.58)'}}>إحصائيات الفترة</span>
-</div>
-<div style={{flex:1}}/>
-{[['today','اليوم'],['week','الأسبوع الحالي'],['month','الشهر الحالي'],['all','الكل']].map(([k,l])=>
-<button key={k} onClick={()=>{setPeriod(k);setPage(1)}} style={{height:32,padding:'0 14px',borderRadius:8,border:'1.5px solid '+(period===k?'rgba(201,168,76,.25)':'rgba(255,255,255,.1)'),background:period===k?'rgba(201,168,76,.1)':'transparent',color:period===k?C.gold:'rgba(255,255,255,.42)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>{l}</button>
-)}
-<select value={branchFilter||''} onChange={e=>setBranchFilter(e.target.value||null)} style={{height:32,padding:'0 10px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.08)',color:C.gold,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',outline:'none'}}><option value="">{T('\u0643\u0644 \u0627\u0644\u0645\u0643\u0627\u062a\u0628','All Branches')}</option>{branches.map(b=><option key={b.id} value={b.id}>{b.name_ar}</option>)}</select>
-</div>
-{/* ═══ ENHANCED STATS (5 cards) ═══ */}
-{(()=>{const collectionPct=invs.length>0?Math.round(invs.reduce((s,i)=>s+Number(i.paid_amount||0),0)*100/Math.max(invs.reduce((s,i)=>s+Number(i.total_amount||0),0),1)):0;const unpaidCount=periodInvs.filter(i=>i.status!=='paid'&&i.status!=='cancelled').length
-return<><div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,marginBottom:16}}>
-{[
-['المبالغ المستلمة نقداً',sts.paid,sts.pdc+' فاتورة','linear-gradient(145deg,rgba(20,20,20,.95),rgba(28,28,28,.95))','rgba(39,174,96,.7)','rgba(39,174,96,.15)'],
-['المبالغ المحولة بنكياً',sts.outstanding,sts.uc+' فاتورة','linear-gradient(145deg,rgba(16,18,28,.95),rgba(18,22,38,.95))','rgba(80,150,255,.7)','rgba(80,150,255,.12)'],
-['المبالغ الملغاة',sts.cc>0?periodInvs.filter(i=>i.status==='cancelled').reduce((s,i)=>s+(i.total_amount||0),0):0,sts.cc+' فاتورة','linear-gradient(145deg,rgba(32,16,16,.95),rgba(42,18,18,.95))','rgba(255,90,80,.7)','rgba(255,90,80,.12)'],
-['الصافي',sts.total-sts.outstanding,'إجمالي — المعلّق','linear-gradient(145deg,rgba(28,24,16,.95),rgba(36,32,18,.95))',C.gold,'rgba(201,168,76,.12)'],
-['نسبة التحصيل',collectionPct+'%',unpaidCount+' غير مسددة','linear-gradient(145deg,rgba(18,26,18,.95),rgba(22,32,22,.95))',collectionPct>=70?'rgba(39,174,96,.7)':collectionPct>=50?'rgba(230,126,34,.7)':'rgba(255,90,80,.7)',collectionPct>=70?'rgba(39,174,96,.15)':collectionPct>=50?'rgba(230,126,34,.12)':'rgba(255,90,80,.12)']
-].map(([l,v,sub,bg,dot,ibg],i)=><div key={i} style={{padding:'12px 14px 10px',borderRadius:14,background:bg,border:'1px solid rgba(201,168,76,.1)',position:'relative',overflow:'hidden'}}>
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<div style={{width:32,height:32,borderRadius:8,background:ibg,display:'flex',alignItems:'center',justifyContent:'center'}}>
-{i===0&&<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={dot} strokeWidth="1.5"/><path d="M3 10h18" stroke={dot} strokeWidth="1.5"/></svg>}
-{i===1&&<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke={dot} strokeWidth="1.5"/><path d="M7 13l3 3 4-5 3 2" stroke={dot} strokeWidth="1.5" strokeLinecap="round"/></svg>}
-{i===2&&<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke={dot} strokeWidth="1.5"/><path d="M15 9l-6 6M9 9l6 6" stroke={dot} strokeWidth="1.8" strokeLinecap="round"/></svg>}
-{i===3&&<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke={dot} strokeWidth="1.5" strokeLinecap="round"/></svg>}
-{i===4&&<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke={dot} strokeWidth="1.5" strokeLinecap="round"/><polyline points="22 4 12 14.01 9 11.01" stroke={dot} strokeWidth="1.5" strokeLinecap="round"/></svg>}
-</div>
-<span style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,.55)'}}>{l}</span>
-</div>
-<span style={{width:5,height:5,borderRadius:'50%',background:dot}}/>
-</div>
-<div style={{fontSize:i===4?26:24,fontWeight:800,color:'var(--tx)',lineHeight:1,marginBottom:2,letterSpacing:'-.5px'}}>{i===4?v:num(v)}</div>
-<div style={{fontSize:9,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{i===4?'':T('ريال سعودي','SAR')}</div>
-{i===4&&<div style={{height:4,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden',marginBottom:4}}><div style={{height:'100%',width:collectionPct+'%',borderRadius:2,background:dot}}/></div>}
-<div style={{height:1,background:'rgba(201,168,76,.06)',marginBottom:6}}/>
-<div style={{fontSize:8.5,fontWeight:600,color:'var(--tx4)'}}>{sub}</div>
-</div>)}
-</div>
-
-</>})()}
 
 {/* ═══ SEARCH + FILTER ═══ */}
 <div style={{display:'flex',gap:10,marginBottom:14}}>
