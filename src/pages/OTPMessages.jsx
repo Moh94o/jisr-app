@@ -174,7 +174,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
       <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
         <button onClick={() => setSelPerson('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: selPerson === 'all' ? 700 : 500, color: selPerson === 'all' ? C.gold : 'rgba(255,255,255,.3)', background: selPerson === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: '1px solid ' + (selPerson === 'all' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>الكل</button>
         {persons.map(p => (
-          <button key={p.id} onClick={() => setSelPerson(selPerson === p.id ? 'all' : p.id)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: selPerson === p.id ? 700 : 500, color: selPerson === p.id ? C.gold : 'rgba(255,255,255,.3)', background: selPerson === p.id ? 'rgba(201,168,76,.08)' : 'transparent', border: '1px solid ' + (selPerson === p.id ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>{p.name}</button>
+          <button key={p.id} onClick={() => setSelPerson(selPerson === p.id ? 'all' : p.id)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: selPerson === p.id ? 700 : 500, color: !p.is_active ? '#e67e22' : selPerson === p.id ? C.gold : 'rgba(255,255,255,.3)', background: !p.is_active ? 'rgba(230,126,34,.06)' : selPerson === p.id ? 'rgba(201,168,76,.08)' : 'transparent', border: '1px solid ' + (!p.is_active ? 'rgba(230,126,34,.15)' : selPerson === p.id ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>{p.name}{!p.is_active ? ' ⏸' : ''}</button>
         ))}
       </div>
 
@@ -328,7 +328,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', marginBottom: 2 }}>{p.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--tx5)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <span>{pMsgs.length} رسالة</span>
-                        <span style={{ color: p.is_active ? C.ok : C.red }}>{p.is_active ? '● نشط' : '○ معطّل'}</span>
+                        <span style={{ color: p.is_active ? C.ok : '#e67e22' }}>{p.is_active ? '● نشط' : '● معطّل'}</span>
                       </div>
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--tx6)', transition: '.2s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
