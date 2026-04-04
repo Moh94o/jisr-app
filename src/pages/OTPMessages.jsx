@@ -29,6 +29,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [permEdit, setPermEdit] = useState({})
   const [now, setNow] = useState(Date.now())
   const [showSetupDrawer, setShowSetupDrawer] = useState(false)
+  const [drawerPerson, setDrawerPerson] = useState(null)
+  const [drawerSenders, setDrawerSenders] = useState([])
   const [deleteConfirm, setDeleteConfirm] = useState(null) // message id to delete
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
@@ -140,7 +142,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--tx)' }}>رسائل التحقق</div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setShowSetupDrawer(true)} style={{ height: 34, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx4)', fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>⚙ إعداد الربط</button>
+          <button onClick={() => setShowSetupDrawer(true)} style={{ height: 34, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx4)', fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>⚙ الإعدادات</button>
           <button onClick={() => setShowAdd(true)} style={{ height: 34, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.1)', color: C.gold, fontFamily: F, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>+ إضافة شخص</button>
         </div>
       </div>
@@ -283,31 +285,106 @@ export default function OTPMessages({ sb, toast, user, lang }) {
         </div>
       )}
 
-      {/* Setup Drawer */}
-      {showSetupDrawer && <div onClick={() => setShowSetupDrawer(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000 }}>
-        <div onClick={e => e.stopPropagation()} style={{ position: 'fixed', top: 0, left: 0, width: 'min(380px,85vw)', height: '100vh', background: '#1a1a1a', borderRight: '1px solid rgba(201,168,76,.1)', padding: '18px', overflowY: 'auto', direction: 'rtl', fontFamily: F }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)' }}>إعداد الربط</div>
-            <button onClick={() => setShowSetupDrawer(false)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+      {/* Settings Drawer */}
+      {showSetupDrawer && <div onClick={() => { setShowSetupDrawer(false); setDrawerPerson(null) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(4px)', zIndex: 1000 }}>
+        <div onClick={e => e.stopPropagation()} style={{ position: 'fixed', top: 0, left: 0, width: 'min(400px,88vw)', height: '100vh', background: '#141414', borderRight: '1px solid rgba(201,168,76,.08)', display: 'flex', flexDirection: 'column', direction: 'rtl', fontFamily: F }}>
+          {/* Drawer header */}
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)' }}>الإعدادات</div>
+            <button onClick={() => { setShowSetupDrawer(false); setDrawerPerson(null) }} style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>×</button>
           </div>
-          {persons.map(p => (
-            <div key={p.id} style={{ padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', marginBottom: 6 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>{p.name}</div>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <code style={{ fontSize: 8, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all' }}>{p.device_key}</code>
-                <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', fontFamily: F }}>نسخ</button>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px' }}>
+            {/* Connection info — TOP */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, marginBottom: 8 }}>بيانات الاتصال</div>
+              <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.08)', marginBottom: 6 }}>
+                <div style={{ fontSize: 8, color: 'var(--tx6)', marginBottom: 4 }}>Webhook URL</div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <code style={{ fontSize: 8, color: C.blue, direction: 'ltr', flex: 1, wordBreak: 'break-all' }}>https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp</code>
+                  <button onClick={() => { navigator.clipboard.writeText('https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp'); toast && toast('تم') }} style={{ fontSize: 8, padding: '3px 8px', borderRadius: 5, border: '1px solid rgba(52,131,180,.12)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F }}>نسخ</button>
+                </div>
+              </div>
+              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(201,168,76,.03)', border: '1px solid rgba(201,168,76,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 9, color: 'var(--tx5)' }}>Text template</div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <code style={{ fontSize: 10, color: C.gold, fontWeight: 700, direction: 'ltr' }}>%s|||%m|||%d</code>
+                  <button onClick={() => { navigator.clipboard.writeText('%s|||%m|||%d'); toast && toast('تم') }} style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F }}>نسخ</button>
+                </div>
               </div>
             </div>
-          ))}
-          <div style={{ marginTop: 10, padding: '10px', borderRadius: 8, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.08)' }}>
-            <div style={{ fontSize: 9, fontWeight: 600, color: C.blue, marginBottom: 4 }}>Webhook URL</div>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <code style={{ fontSize: 7, color: C.blue, direction: 'ltr', flex: 1, wordBreak: 'break-all' }}>https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp</code>
-              <button onClick={() => { navigator.clipboard.writeText('https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp'); toast && toast('تم') }} style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(52,131,180,.1)', background: 'rgba(52,131,180,.04)', color: C.blue, cursor: 'pointer', fontFamily: F }}>نسخ</button>
+
+            {/* Persons list */}
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tx4)', marginBottom: 8 }}>الأشخاص ({persons.length})</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {persons.map(p => {
+                const isOpen = drawerPerson === p.id
+                const perm = permissions.find(pm => pm.person_id === p.id)
+                const pMsgs = messages.filter(m => m.person_id === p.id)
+
+                return <div key={p.id} style={{ borderRadius: 12, border: '1px solid ' + (isOpen ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.04)'), background: isOpen ? 'rgba(201,168,76,.02)' : 'rgba(255,255,255,.015)', overflow: 'hidden', transition: '.2s' }}>
+                  {/* Person row — clickable */}
+                  <div onClick={() => setDrawerPerson(isOpen ? null : p.id)} style={{ padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.04))', border: '1px solid rgba(201,168,76,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(p.name || '?')[0]}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{p.name}{p.name_en && <span style={{ fontSize: 9, color: 'var(--tx6)', marginRight: 6, fontFamily: 'monospace' }}>{p.name_en}</span>}</div>
+                      <div style={{ fontSize: 8, color: 'var(--tx6)' }}>{pMsgs.length} {T('رسالة', 'msgs')} · {p.is_active ? '● نشط' : '○ معطّل'}</div>
+                    </div>
+                    <span style={{ fontSize: 10, color: 'var(--tx6)', transition: '.2s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
+                  </div>
+
+                  {/* Expanded details */}
+                  {isOpen && <div style={{ padding: '0 14px 14px', borderTop: '1px solid rgba(255,255,255,.04)' }}>
+                    {/* Device key */}
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', marginTop: 10, marginBottom: 8 }}>
+                      <div style={{ fontSize: 8, color: 'var(--tx6)', marginBottom: 3 }}>Subject (مفتاح الجهاز)</div>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <code style={{ fontSize: 8, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontWeight: 600 }}>{p.device_key}</code>
+                        <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F }}>نسخ</button>
+                      </div>
+                    </div>
+
+                    {/* Allowed senders */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 9, color: 'var(--tx5)', marginBottom: 6 }}>يستقبل من:</div>
+                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        {SENDERS.map(s => {
+                          const active = (perm?.allowed_senders || []).includes('*') || (perm?.allowed_senders || []).includes(s.k)
+                          return <button key={s.k} onClick={async () => {
+                            if (!perm) return
+                            let next = [...(perm.allowed_senders || [])]
+                            if (s.k === '*') { next = active ? [] : ['*'] }
+                            else { next = active ? next.filter(x => x !== s.k && x !== '*') : [...next.filter(x => x !== '*'), s.k] }
+                            await sb.from('otp_permissions').update({ allowed_senders: next }).eq('id', perm.id)
+                            load()
+                          }} style={{ padding: '3px 8px', borderRadius: 5, fontSize: 8, fontWeight: active ? 700 : 500, color: active ? C.ok : 'var(--tx6)', background: active ? 'rgba(39,160,70,.06)' : 'transparent', border: '1px solid ' + (active ? 'rgba(39,160,70,.1)' : 'rgba(255,255,255,.05)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Recent messages */}
+                    {pMsgs.length > 0 && <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 9, color: 'var(--tx5)', marginBottom: 4 }}>آخر الرسائل:</div>
+                      {pMsgs.slice(0, 3).map(m => (
+                        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderRadius: 6, background: 'rgba(255,255,255,.02)', marginBottom: 3, fontSize: 9 }}>
+                          <span style={{ color: 'var(--tx4)' }}>{detectService(m.phone_from).name}</span>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            {m.otp_code && <code style={{ color: C.ok, fontWeight: 700, fontSize: 10, direction: 'ltr' }}>{m.otp_code}</code>}
+                            <span style={{ color: 'var(--tx6)', fontSize: 8 }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>}
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={async () => { await sb.from('otp_persons').update({ is_active: !p.is_active }).eq('id', p.id); load() }} style={{ flex: 1, height: 30, borderRadius: 6, border: '1px solid ' + (p.is_active ? 'rgba(230,126,34,.12)' : 'rgba(39,160,70,.12)'), background: p.is_active ? 'rgba(230,126,34,.04)' : 'rgba(39,160,70,.04)', color: p.is_active ? '#e67e22' : C.ok, fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer' }}>{p.is_active ? 'تعطيل' : 'تفعيل'}</button>
+                      <button onClick={async () => { if (!confirm('حذف ' + p.name + '؟')) return; await sb.from('otp_messages').delete().eq('person_id', p.id); await sb.from('otp_permissions').delete().eq('person_id', p.id); await sb.from('otp_persons').delete().eq('id', p.id); setDrawerPerson(null); load(); toast && toast('تم الحذف') }} style={{ height: 30, padding: '0 12px', borderRadius: 6, border: '1px solid rgba(192,57,43,.12)', background: 'rgba(192,57,43,.04)', color: C.red, fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer' }}>حذف</button>
+                    </div>
+                  </div>}
+                </div>
+              })}
             </div>
-          </div>
-          <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)' }}>
-            <div style={{ fontSize: 9, color: 'var(--tx5)' }}>Text template: <code style={{ color: C.gold, fontWeight: 700 }}>%s|||%m|||%d</code></div>
           </div>
         </div>
       </div>}
