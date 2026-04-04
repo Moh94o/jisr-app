@@ -201,37 +201,42 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
               return (
                 <div key={m.id} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.05)', opacity: exp ? .4 : 1, transition: '.3s' }}>
-                  {/* Service + time */}
-                  <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,.025)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <SvcLogo sender={m.phone_from} size={32} />
+                  {/* Layer 1: Service + person + time */}
+                  <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,.025)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <SvcLogo sender={m.phone_from} size={36} />
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{svc.name}</div>
-                        <div style={{ fontSize: 8, color: 'var(--tx6)', direction: 'ltr' }}>{svc.domain}</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)' }}>{svc.name}</div>
+                        <div style={{ fontSize: 9, color: 'var(--tx6)', direction: 'ltr', marginTop: 3 }}>{svc.domain}</div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 9, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}{person ? ' · ' + person.name : ''}</span>
-                      {m.otp_code && tl > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: expClr + '12', color: expClr, border: '1px solid ' + expClr + '20' }}>ينتهي خلال {fmtTime(tl)}</span>}
-                      {exp && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(192,57,43,.08)', color: C.red }}>انتهت الصلاحية</span>}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 10, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>
+                        {m.otp_code && tl > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: expClr + '12', color: expClr, border: '1px solid ' + expClr + '20' }}>ينتهي خلال {fmtTime(tl)}</span>}
+                        {exp && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(192,57,43,.08)', color: C.red }}>انتهت الصلاحية</span>}
+                      </div>
+                      {person && <span style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{person.name}</span>}
                     </div>
                   </div>
 
-                  {/* OTP digits + actions */}
-                  <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* Layer 2: OTP code RIGHT + actions LEFT */}
+                  <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     {m.otp_code ? <>
+                      {/* Actions LEFT */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {!exp && <button onClick={() => copyCode(m.otp_code)} style={{ height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(39,160,70,.15)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>}
-                        <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
+                        <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
+                        {!exp && <button onClick={() => copyCode(m.otp_code)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(39,160,70,.15)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>}
                       </div>
+                      {/* Code RIGHT */}
                       <div style={{ display: 'flex', gap: 4, direction: 'ltr' }}>
                         {m.otp_code.split('').map((d, i) => (
-                          <div key={i} style={{ width: 34, height: 42, borderRadius: 8, background: exp ? 'rgba(255,255,255,.03)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (exp ? 'rgba(255,255,255,.06)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: exp ? 'var(--tx6)' : C.ok, fontFamily: 'monospace' }}>{d}</div>
+                          <div key={i} style={{ width: 36, height: 44, borderRadius: 8, background: exp ? 'rgba(255,255,255,.03)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (exp ? 'rgba(255,255,255,.06)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: exp ? 'var(--tx6)' : C.ok, fontFamily: 'monospace' }}>{d}</div>
                         ))}
                       </div>
                     </> : <>
                       <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>×</button>
-                      <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'left', direction: 'rtl' }}>{m.message_body?.substring(0, 70)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right' }}>{m.message_body?.substring(0, 70)}</div>
                     </>}
                   </div>
 
@@ -359,7 +364,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
                     {/* Allowed senders */}
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>يستقبل من:</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>الجهة:</div>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {SENDERS.map(s => {
                           const active = (perm?.allowed_senders || []).includes('*') || (perm?.allowed_senders || []).includes(s.k)
@@ -491,7 +496,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
             {/* OTP services — shows for both modes after selection */}
             {(addMode === 'new' || (addMode === 'existing' && selectedPerson)) && <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>يستقبل OTP من:</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>الجهات:</div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {SENDERS.map(s => <button key={s.k} onClick={() => toggleSender(s.k)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: addForm.default_senders.includes(s.k) || (s.k === '*' && addForm.default_senders.includes('*')) ? 700 : 500, color: addForm.default_senders.includes(s.k) || (s.k === '*' && addForm.default_senders.includes('*')) ? C.ok : 'var(--tx5)', background: addForm.default_senders.includes(s.k) || (s.k === '*' && addForm.default_senders.includes('*')) ? 'rgba(39,160,70,.06)' : 'transparent', border: '1px solid ' + (addForm.default_senders.includes(s.k) || (s.k === '*' && addForm.default_senders.includes('*')) ? 'rgba(39,160,70,.12)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>)}
               </div>
