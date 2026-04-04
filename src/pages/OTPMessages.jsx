@@ -71,9 +71,29 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const fmtTime = (s) => { if (s <= 0) return ''; return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
   const isExp = (m) => m.otp_code && getTimeLeft(m.received_at) <= 0
 
+  // Message category detection
+  const detectMsgCat = (m) => {
+    const svc = detectService(m.phone_from)
+    if (svc.cat === 'bank') return 'bank'
+    if (svc.cat === 'gov') {
+      const body = (m.message_body || '').toLowerCase()
+      // Facility patterns: unified number (7xx), establishment, منشأة, سجل تجاري
+      if (/\b7\d{9}\b/.test(body) || body.includes('منشأة') || body.includes('سجل') || body.includes('establishment') || body.includes('رقم موحد') || body.includes('ملف قوى') || body.includes('ملف التأمينات') || body.includes('غرفة'))
+        return 'facility'
+      // Worker patterns: iqama (2xxx), border number, إقامة, عامل, كفالة
+      if (/\b2\d{9}\b/.test(body) || /\b\d{4}\b/.test(body) && (body.includes('إقامة') || body.includes('عامل') || body.includes('كفالة') || body.includes('حدود') || body.includes('iqama') || body.includes('border')))
+        return 'worker'
+      return 'gov'
+    }
+    return 'other'
+  }
+
   // Stats
-  const govMsgs = messages.filter(m => detectService(m.phone_from).cat === 'gov')
-  const bankMsgs = messages.filter(m => detectService(m.phone_from).cat === 'bank')
+  const govMsgs = messages.filter(m => detectMsgCat(m) === 'gov')
+  const bankMsgs = messages.filter(m => detectMsgCat(m) === 'bank')
+  const facMsgs = messages.filter(m => detectMsgCat(m) === 'facility')
+  const workerMsgs = messages.filter(m => detectMsgCat(m) === 'worker')
+  const otherMsgs = messages.filter(m => detectMsgCat(m) === 'other')
   const nafathCount = messages.filter(m => (m.phone_from || '').toLowerCase().includes('nafath')).length
   const qiwaCount = messages.filter(m => (m.phone_from || '').toLowerCase().includes('qiwa')).length
   const absherCount = messages.filter(m => (m.phone_from || '').toLowerCase().includes('absher')).length
@@ -143,9 +163,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   // Filter
   let filtered = selPerson === 'all' ? messages : messages.filter(m => m.person_id === selPerson)
-  if (filter === 'gov') filtered = filtered.filter(m => detectService(m.phone_from).cat === 'gov')
-  else if (filter === 'bank') filtered = filtered.filter(m => detectService(m.phone_from).cat === 'bank')
-  else if (filter === 'expired') filtered = filtered.filter(m => isExp(m))
+  if (filter !== 'all') filtered = filtered.filter(m => detectMsgCat(m) === filter)
 
   const sF = { width: '100%', height: 42, padding: '0 14px', border: '1.5px solid rgba(255,255,255,.1)', borderRadius: 10, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)', outline: 'none', background: 'rgba(255,255,255,.04)', boxSizing: 'border-box' }
   const SENDERS = [{k:'*',l:'الكل'},{k:'qiwa',l:'قوى'},{k:'nafath',l:'نفاذ'},{k:'absher',l:'أبشر'},{k:'moi',l:'داخلية'},{k:'gosi',l:'GOSI'},{k:'muqeem',l:'مقيم'},{k:'chamber',l:'الغرفة التجارية'}]
@@ -164,24 +182,26 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
       {/* Stats: gov breakdown | bank | facilities+workers | total */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
-        <div style={{ padding: '10px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
-          <div style={{ fontSize: 9, color: '#1abc9c', marginBottom: 6 }}>حكومي</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#1abc9c', marginBottom: 4 }}>{govMsgs.length}</div>
+        <div onClick={() => setFilter('gov')} style={{ padding: '10px', borderRadius: 10, background: filter === 'gov' ? 'rgba(26,188,156,.06)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (filter === 'gov' ? 'rgba(26,188,156,.15)' : 'rgba(255,255,255,.05)'), cursor: 'pointer' }}>
+          <div style={{ fontSize: 9, color: '#1abc9c', marginBottom: 6 }}>الحكومية</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: '#1abc9c', marginBottom: 4 }}>{govMsgs.length + facMsgs.length + workerMsgs.length}</div>
           <div style={{ display: 'flex', gap: 6, fontSize: 8, color: 'var(--tx5)' }}>
             <span>نفاذ {nafathCount}</span><span>قوى {qiwaCount}</span><span>أبشر {absherCount}</span>
           </div>
         </div>
-        <div style={{ padding: '10px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
-          <div style={{ fontSize: 9, color: '#e67e22', marginBottom: 6 }}>بنكي</div>
+        <div onClick={() => setFilter('bank')} style={{ padding: '10px', borderRadius: 10, background: filter === 'bank' ? 'rgba(230,126,34,.06)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (filter === 'bank' ? 'rgba(230,126,34,.15)' : 'rgba(255,255,255,.05)'), cursor: 'pointer' }}>
+          <div style={{ fontSize: 9, color: '#e67e22', marginBottom: 6 }}>البنكية</div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#e67e22' }}>{bankMsgs.length}</div>
         </div>
-        <div style={{ padding: '10px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
-          <div style={{ fontSize: 9, color: C.blue, marginBottom: 6 }}>منشآت وعمال</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: C.blue }}>{messages.length - govMsgs.length - bankMsgs.length}</div>
+        <div onClick={() => setFilter('facility')} style={{ padding: '10px', borderRadius: 10, background: filter === 'facility' ? 'rgba(52,131,180,.06)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (filter === 'facility' ? 'rgba(52,131,180,.15)' : 'rgba(255,255,255,.05)'), cursor: 'pointer' }}>
+          <div style={{ fontSize: 9, color: C.blue, marginBottom: 6 }}>المنشآت</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: C.blue }}>{facMsgs.length}</div>
+          <div style={{ fontSize: 7, color: 'var(--tx6)' }}>رقم موحد · قوى · تأمينات</div>
         </div>
-        <div style={{ padding: '10px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
-          <div style={{ fontSize: 9, color: 'var(--tx4)', marginBottom: 6 }}>الكل</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--tx3)' }}>{messages.length}</div>
+        <div onClick={() => setFilter('worker')} style={{ padding: '10px', borderRadius: 10, background: filter === 'worker' ? 'rgba(155,89,182,.06)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (filter === 'worker' ? 'rgba(155,89,182,.15)' : 'rgba(255,255,255,.05)'), cursor: 'pointer' }}>
+          <div style={{ fontSize: 9, color: '#9b59b6', marginBottom: 6 }}>العمال</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: '#9b59b6' }}>{workerMsgs.length}</div>
+          <div style={{ fontSize: 7, color: 'var(--tx6)' }}>إقامة · حدود · كفالة</div>
         </div>
       </div>
 
@@ -195,7 +215,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
       {/* Category filters */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
-        {[{v:'all',l:'الكل',c:C.gold},{v:'gov',l:'حكومي',c:'#1abc9c'},{v:'bank',l:'بنكي',c:'#e67e22'},{v:'expired',l:`منتهية (${expCount})`,c:C.red}].map(f2 => (
+        {[{v:'all',l:'الكل',c:C.gold},{v:'gov',l:'الحكومية',c:'#1abc9c'},{v:'bank',l:'البنكية',c:'#e67e22'},{v:'facility',l:'المنشآت',c:C.blue},{v:'worker',l:'العمال',c:'#9b59b6'},{v:'other',l:'أخرى',c:'#999'}].map(f2 => (
           <button key={f2.v} onClick={() => setFilter(f2.v)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: filter === f2.v ? 700 : 500, color: filter === f2.v ? f2.c : 'rgba(255,255,255,.25)', background: filter === f2.v ? f2.c + '10' : 'transparent', border: '1px solid ' + (filter === f2.v ? f2.c + '20' : 'rgba(255,255,255,.05)'), cursor: 'pointer', fontFamily: F }}>{f2.l}</button>
         ))}
         {expCount > 0 && <button onClick={clearExpired} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: 600, color: C.red, background: 'rgba(192,57,43,.04)', border: '1px solid rgba(192,57,43,.1)', cursor: 'pointer', fontFamily: F, marginRight: 'auto' }}>مسح المنتهية ({expCount})</button>}
