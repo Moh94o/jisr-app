@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { detectService } from './serviceConfig.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#c9a84c', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
-const OTP_TTL = 300 // 5 minutes
+const OTP_TTL = 300
 
-// Service detection from sender
-function detectService(sender) {
-  const s = (sender || '').toLowerCase()
-  if (s.includes('moi') || s.includes('absher') || s.includes('gov') || s.includes('nafath') || s.includes('tawakkalna') || s.includes('qiwa') || s.includes('muqeem') || s.includes('gosi') || s.includes('mol'))
-    return { name: s.includes('absher') ? 'أبشر' : s.includes('nafath') ? 'نفاذ' : s.includes('qiwa') ? 'قوى' : s.includes('muqeem') ? 'مقيم' : s.includes('gosi') ? 'التأمينات' : s.includes('mol') ? 'وزارة العمل' : 'وزارة الداخلية', domain: 'MOI.GOV.SA', cat: 'gov', color: '#1abc9c' }
-  if (s.includes('bank') || s.includes('rajhi') || s.includes('ahli') || s.includes('sab') || s.includes('riyad') || s.includes('bilad') || s.includes('jazira') || s.includes('inma') || s.includes('stc pay') || s.includes('pay') || s.includes('mada'))
-    return { name: s.includes('rajhi') ? 'الراجحي' : s.includes('ahli') ? 'الأهلي' : s.includes('riyad') ? 'بنك الرياض' : s.includes('bilad') ? 'بنك البلاد' : s.includes('stc') ? 'STC Pay' : 'بنك', domain: 'BANK', cat: 'bank', color: '#e67e22' }
-  return { name: sender || 'غير معروف', domain: sender || '', cat: 'other', color: '#9b59b6' }
+// SVG logo renderer
+const SvcLogo = ({ sender, size = 40 }) => {
+  const svc = detectService(sender)
+  return <div style={{ width: size, height: size, flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: svc.logo ? svc.logo(size) : `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><rect width="40" height="40" rx="10" fill="${svc.color}18"/><text x="20" y="26" text-anchor="middle" font-size="18" font-weight="900" fill="${svc.color}" font-family="Arial">${(svc.name||'?')[0]}</text></svg>` }} />
 }
 
 export default function OTPMessages({ sb, toast, user, lang }) {
@@ -25,8 +22,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [addForm, setAddForm] = useState({ name: '', phone: '', group_name: '' })
   const [saving, setSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(null)
-  const [addStep, setAddStep] = useState(0) // 0=form, 1=setup instructions
+  const [addStep, setAddStep] = useState(0)
   const [createdPerson, setCreatedPerson] = useState(null)
+  const [permissions, setPermissions] = useState([])
+  const [showPermEdit, setShowPermEdit] = useState(null) // message id
+  const [permEdit, setPermEdit] = useState({}) // { personId: bool }
   const [now, setNow] = useState(Date.now())
 
   // Tick every second for countdown
@@ -34,12 +34,14 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [p, m] = await Promise.all([
+    const [p, m, perm] = await Promise.all([
       sb.from('otp_persons').select('*').order('created_at'),
-      sb.from('otp_messages').select('*').order('received_at', { ascending: false }).limit(200)
+      sb.from('otp_messages').select('*').order('received_at', { ascending: false }).limit(200),
+      sb.from('otp_permissions').select('*')
     ])
     setPersons(p.data || [])
     setMessages(m.data || [])
+    setPermissions(perm.data || [])
     setLoading(false)
   }, [sb])
 
@@ -190,7 +192,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   {/* Top section: service info */}
                   <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,.025)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 8, background: svc.color + '15', border: '1px solid ' + svc.color + '25', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: svc.color }}>{svc.name[0]}</div>
+                      <SvcLogo sender={m.phone_from} size={34} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{svc.name}</div>
                         <div style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr' }}>{svc.domain}</div>
@@ -226,6 +228,57 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       <button onClick={e => { e.stopPropagation(); deleteMsg(m.id) }} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
                     </div>
                   </div>
+
+                  {/* Permissions bar */}
+                  {m.otp_code && (()=>{
+                    const msgPerms = permissions.filter(p => {
+                      if (!p.is_active) return false
+                      const senders = p.allowed_senders || []
+                      return senders.includes('*') || senders.some(s => (m.phone_from||'').toLowerCase().includes(s.toLowerCase()))
+                    })
+                    const permPersonIds = msgPerms.map(p => p.person_id)
+                    return <div style={{ padding: '8px 16px', background: 'rgba(255,255,255,.015)', borderTop: '1px solid rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 9, color: 'var(--tx6)', marginLeft: 4 }}>{T('يرى الرمز:', 'Sees code:')}</span>
+                        {persons.filter(p => permPersonIds.includes(p.id)).map(p => (
+                          <span key={p.id} style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(39,160,70,.08)', color: C.ok, border: '1px solid rgba(39,160,70,.1)' }}>{p.name}{p.group_name === 'الإدارة' ? ' (أدمن)' : ''}</span>
+                        ))}
+                        {permPersonIds.length === 0 && <span style={{ fontSize: 9, color: 'var(--tx6)' }}>{T('لا أحد', 'None')}</span>}
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(persons.map(p => [p.id, permPersonIds.includes(p.id)]))) }} style={{ height: 26, padding: '0 10px', borderRadius: 6, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer' }}>{T('تعديل', 'Edit')}</button>
+                    </div>
+                  })()}
+
+                  {/* Inline permissions editor */}
+                  {showPermEdit === m.id && <div style={{ padding: '10px 16px', background: 'rgba(201,168,76,.02)', borderTop: '1px solid rgba(201,168,76,.06)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                      {persons.map(p => (
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 8, background: permEdit[p.id] ? 'rgba(39,160,70,.04)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (permEdit[p.id] ? 'rgba(39,160,70,.08)' : 'rgba(255,255,255,.03)') }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: permEdit[p.id] ? 'var(--tx)' : 'var(--tx5)' }}>{p.name}</span>
+                          <button onClick={() => setPermEdit(prev => ({ ...prev, [p.id]: !prev[p.id] }))} style={{ width: 38, height: 22, borderRadius: 11, border: 'none', background: permEdit[p.id] ? C.ok : 'rgba(255,255,255,.1)', cursor: 'pointer', position: 'relative', transition: '.2s' }}>
+                            <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, transition: '.2s', ...(permEdit[p.id] ? { right: 3 } : { left: 3 }) }} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={async () => {
+                      const sender = (m.phone_from || '').toLowerCase()
+                      for (const p of persons) {
+                        const existing = permissions.find(pm => pm.person_id === p.id)
+                        if (permEdit[p.id]) {
+                          if (existing) {
+                            const senders = existing.allowed_senders || []
+                            if (!senders.includes('*') && !senders.includes(sender)) {
+                              await sb.from('otp_permissions').update({ allowed_senders: [...senders, sender], updated_at: new Date().toISOString() }).eq('id', existing.id)
+                            }
+                          } else {
+                            await sb.from('otp_permissions').insert({ person_id: p.id, allowed_senders: [sender] })
+                          }
+                        }
+                      }
+                      setShowPermEdit(null); load(); toast && toast(T('تم حفظ الصلاحيات', 'Permissions saved'))
+                    }} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.1)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{T('حفظ الصلاحيات', 'Save Permissions')}</button>
+                  </div>}
                 </div>
               )
             })}
