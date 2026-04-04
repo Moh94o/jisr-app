@@ -30,6 +30,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [sysUsers, setSysUsers] = useState([])
   const [now, setNow] = useState(Date.now())
   const [showSetupDrawer, setShowSetupDrawer] = useState(false)
+  const [fmtType, setFmtType] = useState('text') // 'text' | 'json' | 'url'
   const [drawerPerson, setDrawerPerson] = useState(null)
   const [drawerSenders, setDrawerSenders] = useState([])
   const [copyLog, setCopyLog] = useState([])
@@ -380,8 +381,25 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 <code style={{ flex: 1, fontSize: 13, color: C.gold, fontWeight: 800, direction: 'ltr', textAlign: 'center' }}>%s|||%m|||%d</code>
                 <button onClick={() => { navigator.clipboard.writeText('%s|||%m|||%d'); toast && toast('تم') }} style={{ fontSize: 10, padding: '5px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>نسخ</button>
               </div>
-              {/* JSON format — compact button */}
-              <button onClick={() => { navigator.clipboard.writeText('{"device_key":"[KEY]","message":"%m","sender":"%s","timestamp":"%d"}'); toast && toast('تم نسخ JSON') }} style={{ width: '100%', height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', color: 'var(--tx5)', fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer', marginTop: 6 }}>نسخ صيغة JSON</button>
+              {/* Format switcher + code box */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', gap: 0, borderRadius: '8px 8px 0 0', overflow: 'hidden', border: '1px solid rgba(255,255,255,.06)', borderBottom: 'none' }}>
+                  {[{v:'text',l:'Text'},{v:'json',l:'JSON'},{v:'url',l:'URL Params'}].map(f2 => (
+                    <button key={f2.v} onClick={() => setFmtType(f2.v)} style={{ flex: 1, height: 28, border: 'none', fontFamily: F, fontSize: 9, fontWeight: fmtType === f2.v ? 700 : 500, color: fmtType === f2.v ? C.gold : 'var(--tx6)', background: fmtType === f2.v ? 'rgba(201,168,76,.08)' : 'rgba(255,255,255,.02)', cursor: 'pointer', borderBottom: fmtType === f2.v ? '2px solid ' + C.gold : '2px solid transparent' }}>{f2.l}</button>
+                  ))}
+                </div>
+                <div style={{ padding: '8px 10px', borderRadius: '0 0 8px 8px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.06)', borderTop: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <code style={{ flex: 1, fontSize: 9, color: fmtType === 'json' ? C.ok : fmtType === 'url' ? C.blue : C.gold, direction: 'ltr', wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>
+                    {fmtType === 'text' && '%s|||%m|||%d'}
+                    {fmtType === 'json' && '{"device_key":"[KEY]","message":"%m","sender":"%s","timestamp":"%d"}'}
+                    {fmtType === 'url' && '?key=[KEY]&sender=%s&message=%m&time=%d'}
+                  </code>
+                  <button onClick={() => {
+                    const v = fmtType === 'text' ? '%s|||%m|||%d' : fmtType === 'json' ? '{"device_key":"[KEY]","message":"%m","sender":"%s","timestamp":"%d"}' : '?key=[KEY]&sender=%s&message=%m&time=%d'
+                    navigator.clipboard.writeText(v); toast && toast('تم النسخ')
+                  }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 5, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
+                </div>
+              </div>
             </div>
 
             {/* Persons list */}
@@ -447,7 +465,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 10, padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>نسخ</button>
                       </div>
                       <code style={{ fontSize: 11, color: C.gold, direction: 'ltr', display: 'block', textAlign: 'left', wordBreak: 'break-all', fontWeight: 700, marginBottom: 6 }}>{p.device_key}</code>
-                      <button onClick={() => { navigator.clipboard.writeText(`{"device_key":"${p.device_key}","message":"%m","sender":"%s","timestamp":"%d"}`); toast && toast('تم نسخ JSON') }} style={{ width: '100%', height: 26, borderRadius: 5, border: '1px solid rgba(39,160,70,.08)', background: 'rgba(39,160,70,.03)', color: C.ok, fontFamily: F, fontSize: 8, fontWeight: 600, cursor: 'pointer' }}>نسخ JSON</button>
+                      <div style={{ marginTop: 4, display: 'flex', gap: 4 }}>
+                        {[{v:'text',l:'Text',val:p.device_key},{v:'json',l:'JSON',val:`{"device_key":"${p.device_key}","message":"%m","sender":"%s","timestamp":"%d"}`},{v:'url',l:'URL',val:`?key=${p.device_key}&sender=%s&message=%m`}].map(f2 => (
+                          <button key={f2.v} onClick={() => { navigator.clipboard.writeText(f2.val); toast && toast('تم نسخ ' + f2.l) }} style={{ flex: 1, height: 24, borderRadius: 4, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', color: 'var(--tx5)', fontFamily: F, fontSize: 8, fontWeight: 600, cursor: 'pointer' }}>{f2.l}</button>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Person sender controls: enable/disable senders */}
