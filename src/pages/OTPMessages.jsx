@@ -302,17 +302,19 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           if (!isTransfer) return <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right' }}>{body}</div>
                           // Parse all fields from the message
                           const amountMatch = body.match(/(?:مبلغ|Amount)[:\s]*([0-9,.]+)/i)
-                          const fromMatch = body.match(/(?:من|From)[:\s]*([^\n]+)/i)
-                          const toMatch = body.match(/(?:إلى|To)[:\s]*([^\n]+)/i)
+                          const fromMatch = body.match(/(?:من|From|Debit from)[:\s]*([^\n]+)/i)
+                          const toMatch = body.match(/(?:إلى|To|Credit to)[:\s]*([^\n]+)/i)
                           const accountMatch = body.match(/Account[:\s]*\**(\d+)/i)
                           const ibanMatch = body.match(/(?:آيبان|IBAN)[:\s]*\*?(\d+)/i)
                           const viaMatch = body.match(/(?:عبر|Via)[:\s]*([^\n]+)/i)
                           const timeMatch = body.match(/(?:في|At)[:\s]*([^\n]+)/i)
-                          const isIncoming = /واردة|incoming|Incoming/i.test(body)
-                          const clr = isIncoming ? C.ok : '#e67e22'
+                          const isBetween = /between your|بين حساباتك|بين حساباتي/i.test(body)
+                          const isIncoming = /واردة|incoming/i.test(body)
+                          const typeLabel = isBetween ? 'تحويل بين حساباتي' : isIncoming ? 'حوالة واردة' : 'حوالة صادرة'
+                          const clr = isBetween ? C.blue : isIncoming ? C.ok : '#e67e22'
                           return <div style={{ direction: 'rtl' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: clr + '10', color: clr, border: '1px solid ' + clr + '15' }}>{isIncoming ? 'حوالة واردة' : 'حوالة صادرة'}</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: clr + '10', color: clr, border: '1px solid ' + clr + '15' }}>{typeLabel}</span>
                               {amountMatch && <span style={{ fontSize: 16, fontWeight: 900, color: clr, direction: 'ltr' }}>{amountMatch[1]} SAR</span>}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10 }}>
