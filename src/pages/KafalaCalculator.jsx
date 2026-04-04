@@ -87,7 +87,7 @@ const YesNo = ({ value, onChange }) => (
 const nm = v => Number(v || 0).toLocaleString('en-US')
 
 // ═══ Main Component ═══
-export default function KafalaCalculator({ toast, lang }) {
+export default function KafalaCalculator({ toast, lang, onClose }) {
   const T = (a, e) => (lang || 'ar') !== 'en' ? a : e
 
   // Screen: 'home' | 'form'
@@ -146,8 +146,17 @@ export default function KafalaCalculator({ toast, lang }) {
   // ═══════════════════════════════════════
   // SCREEN 1: HOME
   // ═══════════════════════════════════════
+  const ModalWrap = ({ children }) => (
+    <div onClick={() => onClose && onClose()} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 16, width: 'min(880px,95vw)', height: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.6)', border: '1px solid rgba(201,168,76,.12)' }}>
+        {children}
+      </div>
+    </div>
+  )
+
   if (screen === 'home') return (
-    <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+    <ModalWrap>
+    <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 24 }}>
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
         <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(201,168,76,.1)', border: '1.5px solid rgba(201,168,76,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
           <ArrowLeftRight size={24} color={C.gold} />
@@ -188,6 +197,7 @@ export default function KafalaCalculator({ toast, lang }) {
         </div>
       )}
     </div>
+    </ModalWrap>
   )
 
   // ═══════════════════════════════════════
@@ -200,9 +210,10 @@ export default function KafalaCalculator({ toast, lang }) {
   ]
 
   return (
-    <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)' }}>
+    <ModalWrap>
+    <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* ═══ Header ═══ */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,.1)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => { setScreen('home'); setWorkerMode('new') }}
             style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -213,10 +224,11 @@ export default function KafalaCalculator({ toast, lang }) {
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>{workerMode === 'existing' ? 'عامل مسجّل' : 'عامل جديد'}{f.name && ` — ${f.name}`}</div>
           </div>
         </div>
+        <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
       </div>
 
       {/* ═══ Tab Bar ═══ */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderRadius: 12, overflow: 'hidden', border: '1.5px solid rgba(255,255,255,.06)' }}>
+      <div style={{ display: 'flex', gap: 0, border: '1px solid rgba(255,255,255,.04)', flexShrink: 0 }}>
         {tabs.map((t, i) => {
           const active = tab === i
           const done = tabComplete[i] && i < tab
@@ -234,6 +246,9 @@ export default function KafalaCalculator({ toast, lang }) {
           )
         })}
       </div>
+
+      {/* ═══ Scrollable Content ═══ */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
 
       {/* ═══════════════════════════════════════ */}
       {/* TAB 0: بيانات العامل */}
@@ -448,8 +463,10 @@ export default function KafalaCalculator({ toast, lang }) {
         </div>
       )}
 
+      </div>{/* end scrollable */}
+
       {/* ═══ Footer Navigation ═══ */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
         <button onClick={() => tab > 0 ? setTab(tab - 1) : setScreen('home')}
           style={{ height: 42, padding: '0 18px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,.08)', background: 'transparent', color: 'rgba(255,255,255,.4)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           <ChevronRight size={14} /> {tab > 0 ? 'السابق' : 'رجوع'}
@@ -462,5 +479,6 @@ export default function KafalaCalculator({ toast, lang }) {
         )}
       </div>
     </div>
+    </ModalWrap>
   )
 }

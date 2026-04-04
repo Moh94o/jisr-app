@@ -517,6 +517,7 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 </div><Css/></div>)}
 
 function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState('home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),3000)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[profilePerf,setProfilePerf]=useState(null);const[profileAtt,setProfileAtt]=useState([]);const[profileTasks,setProfileTasks]=useState([]);const[profileSalary,setProfileSalary]=useState([]);const[profileLoans,setProfileLoans]=useState([]);const[profileLogins,setProfileLogins]=useState([]);const[stats,setStats]=useState(null);const[notifs,setNotifs]=useState([]);const[myNotifs,setMyNotifs]=useState([]);const[showNotifs,setShowNotifs]=useState(false);const[notifTab,setNotifTab]=useState('my');const[showAiChat,setShowAiChat]=useState(false);const[showUserMenu,setShowUserMenu]=useState(false);const[showTopDrop,setShowTopDrop]=useState(false);const[theme,setTheme]=useState(()=>localStorage.getItem('jisr_theme')||'dark');useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('jisr_theme',theme);const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',theme==='dark'?'#171717':'#faf8f3');document.body.style.background=theme==='dark'?'#171717':'#faf8f3'},[theme]);const toggleTheme=()=>setTheme(t=>t==='dark'?'light':'dark');const[dashBranch,setDashBranch]=useState(null);const[dashBranches,setDashBranches]=useState([]);const[sTabInfo,setSTabInfo]=useState({tab:'general',svcSubTab:'services'});const[searchQ,setSearchQ]=useState('');const[searchResults,setSearchResults]=useState([]);const[searchOpen,setSearchOpen]=useState(false);const[searchLoading,setSearchLoading]=useState(false);const[activityLog,setActivityLog]=useState([]);const[activityLoading,setActivityLoading]=useState(false);const[sideOpen,setSideOpen]=useState(false);const[taskCount,setTaskCount]=useState(0);const[approvalCount,setApprovalCount]=useState(0);const[todayAppointments,setTodayAppointments]=useState([]);const[lastWeeklyUpdate,setLastWeeklyUpdate]=useState(null);const[expanded,setExpanded]=useState({tasks_section:true,facilities_workforce:true,finance:true,data:false,reports:false,admin:false});
+const[showKafalaCalc,setShowKafalaCalc]=useState(false);
 const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches);
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
@@ -1142,7 +1143,8 @@ return<div>
 {(pg==='transactions_internal'||pg==='transactions_external')&&<TransactionsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultType={pg==='transactions_internal'?'internal':'external'}/>}
 {pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='sla_monitor'&&<SLAPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='transfer_calc'&&<KafalaCalculator sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='transfer_calc'&&<><TransferCalcPage sb={sb} toast={tt} user={user} lang={lang} onNewCalc={()=>setShowKafalaCalc(true)}/>
+{showKafalaCalc&&<KafalaCalculator toast={tt} lang={lang} onClose={()=>setShowKafalaCalc(false)}/>}</>}
 {/* المالية */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
@@ -2445,7 +2447,7 @@ return<div key={type} style={{background:'rgba(255,255,255,.02)',border:'1px sol
 </div>}
 </div>}
 
-function TransferCalcPage({sb,toast,user,lang}){
+function TransferCalcPage({sb,toast,user,lang,onNewCalc}){
 const T=(a,e)=>lang==='ar'?a:e;const nm=v=>Number(v||0).toLocaleString('en-US')
 const[data,setData]=useState([]);const[workers,setWorkers]=useState([]);const[facilities,setFacilities]=useState([])
 const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[wizStep,setWizStep]=useState(0);const[workerMode,setWorkerMode]=useState('existing')
@@ -2515,7 +2517,7 @@ ${r.notes?'<div style="background:#f0f0f0;border-radius:6px;padding:8px 12px;fon
 </body></html>`);w.document.close();setTimeout(()=>w.print(),300)}
 const fS={width:'100%',height:40,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center',direction:'ltr'}
 return<div>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}><div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>{T('حسبة التنازل','Transfer Calculator')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('حساب تكاليف نقل خدمات العمال','Worker transfer cost calculation')}</div></div><button onClick={openAdd} style={{height:38,padding:'0 20px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer'}}>+ {T('حسبة جديدة','New Calc')}</button></div>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}><div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>{T('حسبة التنازل','Transfer Calculator')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('حساب تكاليف نقل خدمات العمال','Worker transfer cost calculation')}</div></div><button onClick={()=>onNewCalc?onNewCalc():openAdd()} style={{height:38,padding:'0 20px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer'}}>+ {T('حسبة جديدة','New Calc')}</button></div>
 {data.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)'}}>{T('لا توجد حسبات','No calculations')}</div>:
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:12}}>{data.map(r=>{const sc=stClr[r.status]||'#999';return<div key={r.id} onClick={()=>openEdit(r)} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.15)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}>
 <div style={{padding:'16px 18px',display:'flex',alignItems:'center',gap:12}}>
