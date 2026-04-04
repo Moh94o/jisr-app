@@ -239,21 +239,24 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   {/* Layer 2: OTP code RIGHT + actions LEFT */}
                   <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     {m.otp_code ? <>
+                      {/* Code RIGHT */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 4, direction: 'ltr' }}>
+                          {m.otp_code.split('').map((d, i, arr) => {
+                            const hidden = !exp && i >= arr.length - 2
+                            return <div key={i} style={{ width: 36, height: 44, borderRadius: 8, background: exp ? 'rgba(255,255,255,.03)' : hidden ? 'rgba(201,168,76,.08)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (exp ? 'rgba(255,255,255,.06)' : hidden ? 'rgba(201,168,76,.15)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: exp ? 'var(--tx6)' : hidden ? C.gold : C.ok, fontFamily: 'monospace' }}>{exp ? d : hidden ? '?' : d}</div>
+                          })}
+                        </div>
+                        {m._copiedBy && <span style={{ fontSize: 9, color: '#9b59b6', fontWeight: 600 }}>نسخ: {m._copiedBy}</span>}
+                      </div>
                       {/* Actions LEFT */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {!exp && <button onClick={() => { copyCode(m.otp_code, m); setMessages(prev => prev.map(x => x.id === m.id ? { ...x, _copiedBy: user?.name_ar || 'أنت' } : x)) }} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(39,160,70,.15)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>}
                         <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
-                        {!exp && <button onClick={() => copyCode(m.otp_code, m)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(39,160,70,.15)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>}
-                      </div>
-                      {/* Code RIGHT */}
-                      <div style={{ display: 'flex', gap: 4, direction: 'ltr' }}>
-                        {m.otp_code.split('').map((d, i, arr) => {
-                          const hidden = !exp && i >= arr.length - 2
-                          return <div key={i} style={{ width: 36, height: 44, borderRadius: 8, background: exp ? 'rgba(255,255,255,.03)' : hidden ? 'rgba(201,168,76,.08)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (exp ? 'rgba(255,255,255,.06)' : hidden ? 'rgba(201,168,76,.15)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: exp ? 'var(--tx6)' : hidden ? C.gold : C.ok, fontFamily: 'monospace' }}>{exp ? d : hidden ? '?' : d}</div>
-                        })}
                       </div>
                     </> : <>
-                      <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>×</button>
-                      <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right' }}>{m.message_body?.substring(0, 70)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right', flex: 1 }}>{m.message_body?.substring(0, 70)}</div>
+                      <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>×</button>
                     </>}
                   </div>
 
