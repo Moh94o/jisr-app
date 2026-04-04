@@ -28,6 +28,18 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   useEffect(() => { load() }, [load])
 
+  // Auto-refresh every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      sb.from('otp_messages').select('*').order('received_at', { ascending: false }).limit(200).then(({ data }) => {
+        if (data && data.length !== messages.length) {
+          setMessages(data)
+        }
+      })
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [sb, messages.length])
+
   // Realtime subscription
   useEffect(() => {
     if (!sb) return
@@ -112,7 +124,10 @@ export default function OTPMessages({ sb, toast, user, lang }) {
           <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--tx)' }}>{T('رسائل التحقق', 'OTP Messages')}</div>
           <div style={{ fontSize: 11, color: 'var(--tx5)', marginTop: 4 }}>{T('استقبال وعرض رموز التحقق من جميع الأجهزة', 'Receive and view OTP codes from all devices')}</div>
         </div>
-        <button onClick={() => setShowAdd(true)} style={{ height: 38, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ {T('إضافة شخص', 'Add Person')}</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={load} style={{ height: 38, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{T('تحديث', 'Refresh')}</button>
+          <button onClick={() => setShowAdd(true)} style={{ height: 38, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ {T('إضافة شخص', 'Add Person')}</button>
+        </div>
       </div>
 
       {/* Person tabs */}
