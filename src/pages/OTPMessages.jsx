@@ -324,20 +324,36 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
                 return <div key={p.id} style={{ borderRadius: 12, border: '1px solid ' + (isOpen ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.04)'), background: isOpen ? 'rgba(201,168,76,.02)' : 'rgba(255,255,255,.015)', overflow: 'hidden', transition: '.2s' }}>
                   {/* Person row — clickable */}
-                  <div onClick={() => setDrawerPerson(isOpen ? null : p.id)} style={{ padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.04))', border: '1px solid rgba(201,168,76,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(p.name || '?')[0]}</div>
+                  <div onClick={() => setDrawerPerson(isOpen ? null : p.id)} style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.04))', border: '1.5px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(p.name || '?')[0]}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{p.name}{p.name_en && <span style={{ fontSize: 9, color: 'var(--tx6)', marginRight: 6, fontFamily: 'monospace' }}>{p.name_en}</span>}</div>
-                      <div style={{ fontSize: 8, color: 'var(--tx6)' }}>{pMsgs.length} {T('رسالة', 'msgs')} · {p.is_active ? '● نشط' : '○ معطّل'}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', marginBottom: 2 }}>{p.name}{p.name_en && <span style={{ fontSize: 10, color: 'var(--tx5)', marginRight: 8, fontFamily: 'monospace' }}>{p.name_en}</span>}</div>
+                      <div style={{ fontSize: 10, color: 'var(--tx5)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {p.phone && <span style={{ direction: 'ltr' }}>{p.phone}</span>}
+                        <span>{pMsgs.length} رسالة</span>
+                        <span style={{ color: p.is_active ? C.ok : C.red }}>{p.is_active ? '● نشط' : '○ معطّل'}</span>
+                      </div>
                     </div>
-                    <span style={{ fontSize: 10, color: 'var(--tx6)', transition: '.2s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
+                    <span style={{ fontSize: 12, color: 'var(--tx6)', transition: '.2s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
                   </div>
 
                   {/* Expanded details */}
-                  {isOpen && <div style={{ padding: '0 14px 14px', borderTop: '1px solid rgba(255,255,255,.04)' }}>
+                  {isOpen && <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(255,255,255,.04)' }}>
+                    {/* Info cards */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 12, marginBottom: 10 }}>
+                      <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.04)' }}>
+                        <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 3 }}>رقم الجوال</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx3)', direction: 'ltr' }}>{p.phone || '—'}</div>
+                      </div>
+                      <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.04)' }}>
+                        <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 3 }}>رقم الهوية</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx3)', direction: 'ltr' }}>{p.id_number || '—'}</div>
+                      </div>
+                    </div>
+
                     {/* Device key */}
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', marginTop: 10, marginBottom: 8 }}>
-                      <div style={{ fontSize: 8, color: 'var(--tx6)', marginBottom: 3 }}>Subject (مفتاح الجهاز)</div>
+                    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', marginBottom: 10 }}>
+                      <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>Subject (مفتاح الجهاز)</div>
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <code style={{ fontSize: 8, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontWeight: 600 }}>{p.device_key}</code>
                         <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F }}>نسخ</button>
@@ -345,9 +361,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     </div>
 
                     {/* Allowed senders */}
-                    <div style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: 9, color: 'var(--tx5)', marginBottom: 6 }}>يستقبل من:</div>
-                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>يستقبل من:</div>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {SENDERS.map(s => {
                           const active = (perm?.allowed_senders || []).includes('*') || (perm?.allowed_senders || []).includes(s.k)
                           return <button key={s.k} onClick={async () => {
@@ -357,7 +373,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             else { next = active ? next.filter(x => x !== s.k && x !== '*') : [...next.filter(x => x !== '*'), s.k] }
                             await sb.from('otp_permissions').update({ allowed_senders: next }).eq('id', perm.id)
                             load()
-                          }} style={{ padding: '3px 8px', borderRadius: 5, fontSize: 8, fontWeight: active ? 700 : 500, color: active ? C.ok : 'var(--tx6)', background: active ? 'rgba(39,160,70,.06)' : 'transparent', border: '1px solid ' + (active ? 'rgba(39,160,70,.1)' : 'rgba(255,255,255,.05)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>
+                          }} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 10, fontWeight: active ? 700 : 500, color: active ? C.ok : 'var(--tx6)', background: active ? 'rgba(39,160,70,.06)' : 'transparent', border: '1px solid ' + (active ? 'rgba(39,160,70,.1)' : 'rgba(255,255,255,.05)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>
                         })}
                       </div>
                     </div>
@@ -377,9 +393,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     </div>}
 
                     {/* Actions */}
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={async () => { await sb.from('otp_persons').update({ is_active: !p.is_active }).eq('id', p.id); load() }} style={{ flex: 1, height: 30, borderRadius: 6, border: '1px solid ' + (p.is_active ? 'rgba(230,126,34,.12)' : 'rgba(39,160,70,.12)'), background: p.is_active ? 'rgba(230,126,34,.04)' : 'rgba(39,160,70,.04)', color: p.is_active ? '#e67e22' : C.ok, fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer' }}>{p.is_active ? 'تعطيل' : 'تفعيل'}</button>
-                      <button onClick={async () => { if (!confirm('حذف ' + p.name + '؟')) return; await sb.from('otp_messages').delete().eq('person_id', p.id); await sb.from('otp_permissions').delete().eq('person_id', p.id); await sb.from('otp_persons').delete().eq('id', p.id); setDrawerPerson(null); load(); toast && toast('تم الحذف') }} style={{ height: 30, padding: '0 12px', borderRadius: 6, border: '1px solid rgba(192,57,43,.12)', background: 'rgba(192,57,43,.04)', color: C.red, fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer' }}>حذف</button>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button onClick={async () => { await sb.from('otp_persons').update({ is_active: !p.is_active }).eq('id', p.id); load() }} style={{ flex: 1, height: 36, borderRadius: 8, border: '1px solid ' + (p.is_active ? 'rgba(230,126,34,.15)' : 'rgba(39,160,70,.15)'), background: p.is_active ? 'rgba(230,126,34,.06)' : 'rgba(39,160,70,.06)', color: p.is_active ? '#e67e22' : C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{p.is_active ? 'تعطيل' : 'تفعيل'}</button>
+                      <button onClick={async () => { if (!confirm('حذف ' + p.name + '؟')) return; await sb.from('otp_messages').delete().eq('person_id', p.id); await sb.from('otp_permissions').delete().eq('person_id', p.id); await sb.from('otp_persons').delete().eq('id', p.id); setDrawerPerson(null); load(); toast && toast('تم الحذف') }} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(192,57,43,.15)', background: 'rgba(192,57,43,.06)', color: C.red, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>حذف</button>
                     </div>
                   </div>}
                 </div>
