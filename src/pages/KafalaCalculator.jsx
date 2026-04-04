@@ -291,22 +291,27 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
         <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
       </div>
 
-      {/* ═══ Tab Bar ═══ */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(255,255,255,.04)', flexShrink: 0 }}>
+      {/* ═══ Step Wizard Bar ═══ */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '18px 24px', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,.04)' }}>
         {tabs.map((t, i) => {
           const active = tab === i
           const done = tabComplete[i] && i < tab
+          const circleSize = 36
+          const circleColor = done ? C.ok : active ? C.gold : 'rgba(255,255,255,.15)'
+          const circleBg = done ? C.ok + '18' : active ? C.gold + '12' : 'transparent'
+          const textColor = done ? C.ok : active ? C.gold : 'rgba(255,255,255,.3)'
           return (
-            <button key={t.id} onClick={() => tryGoTab(i)} style={{
-              flex: 1, height: 48, border: 'none', fontFamily: F, fontSize: 12, fontWeight: active ? 700 : 500,
-              color: active ? C.gold : done ? C.ok : 'rgba(255,255,255,.3)',
-              background: active ? 'rgba(201,168,76,.1)' : 'rgba(255,255,255,.02)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.2s',
-              borderBottom: active ? `2.5px solid ${C.gold}` : '2.5px solid transparent'
-            }}>
-              {done ? <CheckCircle2 size={14} /> : <t.Icon size={14} />}
-              {t.title}
-            </button>
+            <React.Fragment key={t.id}>
+              {/* Connecting line before (not for first) */}
+              {i > 0 && <div style={{ flex: 1, height: 2, background: done || active ? C.ok : 'rgba(255,255,255,.08)', borderRadius: 1, margin: '0 4px', marginBottom: 20 }} />}
+              {/* Step circle + label */}
+              <div onClick={() => tryGoTab(i)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', minWidth: 60 }}>
+                <div style={{ width: circleSize, height: circleSize, borderRadius: '50%', border: `2px solid ${circleColor}`, background: circleBg, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.2s' }}>
+                  {done ? <Check size={16} color={C.ok} strokeWidth={3} /> : <span style={{ fontSize: 14, fontWeight: 800, color: circleColor, fontFamily: F }}>{i + 1}</span>}
+                </div>
+                <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, color: textColor, whiteSpace: 'nowrap' }}>{t.title}</span>
+              </div>
+            </React.Fragment>
           )
         })}
       </div>
