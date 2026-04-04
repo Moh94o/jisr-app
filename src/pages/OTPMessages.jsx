@@ -299,17 +299,17 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, marginBottom: 8 }}>بيانات الاتصال</div>
               <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.08)', marginBottom: 6 }}>
-                <div style={{ fontSize: 8, color: 'var(--tx6)', marginBottom: 4 }}>Webhook URL</div>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <code style={{ fontSize: 8, color: C.blue, direction: 'ltr', flex: 1, wordBreak: 'break-all' }}>https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp</code>
-                  <button onClick={() => { navigator.clipboard.writeText('https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp'); toast && toast('تم') }} style={{ fontSize: 8, padding: '3px 8px', borderRadius: 5, border: '1px solid rgba(52,131,180,.12)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F }}>نسخ</button>
+                <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>Webhook URL</div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={() => { navigator.clipboard.writeText('https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp'); toast && toast('تم') }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(52,131,180,.12)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
+                  <code style={{ fontSize: 8, color: C.blue, direction: 'ltr', flex: 1, wordBreak: 'break-all', textAlign: 'left' }}>https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp</code>
                 </div>
               </div>
-              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(201,168,76,.03)', border: '1px solid rgba(201,168,76,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 9, color: 'var(--tx5)' }}>Text template</div>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <code style={{ fontSize: 10, color: C.gold, fontWeight: 700, direction: 'ltr' }}>%s|||%m|||%d</code>
-                  <button onClick={() => { navigator.clipboard.writeText('%s|||%m|||%d'); toast && toast('تم') }} style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F }}>نسخ</button>
+              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(201,168,76,.03)', border: '1px solid rgba(201,168,76,.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => { navigator.clipboard.writeText('%s|||%m|||%d'); toast && toast('تم') }} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <code style={{ fontSize: 11, color: C.gold, fontWeight: 700, direction: 'ltr' }}>%s|||%m|||%d</code>
+                  <span style={{ fontSize: 9, color: 'var(--tx5)' }}>Text template</span>
                 </div>
               </div>
             </div>
@@ -327,9 +327,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   <div onClick={() => setDrawerPerson(isOpen ? null : p.id)} style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.04))', border: '1.5px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(p.name || '?')[0]}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', marginBottom: 2 }}>{p.name}{p.name_en && <span style={{ fontSize: 10, color: 'var(--tx5)', marginRight: 8, fontFamily: 'monospace' }}>{p.name_en}</span>}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', marginBottom: 2 }}>{p.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--tx5)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {p.phone && <span style={{ direction: 'ltr' }}>{p.phone}</span>}
                         <span>{pMsgs.length} رسالة</span>
                         <span style={{ color: p.is_active ? C.ok : C.red }}>{p.is_active ? '● نشط' : '○ معطّل'}</span>
                       </div>
@@ -354,9 +353,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     {/* Device key */}
                     <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', marginBottom: 10 }}>
                       <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>Subject (مفتاح الجهاز)</div>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                        <code style={{ fontSize: 8, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontWeight: 600 }}>{p.device_key}</code>
-                        <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F }}>نسخ</button>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
+                        <code style={{ fontSize: 9, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontWeight: 600, textAlign: 'left' }}>{p.device_key}</code>
                       </div>
                     </div>
 
