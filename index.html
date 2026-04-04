@@ -106,11 +106,6 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          for(var r of regs) r.unregister();
-        });
-      }
       if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
         document.documentElement.classList.add('pwa-standalone');
       }
