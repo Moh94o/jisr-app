@@ -308,8 +308,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             const billerM = body.match(/Biller[:\s]*([^\s]+(?:\s+[^\s]+)?)/i) || body.match(/الجهة[:\s]*([^\n]+)/i)
                             const acctM = body.match(/Account[:\s]*(\d+)/i) || body.match(/حساب[:\s]*(\d+)/i) || body.match(/From Account[:\s]*(\d+)/i)
                             const isRecharge = /recharge|شحن/i.test(body)
-                            const billerRaw = billerM?.[1]?.replace(/Service[:\s]*/i,'').replace(/Recharge/i,'').replace(/From/i,'').trim() || ''
-                            const billerName = billerRaw.replace(/Mobily/gi, 'موبايلي').replace(/STC/gi, 'اس تي سي').replace(/Zain/gi, 'زين') || ''
+                            const billerName = (billerM?.[1] || '')
+                              .replace(/Mobily/gi, 'موبايلي').replace(/STC/gi, 'اس تي سي').replace(/Zain/gi, 'زين')
+                              .replace(/Service/gi, 'خدمة').replace(/Recharge/gi, 'شحن').replace(/From/gi, 'من')
+                              .replace(/Bill Payment/gi, 'سداد فاتورة').replace(/Account/gi, 'حساب')
+                              .replace(/Amount/gi, 'مبلغ').replace(/No/gi, 'رقم').replace(/On/gi, 'في')
+                              .trim() || ''
                             return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', direction: 'rtl' }}>
                               <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(155,89,182,.1)', color: '#9b59b6', border: '1px solid rgba(155,89,182,.15)' }}>{isRecharge ? 'شحن رصيد' : 'سداد فاتورة'}</span>
                               {amtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#9b59b6' }}>{amtM[1]} ر.س</span>}
@@ -352,14 +356,14 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           return <div style={{ direction: 'rtl' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                               <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: clr + '10', color: clr, border: '1px solid ' + clr + '15' }}>{typeLabel}</span>
-                              {amountMatch && <span style={{ fontSize: 16, fontWeight: 900, color: clr, direction: 'ltr' }}>{amountMatch[1]} SAR</span>}
+                              {amountMatch && <span style={{ fontSize: 16, fontWeight: 900, color: clr }}>{amountMatch[1]} ر.س</span>}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10 }}>
-                              {fromMatch && <div style={{ color: 'var(--tx3)' }}><span style={{ color: 'var(--tx6)' }}>من: </span>{fromMatch[1].trim()}</div>}
-                              {toMatch && <div style={{ color: 'var(--tx3)' }}><span style={{ color: 'var(--tx6)' }}>إلى: </span>{toMatch[1].trim()}</div>}
-                              {accountMatch && <div style={{ color: 'var(--tx5)', direction: 'ltr', display: 'inline' }}><span style={{ color: 'var(--tx6)', direction: 'rtl' }}>حساب: </span>**{accountMatch[1]}</div>}
+                              {fromMatch && <div style={{ color: 'var(--tx3)' }}><span style={{ color: 'var(--tx6)' }}>من: </span>{fromMatch[1].trim().replace(/Debit from/i,'').replace(/\*/g,'').trim()}</div>}
+                              {toMatch && <div style={{ color: 'var(--tx3)' }}><span style={{ color: 'var(--tx6)' }}>إلى: </span>{toMatch[1].trim().replace(/Credit to/i,'').replace(/\*/g,'').trim()}</div>}
+                              {accountMatch && <div style={{ color: 'var(--tx5)' }}><span style={{ color: 'var(--tx6)' }}>حساب: </span>**{accountMatch[1]}</div>}
                               {ibanMatch && <div style={{ color: 'var(--tx5)' }}><span style={{ color: 'var(--tx6)' }}>آيبان: </span>*{ibanMatch[1]}</div>}
-                              {viaMatch && <div style={{ color: 'var(--tx5)' }}><span style={{ color: 'var(--tx6)' }}>عبر: </span>{viaMatch[1].trim()}</div>}
+                              {viaMatch && <div style={{ color: 'var(--tx5)' }}><span style={{ color: 'var(--tx6)' }}>عبر: </span>{viaMatch[1].trim().replace(/AL INMA BANK/gi,'بنك الإنماء').replace(/AL RAJHI/gi,'الراجحي').replace(/SNB/gi,'الأهلي').replace(/RIYAD BANK/gi,'بنك الرياض')}</div>}
                               {timeMatch && <div style={{ color: 'var(--tx6)', fontSize: 9 }}>{timeMatch[1].trim()}</div>}
                             </div>
                           </div>
