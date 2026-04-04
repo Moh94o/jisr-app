@@ -323,43 +323,63 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
       {/* TAB 0: بيانات العامل */}
       {/* ═══════════════════════════════════════ */}
       {tab === 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div><Lbl req>اسم العامل</Lbl><Inp value={f.name} onChange={v => set('name', v)} /><Err k="name"/></div>
-            <div><Lbl req>رقم الإقامة</Lbl><Inp value={f.iqama} onChange={v => set('iqama', v.replace(/\D/g,''))} dir="ltr" maxLength={10} /><Err k="iqama"/></div>
-            <div><Lbl>رقم الجوال</Lbl><Inp value={f.phone} onChange={v => set('phone', v)} dir="ltr" /></div>
-            <div>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-                <Lbl req>تاريخ انتهاء الإقامة</Lbl>
-                <div style={{display:'flex',gap:0,borderRadius:6,overflow:'hidden',border:'1px solid rgba(255,255,255,.08)'}}>
-                  {[{v:'gregorian',l:'ميلادي'},{v:'hijri',l:'هجري'}].map(o=><button key={o.v} onClick={()=>setCalendarType(o.v)} style={{padding:'3px 10px',border:'none',fontSize:9,fontWeight:calendarType===o.v?700:500,color:calendarType===o.v?C.gold:'rgba(255,255,255,.3)',background:calendarType===o.v?'rgba(201,168,76,.1)':'transparent',cursor:'pointer',fontFamily:F}}>{o.l}</button>)}
-                </div>
-              </div>
-              {calendarType==='gregorian'?<>
-                <DateInp value={f.iqamaExpiry} onChange={v => set('iqamaExpiry', v)} />
-                {hijriExpiry && <div style={{ fontSize: 10, color: '#5b9bd5', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, padding:'4px 10px',borderRadius:6,background:'rgba(91,155,213,.06)',border:'1px solid rgba(91,155,213,.1)' }}><Calendar size={10} /> هجري: {hijriExpiry}</div>}
-              </>:<>
-                <div style={{display:'flex',gap:6}}>
-                  <select value={f._hDay||''} onChange={e=>{const nd={...f,_hDay:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">يوم</option>{Array.from({length:30},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}</option>)}</select>
-                  <select value={f._hMonth||''} onChange={e=>{const nd={...f,_hMonth:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:2,textAlign:'center',colorScheme:'dark'}}><option value="">شهر</option>{['محرم','صفر','ربيع الأول','ربيع الثاني','جمادى الأولى','جمادى الثانية','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'].map((m,i)=><option key={i+1} value={i+1}>{m}</option>)}</select>
-                  <select value={f._hYear||''} onChange={e=>{const nd={...f,_hYear:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">سنة</option>{getHijriYears().map(y=><option key={y} value={y}>{y}</option>)}</select>
-                </div>
-                {f.iqamaExpiry && <div style={{ fontSize: 10, color: C.gold, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, padding:'4px 10px',borderRadius:6,background:'rgba(201,168,76,.06)',border:'1px solid rgba(201,168,76,.1)' }}><Calendar size={10} /> ميلادي: {f.iqamaExpiry}</div>}
-              </>}
-              {iqamaExpired && <div style={{ fontSize: 10, color: C.red, marginTop: 4, padding: '4px 10px', borderRadius: 6, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.12)', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={10} /> الإقامة منتهية منذ {expiredDays} يوم — سيتم احتساب غرامة التأخير</div>}
-              <Err k="iqamaExpiry"/>
-            </div>
-            <div><Lbl>تاريخ الميلاد</Lbl><DateInp value={f.dob} onChange={v => set('dob', v)} /></div>
-            <div><Lbl req>الجنسية</Lbl><Sel value={f.nationality} onChange={v => set('nationality', v)} options={NATIONALITIES} /><Err k="nationality"/></div>
-            <div><Lbl>الجنس</Lbl>
-              <ToggleGroup value={f.gender} onChange={v => set('gender', v)} options={[
-                { v: 'ذكر', l: 'ذكر', c: C.blue }, { v: 'أنثى', l: 'أنثى', c: '#9b59b6' }
-              ]} />
-            </div>
-            <div><Lbl req>المهنة الحالية</Lbl><Sel value={f.occupation} onChange={v => set('occupation', v)} options={OCCUPATIONS} /><Err k="occupation"/></div>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* ── هوية العامل ── */}
           <div>
-            <Lbl>الوضع القانوني</Lbl>
+            <div style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:6}}>— هوية العامل —</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div><Lbl req>اسم العامل</Lbl><Inp value={f.name} onChange={v => set('name', v)} /><Err k="name"/></div>
+              <div><Lbl req>رقم الإقامة</Lbl><Inp value={f.iqama} onChange={v => set('iqama', v.replace(/\D/g,''))} dir="ltr" maxLength={10} /><Err k="iqama"/></div>
+              <div><Lbl req>الجنسية</Lbl><Sel value={f.nationality} onChange={v => set('nationality', v)} options={NATIONALITIES} /><Err k="nationality"/></div>
+              <div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <Lbl req>تاريخ انتهاء الإقامة</Lbl>
+                  <div style={{display:'flex',gap:0,borderRadius:6,overflow:'hidden',border:'1px solid rgba(255,255,255,.08)'}}>
+                    {[{v:'gregorian',l:'ميلادي'},{v:'hijri',l:'هجري'}].map(o=><button key={o.v} onClick={()=>setCalendarType(o.v)} style={{padding:'3px 10px',border:'none',fontSize:9,fontWeight:calendarType===o.v?700:500,color:calendarType===o.v?C.gold:'rgba(255,255,255,.3)',background:calendarType===o.v?'rgba(201,168,76,.1)':'transparent',cursor:'pointer',fontFamily:F}}>{o.l}</button>)}
+                  </div>
+                </div>
+                {calendarType==='gregorian'?<>
+                  <DateInp value={f.iqamaExpiry} onChange={v => set('iqamaExpiry', v)} />
+                  {hijriExpiry && <div style={{ fontSize: 10, color: '#5b9bd5', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, padding:'4px 10px',borderRadius:6,background:'rgba(91,155,213,.06)',border:'1px solid rgba(91,155,213,.1)' }}><Calendar size={10} /> هجري: {hijriExpiry}</div>}
+                </>:<>
+                  <div style={{display:'flex',gap:6}}>
+                    <select value={f._hDay||''} onChange={e=>{const nd={...f,_hDay:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">يوم</option>{Array.from({length:30},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}</option>)}</select>
+                    <select value={f._hMonth||''} onChange={e=>{const nd={...f,_hMonth:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:2,textAlign:'center',colorScheme:'dark'}}><option value="">شهر</option>{['محرم','صفر','ربيع الأول','ربيع الثاني','جمادى الأولى','جمادى الثانية','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'].map((m,i)=><option key={i+1} value={i+1}>{m}</option>)}</select>
+                    <select value={f._hYear||''} onChange={e=>{const nd={...f,_hYear:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">سنة</option>{getHijriYears().map(y=><option key={y} value={y}>{y}</option>)}</select>
+                  </div>
+                  {f.iqamaExpiry && <div style={{ fontSize: 10, color: C.gold, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, padding:'4px 10px',borderRadius:6,background:'rgba(201,168,76,.06)',border:'1px solid rgba(201,168,76,.1)' }}><Calendar size={10} /> ميلادي: {f.iqamaExpiry}</div>}
+                </>}
+                {iqamaExpired && <div style={{ fontSize: 10, color: C.red, marginTop: 4, padding: '4px 10px', borderRadius: 6, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.12)', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={10} /> الإقامة منتهية منذ {expiredDays} يوم — سيتم احتساب غرامة التأخير</div>}
+                <Err k="iqamaExpiry"/>
+              </div>
+            </div>
+          </div>
+
+          {/* ── البيانات الشخصية ── */}
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:6}}>— البيانات الشخصية —</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div><Lbl>تاريخ الميلاد</Lbl><DateInp value={f.dob} onChange={v => set('dob', v)} /></div>
+              <div><Lbl>الجنس</Lbl>
+                <ToggleGroup value={f.gender} onChange={v => set('gender', v)} options={[
+                  { v: 'ذكر', l: 'ذكر', c: C.blue }, { v: 'أنثى', l: 'أنثى', c: '#9b59b6' }
+                ]} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── مهنة + تواصل ── */}
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:6}}>— مهنة + تواصل —</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div><Lbl req>المهنة الحالية</Lbl><Sel value={f.occupation} onChange={v => set('occupation', v)} options={OCCUPATIONS} /><Err k="occupation"/></div>
+              <div><Lbl>رقم الجوال</Lbl><Inp value={f.phone} onChange={v => set('phone', v)} dir="ltr" /></div>
+            </div>
+          </div>
+
+          {/* ── الوضع القانوني ── */}
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:6}}>— الوضع القانوني —</div>
             <ToggleGroup value={f.legalStatus} onChange={v => set('legalStatus', v)} options={[
               { v: 'نظامي', l: 'نظامي', c: C.ok },
               { v: 'غير نظامي', l: 'غير نظامي', c: '#e67e22' },
