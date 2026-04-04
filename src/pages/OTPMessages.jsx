@@ -59,7 +59,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
     const interval = setInterval(() => {
       sb.from('otp_messages').select('*').order('received_at', { ascending: false }).limit(200).then(({ data }) => {
         if (data && data.length > messages.length) {
-          data.forEach(m => { if (!prevIds.has(m.id)) toast && toast(`${m.person_name}: ${m.otp_code || 'جديد'}`) })
+          data.forEach(m => { if (!prevIds.has(m.id)) { /* new message — no toast */ } })
           setMessages(data)
         }
       })
@@ -295,7 +295,24 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
                       </div>
                     </> : <>
-                      <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right', flex: 1 }}>{m.message_body?.substring(0, 70)}</div>
+                      <div style={{ flex: 1, textAlign: 'right' }}>
+                        {(()=>{
+                          const body = m.message_body || ''
+                          const isTransfer = /حوالة|transfer|تحويل/i.test(body)
+                          if (!isTransfer) return <div style={{ fontSize: 11, color: 'var(--tx4)' }}>{body.substring(0, 80)}</div>
+                          // Parse transfer details
+                          const amountMatch = body.match(/(?:مبلغ|Amount)[:\s]*([0-9,.]+)/i)
+                          const fromMatch = body.match(/(?:من|From)[:\s]*([^\n]+)/i)
+                          const toMatch = body.match(/(?:إلى|To)[:\s]*([^\n]+)/i)
+                          const isIncoming = /واردة|incoming|إيداع/i.test(body)
+                          const clr = isIncoming ? C.ok : '#e67e22'
+                          return <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: clr + '10', color: clr, border: '1px solid ' + clr + '15' }}>{isIncoming ? 'واردة' : 'صادرة'}</span>
+                            {amountMatch && <span style={{ fontSize: 14, fontWeight: 900, color: clr, direction: 'ltr' }}>{amountMatch[1]} SAR</span>}
+                            {(fromMatch || toMatch) && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{isIncoming ? 'من: ' : 'إلى: '}{(isIncoming ? fromMatch?.[1] : toMatch?.[1])?.substring(0, 30) || ''}</span>}
+                          </div>
+                        })()}
+                      </div>
                       <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>×</button>
                     </>}
                   </div>
