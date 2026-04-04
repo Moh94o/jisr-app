@@ -301,6 +301,22 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         {(()=>{
                           const body = m.message_body || ''
                           const isTransfer = /حوالة|transfer|تحويل/i.test(body)
+                          // Bill payment / Recharge
+                          const isBill = /bill payment|سداد|فاتورة|recharge|شحن/i.test(body)
+                          if (isBill) {
+                            const amtM = body.match(/Amount[:\s]*([0-9,.]+)/i) || body.match(/مبلغ[:\s]*([0-9,.]+)/i)
+                            const billerM = body.match(/Biller[:\s]*([^\s]+(?:\s+[^\s]+)?)/i) || body.match(/الجهة[:\s]*([^\n]+)/i)
+                            const serviceM = body.match(/Service[:\s]*([^\s]+(?:\s+[^\s]+)?)/i) || body.match(/خدمة[:\s]*([^\n]+)/i)
+                            const acctM = body.match(/Account[:\s]*(\d+)/i) || body.match(/حساب[:\s]*(\d+)/i)
+                            const isRecharge = /recharge|شحن/i.test(body)
+                            return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', direction: 'rtl' }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(155,89,182,.1)', color: '#9b59b6', border: '1px solid rgba(155,89,182,.15)' }}>{isRecharge ? 'شحن رصيد' : 'سداد فاتورة'}</span>
+                              {amtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#9b59b6', direction: 'ltr' }}>{amtM[1]} SAR</span>}
+                              {billerM && <span style={{ fontSize: 10, color: 'var(--tx3)' }}>{billerM[1]}</span>}
+                              {serviceM && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{serviceM[1]}</span>}
+                              {acctM && <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr' }}>حساب: {acctM[1]}</span>}
+                            </div>
+                          }
                           if (!isTransfer) return <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right' }}>{body}</div>
                           // Parse all fields from the message
                           const amountMatch = body.match(/(?:مبلغ|Amount)[:\s]*([0-9,.]+)/i)
