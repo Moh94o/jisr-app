@@ -29,6 +29,7 @@ import WeeklyReportPage from './WeeklyReportPage.jsx'
 import PricingCalcPage from './PricingCalcPage.jsx'
 import CompliancePage from './CompliancePage.jsx'
 import KafalaCalculator from './pages/KafalaCalculator.jsx'
+import OTPMessages from './pages/OTPMessages.jsx'
 
 import { getSupabase, saveConfig, clearConfig, getSavedConfig } from './lib/supabase.js'
 import { exportToExcel, importFromCSV, sendWhatsApp, buildWhatsAppMessage, printContent, generateClientStatement, checkDuplicate, setupKeyboardShortcuts, calculateNitaqat, num as numFmt } from './lib/utils.js'
@@ -538,6 +539,7 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'messaging_hub',l:T('التواصل','Messaging'),i:'message'},
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'},
 {id:'reports_hub',l:T('التقارير','Reports'),i:'chart'},
+{id:'otp_messages',l:T('رسائل التحقق','OTP'),i:'alert'},
 {id:'settings',l:T('الإعدادات','Settings'),i:'settings'}
 ];const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
@@ -1197,6 +1199,7 @@ return<div>
 </>}
 
 {/* ═══ الإعدادات ═══ */}
+{pg==='otp_messages'&&<OTPMessages sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='settings'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='kpi'&&<KPIPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='calendar_unified'&&<CalendarPage sb={sb} toast={tt} user={user} lang={lang} onNavigate={setPage}/>}
