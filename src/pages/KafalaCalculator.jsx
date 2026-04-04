@@ -369,7 +369,7 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* كفالة العامل */}
           <div>
-            <Lbl req>كفالة العامل</Lbl>
+            <Lbl req>نوع كفالة العامل</Lbl>
             <ToggleGroup value={f.workerType} onChange={v => set('workerType', v)} options={[
               { v: 'facility', l: 'عامل منشأة', c: C.blue },
               { v: 'domestic', l: 'عامل منزلي', c: '#9b59b6' }
@@ -437,6 +437,25 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
       {/* ═══════════════════════════════════════ */}
       {tab === 2 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Transfer count + Renewal months */}
+          <div>
+            <Lbl>كم مرة تم نقل الكفالة؟</Lbl>
+            <ToggleGroup value={f.transferCount} onChange={v => set('transferCount', v)} options={[
+              { v: '1', l: 'أول مرة', sub: '2,000 ر.س', c: C.ok },
+              { v: '2', l: 'ثاني مرة', sub: '4,000 ر.س', c: '#e67e22' },
+              { v: '3', l: 'أكثر من مرتين', sub: '6,000 ر.س', c: C.red }
+            ]} />
+          </div>
+          <div>
+            <Lbl>عدد أشهر تجديد الإقامة</Lbl>
+            <ToggleGroup value={f.renewalMonths} onChange={v => set('renewalMonths', v)} options={[
+              { v: '3', l: '3 أشهر', sub: `${Math.round(650 / 12 * 3)} ر.س` },
+              { v: '6', l: '6 أشهر', sub: `${Math.round(650 / 12 * 6)} ر.س` },
+              { v: '9', l: '9 أشهر', sub: `${Math.round(650 / 12 * 9)} ر.س` },
+              { v: '12', l: '12 شهر', sub: '650 ر.س' }
+            ]} />
+          </div>
+
           {/* Auto-calculated fees */}
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Shield size={14} /> رسوم محسوبة تلقائياً</div>
