@@ -309,13 +309,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             const serviceM = body.match(/Service[:\s]*([^\s]+(?:\s+[^\s]+)?)/i) || body.match(/خدمة[:\s]*([^\n]+)/i)
                             const acctM = body.match(/Account[:\s]*(\d+)/i) || body.match(/حساب[:\s]*(\d+)/i)
                             const isRecharge = /recharge|شحن/i.test(body)
-                            const billerName = billerM?.[1]?.replace(/Mobily/i, 'موبايلي').replace(/STC/i, 'STC').replace(/Zain/i, 'زين') || ''
-                            const serviceName = serviceM?.[1]?.replace(/Recharge/i, 'شحن رصيد').replace(/Bill/i, 'فاتورة') || ''
+                            const billerName = billerM?.[1]?.replace(/Mobily/gi, 'موبايلي').replace(/STC/gi, 'اس تي سي').replace(/Zain/gi, 'زين') || ''
                             return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', direction: 'rtl' }}>
                               <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(155,89,182,.1)', color: '#9b59b6', border: '1px solid rgba(155,89,182,.15)' }}>{isRecharge ? 'شحن رصيد' : 'سداد فاتورة'}</span>
-                              {amtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#9b59b6', direction: 'ltr' }}>{amtM[1]} ر.س</span>}
+                              {amtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#9b59b6' }}>{amtM[1]} ر.س</span>}
                               {billerName && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{billerName}</span>}
-                              {serviceName && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{serviceName}</span>}
                               {acctM && <span style={{ fontSize: 9, color: 'var(--tx5)' }}>من حساب: {acctM[1]}</span>}
                             </div>
                           }
@@ -328,8 +326,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             if (isPaymentConfirm && amt2) {
                               return <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'rtl' }}>
                                 <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(39,160,70,.1)', color: C.ok, border: '1px solid rgba(39,160,70,.15)' }}>تم السداد</span>
-                                <span style={{ fontSize: 14, fontWeight: 900, color: C.ok, direction: 'ltr' }}>{amt2} SAR</span>
-                                <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{body.length > 60 ? body.substring(0, 60) + '...' : body}</span>
+                                <span style={{ fontSize: 14, fontWeight: 900, color: C.ok }}>{amt2} ر.س</span>
                               </div>
                             }
                             if (isPromo) {
