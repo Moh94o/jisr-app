@@ -211,7 +211,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 9, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : ''}{person ? ' · ' + person.name : ''}</span>
+                      <span style={{ fontSize: 9, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}{person ? ' · ' + person.name : ''}</span>
                       {m.otp_code && tl > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: expClr + '12', color: expClr, border: '1px solid ' + expClr + '20' }}>ينتهي خلال {fmtTime(tl)}</span>}
                       {exp && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(192,57,43,.08)', color: C.red }}>انتهت الصلاحية</span>}
                     </div>
@@ -404,7 +404,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
       {/* Add Person Modal */}
       {showAdd && <div onClick={closeAdd} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: '#141414', borderRadius: 18, width: 'min(460px,94vw)', height: 'min(580px,85vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.1)', direction: 'rtl', fontFamily: F, boxShadow: '0 24px 60px rgba(0,0,0,.5)' }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: '#141414', borderRadius: 18, width: 'min(460px,94vw)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.1)', direction: 'rtl', fontFamily: F, boxShadow: '0 24px 60px rgba(0,0,0,.5)' }}>
           {/* Gold accent bar */}
           <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,' + C.gold + '50,' + C.gold + ',' + C.gold + '50,transparent)', flexShrink: 0 }} />
           <div style={{ padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -481,7 +481,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 <div><div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>بالعربي *</div><input value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="محمد العمري" style={sF} /></div>
                 <div><div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4, direction: 'ltr', textAlign: 'left' }}>English</div><input value={addForm.name_en} onChange={e => setAddForm(p => ({ ...p, name_en: e.target.value }))} placeholder="Mohammed" style={{ ...sF, direction: 'ltr', fontFamily: 'monospace', textAlign: 'left' }} /></div>
               </div>
-              <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 4 }}>رقم الجوال</div><input value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} placeholder="05XXXXXXXX" style={{ ...sF, direction: 'ltr' }} /></div>
+              <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 4 }}>رقم الجوال</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 0, direction: 'ltr' }}>
+                  <div style={{ height: 42, padding: '0 10px', borderRadius: '10px 0 0 10px', border: '1.5px solid rgba(255,255,255,.1)', borderRight: 'none', background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', fontSize: 13, fontWeight: 700, color: 'var(--tx4)', fontFamily: F, flexShrink: 0 }}>+966</div>
+                  <input value={addForm.phone} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 9); setAddForm(p => ({ ...p, phone: v })) }} placeholder="5XXXXXXXX" maxLength={9} style={{ ...sF, borderRadius: '0 10px 10px 0', direction: 'ltr', textAlign: 'left', flex: 1 }} />
+                </div>
+              </div>
             </>}
 
             {/* OTP services — shows for both modes after selection */}
