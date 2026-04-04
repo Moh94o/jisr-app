@@ -309,15 +309,37 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             const serviceM = body.match(/Service[:\s]*([^\s]+(?:\s+[^\s]+)?)/i) || body.match(/خدمة[:\s]*([^\n]+)/i)
                             const acctM = body.match(/Account[:\s]*(\d+)/i) || body.match(/حساب[:\s]*(\d+)/i)
                             const isRecharge = /recharge|شحن/i.test(body)
+                            const billerName = billerM?.[1]?.replace(/Mobily/i, 'موبايلي').replace(/STC/i, 'STC').replace(/Zain/i, 'زين') || ''
+                            const serviceName = serviceM?.[1]?.replace(/Recharge/i, 'شحن رصيد').replace(/Bill/i, 'فاتورة') || ''
                             return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', direction: 'rtl' }}>
                               <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(155,89,182,.1)', color: '#9b59b6', border: '1px solid rgba(155,89,182,.15)' }}>{isRecharge ? 'شحن رصيد' : 'سداد فاتورة'}</span>
-                              {amtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#9b59b6', direction: 'ltr' }}>{amtM[1]} SAR</span>}
-                              {billerM && <span style={{ fontSize: 10, color: 'var(--tx3)' }}>{billerM[1]}</span>}
-                              {serviceM && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{serviceM[1]}</span>}
-                              {acctM && <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr' }}>حساب: {acctM[1]}</span>}
+                              {amtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#9b59b6', direction: 'ltr' }}>{amtM[1]} ر.س</span>}
+                              {billerName && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{billerName}</span>}
+                              {serviceName && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{serviceName}</span>}
+                              {acctM && <span style={{ fontSize: 9, color: 'var(--tx5)' }}>من حساب: {acctM[1]}</span>}
                             </div>
                           }
-                          if (!isTransfer) return <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right' }}>{body}</div>
+                          if (!isTransfer) {
+                            // Smart display for other messages
+                            const isPaymentConfirm = /payment.*received|تم.*سداد|تم.*استلام/i.test(body)
+                            const isPromo = /سحب|فرصة|عرض|خصم|مجان|اشترك|offer|free|discount/i.test(body)
+                            const amtM2 = body.match(/SAR\s*([0-9,.]+)|([0-9,.]+)\s*SAR|([0-9,.]+)\s*ريال/i)
+                            const amt2 = amtM2 ? (amtM2[1] || amtM2[2] || amtM2[3]) : null
+                            if (isPaymentConfirm && amt2) {
+                              return <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'rtl' }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(39,160,70,.1)', color: C.ok, border: '1px solid rgba(39,160,70,.15)' }}>تم السداد</span>
+                                <span style={{ fontSize: 14, fontWeight: 900, color: C.ok, direction: 'ltr' }}>{amt2} SAR</span>
+                                <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{body.length > 60 ? body.substring(0, 60) + '...' : body}</span>
+                              </div>
+                            }
+                            if (isPromo) {
+                              return <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'rtl' }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(255,255,255,.05)', color: 'var(--tx5)', border: '1px solid rgba(255,255,255,.08)' }}>إعلان</span>
+                                <span style={{ fontSize: 10, color: 'var(--tx5)' }}>{body.length > 80 ? body.substring(0, 80) + '...' : body}</span>
+                              </div>
+                            }
+                            return <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right' }}>{body.length > 100 ? body.substring(0, 100) + '...' : body}</div>
+                          }
                           // Parse all fields from the message
                           const amountMatch = body.match(/(?:مبلغ|Amount)[:\s]*([0-9,.]+)/i)
                           const fromMatch = body.match(/(?:من|From|Debit from)[:\s]*([^\n]+)/i)
