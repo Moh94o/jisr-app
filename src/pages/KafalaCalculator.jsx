@@ -23,6 +23,47 @@ function gregorianToHijri(dateStr) {
   return `${day} ${months[month - 1]} ${year} هـ`
 }
 
+function gregorianToHijriParts(dateStr) {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  if (isNaN(d)) return null
+  const JD = Math.floor(d.getTime() / 86400000) + 2440588
+  const l = JD - 1948440 + 10632
+  const n = Math.floor((l - 1) / 10631)
+  const l2 = l - 10631 * n + 354
+  const j = Math.floor((10985 - l2) / 5316) * Math.floor((50 * l2) / 17719) + Math.floor(l2 / 5670) * Math.floor((43 * l2) / 15238)
+  const l3 = l2 - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) - Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29
+  const month = Math.floor((24 * l3) / 709)
+  const day = l3 - Math.floor((709 * month) / 24)
+  const year = 30 * n + j - 30
+  if (month < 1 || month > 12) return null
+  return { day, month, year }
+}
+
+function hijriToGregorian(hYear, hMonth, hDay) {
+  const jd = Math.floor((11 * hYear + 3) / 30) + 354 * hYear + 30 * hMonth - Math.floor((hMonth - 1) / 2) + hDay + 1948440 - 385
+  const la = jd + 68569
+  const n = Math.floor(4 * la / 146097)
+  const la2 = la - Math.floor((146097 * n + 3) / 4)
+  const i = Math.floor(4000 * (la2 + 1) / 1461001)
+  const la3 = la2 - Math.floor(1461 * i / 4) + 31
+  const j = Math.floor(80 * la3 / 2447)
+  const gDay = la3 - Math.floor(2447 * j / 80)
+  const la4 = Math.floor(j / 11)
+  const gMonth = j + 2 - 12 * la4
+  const gYear = 100 * (n - 49) + i + la4
+  return `${gYear}-${String(gMonth).padStart(2,'0')}-${String(gDay).padStart(2,'0')}`
+}
+
+// Generate Hijri year options (current range)
+function getHijriYears() {
+  const parts = gregorianToHijriParts(new Date().toISOString().slice(0,10))
+  if (!parts) return []
+  const years = []
+  for (let y = parts.year - 2; y <= parts.year + 5; y++) years.push(y)
+  return years
+}
+
 function daysSinceExpiry(dateStr) {
   if (!dateStr) return 0
   const d = new Date(dateStr)
@@ -96,7 +137,8 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
   const [workerMode, setWorkerMode] = useState('new')
   const [searchIqama, setSearchIqama] = useState('')
   const [errors, setErrors] = useState({})
-  const [tried, setTried] = useState([false, false, false])
+  const [tried, setTried] = useState([false, false, false, false])
+  const [calendarType, setCalendarType] = useState('gregorian') // 'gregorian' | 'hijri'
 
   // Form state
   const [f, setF] = useState({
@@ -282,9 +324,23 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
             <div><Lbl req>رقم الإقامة</Lbl><Inp value={f.iqama} onChange={v => set('iqama', v.replace(/\D/g,''))} dir="ltr" maxLength={10} /><Err k="iqama"/></div>
             <div><Lbl>رقم الجوال</Lbl><Inp value={f.phone} onChange={v => set('phone', v)} dir="ltr" /></div>
             <div>
-              <Lbl req>تاريخ انتهاء الإقامة</Lbl>
-              <DateInp value={f.iqamaExpiry} onChange={v => set('iqamaExpiry', v)} />
-              {hijriExpiry && <div style={{ fontSize: 10, color: '#5b9bd5', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={10} /> يعادل: {hijriExpiry}</div>}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                <Lbl req>تاريخ انتهاء الإقامة</Lbl>
+                <div style={{display:'flex',gap:0,borderRadius:6,overflow:'hidden',border:'1px solid rgba(255,255,255,.08)'}}>
+                  {[{v:'gregorian',l:'ميلادي'},{v:'hijri',l:'هجري'}].map(o=><button key={o.v} onClick={()=>setCalendarType(o.v)} style={{padding:'3px 10px',border:'none',fontSize:9,fontWeight:calendarType===o.v?700:500,color:calendarType===o.v?C.gold:'rgba(255,255,255,.3)',background:calendarType===o.v?'rgba(201,168,76,.1)':'transparent',cursor:'pointer',fontFamily:F}}>{o.l}</button>)}
+                </div>
+              </div>
+              {calendarType==='gregorian'?<>
+                <DateInp value={f.iqamaExpiry} onChange={v => set('iqamaExpiry', v)} />
+                {hijriExpiry && <div style={{ fontSize: 10, color: '#5b9bd5', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, padding:'4px 10px',borderRadius:6,background:'rgba(91,155,213,.06)',border:'1px solid rgba(91,155,213,.1)' }}><Calendar size={10} /> هجري: {hijriExpiry}</div>}
+              </>:<>
+                <div style={{display:'flex',gap:6}}>
+                  <select value={f._hDay||''} onChange={e=>{const nd={...f,_hDay:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">يوم</option>{Array.from({length:30},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}</option>)}</select>
+                  <select value={f._hMonth||''} onChange={e=>{const nd={...f,_hMonth:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:2,textAlign:'center',colorScheme:'dark'}}><option value="">شهر</option>{['محرم','صفر','ربيع الأول','ربيع الثاني','جمادى الأولى','جمادى الثانية','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'].map((m,i)=><option key={i+1} value={i+1}>{m}</option>)}</select>
+                  <select value={f._hYear||''} onChange={e=>{const nd={...f,_hYear:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">سنة</option>{getHijriYears().map(y=><option key={y} value={y}>{y}</option>)}</select>
+                </div>
+                {f.iqamaExpiry && <div style={{ fontSize: 10, color: C.gold, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, padding:'4px 10px',borderRadius:6,background:'rgba(201,168,76,.06)',border:'1px solid rgba(201,168,76,.1)' }}><Calendar size={10} /> ميلادي: {f.iqamaExpiry}</div>}
+              </>}
               {iqamaExpired && <div style={{ fontSize: 10, color: C.red, marginTop: 4, padding: '4px 10px', borderRadius: 6, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.12)', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={10} /> الإقامة منتهية منذ {expiredDays} يوم — سيتم احتساب غرامة التأخير</div>}
               <Err k="iqamaExpiry"/>
             </div>
