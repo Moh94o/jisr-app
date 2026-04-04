@@ -2447,13 +2447,13 @@ return<div key={type} style={{background:'rgba(255,255,255,.02)',border:'1px sol
 function TransferCalcPage({sb,toast,user,lang}){
 const T=(a,e)=>lang==='ar'?a:e;const nm=v=>Number(v||0).toLocaleString('en-US')
 const[data,setData]=useState([]);const[workers,setWorkers]=useState([]);const[facilities,setFacilities]=useState([])
-const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null)
+const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[wizStep,setWizStep]=useState(0)
 useEffect(()=>{Promise.all([sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}),sb.from('workers').select('id,name_ar').is('deleted_at',null),sb.from('facilities').select('id,name_ar').is('deleted_at',null)]).then(([t,w,f])=>{setData(t.data||[]);setWorkers(w.data||[]);setFacilities(f.data||[])})},[sb])
 const stClr={draft:'#999',pending:C.gold,approved:C.blue,completed:C.ok,cancelled:C.red}
 const save=async()=>{setSaving(true);try{const d={...form};const id=d._id;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;if(['visa_cost','iqama_cost','work_permit_cost','insurance_cost','ticket_cost','gosi_cost','government_fees','other_costs','transfer_fee','client_charge'].includes(k)&&d[k]!=null)d[k]=Number(d[k])})
 if(id){d.updated_by=user?.id;await sb.from('worker_transfers').update(d).eq('id',id)}else{d.created_by=user?.id;await sb.from('worker_transfers').insert(d)}
 toast(T('تم الحفظ','Saved'));setPop(false);const{data:r}=await sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false});setData(r||[])}catch(e){toast('خطأ: '+e.message?.slice(0,60))}setSaving(false)}
-const openAdd=()=>{setForm({worker_id:'',facility_id:'',transfer_type:'sponsorship',visa_cost:'2000',iqama_cost:'650',work_permit_cost:'500',insurance_cost:'800',ticket_cost:'0',gosi_cost:'300',government_fees:'200',other_costs:'0',other_costs_desc:'',transfer_fee:'500',client_charge:'',status:'draft',new_employer_name:'',notes:''});setPop(true)}
+const openAdd=()=>{setForm({worker_id:'',facility_id:'',transfer_type:'sponsorship',visa_cost:'2000',iqama_cost:'650',work_permit_cost:'500',insurance_cost:'800',ticket_cost:'0',gosi_cost:'300',government_fees:'200',other_costs:'0',other_costs_desc:'',transfer_fee:'500',client_charge:'',status:'draft',new_employer_name:'',notes:'',special_requests:''});setWizStep(0);setPop(true)}
 const openEdit=r=>{const f={_id:r.id};['worker_id','facility_id','transfer_type','visa_cost','iqama_cost','work_permit_cost','insurance_cost','ticket_cost','gosi_cost','government_fees','other_costs','other_costs_desc','transfer_fee','client_charge','status','new_employer_name','notes'].forEach(k=>f[k]=r[k]??'');setPop(true);setForm(f)}
 const totalCost=()=>{let t=0;['visa_cost','iqama_cost','work_permit_cost','insurance_cost','ticket_cost','gosi_cost','government_fees','other_costs','transfer_fee'].forEach(k=>t+=Number(form[k])||0);return t}
 const profit=()=>(Number(form.client_charge)||0)-totalCost()
@@ -2518,29 +2518,101 @@ return<div>
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>{T('طباعة','Print')}</button>
 <button onClick={e=>{e.stopPropagation();openEdit(r)}} style={{height:28,padding:'0 12px',borderRadius:6,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.06)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:9,fontWeight:700,cursor:'pointer'}}>{T('تعديل','Edit')}</button>
 </div></div>})}</div>}
-{pop&&<div onClick={()=>setPop(false)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}><div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(700px,95vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.12)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)'}}/><div style={{background:'var(--bg)',padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center'}}><div style={{fontSize:15,fontWeight:700,color:'var(--tx)'}}>{form._id?T('تعديل الحسبة','Edit'):T('حسبة تنازل جديدة','New Transfer Calc')}</div><button onClick={()=>setPop(false)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button></div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{T('العامل','Worker')}</div><select value={form.worker_id||''} onChange={e=>setForm(p=>({...p,worker_id:e.target.value}))} style={fS}><option value="">—</option>{workers.map(w=><option key={w.id} value={w.id}>{w.name_ar}</option>)}</select></div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{T('المنشأة','Facility')}</div><select value={form.facility_id||''} onChange={e=>setForm(p=>({...p,facility_id:e.target.value}))} style={fS}><option value="">—</option>{facilities.map(f=><option key={f.id} value={f.id}>{f.name_ar}</option>)}</select></div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{T('نوع النقل','Type')}</div><select value={form.transfer_type||''} onChange={e=>setForm(p=>({...p,transfer_type:e.target.value}))} style={fS}><option value="sponsorship">{T('نقل كفالة','Sponsorship')}</option><option value="final_exit">{T('خروج نهائي','Final Exit')}</option></select></div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{T('الحالة','Status')}</div><select value={form.status||''} onChange={e=>setForm(p=>({...p,status:e.target.value}))} style={fS}><option value="draft">{T('مسودة','Draft')}</option><option value="pending">{T('معلّقة','Pending')}</option><option value="approved">{T('مقبولة','Approved')}</option><option value="completed">{T('مكتملة','Done')}</option></select></div>
-<div style={{gridColumn:'1/-1'}}><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{T('صاحب العمل الجديد','New Employer')}</div><input value={form.new_employer_name||''} onChange={e=>setForm(p=>({...p,new_employer_name:e.target.value}))} style={{...fS,textAlign:'right'}}/></div>
+{pop&&(()=>{
+const steps=[{id:'worker',t:T('بيانات العامل','Worker Info'),ic:'👤'},{id:'transfer',t:T('تفاصيل النقل','Transfer Details'),ic:'🔄'},{id:'costs',t:T('التكاليف','Costs'),ic:'💰'},{id:'summary',t:T('الملخص','Summary'),ic:'📋'}]
+const selWorker=workers.find(w=>w.id===form.worker_id)
+return<div onClick={()=>setPop(false)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}><div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(800px,95vw)',height:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.15)'}}>
+{/* Header */}
+<div style={{background:'var(--bg)',padding:'16px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(201,168,76,.12)',flexShrink:0}}>
+<div style={{display:'flex',alignItems:'center',gap:12}}>
+<div style={{width:44,height:44,borderRadius:12,background:'linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05))',border:'1.5px solid rgba(201,168,76,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:900,color:C.gold}}>{form._id?'✎':'+'}</div>
+<div><div style={{fontSize:17,fontWeight:800,color:'var(--tx)'}}>{form._id?T('تعديل الحسبة','Edit Calculation'):T('حسبة تنازل جديدة','New Transfer Calculation')}</div>
+<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{T('حساب تكاليف نقل خدمات العمال','Calculate worker transfer costs')}</div></div>
 </div>
-<div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(201,168,76,.1)'}}>{T('التكاليف','Costs')}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:16}}>
-{[['visa_cost',T('التأشيرة','Visa')],['iqama_cost',T('الإقامة','Iqama')],['work_permit_cost',T('رخصة العمل','Permit')],['insurance_cost',T('التأمين','Insurance')],['ticket_cost',T('التذكرة','Ticket')],['gosi_cost',T('التأمينات','GOSI')],['government_fees',T('رسوم حكومية','Gov Fees')],['other_costs',T('أخرى','Other')],['transfer_fee',T('رسوم النقل','Transfer Fee')]].map(([k,l])=><div key={k}><div style={{fontSize:9,color:'var(--tx4)',marginBottom:3}}>{l}</div><input value={form[k]||''} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} style={{...fS,height:36,fontSize:11}} type="number"/></div>)}
+<div style={{display:'flex',gap:6}}>
+<button onClick={save} disabled={saving} style={{height:36,padding:'0 18px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',opacity:saving?.6:1}}>{saving?'...':T('حفظ','Save')}</button>
+<button onClick={()=>setPop(false)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+</div></div>
+{/* Wizard steps bar */}
+<div style={{display:'flex',gap:0,background:'rgba(255,255,255,.02)',borderBottom:'1px solid rgba(255,255,255,.04)',flexShrink:0}}>
+{steps.map((s,i)=><div key={s.id} onClick={()=>setWizStep(i)} style={{flex:1,padding:'12px 8px',textAlign:'center',cursor:'pointer',borderBottom:wizStep===i?'2.5px solid '+C.gold:'2.5px solid transparent',transition:'.2s'}}>
+<div style={{fontSize:16,marginBottom:2}}>{s.ic}</div>
+<div style={{fontSize:10,fontWeight:wizStep===i?700:500,color:wizStep===i?C.gold:i<wizStep?C.ok:'var(--tx5)'}}>{s.t}</div>
+</div>)}
 </div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,padding:'14px',borderRadius:12,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)',marginBottom:12}}>
-<div style={{textAlign:'center'}}><div style={{fontSize:9,color:C.red,marginBottom:4}}>{T('إجمالي التكلفة','Total Cost')}</div><div style={{fontSize:22,fontWeight:900,color:C.red}}>{nm(totalCost())}</div></div>
-<div><div style={{fontSize:9,color:C.gold,marginBottom:4,textAlign:'center'}}>{T('المطلوب من العميل','Client Charge')}</div><input value={form.client_charge||''} onChange={e=>setForm(p=>({...p,client_charge:e.target.value}))} style={{...fS,height:38,fontSize:16,fontWeight:800,color:C.gold,background:'rgba(201,168,76,.08)',border:'1.5px solid rgba(201,168,76,.2)'}} type="number"/></div>
-<div style={{textAlign:'center'}}><div style={{fontSize:9,color:profit()>=0?C.ok:C.red,marginBottom:4}}>{T('الربح','Profit')}</div><div style={{fontSize:22,fontWeight:900,color:profit()>=0?C.ok:C.red}}>{nm(profit())}</div></div>
+{/* Content */}
+<div style={{flex:1,overflowY:'auto',padding:'24px 28px'}}>
+
+{/* Step 1: بيانات العامل */}
+{wizStep===0&&<div>
+<div style={{fontSize:13,fontWeight:700,color:C.gold,marginBottom:16}}>{T('بيانات العامل ووضعه الحالي','Worker Details & Current Status')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+<div><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('العامل','Worker')} <span style={{color:C.red}}>*</span></div><select value={form.worker_id||''} onChange={e=>setForm(p=>({...p,worker_id:e.target.value}))} style={{...fS,textAlign:'right',height:42,colorScheme:'dark'}}><option value="">— {T('اختر العامل','Select Worker')} —</option>{workers.map(w=><option key={w.id} value={w.id}>{w.name_ar}</option>)}</select></div>
+<div><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('المنشأة الحالية','Current Facility')} <span style={{color:C.red}}>*</span></div><select value={form.facility_id||''} onChange={e=>setForm(p=>({...p,facility_id:e.target.value}))} style={{...fS,textAlign:'right',height:42,colorScheme:'dark'}}><option value="">— {T('اختر المنشأة','Select Facility')} —</option>{facilities.map(f=><option key={f.id} value={f.id}>{f.name_ar}</option>)}</select></div>
 </div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{T('ملاحظات','Notes')}</div><textarea value={form.notes||''} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:10,resize:'vertical',textAlign:'right'}}/></div>
+{selWorker&&<div style={{marginTop:16,padding:'16px 18px',borderRadius:12,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)'}}>
+<div style={{fontSize:13,fontWeight:700,color:'var(--tx)',marginBottom:8}}>{selWorker.name_ar}</div>
+<div style={{fontSize:11,color:'var(--tx5)'}}>{T('تم اختيار العامل بنجاح','Worker selected')}</div>
+</div>}
+<div style={{marginTop:20}}>
+<div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('طلبات خاصة أو ملاحظات على وضع العامل','Special requests or notes about worker status')}</div>
+<textarea value={form.special_requests||''} onChange={e=>setForm(p=>({...p,special_requests:e.target.value}))} rows={3} style={{...fS,height:'auto',padding:12,resize:'vertical',textAlign:'right'}} placeholder={T('مثل: العامل يريد نقل لمنشأة محددة، أو فيه مشاكل بالإقامة...','e.g. Worker wants transfer to specific facility, iqama issues...')}/>
 </div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',flexDirection:'row-reverse'}}><button onClick={save} disabled={saving} style={{height:42,padding:'0 24px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',opacity:saving?.6:1}}>{saving?'...':T('حفظ','Save')}</button><button onClick={()=>setPop(false)} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,cursor:'pointer'}}>{T('إلغاء','Cancel')}</button></div>
-</div></div>}
+</div>}
+
+{/* Step 2: تفاصيل النقل */}
+{wizStep===1&&<div>
+<div style={{fontSize:13,fontWeight:700,color:C.gold,marginBottom:16}}>{T('تفاصيل عملية النقل','Transfer Operation Details')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+<div><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('نوع النقل','Transfer Type')} <span style={{color:C.red}}>*</span></div>
+<div style={{display:'flex',gap:8}}>{[{v:'sponsorship',l:T('نقل كفالة','Sponsorship'),ic:'🔄'},{v:'final_exit',l:T('خروج نهائي','Final Exit'),ic:'✈️'}].map(o=><button key={o.v} onClick={()=>setForm(p=>({...p,transfer_type:o.v}))} style={{flex:1,height:48,borderRadius:10,border:'1.5px solid '+(form.transfer_type===o.v?'rgba(201,168,76,.4)':'rgba(255,255,255,.08)'),background:form.transfer_type===o.v?'rgba(201,168,76,.1)':'rgba(255,255,255,.03)',color:form.transfer_type===o.v?C.gold:'var(--tx5)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:form.transfer_type===o.v?700:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{o.ic} {o.l}</button>)}</div></div>
+<div><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('الحالة','Status')}</div>
+<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{[{v:'draft',l:T('مسودة','Draft'),c:'#999'},{v:'pending',l:T('معلّقة','Pending'),c:C.gold},{v:'approved',l:T('مقبولة','Approved'),c:C.blue},{v:'completed',l:T('مكتملة','Done'),c:C.ok}].map(o=><button key={o.v} onClick={()=>setForm(p=>({...p,status:o.v}))} style={{flex:1,height:36,borderRadius:8,border:'1.5px solid '+(form.status===o.v?o.c+'40':'rgba(255,255,255,.06)'),background:form.status===o.v?o.c+'12':'transparent',color:form.status===o.v?o.c:'var(--tx6)',fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:form.status===o.v?700:500,cursor:'pointer'}}>{o.l}</button>)}</div></div>
+<div style={{gridColumn:'1/-1'}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('صاحب العمل الجديد','New Employer')}</div><input value={form.new_employer_name||''} onChange={e=>setForm(p=>({...p,new_employer_name:e.target.value}))} style={{...fS,textAlign:'right',height:42}} placeholder={T('اسم صاحب العمل أو المنشأة الجديدة','New employer or facility name')}/></div>
+</div>
+</div>}
+
+{/* Step 3: التكاليف */}
+{wizStep===2&&<div>
+<div style={{fontSize:13,fontWeight:700,color:C.gold,marginBottom:16}}>{T('تفصيل التكاليف والرسوم','Cost & Fee Breakdown')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:16}}>
+{[['visa_cost',T('التأشيرة','Visa'),'📋'],['iqama_cost',T('تجديد الإقامة','Iqama Renewal'),'🪪'],['work_permit_cost',T('رخصة العمل','Work Permit'),'📄'],['insurance_cost',T('التأمين الصحي','Health Insurance'),'🏥'],['ticket_cost',T('التذكرة','Ticket'),'✈️'],['gosi_cost',T('التأمينات','GOSI'),'🏛'],['government_fees',T('رسوم حكومية','Gov Fees'),'💳'],['other_costs',T('تكاليف أخرى','Other'),'📦'],['transfer_fee',T('رسوم النقل','Transfer Fee'),'💼']].map(([k,l,ic])=><div key={k} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'10px 12px',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{fontSize:9,color:'var(--tx5)',marginBottom:6,display:'flex',alignItems:'center',gap:4}}>{ic} {l}</div>
+<input value={form[k]||''} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} style={{...fS,height:38,fontSize:13,fontWeight:700}} type="number"/></div>)}
+</div>
+{form.other_costs&&Number(form.other_costs)>0&&<div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('وصف التكاليف الأخرى','Other costs description')}</div><input value={form.other_costs_desc||''} onChange={e=>setForm(p=>({...p,other_costs_desc:e.target.value}))} style={{...fS,textAlign:'right',height:42}}/></div>}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,padding:'18px',borderRadius:14,background:'rgba(201,168,76,.04)',border:'1.5px solid rgba(201,168,76,.12)'}}>
+<div style={{textAlign:'center'}}><div style={{fontSize:10,color:C.red,marginBottom:6}}>{T('إجمالي التكلفة','Total Cost')}</div><div style={{fontSize:26,fontWeight:900,color:C.red}}>{nm(totalCost())}</div></div>
+<div style={{textAlign:'center'}}><div style={{fontSize:10,color:C.gold,marginBottom:6}}>{T('المطلوب من العميل','Client Charge')}</div><input value={form.client_charge||''} onChange={e=>setForm(p=>({...p,client_charge:e.target.value}))} style={{...fS,height:42,fontSize:18,fontWeight:800,color:C.gold,background:'rgba(201,168,76,.08)',border:'1.5px solid rgba(201,168,76,.25)'}} type="number"/></div>
+<div style={{textAlign:'center'}}><div style={{fontSize:10,color:profit()>=0?C.ok:C.red,marginBottom:6}}>{T('الربح','Profit')}</div><div style={{fontSize:26,fontWeight:900,color:profit()>=0?C.ok:C.red}}>{nm(profit())}</div></div>
+</div>
+</div>}
+
+{/* Step 4: الملخص */}
+{wizStep===3&&<div>
+<div style={{fontSize:13,fontWeight:700,color:C.gold,marginBottom:16}}>{T('ملخص الحسبة والملاحظات','Summary & Notes')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+<div style={{padding:'14px 16px',borderRadius:12,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.04)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{T('العامل','Worker')}</div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{selWorker?.name_ar||'—'}</div></div>
+<div style={{padding:'14px 16px',borderRadius:12,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.04)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{T('نوع النقل','Type')}</div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{form.transfer_type==='final_exit'?T('خروج نهائي','Final Exit'):T('نقل كفالة','Sponsorship')}</div></div>
+<div style={{padding:'14px 16px',borderRadius:12,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.04)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{T('صاحب العمل الجديد','New Employer')}</div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{form.new_employer_name||'—'}</div></div>
+<div style={{padding:'14px 16px',borderRadius:12,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.04)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{T('الحالة','Status')}</div><div style={{fontSize:14,fontWeight:700,color:(stClr[form.status]||'#999')}}>{form.status}</div></div>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,padding:'18px',borderRadius:14,background:'rgba(201,168,76,.04)',border:'1.5px solid rgba(201,168,76,.12)',marginBottom:16}}>
+<div style={{textAlign:'center'}}><div style={{fontSize:10,color:C.red,marginBottom:4}}>{T('التكلفة','Cost')}</div><div style={{fontSize:24,fontWeight:900,color:C.red}}>{nm(totalCost())}</div></div>
+<div style={{textAlign:'center'}}><div style={{fontSize:10,color:C.gold,marginBottom:4}}>{T('المطلوب','Charge')}</div><div style={{fontSize:24,fontWeight:900,color:C.gold}}>{nm(Number(form.client_charge)||0)}</div></div>
+<div style={{textAlign:'center'}}><div style={{fontSize:10,color:profit()>=0?C.ok:C.red,marginBottom:4}}>{T('الربح','Profit')}</div><div style={{fontSize:24,fontWeight:900,color:profit()>=0?C.ok:C.red}}>{nm(profit())}</div></div>
+</div>
+<div><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('ملاحظات','Notes')}</div><textarea value={form.notes||''} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={3} style={{...fS,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/></div>
+</div>}
+
+</div>
+{/* Footer nav */}
+<div style={{padding:'14px 24px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',flexShrink:0}}>
+<button onClick={()=>wizStep>0?setWizStep(wizStep-1):setPop(false)} style={{height:42,padding:'0 20px',borderRadius:10,border:'1.5px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx3)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,cursor:'pointer'}}>{wizStep>0?T('← السابق','← Back'):T('إلغاء','Cancel')}</button>
+{wizStep<steps.length-1?<button onClick={()=>setWizStep(wizStep+1)} style={{height:42,padding:'0 20px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer'}}>{T('التالي →','Next →')}</button>:
+<button onClick={save} disabled={saving} style={{height:42,padding:'0 24px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.15)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:13,fontWeight:700,cursor:'pointer',opacity:saving?.6:1}}>{saving?'...':T('حفظ','Save')}</button>}
+</div>
+</div></div>})()}
 </div>}
 
 function AuditPage({sb,toast,user,lang,branchId}){
