@@ -306,10 +306,10 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           if (isBill) {
                             const amtM = body.match(/Amount[:\s]*([0-9,.]+)/i) || body.match(/مبلغ[:\s]*([0-9,.]+)/i)
                             const billerM = body.match(/Biller[:\s]*([^\s]+(?:\s+[^\s]+)?)/i) || body.match(/الجهة[:\s]*([^\n]+)/i)
-                            const serviceM = body.match(/Service[:\s]*([^\s]+(?:\s+[^\s]+)?)/i) || body.match(/خدمة[:\s]*([^\n]+)/i)
-                            const acctM = body.match(/Account[:\s]*(\d+)/i) || body.match(/حساب[:\s]*(\d+)/i)
+                            const acctM = body.match(/Account[:\s]*(\d+)/i) || body.match(/حساب[:\s]*(\d+)/i) || body.match(/From Account[:\s]*(\d+)/i)
                             const isRecharge = /recharge|شحن/i.test(body)
-                            const billerName = billerM?.[1]?.replace(/Mobily/gi, 'موبايلي').replace(/STC/gi, 'اس تي سي').replace(/Zain/gi, 'زين') || ''
+                            const billerRaw = billerM?.[1]?.replace(/Service[:\s]*/i,'').replace(/Recharge/i,'').replace(/From/i,'').trim() || ''
+                            const billerName = billerRaw.replace(/Mobily/gi, 'موبايلي').replace(/STC/gi, 'اس تي سي').replace(/Zain/gi, 'زين') || ''
                             return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', direction: 'rtl' }}>
                               <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(155,89,182,.1)', color: '#9b59b6', border: '1px solid rgba(155,89,182,.15)' }}>{isRecharge ? 'شحن رصيد' : 'سداد فاتورة'}</span>
                               {amtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#9b59b6' }}>{amtM[1]} ر.س</span>}
