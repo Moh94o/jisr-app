@@ -52,6 +52,7 @@ export function detectService(sender) {
   if (s.includes('riyad')) return SERVICES.riyad
   if (s.includes('bilad')) return SERVICES.bilad
   if (s.includes('stc') && s.includes('pay')) return SERVICES.stcpay
+  if (s.includes('inma') || s.includes('انماء') || s.includes('الإنماء') || s.includes('alinma')) return { ...SERVICES._default, name: 'بنك الإنماء', domain: 'ALINMA.COM', cat: 'bank', color: '#00695c', logo: (sz=40)=>`<svg width="${sz}" height="${sz}" viewBox="0 0 40 40"><rect width="40" height="40" rx="10" fill="#00695c18"/><circle cx="20" cy="20" r="10" fill="none" stroke="#00695c" stroke-width="2"/><text x="20" y="25" text-anchor="middle" font-size="10" font-weight="900" fill="#00695c">INM</text></svg>` }
   if (s.includes('bank') || s.includes('pay') || s.includes('mada')) return { ...SERVICES._default, name: sender || 'بنك', domain: sender || '', cat: 'bank', color: '#e67e22' }
   if (s.includes('gov')) return { ...SERVICES._default, name: sender || 'حكومي', domain: sender || '', cat: 'gov', color: '#1abc9c' }
   return { ...SERVICES._default, name: sender || 'غير معروف', domain: sender || '' }
