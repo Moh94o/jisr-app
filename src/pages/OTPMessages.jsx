@@ -27,6 +27,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [permissions, setPermissions] = useState([])
   const [showPermEdit, setShowPermEdit] = useState(null)
   const [permEdit, setPermEdit] = useState({})
+  const [sysUsers, setSysUsers] = useState([])
   const [now, setNow] = useState(Date.now())
   const [showSetupDrawer, setShowSetupDrawer] = useState(false)
   const [drawerPerson, setDrawerPerson] = useState(null)
@@ -44,6 +45,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
     ])
     setPersons(p.data || []); setMessages(m.data || []); setPermissions(perm.data || []); setLoading(false)
     sb.from('owners').select('id,name_ar,name_en,id_number,mobile_work,mobile_personal').is('deleted_at',null).order('name_ar').then(({data})=>setAllUsers(data||[]))
+    sb.from('users').select('id,name_ar').is('deleted_at',null).eq('is_active',true).order('name_ar').then(({data})=>setSysUsers(data||[]))
   }, [sb])
 
   useEffect(() => { load() }, [load])
@@ -196,8 +198,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               const exp = tl <= 0 && m.otp_code
               const expClr = tl > 30 ? C.ok : tl > 15 ? '#e67e22' : C.red
               const person = persons.find(p => p.id === m.person_id)
-              const msgPerms = permissions.filter(p => p.is_active && (p.allowed_senders || []).some(s => s === '*' || (m.phone_from || '').toLowerCase().includes(s.toLowerCase())))
-              const permPersonIds = msgPerms.map(p => p.person_id)
+              const senderKey = (m.phone_from || '').toLowerCase()
+              const msgPerms = permissions.filter(pm => pm.is_active && pm.person_id === m.person_id && (pm.can_view_all || (pm.allowed_senders || []).some(s => senderKey.includes(s.toLowerCase()))))
+              const permUserIds = msgPerms.map(pm => pm.user_id)
 
               return (
                 <div key={m.id} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.05)', opacity: exp ? .4 : 1, transition: '.3s' }}>
@@ -244,25 +247,31 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   <div style={{ padding: '6px 14px', background: 'rgba(255,255,255,.01)', borderTop: '1px solid rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 8, color: 'var(--tx6)' }}>يشوف:</span>
-                      {persons.filter(p => permPersonIds.includes(p.id)).map(p => (
-                        <span key={p.id} style={{ fontSize: 8, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'rgba(39,160,70,.06)', color: C.ok, border: '1px solid rgba(39,160,70,.08)' }}>{p.name}</span>
+                      {sysUsers.filter(u => permUserIds.includes(u.id)).map(u => (
+                        <span key={u.id} style={{ fontSize: 8, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'rgba(39,160,70,.06)', color: C.ok, border: '1px solid rgba(39,160,70,.08)' }}>{u.name_ar}</span>
                       ))}
                     </div>
-                    <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(persons.map(p => [p.id, permPersonIds.includes(p.id)]))) }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(201,168,76,.08)', background: 'rgba(201,168,76,.03)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعديل الصلاحيات</button>
+                    <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(201,168,76,.08)', background: 'rgba(201,168,76,.03)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعديل الصلاحيات</button>
                   </div>
 
                   {showPermEdit === m.id && <div style={{ padding: '8px 14px', background: 'rgba(201,168,76,.02)', borderTop: '1px solid rgba(201,168,76,.05)' }}>
-                    {persons.map(p => (
-                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', marginBottom: 2 }}>
-                        <span style={{ fontSize: 10, color: permEdit[p.id] ? 'var(--tx)' : 'var(--tx5)' }}>{p.name}</span>
-                        <button onClick={() => setPermEdit(prev => ({ ...prev, [p.id]: !prev[p.id] }))} style={{ width: 34, height: 18, borderRadius: 9, border: 'none', background: permEdit[p.id] ? C.ok : 'rgba(255,255,255,.1)', cursor: 'pointer', position: 'relative' }}>
-                          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, transition: '.2s', ...(permEdit[p.id] ? { right: 2 } : { left: 2 }) }} />
+                    <div style={{ fontSize: 9, color: 'var(--tx5)', marginBottom: 6 }}>من يشوف هذه الرسالة:</div>
+                    {sysUsers.map(u => (
+                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', marginBottom: 2 }}>
+                        <span style={{ fontSize: 10, color: permEdit[u.id] ? 'var(--tx)' : 'var(--tx5)' }}>{u.name_ar}</span>
+                        <button onClick={() => setPermEdit(prev => ({ ...prev, [u.id]: !prev[u.id] }))} style={{ width: 34, height: 18, borderRadius: 9, border: 'none', background: permEdit[u.id] ? C.ok : 'rgba(255,255,255,.1)', cursor: 'pointer', position: 'relative' }}>
+                          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, transition: '.2s', ...(permEdit[u.id] ? { right: 2 } : { left: 2 }) }} />
                         </button>
                       </div>
                     ))}
                     <button onClick={async () => {
-                      const sender = (m.phone_from || '').toLowerCase()
-                      for (const p of persons) { const ex = permissions.find(pm => pm.person_id === p.id); if (permEdit[p.id]) { if (ex) { const s = ex.allowed_senders || []; if (!s.includes('*') && !s.includes(sender)) await sb.from('otp_permissions').update({ allowed_senders: [...s, sender] }).eq('id', ex.id) } else { await sb.from('otp_permissions').insert({ person_id: p.id, allowed_senders: [sender] }) } } }
+                      for (const u of sysUsers) {
+                        const ex = permissions.find(pm => pm.user_id === u.id && pm.person_id === m.person_id)
+                        if (permEdit[u.id]) {
+                          if (!ex) await sb.from('otp_permissions').insert({ user_id: u.id, person_id: m.person_id, can_view_all: true, is_active: true })
+                          else if (!ex.is_active) await sb.from('otp_permissions').update({ is_active: true }).eq('id', ex.id)
+                        } else if (ex) { await sb.from('otp_permissions').delete().eq('id', ex.id) }
+                      }
                       setShowPermEdit(null); load(); toast && toast('تم حفظ الصلاحيات')
                     }} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.05)', color: C.gold, fontFamily: F, fontSize: 9, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>حفظ</button>
                   </div>}
@@ -362,20 +371,60 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       <code style={{ fontSize: 11, color: C.gold, direction: 'ltr', display: 'block', textAlign: 'left', wordBreak: 'break-all', fontWeight: 700 }}>{p.device_key}</code>
                     </div>
 
-                    {/* Allowed senders */}
+                    {/* Person sender controls: enable/disable senders */}
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>الجهة:</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>الجهات (تنشيط/تعطيل):</div>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {SENDERS.map(s => {
-                          const active = (perm?.allowed_senders || []).includes('*') || (perm?.allowed_senders || []).includes(s.k)
+                        {SENDERS.filter(s=>s.k!=='*').map(s => {
+                          const disabled = (p.disabled_senders || []).includes(s.k)
                           return <button key={s.k} onClick={async () => {
-                            if (!perm) return
-                            let next = [...(perm.allowed_senders || [])]
-                            if (s.k === '*') { next = active ? [] : ['*'] }
-                            else { next = active ? next.filter(x => x !== s.k && x !== '*') : [...next.filter(x => x !== '*'), s.k] }
-                            await sb.from('otp_permissions').update({ allowed_senders: next }).eq('id', perm.id)
+                            const current = p.disabled_senders || []
+                            const next = disabled ? current.filter(x => x !== s.k) : [...current, s.k]
+                            await sb.from('otp_persons').update({ disabled_senders: next }).eq('id', p.id)
                             load()
-                          }} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 10, fontWeight: active ? 700 : 500, color: active ? C.ok : 'var(--tx6)', background: active ? 'rgba(39,160,70,.06)' : 'transparent', border: '1px solid ' + (active ? 'rgba(39,160,70,.1)' : 'rgba(255,255,255,.05)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>
+                          }} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, color: disabled ? '#e67e22' : C.ok, background: disabled ? 'rgba(230,126,34,.06)' : 'rgba(39,160,70,.06)', border: '1px solid ' + (disabled ? 'rgba(230,126,34,.1)' : 'rgba(39,160,70,.1)'), cursor: 'pointer', fontFamily: F, textDecoration: disabled ? 'line-through' : 'none' }}>{s.l}</button>
+                        })}
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                        <button onClick={async () => { await sb.from('otp_persons').update({ disabled_senders: [] }).eq('id', p.id); load() }} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(39,160,70,.1)', background: 'rgba(39,160,70,.04)', color: C.ok, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تنشيط الكل</button>
+                        <button onClick={async () => { await sb.from('otp_persons').update({ disabled_senders: SENDERS.filter(s=>s.k!=='*').map(s=>s.k) }).eq('id', p.id); load() }} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(230,126,34,.1)', background: 'rgba(230,126,34,.04)', color: '#e67e22', cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعطيل الكل</button>
+                      </div>
+                    </div>
+
+                    {/* Employee access permissions */}
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>صلاحيات الموظفين:</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {sysUsers.map(u => {
+                          const userPerm = permissions.find(pm => pm.user_id === u.id && pm.person_id === p.id)
+                          const hasAccess = userPerm?.is_active && (userPerm?.can_view_all || (userPerm?.allowed_senders || []).length > 0)
+                          return <div key={u.id} style={{ padding: '6px 10px', borderRadius: 8, background: hasAccess ? 'rgba(39,160,70,.03)' : 'rgba(255,255,255,.015)', border: '1px solid ' + (hasAccess ? 'rgba(39,160,70,.06)' : 'rgba(255,255,255,.03)') }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasAccess ? 4 : 0 }}>
+                              <span style={{ fontSize: 10, fontWeight: 600, color: hasAccess ? 'var(--tx)' : 'var(--tx5)' }}>{u.name_ar}</span>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                <button onClick={async () => {
+                                  if (userPerm) { await sb.from('otp_permissions').update({ can_view_all: !userPerm.can_view_all, is_active: true, allowed_senders: [] }).eq('id', userPerm.id) }
+                                  else { await sb.from('otp_permissions').insert({ user_id: u.id, person_id: p.id, can_view_all: true, is_active: true }) }
+                                  load()
+                                }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid ' + (userPerm?.can_view_all ? 'rgba(39,160,70,.15)' : 'rgba(255,255,255,.06)'), background: userPerm?.can_view_all ? 'rgba(39,160,70,.06)' : 'transparent', color: userPerm?.can_view_all ? C.ok : 'var(--tx6)', cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>الكل</button>
+                                <button onClick={async () => {
+                                  if (userPerm) { await sb.from('otp_permissions').delete().eq('id', userPerm.id) }
+                                  load()
+                                }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(192,57,43,.08)', background: !hasAccess ? 'rgba(192,57,43,.04)' : 'transparent', color: !hasAccess ? C.red : 'var(--tx6)', cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>منع</button>
+                              </div>
+                            </div>
+                            {hasAccess && !userPerm?.can_view_all && <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 2 }}>
+                              {SENDERS.filter(s => s.k !== '*').map(s => {
+                                const on = (userPerm?.allowed_senders || []).includes(s.k)
+                                return <button key={s.k} onClick={async () => {
+                                  if (!userPerm) return
+                                  const next = on ? (userPerm.allowed_senders || []).filter(x => x !== s.k) : [...(userPerm.allowed_senders || []), s.k]
+                                  await sb.from('otp_permissions').update({ allowed_senders: next }).eq('id', userPerm.id); load()
+                                }} style={{ fontSize: 7, padding: '1px 6px', borderRadius: 3, border: '1px solid ' + (on ? 'rgba(39,160,70,.1)' : 'rgba(255,255,255,.04)'), background: on ? 'rgba(39,160,70,.04)' : 'transparent', color: on ? C.ok : 'var(--tx6)', cursor: 'pointer', fontFamily: F }}>{s.l}</button>
+                              })}
+                            </div>}
+                            {hasAccess && userPerm?.can_view_all && <div style={{ fontSize: 8, color: C.ok, marginTop: 2 }}>يشوف جميع الجهات</div>}
+                          </div>
                         })}
                       </div>
                     </div>
