@@ -234,20 +234,21 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
               return (
                 <div key={m.id} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.05)', opacity: exp ? .4 : 1, transition: '.3s' }}>
-                  {/* Layer 1: Person RIGHT | Service CENTER-LEFT | Time+countdown LEFT */}
+                  {/* Layer 1: Service RIGHT | Person | Time LEFT */}
                   <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,.025)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {/* Person name — RIGHT */}
-                    {person && <div style={{ padding: '8px 14px', borderRadius: 10, background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.1)', flexShrink: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>{person.name}</div>
-                    </div>}
-                    {/* Service */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    {/* Service — RIGHT */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <SvcLogo sender={m.phone_from} size={36} />
-                      <div style={{ textAlign: 'center' }}>
+                      <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{svc.name}</div>
                         <div style={{ fontSize: 9, color: 'var(--tx6)', marginTop: 2 }}>{svc.domain}</div>
                       </div>
                     </div>
+                    {/* Person name — after service */}
+                    {person && <div style={{ padding: '4px 12px', borderRadius: 8, background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.1)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{person.name}</div>
+                    </div>}
+                    <div style={{ flex: 1 }} />
                     {/* Time + countdown — LEFT */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                       <span style={{ fontSize: 10, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>
@@ -361,6 +362,15 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 <code style={{ flex: 1, fontSize: 13, color: C.gold, fontWeight: 800, direction: 'ltr', textAlign: 'center' }}>%s|||%m|||%d</code>
                 <button onClick={() => { navigator.clipboard.writeText('%s|||%m|||%d'); toast && toast('تم') }} style={{ fontSize: 10, padding: '5px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>نسخ</button>
               </div>
+              {/* JSON format */}
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', marginTop: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tx4)' }}>صيغة JSON (للربط المتقدم)</span>
+                  <button onClick={() => { navigator.clipboard.writeText('{"device_key":"[KEY]","message":"%m","sender":"%s","timestamp":"%d"}'); toast && toast('تم') }} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'var(--tx5)', cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>نسخ</button>
+                </div>
+                <pre style={{ fontSize: 9, color: C.ok, direction: 'ltr', textAlign: 'left', margin: 0, fontFamily: 'monospace', lineHeight: 1.8, background: 'rgba(0,0,0,.2)', padding: '8px 10px', borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{'{\n  "device_key": "[KEY]",\n  "message": "%m",\n  "sender": "%s",\n  "timestamp": "%d"\n}'}</pre>
+                <div style={{ fontSize: 8, color: 'var(--tx6)', marginTop: 4 }}>استبدل [KEY] بمفتاح الجهاز الخاص بالشخص</div>
+              </div>
             </div>
 
             {/* Persons list */}
@@ -425,7 +435,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx5)' }}>Subject (مفتاح الجهاز)</span>
                         <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 10, padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>نسخ</button>
                       </div>
-                      <code style={{ fontSize: 11, color: C.gold, direction: 'ltr', display: 'block', textAlign: 'left', wordBreak: 'break-all', fontWeight: 700 }}>{p.device_key}</code>
+                      <code style={{ fontSize: 11, color: C.gold, direction: 'ltr', display: 'block', textAlign: 'left', wordBreak: 'break-all', fontWeight: 700, marginBottom: 6 }}>{p.device_key}</code>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+                        <div style={{ fontSize: 8, color: 'var(--tx6)', flexShrink: 0, marginTop: 2 }}>JSON:</div>
+                        <code style={{ fontSize: 8, color: C.ok, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontFamily: 'monospace', background: 'rgba(0,0,0,.2)', padding: '4px 6px', borderRadius: 4, lineHeight: 1.5 }}>{`{"device_key":"${p.device_key}","message":"%m","sender":"%s","timestamp":"%d"}`}</code>
+                        <button onClick={() => { navigator.clipboard.writeText(`{"device_key":"${p.device_key}","message":"%m","sender":"%s","timestamp":"%d"}`); toast && toast('تم') }} style={{ fontSize: 8, padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(39,160,70,.1)', background: 'rgba(39,160,70,.04)', color: C.ok, cursor: 'pointer', fontFamily: F, flexShrink: 0 }}>نسخ</button>
+                      </div>
                     </div>
 
                     {/* Person sender controls: enable/disable senders */}
