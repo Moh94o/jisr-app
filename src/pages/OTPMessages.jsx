@@ -18,8 +18,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ name: '', name_en: '', phone: '', role: 'employee', default_senders: [] })
+  const [addMode, setAddMode] = useState(null) // null | 'new' | 'existing'
+  const [addForm, setAddForm] = useState({ name: '', name_en: '', phone: '', default_senders: [] })
   const [saving, setSaving] = useState(false)
+  const [addSearch, setAddSearch] = useState('')
+  const [selectedPerson, setSelectedPerson] = useState(null)
+  const [allUsers, setAllUsers] = useState([])
   const [permissions, setPermissions] = useState([])
   const [showPermEdit, setShowPermEdit] = useState(null)
   const [permEdit, setPermEdit] = useState({})
@@ -37,6 +41,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
       sb.from('otp_permissions').select('*')
     ])
     setPersons(p.data || []); setMessages(m.data || []); setPermissions(perm.data || []); setLoading(false)
+    sb.from('owners').select('id,name_ar,name_en,id_number,mobile_work,mobile_personal').is('deleted_at',null).order('name_ar').then(({data})=>setAllUsers(data||[]))
   }, [sb])
 
   useEffect(() => { load() }, [load])
@@ -86,15 +91,38 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   }
 
   const addPerson = async () => {
-    if (!addForm.name.trim()) return; setSaving(true)
-    const gm = { admin: 'الإدارة', pro: 'الإدارة', employee: 'الموظفين' }
-    const { error } = await sb.from('otp_persons').insert({ name: addForm.name, name_en: addForm.name_en || null, phone: addForm.phone || null, role: addForm.role, group_name: gm[addForm.role] || 'الموظفين', default_senders: addForm.default_senders })
+    const name = addMode === 'existing' && selectedPerson ? selectedPerson.name_ar : addForm.name
+    if (!name?.trim()) return; setSaving(true)
+    const senders = addForm.default_senders.length > 0 ? addForm.default_senders : ['*']
+    const { data: created, error } = await sb.from('otp_persons').insert({
+      name: name,
+      name_en: addMode === 'existing' && selectedPerson ? selectedPerson.name_en : addForm.name_en || null,
+      phone: addMode === 'existing' && selectedPerson ? (selectedPerson.mobile_work || selectedPerson.mobile_personal) : addForm.phone || null,
+      default_senders: senders
+    }).select('*').single()
     if (error) toast && toast('خطأ: ' + error.message)
-    else { toast && toast('تمت الإضافة'); setShowAdd(false); setAddForm({ name: '', name_en: '', phone: '', role: 'employee', default_senders: [] }); load() }
+    else { await sb.from('otp_permissions').insert({ person_id: created.id, allowed_senders: senders }); toast && toast('تمت الإضافة'); closeAdd(); load() }
     setSaving(false)
   }
+  const closeAdd = () => { setShowAdd(false); setAddMode(null); setSelectedPerson(null); setAddSearch(''); setAddForm({ name: '', name_en: '', phone: '', default_senders: [] }) }
 
-  const toggleSender = (k) => setAddForm(p => ({ ...p, default_senders: p.default_senders.includes(k) ? p.default_senders.filter(s => s !== k) : [...p.default_senders, k] }))
+  const toggleSender = (k) => {
+    if (k === '*') {
+      // Toggle all
+      const allKeys = SENDERS.filter(s => s.k !== '*').map(s => s.k)
+      const allSelected = allKeys.every(s => addForm.default_senders.includes(s))
+      setAddForm(p => ({ ...p, default_senders: allSelected ? [] : ['*', ...allKeys] }))
+    } else {
+      setAddForm(p => {
+        let next = p.default_senders.includes(k) ? p.default_senders.filter(s => s !== k) : [...p.default_senders, k]
+        // Remove '*' if not all selected, add '*' if all selected
+        const allKeys = SENDERS.filter(s => s.k !== '*').map(s => s.k)
+        const allOn = allKeys.every(s => next.includes(s))
+        next = allOn ? ['*', ...allKeys] : next.filter(s => s !== '*')
+        return { ...p, default_senders: next }
+      })
+    }
+  }
 
   // Filter
   let filtered = selPerson === 'all' ? messages : messages.filter(m => m.person_id === selPerson)
@@ -285,26 +313,84 @@ export default function OTPMessages({ sb, toast, user, lang }) {
       </div>}
 
       {/* Add Person Modal */}
-      {showAdd && <div onClick={() => setShowAdd(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+      {showAdd && <div onClick={closeAdd} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
         <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 16, width: 'min(480px,94vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.12)', direction: 'rtl', fontFamily: F }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>إضافة شخص جديد</div>
-            <button onClick={() => setShowAdd(false)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>إضافة شخص</div>
+            <button onClick={closeAdd} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
-          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1, overflowY: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div><div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>بالعربي *</div><input value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="محمد العمري" style={sF} /></div>
-              <div><div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4, direction: 'ltr', textAlign: 'left' }}>English</div><input value={addForm.name_en} onChange={e => setAddForm(p => ({ ...p, name_en: e.target.value }))} placeholder="Mohammed" style={{ ...sF, direction: 'ltr', fontFamily: 'monospace', textAlign: 'left' }} /></div>
-            </div>
-            <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 4 }}>رقم الجوال <span style={{ fontSize: 8, color: 'var(--tx6)' }}>(اختياري)</span></div><input value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} placeholder="05XXXXXXXX" style={{ ...sF, direction: 'ltr' }} /></div>
-            <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>يستقبل OTP من:</div>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{SENDERS.map(s => <button key={s.k} onClick={() => toggleSender(s.k)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: addForm.default_senders.includes(s.k) ? 700 : 500, color: addForm.default_senders.includes(s.k) ? C.ok : 'var(--tx5)', background: addForm.default_senders.includes(s.k) ? 'rgba(39,160,70,.06)' : 'transparent', border: '1px solid ' + (addForm.default_senders.includes(s.k) ? 'rgba(39,160,70,.12)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>)}</div>
-            </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Mode selector */}
+            {!addMode && <div style={{ display: 'flex', gap: 8 }}>
+              {[{v:'existing',l:'مالك موجود',d:'اختر من الملّاك المسجلين'},{v:'new',l:'شخص جديد',d:'تسجيل بيانات جديدة'}].map(o => (
+                <button key={o.v} onClick={() => setAddMode(o.v)} style={{ flex: 1, padding: '20px 12px', borderRadius: 12, border: '1.5px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: F, transition: '.15s' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>{o.l}</div>
+                  <div style={{ fontSize: 9, color: 'var(--tx5)' }}>{o.d}</div>
+                </button>
+              ))}
+            </div>}
+
+            {/* Existing: search owners */}
+            {addMode === 'existing' && !selectedPerson && <>
+              <input value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="ابحث بالاسم..." style={{ ...sF, marginBottom: 4 }} autoFocus />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 280, overflowY: 'auto' }}>
+                {allUsers.filter(u => !addSearch || u.name_ar?.includes(addSearch) || u.name_en?.toLowerCase().includes(addSearch.toLowerCase())).map(u => (
+                  <div key={u.id} onClick={() => setSelectedPerson(u)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', cursor: 'pointer', transition: '.1s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)'}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(201,168,76,.08)', border: '1px solid rgba(201,168,76,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{(u.name_ar || '?')[0]}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{u.name_ar}{u.name_en && <span style={{ fontSize: 10, color: 'var(--tx5)', marginRight: 6, fontFamily: 'monospace' }}>{u.name_en}</span>}</div>
+                      <div style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr', display: 'flex', gap: 8 }}>
+                        {u.id_number && <span>{u.id_number}</span>}
+                        {(u.mobile_work || u.mobile_personal) && <span>{u.mobile_work || u.mobile_personal}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {allUsers.filter(u => !addSearch || u.name_ar?.includes(addSearch) || u.name_en?.toLowerCase().includes(addSearch.toLowerCase())).length === 0 && <div style={{ textAlign: 'center', padding: 20, color: 'var(--tx6)', fontSize: 11 }}>لا توجد نتائج</div>}
+              </div>
+            </>}
+
+            {/* Selected person preview */}
+            {addMode === 'existing' && selectedPerson && <div>
+              <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(201,168,76,.04)', border: '1.5px solid rgba(201,168,76,.12)', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)' }}>{selectedPerson.name_ar}</div>
+                    {selectedPerson.name_en && <div style={{ fontSize: 11, color: 'var(--tx5)', fontFamily: 'monospace', direction: 'ltr', marginTop: 2 }}>{selectedPerson.name_en}</div>}
+                  </div>
+                  <button onClick={() => setSelectedPerson(null)} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 5, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', fontFamily: F }}>تغيير</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 10 }}>
+                  {selectedPerson.id_number && <div><span style={{ color: 'var(--tx6)' }}>الهوية: </span><span style={{ color: 'var(--tx3)', direction: 'ltr', display: 'inline-block' }}>{selectedPerson.id_number}</span></div>}
+                  {(selectedPerson.mobile_work || selectedPerson.mobile_personal) && <div><span style={{ color: 'var(--tx6)' }}>الجوال: </span><span style={{ color: 'var(--tx3)', direction: 'ltr', display: 'inline-block' }}>{selectedPerson.mobile_work || selectedPerson.mobile_personal}</span></div>}
+                </div>
+              </div>
+            </div>}
+
+            {/* New person form */}
+            {addMode === 'new' && <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div><div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>بالعربي *</div><input value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="محمد العمري" style={sF} /></div>
+                <div><div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4, direction: 'ltr', textAlign: 'left' }}>English</div><input value={addForm.name_en} onChange={e => setAddForm(p => ({ ...p, name_en: e.target.value }))} placeholder="Mohammed" style={{ ...sF, direction: 'ltr', fontFamily: 'monospace', textAlign: 'left' }} /></div>
+              </div>
+              <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 4 }}>رقم الجوال</div><input value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} placeholder="05XXXXXXXX" style={{ ...sF, direction: 'ltr' }} /></div>
+            </>}
+
+            {/* OTP services — shows for both modes after selection */}
+            {(addMode === 'new' || (addMode === 'existing' && selectedPerson)) && <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>يستقبل OTP من:</div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {SENDERS.map(s => <button key={s.k} onClick={() => toggleSender(s.k)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: addForm.default_senders.includes(s.k) || (s.k === '*' && addForm.default_senders.includes('*')) ? 700 : 500, color: addForm.default_senders.includes(s.k) || (s.k === '*' && addForm.default_senders.includes('*')) ? C.ok : 'var(--tx5)', background: addForm.default_senders.includes(s.k) || (s.k === '*' && addForm.default_senders.includes('*')) ? 'rgba(39,160,70,.06)' : 'transparent', border: '1px solid ' + (addForm.default_senders.includes(s.k) || (s.k === '*' && addForm.default_senders.includes('*')) ? 'rgba(39,160,70,.12)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>)}
+              </div>
+            </div>}
           </div>
-          <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button onClick={() => setShowAdd(false)} style={{ height: 40, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
-            <button onClick={addPerson} disabled={saving || !addForm.name.trim()} style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.1)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving || !addForm.name.trim() ? .5 : 1 }}>{saving ? '...' : 'إضافة'}</button>
-          </div>
+
+          {/* Footer */}
+          {addMode && <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={closeAdd} style={{ height: 40, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
+            <button onClick={addPerson} disabled={saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.1)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson) ? .5 : 1 }}>{saving ? '...' : 'إضافة'}</button>
+          </div>}
         </div>
       </div>}
     </div>
