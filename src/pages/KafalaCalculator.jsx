@@ -179,14 +179,6 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
   // ═══════════════════════════════════════
   // SCREEN 1: HOME
   // ═══════════════════════════════════════
-  const ModalWrap = ({ children }) => (
-    <div onClick={() => onClose && onClose()} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 16, width: 'min(880px,95vw)', height: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.6)', border: '1px solid rgba(201,168,76,.12)' }}>
-        {children}
-      </div>
-    </div>
-  )
-
   const tabs = [
     { id: 'worker', title: 'بيانات العامل', Icon: User },
     { id: 'transfer', title: 'بيانات النقل', Icon: ArrowLeftRight },
@@ -194,28 +186,18 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
     { id: 'review', title: 'مراجعة', Icon: CheckCircle2 }
   ]
 
-  // Home screen header
-  const Header = () => (
-    <div dir="rtl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,.1)', flexShrink: 0, fontFamily: F }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {screen === 'form' && <button onClick={() => { setScreen('home'); setWorkerMode('new') }}
-          style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ChevronRight size={16} />
-        </button>}
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: 'rgba(255,255,255,.9)' }}>حسبة نقل الكفالة</div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>
-            {screen === 'home' ? 'حساب تكاليف نقل خدمات العمال والرسوم الحكومية' : (workerMode === 'existing' ? 'عامل مسجّل' : 'عامل جديد') + (f.name ? ` — ${f.name}` : '')}
-          </div>
-        </div>
-      </div>
-      <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
-    </div>
-  )
+  const headerSubtitle = screen === 'home' ? 'حساب تكاليف نقل خدمات العمال والرسوم الحكومية' : (workerMode === 'existing' ? 'عامل مسجّل' : 'عامل جديد') + (f.name ? ` — ${f.name}` : '')
+
+  const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(10,10,10,.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }
+  const modalBox = { background: '#1a1a1a', borderRadius: 16, width: 'min(880px,95vw)', height: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.6)', border: '1px solid rgba(201,168,76,.12)' }
+  const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,.1)', flexShrink: 0, fontFamily: F, direction: 'rtl' }
 
   if (screen === 'home') return (
-    <ModalWrap>
-    <Header />
+    <div onClick={() => onClose && onClose()} style={modalOverlay}><div onClick={e => e.stopPropagation()} style={modalBox}>
+    <div style={headerBar}>
+      <div><div style={{ fontSize: 18, fontWeight: 800, color: 'rgba(255,255,255,.9)' }}>حسبة نقل الكفالة</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>{headerSubtitle}</div></div>
+      <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+    </div>
     <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 24 }}>
       <div style={{ display: 'flex', gap: 14, width: '100%', maxWidth: 500 }}>
         {[
@@ -249,16 +231,23 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
         </div>
       )}
     </div>
-    </ModalWrap>
+    </div></div>
   )
 
   // ═══════════════════════════════════════
   // SCREEN 2: FORM WITH TABS
   // ═══════════════════════════════════════
   return (
-    <ModalWrap>
+    <div onClick={() => onClose && onClose()} style={modalOverlay}><div onClick={e => e.stopPropagation()} style={modalBox}>
     <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <Header />
+      {/* Header */}
+      <div style={headerBar}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => { setScreen('home'); setWorkerMode('new') }} style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronRight size={16} /></button>
+          <div><div style={{ fontSize: 18, fontWeight: 800, color: 'rgba(255,255,255,.9)' }}>حسبة نقل الكفالة</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>{headerSubtitle}</div></div>
+        </div>
+        <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+      </div>
 
       {/* ═══ Tab Bar ═══ */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(255,255,255,.04)', flexShrink: 0 }}>
@@ -575,6 +564,6 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
         )}
       </div>
     </div>
-    </ModalWrap>
+    </div></div>
   )
 }
