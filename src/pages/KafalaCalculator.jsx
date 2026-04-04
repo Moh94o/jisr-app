@@ -142,7 +142,7 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
   // Form state
   const [f, setF] = useState({
     name: '', iqama: '', phone: '', iqamaExpiry: '', dob: '', nationality: '', gender: 'ذكر', occupation: '', legalStatus: 'نظامي',
-    workerType: 'facility', changeProfession: false, newOccupation: '', wpExpiry: '', hasNoticePeriod: false, employerConsent: false,
+    workerType: 'facility', currentEmployer: '', currentEmployerId: '', changeProfession: false, newOccupation: '', wpExpiry: '', hasNoticePeriod: false, employerConsent: false,
     transferCount: '1', renewalMonths: '12', iqamaFineCount: '1',
     profChangeInput: '200', workPermitRate: '100', medicalFee: '800', officeFee: '500',
     extras: []
@@ -374,6 +374,10 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
               { v: 'facility', l: 'عامل منشأة', c: C.blue },
               { v: 'domestic', l: 'عامل منزلي', c: '#9b59b6' }
             ]} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div><Lbl req>اسم صاحب العمل الحالي</Lbl><Inp value={f.currentEmployer} onChange={v => set('currentEmployer', v)} /></div>
+            <div><Lbl req>{f.workerType==='facility'?'الرقم الموحد للمنشأة':'رقم هوية صاحب العمل'}</Lbl><Inp value={f.currentEmployerId} onChange={v => set('currentEmployerId', v)} dir="ltr" /></div>
           </div>
 
           {/* حالة العامل القانونية */}
