@@ -298,7 +298,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <button onClick={() => copyCode(m.otp_code, m)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid ' + (exp ? 'rgba(255,255,255,.08)' : 'rgba(39,160,70,.15)'), background: exp ? 'rgba(255,255,255,.03)' : 'rgba(39,160,70,.06)', color: exp ? 'var(--tx4)' : C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>
                         <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} title="عرض الرسالة الأصلية" style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>☰</button>
-                        <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,.06)' }} />
+                        <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,.1)', marginLeft: 4, marginRight: 4 }} />
                         <button onClick={() => setDeleteConfirm(m.id)} title="حذف" style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(192,57,43,.1)', background: 'rgba(192,57,43,.04)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
                       </div>
                     </> : <>
