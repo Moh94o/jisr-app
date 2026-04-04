@@ -25,6 +25,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [addForm, setAddForm] = useState({ name: '', phone: '', group_name: '' })
   const [saving, setSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(null)
+  const [addStep, setAddStep] = useState(0) // 0=form, 1=setup instructions
+  const [createdPerson, setCreatedPerson] = useState(null)
   const [now, setNow] = useState(Date.now())
 
   // Tick every second for countdown
@@ -102,11 +104,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const addPerson = async () => {
     if (!addForm.name.trim()) return
     setSaving(true)
-    const { error } = await sb.from('otp_persons').insert({ name: addForm.name, phone: addForm.phone || null, group_name: addForm.group_name || null })
+    const { data: created, error } = await sb.from('otp_persons').insert({ name: addForm.name, phone: addForm.phone || null, group_name: addForm.group_name || null }).select('*').single()
     if (error) toast && toast('خطأ: ' + error.message)
-    else { toast && toast(T('تمت الإضافة', 'Added')); setShowAdd(false); setAddForm({ name: '', phone: '', group_name: '' }); load() }
+    else { setCreatedPerson(created); setAddStep(1); load() }
     setSaving(false)
   }
+  const closeAdd = () => { setShowAdd(false); setAddStep(0); setCreatedPerson(null); setAddForm({ name: '', phone: '', group_name: '' }) }
   const toggleActive = async (pid) => { const p = persons.find(x => x.id === pid); if (p) { await sb.from('otp_persons').update({ is_active: !p.is_active }).eq('id', pid); load() } }
   const deletePerson = async (id) => { if (!confirm(T('حذف؟', 'Delete?'))) return; await sb.from('otp_messages').delete().eq('person_id', id); await sb.from('otp_persons').delete().eq('id', id); if (selPerson === id) setSelPerson('all'); load() }
 
@@ -229,26 +232,80 @@ export default function OTPMessages({ sb, toast, user, lang }) {
           </div>
       }
 
-      {/* Add Person Modal */}
+      {/* Add Person Modal — 2 steps */}
       {showAdd && (
-        <div onClick={() => setShowAdd(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 16, width: 'min(440px,92vw)', overflow: 'hidden', border: '1px solid rgba(201,168,76,.12)' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{T('إضافة شخص', 'Add Person')}</div>
-              <button onClick={() => setShowAdd(false)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+        <div onClick={closeAdd} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 16, width: 'min(520px,94vw)', maxHeight: '90vh', overflow: 'auto', border: '1px solid rgba(201,168,76,.12)', direction: 'rtl', fontFamily: F }}>
+            {/* Header */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#1a1a1a', zIndex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{addStep === 0 ? T('إضافة شخص جديد', 'Add New Person') : T('إعداد الجهاز', 'Device Setup')}</div>
+              <button onClick={closeAdd} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
-            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12, direction: 'rtl' }}>
-              <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>{T('الاسم', 'Name')} *</div><input value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} style={sF} /></div>
-              <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>{T('رقم الجوال', 'Phone')}</div><input value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} style={{ ...sF, direction: 'ltr' }} /></div>
-              <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>{T('المجموعة', 'Group')}</div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {['الإدارة', 'الموظفين'].map(g => <button key={g} onClick={() => setAddForm(p => ({ ...p, group_name: g }))} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid ' + (addForm.group_name === g ? 'rgba(201,168,76,.3)' : 'rgba(255,255,255,.06)'), background: addForm.group_name === g ? 'rgba(201,168,76,.1)' : 'transparent', color: addForm.group_name === g ? C.gold : 'var(--tx5)', fontFamily: F, fontSize: 12, fontWeight: addForm.group_name === g ? 700 : 500, cursor: 'pointer' }}>{g}</button>)}
+
+            {addStep === 0 ? <>
+              {/* Step 1: Basic info */}
+              <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>اسم الشخص *</div><input value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="مثال: محمد" style={sF} /></div>
+                <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>رقم الجوال (اختياري)</div><input value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} placeholder="05XXXXXXXX" style={{ ...sF, direction: 'ltr' }} /></div>
+                <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>المجموعة</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {['الإدارة', 'الموظفين'].map(g => <button key={g} onClick={() => setAddForm(p => ({ ...p, group_name: g }))} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid ' + (addForm.group_name === g ? 'rgba(201,168,76,.3)' : 'rgba(255,255,255,.06)'), background: addForm.group_name === g ? 'rgba(201,168,76,.1)' : 'transparent', color: addForm.group_name === g ? C.gold : 'var(--tx5)', fontFamily: F, fontSize: 12, fontWeight: addForm.group_name === g ? 700 : 500, cursor: 'pointer' }}>{g}</button>)}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'flex-start' }}>
-              <button onClick={addPerson} disabled={saving} style={{ height: 40, padding: '0 24px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>{saving ? '...' : T('إضافة', 'Add')}</button>
-            </div>
+              <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                <button onClick={addPerson} disabled={saving || !addForm.name.trim()} style={{ width: '100%', height: 44, borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving || !addForm.name.trim() ? .5 : 1 }}>{saving ? '...' : 'التالي — إعداد الجهاز'}</button>
+              </div>
+            </> : <>
+              {/* Step 2: Setup instructions */}
+              <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Success */}
+                <div style={{ padding: '14px', borderRadius: 10, background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.12)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.ok, marginBottom: 4 }}>تمت إضافة {createdPerson?.name} بنجاح</div>
+                  <div style={{ fontSize: 10, color: 'var(--tx5)' }}>اتبع الخطوات التالية لربط الجهاز</div>
+                </div>
+
+                {/* Step by step */}
+                {[
+                  { n: 1, title: 'حمّل التطبيق', desc: 'حمّل SMS Forwarder من Google Play على جوال ' + (createdPerson?.name || ''), action: <button onClick={() => window.open('https://play.google.com/store/apps/details?id=com.smsforwarder', '_blank')} style={{ height: 32, padding: '0 12px', borderRadius: 6, border: '1px solid rgba(52,131,180,.15)', background: 'rgba(52,131,180,.06)', color: C.blue, fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer', marginTop: 6 }}>فتح Google Play</button> },
+                  { n: 2, title: 'أضف قاعدة جديدة', desc: 'افتح التطبيق → اضغط + → اختر URL → ثم NEXT → NEXT' },
+                  { n: 3, title: 'الصق الرابط', desc: 'في حقل URL الصق الرابط التالي:', code: 'https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp' },
+                  { n: 4, title: 'إعداد القالب', desc: 'اضغط على أيقونة ⋮ بجانب الرابط ثم عدّل القوالب:', fields: [
+                    { label: 'Subject template', value: createdPerson?.device_key || '' },
+                    { label: 'Text template', value: '%s|||%m|||%d' }
+                  ]},
+                  { n: 5, title: 'فعّل التحويل', desc: 'اضغط Save ثم فعّل التحويل التلقائي من الشاشة الرئيسية' },
+                  { n: 6, title: 'اختبر', desc: 'أرسل رسالة تجريبية للجوال — المفروض تظهر هنا خلال 10 ثواني' }
+                ].map(step => (
+                  <div key={step.n} style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: C.gold, flexShrink: 0, marginTop: 2 }}>{step.n}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', marginBottom: 3 }}>{step.title}</div>
+                      <div style={{ fontSize: 10, color: 'var(--tx5)', lineHeight: 1.6 }}>{step.desc}</div>
+                      {step.code && (
+                        <div style={{ marginTop: 6, display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <code style={{ fontSize: 9, color: C.blue, background: 'rgba(52,131,180,.06)', padding: '6px 10px', borderRadius: 6, direction: 'ltr', wordBreak: 'break-all', flex: 1, border: '1px solid rgba(52,131,180,.1)' }}>{step.code}</code>
+                          <button onClick={() => { navigator.clipboard.writeText(step.code); toast && toast('تم النسخ') }} style={{ height: 30, padding: '0 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>نسخ</button>
+                        </div>
+                      )}
+                      {step.fields && step.fields.map((f2, i) => (
+                        <div key={i} style={{ marginTop: 6, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
+                          <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 3 }}>{f2.label}:</div>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <code style={{ fontSize: 10, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontWeight: 700 }}>{f2.value}</code>
+                            <button onClick={() => { navigator.clipboard.writeText(f2.value); toast && toast('تم النسخ') }} style={{ fontSize: 8, color: 'var(--tx5)', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontFamily: F, flexShrink: 0 }}>نسخ</button>
+                          </div>
+                        </div>
+                      ))}
+                      {step.action}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,.06)', position: 'sticky', bottom: 0, background: '#1a1a1a' }}>
+                <button onClick={closeAdd} style={{ width: '100%', height: 44, borderRadius: 10, border: '1px solid rgba(39,160,70,.2)', background: 'rgba(39,160,70,.1)', color: C.ok, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>تم — إغلاق</button>
+              </div>
+            </>}
           </div>
         </div>
       )}
