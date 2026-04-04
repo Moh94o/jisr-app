@@ -172,6 +172,7 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
   const tabComplete = [
     !!(f.name && f.iqama && f.iqamaExpiry && f.nationality && f.occupation),
     true,
+    true,
     true
   ]
 
@@ -186,17 +187,36 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
     </div>
   )
 
+  const tabs = [
+    { id: 'worker', title: 'بيانات العامل', Icon: User },
+    { id: 'transfer', title: 'بيانات النقل', Icon: ArrowLeftRight },
+    { id: 'pricing', title: 'التسعيرة', Icon: Calculator },
+    { id: 'review', title: 'مراجعة', Icon: CheckCircle2 }
+  ]
+
+  // Home screen header
+  const Header = () => (
+    <div dir="rtl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,.1)', flexShrink: 0, fontFamily: F }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {screen === 'form' && <button onClick={() => { setScreen('home'); setWorkerMode('new') }}
+          style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ChevronRight size={16} />
+        </button>}
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'rgba(255,255,255,.9)' }}>حسبة نقل الكفالة</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>
+            {screen === 'home' ? 'حساب تكاليف نقل خدمات العمال والرسوم الحكومية' : (workerMode === 'existing' ? 'عامل مسجّل' : 'عامل جديد') + (f.name ? ` — ${f.name}` : '')}
+          </div>
+        </div>
+      </div>
+      <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+    </div>
+  )
+
   if (screen === 'home') return (
     <ModalWrap>
+    <Header />
     <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 24 }}>
-      <div style={{ textAlign: 'center', marginBottom: 8 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(52,131,180,.1)', border: '1.5px solid rgba(52,131,180,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-          <ArrowLeftRight size={24} color={C.blue} />
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 800 }}>حسبة نقل الكفالة</div>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 6 }}>حساب تكاليف نقل خدمات العمال والرسوم الحكومية</div>
-      </div>
-
       <div style={{ display: 'flex', gap: 14, width: '100%', maxWidth: 500 }}>
         {[
           { mode: 'new', title: 'عامل جديد', desc: 'تسجيل بيانات عامل جديد', Icon: Plus },
@@ -235,32 +255,13 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
   // ═══════════════════════════════════════
   // SCREEN 2: FORM WITH TABS
   // ═══════════════════════════════════════
-  const tabs = [
-    { id: 'worker', title: 'بيانات العامل', Icon: User },
-    { id: 'procedures', title: 'الإجراءات', Icon: FileText },
-    { id: 'pricing', title: 'التسعيرة', Icon: Calculator }
-  ]
-
   return (
     <ModalWrap>
     <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* ═══ Header ═══ */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,.1)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => { setScreen('home'); setWorkerMode('new') }}
-            style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ChevronRight size={16} />
-          </button>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>حسبة نقل الكفالة</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>{workerMode === 'existing' ? 'عامل مسجّل' : 'عامل جديد'}{f.name && ` — ${f.name}`}</div>
-          </div>
-        </div>
-        <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
-      </div>
+      <Header />
 
       {/* ═══ Tab Bar ═══ */}
-      <div style={{ display: 'flex', gap: 0, border: '1px solid rgba(255,255,255,.04)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(255,255,255,.04)', flexShrink: 0 }}>
         {tabs.map((t, i) => {
           const active = tab === i
           const done = tabComplete[i] && i < tab
@@ -319,7 +320,7 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
       )}
 
       {/* ═══════════════════════════════════════ */}
-      {/* TAB 1: الإجراءات */}
+      {/* TAB 1: بيانات النقل */}
       {/* ═══════════════════════════════════════ */}
       {tab === 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -499,6 +500,65 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
         </div>
       )}
 
+      {/* ═══════════════════════════════════════ */}
+      {/* TAB 3: مراجعة */}
+      {/* ═══════════════════════════════════════ */}
+      {tab === 3 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Worker summary */}
+          <div style={{ padding: '16px 18px', borderRadius: 12, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.1)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.blue, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><User size={14} /> بيانات العامل</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[['الاسم', f.name], ['رقم الإقامة', f.iqama], ['الجنسية', f.nationality], ['المهنة', f.occupation], ['الجنس', f.gender], ['الوضع القانوني', f.legalStatus], ['انتهاء الإقامة', f.iqamaExpiry ? f.iqamaExpiry + (hijriExpiry ? ' — ' + hijriExpiry : '') : '—'], ['الجوال', f.phone || '—']].map(([l, v], i) => (
+                <div key={i} style={{ fontSize: 11 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>{l}: </span><span style={{ fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{v || '—'}</span></div>
+              ))}
+            </div>
+          </div>
+
+          {/* Transfer summary */}
+          <div style={{ padding: '16px 18px', borderRadius: 12, background: 'rgba(201,168,76,.04)', border: '1px solid rgba(201,168,76,.1)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><ArrowLeftRight size={14} /> بيانات النقل</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[['عدد مرات النقل', f.transferCount === '1' ? 'أول مرة' : f.transferCount === '2' ? 'ثاني مرة' : 'أكثر من مرتين'], ['أشهر التجديد', f.renewalMonths + ' شهر'], ['تعديل مهنة', f.changeProfession ? 'نعم — ' + (f.newOccupation || '') : 'لا'], ['فترة إشعار', f.hasNoticePeriod ? 'نعم' : 'لا'], ['موافقة صاحب العمل', f.employerConsent ? 'نعم' : 'لا'], ...(iqamaExpired ? [['غرامة التأخير', f.iqamaFineCount === '1' ? 'المرة الأولى — 500 ر.س' : 'المرة الثانية — 1,000 ر.س']] : [])].map(([l, v], i) => (
+                <div key={i} style={{ fontSize: 11 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>{l}: </span><span style={{ fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{v}</span></div>
+              ))}
+            </div>
+          </div>
+
+          {/* Cost summary */}
+          <div style={{ padding: '16px 18px', borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.1)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.ok, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Calculator size={14} /> ملخص التكاليف</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {[['رسوم نقل الكفالة', transferFee], ['تجديد الإقامة', iqamaRenewalFee], ...(iqamaFineFee > 0 ? [['غرامة التأخير', iqamaFineFee]] : []), ['رخصة العمل', workPermitFee], ...(profChangeFee > 0 ? [['تغيير المهنة', profChangeFee]] : []), ['التأمين الطبي', medicalFee], ['رسوم المكتب', officeFee], ...f.extras.map(ex => [ex.name, Number(ex.amount)])].map(([l, v], i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.03)', fontSize: 11 }}>
+                  <span style={{ color: 'rgba(255,255,255,.5)' }}>{l}</span>
+                  <span style={{ fontWeight: 700, color: 'rgba(255,255,255,.8)', direction: 'ltr' }}>{nm(v)} ر.س</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Grand total */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '18px', borderRadius: 14, background: 'linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.02))', border: '1.5px solid rgba(201,168,76,.15)' }}>
+            <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: C.red, marginBottom: 4 }}>إجمالي التكلفة</div><div style={{ fontSize: 26, fontWeight: 900, color: C.red }}>{nm(grandTotal)}</div></div>
+            <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: C.gold, marginBottom: 4 }}>المطلوب من العميل</div><input type="number" value={f.clientCharge||''} onChange={e=>set('clientCharge',e.target.value)} style={{ ...sF, height: 40, fontSize: 18, fontWeight: 800, color: C.gold, background: 'rgba(201,168,76,.08)', border: '1.5px solid rgba(201,168,76,.25)', textAlign: 'center' }} /></div>
+            <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: (Number(f.clientCharge||0) - grandTotal) >= 0 ? C.ok : C.red, marginBottom: 4 }}>الربح</div><div style={{ fontSize: 26, fontWeight: 900, color: (Number(f.clientCharge||0) - grandTotal) >= 0 ? C.ok : C.red }}>{nm(Number(f.clientCharge||0) - grandTotal)}</div></div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <Lbl>ملاحظات</Lbl>
+            <textarea value={f.notes||''} onChange={e=>set('notes',e.target.value)} rows={3} style={{ ...sF, height: 'auto', padding: 12, resize: 'vertical', textAlign: 'right' }} placeholder="ملاحظات إضافية..." />
+          </div>
+
+          {/* Save button */}
+          <button onClick={() => { toast && toast('تم حفظ الحسبة') }}
+            style={{ width: '100%', height: 48, borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,' + C.ok + ',' + C.ok + 'cc)', color: '#fff', fontFamily: F, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <CheckCircle2 size={18} /> حفظ وإصدار العرض
+          </button>
+        </div>
+      )}
+
       </div>{/* end scrollable */}
 
       {/* ═══ Footer Navigation ═══ */}
@@ -507,7 +567,7 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
           style={{ height: 42, padding: '0 18px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,.08)', background: 'transparent', color: 'rgba(255,255,255,.4)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           <ChevronRight size={14} /> {tab > 0 ? 'السابق' : 'رجوع'}
         </button>
-        {tab < 2 && (
+        {tab < 3 && (
           <button onClick={tryNextTab}
             style={{ height: 42, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             التالي <ChevronLeft size={14} />
