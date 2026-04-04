@@ -19,7 +19,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [filter, setFilter] = useState('all') // all | gov | bank | expired
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ name: '', phone: '', group_name: '' })
+  const [addForm, setAddForm] = useState({ name: '', name_en: '', phone: '', role: 'employee', default_senders: [] })
   const [saving, setSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(null)
   const [addStep, setAddStep] = useState(0)
@@ -106,12 +106,22 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const addPerson = async () => {
     if (!addForm.name.trim()) return
     setSaving(true)
-    const { data: created, error } = await sb.from('otp_persons').insert({ name: addForm.name, phone: addForm.phone || null, group_name: addForm.group_name || null }).select('*').single()
+    const groupMap = { admin: 'الإدارة', pro: 'الإدارة', employee: 'الموظفين' }
+    const { data: created, error } = await sb.from('otp_persons').insert({
+      name: addForm.name, name_en: addForm.name_en || null, phone: addForm.phone || null,
+      role: addForm.role, group_name: groupMap[addForm.role] || 'الموظفين',
+      default_senders: addForm.default_senders
+    }).select('*').single()
     if (error) toast && toast('خطأ: ' + error.message)
-    else { setCreatedPerson(created); setAddStep(1); load() }
+    else {
+      // Create default permission with selected senders
+      await sb.from('otp_permissions').insert({ person_id: created.id, allowed_senders: addForm.default_senders.length > 0 ? addForm.default_senders : ['*'] })
+      setCreatedPerson(created); setAddStep(1); load()
+    }
     setSaving(false)
   }
-  const closeAdd = () => { setShowAdd(false); setAddStep(0); setCreatedPerson(null); setAddForm({ name: '', phone: '', group_name: '' }) }
+  const closeAdd = () => { setShowAdd(false); setAddStep(0); setCreatedPerson(null); setAddForm({ name: '', name_en: '', phone: '', role: 'employee', default_senders: [] }); setSetupStep(0) }
+  const [setupStep, setSetupStep] = useState(0)
   const toggleActive = async (pid) => { const p = persons.find(x => x.id === pid); if (p) { await sb.from('otp_persons').update({ is_active: !p.is_active }).eq('id', pid); load() } }
   const deletePerson = async (id) => { if (!confirm(T('حذف؟', 'Delete?'))) return; await sb.from('otp_messages').delete().eq('person_id', id); await sb.from('otp_persons').delete().eq('id', id); if (selPerson === id) setSelPerson('all'); load() }
 
@@ -285,83 +295,148 @@ export default function OTPMessages({ sb, toast, user, lang }) {
           </div>
       }
 
-      {/* Add Person Modal — 2 steps */}
-      {showAdd && (
-        <div onClick={closeAdd} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 16, width: 'min(520px,94vw)', maxHeight: '90vh', overflow: 'auto', border: '1px solid rgba(201,168,76,.12)', direction: 'rtl', fontFamily: F }}>
+      {/* Add Person Modal */}
+      {showAdd && (()=>{
+        const SENDERS = [{k:'qiwa',l:'قوى'},{k:'nafath',l:'نفاذ'},{k:'absher',l:'أبشر'},{k:'moi',l:'داخلية'},{k:'mol',l:'وزارة العمل'},{k:'gosi',l:'GOSI'},{k:'muqeem',l:'مقيم'},{k:'tawakkalna',l:'توكلنا'}]
+        const ROLES = [{v:'admin',l:'مدير',desc:'صلاحيات كاملة',ic:'♛',c:C.gold},{v:'pro',l:'PRO',desc:'منصات حكومية',ic:'⚙',c:'#9b59b6'},{v:'employee',l:'موظف',desc:'عرض فقط',ic:'👤',c:C.blue}]
+        const setupSteps = [
+          {t:'حمّل التطبيق',d:'SMS Forwarder من Google Play'},
+          {t:'أضف قاعدة جديدة',d:'افتح + → اختر URL → NEXT → NEXT'},
+          {t:'الصق الرابط',d:'في حقل URL الصق الرابط التالي'},
+          {t:'إعداد القالب',d:'Subject + Text templates'},
+          {t:'فعّل التحويل',d:'Auto-forward → Save'},
+          {t:'اختبر',d:'أرسل رسالة تجريبية'}
+        ]
+        const toggleSender = (k) => setAddForm(p => ({ ...p, default_senders: p.default_senders.includes(k) ? p.default_senders.filter(s => s !== k) : [...p.default_senders, k] }))
+
+        return <div onClick={closeAdd} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 16, width: addStep === 0 ? 'min(480px,94vw)' : 'min(780px,96vw)', height: addStep === 0 ? 'auto' : 'min(600px,88vh)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.12)', direction: 'rtl', fontFamily: F }}>
             {/* Header */}
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#1a1a1a', zIndex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{addStep === 0 ? T('إضافة شخص جديد', 'Add New Person') : T('إعداد الجهاز', 'Device Setup')}</div>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{addStep === 0 ? T('إضافة شخص جديد', 'Add New Person') : T('إعداد جهاز ' + (createdPerson?.name || ''), 'Device Setup')}</div>
               <button onClick={closeAdd} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
 
             {addStep === 0 ? <>
-              {/* Step 1: Basic info */}
-              <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>اسم الشخص *</div><input value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="مثال: محمد" style={sF} /></div>
-                <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>رقم الجوال (اختياري)</div><input value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} placeholder="05XXXXXXXX" style={{ ...sF, direction: 'ltr' }} /></div>
-                <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>المجموعة</div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {['الإدارة', 'الموظفين'].map(g => <button key={g} onClick={() => setAddForm(p => ({ ...p, group_name: g }))} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid ' + (addForm.group_name === g ? 'rgba(201,168,76,.3)' : 'rgba(255,255,255,.06)'), background: addForm.group_name === g ? 'rgba(201,168,76,.1)' : 'transparent', color: addForm.group_name === g ? C.gold : 'var(--tx5)', fontFamily: F, fontSize: 12, fontWeight: addForm.group_name === g ? 700 : 500, cursor: 'pointer' }}>{g}</button>)}
+              {/* Step 1: Form */}
+              <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16, flex: 1, overflowY: 'auto' }}>
+                {/* Name fields: AR + EN */}
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>الاسم *</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: -8 }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>بالعربي</div>
+                    <input value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="محمد العمري" style={sF} />
                   </div>
-                </div>
-              </div>
-              <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
-                <button onClick={addPerson} disabled={saving || !addForm.name.trim()} style={{ width: '100%', height: 44, borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving || !addForm.name.trim() ? .5 : 1 }}>{saving ? '...' : 'التالي — إعداد الجهاز'}</button>
-              </div>
-            </> : <>
-              {/* Step 2: Setup instructions */}
-              <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {/* Success */}
-                <div style={{ padding: '14px', borderRadius: 10, background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.12)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.ok, marginBottom: 4 }}>تمت إضافة {createdPerson?.name} بنجاح</div>
-                  <div style={{ fontSize: 10, color: 'var(--tx5)' }}>اتبع الخطوات التالية لربط الجهاز</div>
+                  <div>
+                    <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4, direction: 'ltr', textAlign: 'left' }}>English — للأنظمة والمنصات</div>
+                    <input value={addForm.name_en} onChange={e => setAddForm(p => ({ ...p, name_en: e.target.value }))} placeholder="Mohammed Al-Omari" style={{ ...sF, direction: 'ltr', fontFamily: 'monospace', textAlign: 'left' }} />
+                  </div>
                 </div>
 
-                {/* Step by step */}
-                {[
-                  { n: 1, title: 'حمّل التطبيق', desc: 'حمّل SMS Forwarder من Google Play على جوال ' + (createdPerson?.name || ''), action: <button onClick={() => window.open('https://play.google.com/store/apps/details?id=com.smsforwarder', '_blank')} style={{ height: 32, padding: '0 12px', borderRadius: 6, border: '1px solid rgba(52,131,180,.15)', background: 'rgba(52,131,180,.06)', color: C.blue, fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer', marginTop: 6 }}>فتح Google Play</button> },
-                  { n: 2, title: 'أضف قاعدة جديدة', desc: 'افتح التطبيق → اضغط + → اختر URL → ثم NEXT → NEXT' },
-                  { n: 3, title: 'الصق الرابط', desc: 'في حقل URL الصق الرابط التالي:', code: 'https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp' },
-                  { n: 4, title: 'إعداد القالب', desc: 'اضغط على أيقونة ⋮ بجانب الرابط ثم عدّل القوالب:', fields: [
-                    { label: 'Subject template', value: createdPerson?.device_key || '' },
-                    { label: 'Text template', value: '%s|||%m|||%d' }
-                  ]},
-                  { n: 5, title: 'فعّل التحويل', desc: 'اضغط Save ثم فعّل التحويل التلقائي من الشاشة الرئيسية' },
-                  { n: 6, title: 'اختبر', desc: 'أرسل رسالة تجريبية للجوال — المفروض تظهر هنا خلال 10 ثواني' }
-                ].map(step => (
-                  <div key={step.n} style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: C.gold, flexShrink: 0, marginTop: 2 }}>{step.n}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', marginBottom: 3 }}>{step.title}</div>
-                      <div style={{ fontSize: 10, color: 'var(--tx5)', lineHeight: 1.6 }}>{step.desc}</div>
-                      {step.code && (
-                        <div style={{ marginTop: 6, display: 'flex', gap: 4, alignItems: 'center' }}>
-                          <code style={{ fontSize: 9, color: C.blue, background: 'rgba(52,131,180,.06)', padding: '6px 10px', borderRadius: 6, direction: 'ltr', wordBreak: 'break-all', flex: 1, border: '1px solid rgba(52,131,180,.1)' }}>{step.code}</code>
-                          <button onClick={() => { navigator.clipboard.writeText(step.code); toast && toast('تم النسخ') }} style={{ height: 30, padding: '0 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>نسخ</button>
-                        </div>
-                      )}
-                      {step.fields && step.fields.map((f2, i) => (
-                        <div key={i} style={{ marginTop: 6, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
-                          <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 3 }}>{f2.label}:</div>
-                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                            <code style={{ fontSize: 10, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontWeight: 700 }}>{f2.value}</code>
-                            <button onClick={() => { navigator.clipboard.writeText(f2.value); toast && toast('تم النسخ') }} style={{ fontSize: 8, color: 'var(--tx5)', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontFamily: F, flexShrink: 0 }}>نسخ</button>
-                          </div>
-                        </div>
-                      ))}
-                      {step.action}
+                {/* Role selector */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 8 }}>الدور</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    {ROLES.map(r => (
+                      <button key={r.v} onClick={() => setAddForm(p => ({ ...p, role: r.v }))} style={{ padding: '14px 10px', borderRadius: 10, border: '1.5px solid ' + (addForm.role === r.v ? (r.c || C.gold) + '40' : 'rgba(255,255,255,.06)'), background: addForm.role === r.v ? (r.c || C.gold) + '08' : 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: F, transition: '.15s' }}>
+                        <div style={{ fontSize: 22, marginBottom: 6 }}>{r.ic}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: addForm.role === r.v ? (r.c || C.gold) : 'var(--tx3)' }}>{r.l}</div>
+                        <div style={{ fontSize: 9, color: addForm.role === r.v ? (r.c || C.gold) : 'var(--tx6)', marginTop: 2 }}>{r.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>رقم الجوال <span style={{ fontSize: 9, color: 'var(--tx6)' }}>(اختياري)</span></div>
+                  <input value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} placeholder="05XXXXXXXX" style={{ ...sF, direction: 'ltr' }} />
+                </div>
+
+                {/* Default senders */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 8 }}>يستقبل OTP من:</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {SENDERS.map(s => (
+                      <button key={s.k} onClick={() => toggleSender(s.k)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: addForm.default_senders.includes(s.k) ? 700 : 500, color: addForm.default_senders.includes(s.k) ? C.ok : 'var(--tx5)', background: addForm.default_senders.includes(s.k) ? 'rgba(39,160,70,.08)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (addForm.default_senders.includes(s.k) ? 'rgba(39,160,70,.15)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>{s.l}</button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 9, color: 'var(--tx6)', marginTop: 6 }}>يمكن تعديلها لاحقاً من إعدادات الشخص</div>
+                </div>
+              </div>
+              <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button onClick={closeAdd} style={{ height: 44, padding: '0 18px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,.08)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
+                <button onClick={addPerson} disabled={saving || !addForm.name.trim()} style={{ flex: 1, height: 44, borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving || !addForm.name.trim() ? .5 : 1 }}>{saving ? '...' : 'التالي — إعداد الجهاز'}</button>
+              </div>
+
+            </> : <>
+              {/* Step 2: Setup — grid layout */}
+              <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                {/* Main content */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Success banner */}
+                  <div style={{ padding: '12px', borderRadius: 10, background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.12)', textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.ok }}>تمت إضافة {createdPerson?.name} بنجاح</div>
+                    <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 2 }}>اتبع الخطوات الجانبية — الخطوات 1-2 مكتملة</div>
+                  </div>
+
+                  {/* Active step content */}
+                  {setupStep <= 1 && <div style={{ padding: '16px', borderRadius: 12, background: 'rgba(201,168,76,.03)', border: '1px solid rgba(201,168,76,.08)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 8 }}>الصق الرابط</div>
+                    <div style={{ fontSize: 10, color: 'var(--tx5)', marginBottom: 8 }}>في حقل URL الصق الرابط التالي:</div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <code style={{ fontSize: 9, color: C.blue, background: 'rgba(52,131,180,.06)', padding: '8px 12px', borderRadius: 8, direction: 'ltr', wordBreak: 'break-all', flex: 1, border: '1px solid rgba(52,131,180,.1)' }}>https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp</code>
+                      <button onClick={() => { navigator.clipboard.writeText('https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/receive-otp'); toast && toast('تم النسخ'); setSetupStep(Math.max(setupStep, 2)) }} style={{ height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'var(--tx3)', fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>نسخ</button>
+                    </div>
+                  </div>}
+
+                  <div style={{ padding: '16px', borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 10 }}>إعداد القالب</div>
+                    {[{ label: 'Subject', value: createdPerson?.device_key || '' }, { label: 'Text', value: '%s|||%m|||%d' }].map((f2, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)' }}>
+                        <span style={{ fontSize: 10, color: 'var(--tx5)', width: 50, flexShrink: 0 }}>{f2.label}</span>
+                        <code style={{ fontSize: 10, color: C.gold, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontWeight: 600 }}>{f2.value}</code>
+                        <button onClick={() => { navigator.clipboard.writeText(f2.value); toast && toast('تم النسخ'); setSetupStep(Math.max(setupStep, 3)) }} style={{ height: 30, padding: '0 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'var(--tx4)', fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>نسخ</button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ padding: '12px', borderRadius: 10, background: 'rgba(255,255,255,.015)', border: '1px solid rgba(255,255,255,.04)', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: 'var(--tx5)', marginBottom: 6 }}>بعد الإعداد اضغط للتحقق</div>
+                    <button onClick={() => { setSetupStep(5); toast && toast('اختبر بإرسال رسالة للجوال') }} style={{ height: 36, padding: '0 20px', borderRadius: 8, border: '1px solid rgba(39,160,70,.2)', background: 'rgba(39,160,70,.08)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>اختبر الاتصال</button>
+                  </div>
+                </div>
+
+                {/* Side panel — steps */}
+                <div style={{ width: 220, background: 'rgba(255,255,255,.015)', borderRight: '1px solid rgba(255,255,255,.04)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 0, flexShrink: 0, overflowY: 'auto' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', marginBottom: 12 }}>خطوات الإعداد</div>
+                  {setupSteps.map((s, i) => {
+                    const done = i < 2 || i <= setupStep
+                    const active = i === Math.min(setupStep, 5)
+                    return <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.03)' }}>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: done ? 'rgba(39,160,70,.12)' : active ? 'rgba(201,168,76,.1)' : 'rgba(255,255,255,.04)', border: '1.5px solid ' + (done ? C.ok : active ? C.gold : 'rgba(255,255,255,.08)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: done ? C.ok : active ? C.gold : 'var(--tx6)', flexShrink: 0 }}>{done ? '✓' : i + 1}</div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: done || active ? 700 : 500, color: done ? C.ok : active ? C.gold : 'var(--tx5)' }}>{s.t}</div>
+                        <div style={{ fontSize: 8, color: 'var(--tx6)' }}>{s.d}</div>
+                      </div>
+                    </div>
+                  })}
+                  {/* Progress bar */}
+                  <div style={{ marginTop: 'auto', paddingTop: 12 }}>
+                    <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>الخطوة {Math.min(setupStep + 1, 6)} من 6</div>
+                    <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
+                      <div style={{ width: Math.min((setupStep + 1) / 6 * 100, 100) + '%', height: '100%', borderRadius: 2, background: C.ok, transition: '.3s' }} />
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
-              <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,.06)', position: 'sticky', bottom: 0, background: '#1a1a1a' }}>
-                <button onClick={closeAdd} style={{ width: '100%', height: 44, borderRadius: 10, border: '1px solid rgba(39,160,70,.2)', background: 'rgba(39,160,70,.1)', color: C.ok, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>تم — إغلاق</button>
+              <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
+                <button onClick={closeAdd} style={{ width: '100%', height: 42, borderRadius: 10, border: '1px solid rgba(39,160,70,.2)', background: 'rgba(39,160,70,.08)', color: C.ok, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>تم — إغلاق</button>
               </div>
             </>}
           </div>
         </div>
-      )}
+      })()}
     </div>
   )
 }
