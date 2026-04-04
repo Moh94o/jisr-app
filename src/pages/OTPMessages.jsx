@@ -359,12 +359,18 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             // Jawazat: نقل كفالة
                             const isJawazat = /تم نقل|هوية إقامته|صاحب العمل/i.test(body)
                             if (isJawazat) {
+                              const nameM2 = body.match(/تم نقل\s+(.+?)\s+رقم/i)
                               const iqM = body.match(/إقامته\s+(\d+\*+)/i)
-                              const empM = body.match(/صاحب العمل.*?(\d+\*+)/i)
-                              return <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'rtl' }}>
-                                <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(52,131,180,.1)', color: C.blue, border: '1px solid rgba(52,131,180,.15)' }}>نقل خدمات</span>
-                                {iqM && <span style={{ fontSize: 11, color: 'var(--tx3)' }}>إقامة: {iqM[1]}</span>}
-                                {empM && <span style={{ fontSize: 11, color: 'var(--tx4)' }}>← صاحب العمل: {empM[1]}</span>}
+                              const empM = body.match(/صاحب العمل.*?رقم\s*(\d+\*+)/i) || body.match(/صاحب العمل.*?(\d+\*+)/i)
+                              return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, direction: 'rtl' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: 'rgba(52,131,180,.1)', color: C.blue, border: '1px solid rgba(52,131,180,.15)' }}>نقل خدمات</span>
+                                  {nameM2 && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{nameM2[1]}</span>}
+                                </div>
+                                <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--tx4)' }}>
+                                  {iqM && <span>رقم الإقامة: {iqM[1]}</span>}
+                                  {empM && <span>رقم هوية صاحب العمل: {empM[1]}</span>}
+                                </div>
                               </div>
                             }
                             // Efaa: مخالفة
