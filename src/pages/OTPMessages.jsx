@@ -67,9 +67,15 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   }, [sb, messages.length])
 
   // Helpers
-  const getTimeLeft = (r) => { if (!r) return -1; return OTP_TTL - Math.floor((now - new Date(r).getTime()) / 1000) }
-  const fmtTime = (s) => { if (s <= 0) return ''; return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
-  const isExp = (m) => m.otp_code && getTimeLeft(m.received_at) <= 0
+  const getTimeLeft = (r) => {
+    if (!r) return -1
+    // Use created_at as fallback (always set by Supabase with correct timezone)
+    const t = new Date(r).getTime()
+    if (isNaN(t)) return -1
+    return OTP_TTL - Math.floor((now - t) / 1000)
+  }
+  const fmtTime = (s) => { if (s <= 0) return ''; return `0:${String(Math.min(s, 59)).padStart(2, '0')}` }
+  const isExp = (m) => m.otp_code && getTimeLeft(m.created_at || m.received_at) <= 0
 
   // Message category detection
   const detectMsgCat = (m) => {
@@ -99,13 +105,14 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const absherCount = messages.filter(m => (m.phone_from || '').toLowerCase().includes('absher')).length
   const expCount = messages.filter(m => isExp(m)).length
 
-  const copyCode = (code, msg) => {
+  const copyCode = async (code, msg) => {
     navigator.clipboard.writeText(code); toast && toast(T('تم نسخ الرمز', 'Copied'))
     const copyName = user?.name_ar || 'مستخدم'
-    // Save copied_by in message (persistent)
-    if (msg?.id) sb.from('otp_messages').update({ copied_by: copyName }).eq('id', msg.id)
-    setMessages(prev => prev.map(x => x.id === msg?.id ? { ...x, copied_by: copyName } : x))
-    // Log the copy
+    // Count copies for this message
+    const currentCount = parseInt(msg?.copy_count || 0) + 1
+    const copyInfo = copyName + (currentCount > 1 ? ` (${currentCount})` : '')
+    if (msg?.id) await sb.from('otp_messages').update({ copied_by: copyInfo, copy_count: currentCount }).eq('id', msg.id)
+    setMessages(prev => prev.map(x => x.id === msg?.id ? { ...x, copied_by: copyInfo, copy_count: currentCount } : x))
     sb.from('otp_copy_log').insert({ message_id: msg?.id || null, user_id: user?.id || null, user_name: copyName, otp_code: code, person_name: msg?.person_name || null, sender: msg?.phone_from || null })
   }
 
@@ -202,6 +209,17 @@ export default function OTPMessages({ sb, toast, user, lang }) {
         </div>
       </div>
 
+      {/* Status warnings */}
+      {(()=>{
+        const disabledPersons = persons.filter(p => !p.is_active)
+        const partialPersons = persons.filter(p => p.is_active && (p.disabled_senders || []).length > 0)
+        if (disabledPersons.length === 0 && partialPersons.length === 0) return null
+        return <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+          {disabledPersons.length > 0 && <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: 'rgba(230,126,34,.06)', border: '1px solid rgba(230,126,34,.1)', color: '#e67e22' }}>⏸ معطّل كلياً: {disabledPersons.map(p => p.name).join('، ')}</span>}
+          {partialPersons.map(p => <span key={p.id} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: 'rgba(230,126,34,.04)', border: '1px solid rgba(230,126,34,.08)', color: '#e67e22' }}>{p.name}: {(p.disabled_senders||[]).length} جهة معطّلة</span>)}
+        </div>
+      })()}
+
       {/* Person tabs first */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
         <button onClick={() => setSelPerson('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: selPerson === 'all' ? 700 : 500, color: selPerson === 'all' ? C.gold : 'rgba(255,255,255,.3)', background: selPerson === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: '1px solid ' + (selPerson === 'all' ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.06)'), cursor: 'pointer', fontFamily: F }}>الكل</button>
@@ -224,7 +242,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filtered.map(m => {
               const svc = detectService(m.phone_from)
-              const tl = m.otp_code ? getTimeLeft(m.received_at) : -1
+              const tl = m.otp_code ? getTimeLeft(m.created_at || m.received_at) : -1
               const exp = tl <= 0 && m.otp_code
               const expClr = tl > 30 ? C.ok : tl > 15 ? '#e67e22' : C.red
               const person = persons.find(p => p.id === m.person_id)
@@ -251,7 +269,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     <div style={{ flex: 1 }} />
                     {/* Time + countdown — LEFT */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      <span style={{ fontSize: 10, color: 'var(--tx6)' }}>{m.received_at ? new Date(m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>
+                      <span style={{ fontSize: 10, color: 'var(--tx6)' }}>{(m.created_at || m.received_at) ? new Date(m.created_at || m.received_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>
                       {m.otp_code && tl > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: expClr + '12', color: expClr, border: '1px solid ' + expClr + '20' }}>ينتهي خلال {fmtTime(tl)}</span>}
                       {exp && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(192,57,43,.08)', color: C.red }}>انتهت الصلاحية</span>}
                     </div>
@@ -362,15 +380,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 <code style={{ flex: 1, fontSize: 13, color: C.gold, fontWeight: 800, direction: 'ltr', textAlign: 'center' }}>%s|||%m|||%d</code>
                 <button onClick={() => { navigator.clipboard.writeText('%s|||%m|||%d'); toast && toast('تم') }} style={{ fontSize: 10, padding: '5px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>نسخ</button>
               </div>
-              {/* JSON format */}
-              <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', marginTop: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tx4)' }}>صيغة JSON (للربط المتقدم)</span>
-                  <button onClick={() => { navigator.clipboard.writeText('{"device_key":"[KEY]","message":"%m","sender":"%s","timestamp":"%d"}'); toast && toast('تم') }} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'var(--tx5)', cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>نسخ</button>
-                </div>
-                <pre style={{ fontSize: 9, color: C.ok, direction: 'ltr', textAlign: 'left', margin: 0, fontFamily: 'monospace', lineHeight: 1.8, background: 'rgba(0,0,0,.2)', padding: '8px 10px', borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{'{\n  "device_key": "[KEY]",\n  "message": "%m",\n  "sender": "%s",\n  "timestamp": "%d"\n}'}</pre>
-                <div style={{ fontSize: 8, color: 'var(--tx6)', marginTop: 4 }}>استبدل [KEY] بمفتاح الجهاز الخاص بالشخص</div>
-              </div>
+              {/* JSON format — compact button */}
+              <button onClick={() => { navigator.clipboard.writeText('{"device_key":"[KEY]","message":"%m","sender":"%s","timestamp":"%d"}'); toast && toast('تم نسخ JSON') }} style={{ width: '100%', height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', color: 'var(--tx5)', fontFamily: F, fontSize: 9, fontWeight: 600, cursor: 'pointer', marginTop: 6 }}>نسخ صيغة JSON</button>
             </div>
 
             {/* Persons list */}
@@ -436,11 +447,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 10, padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>نسخ</button>
                       </div>
                       <code style={{ fontSize: 11, color: C.gold, direction: 'ltr', display: 'block', textAlign: 'left', wordBreak: 'break-all', fontWeight: 700, marginBottom: 6 }}>{p.device_key}</code>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
-                        <div style={{ fontSize: 8, color: 'var(--tx6)', flexShrink: 0, marginTop: 2 }}>JSON:</div>
-                        <code style={{ fontSize: 8, color: C.ok, direction: 'ltr', flex: 1, wordBreak: 'break-all', fontFamily: 'monospace', background: 'rgba(0,0,0,.2)', padding: '4px 6px', borderRadius: 4, lineHeight: 1.5 }}>{`{"device_key":"${p.device_key}","message":"%m","sender":"%s","timestamp":"%d"}`}</code>
-                        <button onClick={() => { navigator.clipboard.writeText(`{"device_key":"${p.device_key}","message":"%m","sender":"%s","timestamp":"%d"}`); toast && toast('تم') }} style={{ fontSize: 8, padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(39,160,70,.1)', background: 'rgba(39,160,70,.04)', color: C.ok, cursor: 'pointer', fontFamily: F, flexShrink: 0 }}>نسخ</button>
-                      </div>
+                      <button onClick={() => { navigator.clipboard.writeText(`{"device_key":"${p.device_key}","message":"%m","sender":"%s","timestamp":"%d"}`); toast && toast('تم نسخ JSON') }} style={{ width: '100%', height: 26, borderRadius: 5, border: '1px solid rgba(39,160,70,.08)', background: 'rgba(39,160,70,.03)', color: C.ok, fontFamily: F, fontSize: 8, fontWeight: 600, cursor: 'pointer' }}>نسخ JSON</button>
                     </div>
 
                     {/* Person sender controls: enable/disable senders */}
