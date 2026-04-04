@@ -32,6 +32,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [showSetupDrawer, setShowSetupDrawer] = useState(false)
   const [drawerPerson, setDrawerPerson] = useState(null)
   const [drawerSenders, setDrawerSenders] = useState([])
+  const [copyLog, setCopyLog] = useState([])
+  const [showCopyLog, setShowCopyLog] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null) // message id to delete
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
@@ -77,7 +79,18 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const absherCount = messages.filter(m => (m.phone_from || '').toLowerCase().includes('absher')).length
   const expCount = messages.filter(m => isExp(m)).length
 
-  const copyCode = (code) => { navigator.clipboard.writeText(code); toast && toast(T('تم نسخ الرمز', 'Copied')) }
+  const copyCode = (code, msg) => {
+    navigator.clipboard.writeText(code); toast && toast(T('تم نسخ الرمز', 'Copied'))
+    // Log the copy
+    sb.from('otp_copy_log').insert({
+      message_id: msg?.id || null,
+      user_id: user?.id || null,
+      user_name: user?.name_ar || null,
+      otp_code: code,
+      person_name: msg?.person_name || null,
+      sender: msg?.phone_from || null
+    })
+  }
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return
@@ -229,13 +242,14 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       {/* Actions LEFT */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
-                        {!exp && <button onClick={() => copyCode(m.otp_code)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(39,160,70,.15)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>}
+                        {!exp && <button onClick={() => copyCode(m.otp_code, m)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(39,160,70,.15)', background: 'rgba(39,160,70,.06)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>}
                       </div>
                       {/* Code RIGHT */}
                       <div style={{ display: 'flex', gap: 4, direction: 'ltr' }}>
-                        {m.otp_code.split('').map((d, i) => (
-                          <div key={i} style={{ width: 36, height: 44, borderRadius: 8, background: exp ? 'rgba(255,255,255,.03)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (exp ? 'rgba(255,255,255,.06)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: exp ? 'var(--tx6)' : C.ok, fontFamily: 'monospace' }}>{d}</div>
-                        ))}
+                        {m.otp_code.split('').map((d, i, arr) => {
+                          const hidden = !exp && i >= arr.length - 2
+                          return <div key={i} style={{ width: 36, height: 44, borderRadius: 8, background: exp ? 'rgba(255,255,255,.03)' : hidden ? 'rgba(201,168,76,.08)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (exp ? 'rgba(255,255,255,.06)' : hidden ? 'rgba(201,168,76,.15)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: exp ? 'var(--tx6)' : hidden ? C.gold : C.ok, fontFamily: 'monospace' }}>{exp ? d : hidden ? '?' : d}</div>
+                        })}
                       </div>
                     </> : <>
                       <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>×</button>
@@ -327,6 +341,26 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             </div>
 
             {/* Persons list */}
+            {/* Copy log button */}
+            <button onClick={() => { setShowCopyLog(!showCopyLog); if (!showCopyLog) sb.from('otp_copy_log').select('*').order('copied_at', { ascending: false }).limit(50).then(({ data }) => setCopyLog(data || [])) }} style={{ width: '100%', height: 36, borderRadius: 8, border: '1px solid rgba(155,89,182,.12)', background: showCopyLog ? 'rgba(155,89,182,.08)' : 'rgba(155,89,182,.03)', color: '#9b59b6', fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>سجل النسخ {showCopyLog ? '▾' : '▸'}</button>
+
+            {showCopyLog && <div style={{ marginBottom: 14, maxHeight: 200, overflowY: 'auto' }}>
+              {copyLog.length === 0 ? <div style={{ textAlign: 'center', padding: 16, color: 'var(--tx6)', fontSize: 10 }}>لا يوجد سجلات</div> :
+                copyLog.map(l => (
+                  <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.03)', marginBottom: 3 }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tx)' }}>{l.user_name || '—'}</div>
+                      <div style={{ fontSize: 8, color: 'var(--tx6)' }}>{l.person_name} · {l.sender}</div>
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <code style={{ fontSize: 11, fontWeight: 800, color: C.ok, direction: 'ltr' }}>{l.otp_code}</code>
+                      <div style={{ fontSize: 7, color: 'var(--tx6)' }}>{l.copied_at ? new Date(l.copied_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>}
+
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tx4)', marginBottom: 8 }}>الأشخاص ({persons.length})</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {persons.map(p => {
