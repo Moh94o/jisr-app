@@ -323,11 +323,8 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
       {/* TAB 0: بيانات العامل */}
       {/* ═══════════════════════════════════════ */}
       {tab === 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* ── هوية العامل ── */}
-          <div>
-            <div style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:6}}>— هوية العامل —</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div><Lbl req>اسم العامل</Lbl><Inp value={f.name} onChange={v => set('name', v)} /><Err k="name"/></div>
               <div><Lbl req>رقم الإقامة</Lbl><Inp value={f.iqama} onChange={v => set('iqama', v.replace(/\D/g,''))} dir="ltr" maxLength={10} /><Err k="iqama"/></div>
               <div><Lbl req>الجنسية</Lbl><Sel value={f.nationality} onChange={v => set('nationality', v)} options={NATIONALITIES} /><Err k="nationality"/></div>
@@ -352,39 +349,14 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
                 {iqamaExpired && <div style={{ fontSize: 10, color: C.red, marginTop: 4, padding: '4px 10px', borderRadius: 6, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.12)', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={10} /> الإقامة منتهية منذ {expiredDays} يوم — سيتم احتساب غرامة التأخير</div>}
                 <Err k="iqamaExpiry"/>
               </div>
+            <div><Lbl>تاريخ الميلاد</Lbl><DateInp value={f.dob} onChange={v => set('dob', v)} /></div>
+            <div><Lbl>الجنس</Lbl>
+              <ToggleGroup value={f.gender} onChange={v => set('gender', v)} options={[
+                { v: 'ذكر', l: 'ذكر', c: C.blue }, { v: 'أنثى', l: 'أنثى', c: '#9b59b6' }
+              ]} />
             </div>
-          </div>
-
-          {/* ── البيانات الشخصية ── */}
-          <div>
-            <div style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:6}}>— البيانات الشخصية —</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <div><Lbl>تاريخ الميلاد</Lbl><DateInp value={f.dob} onChange={v => set('dob', v)} /></div>
-              <div><Lbl>الجنس</Lbl>
-                <ToggleGroup value={f.gender} onChange={v => set('gender', v)} options={[
-                  { v: 'ذكر', l: 'ذكر', c: C.blue }, { v: 'أنثى', l: 'أنثى', c: '#9b59b6' }
-                ]} />
-              </div>
-            </div>
-          </div>
-
-          {/* ── مهنة + تواصل ── */}
-          <div>
-            <div style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:6}}>— مهنة + تواصل —</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <div><Lbl req>المهنة الحالية</Lbl><Sel value={f.occupation} onChange={v => set('occupation', v)} options={OCCUPATIONS} /><Err k="occupation"/></div>
-              <div><Lbl>رقم الجوال</Lbl><Inp value={f.phone} onChange={v => set('phone', v)} dir="ltr" /></div>
-            </div>
-          </div>
-
-          {/* ── الوضع القانوني ── */}
-          <div>
-            <div style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.3)',marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:6}}>— الوضع القانوني —</div>
-            <ToggleGroup value={f.legalStatus} onChange={v => set('legalStatus', v)} options={[
-              { v: 'نظامي', l: 'نظامي', c: C.ok },
-              { v: 'غير نظامي', l: 'غير نظامي', c: '#e67e22' },
-              { v: 'هارب', l: 'هارب', c: C.red }
-            ]} />
+            <div><Lbl req>المهنة الحالية</Lbl><Sel value={f.occupation} onChange={v => set('occupation', v)} options={OCCUPATIONS} /><Err k="occupation"/></div>
+            <div><Lbl>رقم الجوال</Lbl><Inp value={f.phone} onChange={v => set('phone', v)} dir="ltr" /></div>
           </div>
         </div>
       )}
@@ -394,6 +366,14 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
       {/* ═══════════════════════════════════════ */}
       {tab === 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* حالة العامل القانونية */}
+          <div>
+            <Lbl req>حالة العامل القانونية</Lbl>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[{v:'صالح',l:'صالح',c:C.ok},{v:'متغيب عن العمل',l:'متغيب عن العمل',c:'#e67e22'},{v:'منقطع عن العمل',l:'منقطع عن العمل',c:C.red},{v:'خروج نهائي',l:'خروج نهائي',c:C.blue}].map(o=><button key={o.v} onClick={()=>set('legalStatus',o.v)} style={{height:44,borderRadius:10,border:'1.5px solid '+(f.legalStatus===o.v?(o.c||C.gold)+'40':'rgba(255,255,255,.08)'),background:f.legalStatus===o.v?(o.c||C.gold)+'12':'rgba(255,255,255,.02)',color:f.legalStatus===o.v?(o.c||C.gold):'rgba(255,255,255,.35)',fontFamily:F,fontSize:12,fontWeight:f.legalStatus===o.v?700:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,transition:'.2s'}}>{o.l}</button>)}
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <Lbl>هل يطلب تعديل المهنة؟</Lbl>
