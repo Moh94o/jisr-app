@@ -59,7 +59,7 @@ const[data,setData]=useState([]);const[owners,setOwners]=useState([]);const[subs
 const[branches,setBranches]=useState([]);const[regions,setRegions]=useState([]);const[cities,setCities]=useState([])
 const[loading,setLoading]=useState(false);const[q,setQ]=useState('');const[statusFilter,setStatusFilter]=useState('all');const[sortBy,setSortBy]=useState('created_at');const[nitaqatFilter,setNitaqatFilter]=useState('all')
 const[page,setPage]=useState(0);const[viewRow,setViewRow]=useState(null);const[viewTab,setViewTab]=useState('basic')
-const[wizard,setWizard]=useState(null);const[saving,setSaving]=useState(false);const[ownerMode,setOwnerMode]=useState('existing');const[newOwner,setNewOwner]=useState({name_ar:'',name_en:'',id_type:'national_id',id_number:'',nationality:'سعودي',gender:'male',mobile_personal:'',email:'',date_of_birth:''});const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[actionMenu,setActionMenu]=useState(null);const[menuPos,setMenuPos]=useState({x:0,y:0});const[showAdvSearch,setShowAdvSearch]=useState(false);const[visaFilter,setVisaFilter]=useState('all');const[facWorkersData,setFacWorkersData]=useState([]);const[facWorkersLoading,setFacWorkersLoading]=useState(false);const[facDocs,setFacDocs]=useState([]);const[docFilter,setDocFilter]=useState('all');const[facDebts,setFacDebts]=useState([]);const[facViolations,setFacViolations]=useState([]);const[violationFilter,setViolationFilter]=useState('all');const[advFilters,setAdvFilters]=useState({cr_number:'',owner:'',region:'',city:'',gosi_status:'',vat_status:'',mlsd_status:'',mudad_status:'',facility_status:'',nitaqat:''})
+const[wizard,setWizard]=useState(null);const[saving,setSaving]=useState(false);const[ownerMode,setOwnerMode]=useState('existing');const[newOwner,setNewOwner]=useState({name_ar:'',name_en:'',id_type:'national_id',id_number:'',nationality:'سعودي',gender:'male',mobile_personal:'',email:'',date_of_birth:''});const[wizPartners,setWizPartners]=useState([]);const[partnerAdd,setPartnerAdd]=useState(null);const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[actionMenu,setActionMenu]=useState(null);const[menuPos,setMenuPos]=useState({x:0,y:0});const[showAdvSearch,setShowAdvSearch]=useState(false);const[visaFilter,setVisaFilter]=useState('all');const[facWorkersData,setFacWorkersData]=useState([]);const[facWorkersLoading,setFacWorkersLoading]=useState(false);const[facDocs,setFacDocs]=useState([]);const[docFilter,setDocFilter]=useState('all');const[facDebts,setFacDebts]=useState([]);const[facViolations,setFacViolations]=useState([]);const[violationFilter,setViolationFilter]=useState('all');const[advFilters,setAdvFilters]=useState({cr_number:'',owner:'',region:'',city:'',gosi_status:'',vat_status:'',mlsd_status:'',mudad_status:'',facility_status:'',nitaqat:''})
 const PER_PAGE=15
 useEffect(()=>{onTabChange&&onTabChange({tab})},[tab])
 
@@ -193,7 +193,10 @@ const saveWizard=async()=>{setSaving(true);try{const d={...wizard.data};Object.k
 if(ownerMode==='new'&&!wizard.editId&&newOwner.name_ar){const ownerData={...newOwner};Object.keys(ownerData).forEach(k=>{if(ownerData[k]==='')ownerData[k]=null});ownerData.created_by=user?.id;const{data:createdOwner,error:ownerErr}=await sb.from('owners').insert(ownerData).select('id').single();if(ownerErr)throw ownerErr;d.owner_id=createdOwner.id;if(!d.gosi_owner_id)d.gosi_owner_id=createdOwner.id}
 // Auto calc cr_expiry_date
 if(d.cr_confirm_date&&!wizard.data.cr_expiry_date){const dt=new Date(d.cr_confirm_date);dt.setDate(dt.getDate()+90);d.cr_expiry_date=dt.toISOString().split('T')[0]}
-if(wizard.editId){d.updated_by=user?.id;const{error}=await sb.from('facilities').update(d).eq('id',wizard.editId);if(error)throw error;toast(T('تم التعديل','Updated'))}else{d.created_by=user?.id;const{error}=await sb.from('facilities').insert(d);if(error)throw error;toast(T('تمت الإضافة','Added'))};setWizard(null);load()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
+if(wizard.editId){d.updated_by=user?.id;const{error}=await sb.from('facilities').update(d).eq('id',wizard.editId);if(error)throw error;toast(T('تم التعديل','Updated'))}else{d.created_by=user?.id;const{data:newFac,error}=await sb.from('facilities').insert(d).select('id').single();if(error)throw error;
+// Save partners
+if(wizPartners.length>0&&newFac){for(const p of wizPartners){const row={facility_id:newFac.id,partner_type:p.partner_type,ownership_percentage:Number(p.percentage)||0,is_manager:p.is_manager||false,status:'active',created_by:user?.id};if(p.partner_type==='person')row.owner_id=p.owner_id;else row.owner_facility_id=p.facility_id;await sb.from('facility_partners').insert(row)}}
+toast(T('تمت الإضافة','Added'))};setWizPartners([]);setWizard(null);load()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
 
 // View data
 const facSubs=viewRow?subs.filter(s=>s.facility_id===viewRow.id):[]
@@ -871,37 +874,81 @@ cats.map(cat=>{const catDocs=filteredDocs.filter(d=>d.category===cat);if(!catDoc
 
 {/* Custom owner step */}
 {wizardSteps[wizard.step].custom==='owner'?<div>
-{/* Toggle: existing / new */}
-<div style={{display:'flex',gap:0,marginBottom:20,borderRadius:10,overflow:'hidden',border:'1.5px solid rgba(201,168,76,.2)'}}>
-{[{v:'existing',l:T('مالك موجود','Existing Owner'),ic:'👤'},{v:'new',l:T('مالك جديد','New Owner'),ic:'＋'}].map(o=><button key={o.v} onClick={()=>setOwnerMode(o.v)} style={{flex:1,height:44,border:'none',background:ownerMode===o.v?'rgba(201,168,76,.12)':'rgba(255,255,255,.02)',color:ownerMode===o.v?C.gold:'var(--tx5)',fontFamily:F,fontSize:13,fontWeight:ownerMode===o.v?700:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,transition:'.2s'}}>{o.ic} {o.l}</button>)}
+
+{/* ═══ Partners list ═══ */}
+{wizPartners.length>0&&<div style={{marginBottom:20}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:10}}>{T('الملّاك والشركاء المضافون','Added Owners & Partners')} ({wizPartners.length})</div>
+{wizPartners.map((p,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'rgba(255,255,255,.025)',borderRadius:10,border:'1px solid rgba(255,255,255,.05)',marginBottom:6}}>
+<div style={{width:36,height:36,borderRadius:10,background:p.partner_type==='person'?'rgba(201,168,76,.1)':'rgba(52,131,180,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{p.partner_type==='person'?'👤':'🏢'}</div>
+<div style={{flex:1}}>
+<div style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{p.name}{p.is_manager&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(201,168,76,.1)',color:C.gold,marginRight:8}}>{T('مدير','Manager')}</span>}</div>
+<div style={{fontSize:10,color:'var(--tx5)'}}>{p.partner_type==='person'?T('شخص','Person'):T('منشأة','Facility')} · {p.percentage||0}%</div>
+</div>
+<button onClick={()=>setWizPartners(prev=>prev.filter((_,j)=>j!==i))} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,color:C.red,fontSize:14}}>✕</button>
+</div>)}
+</div>}
+
+{/* ═══ Add partner form ═══ */}
+{!partnerAdd?<div>
+{/* Main owner selection */}
+<div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:8}}>{T('المالك الرئيسي','Main Owner')} <span style={{color:C.red}}>*</span></div>
+<div style={{display:'flex',gap:0,marginBottom:14,borderRadius:10,overflow:'hidden',border:'1.5px solid rgba(201,168,76,.2)'}}>
+{[{v:'existing',l:T('مالك موجود','Existing Owner'),ic:'👤'},{v:'new',l:T('مالك جديد','New Owner'),ic:'＋'}].map(o=><button key={o.v} onClick={()=>setOwnerMode(o.v)} style={{flex:1,height:40,border:'none',background:ownerMode===o.v?'rgba(201,168,76,.12)':'rgba(255,255,255,.02)',color:ownerMode===o.v?C.gold:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:ownerMode===o.v?700:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5,transition:'.2s'}}>{o.ic} {o.l}</button>)}
 </div>
 
 {ownerMode==='existing'?<div>
-<div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:8}}>{T('اختر المالك','Select Owner')} <span style={{color:C.red}}>*</span></div>
 <CustomSelect value={WZ.owner_id||''} options={owners.map(o=>({v:o.id,l:o.name_ar+(o.id_number?' — '+o.id_number:'')}))} onChange={v=>setWZ('owner_id',v)} isAr={isAr} placeholder={T('ابحث عن مالك...','Search owner...')}/>
-{WZ.owner_id&&(()=>{const ow=owners.find(o=>o.id===WZ.owner_id);return ow?<div style={{marginTop:14,padding:'16px 18px',borderRadius:12,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)'}}>
-<div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:8}}>{ow.name_ar}{ow.name_en&&<span style={{fontSize:11,color:'var(--tx5)',marginRight:8}}>{ow.name_en}</span>}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,fontSize:11,color:'var(--tx4)'}}>
-{ow.id_number&&<div>{T('الهوية:','ID:')} <span style={{color:'var(--tx2)',direction:'ltr',display:'inline-block'}}>{ow.id_number}</span></div>}
-{ow.nationality&&<div>{T('الجنسية:','Nationality:')} {ow.nationality}</div>}
-{ow.mobile_personal&&<div>{T('الجوال:','Phone:')} <span style={{direction:'ltr',display:'inline-block'}}>{ow.mobile_personal}</span></div>}
-{ow.email&&<div>{T('البريد:','Email:')} {ow.email}</div>}
+{WZ.owner_id&&(()=>{const ow=owners.find(o=>o.id===WZ.owner_id);return ow?<div style={{marginTop:12,padding:'14px 16px',borderRadius:10,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)'}}>
+<div style={{fontSize:13,fontWeight:700,color:'var(--tx)',marginBottom:6}}>{ow.name_ar}</div>
+<div style={{display:'flex',gap:12,fontSize:10,color:'var(--tx4)',flexWrap:'wrap'}}>
+{ow.id_number&&<span>{T('الهوية:','ID:')} {ow.id_number}</span>}
+{ow.nationality&&<span>{T('الجنسية:','Nat:')} {ow.nationality}</span>}
+{ow.mobile_personal&&<span style={{direction:'ltr'}}>{ow.mobile_personal}</span>}
 </div></div>:null})()}
 </div>:
-
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 {[
-{k:'name_ar',l:T('اسم المالك بالعربي','Owner Name (AR)'),r:1},
-{k:'name_en',l:T('الاسم بالإنجليزي','Name (EN)'),d:1},
-{k:'id_type',l:T('نوع الهوية','ID Type'),opts:[{v:'national_id',l:T('هوية وطنية','National ID')},{v:'iqama',l:T('إقامة','Iqama')},{v:'gcc_id',l:T('هوية خليجية','GCC ID')},{v:'passport',l:T('جواز سفر','Passport')}],r:1},
-{k:'id_number',l:T('رقم الهوية','ID Number'),d:1,r:1},
-{k:'nationality',l:T('الجنسية','Nationality'),r:1},
+{k:'name_ar',l:T('الاسم بالعربي','Name (AR)'),r:1},{k:'name_en',l:T('بالإنجليزي','Name (EN)'),d:1},
+{k:'id_type',l:T('نوع الهوية','ID Type'),opts:[{v:'national_id',l:T('هوية وطنية','National ID')},{v:'iqama',l:T('إقامة','Iqama')},{v:'gcc_id',l:T('خليجية','GCC')},{v:'passport',l:T('جواز','Passport')}],r:1},
+{k:'id_number',l:T('رقم الهوية','ID No.'),d:1,r:1},{k:'nationality',l:T('الجنسية','Nationality'),r:1},
 {k:'gender',l:T('الجنس','Gender'),opts:[{v:'male',l:T('ذكر','Male')},{v:'female',l:T('أنثى','Female')}],r:1},
-{k:'mobile_personal',l:T('الجوال','Phone'),d:1},
-{k:'email',l:T('البريد الإلكتروني','Email'),d:1},
+{k:'mobile_personal',l:T('الجوال','Phone'),d:1},{k:'email',l:T('البريد','Email'),d:1},
 {k:'date_of_birth',l:T('تاريخ الميلاد','Birth Date'),t:'date'}
 ].map(f=><FieldInput key={f.k} f={f} form={newOwner} setForm={setNewOwner} isAr={isAr}/>)}
 </div>}
+
+{/* Add partner button */}
+<div style={{marginTop:20,paddingTop:16,borderTop:'1px solid rgba(255,255,255,.06)'}}>
+<button onClick={()=>setPartnerAdd({partner_type:'person',owner_id:'',facility_id:'',percentage:'',is_manager:false,name:''})} style={{width:'100%',height:42,borderRadius:10,border:'1.5px dashed rgba(52,131,180,.3)',background:'rgba(52,131,180,.04)',color:C.blue,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>+ {T('إضافة شريك','Add Partner')}</button>
+</div>
+</div>:
+
+/* ═══ Partner add form ═══ */
+<div style={{padding:'18px',background:'rgba(52,131,180,.03)',borderRadius:12,border:'1px solid rgba(52,131,180,.12)'}}>
+<div style={{fontSize:13,fontWeight:700,color:C.blue,marginBottom:14,display:'flex',alignItems:'center',gap:6}}>{T('إضافة شريك','Add Partner')}</div>
+
+<div style={{display:'flex',gap:0,marginBottom:14,borderRadius:10,overflow:'hidden',border:'1.5px solid rgba(52,131,180,.2)'}}>
+{[{v:'person',l:T('شخص','Person'),ic:'👤'},{v:'facility',l:T('منشأة','Facility'),ic:'🏢'}].map(o=><button key={o.v} onClick={()=>setPartnerAdd(p=>({...p,partner_type:o.v}))} style={{flex:1,height:40,border:'none',background:partnerAdd.partner_type===o.v?'rgba(52,131,180,.12)':'rgba(255,255,255,.02)',color:partnerAdd.partner_type===o.v?C.blue:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:partnerAdd.partner_type===o.v?700:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>{o.ic} {o.l}</button>)}
+</div>
+
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
+{partnerAdd.partner_type==='person'?
+<div style={{gridColumn:'1/-1'}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('اختر المالك','Select Owner')}</div>
+<CustomSelect value={partnerAdd.owner_id} options={owners.map(o=>({v:o.id,l:o.name_ar+(o.id_number?' — '+o.id_number:'')}))} onChange={v=>{const ow=owners.find(o=>o.id===v);setPartnerAdd(p=>({...p,owner_id:v,name:ow?.name_ar||''}))}} isAr={isAr}/></div>:
+<div style={{gridColumn:'1/-1'}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('اختر المنشأة','Select Facility')}</div>
+<CustomSelect value={partnerAdd.facility_id} options={data.map(f=>({v:f.id,l:f.name_ar+(f.cr_number?' — '+f.cr_number:'')}))} onChange={v=>{const fc=data.find(f=>f.id===v);setPartnerAdd(p=>({...p,facility_id:v,name:fc?.name_ar||''}))}} isAr={isAr}/></div>}
+<div><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('نسبة الملكية %','Ownership %')}</div>
+<input value={partnerAdd.percentage||''} onChange={e=>setPartnerAdd(p=>({...p,percentage:e.target.value}))} type="number" min="0" max="100" style={{...fieldStyle,direction:'ltr',textAlign:'center'}}/></div>
+<div><div style={{fontSize:11,fontWeight:600,color:'var(--tx4)',marginBottom:6}}>{T('مدير المنشأة','Facility Manager')}</div>
+<div style={{display:'flex',gap:8}}>{[{v:true,l:T('نعم','Yes'),c:C.ok},{v:false,l:T('لا','No'),c:C.red}].map(o=><button key={String(o.v)} onClick={()=>setPartnerAdd(p=>({...p,is_manager:o.v}))} style={{flex:1,height:42,borderRadius:10,border:'1.5px solid '+(partnerAdd.is_manager===o.v?o.c+'40':'rgba(255,255,255,.08)'),background:partnerAdd.is_manager===o.v?o.c+'12':'rgba(255,255,255,.03)',color:partnerAdd.is_manager===o.v?o.c:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:partnerAdd.is_manager===o.v?700:500,cursor:'pointer'}}>{o.l}</button>)}</div></div>
+</div>
+
+<div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+<button onClick={()=>setPartnerAdd(null)} style={{height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx4)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>{T('إلغاء','Cancel')}</button>
+<button onClick={()=>{if(!partnerAdd.name&&!partnerAdd.owner_id&&!partnerAdd.facility_id)return;setWizPartners(prev=>[...prev,{...partnerAdd}]);setPartnerAdd(null)}} style={{height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(52,131,180,.2)',background:'rgba(52,131,180,.1)',color:C.blue,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>{T('إضافة','Add')}</button>
+</div>
+</div>}
+
 </div>:
 
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
