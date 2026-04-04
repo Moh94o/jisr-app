@@ -295,22 +295,34 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
                       </div>
                     </> : <>
-                      <div style={{ flex: 1, textAlign: 'right' }}>
+                      <div style={{ flex: 1 }}>
                         {(()=>{
                           const body = m.message_body || ''
                           const isTransfer = /حوالة|transfer|تحويل/i.test(body)
-                          if (!isTransfer) return <div style={{ fontSize: 11, color: 'var(--tx4)' }}>{body.substring(0, 80)}</div>
+                          if (!isTransfer) return <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'right' }}>{body}</div>
+                          // Parse all fields from the message
                           const amountMatch = body.match(/(?:مبلغ|Amount)[:\s]*([0-9,.]+)/i)
                           const fromMatch = body.match(/(?:من|From)[:\s]*([^\n]+)/i)
                           const toMatch = body.match(/(?:إلى|To)[:\s]*([^\n]+)/i)
-                          const accountMatch = body.match(/(?:Account|حساب)[:\s]*\**(\d+)/i) || body.match(/من[:\s]*(\d+)\*/i)
-                          const isIncoming = /واردة|incoming|إيداع/i.test(body)
+                          const accountMatch = body.match(/Account[:\s]*\**(\d+)/i)
+                          const ibanMatch = body.match(/(?:آيبان|IBAN)[:\s]*\*?(\d+)/i)
+                          const viaMatch = body.match(/(?:عبر|Via)[:\s]*([^\n]+)/i)
+                          const timeMatch = body.match(/(?:في|At)[:\s]*([^\n]+)/i)
+                          const isIncoming = /واردة|incoming|Incoming/i.test(body)
                           const clr = isIncoming ? C.ok : '#e67e22'
-                          return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', direction: 'rtl' }}>
-                            <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: clr + '10', color: clr, border: '1px solid ' + clr + '15' }}>{isIncoming ? 'واردة' : 'صادرة'}</span>
-                            {amountMatch && <span style={{ fontSize: 15, fontWeight: 900, color: clr, direction: 'ltr' }}>{amountMatch[1]} SAR</span>}
-                            <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{isIncoming ? (fromMatch?.[1]?.substring(0, 25) || '') : (toMatch?.[1]?.substring(0, 25) || '')}</span>
-                            {accountMatch && <span style={{ fontSize: 10, color: 'var(--tx5)', direction: 'ltr' }}>حساب **{accountMatch[1]}</span>}
+                          return <div style={{ direction: 'rtl' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 5, background: clr + '10', color: clr, border: '1px solid ' + clr + '15' }}>{isIncoming ? 'حوالة واردة' : 'حوالة صادرة'}</span>
+                              {amountMatch && <span style={{ fontSize: 16, fontWeight: 900, color: clr, direction: 'ltr' }}>{amountMatch[1]} SAR</span>}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10 }}>
+                              {fromMatch && <div style={{ color: 'var(--tx3)' }}><span style={{ color: 'var(--tx6)' }}>من: </span>{fromMatch[1].trim()}</div>}
+                              {toMatch && <div style={{ color: 'var(--tx3)' }}><span style={{ color: 'var(--tx6)' }}>إلى: </span>{toMatch[1].trim()}</div>}
+                              {accountMatch && <div style={{ color: 'var(--tx5)', direction: 'ltr', display: 'inline' }}><span style={{ color: 'var(--tx6)', direction: 'rtl' }}>حساب: </span>**{accountMatch[1]}</div>}
+                              {ibanMatch && <div style={{ color: 'var(--tx5)' }}><span style={{ color: 'var(--tx6)' }}>آيبان: </span>*{ibanMatch[1]}</div>}
+                              {viaMatch && <div style={{ color: 'var(--tx5)' }}><span style={{ color: 'var(--tx6)' }}>عبر: </span>{viaMatch[1].trim()}</div>}
+                              {timeMatch && <div style={{ color: 'var(--tx6)', fontSize: 9 }}>{timeMatch[1].trim()}</div>}
+                            </div>
                           </div>
                         })()}
                       </div>
