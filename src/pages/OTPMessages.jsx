@@ -35,7 +35,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [drawerSenders, setDrawerSenders] = useState([])
   const [copyLog, setCopyLog] = useState([])
   const [showCopyLog, setShowCopyLog] = useState(false)
-  const [deleteConfirm, setDeleteConfirm] = useState(null) // message id to delete
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [showRawMsg, setShowRawMsg] = useState(null) // message id // message id to delete
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
 
@@ -292,6 +293,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       {/* Actions LEFT */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <button onClick={() => copyCode(m.otp_code, m)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid ' + (exp ? 'rgba(255,255,255,.08)' : 'rgba(39,160,70,.15)'), background: exp ? 'rgba(255,255,255,.03)' : 'rgba(39,160,70,.06)', color: exp ? 'var(--tx4)' : C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>
+                        <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>☰</button>
                         <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
                       </div>
                     </> : <>
@@ -328,9 +330,16 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           </div>
                         })()}
                       </div>
+                      <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>☰</button>
                       <button onClick={() => setDeleteConfirm(m.id)} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>×</button>
                     </>}
                   </div>
+
+                  {/* Raw message toggle */}
+                  {showRawMsg === m.id && <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,.3)', borderTop: '1px solid rgba(255,255,255,.04)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>الرسالة الأصلية:</div>
+                    <pre style={{ fontSize: 10, color: 'var(--tx3)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.8, fontFamily: F, direction: 'ltr', textAlign: 'left', background: 'rgba(255,255,255,.02)', padding: '8px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.04)' }}>{m.message_body}</pre>
+                  </div>}
 
                   {/* Permissions */}
                   <div style={{ padding: '6px 14px', background: 'rgba(255,255,255,.01)', borderTop: '1px solid rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
