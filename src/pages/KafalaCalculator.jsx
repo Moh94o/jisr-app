@@ -337,16 +337,16 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
                 </div>
                 {calendarType==='gregorian'?<>
                   <DateInp value={f.iqamaExpiry} onChange={v => set('iqamaExpiry', v)} />
-                  {hijriExpiry && <div style={{ fontSize: 10, color: '#5b9bd5', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, padding:'4px 10px',borderRadius:6,background:'rgba(91,155,213,.06)',border:'1px solid rgba(91,155,213,.1)' }}><Calendar size={10} /> هجري: {hijriExpiry}</div>}
+                  {hijriExpiry && <div style={{ fontSize: 9, color: '#5b9bd5', marginTop: 3 }}><Calendar size={9} style={{display:'inline',verticalAlign:'middle',marginLeft:3}} /> {hijriExpiry}</div>}
                 </>:<>
                   <div style={{display:'flex',gap:6}}>
                     <select value={f._hDay||''} onChange={e=>{const nd={...f,_hDay:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">يوم</option>{Array.from({length:30},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}</option>)}</select>
                     <select value={f._hMonth||''} onChange={e=>{const nd={...f,_hMonth:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:2,textAlign:'center',colorScheme:'dark'}}><option value="">شهر</option>{['محرم','صفر','ربيع الأول','ربيع الثاني','جمادى الأولى','جمادى الثانية','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'].map((m,i)=><option key={i+1} value={i+1}>{m}</option>)}</select>
                     <select value={f._hYear||''} onChange={e=>{const nd={...f,_hYear:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">سنة</option>{getHijriYears().map(y=><option key={y} value={y}>{y}</option>)}</select>
                   </div>
-                  {f.iqamaExpiry && <div style={{ fontSize: 10, color: C.gold, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, padding:'4px 10px',borderRadius:6,background:'rgba(201,168,76,.06)',border:'1px solid rgba(201,168,76,.1)' }}><Calendar size={10} /> ميلادي: {f.iqamaExpiry}</div>}
+                  {f.iqamaExpiry && <div style={{ fontSize: 9, color: C.gold, marginTop: 3 }}><Calendar size={9} style={{display:'inline',verticalAlign:'middle',marginLeft:3}} /> {f.iqamaExpiry}</div>}
                 </>}
-                {iqamaExpired && <div style={{ fontSize: 10, color: C.red, marginTop: 4, padding: '4px 10px', borderRadius: 6, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.12)', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={10} /> الإقامة منتهية منذ {expiredDays} يوم — سيتم احتساب غرامة التأخير</div>}
+                {iqamaExpired && <div style={{ fontSize: 9, color: C.red, marginTop: 3 }}><AlertCircle size={9} style={{display:'inline',verticalAlign:'middle',marginLeft:3}} /> منتهية منذ {expiredDays} يوم</div>}
                 <Err k="iqamaExpiry"/>
               </div>
             <div><Lbl>تاريخ الميلاد</Lbl><DateInp value={f.dob} onChange={v => set('dob', v)} /></div>
