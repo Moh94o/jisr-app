@@ -103,7 +103,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   else if (filter === 'expired') filtered = filtered.filter(m => isExp(m))
 
   const sF = { width: '100%', height: 42, padding: '0 14px', border: '1.5px solid rgba(255,255,255,.1)', borderRadius: 10, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)', outline: 'none', background: 'rgba(255,255,255,.04)', boxSizing: 'border-box' }
-  const SENDERS = [{k:'qiwa',l:'قوى'},{k:'nafath',l:'نفاذ'},{k:'absher',l:'أبشر'},{k:'moi',l:'داخلية'},{k:'gosi',l:'GOSI'},{k:'muqeem',l:'مقيم'}]
+  const SENDERS = [{k:'*',l:'الكل'},{k:'qiwa',l:'قوى'},{k:'nafath',l:'نفاذ'},{k:'absher',l:'أبشر'},{k:'moi',l:'داخلية'},{k:'gosi',l:'GOSI'},{k:'muqeem',l:'مقيم'},{k:'chamber',l:'الغرفة التجارية'}]
   const ROLES = [{v:'admin',l:'مدير',desc:'صلاحيات كاملة',ic:'♛',c:C.gold},{v:'pro',l:'PRO',desc:'منصات حكومية',ic:'⚙',c:'#9b59b6'},{v:'employee',l:'موظف',desc:'عرض فقط',ic:'👤',c:C.blue}]
 
   return (
@@ -295,15 +295,6 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div><div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4 }}>بالعربي *</div><input value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="محمد العمري" style={sF} /></div>
               <div><div style={{ fontSize: 9, color: 'var(--tx6)', marginBottom: 4, direction: 'ltr', textAlign: 'left' }}>English</div><input value={addForm.name_en} onChange={e => setAddForm(p => ({ ...p, name_en: e.target.value }))} placeholder="Mohammed" style={{ ...sF, direction: 'ltr', fontFamily: 'monospace', textAlign: 'left' }} /></div>
-            </div>
-            <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>الدور</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                {ROLES.map(r => <button key={r.v} onClick={() => setAddForm(p => ({ ...p, role: r.v }))} style={{ padding: '12px 6px', borderRadius: 10, border: '1.5px solid ' + (addForm.role === r.v ? r.c + '40' : 'rgba(255,255,255,.06)'), background: addForm.role === r.v ? r.c + '08' : 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: F }}>
-                  <div style={{ fontSize: 18, marginBottom: 4 }}>{r.ic}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: addForm.role === r.v ? r.c : 'var(--tx3)' }}>{r.l}</div>
-                  <div style={{ fontSize: 8, color: addForm.role === r.v ? r.c : 'var(--tx6)', marginTop: 2 }}>{r.desc}</div>
-                </button>)}
-              </div>
             </div>
             <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 4 }}>رقم الجوال <span style={{ fontSize: 8, color: 'var(--tx6)' }}>(اختياري)</span></div><input value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} placeholder="05XXXXXXXX" style={{ ...sF, direction: 'ltr' }} /></div>
             <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>يستقبل OTP من:</div>
