@@ -18,9 +18,8 @@ function gregorianToHijri(dateStr) {
   const month = Math.floor((24 * l3) / 709)
   const day = l3 - Math.floor((709 * month) / 24)
   const year = 30 * n + j - 30
-  const months = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الثانية', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة']
   if (month < 1 || month > 12) return ''
-  return `${day} ${months[month - 1]} ${year} هـ`
+  return `${day}/${month}/${year} هـ`
 }
 
 function gregorianToHijriParts(dateStr) {
@@ -143,7 +142,7 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
   // Form state
   const [f, setF] = useState({
     name: '', iqama: '', phone: '', iqamaExpiry: '', dob: '', nationality: '', gender: 'ذكر', occupation: '', legalStatus: 'نظامي',
-    changeProfession: false, newOccupation: '', wpExpiry: '', hasNoticePeriod: false, employerConsent: false,
+    workerType: 'facility', changeProfession: false, newOccupation: '', wpExpiry: '', hasNoticePeriod: false, employerConsent: false,
     transferCount: '1', renewalMonths: '12', iqamaFineCount: '1',
     profChangeInput: '200', workPermitRate: '100', medicalFee: '800', officeFee: '500',
     extras: []
@@ -337,16 +336,18 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
                 </div>
                 {calendarType==='gregorian'?<>
                   <DateInp value={f.iqamaExpiry} onChange={v => set('iqamaExpiry', v)} />
-                  {hijriExpiry && <div style={{ fontSize: 9, color: '#5b9bd5', marginTop: 3 }}><Calendar size={9} style={{display:'inline',verticalAlign:'middle',marginLeft:3}} /> {hijriExpiry}</div>}
                 </>:<>
-                  <div style={{display:'flex',gap:6}}>
-                    <select value={f._hDay||''} onChange={e=>{const nd={...f,_hDay:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">يوم</option>{Array.from({length:30},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}</option>)}</select>
-                    <select value={f._hMonth||''} onChange={e=>{const nd={...f,_hMonth:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:2,textAlign:'center',colorScheme:'dark'}}><option value="">شهر</option>{['محرم','صفر','ربيع الأول','ربيع الثاني','جمادى الأولى','جمادى الثانية','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'].map((m,i)=><option key={i+1} value={i+1}>{m}</option>)}</select>
-                    <select value={f._hYear||''} onChange={e=>{const nd={...f,_hYear:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark'}}><option value="">سنة</option>{getHijriYears().map(y=><option key={y} value={y}>{y}</option>)}</select>
+                  <div style={{display:'flex',gap:4}}>
+                    <select value={f._hDay||''} onChange={e=>{const nd={...f,_hDay:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark',height:40,fontSize:12}}><option value="">يوم</option>{Array.from({length:30},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}</option>)}</select>
+                    <select value={f._hMonth||''} onChange={e=>{const nd={...f,_hMonth:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark',height:40,fontSize:12}}><option value="">شهر</option>{Array.from({length:12},(_,i)=>i+1).map(m=><option key={m} value={m}>{m}</option>)}</select>
+                    <select value={f._hYear||''} onChange={e=>{const nd={...f,_hYear:e.target.value};if(nd._hDay&&nd._hMonth&&nd._hYear){nd.iqamaExpiry=hijriToGregorian(Number(nd._hYear),Number(nd._hMonth),Number(nd._hDay))};setF(nd)}} style={{...sF,flex:1,textAlign:'center',colorScheme:'dark',height:40,fontSize:12}}><option value="">سنة</option>{getHijriYears().map(y=><option key={y} value={y}>{y}</option>)}</select>
                   </div>
-                  {f.iqamaExpiry && <div style={{ fontSize: 9, color: C.gold, marginTop: 3 }}><Calendar size={9} style={{display:'inline',verticalAlign:'middle',marginLeft:3}} /> {f.iqamaExpiry}</div>}
                 </>}
-                {iqamaExpired && <div style={{ fontSize: 9, color: C.red, marginTop: 3 }}><AlertCircle size={9} style={{display:'inline',verticalAlign:'middle',marginLeft:3}} /> منتهية منذ {expiredDays} يوم</div>}
+                <div style={{display:'flex',gap:8,marginTop:3,flexWrap:'wrap'}}>
+                  {calendarType==='gregorian'&&hijriExpiry&&<span style={{fontSize:9,color:'#5b9bd5'}}>{hijriExpiry}</span>}
+                  {calendarType==='hijri'&&f.iqamaExpiry&&<span style={{fontSize:9,color:C.gold}}>{f.iqamaExpiry}</span>}
+                  {iqamaExpired&&<span style={{fontSize:9,color:C.red}}>منتهية منذ {expiredDays} يوم</span>}
+                </div>
                 <Err k="iqamaExpiry"/>
               </div>
             <div><Lbl>تاريخ الميلاد</Lbl><DateInp value={f.dob} onChange={v => set('dob', v)} /></div>
@@ -366,6 +367,15 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
       {/* ═══════════════════════════════════════ */}
       {tab === 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* كفالة العامل */}
+          <div>
+            <Lbl req>كفالة العامل</Lbl>
+            <ToggleGroup value={f.workerType} onChange={v => set('workerType', v)} options={[
+              { v: 'facility', l: 'عامل منشأة', c: C.blue },
+              { v: 'domestic', l: 'عامل منزلي', c: '#9b59b6' }
+            ]} />
+          </div>
+
           {/* حالة العامل القانونية */}
           <div>
             <Lbl req>حالة العامل القانونية</Lbl>
