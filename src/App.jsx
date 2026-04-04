@@ -28,6 +28,7 @@ import AttendancePage from './AttendancePage.jsx'
 import WeeklyReportPage from './WeeklyReportPage.jsx'
 import PricingCalcPage from './PricingCalcPage.jsx'
 import CompliancePage from './CompliancePage.jsx'
+import KafalaCalculator from './pages/KafalaCalculator.jsx'
 
 import { getSupabase, saveConfig, clearConfig, getSavedConfig } from './lib/supabase.js'
 import { exportToExcel, importFromCSV, sendWhatsApp, buildWhatsAppMessage, printContent, generateClientStatement, checkDuplicate, setupKeyboardShortcuts, calculateNitaqat, num as numFmt } from './lib/utils.js'
@@ -1115,7 +1116,7 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 {(()=>{
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities')},{id:'workers',l:T('العمالة','Workers')},{id:'compliance',l:T('الامتثال','Compliance')},{id:'worker_leaves',h:true}],
-  operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')},{id:'transfer_calc',l:T('حاسبة نقل الكفالة','Transfer Calc')}],
+  operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')},{id:'transfer_calc',l:T('حسبة التنازل','Kafala Calc')}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'invoice_followups',l:T('متابعة التحصيل','Collections')},{id:'payments',l:T('المدفوعات والمصاريف','Payments & Expenses')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'audit',l:T('التدقيق','Audit')},{id:'budget',l:T('الميزانية','Budget')},{id:'data_import',l:T('الاستيراد','Import')}],
   clients_hub:[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}],
   admin_hub:[{id:'admin_offices',l:T('المكاتب والموظفين','Offices & Staff')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'archive',l:T('الأرشيف','Archive')},{id:'activity_log',l:T('السجل','Log')},{id:'admin_automation',l:T('الأتمتة','Automation')},{id:'admin_pricing',l:T('التسعير','Pricing')},{id:'attendance',h:true},{id:'admin_staff',h:true},{id:'auto_alerts',h:true}],
@@ -1141,7 +1142,7 @@ return<div>
 {(pg==='transactions_internal'||pg==='transactions_external')&&<TransactionsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultType={pg==='transactions_internal'?'internal':'external'}/>}
 {pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='sla_monitor'&&<SLAPage sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='transfer_calc'&&<TransferCalcPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='transfer_calc'&&<KafalaCalculator sb={sb} toast={tt} user={user} lang={lang}/>}
 {/* المالية */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
