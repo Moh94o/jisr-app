@@ -314,56 +314,73 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
       {/* Add Person Modal */}
       {showAdd && <div onClick={closeAdd} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 16, width: 'min(480px,94vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.12)', direction: 'rtl', fontFamily: F }}>
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>إضافة شخص</div>
-            <button onClick={closeAdd} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+        <div onClick={e => e.stopPropagation()} style={{ background: '#141414', borderRadius: 18, width: 'min(460px,94vw)', height: 'min(580px,85vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.1)', direction: 'rtl', fontFamily: F, boxShadow: '0 24px 60px rgba(0,0,0,.5)' }}>
+          {/* Gold accent bar */}
+          <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,' + C.gold + '50,' + C.gold + ',' + C.gold + '50,transparent)', flexShrink: 0 }} />
+          <div style={{ padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)' }}>إضافة شخص</div>
+              <div style={{ fontSize: 9, color: 'var(--tx6)', marginTop: 2 }}>{!addMode ? 'اختر نوع الإضافة' : addMode === 'existing' ? (selectedPerson ? 'تم اختيار: ' + selectedPerson.name_ar : 'ابحث عن مالك') : 'تسجيل بيانات جديدة'}</div>
+            </div>
+            <button onClick={closeAdd} style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>×</button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 22px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* Mode selector */}
-            {!addMode && <div style={{ display: 'flex', gap: 8 }}>
-              {[{v:'existing',l:'مالك موجود',d:'اختر من الملّاك المسجلين'},{v:'new',l:'شخص جديد',d:'تسجيل بيانات جديدة'}].map(o => (
-                <button key={o.v} onClick={() => setAddMode(o.v)} style={{ flex: 1, padding: '20px 12px', borderRadius: 12, border: '1.5px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: F, transition: '.15s' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>{o.l}</div>
-                  <div style={{ fontSize: 9, color: 'var(--tx5)' }}>{o.d}</div>
+            {!addMode && <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              {[{v:'existing',l:'مالك موجود',d:'اختر من الملّاك المسجلين',ic:'👤'},{v:'new',l:'شخص جديد',d:'تسجيل بيانات جديدة',ic:'+'}].map(o => (
+                <button key={o.v} onClick={() => setAddMode(o.v)} style={{ flex: 1, padding: '28px 14px', borderRadius: 14, border: '1.5px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.015)', cursor: 'pointer', textAlign: 'center', fontFamily: F, transition: '.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,.25)'; e.currentTarget.style.background = 'rgba(201,168,76,.03)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.background = 'rgba(255,255,255,.015)' }}>
+                  <div style={{ fontSize: 24, marginBottom: 8, opacity: .6 }}>{o.ic}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>{o.l}</div>
+                  <div style={{ fontSize: 9, color: 'var(--tx5)', lineHeight: 1.5 }}>{o.d}</div>
                 </button>
               ))}
             </div>}
 
             {/* Existing: search owners */}
             {addMode === 'existing' && !selectedPerson && <>
-              <input value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="ابحث بالاسم..." style={{ ...sF, marginBottom: 4 }} autoFocus />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 280, overflowY: 'auto' }}>
+              <div style={{ position: 'relative' }}>
+                <input value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="ابحث بالاسم..." style={{ ...sF, paddingRight: 36 }} autoFocus />
+                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--tx6)' }}>🔍</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {allUsers.filter(u => !addSearch || u.name_ar?.includes(addSearch) || u.name_en?.toLowerCase().includes(addSearch.toLowerCase())).map(u => (
-                  <div key={u.id} onClick={() => setSelectedPerson(u)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', cursor: 'pointer', transition: '.1s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)'}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(201,168,76,.08)', border: '1px solid rgba(201,168,76,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{(u.name_ar || '?')[0]}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{u.name_ar}{u.name_en && <span style={{ fontSize: 10, color: 'var(--tx5)', marginRight: 6, fontFamily: 'monospace' }}>{u.name_en}</span>}</div>
-                      <div style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr', display: 'flex', gap: 8 }}>
-                        {u.id_number && <span>{u.id_number}</span>}
-                        {(u.mobile_work || u.mobile_personal) && <span>{u.mobile_work || u.mobile_personal}</span>}
+                  <div key={u.id} onClick={() => setSelectedPerson(u)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1.5px solid rgba(255,255,255,.04)', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'; e.currentTarget.style.background = 'rgba(201,168,76,.03)' }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)'; e.currentTarget.style.background = 'rgba(255,255,255,.02)' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.04))', border: '1.5px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(u.name_ar || '?')[0]}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{u.name_ar}</span>
+                        {u.name_en && <span style={{ fontSize: 10, color: 'var(--tx5)', fontFamily: 'monospace', direction: 'ltr' }}>{u.name_en}</span>}
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--tx6)', direction: 'ltr', display: 'flex', gap: 10 }}>
+                        {u.id_number && <span>🪪 {u.id_number}</span>}
+                        {(u.mobile_work || u.mobile_personal) && <span>📱 {u.mobile_work || u.mobile_personal}</span>}
                       </div>
                     </div>
                   </div>
                 ))}
-                {allUsers.filter(u => !addSearch || u.name_ar?.includes(addSearch) || u.name_en?.toLowerCase().includes(addSearch.toLowerCase())).length === 0 && <div style={{ textAlign: 'center', padding: 20, color: 'var(--tx6)', fontSize: 11 }}>لا توجد نتائج</div>}
+                {allUsers.filter(u => !addSearch || u.name_ar?.includes(addSearch) || u.name_en?.toLowerCase().includes(addSearch.toLowerCase())).length === 0 && <div style={{ textAlign: 'center', padding: 24, color: 'var(--tx6)', fontSize: 11 }}>لا توجد نتائج</div>}
               </div>
             </>}
 
             {/* Selected person preview */}
             {addMode === 'existing' && selectedPerson && <div>
-              <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(201,168,76,.04)', border: '1.5px solid rgba(201,168,76,.12)', marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)' }}>{selectedPerson.name_ar}</div>
-                    {selectedPerson.name_en && <div style={{ fontSize: 11, color: 'var(--tx5)', fontFamily: 'monospace', direction: 'ltr', marginTop: 2 }}>{selectedPerson.name_en}</div>}
+              <div style={{ padding: '16px 18px', borderRadius: 14, background: 'linear-gradient(135deg,rgba(201,168,76,.05),rgba(201,168,76,.02))', border: '1.5px solid rgba(201,168,76,.12)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(201,168,76,.1)', border: '1.5px solid rgba(201,168,76,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: C.gold }}>{selectedPerson.name_ar[0]}</div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)' }}>{selectedPerson.name_ar}</div>
+                      {selectedPerson.name_en && <div style={{ fontSize: 10, color: 'var(--tx5)', fontFamily: 'monospace', direction: 'ltr', marginTop: 1 }}>{selectedPerson.name_en}</div>}
+                    </div>
                   </div>
-                  <button onClick={() => setSelectedPerson(null)} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 5, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx5)', cursor: 'pointer', fontFamily: F }}>تغيير</button>
+                  <button onClick={() => setSelectedPerson(null)} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: 'var(--tx4)', cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تغيير</button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 10 }}>
-                  {selectedPerson.id_number && <div><span style={{ color: 'var(--tx6)' }}>الهوية: </span><span style={{ color: 'var(--tx3)', direction: 'ltr', display: 'inline-block' }}>{selectedPerson.id_number}</span></div>}
-                  {(selectedPerson.mobile_work || selectedPerson.mobile_personal) && <div><span style={{ color: 'var(--tx6)' }}>الجوال: </span><span style={{ color: 'var(--tx3)', direction: 'ltr', display: 'inline-block' }}>{selectedPerson.mobile_work || selectedPerson.mobile_personal}</span></div>}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {selectedPerson.id_number && <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.04)' }}><div style={{ fontSize: 8, color: 'var(--tx6)', marginBottom: 3 }}>رقم الهوية</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', direction: 'ltr' }}>{selectedPerson.id_number}</div></div>}
+                  {(selectedPerson.mobile_work || selectedPerson.mobile_personal) && <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.04)' }}><div style={{ fontSize: 8, color: 'var(--tx6)', marginBottom: 3 }}>رقم الجوال</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', direction: 'ltr' }}>{selectedPerson.mobile_work || selectedPerson.mobile_personal}</div></div>}
                 </div>
               </div>
             </div>}
@@ -387,9 +404,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
           </div>
 
           {/* Footer */}
-          {addMode && <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button onClick={closeAdd} style={{ height: 40, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
-            <button onClick={addPerson} disabled={saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.1)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson) ? .5 : 1 }}>{saving ? '...' : 'إضافة'}</button>
+          {addMode && <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.05)', display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={closeAdd} style={{ height: 42, padding: '0 18px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,.08)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
+            <button onClick={addPerson} disabled={saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson)} style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid rgba(201,168,76,.25)', background: 'linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.08))', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson) ? .4 : 1, transition: '.2s' }}>{saving ? '...' : 'إضافة'}</button>
           </div>}
         </div>
       </div>}
