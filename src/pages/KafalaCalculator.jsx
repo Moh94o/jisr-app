@@ -93,8 +93,10 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
   // Screen: 'home' | 'form'
   const [screen, setScreen] = useState('home')
   const [tab, setTab] = useState(0)
-  const [workerMode, setWorkerMode] = useState('new') // 'new' | 'existing'
+  const [workerMode, setWorkerMode] = useState('new')
   const [searchIqama, setSearchIqama] = useState('')
+  const [errors, setErrors] = useState({})
+  const [tried, setTried] = useState([false, false, false])
 
   // Form state
   const [f, setF] = useState({
@@ -137,8 +139,38 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
   }
   const removeExtra = i => set('extras', f.extras.filter((_, idx) => idx !== i))
 
+  // Validation
+  const validateTab0 = () => {
+    const e = {}
+    if (!f.name.trim()) e.name = 'مطلوب'
+    if (!f.iqama || !/^\d{10}$/.test(f.iqama)) e.iqama = 'يجب أن يكون 10 أرقام'
+    if (!f.iqamaExpiry) e.iqamaExpiry = 'مطلوب'
+    if (!f.nationality) e.nationality = 'مطلوب'
+    if (!f.occupation) e.occupation = 'مطلوب'
+    return e
+  }
+  const validateTab1 = () => {
+    const e = {}
+    if (f.changeProfession === null || f.changeProfession === undefined) e.changeProfession = 'مطلوب'
+    if (f.hasNoticePeriod === null || f.hasNoticePeriod === undefined) e.hasNoticePeriod = 'مطلوب'
+    if (f.employerConsent === null || f.employerConsent === undefined) e.employerConsent = 'مطلوب'
+    return e
+  }
+  const tryNextTab = () => {
+    const newTried = [...tried]; newTried[tab] = true; setTried(newTried)
+    if (tab === 0) { const e = validateTab0(); setErrors(e); if (Object.keys(e).length > 0) return }
+    if (tab === 1) { const e = validateTab1(); setErrors(e); if (Object.keys(e).length > 0) return }
+    setErrors({}); setTab(tab + 1)
+  }
+  const tryGoTab = (i) => {
+    if (i <= tab) { setTab(i); return }
+    if (i > tab + 1) return
+    tryNextTab()
+  }
+  const Err = ({ k }) => tried[tab] && errors[k] ? <div style={{ fontSize: 10, color: C.red, marginTop: 4 }}>{errors[k]}</div> : null
+
   const tabComplete = [
-    !!(f.name && f.iqama),
+    !!(f.name && f.iqama && f.iqamaExpiry && f.nationality && f.occupation),
     true,
     true
   ]
@@ -158,8 +190,8 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
     <ModalWrap>
     <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 24 }}>
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(201,168,76,.1)', border: '1.5px solid rgba(201,168,76,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-          <ArrowLeftRight size={24} color={C.gold} />
+        <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(52,131,180,.1)', border: '1.5px solid rgba(52,131,180,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+          <ArrowLeftRight size={24} color={C.blue} />
         </div>
         <div style={{ fontSize: 22, fontWeight: 800 }}>حسبة نقل الكفالة</div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 6 }}>حساب تكاليف نقل خدمات العمال والرسوم الحكومية</div>
@@ -172,8 +204,8 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
         ].map(({ mode, title, desc, Icon }) => (
           <button key={mode} onClick={() => { setWorkerMode(mode); if (mode === 'new') { setScreen('form'); setTab(0) } else { setWorkerMode('existing') } }}
             style={{ flex: 1, padding: '28px 20px', borderRadius: 14, border: '1.5px solid ' + (workerMode === mode && mode === 'existing' ? 'rgba(201,168,76,.3)' : 'rgba(255,255,255,.06)'), background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', transition: '.2s', fontFamily: F }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(201,168,76,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <Icon size={18} color={C.gold} />
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(52,131,180,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <Icon size={18} color={C.blue} />
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,.85)', marginBottom: 4 }}>{title}</div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>{desc}</div>
@@ -233,7 +265,7 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
           const active = tab === i
           const done = tabComplete[i] && i < tab
           return (
-            <button key={t.id} onClick={() => setTab(i)} style={{
+            <button key={t.id} onClick={() => tryGoTab(i)} style={{
               flex: 1, height: 48, border: 'none', fontFamily: F, fontSize: 12, fontWeight: active ? 700 : 500,
               color: active ? C.gold : done ? C.ok : 'rgba(255,255,255,.3)',
               background: active ? 'rgba(201,168,76,.1)' : 'rgba(255,255,255,.02)',
@@ -256,23 +288,24 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
       {tab === 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div><Lbl req>اسم العامل</Lbl><Inp value={f.name} onChange={v => set('name', v)} /></div>
-            <div><Lbl req>رقم الإقامة</Lbl><Inp value={f.iqama} onChange={v => set('iqama', v)} dir="ltr" maxLength={10} /></div>
+            <div><Lbl req>اسم العامل</Lbl><Inp value={f.name} onChange={v => set('name', v)} /><Err k="name"/></div>
+            <div><Lbl req>رقم الإقامة</Lbl><Inp value={f.iqama} onChange={v => set('iqama', v.replace(/\D/g,''))} dir="ltr" maxLength={10} /><Err k="iqama"/></div>
             <div><Lbl>رقم الجوال</Lbl><Inp value={f.phone} onChange={v => set('phone', v)} dir="ltr" /></div>
             <div>
-              <Lbl>تاريخ انتهاء الإقامة</Lbl>
+              <Lbl req>تاريخ انتهاء الإقامة</Lbl>
               <DateInp value={f.iqamaExpiry} onChange={v => set('iqamaExpiry', v)} />
-              {hijriExpiry && <div style={{ fontSize: 10, color: 'rgba(201,168,76,.5)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={10} /> {hijriExpiry}</div>}
-              {iqamaExpired && <div style={{ fontSize: 10, color: C.red, marginTop: 4, padding: '4px 10px', borderRadius: 6, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.12)', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={10} /> منتهية منذ {expiredDays} يوم</div>}
+              {hijriExpiry && <div style={{ fontSize: 10, color: '#5b9bd5', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={10} /> يعادل: {hijriExpiry}</div>}
+              {iqamaExpired && <div style={{ fontSize: 10, color: C.red, marginTop: 4, padding: '4px 10px', borderRadius: 6, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.12)', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={10} /> الإقامة منتهية منذ {expiredDays} يوم — سيتم احتساب غرامة التأخير</div>}
+              <Err k="iqamaExpiry"/>
             </div>
             <div><Lbl>تاريخ الميلاد</Lbl><DateInp value={f.dob} onChange={v => set('dob', v)} /></div>
-            <div><Lbl req>الجنسية</Lbl><Sel value={f.nationality} onChange={v => set('nationality', v)} options={NATIONALITIES} /></div>
+            <div><Lbl req>الجنسية</Lbl><Sel value={f.nationality} onChange={v => set('nationality', v)} options={NATIONALITIES} /><Err k="nationality"/></div>
             <div><Lbl>الجنس</Lbl>
               <ToggleGroup value={f.gender} onChange={v => set('gender', v)} options={[
                 { v: 'ذكر', l: 'ذكر', c: C.blue }, { v: 'أنثى', l: 'أنثى', c: '#9b59b6' }
               ]} />
             </div>
-            <div><Lbl>المهنة الحالية</Lbl><Sel value={f.occupation} onChange={v => set('occupation', v)} options={OCCUPATIONS} /></div>
+            <div><Lbl req>المهنة الحالية</Lbl><Sel value={f.occupation} onChange={v => set('occupation', v)} options={OCCUPATIONS} /><Err k="occupation"/></div>
           </div>
           <div>
             <Lbl>الوضع القانوني</Lbl>
@@ -422,10 +455,13 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
           <div style={{ paddingTop: 14, borderTop: '1px solid rgba(255,255,255,.05)' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#9b59b6', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Plus size={14} /> رسوم إضافية</div>
             {f.extras.map((ex, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)' }}>
-                <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.7)' }}>{ex.name}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.gold, direction: 'ltr' }}>{nm(ex.amount)} ر.س</span>
-                <button onClick={() => removeExtra(i)} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(192,57,43,.12)', background: 'rgba(192,57,43,.04)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={12} /></button>
+              <div key={i} style={{ marginBottom: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.7)' }}>{ex.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.gold, direction: 'ltr' }}>{nm(ex.amount)} ر.س</span>
+                  <button onClick={() => removeExtra(i)} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(192,57,43,.12)', background: 'rgba(192,57,43,.04)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={12} /></button>
+                </div>
+                <input value={ex.note||''} onChange={e=>{const up=[...f.extras];up[i]={...up[i],note:e.target.value};set('extras',up)}} placeholder="ملاحظة..." style={{...sF,height:28,fontSize:10,marginTop:4,background:'transparent',border:'1px solid rgba(255,255,255,.03)',padding:'0 8px'}}/>
               </div>
             ))}
             <div style={{ display: 'flex', gap: 8 }}>
@@ -472,7 +508,7 @@ export default function KafalaCalculator({ toast, lang, onClose }) {
           <ChevronRight size={14} /> {tab > 0 ? 'السابق' : 'رجوع'}
         </button>
         {tab < 2 && (
-          <button onClick={() => setTab(tab + 1)}
+          <button onClick={tryNextTab}
             style={{ height: 42, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             التالي <ChevronLeft size={14} />
           </button>

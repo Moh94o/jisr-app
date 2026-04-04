@@ -2492,7 +2492,7 @@ tr:nth-child(even){background:#f8f8f8}
 .pwa-standalone .dash-header{padding-top:env(safe-area-inset-top)!important}.pwa-standalone .mob-bottom-nav{padding-bottom:max(env(safe-area-inset-bottom),12px)!important;height:calc(70px + env(safe-area-inset-bottom))!important}.pwa-standalone .dash-side{padding-top:env(safe-area-inset-top)!important}.pwa-standalone .login-wrap,.pwa-standalone .setup-wrap{padding-top:env(safe-area-inset-top)!important}.install-banner{animation:slideUp .4s cubic-bezier(.4,0,.2,1)}@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}.mob-bottom-nav div{transition:transform .15s ease,opacity .15s ease!important}.mob-bottom-nav div:active{transform:scale(.9)!important;opacity:.7!important}@media(max-width:768px){.dash-header{backdrop-filter:blur(16px)!important;-webkit-backdrop-filter:blur(16px)!important}.dash-content{scroll-behavior:smooth!important;-webkit-overflow-scrolling:touch!important}}@media print{body{padding:16px}}
 </style></head><body>
 <div class="header">
-<div class="header-r"><div class="office-name">جسر للأعمال</div><div class="office-addr">خدمات مكاتب الاستقدام<br>المملكة العربية السعودية</div></div>
+<div class="header-r"><div class="office-name">مؤسسة تأشيرة البناء والإنشاء للمقاولات</div><div class="office-addr">خدمات مكاتب الاستقدام<br>المملكة العربية السعودية</div></div>
 <div style="text-align:center"><div style="font-size:32px;color:#c9a84c;font-weight:900">جسر</div><div style="font-size:9px;color:#999">Jisr Business</div></div>
 <div style="text-align:left;direction:ltr;font-size:10px;color:#666">${new Date().toLocaleDateString('en-US')}</div>
 </div>
@@ -2518,20 +2518,41 @@ ${r.notes?'<div style="background:#f0f0f0;border-radius:6px;padding:8px 12px;fon
 const fS={width:'100%',height:40,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center',direction:'ltr'}
 return<div>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}><div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>{T('حسبة التنازل','Transfer Calculator')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('حساب تكاليف نقل خدمات العمال','Worker transfer cost calculation')}</div></div><button onClick={()=>onNewCalc?onNewCalc():openAdd()} style={{height:38,padding:'0 20px',borderRadius:10,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer'}}>+ {T('حسبة جديدة','New Calc')}</button></div>
-{data.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)'}}>{T('لا توجد حسبات','No calculations')}</div>:
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:12}}>{data.map(r=>{const sc=stClr[r.status]||'#999';return<div key={r.id} onClick={()=>openEdit(r)} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.15)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}>
+{(()=>{
+const statusLabel={draft:T('مسودة','Draft'),pending:T('قيد الانتظار','Pending'),approved:T('مقبولة','Approved'),completed:T('مكتملة','Done'),cancelled:T('ملغاة','Cancelled')}
+const typeLabel=v=>v==='final_exit'?T('خروج نهائي','Final Exit'):T('نقل كفالة','Sponsorship')
+const[listFilter,setListFilter]=useState('all')
+const filteredData=listFilter==='all'?data:data.filter(r=>r.status===listFilter)
+const daysSince=d=>{if(!d)return 0;return Math.floor((Date.now()-new Date(d).getTime())/86400000)}
+return<>
+{/* Filter bar */}
+<div style={{display:'flex',gap:4,marginBottom:14}}>
+{[{v:'all',l:T('الكل','All'),n:data.length},{v:'pending',l:T('قيد الانتظار','Pending'),n:data.filter(r=>r.status==='pending').length},{v:'completed',l:T('مكتمل','Done'),n:data.filter(r=>r.status==='completed').length},{v:'draft',l:T('مسودة','Draft'),n:data.filter(r=>r.status==='draft').length}].map(f=><button key={f.v} onClick={()=>setListFilter(f.v)} style={{padding:'6px 14px',borderRadius:8,fontSize:10,fontWeight:listFilter===f.v?700:500,color:listFilter===f.v?C.gold:'rgba(255,255,255,.35)',background:listFilter===f.v?'rgba(201,168,76,.08)':'transparent',border:listFilter===f.v?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',fontFamily:"'Cairo',sans-serif"}}>{f.l} ({f.n})</button>)}
+</div>
+{filteredData.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)'}}>{T('لا توجد حسبات','No calculations')}</div>:
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:12}}>{filteredData.map(r=>{const sc=stClr[r.status]||'#999';const tc=Number(r.total_cost||0);const cc=Number(r.client_charge||0);const pr=cc-tc;const prPct=tc>0?Math.round((pr/tc)*100):0;const ds=daysSince(r.created_at)
+return<div key={r.id} onClick={()=>openEdit(r)} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.15)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}>
 <div style={{padding:'16px 18px',display:'flex',alignItems:'center',gap:12}}>
-<div style={{width:44,height:44,borderRadius:12,background:sc+'15',border:'1px solid '+sc+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>r.transfer_type==='final_exit'?'↗':'⟲'</div>
-<div style={{flex:1}}><div style={{fontSize:14,fontWeight:700,color:'var(--tx2)',marginBottom:2}}>{r.workers?.name_ar||T('عامل','Worker')}</div><div style={{display:'flex',gap:6,alignItems:'center'}}><span style={{fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:5,background:sc+'15',color:sc}}>{r.status}</span>{r.new_employer_name&&<span style={{fontSize:10,color:'var(--tx5)'}}>{T('←','→')} {r.new_employer_name}</span>}</div></div>
+<div style={{width:44,height:44,borderRadius:12,background:sc+'15',border:'1px solid '+sc+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{r.transfer_type==='final_exit'?'↗':'⟲'}</div>
+<div style={{flex:1}}>
+<div style={{fontSize:14,fontWeight:700,color:'var(--tx2)',marginBottom:2}}>{r.workers?.name_ar||T('عامل','Worker')}</div>
+<div style={{fontSize:9,color:'var(--tx6)',marginBottom:4}}>{r.created_at?new Date(r.created_at).toLocaleDateString('ar-SA',{day:'numeric',month:'short',year:'numeric'}):''}{r.status==='pending'&&ds>0?<span style={{color:'#e67e22',marginRight:6}}> — {T('منذ','since')} {ds} {T('يوم','days')}</span>:''}</div>
+<div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+<span style={{fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:5,background:sc+'15',color:sc}}>{statusLabel[r.status]||r.status}</span>
+<span style={{fontSize:9,fontWeight:500,padding:'2px 6px',borderRadius:4,background:'rgba(255,255,255,.04)',color:'var(--tx5)'}}>{typeLabel(r.transfer_type)}</span>
+{r.new_employer_name&&<span style={{fontSize:10,color:'var(--tx5)'}}>{T('←','→')} {r.new_employer_name}</span>}
+</div>
+</div>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderTop:'1px solid var(--bd2)',background:'rgba(255,255,255,.015)'}}>
-{[[T('التكلفة','Cost'),nm(r.total_cost),C.red],[T('المطلوب','Charge'),nm(r.client_charge),C.gold],[T('الربح','Profit'),nm(r.profit),Number(r.profit)>=0?C.ok:C.red]].map(([l,v,c],i)=><div key={i} style={{padding:'10px',textAlign:'center',borderLeft:i>0?'1px solid rgba(255,255,255,.03)':'none'}}><div style={{fontSize:8,color:'var(--tx6)',marginBottom:3}}>{l}</div><div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div></div>)}
+{[[T('التكلفة','Cost'),nm(tc),C.red],[T('المطلوب','Charge'),nm(cc),C.gold],[T('الربح','Profit'),nm(pr)+' ('+prPct+'%)',pr>=0?C.ok:C.red]].map(([l,v,c],i)=><div key={i} style={{padding:'10px',textAlign:'center',borderLeft:i>0?'1px solid rgba(255,255,255,.03)':'none'}}><div style={{fontSize:8,color:'var(--tx6)',marginBottom:3}}>{l}</div><div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div></div>)}
 </div>
 <div style={{display:'flex',gap:4,padding:'8px 12px',borderTop:'1px solid var(--bd2)',justifyContent:'center'}}>
 <button onClick={e=>{e.stopPropagation();printCalc(r)}} style={{height:28,padding:'0 12px',borderRadius:6,border:'1px solid rgba(155,89,182,.15)',background:'rgba(155,89,182,.06)',color:'#9b59b6',fontFamily:"'Cairo',sans-serif",fontSize:9,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>{T('طباعة','Print')}</button>
 <button onClick={e=>{e.stopPropagation();openEdit(r)}} style={{height:28,padding:'0 12px',borderRadius:6,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.06)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:9,fontWeight:700,cursor:'pointer'}}>{T('تعديل','Edit')}</button>
 </div></div>})}</div>}
+</>})()}
 {pop&&(()=>{
 const steps=[{id:'worker',t:T('بيانات العامل','Worker Info')},{id:'transfer',t:T('تفاصيل النقل','Transfer Details')},{id:'costs',t:T('التكاليف','Costs')},{id:'summary',t:T('الملخص','Summary')}]
 const selWorker=workers.find(w=>w.id===form.worker_id)
