@@ -58,8 +58,10 @@ const[tab,setTab]=useState('facilities')
 const[data,setData]=useState([]);const[owners,setOwners]=useState([]);const[subs,setSubs]=useState([]);const[creds,setCreds]=useState([]);const[partners,setPartners]=useState([]);const[exemptions,setExemptions]=useState([]);const[weeklyStats,setWeeklyStats]=useState([]);const[visas,setVisas]=useState([])
 const[branches,setBranches]=useState([]);const[regions,setRegions]=useState([]);const[cities,setCities]=useState([])
 const[loading,setLoading]=useState(false);const[q,setQ]=useState('');const[statusFilter,setStatusFilter]=useState('all');const[sortBy,setSortBy]=useState('created_at');const[nitaqatFilter,setNitaqatFilter]=useState('all')
-const[page,setPage]=useState(0);const[viewRow,setViewRow]=useState(null);const[viewTab,setViewTab]=useState('basic')
+const[page,setPage]=useState(0);const[viewRow,setViewRow]=useState(null);const[viewTab,setViewTab]=useState('basic');const[rowEdit,setRowEdit]=useState(null);const[rowEditVal,setRowEditVal]=useState('');const[viewOpenSec,setViewOpenSec]=useState({facility:true,cr:true,gov:true,activities:true,location:true,compliance:true,finance:true,notes:true,owners_partners:true,managers:true,gosi_owner:true,subs_sec:true,creds_sec:true})
+const[facWorkPermits,setFacWorkPermits]=useState([]);const[facIqamas,setFacIqamas]=useState([]);const[facAjeerContracts,setFacAjeerContracts]=useState([]);const[facChamberRequests,setFacChamberRequests]=useState([]);const[opsSection,setOpsSection]=useState('workers');const[basicSection,setBasicSection]=useState('facility');const[invoiceSection,setInvoiceSection]=useState('invoices');const[docsSection,setDocsSection]=useState('main');const[facActivityLog,setFacActivityLog]=useState([]);const[facAlerts,setFacAlerts]=useState([]);const[facInvoices,setFacInvoices]=useState([]);const[facTransactions,setFacTransactions]=useState([]);const[facMessages,setFacMessages]=useState([]);const[facOtherDocs,setFacOtherDocs]=useState([])
 const[wizard,setWizard]=useState(null);const[saving,setSaving]=useState(false);const[ownerMode,setOwnerMode]=useState('existing');const[newOwner,setNewOwner]=useState({name_ar:'',name_en:'',id_type:'national_id',id_number:'',nationality:'سعودي',gender:'male',mobile_personal:'',email:'',date_of_birth:''});const[wizPartners,setWizPartners]=useState([]);const[partnerAdd,setPartnerAdd]=useState(null);const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[actionMenu,setActionMenu]=useState(null);const[menuPos,setMenuPos]=useState({x:0,y:0});const[showAdvSearch,setShowAdvSearch]=useState(false);const[visaFilter,setVisaFilter]=useState('all');const[facWorkersData,setFacWorkersData]=useState([]);const[facWorkersLoading,setFacWorkersLoading]=useState(false);const[facDocs,setFacDocs]=useState([]);const[docFilter,setDocFilter]=useState('all');const[facDebts,setFacDebts]=useState([]);const[facViolations,setFacViolations]=useState([]);const[violationFilter,setViolationFilter]=useState('all');const[advFilters,setAdvFilters]=useState({cr_number:'',owner:'',region:'',city:'',gosi_status:'',vat_status:'',mlsd_status:'',mudad_status:'',facility_status:'',nitaqat:''})
+const[crTypes,setCrTypes]=useState([])
 const PER_PAGE=15
 useEffect(()=>{onTabChange&&onTabChange({tab})},[tab])
 
@@ -80,10 +82,10 @@ sb.from('facility_partners').select('*').is('deleted_at',null),
 sb.from('facility_exemption_log').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
 sb.from('facility_weekly_stats').select('*').order('week_date',{ascending:false}).limit(500),
 sb.from('facility_visas').select('*').is('deleted_at',null).order('created_at',{ascending:false})
-]).then(([s,c,p,ex,ws,vi])=>{setSubs(s.data||[]);setCreds(c.data||[]);setPartners(p.data||[]);setExemptions(ex.data||[]);setWeeklyStats(ws.data||[]);setVisas(vi.data||[])})},[sb])
+]).then(([s,c,p,ex,ws,vi])=>{setSubs(s.data||[]);setCreds(c.data||[]);setPartners(p.data||[]);setExemptions(ex.data||[]);setWeeklyStats(ws.data||[]);setVisas(vi.data||[])});sb.from('lookup_items').select('id,value_ar,code,lookup_categories!inner(category_key)').eq('lookup_categories.category_key','cr_type').eq('is_active',true).order('sort_order').then(({data})=>setCrTypes(data||[]))},[sb])
 useEffect(()=>{load()},[load])
 const[occupationsMap,setOccupationsMap]=useState({})
-useEffect(()=>{if(!viewRow)return;setFacWorkersLoading(true);sb.from('workers').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('name_ar').then(({data:d})=>{setFacWorkersData(d||[]);setFacWorkersLoading(false);const occIds=[...new Set((d||[]).map(w=>w.occupation_id).filter(Boolean))];if(occIds.length)sb.from('lookup_items').select('id,value_ar').in('id',occIds).then(({data:o})=>{const m={};(o||[]).forEach(x=>m[x.id]=x.value_ar);setOccupationsMap(p=>({...p,...m}))})});sb.from('facility_documents').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('expiry_date').then(({data:d})=>setFacDocs(d||[]));sb.from('facility_debts').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('due_date').then(({data:d})=>setFacDebts(d||[]));sb.from('facility_violations').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('violation_date',{ascending:false}).then(({data:d})=>setFacViolations(d||[]))},[viewRow,sb])
+useEffect(()=>{if(!viewRow)return;setFacWorkersLoading(true);sb.from('workers').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('name_ar').then(({data:d})=>{setFacWorkersData(d||[]);setFacWorkersLoading(false);const occIds=[...new Set((d||[]).map(w=>w.occupation_id).filter(Boolean))];if(occIds.length)sb.from('lookup_items').select('id,value_ar').in('id',occIds).then(({data:o})=>{const m={};(o||[]).forEach(x=>m[x.id]=x.value_ar);setOccupationsMap(p=>({...p,...m}))})});sb.from('facility_documents').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('expiry_date').then(({data:d})=>setFacDocs(d||[]));sb.from('facility_debts').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('due_date').then(({data:d})=>setFacDebts(d||[]));sb.from('facility_violations').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('violation_date',{ascending:false}).then(({data:d})=>setFacViolations(d||[]));sb.from('work_permits').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('wp_expiry_date',{ascending:false}).then(({data:d})=>setFacWorkPermits(d||[]));sb.from('iqama_cards').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('iqama_expiry_date',{ascending:false}).then(({data:d})=>setFacIqamas(d||[]));sb.from('facility_ajeer_contracts').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('end_date',{ascending:false}).then(({data:d})=>setFacAjeerContracts(d||[]));sb.from('facility_chamber_requests').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('request_date',{ascending:false}).then(({data:d})=>setFacChamberRequests(d||[]));sb.from('invoices').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('created_at',{ascending:false}).then(({data:d})=>setFacInvoices(d||[]));sb.from('transactions').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('created_at',{ascending:false}).then(({data:d})=>setFacTransactions(d||[]));sb.from('communication_log').select('*').eq('facility_id',viewRow.id).is('deleted_at',null).order('created_at',{ascending:false}).then(({data:d})=>setFacMessages(d||[]));sb.from('activity_log').select('*').eq('entity_type','facility').eq('entity_id',viewRow.id).order('created_at',{ascending:false}).limit(50).then(({data:d})=>setFacActivityLog(d||[]));sb.from('smart_alerts').select('*').eq('entity_type','facility').eq('entity_id',viewRow.id).order('created_at',{ascending:false}).then(({data:d})=>setFacAlerts(d||[]))},[viewRow,sb])
 
 const del=async(t,id)=>{if(!confirm(T('حذف؟','Delete?')))return;await sb.from(t).update({deleted_at:new Date().toISOString()}).eq('id',id);toast(T('تم الحذف','Deleted'));load()}
 const saveGeneric=async(table,formData)=>{setSaving(true);try{const d={...formData};const id=d._id;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;if(d[k]==='true')d[k]=true;if(d[k]==='false')d[k]=false})
@@ -146,7 +148,9 @@ const wizardSteps=[
 {k:'vat_number',l:T('رقم ض.ق.م','VAT No.'),d:1},
 {k:'vat_status',l:T('حالة الضريبة','VAT Status'),opts:[{v:'registered',l:T('مسجّل','Registered')},{v:'not_registered',l:T('غير مسجّل','Not Registered')},{v:'deregistered',l:T('ملغى','Deregistered')}]},
 {k:'zakat_unique_number',l:T('الرقم المميز للزكاة','Zakat No.'),d:1},
-{k:'zakat_outstanding_balance',l:T('رصيد الزكاة المستحق','Zakat Balance'),d:1}
+{k:'zakat_outstanding_balance',l:T('رصيد الزكاة المستحق','Zakat Balance'),d:1},
+{k:'gosi_outstanding_balance',l:T('المبلغ المستحق لدى التأمينات الاجتماعية','GOSI Outstanding'),d:1},
+{k:'vat_outstanding_balance',l:T('مبلغ ضريبة القيمة المضافة','VAT Outstanding'),d:1}
 ]},
 {title:T('المالك','Owner'),custom:'owner'},
 {title:T('الربط والموقع','Links & Location'),fields:[
@@ -360,113 +364,243 @@ return<div key={r.id} data-card onClick={()=>{setViewRow(r);setViewTab('basic')}
 </div>})()}
 </>}
 
-{/* ═══ VIEW FACILITY POPUP — Side Tabs ═══ */}
+{/* ═══ VIEW FACILITY — Icon Sidebar + Accordion ═══ */}
 {viewRow&&(()=>{const facWorkers=facWorkersData;const facVisas=visas.filter(v=>v.facility_id===viewRow.id);const facWeekly=weeklyStats.filter(w=>w.facility_id===viewRow.id);const nClr=sMap[viewRow.nitaqat_color]||'#555'
 const resolve=(k,v)=>{if(k==='branch_id')return branches.find(b=>b.id===v)?.name_ar||v;if(k==='owner_id'||k==='gosi_owner_id')return owners.find(o=>o.id===v)?.name_ar||v;if(k==='region_id')return regions.find(r=>r.id===v)?.name_ar||v;if(k==='city_id')return cities.find(c=>c.id===v)?.name_ar||v;if(k==='parent_facility_id')return data.find(f=>f.id===v)?.name_ar||v;return v}
 const InfoBox=({l,v,copy,isSt})=><div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:isSt?(sMap[v]||'rgba(255,255,255,.85)'):'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{isSt?<Badge v={v}/>:v}</div>{copy&&v&&v!=='—'&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast(T('تم النسخ','Copied'))}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}</div></div>
-const vtabs=[{id:'basic',l:T('البيانات الأساسية','Basic Info')},{id:'fpartners',l:T('الملّاك والشركاء','Owners & Partners'),n:facPartners.length},{id:'fworkers',l:T('العمال','Workers'),n:facWorkers.length},{id:'fvisas',l:T('تأشيرات العمل','Work Visas'),n:facVisas.length},{id:'weekly',l:T('السجل الأسبوعي','Weekly Log'),n:facWeekly.length},{id:'fdebts',l:T('المديونيات والمخالفات','Debts & Violations'),n:facDebts.length+facViolations.length},{id:'fsubs',l:T('الاشتراكات','Subscriptions'),n:facSubs.length},{id:'fcreds',l:T('بيانات الدخول','Credentials'),n:facCreds.length},{id:'fdocs',l:T('المستندات','Documents'),n:facDocs.length}]
-return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(920px,95vw)',height:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.15)'}}>
-{/* Header */}
-<div style={{background:'var(--bg)',padding:'16px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(201,168,76,.12)'}}>
-<div style={{display:'flex',alignItems:'center',gap:12}}>
-<div style={{width:44,height:44,borderRadius:12,background:'rgba(201,168,76,.08)',border:'1.5px solid rgba(201,168,76,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:900,color:C.gold,flexShrink:0}}>{(viewRow.name_ar||'م')[0]}</div>
-<div>
-<div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:17,fontWeight:800,color:'var(--tx)'}}>{viewRow.name_ar}</span><Badge v={{active:T('نشطة','Active'),issue:T('بها مشكلة','Issue'),inactive:T('غير نشطة','Inactive'),deleted:T('محذوفة','Deleted')}[viewRow.facility_status]||viewRow.facility_status}/><div style={{width:18,height:18,borderRadius:'50%',background:nClr+'20',border:'1.5px solid '+nClr+'40',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{width:6,height:6,borderRadius:'50%',background:nClr}}/></div></div>
-{viewRow.name_en&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{viewRow.name_en}</div>}
-</div></div>
-<div style={{display:'flex',gap:6}}>
-<button onClick={()=>{setViewRow(null);openEdit(viewRow)}} style={{height:32,padding:'0 14px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.08)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>{T('تعديل','Edit')}</button>
-<button onClick={()=>{if(confirm(T('حذف؟','Delete?'))){del('facilities',viewRow.id);setViewRow(null)}}} style={{height:32,padding:'0 12px',borderRadius:8,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.06)',color:C.red,fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>{T('حذف','Delete')}</button>
-<button onClick={()=>setViewRow(null)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-</div></div>
-{/* Body: Side tabs + Content */}
+const CopyBtn=({v:val})=>val&&val!=='—'?<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(val));toast(T('تم النسخ','Copied'))}} style={{width:18,height:18,borderRadius:4,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0,opacity:.5,transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='.5'}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>:null
+const openSec=viewOpenSec;const setOpenSec=setViewOpenSec
+const togSec=k=>setOpenSec(p=>({...p,[k]:!p[k]}))
+const nitaqatAr={'red':'أحمر','yellow':'أصفر','green_low':'أخضر منخفض','green_mid':'أخضر متوسط','green_high':'أخضر عالي','platinum':'بلاتيني'}
+const lastW=facWeekly[0];const saudPct=lastW?.saudization_percentage
+const vtabGroups=[
+{group:T('المنشأة','Facility'),tabs:[
+{id:'basic',l:T('البيانات الأساسية','Basic Data'),has:true},
+]},
+{group:T('النشاط','Activity'),tabs:[
+{id:'fops',l:T('السجل العمالي','Labor Records'),has:facWorkers.length>0||(facVisas.length+facWorkPermits.length+facIqamas.length+facAjeerContracts.length+facChamberRequests.length)>0},
+{id:'weekly',l:T('السجل الأسبوعي','Weekly'),has:facWeekly.length>0},
+{id:'finvoices',l:T('الفواتير والمعاملات','Invoices'),has:(facInvoices.length+facTransactions.length)>0},
+{id:'fmsgs',l:T('الرسائل النصية','Messages'),has:facMessages.length>0},
+]},
+{group:T('المتابعة','Tracking'),tabs:[
+{id:'factivity',l:T('سجل التغييرات','Change Log'),has:facActivityLog.length>0},
+{id:'falerts',l:T('التنبيهات','Alerts'),has:facAlerts.length>0},
+]},
+{group:T('الملفات','Files'),tabs:[
+{id:'fdocs',l:T('المستندات','Documents'),has:facDocs.length>0||facOtherDocs.length>0},
+]}
+]
+const qiwaVal=(viewRow.qiwa_office_code&&viewRow.qiwa_file_number)?viewRow.qiwa_office_code+'-'+viewRow.qiwa_file_number:(viewRow.qiwa_office_code||viewRow.qiwa_file_number||null)
+const SecHead=({k,title,dot,count})=><div onClick={()=>togSec(k)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',padding:'12px 16px',marginBottom:openSec[k]?10:0,background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.05)',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,.02)'}>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
+<div style={{width:3,height:16,borderRadius:2,background:dot||C.gold}}/>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{title}</span>
+</div>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
+{count!=null&&<span style={{fontSize:9,fontWeight:600,color:dot||C.gold,padding:'2px 8px',background:(dot||C.gold)+'12',borderRadius:4}}>{count}</span>}
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2.5" style={{transition:'.2s',transform:openSec[k]?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
+</div>
+</div>
+const saveRowEdit=async(field,val)=>{try{
+// التحقق
+if(field==='name_ar'&&val&&!/[\u0600-\u06FF\s]/.test(val)){toast('خطأ: الاسم يجب أن يكون بالعربي');return}
+if(field==='name_en'&&val&&!/^[a-zA-Z\s.,&()-]+$/.test(val)){toast('خطأ: الاسم يجب أن يكون بالإنجليزي');return}
+if(field==='unified_national_number'&&val&&(!/^\d{10}$/.test(val))){toast('خطأ: الرقم الموحد يجب أن يكون 10 أرقام بالضبط');return}
+if(field==='cr_number'&&val&&(!/^\d{10}$/.test(val))){toast('خطأ: رقم السجل يجب أن يكون 10 أرقام بالضبط');return}
+if(field==='mobile'&&val){const clean=val.replace(/^\+?966/,'').replace(/\D/g,'');if(clean.length!==9){toast('خطأ: رقم الجوال يجب أن يكون 9 أرقام');return}val='+966'+clean}
+if((field==='unified_national_number'||field==='cr_number')&&val){const{data:dup}=await sb.from('facilities').select('id').eq(field,val).neq('id',viewRow.id).is('deleted_at',null).limit(1);if(dup&&dup.length>0){toast('خطأ: '+(field==='unified_national_number'?'الرقم الموحد مستخدم في منشأة أخرى':'رقم السجل مستخدم في منشأة أخرى'));return}}
+const d={[field]:val===''?null:val,updated_by:user?.id};const{error}=await sb.from('facilities').update(d).eq('id',viewRow.id);if(error)throw error;toast(T('تم الحفظ','Saved'));setViewRow(p=>({...p,[field]:val===''?null:val}));setRowEdit(null);load()}catch(e){toast('خطأ: '+(e.message||'').slice(0,60))}};
+const Row=({l,v,copy,ltr,isSt,field,opts})=>{const isEditing=rowEdit===field;if(isEditing&&field)return<div style={{padding:'10px 0',borderBottom:'1px solid rgba(201,168,76,.15)'}}><div style={{fontSize:10,color:C.gold,fontWeight:600,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}><span>{l}</span><div style={{display:'flex',gap:4}}><button onClick={()=>saveRowEdit(field,rowEditVal)} style={{height:22,padding:'0 10px',borderRadius:5,border:'1px solid rgba(39,160,70,.3)',background:'rgba(39,160,70,.12)',color:C.ok,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer'}}>حفظ</button><button onClick={()=>setRowEdit(null)} style={{height:22,padding:'0 8px',borderRadius:5,border:'1px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx5)',fontFamily:F,fontSize:10,cursor:'pointer'}}>✕</button></div></div>{opts?<CustomSelect value={rowEditVal||''} options={opts} onChange={nv=>setRowEditVal(nv)} isAr={isAr} placeholder="—"/>:<input autoFocus value={rowEditVal} onChange={e=>setRowEditVal(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')saveRowEdit(field,rowEditVal);if(e.key==='Escape')setRowEdit(null)}} style={{width:'100%',height:32,padding:'0 12px',border:'1px solid rgba(201,168,76,.2)',borderRadius:6,fontFamily:F,fontSize:12,fontWeight:700,color:'var(--tx)',background:'rgba(255,255,255,.03)',outline:'none',textAlign:'center',direction:ltr?'ltr':'rtl'}}/>}</div>;return<div style={{padding:'10px 12px',background:'rgba(255,255,255,.015)',borderRadius:8,border:'1px solid rgba(255,255,255,.04)',transition:'.15s',position:'relative'}} onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.08)';const p=e.currentTarget.querySelector('.row-pen');if(p)p.style.opacity='1'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.04)';const p=e.currentTarget.querySelector('.row-pen');if(p)p.style.opacity='0'}}>
+<div style={{fontSize:9,color:'var(--tx6)',fontWeight:500,marginBottom:5}}>{l}</div>
+<div style={{display:'flex',alignItems:'center',gap:5}}>
+{!v||v==='—'?<span style={{fontSize:13,fontWeight:600,color:'var(--tx6)'}}>—</span>:isSt?<Badge v={v}/>:<span style={{fontSize:13,fontWeight:700,color:'rgba(255,255,255,.85)',direction:ltr?'ltr':'inherit'}}>{v}</span>}
+{copy&&v&&v!=='—'&&<CopyBtn v={v}/>}
+{field&&<div className="row-pen" onClick={()=>{setRowEditVal(v==='—'||!v?'':v);setRowEdit(field)}} style={{opacity:0,transition:'.15s',cursor:'pointer',position:'absolute',left:8,top:8,width:24,height:24,borderRadius:5,background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.15)',display:'flex',alignItems:'center',justifyContent:'center'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(201,168,76,.15)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(201,168,76,.08)'}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>}
+</div>
+</div>}
+return<div style={{position:'fixed',inset:0,background:'var(--bg)',display:'flex',alignItems:'stretch',zIndex:999}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',width:'100vw',height:'100vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+{/* ── Header ── */}
+<div style={{padding:'16px 32px',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid var(--bd,rgba(255,255,255,.07))'}}>
+{/* يمين: هوية المنشأة */}
+<div style={{display:'flex',alignItems:'center',gap:14,flex:1}}>
+<div style={{width:44,height:44,borderRadius:12,background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></div>
+<div style={{minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',gap:8}}><h1 style={{fontSize:18,fontWeight:800,color:'var(--tx)',margin:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{viewRow.name_ar}</h1></div>
+<div style={{display:'flex',alignItems:'center',gap:8,marginTop:3}}>
+{viewRow.unified_national_number&&<span style={{fontSize:12,fontWeight:700,color:C.gold,direction:'ltr',cursor:'pointer'}} onClick={()=>{navigator.clipboard.writeText(viewRow.unified_national_number);toast(T('تم النسخ','Copied'))}} title={T('نسخ الرقم الموحد','Copy')}>{viewRow.unified_national_number}</span>}
+{viewRow.name_en&&<span style={{fontSize:10,color:'var(--tx6)'}}>·</span>}
+{viewRow.name_en&&<span style={{fontSize:10,color:'var(--tx5)'}}>{viewRow.name_en}</span>}
+</div>
+</div>
+</div>
+{/* يسار: مؤشرات الحالة */}
+<div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0}}>
+{/* اكتمال الملف */}
+{(()=>{const fields=['name_ar','name_en','unified_national_number','cr_number','cr_issue_date','cr_expiry_date','cr_confirm_date','type','legal_form','facility_status','capital','gosi_file_number','gosi_status','qiwa_office_code','qiwa_file_number','vat_number','vat_status','zakat_unique_number','chamber_membership_no','chamber_membership_expiry','subl_file_number','mlsd_service_status','mudad_wps_compliance_status','nitaqat_color','nitaqat_size','total_workers','saudi_workers','non_saudi_workers','saudization_percentage','max_visas','max_work_permits','region_id','city_id','address_ar','short_address','postal_code','mobile','email'];const filled=fields.filter(f=>viewRow[f]!=null&&viewRow[f]!=='').length;const pct=Math.round((filled/fields.length)*100);const clr=pct>=90?C.ok:pct>=60?C.gold:pct>=30?'#e67e22':C.red;return<div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:clr+'0a',borderRadius:8,border:'1px solid '+clr+'18'}}>
+<svg width="28" height="28" viewBox="0 0 28 28" style={{transform:'rotate(-90deg)',flexShrink:0}}>
+<circle cx="14" cy="14" r="11" fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="2.5"/>
+<circle cx="14" cy="14" r="11" fill="none" stroke={clr} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={2*Math.PI*11} strokeDashoffset={2*Math.PI*11*(1-pct/100)}/>
+</svg>
+<div><div style={{fontSize:13,fontWeight:900,color:clr,lineHeight:1}}>{pct}%</div><div style={{fontSize:7,color:'var(--tx5)',marginTop:2}}>اكتمال</div></div>
+</div>})()}
+{/* chips المؤشرات */}
+{[
+[facWorkers.length+' '+T('عامل','W'),C.blue],
+[saudPct!=null?saudPct+'% '+T('سعودة','S'):'—',saudPct!=null&&saudPct<20?C.red:C.ok],
+[nitaqatAr[viewRow.nitaqat_color]||'—',nClr],
+].map(([v,c],i)=><div key={i} style={{padding:'6px 12px',borderRadius:8,background:c+'0a',border:'1px solid '+c+'18',fontSize:11,fontWeight:700,color:c,whiteSpace:'nowrap'}}>{v}</div>)}
+{/* حالة المنشأة */}
+<Badge v={{active:T('نشطة','Active'),issue:T('مشكلة','Issue'),inactive:T('غير نشطة','Inactive'),deleted:T('محذوفة','Deleted')}[viewRow.facility_status]||viewRow.facility_status}/>
+<button onClick={()=>setViewRow(null)} style={{width:34,height:34,borderRadius:8,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>✕</button>
+</div>
+</div>
+{/* ── Body: Sidebar + Content ── */}
 <div style={{display:'flex',flex:1,overflow:'hidden'}}>
-{/* Side tabs */}
-<div style={{width:170,background:'rgba(255,255,255,.015)',borderLeft:'1px solid rgba(255,255,255,.04)',padding:'12px 0',flexShrink:0,overflowY:'auto'}}>
-{vtabs.map(t=><div key={t.id} onClick={()=>setViewTab(t.id)} style={{padding:'10px 16px',fontSize:11,fontWeight:viewTab===t.id?700:500,color:viewTab===t.id?C.gold:'rgba(255,255,255,.4)',background:viewTab===t.id?'rgba(201,168,76,.06)':'transparent',borderRight:viewTab===t.id?'3px solid '+C.gold:'3px solid transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'.15s'}}><span>{t.l}</span>{t.n!=null&&<span style={{fontSize:9,color:viewTab===t.id?'rgba(201,168,76,.5)':'rgba(255,255,255,.2)',background:viewTab===t.id?'rgba(201,168,76,.08)':'rgba(255,255,255,.04)',padding:'2px 6px',borderRadius:4,minWidth:18,textAlign:'center'}}>{t.n}</span>}</div>)}
+{/* Sidebar */}
+<div className="fac-sidebar" style={{width:180,background:'var(--sf)',borderLeft:'1px solid var(--bd,rgba(255,255,255,.07))',display:'flex',flexDirection:'column',padding:'10px 0',gap:0,flexShrink:0,overflowY:'auto',scrollbarWidth:'none',msOverflowStyle:'none'}}>
+<style>{`.fac-sidebar::-webkit-scrollbar{display:none}`}</style>
+{vtabGroups.map((g,gi)=><div key={gi}>
+<div style={{padding:'12px 18px 6px',fontSize:10,fontWeight:800,color:'rgba(255,255,255,.25)',letterSpacing:.5}}>{g.group}</div>
+{g.tabs.map(t=>{const isAct=viewTab===t.id;return<div key={t.id} onClick={()=>setViewTab(t.id)} style={{padding:'9px 18px',display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:isAct?C.gold:'var(--tx5)',background:isAct?'rgba(201,168,76,.06)':'transparent',borderRight:isAct?'3px solid '+C.gold:'3px solid transparent',transition:'.15s',fontSize:12,fontWeight:isAct?700:500}} onMouseEnter={e=>{if(!isAct)e.currentTarget.style.background='rgba(255,255,255,.03)'}} onMouseLeave={e=>{if(!isAct)e.currentTarget.style.background='transparent'}}>
+<div style={{width:6,height:6,borderRadius:'50%',background:t.has?C.ok:'rgba(255,255,255,.1)',flexShrink:0,boxShadow:t.has?'0 0 4px '+C.ok+'40':'none'}}/>
+<span>{t.l}</span>
+</div>})}
+{gi<vtabGroups.length-1&&<div style={{borderBottom:'1px solid rgba(255,255,255,.05)',margin:'8px 18px'}}/>}
+</div>)}
+<div style={{flex:1}}/>
+<div onClick={()=>{if(confirm(T('حذف المنشأة؟','Delete?'))){del('facilities',viewRow.id);setViewRow(null)}}} style={{padding:'10px 18px',display:'flex',alignItems:'center',gap:6,cursor:'pointer',color:C.red,fontSize:11,fontWeight:600,transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(192,57,43,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg><span>{T('حذف','Delete')}</span></div>
 </div>
 {/* Content */}
-<div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}>
+<div style={{flex:1,overflowY:'auto',padding:'24px 32px 60px'}}>
+<style>{`.i1-scroll::-webkit-scrollbar{width:3px}.i1-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}`}</style>
 
-{viewTab==='basic'&&<div style={{display:'flex',flexDirection:'column',gap:22}}>
-{/* 1. السجل التجاري */}
-<div>
-<div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h6M8 15h4"/></svg>{T('السجل التجاري','Commercial Reg.')}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-<InfoBox l={T('الرقم الموحد','Unified No.')} v={viewRow.unified_national_number||'—'} copy/>
-<InfoBox l={T('رقم السجل','CR Number')} v={viewRow.cr_number||'—'} copy/>
-<InfoBox l={T('حالة السجل','CR Status')} v={{active:T('نشط','Active'),pending_confirmation:T('ضمن فترة التأكيد','Pending'),suspended:T('معلّق','Suspended'),cancelled:T('ملغى','Cancelled'),expired:T('منتهي','Expired'),deleted:T('مشطوب','Deleted')}[viewRow.cr_status]||viewRow.cr_status||'—'} isSt/>
-<InfoBox l={T('تاريخ الإصدار','Issue Date')} v={viewRow.cr_issue_date||'—'}/>
-<InfoBox l={T('تاريخ التأكيد السنوي','Annual Confirm')} v={viewRow.cr_confirm_date||'—'}/>
-<InfoBox l={T('سجل رئيسي','Main CR')} v={viewRow.is_main_cr?T('نعم','Yes'):T('لا','No')}/>
+{viewTab==='basic'&&<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{/* شريط التبويبات الفرعية */}
+<div style={{display:'flex',gap:8,borderBottom:'1px solid rgba(255,255,255,.06)',paddingBottom:0}}>
+{[['facility',T('بيانات المنشأة','Facility Data')],['owners_mgrs',T('الملاك والمدراء','Owners & Managers')],['subs_creds',T('الاشتراكات والدخول','Subs & Credentials')]].map(([k,l])=><div key={k} onClick={()=>setBasicSection(k)} style={{padding:'9px 16px',fontSize:11,fontWeight:basicSection===k?700:500,color:basicSection===k?C.gold:'rgba(255,255,255,.4)',borderTop:basicSection===k?'2px solid '+C.gold:'2px solid transparent',border:basicSection===k?'1px solid rgba(255,255,255,.1)':'1px solid transparent',borderBottom:basicSection===k?'1px solid var(--sf,#1a1a2e)':'1px solid transparent',borderRadius:'8px 8px 0 0',background:basicSection===k?'rgba(201,168,76,.04)':'transparent',cursor:'pointer',transition:'.15s',marginBottom:-1}} onMouseEnter={e=>{if(basicSection!==k){e.currentTarget.style.color='rgba(255,255,255,.6)';e.currentTarget.style.background='rgba(255,255,255,.02)'}}} onMouseLeave={e=>{if(basicSection!==k){e.currentTarget.style.color='rgba(255,255,255,.4)';e.currentTarget.style.background='transparent'}}}>{l}</div>)}
 </div>
-</div>
-{/* 2. أرقام الملفات الحكومية */}
-<div>
-<div style={{fontSize:11,fontWeight:700,color:'#9b59b6',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{T('أرقام الملفات الحكومية','Gov. File Numbers')}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<InfoBox l={T('ملف قوى','Qiwa File')} v={viewRow.qiwa_file_number||'—'} copy/>
-<InfoBox l={T('ملف التأمينات الاجتماعية','GOSI File')} v={viewRow.gosi_file_number||'—'} copy/>
-{viewRow.chamber_membership_no&&<InfoBox l={T('الغرفة التجارية','Chamber')} v={viewRow.chamber_membership_no} copy/>}
-{viewRow.subl_file_number&&<InfoBox l={T('سُبل','Subl')} v={viewRow.subl_file_number} copy/>}
-</div>
-</div>
-{/* 3. معلومات المنشأة */}
-<div>
-<div style={{fontSize:11,fontWeight:700,color:C.blue,marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><rect x="3" y="8" width="18" height="14" rx="2"/><path d="M7 8V4a2 2 0 012-2h6a2 2 0 012 2v4"/></svg>{T('معلومات المنشأة','Facility Info')}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:8}}>
-<InfoBox l={T('النوع','Type')} v={viewRow.type==='company'?T('شركة','Company'):T('مؤسسة فردية','Establishment')}/>
-<InfoBox l={T('الشكل القانوني','Legal Form')} v={{sole_proprietorship:T('مؤسسة فردية','Sole Proprietorship'),limited_liability:T('ذات مسؤولية محدودة','LLC'),simplified_joint_stock:T('مساهمة مبسطة','Simplified Joint Stock'),general_partnership:T('تضامن','General Partnership'),limited_partnership:T('توصية بسيطة','Limited Partnership'),joint_stock:T('مساهمة','Joint Stock')}[viewRow.legal_form]||'—'}/>
-<InfoBox l={T('الحالة','Status')} v={{active:T('نشطة','Active'),issue:T('بها مشكلة','Issue'),inactive:T('غير نشطة','Inactive'),deleted:T('محذوفة','Deleted')}[viewRow.facility_status]||viewRow.facility_status||'—'} isSt/>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<InfoBox l={T('رأس المال','Capital')} v={viewRow.capital?nm(viewRow.capital)+' '+T('ر.س','SAR'):'—'}/>
-<div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}>
-<div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{T('الأغراض','Purposes')}</div>
-<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-{viewRow.purpose_transfer&&<span style={{fontSize:9,fontWeight:600,padding:'3px 10px',borderRadius:5,background:'rgba(26,188,156,.08)',color:'#1abc9c',border:'1px solid rgba(26,188,156,.12)'}}>{T('نقل خدمات','Transfer')}</span>}
-{viewRow.purpose_permanent_visa&&<span style={{fontSize:9,fontWeight:600,padding:'3px 10px',borderRadius:5,background:'rgba(52,131,180,.08)',color:C.blue,border:'1px solid rgba(52,131,180,.12)'}}>{T('تأشيرة دائمة','Permanent Visa')}</span>}
-{viewRow.purpose_temporary_visa&&<span style={{fontSize:9,fontWeight:600,padding:'3px 10px',borderRadius:5,background:'rgba(201,168,76,.08)',color:C.gold,border:'1px solid rgba(201,168,76,.12)'}}>{T('تأشيرة مؤقتة','Temporary Visa')}</span>}
-{!viewRow.purpose_transfer&&!viewRow.purpose_permanent_visa&&!viewRow.purpose_temporary_visa&&<span style={{fontSize:9,color:'var(--tx6)'}}>—</span>}
-</div>
-</div>
-</div>
-</div>
-{/* 5. الموقع والعنوان */}
-<div>
-<div style={{fontSize:11,fontWeight:700,color:'#1abc9c',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1abc9c" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>{T('الموقع والعنوان','Location & Address')}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<InfoBox l={T('المنطقة','Region')} v={resolve('region_id',viewRow.region_id)||'—'}/>
-<InfoBox l={T('المدينة','City')} v={resolve('city_id',viewRow.city_id)||'—'}/>
-<InfoBox l={T('العنوان المختصر','Short Address')} v={viewRow.short_address||'—'} copy/>
-<InfoBox l={T('الرمز البريدي','Postal Code')} v={viewRow.postal_code||'—'}/>
-</div>
-</div>
-{/* 6. الامتثال */}
-<div>
-<div style={{fontSize:11,fontWeight:700,color:'#e67e22',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e67e22" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>{T('الامتثال','Compliance')}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<InfoBox l={T('حالة التأمينات الاجتماعية','Social Insurance')} v={{active:T('نشط','Active'),inactive:T('غير نشط','Inactive')}[viewRow.gosi_status]||'—'} isSt/>
-<InfoBox l={T('خدمات العمل','Labor Services')} v={{active:T('نشط','Active'),suspended:T('معلّق','Suspended')}[viewRow.mlsd_service_status]||'—'} isSt/>
-<InfoBox l={T('حماية الأجور (مدد)','Wage Protection (Mudad)')} v={{compliant:T('متوافق','Compliant'),non_compliant:T('غير متوافق','Non-Compliant')}[viewRow.mudad_wps_compliance_status]||'—'} isSt/>
-{viewRow.is_original_exempt&&<InfoBox l={T('إعفاء أصلي','Original Exempt')} v={T('نعم','Yes')}/>}
-</div>
-</div>
-{/* 7. الالتزامات المالية الحكومية */}
-{(viewRow.vat_number||viewRow.zakat_unique_number||viewRow.vat_status)&&<div>
-<div style={{fontSize:11,fontWeight:700,color:'#e74c3c',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>{T('الالتزامات المالية الحكومية','Gov. Financial Obligations')}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<InfoBox l={T('رقم ضريبة القيمة المضافة','VAT Number')} v={viewRow.vat_number||'—'} copy/>
-<InfoBox l={T('الرقم المميز للزكاة','Zakat Unique No.')} v={viewRow.zakat_unique_number||'—'} copy/>
-<InfoBox l={T('رصيد الزكاة المستحق','Zakat Balance')} v={viewRow.zakat_outstanding_balance?nm(viewRow.zakat_outstanding_balance)+' '+T('ر.س','SAR'):'—'}/>
-</div>
+{/* ── بيانات المنشأة ── */}
+{basicSection==='facility'&&<div style={{display:'flex',flexDirection:'column',gap:16}}>
+<SecHead k="facility" title="السجل التجاري" dot="#e67e22" count={<span style={{fontSize:10,fontWeight:800,color:C.ok}}>{(()=>{const today=new Date();today.setHours(0,0,0,0);const cd=viewRow.cr_confirm_date?new Date(viewRow.cr_confirm_date):null;if(!cd||today<cd)return'نشط';const d90=new Date(cd);d90.setDate(d90.getDate()+90);return today<=d90?'ضمن فترة التأكيد':'معلّق'})()}</span>}/>
+{openSec.facility&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+{/* الاسم والهوية */}
+<Row l="اسم المنشأة بالعربي" v={viewRow.name_ar} copy field="name_ar"/>
+<Row l="الاسم بالإنجليزي" v={viewRow.name_en} ltr field="name_en"/>
+<Row l="الرقم الموحد" v={viewRow.unified_national_number||'—'} ltr copy field="unified_national_number"/>
+<Row l="رقم السجل التجاري" v={viewRow.cr_number||'—'} ltr copy field="cr_number"/>
+{/* النوع والشكل */}
+<Row l="نوع الكيان" v={viewRow.type==='company'?'شركة':viewRow.type==='establishment'?'مؤسسة فردية':'—'} field="type" opts={[{v:'company',l:'شركة'},{v:'establishment',l:'مؤسسة فردية'}]}/>
+{viewRow.type==='company'&&<Row l="الشكل القانوني" v={{limited_liability:'ذات مسؤولية محدودة',simplified_joint_stock:'مساهمة مبسطة',general_partnership:'تضامنية',limited_partnership:'توصية بسيطة',joint_stock:'مساهمة',holding:'قابضة'}[viewRow.legal_form]||'—'} field="legal_form" opts={[{v:'limited_liability',l:'ذات مسؤولية محدودة'},{v:'simplified_joint_stock',l:'مساهمة مبسطة'},{v:'general_partnership',l:'تضامنية'},{v:'limited_partnership',l:'توصية بسيطة'},{v:'joint_stock',l:'مساهمة'},{v:'holding',l:'قابضة'}]}/>}
+<Row l="نوع السجل التجاري" v={(()=>{const f=crTypes.find(x=>x.code===(viewRow.is_main_cr===true||viewRow.is_main_cr==='true'?'main':'branch'));return f?f.value_ar:(viewRow.is_main_cr?'رئيسي':'فرعي')})()} field="is_main_cr" opts={crTypes.map(t=>({v:t.code==='main'?'true':'false',l:t.value_ar}))}/>
+{(viewRow.is_main_cr===false||viewRow.is_main_cr==='false')&&(()=>{const opts=data.filter(f=>f.id!==viewRow.id&&(f.is_main_cr===true||f.is_main_cr==='true')).map(f=>({v:f.id,l:(f.name_ar||'منشأة')+(f.unified_national_number?' — '+f.unified_national_number:'')}));const cur=opts.find(o=>o.v===viewRow.parent_facility_id);return<Row l="المنشأة الرئيسية" v={cur?cur.l:'—'} field="parent_facility_id" opts={opts}/>})()}
+<Row l="حالة المنشأة العامة" v={{active:'نشطة',issue:'مشكلة',inactive:'غير نشطة',deleted:'محذوفة'}[viewRow.facility_status]||viewRow.facility_status||'—'} isSt field="facility_status" opts={[{v:'active',l:'نشطة'},{v:'issue',l:'مشكلة'},{v:'inactive',l:'غير نشطة'}]}/>
+{/* التواريخ */}
+<Row l="تاريخ قيد السجل التجاري" v={viewRow.cr_issue_date||'—'} ltr field="cr_issue_date"/>
+<Row l="تاريخ التأكيد السنوي" v={viewRow.cr_confirm_date||'—'} ltr field="cr_confirm_date"/>
+{/* المالية والتواصل */}
+<Row l="رأس المال" v={viewRow.capital?nm(viewRow.capital)+' ريال':'—'} ltr field="capital"/>
+<Row l="الجوال" v={viewRow.mobile?(()=>{const r=String(viewRow.mobile).replace(/^\+?966/,'').replace(/\D/g,'').slice(0,9);return r?'+966 '+r.replace(/(\d{2})(\d{3})(\d{4})/,'$1 $2 $3'):'—'})():'—'} ltr copy field="mobile"/>
+<Row l="البريد الإلكتروني" v={viewRow.email||'—'} ltr copy field="email"/>
 </div>}
-{/* 7. ملاحظات */}
-{viewRow.notes&&<div>
-<div style={{fontSize:11,fontWeight:700,color:'var(--tx4)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>{T('ملاحظات','Notes')}</div>
-<div style={{padding:'12px 16px',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)',fontSize:12,color:'var(--tx3)',lineHeight:1.8,whiteSpace:'pre-wrap'}}>{viewRow.notes}</div>
+{/* ── أرقام الملفات الحكومية ── */}
+<SecHead k="gov" title="أرقام الملفات الحكومية" dot="#9b59b6"/>
+{openSec.gov&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+<Row l="رقم ملف المنشأة في التأمينات الإجتماعية" v={viewRow.gosi_file_number||'—'} ltr copy field="gosi_file_number"/>
+<Row l="رقم ملف المنشأة في وزارة العمل" v={qiwaVal||'—'} ltr copy/>
+<Row l="رقم السجل التجاري" v={viewRow.cr_number||'—'} ltr copy field="cr_number"/>
+<Row l="الرقم المميز لهيئة الزكاة والدخل" v={viewRow.zakat_unique_number||'—'} ltr copy field="zakat_unique_number"/>
+<Row l="رقم التسجيل الضريبي" v={viewRow.vat_number||'—'} ltr copy field="vat_number"/>
+<Row l="سُبل (البريد السعودي)" v={viewRow.subl_file_number||'—'} ltr copy field="subl_file_number"/>
+<Row l="رقم اشتراك الغرفة التجارية" v={viewRow.chamber_membership_no||'—'} ltr copy field="chamber_membership_no"/>
 </div>}
+</div>}
+{/* ── الملاك والمدراء ── */}
+{basicSection==='owners_mgrs'&&<div style={{display:'flex',flexDirection:'column',gap:16}}>
+<SecHead k="owners_partners" title="الملاك والشركاء" dot="#c9a84c"/>
+{openSec.owners_partners&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{(()=>{const ps=facPartners.filter(p=>!p.is_manager&&!p.is_gosi_owner);return ps.length===0?<div style={{textAlign:'center',padding:20,color:'var(--tx6)',fontSize:11}}>{T('لا يوجد ملّاك/شركاء','No owners/partners')}</div>:ps.map(p=>{const own=owners.find(o=>o.id===p.owner_id);const ownerFac=p.owner_facility_id?data.find(f=>f.id===p.owner_facility_id):null;const name=p.partner_type==='facility'&&ownerFac?ownerFac.name_ar:(own?.name_ar||p.external_name||'—');return<div key={p.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'12px 16px',border:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+<div style={{display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:34,height:34,borderRadius:10,background:'linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.04))',border:'1px solid rgba(201,168,76,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.gold,flexShrink:0}}>{(name||'م')[0]}</div>
+<div><div style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{name}</div>{own?.id_number&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2,direction:'ltr'}}>{own.id_number}</div>}</div>
+</div>
+{p.ownership_percentage>0&&<div style={{textAlign:'center'}}><div style={{fontSize:16,fontWeight:800,color:C.gold}}>{p.ownership_percentage}%</div><div style={{fontSize:7,color:'var(--tx5)'}}>{T('الملكية','Ownership')}</div></div>}
+</div>})})()}
+</div>}
+{/* ── المدراء ── */}
+<SecHead k="managers" title="المدراء" dot="#3483b4"/>
+{openSec.managers&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{(()=>{const ms=facPartners.filter(p=>p.is_manager);return ms.length===0?<div style={{textAlign:'center',padding:20,color:'var(--tx6)',fontSize:11}}>{T('لا يوجد مدراء','No managers')}</div>:ms.map(p=>{const own=owners.find(o=>o.id===p.owner_id);const name=own?.name_ar||p.external_name||'—';return<div key={p.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'12px 16px',border:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:34,height:34,borderRadius:10,background:'linear-gradient(135deg,rgba(52,131,180,.12),rgba(52,131,180,.04))',border:'1px solid rgba(52,131,180,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.blue,flexShrink:0}}>{(name||'م')[0]}</div>
+<div><div style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{name}</div>{own?.id_number&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2,direction:'ltr'}}>{own.id_number}</div>}</div>
+</div>})})()}
+</div>}
+{/* ── المالك لدى التأمينات الإجتماعية ── */}
+<SecHead k="gosi_owner" title="المالك لدى التأمينات الإجتماعية" dot="#27a046"/>
+{openSec.gosi_owner&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{(()=>{const go=facPartners.find(p=>p.is_gosi_owner);if(!go){const gosiOwner=viewRow.gosi_owner_id?owners.find(o=>o.id===viewRow.gosi_owner_id):null;if(!gosiOwner)return<div style={{textAlign:'center',padding:20,color:'var(--tx6)',fontSize:11}}>{T('لم يتم تحديد المالك','Not specified')}</div>;return<div style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'12px 16px',border:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:34,height:34,borderRadius:10,background:'linear-gradient(135deg,rgba(39,160,70,.12),rgba(39,160,70,.04))',border:'1px solid rgba(39,160,70,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.ok,flexShrink:0}}>{(gosiOwner.name_ar||'م')[0]}</div>
+<div><div style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{gosiOwner.name_ar}</div>{gosiOwner.id_number&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2,direction:'ltr'}}>{gosiOwner.id_number}</div>}</div>
+</div>}const own=owners.find(o=>o.id===go.owner_id);const name=own?.name_ar||go.external_name||'—';return<div style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'12px 16px',border:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:34,height:34,borderRadius:10,background:'linear-gradient(135deg,rgba(39,160,70,.12),rgba(39,160,70,.04))',border:'1px solid rgba(39,160,70,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.ok,flexShrink:0}}>{(name||'م')[0]}</div>
+<div><div style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{name}</div>{own?.id_number&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2,direction:'ltr'}}>{own.id_number}</div>}</div>
+</div>})()}
+</div>}
+</div>}
+{/* ── الاشتراكات والدخول ── */}
+{basicSection==='subs_creds'&&(()=>{const platNames={'qiwa':[T('قوى','Qiwa'),'Qiwa'],'gosi':[T('التأمينات الاجتماعية','Social Insurance'),'GOSI'],'chamber':[T('الغرفة التجارية','Chamber of Commerce'),'Chamber'],'mudad':[T('مدد','Mudad'),'Mudad'],'absher':[T('أبشر','Absher'),'Absher']};return<div style={{display:'flex',flexDirection:'column',gap:12}}>
+<SecHead k="subs_sec" title={T('الاشتراكات','Subscriptions')} dot={C.ok} count={'('+facSubs.length+')'}/>
+{openSec.subs_sec&&(facSubs.length===0?<div style={{textAlign:'center',padding:20,color:'var(--tx6)',fontSize:11}}>{T('لا توجد اشتراكات','No subscriptions')}</div>:facSubs.map(s=><div key={s.id} style={{marginBottom:12}}>
+<Row l={T('نوع الاشتراك','Type')} v={s.subscription_type==='muqeem'?T('مقيم','Muqeem'):T('قوى','Qiwa')} isSt/>
+<Row l={T('الحالة','Status')} v={{active:T('نشط','Active'),expired:T('منتهي','Expired'),pending:T('معلّق','Pending')}[s.subscription_status]||s.subscription_status} isSt/>
+<Row l={T('تاريخ البداية','Start Date')} v={s.start_date||'—'} ltr/>
+<Row l={T('تاريخ الانتهاء','End Date')} v={s.end_date||'—'} ltr/>
+<Row l={T('المبلغ المدفوع','Amount')} v={s.amount_paid?nm(s.amount_paid)+' '+T('ر.س','SAR'):'—'} ltr/>
+{s.points_balance>0&&<Row l={T('النقاط','Points')} v={s.points_balance+' '+T('نقطة','pts')}/>}
+<div style={{borderBottom:'2px solid rgba(255,255,255,.06)',margin:'8px 0'}}/>
+</div>))}
+<SecHead k="creds_sec" title={T('بيانات الدخول','Credentials')} dot="#9b59b6" count={'('+facCreds.length+')'}/>
+{openSec.creds_sec&&(facCreds.length===0?<div style={{textAlign:'center',padding:20,color:'var(--tx6)',fontSize:11}}>{T('لا توجد بيانات دخول','No credentials')}</div>:facCreds.map(c=>{const own=owners.find(o=>o.id===c.owner_id);const pn=platNames[c.credential_type]||[c.credential_type?.toUpperCase(),c.credential_type];return<div key={c.id} style={{marginBottom:12}}>
+<Row l={T('المنصة','Platform')} v={pn[0]}/>
+<Row l={T('الحالة','Status')} v={{active:T('نشط','Active'),inactive:T('غير نشط','Inactive'),expired:T('منتهي','Expired')}[c.status]||c.status} isSt/>
+<Row l={T('اسم المستخدم','Username')} v={c.username||'—'} ltr copy/>
+<Row l={T('الجوال المربوط','Phone')} v={c.phone_linked||'—'} ltr/>
+{own&&<Row l={T('المالك','Owner')} v={own.name_ar}/>}
+<Row l={T('آخر تحديث','Updated')} v={c.updated_at?new Date(c.updated_at).toLocaleDateString('ar-SA'):'—'} ltr/>
+<div style={{borderBottom:'2px solid rgba(255,255,255,.06)',margin:'8px 0'}}/>
+</div>}))}
+</div>})()}
+{basicSection==='facility'&&<>
+{/* ── الامتثال ── */}
+<SecHead k="compliance" title="الامتثال" dot="#e67e22"/>
+{openSec.compliance&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+<Row l="حالة المنشأة لدى التأمينات الإجتماعية" v={{active:'نشط',inactive:'غير نشط'}[viewRow.gosi_status]||'—'} isSt/>
+<Row l="حالة خدمات المنشأة لدى وزارة العمل" v={{active:'نشط',suspended:'معلّق'}[viewRow.mlsd_service_status]||'—'} isSt/>
+<Row l="حالة المنشأة في برنامج حماية الأجور (مدد)" v={{compliant:'متوافق',non_compliant:'غير متوافق'}[viewRow.mudad_wps_compliance_status]||'—'} isSt/>
+{viewRow.is_original_exempt&&<Row l="إعفاء أصلي" v="نعم"/>}
+</div>}
+{/* ── الالتزامات المالية ── */}
+{<div>
+<SecHead k="finance" title="الالتزامات المالية الحكومية" dot="#e74c3c"/>
+{openSec.finance&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+<Row l="المبلغ المستحق لدى هيئة الزكاة والدخل" v={viewRow.zakat_outstanding_balance?nm(viewRow.zakat_outstanding_balance)+' ر.س':'—'} ltr/>
+<Row l="مبلغ ضريبة القيمة المضافة" v={viewRow.vat_outstanding_balance?nm(viewRow.vat_outstanding_balance)+' ر.س':'—'} ltr/>
+<Row l="المبلغ المستحق لدى التأمينات الاجتماعية" v={viewRow.gosi_outstanding_balance?nm(viewRow.gosi_outstanding_balance)+' ر.س':'—'} ltr/>
+</div>}
+</div>}
+{/* ── الموقع والعنوان ── */}
+<SecHead k="location" title="الموقع والعنوان" dot="#1abc9c"/>
+{openSec.location&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+<Row l="المنطقة" v={resolve('region_id',viewRow.region_id)||'—'}/>
+<Row l="المدينة" v={resolve('city_id',viewRow.city_id)||'—'}/>
+</div>}
+{/* ── ملاحظات ── */}
+{viewRow.notes&&<div style={{marginBottom:8,borderRadius:12,border:'1px solid var(--bd,rgba(255,255,255,.07))',overflow:'hidden',background:'var(--sf)'}}>
+<SecHead k="notes" title="ملاحظات" dot="var(--tx4)"/>
+{openSec.notes&&<div style={{borderTop:'1px solid var(--bd,rgba(255,255,255,.07))',padding:'14px 20px',fontSize:12,color:'var(--tx3)',lineHeight:1.8,whiteSpace:'pre-wrap'}}>{viewRow.notes}</div>}
+</div>}
+</>}
 </div>}
 
 {viewTab==='fpartners'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -484,7 +618,7 @@ return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,backg
 </div>
 {p.ownership_percentage&&<div style={{textAlign:'center'}}><div style={{fontSize:20,fontWeight:800,color:C.gold}}>{p.ownership_percentage}%</div><div style={{fontSize:8,color:'var(--tx5)'}}>{T('الملكية','Ownership')}</div></div>}
 </div>
-{isFacPartner?<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+{isFacPartner?<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
 <div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('الرقم الموحد','Unified No.')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{ownerFac.unified_national_number||'—'}</div></div>
 <div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('رقم السجل','CR Number')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{ownerFac.cr_number||'—'}</div></div>
 </div>:<>
@@ -495,7 +629,7 @@ return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,backg
 {own?.gender&&<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('الجنس','Gender')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)'}}>{own.gender==='male'?T('ذكر','Male'):own.gender==='female'?T('أنثى','Female'):own.gender}</div></div>}
 </div>
 {/* التواصل */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
 {own?.mobile_work&&<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('جوال العمل','Work Phone')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{own.mobile_work}</div></div>}
 {own?.mobile_personal&&<div style={{padding:'8px 12px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{T('الجوال الشخصي','Personal Phone')}</div><div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{own.mobile_personal}</div></div>}
 </div>
@@ -555,58 +689,151 @@ return<div key={w.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12
 </div>}
 </div>})()}
 
-{viewTab==='fvisas'&&(()=>{const vAvail=facVisas.filter(v=>v.status==='available').length;const vUsed=facVisas.filter(v=>v.status==='used').length;const vProc=facVisas.filter(v=>v.status==='processing').length;const vExpired=facVisas.filter(v=>v.expiry_date&&new Date(v.expiry_date)<new Date()&&v.status!=='cancelled').length;const vCanc=facVisas.filter(v=>v.status==='cancelled').length;const filteredVisas=visaFilter==='all'?facVisas:visaFilter==='expired'?facVisas.filter(v=>v.expiry_date&&new Date(v.expiry_date)<new Date()&&v.status!=='cancelled'):facVisas.filter(v=>v.status===visaFilter);const vDateSt=(d)=>{if(!d)return null;const diff=Math.ceil((new Date(d)-new Date())/(86400000));return diff<0?'expired':diff<30?'warning':'ok'};const vStLabel={'available':T('متاحة','Available'),'used':T('مستخدمة','Used'),'processing':T('قيد المعالجة','Processing'),'cancelled':T('ملغاة','Cancelled')};const vStClr={'available':C.ok,'used':C.blue,'processing':'#e67e22','cancelled':'#999'};return<div style={{display:'flex',flexDirection:'column',gap:16}}>
-{/* إحصائيات */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr',gap:8}}>
-{[[T('متاحة','Available'),vAvail,C.ok],[T('مستخدمة','Used'),vUsed,C.blue],[T('قيد المعالجة','Processing'),vProc,vProc>0?'#e67e22':'#555'],[T('منتهية الصلاحية','Expired'),vExpired,vExpired>0?C.red:'#555'],[T('ملغاة','Cancelled'),vCanc,'#999']].map(([l,v,c],i)=>
-<div key={i} style={{background:c+'08',borderRadius:10,padding:'10px 6px',border:'1px solid '+c+'15',textAlign:'center'}}>
-<div style={{fontSize:7,color:c,opacity:.7,marginBottom:4}}>{l}</div>
-<div style={{fontSize:18,fontWeight:900,color:c,lineHeight:1}}>{v}</div>
-</div>)}
+{viewTab==='fops'&&(()=>{const vDateSt=(d)=>{if(!d)return null;const diff=Math.ceil((new Date(d)-new Date())/(86400000));return diff<0?'expired':diff<30?'warning':'ok'};const vStLabel={'available':T('متاحة','Available'),'used':T('مستخدمة','Used'),'processing':T('قيد المعالجة','Processing'),'cancelled':T('ملغاة','Cancelled')};const ajeerStLabel={'active':T('نشط','Active'),'expired':T('منتهي','Expired'),'cancelled':T('ملغى','Cancelled'),'pending':T('معلّق','Pending')};const chamberStLabel={'approved':T('معتمد','Approved'),'pending':T('قيد المراجعة','Pending'),'rejected':T('مرفوض','Rejected')};const opsTabs=[['workers',T('العمال','Workers'),facWorkers.length,C.blue],['visas',T('التأشيرات','Visas'),facVisas.length,'#9b59b6'],['permits',T('كروت العمل','Work Permits'),facWorkPermits.length,'#1abc9c'],['iqamas',T('الإقامات','Iqamas'),facIqamas.length,'#e67e22'],['ajeer',T('عقود أجير','Ajeer'),facAjeerContracts.length,C.gold],['chamber',T('تصديقات الغرفة','Chamber'),facChamberRequests.length,'#7f5539']];return<div style={{display:'flex',flexDirection:'column',gap:14}}>
+{/* شريط الأقسام */}
+<div style={{display:'flex',gap:8,borderBottom:'1px solid rgba(255,255,255,.06)',paddingBottom:0}}>
+{opsTabs.map(([k,l,n])=><div key={k} onClick={()=>setOpsSection(k)} style={{padding:'9px 16px',fontSize:11,fontWeight:opsSection===k?700:500,color:opsSection===k?C.gold:'rgba(255,255,255,.4)',borderTop:opsSection===k?'2px solid '+C.gold:'2px solid transparent',border:opsSection===k?'1px solid rgba(255,255,255,.1)':'1px solid transparent',borderBottom:opsSection===k?'1px solid var(--sf,#1a1a2e)':'1px solid transparent',borderRadius:'8px 8px 0 0',background:opsSection===k?'rgba(201,168,76,.04)':'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:5,transition:'.15s',marginBottom:-1}} onMouseEnter={e=>{if(opsSection!==k){e.currentTarget.style.color='rgba(255,255,255,.6)';e.currentTarget.style.background='rgba(255,255,255,.02)'}}} onMouseLeave={e=>{if(opsSection!==k){e.currentTarget.style.color='rgba(255,255,255,.4)';e.currentTarget.style.background='transparent'}}}>{l}{n>0&&<span style={{fontSize:8,fontWeight:700,color:opsSection===k?C.gold:'rgba(255,255,255,.3)',opacity:.7}}>{n}</span>}</div>)}
 </div>
-{/* فلتر */}
-<div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
-{[['all',T('الكل','All')],['available',T('متاحة','Available')],['used',T('مستخدمة','Used')],['processing',T('قيد المعالجة','Processing')],['expired',T('منتهية','Expired')],['cancelled',T('ملغاة','Cancelled')]].map(([k,l])=><div key={k} onClick={()=>setVisaFilter(k)} style={{padding:'5px 12px',borderRadius:8,fontSize:10,fontWeight:visaFilter===k?700:500,color:visaFilter===k?C.gold:'rgba(255,255,255,.4)',background:visaFilter===k?'rgba(201,168,76,.08)':'transparent',border:visaFilter===k?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer'}}>{l}</div>)}
+
+{/* ═══ قسم العمال ═══ */}
+{opsSection==='workers'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{facWorkers.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',fontSize:11}}>{T('لا يوجد عمال','No workers')}</div>:facWorkers.map(w=>{const expSt=w.iqama_expiry_date?(()=>{const diff=Math.ceil((new Date(w.iqama_expiry_date)-new Date())/86400000);return diff<0?'expired':diff<30?'warning':'ok'})():null;return<div key={w.id} style={{background:'rgba(255,255,255,.015)',borderRadius:8,padding:'12px 14px',border:'1px solid rgba(255,255,255,.04)',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.08)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.04)'}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+<div style={{display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:32,height:32,borderRadius:8,background:w.nationality==='سعودي'?'rgba(39,160,70,.08)':'rgba(52,131,180,.08)',border:'1px solid '+(w.nationality==='سعودي'?'rgba(39,160,70,.15)':'rgba(52,131,180,.15)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900,color:w.nationality==='سعودي'?C.ok:C.blue,flexShrink:0}}>{(w.name_ar||'ع')[0]}</div>
+<div>
+<div style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{w.name_ar}</div>
+<div style={{display:'flex',alignItems:'center',gap:6,marginTop:2}}>
+{w.worker_number&&<span style={{fontSize:9,color:'var(--tx6)',direction:'ltr'}}>{w.worker_number}</span>}
+<span style={{fontSize:9,color:'var(--tx6)'}}>·</span>
+<span style={{fontSize:9,color:w.nationality==='سعودي'?C.ok:'var(--tx5)'}}>{w.nationality||'—'}</span>
 </div>
-{/* القائمة */}
-{filteredVisas.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="1.5" style={{marginBottom:8}}><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-<div>{T('لا توجد تأشيرات عمل','No work visas')}</div>
-</div>:
-<div style={{display:'flex',flexDirection:'column',gap:10}}>
-{filteredVisas.map(v=>{const expSt=vDateSt(v.expiry_date);const linkedWorker=v.worker_id?facWorkers.find(w=>w.id===v.worker_id):null;return<div key={v.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'16px 18px',border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
-{/* هيدر */}
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx)',direction:'ltr'}}>{v.visa_number||'—'}</span>
-{v.visa_type&&<span style={{fontSize:9,fontWeight:600,padding:'3px 8px',borderRadius:5,background:'rgba(255,255,255,.05)',color:'var(--tx4)',border:'1px solid rgba(255,255,255,.06)'}}>{v.visa_type}</span>}
-<Badge v={vStLabel[v.status]||v.status}/>
-<div style={{flex:1}}/>
-<DelBtn onClick={()=>del('facility_visas',v.id)}/>
 </div>
-{/* صف أول: الحدود | المهنة | الجنسية */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('رقم الحدود','Border No.')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.border_number||'—'}</div></div>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المهنة','Occupation')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{v.occupation||'—'}</div></div>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('الجنسية','Nationality')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{v.nationality||'—'}</div></div>
 </div>
-{/* صف ثاني: مدينة السفارة | المدة | تاريخ الإصدار */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('مدينة السفارة','Embassy City')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{v.embassy_city||'—'}</div></div>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المدة','Duration')}</div><div><Badge v={v.duration_type==='permanent'?T('دائمة','Permanent'):T('مؤقتة','Temporary')}/></div></div>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('تاريخ الإصدار','Issue Date')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.issue_date||'—'}</div></div>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<Badge v={{active:T('نشط','Active'),inactive:T('غير نشط','Inactive'),terminated:T('منتهي','Terminated'),absconding:T('هارب','Absconding')}[w.worker_status]||w.worker_status}/>
+{w.outside_kingdom&&<span style={{fontSize:8,fontWeight:600,padding:'2px 6px',borderRadius:4,background:'rgba(230,126,34,.08)',color:'#e67e22',border:'1px solid rgba(230,126,34,.12)'}}>{T('خارج المملكة','Abroad')}</span>}
 </div>
-{/* صف ثالث: تاريخ الانتهاء */}
-<div style={{display:'grid',gridTemplateColumns:'1fr',gap:6}}>
-<div style={{padding:'8px 10px',background:expSt==='expired'?'rgba(192,57,43,.04)':expSt==='warning'?'rgba(230,126,34,.04)':'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.1)':expSt==='warning'?'rgba(230,126,34,.1)':'rgba(255,255,255,.03)')}}><div style={{fontSize:7,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx5)',marginBottom:3,display:'flex',alignItems:'center',gap:4}}>{T('تاريخ الانتهاء','Expiry Date')}{expSt==='expired'&&<span style={{fontSize:7,fontWeight:700,color:C.red,background:'rgba(192,57,43,.1)',padding:'0 4px',borderRadius:3}}>{T('منتهية','Expired')}</span>}</div><div style={{fontSize:11,fontWeight:700,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx2)',direction:'ltr'}}>{v.expiry_date||'—'}</div></div>
 </div>
-{/* العامل المرتبط */}
-{linkedWorker&&<div style={{marginTop:8,padding:'8px 12px',background:'rgba(52,131,180,.04)',borderRadius:8,border:'1px solid rgba(52,131,180,.08)',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}} onClick={()=>setViewTab('fworkers')}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>
-<span style={{fontSize:10,fontWeight:600,color:C.blue}}>{linkedWorker.name_ar}</span>
-<span style={{fontSize:9,color:'var(--tx5)'}}>{linkedWorker.worker_number}</span>
-</div>}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6}}>
+<div style={{padding:'6px 8px',background:'rgba(255,255,255,.015)',borderRadius:6,border:'1px solid rgba(255,255,255,.03)'}}>
+<div style={{fontSize:7,color:'var(--tx6)',marginBottom:2}}>{T('الإقامة','Iqama')}</div>
+<div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{w.iqama_number||'—'}</div>
+</div>
+<div style={{padding:'6px 8px',background:expSt==='expired'?'rgba(192,57,43,.04)':'rgba(255,255,255,.015)',borderRadius:6,border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.1)':'rgba(255,255,255,.03)')}}>
+<div style={{fontSize:7,color:expSt==='expired'?C.red:'var(--tx6)',marginBottom:2}}>{T('انتهاء الإقامة','Iqama Exp.')}</div>
+<div style={{fontSize:10,fontWeight:700,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx2)',direction:'ltr'}}>{w.iqama_expiry_date||'—'}</div>
+</div>
+<div style={{padding:'6px 8px',background:'rgba(255,255,255,.015)',borderRadius:6,border:'1px solid rgba(255,255,255,.03)'}}>
+<div style={{fontSize:7,color:'var(--tx6)',marginBottom:2}}>{T('راتب التأمينات','GOSI Salary')}</div>
+<div style={{fontSize:10,fontWeight:700,color:'var(--tx2)'}}>{w.gosi_salary?nm(w.gosi_salary)+' '+T('ر.س','SAR'):'—'}</div>
+</div>
+<div style={{padding:'6px 8px',background:'rgba(255,255,255,.015)',borderRadius:6,border:'1px solid rgba(255,255,255,.03)'}}>
+<div style={{fontSize:7,color:'var(--tx6)',marginBottom:2}}>{T('الجوال','Phone')}</div>
+<div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{w.phone||'—'}</div>
+</div>
+</div>
 </div>})}
 </div>}
+
+{/* ═══ قسم التأشيرات ═══ */}
+{opsSection==='visas'&&(()=>{return<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{facVisas.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',fontSize:11}}>{T('لا توجد تأشيرات','No visas')}</div>:facVisas.map(v=>{const expSt=vDateSt(v.expiry_date);const linkedWorker=v.worker_id?facWorkers.find(w=>w.id===v.worker_id):null;return<div key={v.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)',direction:'ltr'}}>{v.visa_number||'—'}</span>
+{v.visa_type&&<span style={{fontSize:8,fontWeight:600,padding:'2px 7px',borderRadius:4,background:'rgba(255,255,255,.05)',color:'var(--tx4)'}}>{v.visa_type}</span>}
+<Badge v={vStLabel[v.status]||v.status}/>
+<div style={{flex:1}}/><DelBtn onClick={()=>del('facility_visas',v.id)}/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('رقم الحدود','Border No.')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.border_number||'—'}</div></div>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('المهنة','Occupation')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)'}}>{v.occupation||'—'}</div></div>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('الجنسية','Nationality')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)'}}>{v.nationality||'—'}</div></div>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ الإصدار','Issue Date')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{v.issue_date||'—'}</div></div>
+<div style={{padding:'7px 10px',background:expSt==='expired'?'rgba(192,57,43,.04)':'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.1)':'rgba(255,255,255,.03)')}}><div style={{fontSize:7,color:expSt==='expired'?C.red:'var(--tx5)',marginBottom:2,display:'flex',alignItems:'center',gap:3}}>{T('تاريخ الانتهاء','Expiry')}{expSt==='expired'&&<span style={{fontSize:6,fontWeight:700,color:C.red,background:'rgba(192,57,43,.1)',padding:'0 3px',borderRadius:2}}>{T('منتهية','Exp')}</span>}</div><div style={{fontSize:10,fontWeight:700,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx2)',direction:'ltr'}}>{v.expiry_date||'—'}</div></div>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('المدة','Duration')}</div><div><Badge v={v.duration_type==='permanent'?T('دائمة','Permanent'):T('مؤقتة','Temporary')}/></div></div>
+</div>
+{linkedWorker&&<div style={{marginTop:6,padding:'6px 10px',background:'rgba(52,131,180,.04)',borderRadius:6,border:'1px solid rgba(52,131,180,.08)',display:'flex',alignItems:'center',gap:6,cursor:'pointer'}} onClick={()=>setViewTab('fworkers')}>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>
+<span style={{fontSize:9,fontWeight:600,color:C.blue}}>{linkedWorker.name_ar}</span></div>}
+</div>})}
+</div>})()}
+
+{/* ═══ قسم كروت العمل ═══ */}
+{opsSection==='permits'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{facWorkPermits.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',fontSize:11}}>{T('لا توجد كروت عمل','No work permits')}</div>:facWorkPermits.map(wp=>{const expSt=vDateSt(wp.wp_expiry_date);const linkedWorker=wp.worker_id?facWorkers.find(w=>w.id===wp.worker_id):null;return<div key={wp.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{T('رخصة عمل','Work Permit')}</span>
+{wp.wp_order&&<span style={{fontSize:8,fontWeight:600,padding:'2px 7px',borderRadius:4,background:'rgba(52,131,180,.08)',color:C.blue}}>#{wp.wp_order}</span>}
+{wp.is_reduced&&<span style={{fontSize:8,fontWeight:600,padding:'2px 7px',borderRadius:4,background:'rgba(39,160,70,.08)',color:C.ok}}>{T('مخفّضة','Reduced')}</span>}
+<div style={{flex:1}}/><DelBtn onClick={()=>del('work_permits',wp.id)}/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ الإصدار','Issue Date')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{wp.wp_issue_date||'—'}</div></div>
+<div style={{padding:'7px 10px',background:expSt==='expired'?'rgba(192,57,43,.04)':'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.1)':'rgba(255,255,255,.03)')}}><div style={{fontSize:7,color:expSt==='expired'?C.red:'var(--tx5)',marginBottom:2}}>{T('تاريخ الانتهاء','Expiry')}</div><div style={{fontSize:10,fontWeight:700,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx2)',direction:'ltr'}}>{wp.wp_expiry_date||'—'}</div></div>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('المدة (أشهر)','Duration (mo)')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)'}}>{wp.duration_months||'—'}</div></div>
+</div>
+{linkedWorker&&<div style={{marginTop:6,padding:'6px 10px',background:'rgba(52,131,180,.04)',borderRadius:6,border:'1px solid rgba(52,131,180,.08)',display:'flex',alignItems:'center',gap:6,cursor:'pointer'}} onClick={()=>setViewTab('fworkers')}>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>
+<span style={{fontSize:9,fontWeight:600,color:C.blue}}>{linkedWorker.name_ar}</span></div>}
+</div>})}
+</div>}
+
+{/* ═══ قسم الإقامات ═══ */}
+{opsSection==='iqamas'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{facIqamas.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',fontSize:11}}>{T('لا توجد إقامات','No iqamas')}</div>:facIqamas.map(iq=>{const expSt=vDateSt(iq.iqama_expiry_date);const linkedWorker=iq.worker_id?facWorkers.find(w=>w.id===iq.worker_id):null;return<div key={iq.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{T('إقامة','Iqama')}</span>
+{linkedWorker&&<span style={{fontSize:9,fontWeight:600,color:C.blue}}>{linkedWorker.name_ar}</span>}
+<div style={{flex:1}}/><DelBtn onClick={()=>del('iqama_cards',iq.id)}/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ الإصدار','Issue Date')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{iq.iqama_issue_date||'—'}</div></div>
+<div style={{padding:'7px 10px',background:expSt==='expired'?'rgba(192,57,43,.04)':'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.1)':'rgba(255,255,255,.03)')}}><div style={{fontSize:7,color:expSt==='expired'?C.red:'var(--tx5)',marginBottom:2}}>{T('تاريخ الانتهاء','Expiry')}</div><div style={{fontSize:10,fontWeight:700,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx2)',direction:'ltr'}}>{iq.iqama_expiry_date||'—'}</div></div>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('المدة (أشهر)','Duration (mo)')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)'}}>{iq.duration_months||'—'}</div></div>
+</div>
+</div>})}
+</div>}
+
+{/* ═══ قسم عقود أجير ═══ */}
+{opsSection==='ajeer'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{facAjeerContracts.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',fontSize:11}}>{T('لا توجد عقود أجير','No Ajeer contracts')}</div>:facAjeerContracts.map(aj=>{const expSt=vDateSt(aj.end_date);const linkedWorker=aj.worker_id?facWorkers.find(w=>w.id===aj.worker_id):null;const empFac=aj.employer_facility_id?data.find(f=>f.id===aj.employer_facility_id):null;return<div key={aj.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)',direction:'ltr'}}>{aj.contract_number||T('عقد أجير','Ajeer Contract')}</span>
+<Badge v={ajeerStLabel[aj.status]||aj.status}/>
+<div style={{flex:1}}/><DelBtn onClick={()=>del('facility_ajeer_contracts',aj.id)}/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ البداية','Start Date')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{aj.start_date||'—'}</div></div>
+<div style={{padding:'7px 10px',background:expSt==='expired'?'rgba(192,57,43,.04)':'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid '+(expSt==='expired'?'rgba(192,57,43,.1)':'rgba(255,255,255,.03)')}}><div style={{fontSize:7,color:expSt==='expired'?C.red:'var(--tx5)',marginBottom:2}}>{T('تاريخ النهاية','End Date')}</div><div style={{fontSize:10,fontWeight:700,color:expSt==='expired'?C.red:expSt==='warning'?'#e67e22':'var(--tx2)',direction:'ltr'}}>{aj.end_date||'—'}</div></div>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('التكلفة الشهرية','Monthly Cost')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)'}}>{aj.monthly_cost?nm(aj.monthly_cost)+' '+T('ر.س','SAR'):'—'}</div></div>
+</div>
+{empFac&&<div style={{padding:'6px 10px',background:'rgba(201,168,76,.04)',borderRadius:6,border:'1px solid rgba(201,168,76,.08)',display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+<span style={{fontSize:7,color:'var(--tx5)'}}>{T('جهة العمل:','Employer:')}</span><span style={{fontSize:9,fontWeight:600,color:C.gold}}>{empFac.name_ar}</span></div>}
+{linkedWorker&&<div style={{padding:'6px 10px',background:'rgba(52,131,180,.04)',borderRadius:6,border:'1px solid rgba(52,131,180,.08)',display:'flex',alignItems:'center',gap:6,cursor:'pointer'}} onClick={()=>setViewTab('fworkers')}>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>
+<span style={{fontSize:9,fontWeight:600,color:C.blue}}>{linkedWorker.name_ar}</span></div>}
+</div>})}
+</div>}
+
+{/* ═══ قسم تصديقات الغرفة ═══ */}
+{opsSection==='chamber'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{facChamberRequests.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',fontSize:11}}>{T('لا توجد تصديقات','No chamber requests')}</div>:facChamberRequests.map(ch=><div key={ch.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)',direction:'ltr'}}>{ch.request_number||T('تصديق غرفة','Chamber Request')}</span>
+{ch.request_type&&<span style={{fontSize:8,fontWeight:600,padding:'2px 7px',borderRadius:4,background:'rgba(201,168,76,.08)',color:C.gold}}>{ch.request_type}</span>}
+<Badge v={chamberStLabel[ch.status]||ch.status}/>
+<div style={{flex:1}}/><DelBtn onClick={()=>del('facility_chamber_requests',ch.id)}/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr',gap:6}}>
+<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ الطلب','Request Date')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{ch.request_date||'—'}</div></div>
+</div>
+{ch.notes&&<div style={{marginTop:6,fontSize:9,color:'var(--tx4)',lineHeight:1.6}}>{ch.notes}</div>}
+</div>)}
+</div>}
+
 </div>})()}
 
 {viewTab==='weekly'&&(()=>{const last=facWeekly[0];const nitaqatAr={'red':T('أحمر','Red'),'yellow':T('أصفر','Yellow'),'green_low':T('أخضر منخفض','Green Low'),'green_mid':T('أخضر متوسط','Green Mid'),'green_high':T('أخضر عالي','Green High'),'platinum':T('بلاتيني','Platinum')};const diff=(cur,prev,k)=>{if(!prev||cur==null||prev[k]==null)return null;const d=Number(cur)-Number(prev[k]);return d===0?null:d};const diffIcon=(d)=>d>0?<span style={{color:C.ok,fontSize:9,marginRight:2}}>↑</span>:<span style={{color:C.red,fontSize:9,marginRight:2}}>↓</span>;const pctClr=(v,threshold)=>v!=null&&v<threshold?v<60?C.red:'#e67e22':'var(--tx3)';return<div style={{display:'flex',flexDirection:'column',gap:16}}>
@@ -689,61 +916,127 @@ return<div key={w.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12
 </div>}
 </div>})()}
 
-{viewTab==='fsubs'&&(()=>{const activeSbs=facSubs.filter(s=>s.subscription_status==='active').length;const expiredSbs=facSubs.filter(s=>s.subscription_status==='expired'||(s.end_date&&new Date(s.end_date)<new Date())).length;const totalAmount=facSubs.reduce((sum,s)=>sum+Number(s.amount_paid||0),0);const subDateSt=(d)=>{if(!d)return null;const diff=Math.ceil((new Date(d)-new Date())/(86400000));return diff<0?'expired':diff<90?'warning':'ok'};const payLabel={'bank_transfer':T('تحويل بنكي','Bank Transfer'),'sadad':T('سداد','Sadad'),'credit_card':T('بطاقة ائتمان','Credit Card')};return<div style={{display:'flex',flexDirection:'column',gap:16}}>
-{/* إحصائيات */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-{[[T('نشطة','Active'),activeSbs,C.ok],[T('منتهية','Expired'),expiredSbs,expiredSbs>0?C.red:'#555'],[T('إجمالي المبالغ','Total Paid'),nm(totalAmount)+' '+T('ر.س','SAR'),C.gold]].map(([l,v,c],i)=>
-<div key={i} style={{background:c+'08',borderRadius:10,padding:'12px 10px',border:'1px solid '+c+'15',textAlign:'center'}}>
-<div style={{fontSize:8,color:c,opacity:.7,marginBottom:4}}>{l}</div>
-<div style={{fontSize:i===2?14:20,fontWeight:900,color:c,lineHeight:1}}>{v}</div>
-</div>)}
+{/* ═══ الفواتير والمعاملات ═══ */}
+{viewTab==='finvoices'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
+{/* تبويبات داخلية */}
+<div style={{display:'flex',gap:8,borderBottom:'1px solid rgba(255,255,255,.06)',paddingBottom:0}}>
+{[['invoices',T('الفواتير','Invoices')],['transactions',T('المعاملات','Transactions')]].map(([k,l])=><div key={k} onClick={()=>setInvoiceSection(k)} style={{padding:'9px 16px',fontSize:11,fontWeight:invoiceSection===k?700:500,color:invoiceSection===k?C.gold:'rgba(255,255,255,.4)',borderTop:invoiceSection===k?'2px solid '+C.gold:'2px solid transparent',border:invoiceSection===k?'1px solid rgba(255,255,255,.1)':'1px solid transparent',borderBottom:invoiceSection===k?'1px solid var(--sf,#1a1a2e)':'1px solid transparent',borderRadius:'8px 8px 0 0',background:invoiceSection===k?'rgba(201,168,76,.04)':'transparent',cursor:'pointer',transition:'.15s',marginBottom:-1}} onMouseEnter={e=>{if(invoiceSection!==k){e.currentTarget.style.color='rgba(255,255,255,.6)';e.currentTarget.style.background='rgba(255,255,255,.02)'}}} onMouseLeave={e=>{if(invoiceSection!==k){e.currentTarget.style.color='rgba(255,255,255,.4)';e.currentTarget.style.background='transparent'}}}>{l}</div>)}
 </div>
-{/* القائمة */}
-{facSubs.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد اشتراكات','No subscriptions')}</div>:facSubs.map(s=>{const endSt=subDateSt(s.end_date);const remaining=s.end_date?Math.ceil((new Date(s.end_date)-new Date())/(86400000)):null;const stClr=endSt==='expired'?C.red:endSt==='warning'?'#e67e22':'var(--tx2)';return<div key={s.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'16px 18px',border:'1px solid '+(endSt==='expired'?'rgba(192,57,43,.15)':'rgba(255,255,255,.04)')}}>
-{/* هيدر */}
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{s.subscription_type==='muqeem'?T('اشتراك مقيم','Muqeem'):T('اشتراك قوى','Qiwa')}</span>
-<Badge v={{active:T('نشط','Active'),expired:T('منتهي','Expired'),pending:T('معلّق','Pending')}[s.subscription_status]||s.subscription_status}/>
-{s.points_balance>0&&<span style={{fontSize:9,fontWeight:700,color:C.gold,background:'rgba(201,168,76,.08)',padding:'2px 8px',borderRadius:5,border:'1px solid rgba(201,168,76,.12)'}}>{s.points_balance} {T('نقطة','pts')}</span>}
+{/* قسم الفواتير */}
+{invoiceSection==='invoices'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{facInvoices.length===0?<div style={{textAlign:'center',padding:25,color:'var(--tx6)',fontSize:11,background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد فواتير','No invoices')}</div>:facInvoices.map(inv=><div key={inv.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)',direction:'ltr'}}>{inv.invoice_number||T('فاتورة','Invoice')}</span>
+{inv.status&&<Badge v={{draft:T('مسودة','Draft'),sent:T('مرسلة','Sent'),paid:T('مدفوعة','Paid'),overdue:T('متأخرة','Overdue'),cancelled:T('ملغاة','Cancelled')}[inv.status]||inv.status}/>}
+<div style={{flex:1}}/>
+{inv.total_amount&&<span style={{fontSize:13,fontWeight:800,color:'#e67e22'}}>{nm(inv.total_amount)} {T('ر.س','SAR')}</span>}
 </div>
-{/* صف أول: البداية | الانتهاء | المتبقي */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('تاريخ البداية','Start Date')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{s.start_date||'—'}</div></div>
-<div style={{padding:'8px 10px',background:endSt==='expired'?'rgba(192,57,43,.04)':endSt==='warning'?'rgba(230,126,34,.04)':'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid '+(endSt==='expired'?'rgba(192,57,43,.1)':endSt==='warning'?'rgba(230,126,34,.1)':'rgba(255,255,255,.03)')}}><div style={{fontSize:7,color:stClr,marginBottom:3,display:'flex',alignItems:'center',gap:4}}>{T('تاريخ الانتهاء','End Date')}{endSt==='expired'&&<span style={{fontSize:7,fontWeight:700,color:C.red,background:'rgba(192,57,43,.1)',padding:'0 4px',borderRadius:3}}>{T('منتهي','Expired')}</span>}</div><div style={{fontSize:11,fontWeight:700,color:stClr,direction:'ltr'}}>{s.end_date||'—'}</div></div>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المتبقي','Remaining')}</div><div style={{fontSize:11,fontWeight:700,color:remaining!=null&&remaining<0?C.red:remaining!=null&&remaining<30?'#e67e22':C.ok}}>{remaining!=null?(remaining<0?T('منتهي','Expired'):remaining+' '+T('يوم','days')):'—'}</div></div>
-</div>
-{/* صف ثاني: المبلغ | طريقة الدفع */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('المبلغ المدفوع','Amount Paid')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{s.amount_paid?nm(s.amount_paid)+' '+T('ر.س','SAR'):'—'}</div></div>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('طريقة الدفع','Payment Method')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>{payLabel[s.payment_method]||'—'}</div></div>
-</div>
-</div>})}
-</div>})()}
-
-{viewTab==='fcreds'&&(()=>{const platNames={'qiwa':[T('قوى','Qiwa'),'Qiwa'],'gosi':[T('التأمينات الاجتماعية','Social Insurance'),'GOSI'],'chamber':[T('الغرفة التجارية','Chamber of Commerce'),'Chamber'],'mudad':[T('مدد','Mudad'),'Mudad'],'absher':[T('أبشر','Absher'),'Absher']};return<div style={{display:'flex',flexDirection:'column',gap:12}}>
-<div style={{fontSize:11,fontWeight:700,color:'#9b59b6',display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2.5"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>{T('بيانات الدخول','Credentials')} ({facCreds.length})</div>
-{facCreds.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد بيانات دخول','No credentials')}</div>:facCreds.map(c=>{const own=owners.find(o=>o.id===c.owner_id);const pn=platNames[c.credential_type]||[c.credential_type?.toUpperCase(),c.credential_type];return<div key={c.id} style={{background:'rgba(255,255,255,.02)',borderRadius:12,padding:'16px 18px',border:'1px solid rgba(255,255,255,.04)'}}>
-{/* هيدر */}
-<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{pn[0]}</span>
-<Badge v={{active:T('نشط','Active'),inactive:T('غير نشط','Inactive'),expired:T('منتهي','Expired')}[c.status]||c.status}/>
-{c.platform_url&&<a href={c.platform_url} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{width:22,height:22,borderRadius:6,background:'rgba(52,131,180,.08)',border:'1px solid rgba(52,131,180,.12)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}} title={T('فتح المنصة','Open Platform')}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>}
-</div>
-<div style={{fontSize:9,color:'var(--tx5)',marginTop:2}}>{pn[1]}{own&&<span> · {own.name_ar}</span>}</div>
-</div>
-</div>
-{/* الحقول */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('اسم المستخدم','Username')}</div><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{c.username||'—'}</span>{c.username&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(c.username);toast(T('تم النسخ','Copied'))}} style={{width:16,height:16,borderRadius:3,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}}><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}</div></div>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('الجوال المربوط','Linked Phone')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{c.phone_linked||'—'}</div></div>
-<div style={{padding:'8px 10px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:3}}>{T('آخر تحديث','Last Updated')}</div><div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{c.updated_at?new Date(c.updated_at).toLocaleDateString('ar-SA'):'—'}</div></div>
+{inv.issue_date&&<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ الإصدار','Issue Date')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{inv.issue_date}</div></div>}
+{inv.due_date&&<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('تاريخ الاستحقاق','Due Date')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{inv.due_date}</div></div>}
+{inv.client_name&&<div style={{padding:'7px 10px',background:'rgba(255,255,255,.02)',borderRadius:7,border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:7,color:'var(--tx5)',marginBottom:2}}>{T('العميل','Client')}</div><div style={{fontSize:10,fontWeight:700,color:'var(--tx2)'}}>{inv.client_name}</div></div>}
+</div>
+</div>)}
+</div>}
+{/* قسم المعاملات */}
+{invoiceSection==='transactions'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+{facTransactions.length===0?<div style={{textAlign:'center',padding:25,color:'var(--tx6)',fontSize:11,background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد معاملات','No transactions')}</div>:facTransactions.map(tx=><div key={tx.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{tx.transaction_number||tx.title||T('معاملة','Transaction')}</span>
+{tx.status&&<Badge v={{pending:T('قيد التنفيذ','Pending'),completed:T('مكتملة','Completed'),cancelled:T('ملغاة','Cancelled')}[tx.status]||tx.status}/>}
+<div style={{flex:1}}/>
+<span style={{fontSize:9,color:'var(--tx5)',direction:'ltr'}}>{tx.created_at?new Date(tx.created_at).toLocaleDateString('ar-SA'):''}</span>
+</div>
+{tx.notes&&<div style={{fontSize:9,color:'var(--tx4)',lineHeight:1.6}}>{tx.notes}</div>}
+</div>)}
+</div>}
+</div>}
+
+{/* ═══ الرسائل ═══ */}
+{viewTab==='fmsgs'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+<div style={{fontSize:11,fontWeight:700,color:'#1abc9c',display:'flex',alignItems:'center',gap:6}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1abc9c" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>{T('سجل الرسائل','Messages')} ({facMessages.length})</div>
+{facMessages.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx6)',fontSize:11,background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد رسائل','No messages')}</div>:facMessages.map(msg=><div key={msg.id} style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+{msg.channel&&<span style={{fontSize:8,fontWeight:600,padding:'2px 7px',borderRadius:4,background:msg.channel==='whatsapp'?'rgba(37,211,102,.08)':msg.channel==='sms'?'rgba(52,131,180,.08)':'rgba(155,89,182,.08)',color:msg.channel==='whatsapp'?'#25d366':msg.channel==='sms'?C.blue:'#9b59b6'}}>{msg.channel==='whatsapp'?T('واتساب','WhatsApp'):msg.channel==='sms'?T('رسالة نصية','SMS'):msg.channel==='email'?T('بريد','Email'):msg.channel}</span>}
+{msg.direction&&<span style={{fontSize:8,fontWeight:600,padding:'2px 7px',borderRadius:4,background:'rgba(255,255,255,.05)',color:'var(--tx4)'}}>{msg.direction==='outgoing'?T('صادر','Out'):T('وارد','In')}</span>}
+<div style={{flex:1}}/>
+<span style={{fontSize:9,color:'var(--tx5)',direction:'ltr'}}>{msg.created_at?new Date(msg.created_at).toLocaleDateString('ar-SA'):''}</span>
+</div>
+{msg.recipient&&<div style={{fontSize:9,color:'var(--tx4)',marginBottom:4}}>{T('المستلم:','To:')} <span style={{direction:'ltr',fontWeight:600}}>{msg.recipient}</span></div>}
+{msg.message_body&&<div style={{fontSize:10,color:'var(--tx3)',lineHeight:1.7,background:'rgba(255,255,255,.02)',borderRadius:6,padding:'8px 10px',border:'1px solid rgba(255,255,255,.03)'}}>{msg.message_body}</div>}
+</div>)}
+</div>}
+
+{/* ═══ سجل التغييرات ═══ */}
+{viewTab==='factivity'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gold,display:'flex',alignItems:'center',gap:6,marginBottom:4}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>{T('سجل التغييرات','Change Log')} ({facActivityLog.length})</div>
+{facActivityLog.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:11,background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا يوجد نشاط مسجّل','No activity logged')}</div>:
+<div style={{position:'relative',paddingRight:20}}>
+{/* الخط العمودي */}
+<div style={{position:'absolute',right:6,top:0,bottom:0,width:2,background:'rgba(201,168,76,.1)',borderRadius:1}}/>
+{facActivityLog.map((log,i)=>{const actionClr={'create':C.ok,'update':C.blue,'delete':C.red,'login':'#9b59b6','export':'#e67e22'};const actionLabel={'create':T('إنشاء','Create'),'update':T('تعديل','Update'),'delete':T('حذف','Delete'),'login':T('دخول','Login'),'export':T('تصدير','Export')};const clr=actionClr[log.action]||'var(--tx5)';return<div key={log.id||i} style={{position:'relative',paddingRight:24,marginBottom:i<facActivityLog.length-1?16:0}}>
+{/* النقطة */}
+<div style={{position:'absolute',right:0,top:6,width:14,height:14,borderRadius:'50%',background:'var(--bg)',border:'2px solid '+clr,display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{width:6,height:6,borderRadius:'50%',background:clr}}/></div>
+{/* المحتوى */}
+<div style={{background:'rgba(255,255,255,.02)',borderRadius:10,padding:'12px 16px',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<span style={{fontSize:8,fontWeight:700,padding:'2px 8px',borderRadius:4,background:clr+'15',color:clr,border:'1px solid '+clr+'25'}}>{actionLabel[log.action]||log.action}</span>
+{log.entity_name&&<span style={{fontSize:10,fontWeight:600,color:'var(--tx3)'}}>{log.entity_name}</span>}
+</div>
+<span style={{fontSize:9,color:'var(--tx6)',direction:'ltr'}}>{log.created_at?new Date(log.created_at).toLocaleString('ar-SA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):''}</span>
+</div>
+{log.description&&<div style={{fontSize:10,color:'var(--tx4)',lineHeight:1.6}}>{log.description}</div>}
+{log.old_data&&log.new_data&&(()=>{const changes=[];const nd=typeof log.new_data==='string'?JSON.parse(log.new_data):log.new_data;const od=typeof log.old_data==='string'?JSON.parse(log.old_data):log.old_data;Object.keys(nd).forEach(k=>{if(JSON.stringify(od[k])!==JSON.stringify(nd[k]))changes.push({field:k,from:od[k],to:nd[k]})});return changes.length>0?<div style={{marginTop:8,display:'flex',flexDirection:'column',gap:4}}>{changes.slice(0,5).map((ch,ci)=><div key={ci} style={{fontSize:9,padding:'4px 8px',background:'rgba(255,255,255,.02)',borderRadius:5,border:'1px solid rgba(255,255,255,.03)',display:'flex',alignItems:'center',gap:6}}>
+<span style={{color:'var(--tx5)',fontWeight:600}}>{ch.field}</span>
+<span style={{color:C.red,direction:'ltr',fontSize:8}}>{String(ch.from||'—').slice(0,20)}</span>
+<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--tx6)" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+<span style={{color:C.ok,direction:'ltr',fontSize:8}}>{String(ch.to||'—').slice(0,20)}</span>
+</div>)}{changes.length>5&&<span style={{fontSize:8,color:'var(--tx6)'}}>+{changes.length-5} {T('تغييرات أخرى','more')}</span>}</div>:null})()}
 </div>
 </div>})}
-</div>})()}
+</div>}
+</div>}
 
-{viewTab==='fdocs'&&(()=>{const docSt=(d)=>{if(!d.file_url&&d.status==='no_file')return'no_file';if(d.expiry_date&&new Date(d.expiry_date)<new Date())return'expired';if(d.expiry_date&&new Date(d.expiry_date)<new Date(Date.now()+30*86400000))return'expiring';return'active'};const docsWithSt=facDocs.map(d=>({...d,_st:docSt(d)}));const activeD=docsWithSt.filter(d=>d._st==='active').length;const expiringD=docsWithSt.filter(d=>d._st==='expiring').length;const expiredD=docsWithSt.filter(d=>d._st==='expired').length;const filteredDocs=docFilter==='all'?docsWithSt:docsWithSt.filter(d=>d._st===docFilter);const catNames={'licenses':{l:T('التراخيص والسجلات','Licenses & Registrations'),c:C.gold,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h6"/></svg>},'certificates':{l:T('الشهادات الحكومية','Gov. Certificates'),c:C.blue,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>},'contracts':{l:T('العقود والتفويضات','Contracts & Authorizations'),c:'#9b59b6',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>},'other':{l:T('مستندات أخرى','Other Documents'),c:'#1abc9c',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1abc9c" strokeWidth="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>}};const stLabel={'active':T('ساري','Valid'),'expiring':T('تنتهي قريباً','Expiring Soon'),'expired':T('منتهي','Expired'),'no_file':T('بدون ملف','No File')};const stClr={'active':C.ok,'expiring':'#e67e22','expired':C.red,'no_file':'#555'};const cats=['licenses','certificates','contracts','other'];return<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{/* ═══ التنبيهات ═══ */}
+{viewTab==='falerts'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+<div style={{fontSize:11,fontWeight:700,color:'#e67e22',display:'flex',alignItems:'center',gap:6,marginBottom:4}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e67e22" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{T('التنبيهات','Alerts')} ({facAlerts.length})</div>
+{(()=>{
+const today=new Date();today.setHours(0,0,0,0);
+const autoAlerts=[];
+if(viewRow.cr_expiry_date){const d=new Date(viewRow.cr_expiry_date);const diff=Math.ceil((d-today)/86400000);if(diff<=90)autoAlerts.push({type:'cr_expiry',label:T('السجل التجاري','Commercial Reg.'),date:viewRow.cr_expiry_date,diff,severity:diff<=0?'critical':diff<=30?'high':'medium'})}
+if(viewRow.chamber_membership_expiry){const d=new Date(viewRow.chamber_membership_expiry);const diff=Math.ceil((d-today)/86400000);if(diff<=90)autoAlerts.push({type:'chamber',label:T('اشتراك الغرفة','Chamber'),date:viewRow.chamber_membership_expiry,diff,severity:diff<=0?'critical':diff<=30?'high':'medium'})}
+if(saudPct!=null&&saudPct<20)autoAlerts.push({type:'saudization',label:T('نسبة السعودة منخفضة','Low Saudization'),detail:saudPct+'%',severity:'high'});
+const allAlerts=[...autoAlerts.map((a,i)=>({id:'auto_'+i,...a,source:'auto'})),...facAlerts.map(a=>({...a,source:'db',label:a.alert_type,date:a.expiry_date,diff:a.expiry_date?Math.ceil((new Date(a.expiry_date)-today)/86400000):null}))];
+const sevClr={'critical':C.red,'high':'#e67e22','medium':C.gold,'low':'var(--tx5)'};
+const sevLabel={'critical':T('حرج','Critical'),'high':T('عالي','High'),'medium':T('متوسط','Medium'),'low':T('منخفض','Low')};
+return allAlerts.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:11,background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(39,160,70,.3)" strokeWidth="1.5" style={{marginBottom:8}}><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+<div>{T('لا توجد تنبيهات — المنشأة بخير','No alerts — All good!')}</div>
+</div>:allAlerts.map(a=>{const sc=sevClr[a.severity]||'var(--tx5)';return<div key={a.id} style={{background:sc+'06',borderRadius:10,padding:'14px 16px',border:'1px solid '+sc+'18',display:'flex',alignItems:'center',gap:12}}>
+<div style={{width:36,height:36,borderRadius:10,background:sc+'12',border:'1px solid '+sc+'20',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc} strokeWidth="2">{a.severity==='critical'?<><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>:<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}</svg>
+</div>
+<div style={{flex:1}}>
+<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{a.label}</span>
+<span style={{fontSize:7,fontWeight:700,padding:'2px 6px',borderRadius:3,background:sc+'15',color:sc}}>{sevLabel[a.severity]}</span>
+</div>
+{a.date&&<div style={{fontSize:10,color:'var(--tx4)'}}>{a.diff<=0?T('منتهي منذ ','Expired ')+Math.abs(a.diff)+T(' يوم',' days'):T('يتبقى ','Remaining ')+a.diff+T(' يوم',' days')} <span style={{color:'var(--tx6)',direction:'ltr',fontSize:9}}>({a.date})</span></div>}
+{a.detail&&<div style={{fontSize:10,color:'var(--tx4)'}}>{a.detail}</div>}
+</div>
+</div>})
+})()}
+</div>}
+
+{viewTab==='fdocs'&&(()=>{
+/* تبويبات داخلية: أساسية / إضافية */
+const docsSubTabs=<div style={{display:'flex',gap:8,borderBottom:'1px solid rgba(255,255,255,.06)',paddingBottom:0,marginBottom:14}}>
+{[['main',T('المستندات الأساسية','Main Docs')],['other',T('مستندات إضافية','Additional Docs')]].map(([k,l])=><div key={k} onClick={()=>setDocsSection(k)} style={{padding:'9px 16px',fontSize:11,fontWeight:docsSection===k?700:500,color:docsSection===k?C.gold:'rgba(255,255,255,.4)',borderTop:docsSection===k?'2px solid '+C.gold:'2px solid transparent',border:docsSection===k?'1px solid rgba(255,255,255,.1)':'1px solid transparent',borderBottom:docsSection===k?'1px solid var(--sf,#1a1a2e)':'1px solid transparent',borderRadius:'8px 8px 0 0',background:docsSection===k?'rgba(201,168,76,.04)':'transparent',cursor:'pointer',transition:'.15s',marginBottom:-1}} onMouseEnter={e=>{if(docsSection!==k){e.currentTarget.style.color='rgba(255,255,255,.6)';e.currentTarget.style.background='rgba(255,255,255,.02)'}}} onMouseLeave={e=>{if(docsSection!==k){e.currentTarget.style.color='rgba(255,255,255,.4)';e.currentTarget.style.background='transparent'}}}>{l}</div>)}
+</div>;
+if(docsSection==='other')return<div style={{display:'flex',flexDirection:'column',gap:16}}>{docsSubTabs}<div style={{textAlign:'center',padding:30,color:'var(--tx6)',fontSize:11,background:'rgba(255,255,255,.02)',borderRadius:10,border:'1px solid rgba(255,255,255,.03)'}}>{T('لا توجد مستندات إضافية','No additional documents')}</div></div>;
+const docSt=(d)=>{if(!d.file_url&&d.status==='no_file')return'no_file';if(d.expiry_date&&new Date(d.expiry_date)<new Date())return'expired';if(d.expiry_date&&new Date(d.expiry_date)<new Date(Date.now()+30*86400000))return'expiring';return'active'};const docsWithSt=facDocs.map(d=>({...d,_st:docSt(d)}));const activeD=docsWithSt.filter(d=>d._st==='active').length;const expiringD=docsWithSt.filter(d=>d._st==='expiring').length;const expiredD=docsWithSt.filter(d=>d._st==='expired').length;const filteredDocs=docFilter==='all'?docsWithSt:docsWithSt.filter(d=>d._st===docFilter);const catNames={'licenses':{l:T('التراخيص والسجلات','Licenses & Registrations'),c:C.gold,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h6"/></svg>},'certificates':{l:T('الشهادات الحكومية','Gov. Certificates'),c:C.blue,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>},'contracts':{l:T('العقود والتفويضات','Contracts & Authorizations'),c:'#9b59b6',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>},'other':{l:T('مستندات أخرى','Other Documents'),c:'#1abc9c',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1abc9c" strokeWidth="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>}};const stLabel={'active':T('ساري','Valid'),'expiring':T('تنتهي قريباً','Expiring Soon'),'expired':T('منتهي','Expired'),'no_file':T('بدون ملف','No File')};const stClr={'active':C.ok,'expiring':'#e67e22','expired':C.red,'no_file':'#555'};const cats=['licenses','certificates','contracts','other'];return<div style={{display:'flex',flexDirection:'column',gap:16}}>
+{docsSubTabs}
 {/* إحصائيات */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8}}>
 {[[T('الإجمالي','Total'),facDocs.length,C.gold],[T('سارية','Valid'),activeD,C.ok],[T('تنتهي قريباً','Expiring'),expiringD,expiringD>0?'#e67e22':'#555'],[T('منتهية','Expired'),expiredD,expiredD>0?C.red:'#555']].map(([l,v,c],i)=>
@@ -845,7 +1138,7 @@ cats.map(cat=>{const catDocs=filteredDocs.filter(d=>d.category===cat);if(!catDoc
 
 </div></div></div></div>})()}
 
-{/* ═══ ADD/EDIT FACILITY — Side-tab modal matching view layout ═══ */}
+{/* ═══ ADD/EDIT FACILITY ═══ */}
 {wizard&&<div onClick={()=>setWizard(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
 <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(920px,95vw)',height:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.15)'}}>
 {/* Header */}
