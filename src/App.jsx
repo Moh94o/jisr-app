@@ -29,6 +29,11 @@ import WeeklyReportPage from './WeeklyReportPage.jsx'
 import PricingCalcPage from './PricingCalcPage.jsx'
 import CompliancePage from './CompliancePage.jsx'
 import ServiceRequestPage from './ServiceRequestPage.jsx'
+import CommissionsPage from './CommissionsPage.jsx'
+import CommunicationLogPage from './CommunicationLogPage.jsx'
+import SmartAlertsViewerPage from './SmartAlertsViewerPage.jsx'
+import DocumentsPage from './DocumentsPage.jsx'
+import OperationalExpensesPage from './OperationalExpensesPage.jsx'
 import KafalaCalculator from './pages/KafalaCalculator.jsx'
 import OTPMessages from './pages/OTPMessages.jsx'
 import AuditPageNew from './pages/AuditPage.jsx'
@@ -1124,9 +1129,9 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities')},{id:'workers',l:T('العمالة','Workers')},{id:'compliance',l:T('الامتثال','Compliance')},{id:'worker_leaves',h:true}],
   operations:[{id:'transactions_external',l:T('خارجية','External')},{id:'transactions_internal',l:T('داخلية','Internal')},{id:'tasks',l:T('المهام','Tasks')},{id:'sla_monitor',l:T('SLA','SLA')}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'invoice_followups',l:T('متابعة التحصيل','Collections')},{id:'payments',l:T('المدفوعات','Payments')},{id:'audit',l:T('التدقيق','Audit')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'transfer_calc',l:T('حسبة التنازل','Transfer Calc')},{id:'data_import',l:T('الاستيراد','Import')}],
-  clients_hub:[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}],
-  admin_hub:[{id:'admin_offices',l:T('المكاتب والموظفين','Offices & Staff')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'archive',l:T('الأرشيف','Archive')},{id:'activity_log',l:T('السجل','Log')},{id:'admin_automation',l:T('الأتمتة','Automation')},{id:'admin_pricing',l:T('التسعير','Pricing')},{id:'attendance',h:true},{id:'admin_staff',h:true},{id:'auto_alerts',h:true}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices')},{id:'invoice_followups',l:T('متابعة التحصيل','Collections')},{id:'payments',l:T('المدفوعات','Payments')},{id:'op_expenses',l:T('المصاريف','Expenses')},{id:'commissions',l:T('العمولات','Commissions')},{id:'audit',l:T('التدقيق','Audit')},{id:'cash_flow',l:T('التدفق','Cash Flow')},{id:'transfer_calc',l:T('حسبة التنازل','Transfer Calc')},{id:'data_import',l:T('الاستيراد','Import')}],
+  clients_hub:[{id:'clients',l:T('العملاء','Clients')},{id:'brokers',l:T('الوسطاء','Brokers')},{id:'providers',l:T('المعقّبين','Providers')},{id:'comm_log',l:T('سجل التواصل','Contact Log')},{id:'profitability',l:T('الربحية','Profitability')},{id:'nps',l:T('رضا العملاء','NPS')}],
+  admin_hub:[{id:'admin_offices',l:T('المكاتب والموظفين','Offices & Staff')},{id:'approvals',l:T('الموافقات','Approvals')},{id:'smart_alerts',l:T('التنبيهات','Alerts')},{id:'documents',l:T('المستندات','Documents')},{id:'archive',l:T('الأرشيف','Archive')},{id:'activity_log',l:T('السجل','Log')},{id:'admin_automation',l:T('الأتمتة','Automation')},{id:'admin_pricing',l:T('التسعير','Pricing')},{id:'attendance',h:true},{id:'admin_staff',h:true},{id:'auto_alerts',h:true}],
   reports_hub:[{id:'report_periodic',l:T('الدورية','Periodic')},{id:'emp_performance',l:T('الأداء','Performance')},{id:'branch_compare',l:T('الفروع','Branches')},{id:'live_monitor',l:T('المراقبة','Monitor')},{id:'report_alerts',l:T('التنبيهات','Alerts')},{id:'report_performance',h:true},{id:'weekly_report',h:true}]
 }
 const allHubPages=Object.values(hubTabs).flat().map(t=>t.id)
@@ -1159,17 +1164,22 @@ return<div>
 {pg==='audit'&&<AuditPageNew sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='budget'&&<BudgetPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='data_import'&&<DataImportPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='op_expenses'&&<OperationalExpensesPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='commissions'&&<CommissionsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {/* العملاء */}
 {(pg==='clients'||pg==='brokers'||pg==='providers')&&<DataPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultTab={pg} branchId={dashBranch}/>}
 {pg==='contracts'&&<ContractsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='client_statement'&&<ClientStatementPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='profitability'&&<ProfitabilityPage sb={sb} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='nps'&&<NPSPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='comm_log'&&<CommunicationLogPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={true} AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='attendance'&&<AttendancePage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='approvals'&&<ApprovalsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='auto_alerts'&&<AutoAlertsPage sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='smart_alerts'&&<SmartAlertsViewerPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
+{pg==='documents'&&<DocumentsPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='archive'&&<ArchivePage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='suppliers'&&<SuppliersPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='activity_log'&&<ActivityLogPage sb={sb} lang={lang} data={activityLog} loading={activityLoading} onLoad={loadActivityLog}/>}
