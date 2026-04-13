@@ -19,7 +19,6 @@ import ProfitabilityPage from './ProfitabilityPage.jsx'
 import LiveMonitorPage from './LiveMonitorPage.jsx'
 import WorkflowPage from './WorkflowPage.jsx'
 import MessagingPage from './MessagingPage.jsx'
-import ManpowerPage from './ManpowerPage.jsx'
 import { ContractsPage, ArchivePage, SuppliersPage, WorkerLeavesPage, BudgetPage } from './ComplianceSuitePage.jsx'
 import DataImportPage from './DataImportPage.jsx'
 import BranchComparisonPage from './BranchComparisonPage.jsx'
@@ -527,7 +526,7 @@ const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matc
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
 useEffect(()=>{const h=e=>{e.preventDefault();setInstallPrompt(e);if(!isStandalone&&!localStorage.getItem('jisr_install_dismissed'))setShowInstallBanner(true)};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h)},[isStandalone]);
-const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',operations:'transactions_external',finance_hub:'invoices',clients_hub:'clients',manpower_hub:'mp_dashboard',messaging_hub:'msg_send',admin_hub:'admin_offices',reports_hub:'report_periodic'};const setPage=(id)=>{const mapped=hubDefaults[id]||id;setPg(mapped);setSideOpen(false)};
+const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',operations:'transactions_external',finance_hub:'invoices',clients_hub:'clients',messaging_hub:'msg_send',admin_hub:'admin_offices',reports_hub:'report_periodic'};const setPage=(id)=>{const mapped=hubDefaults[id]||id;setPg(mapped);setSideOpen(false)};
 const loadStats=useCallback(()=>{const brId=dashBranch||null;const today=new Date().toISOString().slice(0,10);Promise.all([sb.rpc('get_branch_stats',{p_branch_id:brId}),sb.from('notifications_view').select('*'),sb.from('employee_notifications').select('*').eq('user_id',user?.id).order('created_at',{ascending:false}).limit(50),sb.from('branches').select('id,name_ar').is('deleted_at',null).order('name_ar'),sb.from('system_settings').select('setting_value').eq('setting_key','last_weekly_update').single(),sb.from('tasks').select('id',{count:'exact',head:true}).is('deleted_at',null).in('status',['pending','in_progress','overdue']),sb.from('approval_requests').select('id',{count:'exact',head:true}).eq('status','pending'),sb.from('appointments').select('*').is('deleted_at',null).eq('date',today).in('status',['scheduled','confirmed'])]).then(([statsR,notifsR,myNotifsR,branchesR,weeklyR,tasksR,approvalsR,apptsR])=>{if(statsR.data)setStats(statsR.data);setNotifs(notifsR.data||[]);setMyNotifs(myNotifsR.data||[]);setDashBranches(branchesR.data||[]);if(weeklyR.data?.setting_value)setLastWeeklyUpdate(new Date(weeklyR.data.setting_value));setTaskCount(tasksR.count||0);setApprovalCount(approvalsR.count||0);setTodayAppointments(apptsR.data||[])})},[sb,dashBranch]);useEffect(()=>{loadStats()},[loadStats]);
 useEffect(()=>{if(!sb)return;const ch=sb.channel('jisr-realtime-sync').on('postgres_changes',{event:'*',schema:'public',table:'invoices'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'clients'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'workers'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'facilities'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'smart_alerts'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'attendance'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'activity_log'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'daily_stats'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'invoice_payments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'escalations'},()=>loadStats()).subscribe();return()=>{sb.removeChannel(ch)}},[sb,loadStats]);
 useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+k':()=>{const el=document.querySelector('.topbar-search-box input');if(el)el.focus()},'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+K بحث سريع | Ctrl+N إضافة جديد','Ctrl+K Quick Search | Ctrl+N New'))},'escape':()=>{setSideOpen(false);setShowNotifs(false);setShowAiChat(false)}});return cleanup},[]);
@@ -539,7 +538,6 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'operations',l:T('العمليات','Operations'),i:'transaction',n:taskCount},
 {id:'finance_hub',l:T('المالية','Finance'),i:'invoice'},
 {id:'clients_hub',l:T('العملاء والحسابات','Clients'),i:'client'},
-{id:'manpower_hub',l:T('توريد العمالة','Labor Supply'),i:'facility'},
 {id:'messaging_hub',l:T('التواصل','Messaging'),i:'message'},
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'},
 {id:'reports_hub',l:T('التقارير','Reports'),i:'chart'},
@@ -981,7 +979,7 @@ flds:[
 <style>{'aside nav::-webkit-scrollbar{display:none}.dash-content::-webkit-scrollbar{display:none}.sr-scroll{scrollbar-width:thin;scrollbar-color:rgba(201,168,76,.25) transparent}.sr-scroll::-webkit-scrollbar{width:4px}.sr-scroll::-webkit-scrollbar-track{background:transparent}.sr-scroll::-webkit-scrollbar-thumb{background:rgba(201,168,76,.25);border-radius:4px}.sr-scroll::-webkit-scrollbar-thumb:hover{background:rgba(201,168,76,.4)}'}</style>
 <div style={{display:'flex',flexDirection:'column',gap:3}}>
 {nav.map((n,i)=>{
-const isActive=pg===n.id||(n.id==='workforce'&&['facilities','workers','compliance','worker_leaves'].includes(pg))||(n.id==='operations'&&['transactions_internal','transactions_external','tasks','sla_monitor','workflow'].includes(pg))||(n.id==='finance_hub'&&['invoices','payments','pricing_calc','cash_flow','audit','op_expenses','budget','ext_payments','data_import','transfer_calc'].includes(pg))||(n.id==='clients_hub'&&['clients','brokers','providers','client_statement','profitability','nps','contracts'].includes(pg))||(n.id==='manpower_hub'&&['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg))||(n.id==='messaging_hub'&&['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg))||(n.id==='admin_hub'&&['admin_offices','attendance','approvals','activity_log','auto_alerts','archive','suppliers'].includes(pg))||(n.id==='reports_hub'&&['report_periodic','emp_performance','branch_compare','live_monitor','weekly_report','invoice_followups','report_alerts','report_performance'].includes(pg))||(n.id==='settings'&&pg==='settings')
+const isActive=pg===n.id||(n.id==='workforce'&&['facilities','workers','compliance','worker_leaves'].includes(pg))||(n.id==='operations'&&['transactions_internal','transactions_external','tasks','sla_monitor','workflow'].includes(pg))||(n.id==='finance_hub'&&['invoices','payments','pricing_calc','cash_flow','audit','op_expenses','budget','ext_payments','data_import','transfer_calc'].includes(pg))||(n.id==='clients_hub'&&['clients','brokers','providers','client_statement','profitability','nps','contracts'].includes(pg))||(n.id==='messaging_hub'&&['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg))||(n.id==='admin_hub'&&['admin_offices','attendance','approvals','activity_log','auto_alerts','archive','suppliers'].includes(pg))||(n.id==='reports_hub'&&['report_periodic','emp_performance','branch_compare','live_monitor','weekly_report','invoice_followups','report_alerts','report_performance'].includes(pg))||(n.id==='settings'&&pg==='settings')
 const isSep=n.id==='settings'
 return<div key={n.id}>
 {isSep&&<div style={{height:1,background:'rgba(255,255,255,.06)',margin:'8px 14px'}}/>}
@@ -1186,13 +1184,6 @@ return<div>
 {pg==='report_performance'&&<EmployeePerformancePage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 </div></div>})()}
 
-{/* ═══ HUB: المانباور ═══ */}
-{['mp_dashboard','mp_projects','mp_workers','mp_extracts','mp_partners'].includes(pg)&&<>
-<div style={{display:'flex',gap:0,marginBottom:16,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}} className="dash-content">
-{[{id:'mp_dashboard',l:T('لوحة التحكم','Dashboard')},{id:'mp_projects',l:T('المشاريع','Projects')},{id:'mp_workers',l:T('العمال','Workers')},{id:'mp_extracts',l:T('المستخلصات','Extracts')},{id:'mp_partners',l:T('الشراكات','Partners')}].map(t=><div key={t.id} onClick={()=>setPg(t.id)} style={{padding:'8px 14px',fontSize:11,fontWeight:pg===t.id?700:500,color:pg===t.id?C.gold:'rgba(255,255,255,.35)',borderBottom:pg===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',whiteSpace:'nowrap',transition:'.15s'}}>{t.l}</div>)}
-</div>
-<ManpowerPage sb={sb} toast={tt} user={user} lang={lang} defaultTab={pg}/>
-</>}
 
 {/* ═══ HUB: التواصل ═══ */}
 {['msg_send','msg_templates','msg_log','msg_groups','msg_settings'].includes(pg)&&<>

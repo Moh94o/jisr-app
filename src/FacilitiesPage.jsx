@@ -419,10 +419,10 @@ const Row=({l,v,copy,ltr,isSt,field,opts})=>{const isEditing=rowEdit===field;if(
 {field&&<div className="row-pen" onClick={()=>{setRowEditVal(v==='—'||!v?'':v);setRowEdit(field)}} style={{opacity:0,transition:'.15s',cursor:'pointer',position:'absolute',left:8,top:8,width:24,height:24,borderRadius:5,background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.15)',display:'flex',alignItems:'center',justifyContent:'center'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(201,168,76,.15)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(201,168,76,.08)'}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>}
 </div>
 </div>}
-return<div style={{position:'fixed',inset:0,background:'var(--bg)',display:'flex',alignItems:'stretch',zIndex:999}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',width:'100vw',height:'100vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.75)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:24}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',width:'92vw',maxWidth:1200,height:'88vh',display:'flex',flexDirection:'column',overflow:'hidden',borderRadius:18,boxShadow:'0 24px 80px rgba(0,0,0,.6),0 0 0 1px rgba(201,168,76,.1)',border:'1px solid rgba(201,168,76,.08)'}}>
 {/* ── Header ── */}
-<div style={{padding:'16px 32px',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid var(--bd,rgba(255,255,255,.07))'}}>
+<div style={{padding:'14px 24px',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid var(--bd,rgba(255,255,255,.07))',borderRadius:'18px 18px 0 0',flexShrink:0}}>
 {/* يمين: هوية المنشأة */}
 <div style={{display:'flex',alignItems:'center',gap:14,flex:1}}>
 <div style={{width:44,height:44,borderRadius:12,background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></div>
