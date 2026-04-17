@@ -48,7 +48,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
       sb.from('otp_permissions').select('*')
     ])
     setPersons(p.data || []); setMessages(m.data || []); setPermissions(perm.data || []); setLoading(false)
-    sb.from('owners').select('id,name_ar,name_en,id_number,mobile_work,mobile_personal').is('deleted_at',null).order('name_ar').then(({data})=>setAllUsers(data||[]))
+    setAllUsers([])
     sb.from('users').select('id,name_ar').is('deleted_at',null).eq('is_active',true).order('name_ar').then(({data})=>setSysUsers(data||[]))
   }, [sb])
 

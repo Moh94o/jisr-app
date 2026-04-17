@@ -158,13 +158,3 @@ export function calculateNitaqat(totalWorkers, saudiWorkers, facilitySize) {
   return { percentage: pct, color: 'red', label: 'أحمر' };
 }
 
-// ═══ BIZ-2: حساب تكلفة العامل الفعلية ═══
-export function calculateWorkerCost(costs = {}) {
-  const { recruitment = 0, iqama = 0, insurance = 0, office_fee = 0, transport = 0, medical = 0, other = 0 } = costs;
-  const total = Number(recruitment) + Number(iqama) + Number(insurance) + Number(office_fee) + Number(transport) + Number(medical) + Number(other);
-  return { ...costs, total };
-}
-
-// ═══ Number formatting ═══
-export const num = v => Number(v || 0).toLocaleString('en-US');
-export const numAr = v => Number(v || 0).toLocaleString('ar-SA');

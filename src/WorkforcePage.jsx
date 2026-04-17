@@ -48,7 +48,7 @@ sb.from('work_permits').select('*').is('deleted_at',null).order('wp_expiry_date'
 sb.from('iqama_cards').select('*').is('deleted_at',null).order('iqama_expiry_date',{ascending:false}),
 sb.from('worker_insurance').select('*').is('deleted_at',null).order('end_date',{ascending:false}),
 sb.from('worker_transfers').select('*,workers:worker_id(name_ar),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}),
-sb.from('worker_iqamas').select('*').order('expiry_date',{ascending:false}),
+Promise.resolve({data:[]}),
 sb.from('worker_passports').select('*').order('expiry_date',{ascending:false}),
 sb.from('worker_licenses').select('*').order('expiry_date',{ascending:false}),
 sb.from('worker_dependents').select('*').order('created_at',{ascending:false}),
@@ -62,7 +62,7 @@ sb.from('gosi_subscriptions').select('*').order('created_at',{ascending:false}),
 sb.from('attachments').select('*').is('deleted_at',null).order('created_at',{ascending:false})
 ]).then(([wp,iq,ins,tr,niq,pp,lic,dep,ctr,sh,vi,vh,tl,treq,gs,att])=>{setPermits(wp.data||[]);setIqamas(iq.data||[]);setInsurance(ins.data||[]);setTransfers(tr.data||[]);setNewIqamas(niq.data||[]);setPassports(pp.data||[]);setLicenses(lic.data||[]);setDependents(dep.data||[]);setContracts(ctr.data||[]);setSalaryHistory(sh.data||[]);setVisas(vi.data||[]);setVehicles(vh.data||[]);setTimeline(tl.data||[]);setTransferReqs(treq.data||[]);setGosiSubs(gs.data||[]);setAttFiles(att.data||[])})},[sb])
 useEffect(()=>{load()},[load])
-useEffect(()=>{if(!sb)return;sb.from('v_worker_completeness').select('worker_id,completion_pct,has_valid_permit,has_valid_iqama,has_valid_insurance,nearest_expiry').then(({data})=>{if(data){const m={};data.forEach(r=>{m[r.worker_id]=r});setCompletionMap(m)}})},[sb,workers])
+// v_worker_completeness removed — completionMap stays empty (feature disabled)
 useEffect(()=>{if(!sb||!workers.length)return;const ids=[...new Set(workers.map(w=>w.occupation_id).filter(Boolean))];if(!ids.length)return;sb.from('lookup_items').select('id,value_ar').in('id',ids).then(({data})=>{if(data){const m={};data.forEach(r=>m[r.id]=r.value_ar);setOccMap(m)}})},[sb,workers])
 const saveG=async(table,fd)=>{setSaving(true);try{const d={...fd};const id=d._id;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;if(d[k]==='true')d[k]=true;if(d[k]==='false')d[k]=false});if(id){d.updated_by=user?.id;const{error}=await sb.from(table).update(d).eq('id',id);if(error)throw error;toast(T('تم التعديل','Updated'))}else{d.created_by=user?.id;const{error}=await sb.from(table).insert(d);if(error)throw error;toast(T('تمت الإضافة','Added'))};setPop(null);load()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
 const del=async(t,id)=>{if(!confirm(T('حذف؟','Delete?')))return;await sb.from(t).update({deleted_at:new Date().toISOString()}).eq('id',id);toast(T('تم الحذف','Deleted'));load()}

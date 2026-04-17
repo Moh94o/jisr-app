@@ -1,6 +1,4 @@
 import React,{useState,useEffect,useCallback} from 'react'
-import WorkflowPage from './WorkflowPage.jsx'
-import PricingCalcPage from './PricingCalcPage.jsx'
 const F="'Cairo',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#c9a84c',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 

@@ -12,8 +12,3 @@ export function getSupabase() {
   return client
 }
 
-export function saveConfig() {}
-export function clearConfig() {}
-export function getSavedConfig() {
-  return { u: SUPABASE_URL, k: SUPABASE_ANON_KEY }
-}

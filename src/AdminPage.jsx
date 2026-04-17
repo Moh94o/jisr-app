@@ -99,7 +99,7 @@ sb.from('permission_templates').select('*').order('module').order('action'),
 sb.from('role_permissions').select('*'),
 sb.from('regions').select('*').order('sort_order').order('name_ar'),
 sb.from('cities').select('*').order('sort_order').order('name_ar'),
-sb.from('lookup_lists').select('*').order('name_ar'),
+sb.from('lookup_categories').select('*').order('name_ar'),
 sb.from('lookup_items').select('*').order('sort_order'),
 sb.from('bank_accounts').select('*').order('is_primary',{ascending:false}).order('bank_name')
 ])
@@ -757,8 +757,8 @@ bUsers.map(u=><div key={u.id} style={{display:'flex',alignItems:'center',gap:10,
 
 {/* ═══ ADD/EDIT BRANCH POPUP (3-Step Wizard) ═══ */}
 {(pop==='add'||pop==='edit')&&(()=>{
-const weekdayList=lLists.find(l=>l.list_key==='weekdays')
-const allDays=weekdayList?lItems.filter(i=>i.list_id===weekdayList.id).map(i=>i.value_ar):['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
+const weekdayList=lLists.find(l=>l.category_key==='weekdays')
+const allDays=weekdayList?lItems.filter(i=>i.category_id===weekdayList.id).map(i=>i.value_ar):['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
 const selDays=(form.work_days||'').split(',').filter(Boolean)
 const toggleDay=d=>{const has=selDays.includes(d);setForm(p=>({...p,work_days:has?selDays.filter(x=>x!==d).join(','):[...selDays,d].join(',')}))}
 const times=[];for(let h=6;h<=23;h++)for(let m=0;m<60;m+=30)times.push(String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'))

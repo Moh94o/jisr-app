@@ -641,7 +641,7 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
   const load = useCallback(async () => {
     setLoading(true);
     const [br, u, ba, rg, ct, cn, dc, bl, lk, di] = await Promise.all([
-      sb.from('branch_stats').select('*'),
+      sb.from('daily_stats').select('*'),
       sb.from('users').select('id,name_ar,name_en,branch_id').is('deleted_at', null),
       sb.from('bank_accounts').select('*').is('is_active', true),
       sb.from('regions').select('id,name_ar').is('is_active', true).order('name_ar'),
