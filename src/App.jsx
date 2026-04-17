@@ -907,31 +907,23 @@ flds:[
 </div>
 {/* Nav */}
 <nav style={{flex:1,overflowY:'auto',padding:'8px 10px 60px',scrollbarWidth:'none',msOverflowStyle:'none',WebkitOverflowScrolling:'touch'}}>
-<style>{`aside nav::-webkit-scrollbar{display:none}.dash-content::-webkit-scrollbar{display:none}.sr-scroll{scrollbar-width:thin;scrollbar-color:rgba(201,168,76,.25) transparent}.sr-scroll::-webkit-scrollbar{width:4px}.sr-scroll::-webkit-scrollbar-track{background:transparent}.sr-scroll::-webkit-scrollbar-thumb{background:rgba(201,168,76,.25);border-radius:4px}.sr-scroll::-webkit-scrollbar-thumb:hover{background:rgba(201,168,76,.4)}
-:root{--gold:#c9a227;--gold-bg:rgba(201,162,39,.08);--bg-3:#1d1d1d;--text-primary:#e8e6e0;--text-secondary:#9b978e;--text-tertiary:#5a5751;--border-subtle:rgba(255,255,255,.06)}
-.sb-item,.sb-sub{position:relative;display:flex;align-items:center;gap:12px;cursor:pointer;background:transparent;color:var(--text-secondary);transition:all .15s ease;font-family:'Cairo','Tajawal',sans-serif}
-.sb-item{padding:10px 12px;border-radius:10px;margin:2px 0;font-size:14px;font-weight:500}
-.sb-sub{padding:8px 12px;border-radius:8px;margin:1px 0;font-size:13px;font-weight:500}
-.sb-item:hover,.sb-sub:hover{background:var(--bg-3);color:var(--text-primary)}
-.sb-item.active,.sb-sub.active{background:var(--gold-bg);color:var(--gold)}
-.sb-item.active::before,.sb-sub.active::before{content:'';position:absolute;inset-inline-end:0;top:6px;bottom:6px;width:3px;background:var(--gold);border-radius:3px 0 0 3px}
-[dir=ltr] .sb-item.active::before,[dir=ltr] .sb-sub.active::before{border-radius:0 3px 3px 0}
-.sb-sep{height:1px;background:var(--border-subtle);margin:8px 14px}
-.sb-badge{font-size:9px;font-weight:700;background:#c0392b;color:#fff;padding:1px 6px;border-radius:8px;min-width:16px;text-align:center;margin-inline-start:auto}`}</style>
-<div style={{display:'flex',flexDirection:'column',gap:0}}>
-{nav.map((n)=>{
+<style>{'aside nav::-webkit-scrollbar{display:none}.dash-content::-webkit-scrollbar{display:none}.sr-scroll{scrollbar-width:thin;scrollbar-color:rgba(201,168,76,.25) transparent}.sr-scroll::-webkit-scrollbar{width:4px}.sr-scroll::-webkit-scrollbar-track{background:transparent}.sr-scroll::-webkit-scrollbar-thumb{background:rgba(201,168,76,.25);border-radius:4px}.sr-scroll::-webkit-scrollbar-thumb:hover{background:rgba(201,168,76,.4)}'}</style>
+<div style={{display:'flex',flexDirection:'column',gap:3}}>
+{nav.map((n,i)=>{
 const subs=hubTabs[n.id]||null
 const hubActive=subs&&subs.some(t=>t.id===pg)
 const isActive=pg===n.id||hubActive
 const isSep=n.id==='settings'
 return<div key={n.id}>
-{isSep&&<div className="sb-sep"/>}
-<div onClick={()=>setPage(n.id)} className={'sb-item'+(isActive?' active':'')}>
+{isSep&&<div style={{height:1,background:'rgba(255,255,255,.06)',margin:'8px 14px'}}/>}
+<div onClick={()=>setPage(n.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderRadius:10,cursor:'pointer',fontSize:13,fontWeight:isActive?700:500,color:isActive?C.gold:'rgba(255,255,255,.5)',background:isActive?'rgba(201,168,76,.08)':'transparent',border:isActive?'1px solid rgba(201,168,76,.12)':'1px solid transparent',transition:'.2s',position:'relative'}}>
+{isActive&&<div style={{position:'absolute',[lang==='ar'?'right':'left']:0,top:'50%',transform:'translateY(-50%)',width:3,height:22,borderRadius:3,background:C.gold}}/>}
 <span style={{flex:1}}>{n.l}</span>
-{n.n>0&&<span className="sb-badge">{n.n}</span>}
+{n.n>0&&<span style={{fontSize:9,fontWeight:700,background:C.red,color:'#fff',padding:'1px 6px',borderRadius:8,minWidth:16,textAlign:'center'}}>{n.n}</span>}
 </div>
-{subs&&<div style={{display:'flex',flexDirection:'column',[lang==='ar'?'paddingRight':'paddingLeft']:16,marginBottom:4}}>
-{subs.map(t=>{const sAct=pg===t.id;return<div key={t.id} onClick={()=>{setPg(t.id);setSideOpen(false)}} className={'sb-sub'+(sAct?' active':'')}>
+{subs&&<div style={{display:'flex',flexDirection:'column',gap:1,margin:'2px 0 6px',[lang==='ar'?'paddingRight':'paddingLeft']:16}}>
+{subs.map(t=>{const sAct=pg===t.id;return<div key={t.id} onClick={()=>{setPg(t.id);setSideOpen(false)}} style={{padding:'7px 14px',borderRadius:8,cursor:'pointer',fontSize:12,fontWeight:sAct?700:500,color:sAct?C.gold:'rgba(255,255,255,.42)',background:sAct?'rgba(201,168,76,.06)':'transparent',transition:'.15s',position:'relative'}}>
+{sAct&&<div style={{position:'absolute',[lang==='ar'?'right':'left']:0,top:'50%',transform:'translateY(-50%)',width:2,height:14,borderRadius:2,background:C.gold}}/>}
 <span>{t.l}</span>
 </div>})}
 </div>}
