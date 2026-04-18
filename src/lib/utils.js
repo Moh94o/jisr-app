@@ -79,13 +79,13 @@ export function printContent(title, htmlContent, lang = 'ar') {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
 body{font-family:'Cairo',sans-serif;padding:40px;color:#333;max-width:800px;margin:0 auto;font-size:12px;line-height:1.8}
-h1{font-size:18px;text-align:center;color:#c9a84c;border-bottom:2px solid #c9a84c;padding-bottom:10px;margin-bottom:20px}
+h1{font-size:18px;text-align:center;color:#D4A017;border-bottom:2px solid #D4A017;padding-bottom:10px;margin-bottom:20px}
 table{width:100%;border-collapse:collapse;margin:12px 0}
 th{background:#f5f5f5;padding:8px 10px;border:1px solid #ddd;font-weight:700;font-size:11px}
 td{padding:6px 10px;border:1px solid #eee;font-size:11px}
 tr:nth-child(even){background:#fafafa}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:2px solid #c9a84c;padding-bottom:15px}
-.logo{font-size:24px;font-weight:900;color:#c9a84c}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:2px solid #D4A017;padding-bottom:15px}
+.logo{font-size:24px;font-weight:900;color:#D4A017}
 .info{font-size:10px;color:#888}
 .footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px}
 .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}

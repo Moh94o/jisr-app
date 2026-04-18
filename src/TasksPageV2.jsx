@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 
-const C = { gold:'#c9a84c', gl:'#dcc06e', red:'#c0392b', blue:'#3483b4', ok:'#27a046', purple:'#9b59b6', orange:'#e67e22' }
+const C = { gold:'#D4A017', gl:'#dcc06e', red:'#c0392b', blue:'#3483b4', ok:'#27a046', purple:'#9b59b6', orange:'#e67e22' }
 const F = "'Cairo','Tajawal',sans-serif"
 
 export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
@@ -200,7 +200,7 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
   const labelS = { fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.55)', marginBottom: 5, display: 'block' }
   const selectS = { ...inputS, appearance: 'none', cursor: 'pointer' }
   const btnGold = { height: 40, padding: '0 24px', borderRadius: 10, border: 'none', background: `linear-gradient(135deg, ${C.gold}, ${C.gl})`, color: '#111', fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer' }
-  const fBtnS = (a) => ({ padding: '5px 12px', borderRadius: 6, fontSize: 10, fontWeight: a ? 700 : 500, color: a ? C.gold : 'rgba(255,255,255,.4)', background: a ? 'rgba(201,168,76,.08)' : 'transparent', border: a ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer' })
+  const fBtnS = (a) => ({ padding: '5px 12px', borderRadius: 6, fontSize: 10, fontWeight: a ? 700 : 500, color: a ? C.gold : 'rgba(255,255,255,.4)', background: a ? 'rgba(212,160,23,.08)' : 'transparent', border: a ? '1px solid rgba(212,160,23,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer' })
   const stClr = { pending: C.gold, in_progress: C.blue, completed: C.ok, overdue: C.red, skipped: '#888' }
   const priClr = { high: C.red, urgent: C.red, normal: C.gold, low: '#888' }
 
@@ -220,9 +220,9 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
     const priLabel = {urgent:T('عاجل','Urgent'),high:T('عالي','High'),normal:T('عادي','Normal'),low:T('منخفض','Low')}
 
     return <div onClick={()=>setSelectedTask(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16}}>
-    <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(900px,96vw)',height:'min(620px,90vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.12)',fontFamily:F,direction:isAr?'rtl':'ltr'}}>
+    <div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(900px,96vw)',height:'min(620px,90vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(212,160,23,.12)',fontFamily:F,direction:isAr?'rtl':'ltr'}}>
       {/* Header */}
-      <div style={{padding:'18px 22px',borderBottom:'1px solid rgba(201,168,76,.1)',flexShrink:0,background:'var(--bg)'}}>
+      <div style={{padding:'18px 22px',borderBottom:'1px solid rgba(212,160,23,.1)',flexShrink:0,background:'var(--bg)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
           <div style={{flex:1}}>
             <div style={{fontSize:16,fontWeight:800,color:'var(--tx)',marginBottom:6}}>{t.title_ar}</div>
@@ -268,9 +268,9 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
         {/* Sidebar tabs */}
         <div style={{width:130,background:'var(--bg)',borderLeft:isAr?'none':'1px solid rgba(255,255,255,.04)',borderRight:isAr?'1px solid rgba(255,255,255,.04)':'none',padding:'12px 8px',flexShrink:0}}>
           {[{v:'info',l:T('التفاصيل','Details'),icon:'📋'},{v:'team',l:T('الفريق','Team'),n:assignees.length,icon:'👥'},{v:'comments',l:T('التعليقات','Comments'),n:comments.length,icon:'💬'},{v:'attachments',l:T('المرفقات','Files'),n:taskAttachments.length,icon:'📎'},{v:'transactions',l:T('المعاملات','Txns'),n:taskTxns.length,icon:'📊'}].map(tab=>
-            <div key={tab.v} onClick={()=>setDetailTab(tab.v)} style={{padding:'10px 10px',borderRadius:8,marginBottom:3,fontSize:10,fontWeight:detailTab===tab.v?700:500,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.38)',background:detailTab===tab.v?'rgba(201,168,76,.08)':'transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:4}}>
+            <div key={tab.v} onClick={()=>setDetailTab(tab.v)} style={{padding:'10px 10px',borderRadius:8,marginBottom:3,fontSize:10,fontWeight:detailTab===tab.v?700:500,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.38)',background:detailTab===tab.v?'rgba(212,160,23,.08)':'transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:4}}>
               <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:12}}>{tab.icon}</span>{tab.l}</span>
-              {tab.n!==undefined&&tab.n>0&&<span style={{fontSize:9,fontWeight:700,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.2)',background:detailTab===tab.v?'rgba(201,168,76,.15)':'rgba(255,255,255,.04)',padding:'1px 6px',borderRadius:4}}>{tab.n}</span>}
+              {tab.n!==undefined&&tab.n>0&&<span style={{fontSize:9,fontWeight:700,color:detailTab===tab.v?C.gold:'rgba(255,255,255,.2)',background:detailTab===tab.v?'rgba(212,160,23,.15)':'rgba(255,255,255,.04)',padding:'1px 6px',borderRadius:4}}>{tab.n}</span>}
             </div>)}
         </div>
         {/* Tab content */}
@@ -324,7 +324,7 @@ export default function TasksPage({ sb, toast, user, lang, defaultFilter }) {
 
         {detailTab==='comments'&&<div>
           {comments.length===0&&<div style={{textAlign:'center',padding:'20px 0',color:'var(--tx6)',fontSize:11,marginBottom:12}}>{T('لا توجد تعليقات بعد','No comments yet')}</div>}
-          {comments.map(c=><div key={c.id} style={{padding:'10px 14px',borderRadius:10,background:c.comment_type==='system'?'rgba(201,168,76,.04)':'rgba(255,255,255,.02)',border:'1px solid var(--bd)',marginBottom:6}}>
+          {comments.map(c=><div key={c.id} style={{padding:'10px 14px',borderRadius:10,background:c.comment_type==='system'?'rgba(212,160,23,.04)':'rgba(255,255,255,.02)',border:'1px solid var(--bd)',marginBottom:6}}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
               <span style={{fontSize:11,fontWeight:700,color:c.comment_type==='system'?C.gold:C.blue}}>{c.user?.name_ar||T('النظام','System')}</span>
               <span style={{fontSize:9,color:'var(--tx5)'}}>{new Date(c.created_at).toLocaleDateString('ar-SA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>

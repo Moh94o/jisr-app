@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { detectService } from './serviceConfig.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#c9a84c', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
+const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
 const OTP_TTL = 60
 
 const SvcLogo = ({ sender, size = 36 }) => {
@@ -204,7 +204,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={() => setShowSetupDrawer(true)} style={{ height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx4)', fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>⚙ الإعدادات</button>
-          <button onClick={() => setShowAdd(true)} style={{ height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.1)', color: C.gold, fontFamily: F, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>+ إضافة شخص</button>
+          <button onClick={() => setShowAdd(true)} style={{ height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.1)', color: C.gold, fontFamily: F, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>+ إضافة شخص</button>
         </div>
       </div>
 
@@ -262,9 +262,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 8 }}>
               {persons.map(p => {
                 const pMsgs = messages.filter(m => m.person_id === p.id)
-                return <div key={p.id} onClick={() => { setSelPerson(p.id); setFilter('all') }} style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.15)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)'}>
+                return <div key={p.id} onClick={() => { setSelPerson(p.id); setFilter('all') }} style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(212,160,23,.15)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)'}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(201,168,76,.08)', border: '1px solid rgba(201,168,76,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: C.gold }}>{(p.name||'?')[0]}</div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: C.gold }}>{(p.name||'?')[0]}</div>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 700, color: p.is_active ? 'var(--tx)' : '#e67e22' }}>{p.name}{!p.is_active ? ' ⏸' : ''}</div>
                       <div style={{ fontSize: 9, color: 'var(--tx6)' }}>{pMsgs.length} رسالة</div>
@@ -306,7 +306,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       </div>
                     </div>
                     {/* Person name — after service */}
-                    {person && <div style={{ padding: '4px 12px', borderRadius: 8, background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.1)' }}>
+                    {person && <div style={{ padding: '4px 12px', borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.1)' }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{person.name}</div>
                     </div>}
                     <div style={{ flex: 1 }} />
@@ -326,7 +326,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         <div style={{ display: 'flex', gap: 4, direction: 'ltr' }}>
                           {m.otp_code.split('').map((d, i, arr) => {
                             const hidden = i >= arr.length - 2
-                            return <div key={i} style={{ width: 36, height: 44, borderRadius: 8, background: hidden ? 'rgba(201,168,76,.08)' : exp ? 'rgba(255,255,255,.04)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (hidden ? 'rgba(201,168,76,.15)' : exp ? 'rgba(255,255,255,.08)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: hidden ? C.gold : exp ? 'var(--tx5)' : C.ok, fontFamily: 'monospace' }}>{hidden ? '?' : d}</div>
+                            return <div key={i} style={{ width: 36, height: 44, borderRadius: 8, background: hidden ? 'rgba(212,160,23,.08)' : exp ? 'rgba(255,255,255,.04)' : 'rgba(39,160,70,.08)', border: '1.5px solid ' + (hidden ? 'rgba(212,160,23,.15)' : exp ? 'rgba(255,255,255,.08)' : 'rgba(39,160,70,.15)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: hidden ? C.gold : exp ? 'var(--tx5)' : C.ok, fontFamily: 'monospace' }}>{hidden ? '?' : d}</div>
                           })}
                         </div>
                         {m.copied_by && <span style={{ fontSize: 9, color: '#9b59b6', fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: 'rgba(155,89,182,.06)', border: '1px solid rgba(155,89,182,.08)' }}>نسخ: {m.copied_by}</span>}
@@ -334,7 +334,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       {/* Actions LEFT */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <button onClick={() => copyCode(m.otp_code, m)} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid ' + (exp ? 'rgba(255,255,255,.08)' : 'rgba(39,160,70,.15)'), background: exp ? 'rgba(255,255,255,.03)' : 'rgba(39,160,70,.06)', color: exp ? 'var(--tx4)' : C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>نسخ</button>
-                        <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} title="عرض الرسالة الأصلية" style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>☰</button>
+                        <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} title="عرض الرسالة الأصلية" style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(212,160,23,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>☰</button>
                         <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,.1)', marginLeft: 8, marginRight: 8 }} />
                         <button onClick={() => setDeleteConfirm(m.id)} title="حذف" style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(192,57,43,.1)', background: 'rgba(192,57,43,.04)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
                       </div>
@@ -499,7 +499,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           </div>
                         })()}
                       </div>
-                      <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} title="عرض الرسالة الأصلية" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(201,168,76,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>☰</button>
+                      <button onClick={() => setShowRawMsg(showRawMsg === m.id ? null : m.id)} title="عرض الرسالة الأصلية" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: showRawMsg === m.id ? 'rgba(212,160,23,.06)' : 'rgba(255,255,255,.03)', color: showRawMsg === m.id ? C.gold : 'var(--tx6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>☰</button>
                       <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,.06)', marginLeft: 8, marginRight: 8 }} />
                       <button onClick={() => setDeleteConfirm(m.id)} title="حذف" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(192,57,43,.1)', background: 'rgba(192,57,43,.04)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>×</button>
                     </>}
@@ -519,10 +519,10 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         <span key={u.id} style={{ fontSize: 8, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'rgba(39,160,70,.06)', color: C.ok, border: '1px solid rgba(39,160,70,.08)' }}>{u.name_ar}</span>
                       ))}
                     </div>
-                    <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(201,168,76,.08)', background: 'rgba(201,168,76,.03)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعديل الصلاحيات</button>
+                    <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(212,160,23,.08)', background: 'rgba(212,160,23,.03)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعديل الصلاحيات</button>
                   </div>
 
-                  {showPermEdit === m.id && <div style={{ padding: '8px 14px', background: 'rgba(201,168,76,.02)', borderTop: '1px solid rgba(201,168,76,.05)' }}>
+                  {showPermEdit === m.id && <div style={{ padding: '8px 14px', background: 'rgba(212,160,23,.02)', borderTop: '1px solid rgba(212,160,23,.05)' }}>
                     <div style={{ fontSize: 9, color: 'var(--tx5)', marginBottom: 6 }}>من يشوف هذه الرسالة:</div>
                     {sysUsers.map(u => (
                       <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', marginBottom: 2 }}>
@@ -541,7 +541,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         } else if (ex) { await sb.from('otp_permissions').delete().eq('id', ex.id) }
                       }
                       setShowPermEdit(null); load(); toast && toast('تم حفظ الصلاحيات')
-                    }} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.05)', color: C.gold, fontFamily: F, fontSize: 9, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>حفظ</button>
+                    }} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(212,160,23,.12)', background: 'rgba(212,160,23,.05)', color: C.gold, fontFamily: F, fontSize: 9, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>حفظ</button>
                   </div>}
                 </div>
               )
@@ -574,7 +574,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
       {/* Settings Drawer */}
       {showSetupDrawer && <div onClick={() => { setShowSetupDrawer(false); setDrawerPerson(null) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(4px)', zIndex: 1000 }}>
-        <div onClick={e => e.stopPropagation()} style={{ position: 'fixed', top: 0, left: 0, width: 'min(400px,88vw)', height: '100vh', background: '#141414', borderRight: '1px solid rgba(201,168,76,.08)', display: 'flex', flexDirection: 'column', direction: 'rtl', fontFamily: F }}>
+        <div onClick={e => e.stopPropagation()} style={{ position: 'fixed', top: 0, left: 0, width: 'min(400px,88vw)', height: '100vh', background: '#141414', borderRight: '1px solid rgba(212,160,23,.08)', display: 'flex', flexDirection: 'column', direction: 'rtl', fontFamily: F }}>
           {/* Drawer header */}
           <div style={{ padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)' }}>الإعدادات</div>
@@ -596,7 +596,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               <div style={{ marginTop: 8 }}>
                 <div style={{ display: 'flex', gap: 0, borderRadius: '8px 8px 0 0', overflow: 'hidden', border: '1px solid rgba(255,255,255,.06)', borderBottom: 'none' }}>
                   {[{v:'text',l:'Text'},{v:'json',l:'JSON'},{v:'url',l:'URL Params'}].map(f2 => (
-                    <button key={f2.v} onClick={() => setFmtType(f2.v)} style={{ flex: 1, height: 28, border: 'none', fontFamily: F, fontSize: 9, fontWeight: fmtType === f2.v ? 700 : 500, color: fmtType === f2.v ? C.gold : 'var(--tx6)', background: fmtType === f2.v ? 'rgba(201,168,76,.08)' : 'rgba(255,255,255,.02)', cursor: 'pointer', borderBottom: fmtType === f2.v ? '2px solid ' + C.gold : '2px solid transparent' }}>{f2.l}</button>
+                    <button key={f2.v} onClick={() => setFmtType(f2.v)} style={{ flex: 1, height: 28, border: 'none', fontFamily: F, fontSize: 9, fontWeight: fmtType === f2.v ? 700 : 500, color: fmtType === f2.v ? C.gold : 'var(--tx6)', background: fmtType === f2.v ? 'rgba(212,160,23,.08)' : 'rgba(255,255,255,.02)', cursor: 'pointer', borderBottom: fmtType === f2.v ? '2px solid ' + C.gold : '2px solid transparent' }}>{f2.l}</button>
                   ))}
                 </div>
                 <div style={{ padding: '8px 10px', borderRadius: '0 0 8px 8px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.06)', borderTop: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -608,7 +608,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   <button onClick={() => {
                     const v = fmtType === 'text' ? '%s|||%m|||%d' : fmtType === 'json' ? '{"device_key":"[KEY]","message":"%m","sender":"%s","timestamp":"%d"}' : '?key=[KEY]&sender=%s&message=%m&time=%d'
                     navigator.clipboard.writeText(v); toast && toast('تم النسخ')
-                  }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 5, border: '1px solid rgba(201,168,76,.1)', background: 'rgba(201,168,76,.04)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
+                  }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 5, border: '1px solid rgba(212,160,23,.1)', background: 'rgba(212,160,23,.04)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600, flexShrink: 0 }}>نسخ</button>
                 </div>
               </div>
             </div>
@@ -620,10 +620,10 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 const perm = permissions.find(pm => pm.person_id === p.id)
                 const pMsgs = messages.filter(m => m.person_id === p.id)
 
-                return <div key={p.id} style={{ borderRadius: 12, border: '1px solid ' + (isOpen ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.04)'), background: isOpen ? 'rgba(201,168,76,.02)' : 'rgba(255,255,255,.015)', overflow: 'hidden', transition: '.2s' }}>
+                return <div key={p.id} style={{ borderRadius: 12, border: '1px solid ' + (isOpen ? 'rgba(212,160,23,.15)' : 'rgba(255,255,255,.04)'), background: isOpen ? 'rgba(212,160,23,.02)' : 'rgba(255,255,255,.015)', overflow: 'hidden', transition: '.2s' }}>
                   {/* Person row — clickable */}
                   <div onClick={() => setDrawerPerson(isOpen ? null : p.id)} style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.04))', border: '1.5px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(p.name || '?')[0]}</div>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(212,160,23,.04))', border: '1.5px solid rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(p.name || '?')[0]}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', marginBottom: 2 }}>{p.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--tx5)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -649,10 +649,10 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     </div>
 
                     {/* Device key */}
-                    <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(201,168,76,.03)', border: '1px solid rgba(201,168,76,.06)', marginBottom: 10 }}>
+                    <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(212,160,23,.03)', border: '1px solid rgba(212,160,23,.06)', marginBottom: 10 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx5)' }}>Subject (مفتاح الجهاز)</span>
-                        <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 10, padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(201,168,76,.12)', background: 'rgba(201,168,76,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>نسخ</button>
+                        <button onClick={() => { navigator.clipboard.writeText(p.device_key); toast && toast('تم النسخ') }} style={{ fontSize: 10, padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(212,160,23,.12)', background: 'rgba(212,160,23,.06)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>نسخ</button>
                       </div>
                       <code style={{ fontSize: 11, color: C.gold, direction: 'ltr', display: 'block', textAlign: 'left', wordBreak: 'break-all', fontWeight: 700, marginBottom: 6 }}>{p.device_key}</code>
                       <div style={{ marginTop: 4, display: 'flex', gap: 4 }}>
@@ -749,7 +749,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
       {/* Add Person Modal */}
       {showAdd && <div onClick={closeAdd} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: '#141414', borderRadius: 18, width: 'min(460px,94vw)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.1)', direction: 'rtl', fontFamily: F, boxShadow: '0 24px 60px rgba(0,0,0,.5)' }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: '#141414', borderRadius: 18, width: 'min(460px,94vw)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(212,160,23,.1)', direction: 'rtl', fontFamily: F, boxShadow: '0 24px 60px rgba(0,0,0,.5)' }}>
           {/* Gold accent bar */}
           <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,' + C.gold + '50,' + C.gold + ',' + C.gold + '50,transparent)', flexShrink: 0 }} />
           <div style={{ padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -765,7 +765,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             {!addMode && <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               {[{v:'existing',l:'مالك موجود',d:'اختر من الملّاك المسجلين',ic:'👤'},{v:'new',l:'شخص جديد',d:'تسجيل بيانات جديدة',ic:'+'}].map(o => (
                 <button key={o.v} onClick={() => setAddMode(o.v)} style={{ flex: 1, padding: '28px 14px', borderRadius: 14, border: '1.5px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.015)', cursor: 'pointer', textAlign: 'center', fontFamily: F, transition: '.2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,.25)'; e.currentTarget.style.background = 'rgba(201,168,76,.03)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)'; e.currentTarget.style.background = 'rgba(212,160,23,.03)' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.background = 'rgba(255,255,255,.015)' }}>
                   <div style={{ fontSize: 24, marginBottom: 8, opacity: .6 }}>{o.ic}</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)', marginBottom: 4 }}>{o.l}</div>
@@ -782,8 +782,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {allUsers.filter(u => !addSearch || u.name_ar?.includes(addSearch) || u.name_en?.toLowerCase().includes(addSearch.toLowerCase())).map(u => (
-                  <div key={u.id} onClick={() => setSelectedPerson(u)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1.5px solid rgba(255,255,255,.04)', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'; e.currentTarget.style.background = 'rgba(201,168,76,.03)' }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)'; e.currentTarget.style.background = 'rgba(255,255,255,.02)' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.04))', border: '1.5px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(u.name_ar || '?')[0]}</div>
+                  <div key={u.id} onClick={() => setSelectedPerson(u)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1.5px solid rgba(255,255,255,.04)', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.2)'; e.currentTarget.style.background = 'rgba(212,160,23,.03)' }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)'; e.currentTarget.style.background = 'rgba(255,255,255,.02)' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(212,160,23,.04))', border: '1.5px solid rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 900, color: C.gold, flexShrink: 0 }}>{(u.name_ar || '?')[0]}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{u.name_ar}</span>
@@ -802,10 +802,10 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
             {/* Selected person preview */}
             {addMode === 'existing' && selectedPerson && <div>
-              <div style={{ padding: '16px 18px', borderRadius: 14, background: 'linear-gradient(135deg,rgba(201,168,76,.05),rgba(201,168,76,.02))', border: '1.5px solid rgba(201,168,76,.12)' }}>
+              <div style={{ padding: '16px 18px', borderRadius: 14, background: 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(212,160,23,.02))', border: '1.5px solid rgba(212,160,23,.12)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(201,168,76,.1)', border: '1.5px solid rgba(201,168,76,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: C.gold }}>{selectedPerson.name_ar[0]}</div>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: C.gold }}>{selectedPerson.name_ar[0]}</div>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)' }}>{selectedPerson.name_ar}</div>
                       {selectedPerson.name_en && <div style={{ fontSize: 10, color: 'var(--tx5)', fontFamily: 'monospace', direction: 'ltr', marginTop: 1 }}>{selectedPerson.name_en}</div>}
@@ -846,7 +846,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
           {/* Footer */}
           {addMode && <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.05)', display: 'flex', gap: 8, flexShrink: 0 }}>
             <button onClick={closeAdd} style={{ height: 42, padding: '0 18px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,.08)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
-            <button onClick={addPerson} disabled={saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson)} style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid rgba(201,168,76,.25)', background: 'linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.08))', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson) ? .4 : 1, transition: '.2s' }}>{saving ? '...' : 'إضافة'}</button>
+            <button onClick={addPerson} disabled={saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson)} style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid rgba(212,160,23,.25)', background: 'linear-gradient(135deg,rgba(212,160,23,.15),rgba(212,160,23,.08))', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving || (addMode === 'new' && !addForm.name.trim()) || (addMode === 'existing' && !selectedPerson) ? .4 : 1, transition: '.2s' }}>{saving ? '...' : 'إضافة'}</button>
           </div>}
         </div>
       </div>}

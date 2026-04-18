@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { dk: '#171717', gold: '#c9a84c', gl: '#dcc06e', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
+const C = { dk: '#171717', gold: '#D4A017', gl: '#dcc06e', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
 const num = v => Number(v || 0).toLocaleString('en-US')
 
 export default function KPIPage({ sb, toast, user, lang }) {
@@ -168,7 +168,7 @@ export default function KPIPage({ sb, toast, user, lang }) {
           {T('تحديث', 'Refresh')}
         </button>
         <button onClick={openEditor}
-          style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.1)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+          style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.1)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
           + {T('تحديد الأهداف', 'Set Targets')}
         </button>
       </div>
@@ -271,7 +271,7 @@ export default function KPIPage({ sb, toast, user, lang }) {
               labelStyle={{ color: 'rgba(255,255,255,.5)', fontSize: 10 }}
               formatter={(v) => [num(v) + T(' ر.س', ' SAR')]}
             />
-            <Bar dataKey="target" name={T('الهدف', 'Target')} fill="rgba(201,168,76,.2)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="target" name={T('الهدف', 'Target')} fill="rgba(212,160,23,.2)" radius={[4, 4, 0, 0]} />
             <Bar dataKey="actual" name={T('الفعلي', 'Actual')} fill={C.gold} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -337,7 +337,7 @@ export default function KPIPage({ sb, toast, user, lang }) {
         </div>
         <div style={{ padding: '14px 22px', borderTop: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', flexDirection: 'row-reverse' }}>
           <button onClick={saveTargets} disabled={saving}
-            style={{ height: 40, padding: '0 24px', borderRadius: 8, border: '1px solid rgba(201,168,76,.3)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
+            style={{ height: 40, padding: '0 24px', borderRadius: 8, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
             {saving ? '...' : T('حفظ الأهداف', 'Save Targets')}
           </button>
           <button onClick={() => setEditPop(false)}

@@ -1,11 +1,11 @@
 import React,{useState,useEffect,useCallback,useMemo,useRef} from 'react'
-import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Languages,Printer,Plane,PlaneTakeoff,TriangleAlert,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Paperclip,Copy,Check,MapPin} from 'lucide-react'
+import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Languages,Wallet,Printer,Plane,PlaneTakeoff,TriangleAlert,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Paperclip,Copy,Check,MapPin,Sparkles} from 'lucide-react'
 const F="'Cairo','Tajawal',sans-serif"
-const C={gold:'#c9a84c',red:'#c0392b',ok:'#27a046',blue:'#3483b4',bentoGold:'#D4A017'}
+const C={gold:'#D4A017',red:'#c0392b',ok:'#27a046',blue:'#3483b4',bentoGold:'#D4A017'}
 // Format Saudi phone: +966558908008 → 055 890 8008
 const fmtPhone=(p)=>{if(!p)return'';let n=String(p).replace(/[^0-9+]/g,'');if(n.startsWith('+966'))n='0'+n.slice(4);else if(n.startsWith('966'))n='0'+n.slice(3);if(n.length===10)return`${n.slice(0,3)} ${n.slice(3,6)} ${n.slice(6)}`;return n}
 // Format date ISO → DD/MM/YYYY
-const fmtDate=(d)=>{if(!d)return'—';const dt=new Date(d);if(isNaN(dt))return'—';return`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`}
+const fmtDate=(d)=>{if(!d)return'—';const dt=new Date(d);if(isNaN(dt))return'—';return`${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`}
 // Flag emoji from country code (2 letters) or Arabic nationality name fallback
 const NAT_MAP={'سعودي':'SA','سعودية':'SA','مصري':'EG','مصرية':'EG','هندي':'IN','هندية':'IN','باكستاني':'PK','باكستانية':'PK','بنجلاديشي':'BD','بنغلاديشي':'BD','فلبيني':'PH','فلبينية':'PH','يمني':'YE','يمنية':'YE','سوداني':'SD','سودانية':'SD','اندونيسي':'ID','إندونيسي':'ID','اثيوبي':'ET','إثيوبي':'ET','نيبالي':'NP','سريلانكي':'LK','كيني':'KE','أوغندي':'UG','اوغندي':'UG','سوري':'SY','أردني':'JO','اردني':'JO','لبناني':'LB','فلسطيني':'PS','مغربي':'MA','تونسي':'TN','جزائري':'DZ'}
 const flagEmoji=(nat)=>{if(!nat)return'';let cc=nat.length===2?nat.toUpperCase():(NAT_MAP[nat.trim()]||'');if(cc.length!==2)return'';return String.fromCodePoint(...[...cc].map(c=>c.charCodeAt(0)+127397))}
@@ -26,13 +26,13 @@ const MAIN_SERVICES=[
 const OTHER_SERVICES=[
 {id:'medical_insurance',name_ar:'تأمين طبي',Icon:HeartPulse,billable:true},
 {id:'profession_change',name_ar:'تغيير المهنة',Icon:UserCog,billable:true},
-{id:'passport_update',name_ar:'تعديل بيانات الجواز',Icon:IdCard,billable:true},
-{id:'name_translation',name_ar:'تعديل الاسم المترجم',Icon:Languages,billable:false},
-{id:'iqama_print',name_ar:'طباعة الإقامة',Icon:Printer,billable:true},
+{id:'name_translation',name_ar:'تعديل الراتب',Icon:Wallet,billable:false},
 {id:'exit_reentry_visa',name_ar:'إصدار / تمديد تأشيرة خروج وعودة',Icon:Plane,billable:true},
-{id:'final_exit_visa',name_ar:'تأشيرة خروج نهائي',Icon:PlaneTakeoff,billable:true},
-{id:'absconding_report',name_ar:'هروب / بلاغ تغيب',Icon:TriangleAlert,billable:false},
-{id:'documents',name_ar:'مستندات',Icon:FileStack,billable:true}
+{id:'final_exit_visa',name_ar:'خروج نهائي / بلاغ تغيب',Icon:PlaneTakeoff,billable:true},
+{id:'passport_update',name_ar:'تحديث بيانات الجواز',Icon:IdCard,billable:true},
+{id:'iqama_print',name_ar:'طباعة الإقامة',Icon:Printer,billable:true},
+{id:'documents',name_ar:'مستندات',Icon:FileStack,billable:true},
+{id:'custom',name_ar:'عام',Icon:Sparkles,billable:true}
 ]
 const ALL_SERVICES=[...MAIN_SERVICES,...OTHER_SERVICES]
 
@@ -116,8 +116,8 @@ const SERVICE_INPUTS={
   ]
 }
 
-const fS={width:'100%',height:36,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.05)',textAlign:'center',boxSizing:'border-box'}
-const lblS={fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:2,display:'block',textAlign:'right'}
+const fS={width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(0,0,0,.18)',textAlign:'center',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}
+const lblS={fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,display:'block',textAlign:'right'}
 const goldBtn={height:42,padding:'0 28px',borderRadius:10,background:`linear-gradient(135deg,${C.gold},#a8872e)`,border:'none',color:'#fff',fontFamily:F,fontSize:13,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',gap:6}
 const ghostBtn={height:42,padding:'0 20px',borderRadius:10,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:6}
 
@@ -224,9 +224,9 @@ return()=>{window.removeEventListener('resize',compute);window.removeEventListen
 },[open])
 return<div ref={ref} style={{position:'relative',width:'100%'}}>
 <button type="button" disabled={disabled} onClick={()=>!disabled&&setOpen(!open)}
-style={{width:'100%',height:H,padding:compact?'0 28px':'0 36px',borderRadius:compact?8:10,border:`1.5px solid ${open?C.gold:'rgba(255,255,255,.1)'}`,background:disabled?'rgba(255,255,255,.02)':'rgba(255,255,255,.05)',color:selected?'var(--tx)':'var(--tx5)',fontFamily:F,fontSize:FZ,fontWeight:600,textAlign:'center',cursor:disabled?'not-allowed':'pointer',opacity:disabled?.5:1,transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',outline:'none'}}>
+style={{width:'100%',height:H,padding:'0 32px',borderRadius:9,border:`1px solid ${open?'rgba(212,160,23,.5)':'rgba(255,255,255,.05)'}`,background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',color:selected?'rgba(255,255,255,.95)':'rgba(255,255,255,.38)',fontFamily:F,fontSize:FZ,fontWeight:600,textAlign:'center',cursor:disabled?'not-allowed':'pointer',opacity:disabled?.5:1,transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',outline:'none',boxSizing:'border-box'}}>
 <span style={{flex:'1 1 0',minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',textAlign:'center'}}>{selected?selected.label:placeholder}</span>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{position:'absolute',left:14,top:'50%',transform:`translateY(-50%) rotate(${open?180:0}deg)`,transition:'.2s',opacity:.6}}><polyline points="6 9 12 15 18 9"/></svg>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{position:'absolute',left:14,top:'50%',transform:`translateY(-50%) rotate(${open?180:0}deg)`,transition:'.2s'}}><polyline points="6 9 12 15 18 9"/></svg>
 </button>
 {open&&<div ref={panelRef} style={{position:'fixed',top:panelStyle.top,bottom:panelStyle.bottom,left:panelStyle.left,width:panelStyle.width,zIndex:9999,borderRadius:12,border:'1px solid rgba(212,160,23,.25)',background:'#1a1a1a',boxShadow:'0 10px 30px rgba(0,0,0,.5),0 0 0 1px rgba(212,160,23,.05)',overflow:'hidden',display:'flex',flexDirection:'column',maxHeight:panelStyle.maxHeight,animation:'niceFadeIn .15s ease-out'}}>
 {searchable&&options.length>1&&<div style={{padding:8,borderBottom:'1px solid rgba(255,255,255,.05)',flexShrink:0}}>
@@ -265,7 +265,12 @@ const[customName,setCustomName]=useState('')
 const[clientMode,setClientMode]=useState('existing')
 const[clientQ,setClientQ]=useState('')
 const[selClient,setSelClient]=useState(null)
-const[newClient,setNewClient]=useState({name_ar:'',name_en:'',phone:'',id_number:''})
+const[newClient,setNewClient]=useState({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''})
+const[natOpenClient,setNatOpenClient]=useState(false)
+const[natSearchClient,setNatSearchClient]=useState('')
+const natTriggerRef=useRef(null)
+const[natPos,setNatPos]=useState({top:0,left:0,width:0})
+const openNatDropdown=()=>{if(natTriggerRef.current){const r=natTriggerRef.current.getBoundingClientRect();setNatPos({top:r.bottom+4,left:r.left,width:r.width})}setNatOpenClient(v=>!v)}
 const[clients,setClients]=useState([])
 const[workerIsClient,setWorkerIsClient]=useState(false)// default: unchecked
 const[step2Mode,setStep2Mode]=useState('client')// 'client' | 'worker'
@@ -286,8 +291,13 @@ const[hasBroker,setHasBroker]=useState(false)
 const[brokerMode,setBrokerMode]=useState('existing')// 'existing' | 'new'
 const[brokerQ,setBrokerQ]=useState('')
 const[selBroker,setSelBroker]=useState(null)
-const[newBroker,setNewBroker]=useState({name_ar:'',phone:'',id_number:''})
+const[newBroker,setNewBroker]=useState({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''})
 const[brokers,setBrokers]=useState([])
+const[natOpenBroker,setNatOpenBroker]=useState(false)
+const[natSearchBroker,setNatSearchBroker]=useState('')
+const natTriggerBrokerRef=useRef(null)
+const[natPosBroker,setNatPosBroker]=useState({top:0,left:0,width:0})
+const openNatBrokerDropdown=()=>{if(natTriggerBrokerRef.current){const r=natTriggerBrokerRef.current.getBoundingClientRect();setNatPosBroker({top:r.bottom+4,left:r.left,width:r.width})}setNatOpenBroker(v=>!v)}
 
 // Step 5: Payment + Notes
 const[paidAmount,setPaidAmount]=useState('')
@@ -296,6 +306,13 @@ const[paymentMethod,setPaymentMethod]=useState('cash')
 const[transferReceipt,setTransferReceipt]=useState(null)
 const[receiptDrag,setReceiptDrag]=useState(false)
 const[transferReference,setTransferReference]=useState('')
+const[bankAccounts,setBankAccounts]=useState([])
+const[selBankAcc,setSelBankAcc]=useState('')
+const[bankAccOpen,setBankAccOpen]=useState(false)
+const[bankAccSearch,setBankAccSearch]=useState('')
+const bankAccTriggerRef=useRef(null)
+const[bankAccPos,setBankAccPos]=useState({top:0,left:0,width:0})
+const openBankAccDropdown=()=>{if(bankAccTriggerRef.current){const r=bankAccTriggerRef.current.getBoundingClientRect();setBankAccPos({top:r.bottom+4,left:r.left,width:r.width})}setBankAccOpen(v=>!v)}
 // Visa services: installment plan overrides (empty = use default 1/3 split)
 const[visaInstallments,setVisaInstallments]=useState({issuance:'',authorization:'',residencePerVisa:''})
 // Visa services: total price override (null = use computed pricing.total)
@@ -311,6 +328,7 @@ return{issuance:2000,authorization:2000,residence:0}
 const[addAdminNote,setAddAdminNote]=useState(false)
 const[addClientNote,setAddClientNote]=useState(false)
 const[showSummaryScreen,setShowSummaryScreen]=useState(false)
+const[showBrokerNoteScreen,setShowBrokerNoteScreen]=useState(false)
 const[fields,setFields]=useState({})
 // Kafala-transfer-specific pricing inputs (only used when selSvc==='kafala_transfer')
 // Empty = use auto-calculated value from settings; user override takes precedence
@@ -356,13 +374,14 @@ const[loading,setLoading]=useState(true)
 
 // Load data
 useEffect(()=>{if(!sb)return;(async()=>{
-const[s,r,c,w,b,ci]=await Promise.all([
+const[s,r,c,w,b,ci,ba]=await Promise.all([
 sb.from('sub_services').select('*').eq('is_active',true).eq('show_in_request_popup',true).order('sort_order'),
 sb.from('regions').select('id,name_ar').eq('is_active',true).order('sort_order'),
 sb.from('clients').select('id,client_number,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).eq('status','active').order('name_ar'),
-sb.from('workers').select('id,name,phone,iqama_number,iqama_expiry_date,birth_date,nationality,passport_number,passport_expiry,country:countries!fk_workers_nationality(nationality_ar,flag_emoji,code),occupation:lookup_items!fk_workers_occupation(value_ar),facility:facilities!fk_workers_facility(id,name_ar,unified_national_number,qiwa_unified_number,qiwa_file_number,gosi_file_number),work_permits(wp_expiry_date),worker_insurance(end_date)').is('deleted_at',null).order('name').limit(50),
+sb.from('workers').select('id,name,name_ar,name_en,phone,iqama_number,iqama_expiry_date,birth_date,nationality,passport_number,passport_expiry,country:countries!fk_workers_nationality(nationality_ar,flag_emoji,code),occupation:lookup_items!fk_workers_occupation(value_ar),facility:facilities!fk_workers_facility(id,name_ar,unified_national_number,qiwa_unified_number,qiwa_file_number,gosi_file_number),work_permits(wp_expiry_date),worker_insurance(end_date)').is('deleted_at',null).order('name').limit(50),
 sb.from('brokers').select('id,name_ar,name_en,phone,id_number').is('deleted_at',null).eq('status','active').order('name_ar').limit(50),
-sb.from('cities').select('id,name_ar,region_id').order('name_ar')
+sb.from('cities').select('id,name_ar,region_id').order('name_ar'),
+sb.from('bank_accounts').select('id,bank_name,account_name,account_number,iban,is_primary').eq('is_active',true).order('is_primary',{ascending:false}).order('bank_name')
 ])
 const svcs=s.data||[]
 setServices(svcs)
@@ -371,6 +390,7 @@ setClients(c.data||[])
 setWorkers(w.data||[])
 setBrokers(b?.data||[])
 setCities(ci?.data||[])
+setBankAccounts(ba?.data||[])
 if(svcs.length>0){const cats=[...new Set(svcs.map(x=>x.category))];setSelCat(cats[0]||'')}
 // Load visa-related lookups (countries + embassies + occupation + gender)
 const[lkRes,coRes,emRes]=await Promise.all([
@@ -412,19 +432,24 @@ const svcInputs=useMemo(()=>(selectedService?.inputs?.length?selectedService.inp
 // If service has exactly one simple field and isn't a visa service, merge it into Step 2 (worker view)
 const svcSingleField=useMemo(()=>(!VISA_SERVICES.has(selSvc)&&selSvc!=='iqama_renewal'&&selSvc!=='profession_change'&&svcInputs.length===1)?svcInputs[0]:null,[selSvc,svcInputs])
 const hasMergedField=!!svcSingleField
-const totalSteps=STEPS.length-(hasMergedField?1:0)
+// Broker is a distinct step only for services that need it (kafala/visa). Summary is the final step.
+const hasBrokerStep=selSvc==='kafala_transfer'||VISA_SERVICES.has(selSvc)
+// All STEPS + الوسيط (if applicable) - merged field
+const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)
 const displayStep=(()=>{
 let d=hasMergedField&&step>=4?step-1:(hasMergedField&&step===3?2:step)
-// Summary screen is a virtual 6th step (or 5th if merged field)
-if(step===5&&showSummaryScreen)d=hasMergedField?5:6
+// Broker sub-screen: step 6 (after payment = 5)
+if(step===5&&showBrokerNoteScreen)d=hasBrokerStep?(hasMergedField?5:6):d
+// Summary is the last step (7 with broker, 6 without; minus 1 if merged field)
+if(step===5&&showSummaryScreen)d=totalSteps
 return d
 })()
 
 // Client search (name AR / EN, phone, ID)
 const filteredClients=useMemo(()=>{
-if(!clientQ.trim())return clients.slice(0,3)
+if(!clientQ.trim())return clients.slice(0,2)
 const q=clientQ.trim().toLowerCase()
-return clients.filter(c=>(c.name_ar||'').toLowerCase().includes(q)||(c.name_en||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.id_number||'').includes(q)).slice(0,3)
+return clients.filter(c=>(c.name_ar||'').toLowerCase().includes(q)||(c.name_en||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.id_number||'').includes(q)).slice(0,2)
 },[clients,clientQ])
 
 // Fetch latest facility weekly stat when a worker is selected
@@ -598,10 +623,10 @@ if(selSvc==='profession_change'){
   return{lines:[{label:'رسم تغيير المهنة',amount:cfg.professionChange.fee}]}
 }
 if(selSvc==='passport_update'){
-  return{lines:[{label:'رسم تعديل بيانات الجواز',amount:cfg.passportUpdate.fee}]}
+  return{lines:[{label:'رسم تحديث بيانات الجواز',amount:cfg.passportUpdate.fee}]}
 }
 if(selSvc==='name_translation'){
-  return{lines:[{label:'رسم تعديل الاسم المترجم',amount:cfg.nameTranslation.fee}]}
+  return{lines:[{label:'رسم تعديل الراتب',amount:cfg.nameTranslation.fee}]}
 }
 if(selSvc==='iqama_print'){
   const copies=parseInt(fields.copies)||0
@@ -748,8 +773,8 @@ setErr('')
 if(step===1&&!selSvc){setErr('يرجى اختيار خدمة');return false}
 if(step===2){
 if(step2Mode==='client'){
-if(clientMode==='existing'&&!selClient){setErr('يرجى اختيار عميل');return false}
-if(clientMode==='new'){
+if(clientMode==='existing'&&!selClient&&!workerIsClient){setErr('يرجى اختيار عميل');return false}
+if(clientMode==='new'&&!workerIsClient){
 const nAr=newClient.name_ar.trim()
 if(!nAr){setErr('يرجى إدخال الاسم بالعربي');return false}
 if(!/^[\u0600-\u06FF\s]+$/.test(nAr)){setErr('الاسم بالعربي يجب أن يحتوي على حروف عربية فقط');return false}
@@ -855,7 +880,7 @@ return true
 const goNext=()=>{
 if(!canNext())return
 // Step 2 sub-flow: client → (if worker not same and not visa service) worker → next step
-if(step===2&&step2Mode==='client'&&!workerIsClient&&!VISA_SERVICES.has(selSvc)){setStep2Mode('worker');setErr('');return}
+if(step===2&&step2Mode==='client'&&!VISA_SERVICES.has(selSvc)){setStep2Mode('worker');setErr('');return}
 // If the service's single field is merged into Step 2, skip Step 3 entirely
 if(step===2&&hasMergedField){setStep(4);return}
 // Step 3 sub-flow (visa services): groups → [auto: skip to step 4] or [custom: files distribution → step 4]
@@ -887,8 +912,13 @@ if(step===3&&selSvc==='kafala_transfer'&&kafalaPage<2){setKafalaPage(2);setErr('
 if(step===3&&selSvc==='passport_update'&&passportPage<2){setPassportPage(2);setErr('');return}
 // Step 4 kafala/iqama sub-flow: pricing → payment-plan screen (before moving to step 5)
 if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&!kafalaPayStep){setKafalaPayStep(true);setErr('');return}
-// Step 5 sub-flow: entry screen → summary screen (always — summary is the last screen before submission)
-if(step===5&&!showSummaryScreen){setShowSummaryScreen(true);setErr('');return}
+// Step 5 sub-flow: payment → broker/note (kafala/visa only) → summary
+if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen){
+const needsBrokerNote=selSvc==='kafala_transfer'||VISA_SERVICES.has(selSvc)
+if(needsBrokerNote){setShowBrokerNoteScreen(true);setErr('');return}
+setShowSummaryScreen(true);setErr('');return
+}
+if(step===5&&showBrokerNoteScreen&&!showSummaryScreen){setShowBrokerNoteScreen(false);setShowSummaryScreen(true);setErr('');return}
 setStep(s=>Math.min(s+1,5))
 }
 const goBack=()=>{
@@ -906,8 +936,13 @@ if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPaySt
 if(step===4&&VISA_SERVICES.has(selSvc)){setStep(3);setStep3Mode(visaDistMode==='auto'?'groups':'files');return}
 if(step===4&&selSvc==='kafala_transfer'){setStep(3);setKafalaPage(2);return}
 if(step===4&&selSvc==='passport_update'){setStep(3);setPassportPage(2);return}
-// Step 5 sub-flow: summary → notes
-if(step===5&&showSummaryScreen){setShowSummaryScreen(false);return}
+// Step 5 sub-flow: summary → broker/note (if applicable) → payment entry
+if(step===5&&showSummaryScreen){
+const needsBrokerNote=selSvc==='kafala_transfer'||VISA_SERVICES.has(selSvc)
+if(needsBrokerNote){setShowSummaryScreen(false);setShowBrokerNoteScreen(true);return}
+setShowSummaryScreen(false);return
+}
+if(step===5&&showBrokerNoteScreen){setShowBrokerNoteScreen(false);return}
 // Coming back from step 5 into step 4: kafala/iqama → restore payment-plan screen
 if(step===5&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')){setStep(4);setKafalaPayStep(true);return}
 // Mirror the skip on the way back
@@ -1055,32 +1090,42 @@ input[type=number]{-moz-appearance:textfield}
 .bento-card.muted .bento-label{color:rgba(255,255,255,.45)}
 .bento-badge{position:absolute;top:8px;right:8px;font-size:10px;color:#D4A017;background:rgba(212,160,23,.12);padding:3px 10px;border-radius:6px;font-weight:600;font-family:${F}}
 .bento-check{position:absolute;top:8px;left:8px;width:22px;height:22px;border-radius:50%;background:#D4A017;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(212,160,23,.35)}
-.bill-dot{position:absolute;top:8px;left:8px;padding:1px 6px;border-radius:4px;background:transparent;border:1.2px dashed rgba(60,192,101,.5);color:#3cc065;font-family:${F};font-size:8px;font-weight:800;letter-spacing:1px;transition:.2s}
+.bill-dot{position:absolute;top:8px;left:8px;padding:1px 7px;border-radius:4px;background:transparent;border:1.2px dashed rgba(60,192,101,.5);color:#3cc065;font-family:${F};font-size:9px;font-weight:800;transition:.2s;cursor:help}
+.bill-dot[data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);left:-4px;transform:translateY(-4px);background:#1a1a1a;color:#D4A017;border:1px solid rgba(212,160,23,.35);padding:5px 11px;border-radius:7px;font-size:10.5px;font-weight:700;font-family:${F};white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:30;letter-spacing:0}
+.bill-dot[data-tip]::before{content:'';position:absolute;top:calc(100% + 3px);left:8px;transform:translateY(-4px);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid rgba(212,160,23,.45);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:30}
+.bill-dot[data-tip]:hover::after,.bill-dot[data-tip]:hover::before{opacity:1;transform:translateY(0)}
 .bento-card:hover .bill-dot,.bento-card.selected .bill-dot,.sub-card:hover .bill-dot,.sub-card.selected .bill-dot{border-color:rgba(60,192,101,.8);color:#4cd075}
 .bento-sub{font-size:10px;color:rgba(255,255,255,.4);font-family:${F};direction:ltr;letter-spacing:.2px}`}</style>
 
-{/* ── Top Bar: Title + Close ── */}
-<div style={{padding:'24px 28px 0',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,minHeight:36}}>
-{(()=>{const titles=['اختر الخدمة','تحديد العميل','تفاصيل الخدمة','الفاتورة','الدفع'];let title=step===2&&step2Mode==='worker'?'تحديد العامل':(titles[step-1]||'');if(step===5&&showSummaryScreen)title='الملخص';return<div style={{fontSize:18,fontWeight:700,color:C.bentoGold,fontFamily:F,letterSpacing:'-.2px'}}>{title}</div>})()}
-<button onClick={onClose} style={{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:300,flexShrink:0,fontFamily:F,transition:'.2s'}} aria-label="إغلاق">✕</button>
+{/* ── Top Bar: Icon + Title + Close ── */}
+<div style={{padding:'16px 22px 10px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+<div style={{display:'flex',alignItems:'center',gap:10}}>
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.bentoGold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+<div>
+<div style={{fontSize:16,fontWeight:800,color:'var(--tx)',fontFamily:F}}>{(()=>{const svc=selSvc?ALL_SERVICES.find(s=>s.id===selSvc):null;return svc?svc.name_ar:'طلب جديد'})()}</div>
+<div style={{fontSize:11,color:'var(--tx4)',fontFamily:F,marginTop:3}}>الخطوة {displayStep} من {totalSteps}</div>
+</div>
+</div>
+<button onClick={onClose} style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontFamily:F}} aria-label="إغلاق">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+</button>
 </div>
 
 {/* ── Progress Section ── */}
-<div style={{padding:'20px 28px 0',flexShrink:0}}>
-<div style={{height:3,borderRadius:2,background:'rgba(255,255,255,.05)',overflow:'hidden',position:'relative'}}>
-<div style={{position:'absolute',top:0,right:0,height:'100%',width:`${(step===2?(step2Mode==='client'?displayStep-0.5:displayStep):displayStep)/totalSteps*100}%`,background:`linear-gradient(90deg, rgba(212,160,23,.25) 0%, #D4A017 100%)`,borderRadius:2,transition:'width .4s cubic-bezier(.4,0,.2,1)',boxShadow:'0 0 10px rgba(212,160,23,.35)'}}/>
-</div>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10}}>
-<span style={{fontSize:11,fontWeight:700,color:C.bentoGold,fontFamily:F,letterSpacing:'.2px'}}>{step===2&&step2Mode==='worker'?'العامل':(step===4&&kafalaPayStep?'طريقة الدفع':(step===5&&showSummaryScreen?'الملخص':STEPS[step-1]?.ar))}</span>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,letterSpacing:'.3px'}}>الخطوة {displayStep} من {totalSteps}</span>
-</div>
+<div style={{padding:'0 22px 8px',flexShrink:0,display:'flex',gap:6}}>
+{Array.from({length:totalSteps}).map((_,i)=><div key={i} style={{flex:1,height:3,borderRadius:2,background:i<displayStep?C.bentoGold:'rgba(255,255,255,.08)',transition:'.25s'}}/>)}
 </div>
 
 {/* ── Content ── */}
-<div className="sr-modal-scroll" style={{flex:1,minHeight:0,padding:'14px 24px 8px',display:'flex',flexDirection:'column',justifyContent:step===1?'center':'flex-start',overflowY:'auto',overflowX:'hidden'}}>
+<div style={{flex:1,minHeight:0,padding:'4px 22px 6px',display:'flex',flexDirection:'column'}}>
+<div style={{borderRadius:12,padding:'0 0 4px',position:'relative',flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+<div style={{display:'flex',alignItems:'center',marginBottom:12,flexShrink:0,gap:10}}>
+<div style={{fontSize:13,fontWeight:800,color:C.bentoGold,fontFamily:F}}>{(()=>{const titles=['الخدمة','العميل','التفاصيل','الفاتورة','الدفع'];let t=step===2&&step2Mode==='worker'?'العامل':(titles[step-1]||'');if(step===5&&showSummaryScreen)t='الملخص';if(step===5&&showBrokerNoteScreen)t=<>الوسيط <span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.4)',marginRight:4}}>(اختياري)</span></>;if(step===4&&kafalaPayStep)t='طريقة الدفع';return t})()}</div>
+</div>
+<div className="sr-modal-scroll" style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',justifyContent:'flex-start',overflowY:'auto',overflowX:'hidden'}}>
 
 {/* ═══ Step 1: Choose Service (Bento Grid) ═══ */}
-{step===1&&<div>
+{step===1&&<div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
 <style>{`
 .bento-card{padding:12px 10px;border-radius:12px;cursor:pointer;transition:all .2s;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;min-height:86px}
 .bento-card:hover{background:rgba(212,160,23,.07);border-color:rgba(212,160,23,.2)}
@@ -1092,7 +1137,10 @@ input[type=number]{-moz-appearance:textfield}
 .bento-label{font-size:13px;font-weight:500;color:rgba(255,255,255,.85);text-align:center;line-height:1.3;font-family:${F}}
 .bento-card.muted .bento-label{color:rgba(255,255,255,.45)}
 .bento-badge{position:absolute;top:8px;right:8px;font-size:10px;color:#D4A017;background:rgba(212,160,23,.12);padding:3px 10px;border-radius:6px;font-weight:600;font-family:${F}}
-.bill-dot{position:absolute;top:8px;left:8px;padding:1px 6px;border-radius:4px;background:transparent;border:1.2px dashed rgba(60,192,101,.5);color:#3cc065;font-family:${F};font-size:8px;font-weight:800;letter-spacing:1px;transition:.2s}
+.bill-dot{position:absolute;top:8px;left:8px;padding:1px 7px;border-radius:4px;background:transparent;border:1.2px dashed rgba(60,192,101,.5);color:#3cc065;font-family:${F};font-size:9px;font-weight:800;transition:.2s;cursor:help}
+.bill-dot[data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);left:-4px;transform:translateY(-4px);background:#1a1a1a;color:#D4A017;border:1px solid rgba(212,160,23,.35);padding:5px 11px;border-radius:7px;font-size:10.5px;font-weight:700;font-family:${F};white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:30;letter-spacing:0}
+.bill-dot[data-tip]::before{content:'';position:absolute;top:calc(100% + 3px);left:8px;transform:translateY(-4px);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid rgba(212,160,23,.45);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:30}
+.bill-dot[data-tip]:hover::after,.bill-dot[data-tip]:hover::before{opacity:1;transform:translateY(0)}
 .bento-card:hover .bill-dot,.bento-card.selected .bill-dot,.sub-card:hover .bill-dot,.sub-card.selected .bill-dot{border-color:rgba(60,192,101,.8);color:#4cd075}
 .sub-card .bill-dot{padding:0 5px;font-size:7px;top:6px;left:6px}
 .sub-card{position:relative;padding:10px 6px;border-radius:12px;cursor:pointer;transition:all .2s;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:74px}
@@ -1109,40 +1157,19 @@ input[type=number]{-moz-appearance:textfield}
 .sub-card.custom.selected .sub-label{color:#D4A017}
 `}</style>
 
-{/* Animated view container — fixed height so main view doesn't shift when switching to others */}
-<div style={{position:'relative',height:340}}>
+{/* Animated view container — fills available space */}
+<div style={{position:'relative',flex:1,minHeight:260}}>
 
 {/* ─── Main Bento Grid View ─── */}
 <div style={{position:'absolute',inset:0,opacity:showOthers?0:1,transform:showOthers?'translateX(20px)':'translateX(0)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'none':'auto'}}>
-{/* Row 1: 1.6fr + 1fr */}
-<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:8,marginBottom:8}}>
-{[MAIN_SERVICES[0],MAIN_SERVICES[1]].map(s=>{const I=s.Icon;const sel=selSvc===s.id
+<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'1fr'}}>
+{MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id
 return<div key={s.id} className={`bento-card${sel?' selected':''}`} onClick={()=>setSelSvc(s.id)}>
-{s.billable&&<div className="bill-dot" title="خدمة مفوترة">INV</div>}
+{s.id==='documents'&&<div className="bill-dot" data-tip="خدمة مجانية">مجانية</div>}
 <div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
 <div className="bento-label">{s.name_ar}</div>
 </div>})}
-</div>
-
-{/* Row 2: 3 equal columns */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:8}}>
-{[MAIN_SERVICES[2],MAIN_SERVICES[3],MAIN_SERVICES[4]].map(s=>{const I=s.Icon;const sel=selSvc===s.id
-return<div key={s.id} className={`bento-card${sel?' selected':''}`} onClick={()=>setSelSvc(s.id)}>
-{s.billable&&<div className="bill-dot" title="خدمة مفوترة">INV</div>}
-<div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
-<div className="bento-label">{s.name_ar}</div>
-</div>})}
-</div>
-
-{/* Row 3: 1fr + 1.6fr */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1.6fr',gap:8}}>
-{(()=>{const s=MAIN_SERVICES[5];const I=s.Icon;const sel=selSvc===s.id
-return<div key={s.id} className={`bento-card${sel?' selected':''}`} onClick={()=>setSelSvc(s.id)}>
-{s.billable&&<div className="bill-dot" title="خدمة مفوترة">INV</div>}
-<div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
-<div className="bento-label">{s.name_ar}</div>
-</div>})()}
-<div className="bento-card muted" onClick={()=>setShowOthers(true)}>
+<div className="bento-card muted" onClick={()=>setShowOthers(true)} style={{gridColumn:'span 3'}}>
 <div className="bento-icon"><Ellipsis size={22} color="rgba(255,255,255,.4)" strokeWidth={1.5}/></div>
 <div className="bento-label">خدمات أخرى</div>
 <div style={{fontSize:10,color:'rgba(255,255,255,.35)',fontFamily:F}}>{OTHER_SERVICES.length} خدمات</div>
@@ -1155,7 +1182,7 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}`} onClick={()=
 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'1fr'}}>
 {OTHER_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id
 return<div key={s.id} className={`sub-card${sel?' selected':''}`} onClick={()=>setSelSvc(s.id)}>
-{s.billable&&<div className="bill-dot" title="خدمة مفوترة">INV</div>}
+{s.id==='documents'&&<div className="bill-dot" data-tip="خدمة مجانية">مجانية</div>}
 <I className="sub-icon" size={22} color="#8a7a4a" strokeWidth={1.5}/>
 <div className="sub-label">{s.name_ar}</div>
 </div>})}
@@ -1167,14 +1194,22 @@ return<div key={s.id} className={`sub-card${sel?' selected':''}`} onClick={()=>s
 </div>}
 
 {/* ═══ Step 2: Client & Worker ═══ */}
-{step===2&&<div>
-{step2Mode==='client'&&<div>
+{step===2&&<div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
+{step2Mode==='client'&&<div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
 
-{/* Unified search — hidden when a client is selected */}
-{!selClient&&<div style={{position:'relative',marginBottom:clientMode==='new'||(clientQ&&filteredClients.length===0)?12:8}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={clientQ} onChange={e=>{setClientQ(e.target.value);setClientMode('existing')}} placeholder="ابحث بالاسم (عربي/إنجليزي) أو الجوال أو رقم الهوية..." style={{...fS,paddingRight:40,textAlign:'right'}}/>
-</div>}
+{/* Unified search — hidden when a client is selected or in new-client mode */}
+{!selClient&&clientMode!=='new'&&<>
+<div style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(clientQ&&filteredClients.length===0)?14:8}}>
+<div style={{position:'relative',flex:1,minWidth:0}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={clientQ} onChange={e=>{setClientQ(e.target.value);setClientMode('existing')}} placeholder="ابحث بالاسم (عربي/إنجليزي) أو الجوال أو رقم الهوية..." style={{width:'100%',height:42,padding:'0 40px 0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',outline:'none',textAlign:'right',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}/>
+</div>
+{clientMode!=='new'&&<button onClick={()=>{setClientMode('new');setNewClient(p=>({...p,name_ar:/[\u0600-\u06FF]/.test(clientQ)?clientQ:p.name_ar,name_en:/^[A-Za-z\s]+$/.test(clientQ)?clientQ:p.name_en,phone:/^[0-9+]+$/.test(clientQ)?clientQ:p.phone,id_number:/^\d{10}$/.test(clientQ)?clientQ:p.id_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
+<span>عميل جديد</span>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>}
+</div>
+</>}
 
 {/* Mode: existing (show results) */}
 {clientMode==='existing'&&<div>
@@ -1188,13 +1223,16 @@ const flagCode=/^[A-Z]{2}$/.test(rawCode)?rawCode:'SA'
 const flagUrl=`https://flagcdn.com/w80/${flagCode.toLowerCase()}.png`
 const natLabel=country?.nationality_ar||'سعودي'
 return<div key={c.id} onClick={()=>{if(sel){setSelClient(null);setWorkerIsClient(false);setSelWorker(null)}else{setSelClient(c);setWorkerIsClient(false);setSelWorker(null)}}}
-style={{padding:sel?'10px 16px':'12px 16px',borderRadius:14,cursor:'pointer',display:'flex',alignItems:'center',gap:14,position:'relative',
-border:`1.5px solid ${sel?'rgba(212,160,23,.6)':'rgba(255,255,255,.06)'}`,
-background:sel?'linear-gradient(135deg, rgba(212,160,23,.14) 0%, rgba(212,160,23,.05) 100%)':'rgba(255,255,255,.03)',
-boxShadow:sel?'0 4px 16px rgba(212,160,23,.12), inset 0 1px 0 rgba(255,255,255,.04)':'none',
-transition:'all .25s ease'}}
-onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.25)';e.currentTarget.style.transform='translateY(-1px)'}}}
-onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.transform='translateY(0)'}}}>
+style={{padding:'12px 16px',borderRadius:12,cursor:'pointer',display:'flex',alignItems:'center',gap:14,position:'relative',
+border:sel?'1px solid rgba(212,160,23,.25)':'1px solid rgba(255,255,255,.06)',
+background:sel?'rgba(212,160,23,.04)':'rgba(255,255,255,.03)',
+boxShadow:'none',
+transition:'all .22s ease'}}
+onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.2)'}}}
+onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
+{sel&&<div style={{position:'absolute',top:8,left:8,width:20,height:20,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(212,160,23,.45)'}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</div>}
 {/* Flag image — prominent nationality indicator on the right (RTL start) */}
 <div title={natLabel} style={{width:sel?52:48,height:sel?52:48,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(212,160,23,.15)':'none',position:'relative',overflow:'hidden'}}>
 <img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
@@ -1215,26 +1253,24 @@ onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.0
 </span>}
 </div>
 </div>
-{sel&&<span title="اضغط للتغيير" style={{fontSize:10.5,color:'var(--tx4)',fontWeight:700,padding:'5px 10px',borderRadius:6,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',flexShrink:0,fontFamily:F}}>تغيير</span>}
 </div>})}
 </div>
-:<div style={{padding:14,borderRadius:10,background:'rgba(212,160,23,.05)',border:'1px dashed rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div style={{fontSize:12,color:'var(--tx3)',fontWeight:600}}>لا يوجد عميل بهذا البحث</div>
-<button onClick={()=>{setClientMode('new');setNewClient(p=>({...p,name_ar:/[\u0600-\u06FF]/.test(clientQ)?clientQ:p.name_ar,name_en:/^[A-Za-z\s]+$/.test(clientQ)?clientQ:p.name_en,phone:/^[0-9+]+$/.test(clientQ)?clientQ:p.phone,id_number:/^\d{10}$/.test(clientQ)?clientQ:p.id_number}))}}
-style={{height:34,padding:'0 14px',borderRadius:8,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.35)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-إضافة عميل جديد
-</button>
+:<div style={{padding:'24px 20px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
+<div style={{width:42,height:42,borderRadius:'50%',background:'rgba(212,160,23,.08)',border:'1px dashed rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+</div>
+<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:700,fontFamily:F}}>لا يوجد عميل بهذا البحث</div>
+<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>يمكنك إضافة عميل جديد من الأعلى</div>
 </div>}
 </div>}
 
-{/* Worker-is-client checkbox (shown only when a client is selected and not a visa service) */}
-{selClient&&!VISA_SERVICES.has(selSvc)&&<div onClick={()=>{const newVal=!workerIsClient;setWorkerIsClient(newVal);if(newVal){const matchedWorker=workers.find(w=>w.iqama_number===selClient.id_number||w.phone===selClient.phone);setSelWorker(matchedWorker||null)}else{setSelWorker(null)}}} style={{marginTop:28,padding:'4px 4px',display:'inline-flex',alignItems:'center',gap:9,cursor:'pointer',alignSelf:'flex-end',transition:'.2s'}}>
-<div style={{width:18,height:18,borderRadius:5,background:workerIsClient?C.bentoGold:'transparent',border:`1.5px solid ${workerIsClient?C.bentoGold:'rgba(255,255,255,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'.2s'}}>
-{workerIsClient&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+{/* Worker-is-client checkbox — hidden when selecting/registering a client */}
+{!VISA_SERVICES.has(selSvc)&&!selClient&&clientMode!=='new'&&<label onClick={()=>{const newVal=!workerIsClient;setWorkerIsClient(newVal);if(newVal&&selClient){const matchedWorker=workers.find(w=>w.iqama_number===selClient.id_number||w.phone===selClient.phone);setSelWorker(matchedWorker||null)}else if(!newVal){setSelWorker(null)}}} style={{display:'flex',alignItems:'center',gap:7,cursor:'pointer',flexShrink:0,fontFamily:F,userSelect:'none',padding:'8px 12px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',transition:'.15s',marginTop:'auto'}}>
+<div style={{width:14,height:14,borderRadius:4,border:`1.5px solid ${workerIsClient?C.bentoGold:'rgba(255,255,255,.25)'}`,background:workerIsClient?C.bentoGold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
+{workerIsClient&&<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
 </div>
-<span style={{fontSize:12,fontWeight:700,color:workerIsClient?C.bentoGold:'var(--tx3)',fontFamily:F,userSelect:'none'}}>العامل هو نفس العميل</span>
-</div>}
+<span style={{fontSize:11,fontWeight:700,color:workerIsClient?C.bentoGold:'var(--tx4)'}}>العامل هو العميل</span>
+</label>}
 
 {/* When worker=client and a worker record matches, show expanded worker-style details below */}
 {workerIsClient&&selClient&&selWorker&&(()=>{const w=selWorker;const iqStat=dateStatus(w.iqama_expiry_date);const natName=w.country?.nationality_ar||w.nationality||'—';const pillBase={display:'flex',alignItems:'center',gap:6,padding:'5px 9px',borderRadius:8,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.06)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:28};const lbl={fontSize:9,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px'};const val={fontSize:12,color:'var(--tx)',fontWeight:700,direction:'ltr'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'};
@@ -1242,11 +1278,11 @@ return<div style={{marginTop:12,padding:10,borderRadius:14,background:'linear-gr
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
 <div style={pillBase}>
 <CreditCard size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1}}><span style={lbl}>رقم الإقامة</span><span style={val}>{w.iqama_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>رقم الإقامة</span><span style={val}>{w.iqama_number||'—'}</span></div>
 </div>
 <div style={pillBase}>
 <Calendar size={12} color={stColors[iqStat]} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1}}><span style={lbl}>انتهاء الإقامة</span><span style={{...val,color:stColors[iqStat]}}>{fmtDate(w.iqama_expiry_date)}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>انتهاء الإقامة</span><span style={{...val,color:stColors[iqStat]}}>{fmtDate(w.iqama_expiry_date)}</span></div>
 </div>
 </div>
 {w.facility&&<div style={{padding:'8px 10px',borderRadius:10,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.06)',display:'flex',flexDirection:'column',gap:6}}>
@@ -1258,13 +1294,16 @@ return<div style={{marginTop:12,padding:10,borderRadius:14,background:'linear-gr
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
 <div style={pillBase}><Hash size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}><span style={lbl}>الموحد الوطني</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.unified_national_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>الرقم الموحد</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.unified_national_number||'—'}</span></div>
+{w.facility.unified_national_number&&<button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(w.facility.unified_national_number);toast&&toast('تم النسخ')}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
 </div>
 <div style={pillBase}><Hash size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}><span style={lbl}>رقم قوى</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.qiwa_file_number||w.facility.qiwa_unified_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم قوى</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.qiwa_file_number||w.facility.qiwa_unified_number||'—'}</span></div>
+{(w.facility.qiwa_file_number||w.facility.qiwa_unified_number)&&<button onClick={e=>{e.stopPropagation();const v=w.facility.qiwa_file_number||w.facility.qiwa_unified_number;navigator.clipboard?.writeText(v);toast&&toast('تم النسخ')}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
 </div>
 <div style={pillBase}><Hash size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}><span style={lbl}>رقم التأمينات</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.gosi_file_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم التأمينات</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.gosi_file_number||'—'}</span></div>
+{w.facility.gosi_file_number&&<button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(w.facility.gosi_file_number);toast&&toast('تم النسخ')}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
 </div>
 </div>
 </div>}
@@ -1275,46 +1314,68 @@ return<div style={{marginTop:12,padding:10,borderRadius:14,background:'linear-gr
 </div>}
 
 {/* Mode: new client form */}
-{clientMode==='new'&&<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'14px 16px',display:'flex',flexDirection:'column',gap:12}}>
-{/* Header: title + cancel */}
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-<div style={{fontSize:13,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:7}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="18" y1="2" x2="18" y2="8"/><line x1="21" y1="5" x2="15" y2="5"/></svg>
-تسجيل عميل جديد
+{clientMode==='new'&&(()=>{
+const regLblS={fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5};
+const regInpS={width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',outline:'none',textAlign:'center',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'};
+return <div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative',display:'flex',flexDirection:'column',gap:12,marginTop:11}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F}}>تسجيل عميل جديد</div>
+<button onClick={()=>{setClientMode('existing');setClientQ('');setNewClient({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''});setNatOpenClient(false);setNatSearchClient('')}} style={{position:'absolute',top:-11,left:14,height:22,padding:'0 10px',borderRadius:6,border:'1px solid rgba(192,57,43,.3)',background:'#1a1a1a',color:C.red,cursor:'pointer',fontSize:10,fontFamily:F,fontWeight:700}}>إلغاء</button>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div>
+<div style={regLblS}>الاسم بالعربي <span style={{color:C.red}}>*</span></div>
+<input value={newClient.name_ar} onChange={e=>{const v=e.target.value.replace(/[^\u0600-\u06FF\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewClient(p=>({...p,name_ar:v}))}} placeholder="الاسم الأول والأخير" style={regInpS}/>
 </div>
-<button onClick={()=>{setClientMode('existing');setClientQ('');setNewClient({name_ar:'',name_en:'',phone:'',id_number:''})}} style={{height:26,padding:'0 10px',borderRadius:7,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.08)',color:C.red,cursor:'pointer',fontSize:10.5,fontFamily:F,fontWeight:700}}>إلغاء</button>
+<div>
+<div style={regLblS}>الاسم بالإنجليزي <span style={{color:C.red}}>*</span></div>
+<input value={newClient.name_en} onChange={e=>{const v=e.target.value.replace(/[^A-Za-z\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewClient(p=>({...p,name_en:v}))}} placeholder="First and Last Name" style={{...regInpS,direction:'ltr'}}/>
 </div>
-{/* Fields: 2x2 grid */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div style={{display:'flex',flexDirection:'column',gap:5}}>
-<span style={{fontSize:11,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>الاسم بالعربي <span style={{color:C.red}}>*</span></span>
-<input value={newClient.name_ar} onChange={e=>{const v=e.target.value.replace(/[^\u0600-\u06FF\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewClient(p=>({...p,name_ar:v}))}} placeholder="اسم العميل" style={{...fS,height:40,textAlign:'center'}}/>
+<div>
+<div style={regLblS}>الجنسية <span style={{color:C.red}}>*</span></div>
+<div style={{position:'relative'}}>
+<div ref={natTriggerRef} onClick={openNatDropdown} style={{width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:newClient.nationality_id?'rgba(255,255,255,.95)':'rgba(255,255,255,.38)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',boxSizing:'border-box'}}>
+<span style={{flex:1,textAlign:'center'}}>{(()=>{if(!newClient.nationality_id)return'اختر الجنسية';const f=lkCountries.find(co=>co.id===newClient.nationality_id);return f?f.nationality_ar:'اختر الجنسية'})()}</span>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0,transform:natOpenClient?'rotate(180deg)':'none',transition:'.2s'}}><polyline points="6 9 12 15 18 9" stroke={C.bentoGold} strokeWidth="2.5" fill="none"/></svg>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:5}}>
-<span style={{fontSize:11,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>الاسم بالإنجليزي <span style={{color:C.red}}>*</span></span>
-<input value={newClient.name_en} onChange={e=>{const v=e.target.value.replace(/[^A-Za-z\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewClient(p=>({...p,name_en:v}))}} placeholder="Client name" style={{...fS,height:40,direction:'ltr',textAlign:'center'}}/>
+{natOpenClient&&<><div onClick={()=>{setNatOpenClient(false);setNatSearchClient('')}} style={{position:'fixed',inset:0,zIndex:9998}}/>
+<div style={{position:'fixed',top:natPos.top,left:natPos.left,width:natPos.width,background:'#1a1a1a',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,maxHeight:220,display:'flex',flexDirection:'column',zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.6)',overflow:'hidden'}}>
+<div style={{padding:'6px 8px',borderBottom:'1px solid rgba(255,255,255,.05)',flexShrink:0}}>
+<input value={natSearchClient} onChange={e=>setNatSearchClient(e.target.value)} placeholder="بحث..." autoFocus style={{width:'100%',height:30,padding:'0 10px',border:'1px solid rgba(255,255,255,.05)',borderRadius:7,background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',fontFamily:F,fontSize:11,fontWeight:500,color:'var(--tx2)',outline:'none',textAlign:'center',boxSizing:'border-box'}}/>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:5}}>
-<span style={{fontSize:11,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>رقم الهوية <span style={{color:C.red}}>*</span></span>
-<input value={newClient.id_number} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);setNewClient(p=>({...p,id_number:v}))}} placeholder="1XXXXXXXXX" inputMode="numeric" maxLength={10} style={{...fS,height:40,direction:'ltr',textAlign:'center'}}/>
+<div style={{flex:1,overflowY:'auto',scrollbarWidth:'none'}}>
+{lkCountries.filter(co=>!natSearchClient||(co.nationality_ar||'').includes(natSearchClient)).map(co=><div key={co.id} onClick={()=>{setNewClient(p=>({...p,nationality_id:co.id}));setNatOpenClient(false);setNatSearchClient('')}} style={{padding:'10px 14px',fontSize:13,fontWeight:newClient.nationality_id===co.id?700:500,color:newClient.nationality_id===co.id?C.bentoGold:'rgba(255,255,255,.7)',cursor:'pointer',textAlign:'center',borderBottom:'1px solid var(--bd2)',background:newClient.nationality_id===co.id?'rgba(212,160,23,.06)':'transparent'}}>{co.nationality_ar}</div>)}
+{lkCountries.filter(co=>!natSearchClient||(co.nationality_ar||'').includes(natSearchClient)).length===0&&<div style={{padding:12,textAlign:'center',fontSize:10,color:'var(--tx5)'}}>لا توجد نتائج</div>}
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:5}}>
-<span style={{fontSize:11,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>رقم الجوال <span style={{color:C.red}}>*</span></span>
-<div style={{position:'relative',display:'flex',alignItems:'center'}}>
-<span style={{position:'absolute',left:12,fontSize:12,fontWeight:700,color:C.bentoGold,fontFamily:F,pointerEvents:'none',direction:'ltr'}}>+966</span>
-<input value={(()=>{const r=newClient.phone;if(!r)return'';if(r.length<=2)return r;if(r.length<=5)return r.slice(0,2)+' '+r.slice(2);return r.slice(0,2)+' '+r.slice(2,5)+' '+r.slice(5)})()} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,9);setNewClient(p=>({...p,phone:v}))}} placeholder="5X XXX XXXX" inputMode="numeric" maxLength={12} style={{...fS,height:40,direction:'ltr',textAlign:'left',paddingLeft:54,paddingRight:14}}/>
+</div></>}
 </div>
 </div>
+<div>
+<div style={regLblS}>رقم الهوية <span style={{color:C.red}}>*</span></div>
+<input value={newClient.id_number} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);setNewClient(p=>({...p,id_number:v}))}} placeholder="XXXXXXXXXX" inputMode="numeric" maxLength={10} style={{...regInpS,direction:'ltr'}}/>
 </div>
-</div>}
+<div>
+<div style={regLblS}>رقم الجوال <span style={{color:C.red}}>*</span></div>
+<div style={{display:'flex',direction:'ltr',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,overflow:'hidden',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}>
+<div style={{height:42,padding:'0 10px',background:'rgba(255,255,255,.04)',borderRight:'1px solid rgba(255,255,255,.05)',display:'flex',alignItems:'center',fontSize:12,fontWeight:700,color:C.bentoGold,flexShrink:0,fontFamily:F}}>+966</div>
+<input value={(()=>{const r=newClient.phone;if(!r)return'';if(r.length<=2)return r;if(r.length<=5)return r.slice(0,2)+' '+r.slice(2);return r.slice(0,2)+' '+r.slice(2,5)+' '+r.slice(5)})()} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,9);setNewClient(p=>({...p,phone:v}))}} placeholder="5X XXX XXXX" inputMode="numeric" maxLength={12} style={{width:'100%',height:42,padding:'0 12px',border:'none',background:'transparent',fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',textAlign:'left'}}/>
+</div>
+</div>
+</div>
+</div>;
+})()}
 </div>}
 
 {/* ─── Worker View ─── */}
 {step2Mode==='worker'&&<div>
-{/* Search — hidden when a worker is already selected (to free up room for details) */}
-{!selWorker&&<div style={{position:'relative',marginBottom:workerMode==='new'||(workerQ&&filteredWorkers.length===0)?12:8}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={workerQ} onChange={e=>{setWorkerQ(e.target.value);setWorkerMode('existing');setSelWorker(null)}} placeholder="ابحث بالاسم أو رقم الإقامة أو الجوال..." style={{...fS,paddingRight:40,textAlign:'right'}}/>
+{/* Search — hidden when a worker is already selected or in new-worker mode (mirrors client UI) */}
+{!selWorker&&workerMode!=='new'&&<div style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(workerQ&&filteredWorkers.length===0)?12:8}}>
+<div style={{position:'relative',flex:1,minWidth:0}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={workerQ} onChange={e=>{setWorkerQ(e.target.value);setWorkerMode('existing');setSelWorker(null)}} placeholder="ابحث بالاسم أو رقم الإقامة أو الجوال..." style={{width:'100%',height:42,padding:'0 40px 0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',outline:'none',textAlign:'right',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}/>
+</div>
+{selSvc==='custom'&&<button onClick={()=>{setWorkerMode('new');setNewWorker(p=>({...p,name:/[\u0600-\u06FF\sA-Za-z]/.test(workerQ)?workerQ:p.name,phone:/^[0-9+]+$/.test(workerQ)?workerQ:p.phone,iqama_number:/^\d{10}$/.test(workerQ)?workerQ:p.iqama_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
+<span>عامل جديد</span>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>}
 </div>}
 
 {/* Mode: existing worker */}
@@ -1328,20 +1389,23 @@ const flagCode=/^[A-Z]{2}$/.test(rawCode)?rawCode:'SA'
 const flagUrl=`https://flagcdn.com/w80/${flagCode.toLowerCase()}.png`
 const natLabel=w.country?.nationality_ar||w.nationality||'—'
 return<div key={w.id} onClick={()=>setSelWorker(sel?null:w)}
-style={{padding:sel?'10px 16px':'12px 16px',borderRadius:14,cursor:'pointer',display:'flex',alignItems:'center',gap:14,position:'relative',
-border:`1.5px solid ${sel?'rgba(212,160,23,.6)':'rgba(255,255,255,.06)'}`,
-background:sel?'linear-gradient(135deg, rgba(212,160,23,.14) 0%, rgba(212,160,23,.05) 100%)':'rgba(255,255,255,.03)',
-boxShadow:sel?'0 4px 16px rgba(212,160,23,.12), inset 0 1px 0 rgba(255,255,255,.04)':'none',
-transition:'all .25s ease'}}
-onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.25)';e.currentTarget.style.transform='translateY(-1px)'}}}
-onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.transform='translateY(0)'}}}>
+style={{padding:'12px 16px',borderRadius:12,cursor:'pointer',display:'flex',alignItems:'center',gap:14,position:'relative',
+border:sel?'1px solid rgba(212,160,23,.25)':'1px solid rgba(255,255,255,.06)',
+background:sel?'rgba(212,160,23,.04)':'rgba(255,255,255,.03)',
+boxShadow:'none',
+transition:'all .22s ease'}}
+onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.2)'}}}
+onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
+{sel&&<div style={{position:'absolute',top:8,left:8,width:20,height:20,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(212,160,23,.45)'}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</div>}
 {/* Flag image — prominent nationality indicator on the right (RTL start) */}
 <div title={natLabel} style={{width:sel?52:48,height:sel?52:48,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(212,160,23,.15)':'none',position:'relative',overflow:'hidden'}}>
 <img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
 </div>
 <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:5}}>
 <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-<span style={{fontSize:15,fontWeight:800,color:sel?C.gold:'rgba(255,255,255,.95)',letterSpacing:'-.2px'}}>{w.name}</span>
+<span style={{fontSize:15,fontWeight:800,color:sel?C.gold:'rgba(255,255,255,.95)',letterSpacing:'-.2px'}}>{w.name_ar||w.name}</span>
 {w.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{w.name_en}</span>}
 </div>
 <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
@@ -1355,41 +1419,40 @@ onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.0
 </span>}
 </div>
 </div>
-{sel&&<span title="اضغط للتغيير" style={{fontSize:10.5,color:'var(--tx4)',fontWeight:700,padding:'5px 10px',borderRadius:6,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',flexShrink:0,fontFamily:F}}>تغيير</span>}
 </div>})}
 
 {/* ─── Selected Worker Expanded Details ─── */}
-{selWorker&&(()=>{const w=selWorker;const stat=workerFacilityStat;const latestWP=[...(w.work_permits||[])].sort((a,b)=>new Date(b.wp_expiry_date||0)-new Date(a.wp_expiry_date||0))[0];const latestIns=[...(w.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0];const iqStat=dateStatus(w.iqama_expiry_date);const wpStat=dateStatus(latestWP?.wp_expiry_date);const insStat=dateStatus(latestIns?.end_date);const natName=w.country?.nationality_ar||w.nationality||'—';const natFlag=w.country?.flag_emoji||flagEmoji(w.country?.code)||flagEmoji(w.nationality);const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'};const ncCode=stat?.nitaqat?.code;const ncLabel=stat?.nitaqat?.value_ar||'—';const ncColor=ncCode?(ncMap[ncCode]||'#888'):'#444';const pillBase={display:'flex',alignItems:'center',gap:6,padding:'5px 9px',borderRadius:8,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.06)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:28};const lbl={fontSize:9,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px'};const val={fontSize:12,color:'var(--tx)',fontWeight:700,direction:'ltr'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'};
-return<div style={{marginTop:8,padding:10,borderRadius:14,background:'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.015))',border:'1px solid rgba(212,160,23,.2)',display:'flex',flexDirection:'column',gap:6}}>
-
-{/* ─── Worker status: profession + 3 expiry/status pills (flag + phone already shown in card above) ─── */}
-<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr 1fr 1fr',gap:6}}>
+{selWorker&&(()=>{const w=selWorker;const stat=workerFacilityStat;const latestWP=[...(w.work_permits||[])].sort((a,b)=>new Date(b.wp_expiry_date||0)-new Date(a.wp_expiry_date||0))[0];const latestIns=[...(w.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0];const iqStat=dateStatus(w.iqama_expiry_date);const wpStat=dateStatus(latestWP?.wp_expiry_date);const insStat=dateStatus(latestIns?.end_date);const natName=w.country?.nationality_ar||w.nationality||'—';const natFlag=w.country?.flag_emoji||flagEmoji(w.country?.code)||flagEmoji(w.nationality);const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'};const ncCode=stat?.nitaqat?.code;const ncLabel=stat?.nitaqat?.value_ar||'—';const ncColor=ncCode?(ncMap[ncCode]||'#888'):'#444';const pillBase={display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:40};const lbl={fontSize:10,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2};const val={fontSize:13,color:'#fff',fontWeight:800,direction:'ltr',lineHeight:1.2,textAlign:'right'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'};const workerLabel=w.name_ar||w.name_en||w.name||'بيانات العامل';const facilityLabel=w.facility?.name_ar||'بيانات المنشأة';
+return<>
+{/* ─── Worker data fieldset ─── */}
+<div style={{marginTop:19,padding:'14px 14px 12px',borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',position:'relative'}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,maxWidth:'calc(100% - 28px)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{workerLabel}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1.3fr 1fr 1fr',gap:10}}>
+<div style={pillBase}>
+<CreditCard size={12} color={C.bentoGold} strokeWidth={1.8}/>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم الإقامة</span><span style={{...val}}>{w.iqama_number||'—'}</span></div>
+{w.iqama_number&&<button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(w.iqama_number);toast&&toast('تم النسخ')}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
+</div>
 <div style={pillBase}>
 <Briefcase size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}><span style={lbl}>المهنة</span><span style={{...val,fontFamily:F,direction:'rtl',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.occupation?.value_ar||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,minWidth:0}}><span style={lbl}>المهنة</span><span style={{...val,fontFamily:F,direction:'rtl',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.occupation?.value_ar||'—'}</span></div>
 </div>
 <div style={pillBase}>
 <Calendar size={12} color={stColors[iqStat]} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1}}><span style={lbl}>انتهاء الإقامة</span><span style={{...val,color:stColors[iqStat]}}>{fmtDate(w.iqama_expiry_date)}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>انتهاء الإقامة</span><span style={{...val,color:stColors[iqStat],direction:'ltr'}}>{fmtDate(w.iqama_expiry_date)}</span></div>
 </div>
 <div style={pillBase}>
 <BadgeCheck size={12} color={stColors[wpStat]} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1}}><span style={lbl}>رخصة العمل</span><span style={{...val,color:stColors[wpStat]}}>{fmtDate(latestWP?.wp_expiry_date)}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>رخصة العمل</span><span style={{...val,color:stColors[wpStat],direction:'ltr'}}>{fmtDate(latestWP?.wp_expiry_date)}</span></div>
 </div>
-<div style={pillBase}>
-<ShieldCheck size={12} color={stColors[insStat]} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1}}><span style={lbl}>التأمين الطبي</span><span style={{...val,color:stColors[insStat],fontFamily:F,direction:'rtl'}}>{latestIns?insStat==='expired'?'منتهي':insStat==='soon'?'قارب الانتهاء':'ساري':'لا يوجد'}</span></div>
 </div>
 </div>
 
-{/* ─── Facility block ─── */}
-{w.facility&&<div style={{padding:'8px 10px',borderRadius:10,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.06)',display:'flex',flexDirection:'column',gap:6}}>
-{/* Facility header */}
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-<div style={{width:24,height:24,borderRadius:7,background:'rgba(212,160,23,.1)',border:'1px solid rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<Building2 size={12} color={C.bentoGold} strokeWidth={1.8}/>
-</div>
-<span style={{fontSize:13,fontWeight:800,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.name_ar||'—'}</span>
+{/* ─── Facility data fieldset ─── */}
+{w.facility&&<div style={{marginTop:19,padding:'14px 14px 12px',borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',position:'relative',display:'flex',flexDirection:'column',gap:8}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,maxWidth:'calc(100% - 28px)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{facilityLabel}</div>
+{/* Status badges row (nitaqat + wps) */}
+{(ncCode||stat)&&<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
 {ncCode&&<span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:10,fontWeight:700,color:ncColor,padding:'3px 9px',borderRadius:999,background:`${ncColor}22`,border:`1px solid ${ncColor}55`,fontFamily:F,flexShrink:0}}>
 <Circle size={7} fill={ncColor} stroke="none"/>
 {ncLabel}
@@ -1399,24 +1462,26 @@ return<div style={{marginTop:8,padding:10,borderRadius:14,background:'linear-gra
 </span>:stat.wps_has_notes===false?<span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10,fontWeight:700,color:stColors.ok,padding:'3px 9px',borderRadius:999,background:'rgba(39,160,70,.1)',border:'1px solid rgba(39,160,70,.35)',fontFamily:F,flexShrink:0}}>
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> قوى نظيف
 </span>:null)}
-</div>
-{/* Facility numbers grid 3 cols */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+</div>}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
 <div style={pillBase}>
 <Hash size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}><span style={lbl}>الموحد الوطني</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.unified_national_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>الرقم الموحد</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.unified_national_number||'—'}</span></div>
+{w.facility.unified_national_number&&<button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(w.facility.unified_national_number);toast&&toast('تم النسخ')}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
 </div>
 <div style={pillBase}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.bentoGold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
-<div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}><span style={lbl}>رقم قوى</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.qiwa_file_number||w.facility.qiwa_unified_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم قوى</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.qiwa_file_number||w.facility.qiwa_unified_number||'—'}</span></div>
+{(w.facility.qiwa_file_number||w.facility.qiwa_unified_number)&&<button onClick={e=>{e.stopPropagation();const v=w.facility.qiwa_file_number||w.facility.qiwa_unified_number;navigator.clipboard?.writeText(v);toast&&toast('تم النسخ')}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
 </div>
 <div style={pillBase}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.bentoGold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z"/></svg>
-<div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}><span style={lbl}>رقم التأمينات</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.gosi_file_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم التأمينات</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.gosi_file_number||'—'}</span></div>
+{w.facility.gosi_file_number&&<button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(w.facility.gosi_file_number);toast&&toast('تم النسخ')}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
 </div>
 </div>
 </div>}
-</div>})()}
+</>})()}
 
 </div>
 :<div style={{padding:14,borderRadius:10,background:'rgba(212,160,23,.05)',border:'1px dashed rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
@@ -1541,46 +1606,42 @@ const isComplete=activeRemaining===0&&activeTotal>0
 const isOver=activeRemaining<0
 const multiGroup=visaGroups.length>1
 return<div style={{display:'flex',flexDirection:'column',gap:8,flex:1,minHeight:0,width:'100%'}}>
-{/* ═══ Unified compact toolbar: back-toggle · progress · status · drag hint · add file ═══ */}
-<div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,padding:'6px 10px',borderRadius:10,border:`1px solid ${isComplete?'rgba(46,160,67,.28)':isOver?'rgba(192,57,43,.28)':'rgba(212,160,23,.2)'}`,background:isComplete?'rgba(46,160,67,.04)':isOver?'rgba(192,57,43,.04)':'rgba(212,160,23,.025)',fontFamily:F}}>
-{/* Back-to-auto toggle (compact checkbox) */}
-<div onClick={()=>{setVisaDistMode('auto');setStep3Mode('groups');setErr('')}}
-title="العودة للتوزيع التلقائي"
-style={{display:'inline-flex',alignItems:'center',gap:5,cursor:'pointer',userSelect:'none',padding:'3px 7px',borderRadius:6,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.06)',transition:'.15s',flexShrink:0}}
-onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.08)';e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}}
-onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}>
-<div style={{width:12,height:12,borderRadius:3,border:'1.5px solid rgba(255,255,255,.28)',flexShrink:0}}/>
-<span style={{fontSize:10,fontWeight:700,color:'var(--tx4)'}}>تلقائي</span>
-</div>
-{/* Count */}
-<div style={{display:'inline-flex',alignItems:'baseline',gap:3,flexShrink:0}}>
-<span style={{fontSize:15,fontWeight:900,color:isComplete?'#2ea043':isOver?C.red:C.gold,lineHeight:1}}>{sumF}</span>
-<span style={{fontSize:10,fontWeight:700,color:'var(--tx5)'}}>/ {activeTotal}</span>
-</div>
-{/* Inline progress bar (flex) */}
-<div style={{flex:1,minWidth:40,height:4,borderRadius:2,background:'rgba(255,255,255,.04)',overflow:'hidden'}}>
+<style>{`
+.sr-pill{position:relative;display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:4px;background:transparent;font-family:${F};font-size:9px;font-weight:800;transition:.2s;flex-shrink:0}
+.sr-pill[data-tip]{cursor:help}
+.sr-pill[data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);right:-4px;background:#1a1a1a;color:#D4A017;border:1px solid rgba(212,160,23,.35);padding:5px 11px;border-radius:7px;font-size:10.5px;font-weight:700;font-family:${F};white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;transform:translateY(-4px);box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:30;letter-spacing:0}
+.sr-pill[data-tip]::before{content:'';position:absolute;top:calc(100% + 3px);right:8px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid rgba(212,160,23,.45);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;transform:translateY(-4px);z-index:30}
+.sr-pill[data-tip]:hover::after,.sr-pill[data-tip]:hover::before{opacity:1;transform:translateY(0)}
+.sr-pill.info{border:none;background:transparent;color:#b497e8;padding:1px 2px;font-size:12px;gap:5px}
+.sr-pill.action{border:1.2px dashed rgba(212,160,23,.55);color:#D4A017;cursor:pointer}
+.sr-pill.action:hover{background:rgba(212,160,23,.08);border-color:rgba(212,160,23,.85)}
+.sr-pill.status-ok{border:none;background:transparent;color:#2ea043;padding:1px 2px;font-size:12px;gap:5px}
+.sr-pill.status-warn{border:none;background:transparent;color:#D4A017;padding:1px 2px;font-size:12px;gap:5px}
+.sr-pill.status-err{border:none;background:transparent;color:#c0392b;padding:1px 2px;font-size:12px;gap:5px}
+`}</style>
+{/* ═══ Simplified header — matches other step title rows ═══ */}
+<div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0,fontFamily:F,paddingBottom:8,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+{/* Status pill */}
+<span className={`sr-pill ${isComplete?'status-ok':isOver?'status-err':'status-warn'}`} data-tip={isComplete?'تم توزيع جميع التأشيرات':isOver?`لديك ${Math.abs(activeRemaining)} زيادة عن العدد المطلوب`:`يتبقى ${activeRemaining} تأشيرة للتوزيع`}>
+<span>{sumF}/{activeTotal}</span>
+<span>·</span>
+<span>{isComplete?'مكتمل':isOver?'زيادة':'متبقي'}</span>
+</span>
+{/* Progress bar */}
+<div style={{flex:1,minWidth:40,height:4,borderRadius:2,background:'rgba(255,255,255,.05)',overflow:'hidden'}}>
 <div style={{height:'100%',width:`${distPct}%`,background:isComplete?'#2ea043':isOver?'#c0392b':C.gold,borderRadius:2,transition:'width .3s cubic-bezier(.4,0,.2,1)'}}/>
 </div>
-{/* Status pill */}
-<div style={{display:'inline-flex',alignItems:'center',gap:4,flexShrink:0,fontSize:10,fontWeight:800,color:isComplete?'#2ea043':isOver?C.red:C.gold}}>
-{isComplete?<>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-<span>مكتمل</span>
-</>:isOver?<span>زيادة {Math.abs(activeRemaining)}</span>:<span>متبقي {activeRemaining}</span>}
-</div>
-{/* Drag hint (icon + minimal text, multi-group only) */}
-{multiGroup&&activeFiles.length>1&&<div title="اسحب أي تأشيرة بين الملفات لنقلها مباشرة"
-style={{display:'inline-flex',alignItems:'center',gap:4,flexShrink:0,padding:'2px 7px',borderRadius:5,background:'rgba(52,152,219,.08)',border:'1px dashed rgba(52,152,219,.25)',color:'#3498db',fontSize:9.5,fontWeight:700}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4M9 5v14M19 15l-4 4-4-4M15 19V5"/></svg>
-<span>سحب وإفلات</span>
-</div>}
+{/* Drag hint — instructional pill */}
+{multiGroup&&activeFiles.length>1&&<span className="sr-pill info" data-tip="اسحب أي تأشيرة بين الملفات لنقلها">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4M9 5v14M19 15l-4 4-4-4M15 19V5"/></svg>
+<span>اسحب للنقل</span>
+</span>}
+{/* Back-to-auto */}
+<button type="button" onClick={()=>{setVisaDistMode('auto');setStep3Mode('groups');setErr('')}} className="sr-pill action" data-tip="العودة للتوزيع التلقائي">تلقائي</button>
 {/* Add file button */}
-{canAddMore&&<button type="button" onClick={addFile} title="إضافة ملف جديد"
-style={{height:24,padding:'0 8px',borderRadius:6,border:'1.5px dashed rgba(212,160,23,.4)',background:'rgba(212,160,23,.05)',color:C.gold,cursor:'pointer',transition:'.2s',fontFamily:F,fontSize:10,fontWeight:800,display:'inline-flex',alignItems:'center',gap:4,flexShrink:0}}
-onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor='rgba(212,160,23,.6)'}}
-onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.05)';e.currentTarget.style.borderColor='rgba(212,160,23,.4)'}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+{canAddMore&&<button type="button" onClick={addFile} className="sr-pill action" data-tip="إضافة ملف جديد">
 <span>ملف</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>}
 </div>
 {/* File cards — composition-aware, drop-target enabled */}
@@ -1605,7 +1666,7 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.15)'}}>
 </button>}
 {/* File header: label + count/4 */}
 <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'6px 8px 4px',borderBottom:'1px solid rgba(255,255,255,.05)',background:'rgba(255,255,255,.02)'}}>
-<span style={{fontSize:10.5,fontWeight:800,color:full?'#2ea043':C.gold,fontFamily:F,letterSpacing:'.3px'}}>ملف {i+1}</span>
+<span style={{fontSize:10.5,fontWeight:800,color:full?'#2ea043':C.gold,fontFamily:F,letterSpacing:'.3px'}}>الملف {['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'][i]||(i+1)}</span>
 <span style={{fontSize:9,fontWeight:700,color:'var(--tx5)'}}>•</span>
 <span style={{fontSize:14,fontWeight:900,color:full?'#2ea043':c>0?C.gold:'var(--tx5)',fontFamily:F,lineHeight:1}}>{c}<span style={{fontSize:9.5,fontWeight:700,color:'var(--tx5)'}}>/4</span></span>
 </div>
@@ -1736,35 +1797,33 @@ const idx=activeIdx
 const filteredEm=g.nationality?lkEmbassies.filter(e=>e.country_id===g.nationality):[]
 // Responsive sizing: solo mode = spacious with labels, multi mode = compact but breathing
 const solo=visaGroups.length===1
-const H=solo?36:36                 // input height
-const FS=solo?13:12.5              // font size
-const GAP=solo?8:8                 // inter-row gap
+const H=40                         // input height
+const FS=13                        // font size
+const GAP=10                       // inter-row gap
 const PADY=solo?10:10              // card vertical padding
 const PADX=solo?16:12              // card horizontal padding
-const LGAP=solo?2:0                // label→input gap
-const LFS=solo?10.5:10             // label font size
+const LGAP=5                       // label→input gap
+const LFS=11                       // label font size (match regLblS)
 const TITLE_FS=solo?12.5:12.5      // title font size
-const BTN_W=solo?28:30             // counter button width
-const CNT_FS=solo?15:14            // count value font size
-return<div key={g.id} style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:`${PADY}px ${PADX}px`,display:'flex',flexDirection:'column',gap:GAP,width:'100%',maxWidth:'100%',boxSizing:'border-box',transition:'all .25s ease'}}>
-{/* Header: badge + title + delete */}
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
-<span style={{fontSize:TITLE_FS,fontWeight:800,color:C.gold,fontFamily:F}}>المجموعة {['الأولى','الثانية','الثالثة','الرابعة'][idx]||(idx+1)}</span>
+const BTN_W=32                     // counter button width
+const CNT_FS=15                    // count value font size
+return<div key={g.id} style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:`18px 14px 12px`,marginTop:visaGroups.length>1?14:0,position:'relative',display:'flex',flexDirection:'column',gap:GAP,width:'100%',maxWidth:'100%',boxSizing:'border-box',transition:'all .25s ease'}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F}}>المجموعة {['الأولى','الثانية','الثالثة','الرابعة'][idx]||(idx+1)}</div>
 {visaGroups.length>1&&<button type="button" onClick={()=>removeGroup(g.id)} title="حذف"
-style={{width:26,height:26,borderRadius:7,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.08)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6M10 11v6M14 11v6"/></svg>
+style={{position:'absolute',top:-11,left:14,height:22,padding:'0 10px',borderRadius:6,border:'1px solid rgba(192,57,43,.3)',background:'#1a1a1a',color:C.red,cursor:'pointer',fontSize:10,fontFamily:F,fontWeight:700,display:'inline-flex',alignItems:'center',gap:4}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+<span>حذف</span>
 </button>}
-</div>
 {/* Row 1: nationality + embassy */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:solo?12:8,flexShrink:0}}>
 <div style={{display:'flex',flexDirection:'column',gap:LGAP}}>
-{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>الجنسية <span style={{color:C.red}}>*</span></span>}
+{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,paddingRight:2}}>الجنسية <span style={{color:C.red}}>*</span></span>}
 <NiceSelect height={H} fontSize={FS} value={g.nationality} placeholder={solo?'اختر الجنسية...':'الجنسية *'}
 options={lkCountries.map(co=>({value:co.id,label:co.nationality_ar}))}
 onChange={v=>updateGroup(g.id,{nationality:v,embassy:''})}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:LGAP}}>
-{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>السفارة <span style={{color:C.red}}>*</span></span>}
+{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,paddingRight:2}}>السفارة <span style={{color:C.red}}>*</span></span>}
 <NiceSelect height={H} fontSize={FS} value={g.embassy} disabled={!g.nationality}
 placeholder={!g.nationality?(solo?'اختر الجنسية أولاً':'السفارة (اختر الجنسية أولاً)'):(filteredEm.length?(solo?'اختر المدينة...':'السفارة *'):'لا توجد')}
 emptyText="لا توجد سفارة"
@@ -1774,7 +1833,7 @@ onChange={v=>updateGroup(g.id,{embassy:v})}/>
 </div>
 {/* Row 2: profession (full width) */}
 <div style={{display:'flex',flexDirection:'column',gap:LGAP,flexShrink:0}}>
-{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>المهنة <span style={{color:C.red}}>*</span></span>}
+{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,paddingRight:2}}>المهنة <span style={{color:C.red}}>*</span></span>}
 <NiceSelect height={H} fontSize={FS} value={g.profession} placeholder={solo?'اختر المهنة...':'المهنة *'}
 options={lkOccupations.map(o=>({value:o.id,label:o.value_ar}))}
 onChange={v=>updateGroup(g.id,{profession:v})}/>
@@ -1782,14 +1841,14 @@ onChange={v=>updateGroup(g.id,{profession:v})}/>
 {/* Row 3: gender + count */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:solo?12:8,minWidth:0,flexShrink:0}}>
 <div style={{display:'flex',flexDirection:'column',gap:LGAP,minWidth:0}}>
-{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>الجنس <span style={{color:C.red}}>*</span></span>}
+{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,paddingRight:2}}>الجنس <span style={{color:C.red}}>*</span></span>}
 <div style={{display:'flex',gap:solo?6:4,height:H,padding:solo?4:3,borderRadius:solo?10:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',minWidth:0}}>
 {(lkGenders.length?lkGenders:[{id:'male',value_ar:'ذكر',code:'male'},{id:'female',value_ar:'أنثى',code:'female'}]).map(gg=>{
 const key=gg.code||gg.id
 const sel=g.gender===key
 const isMale=key==='male'
 return<button key={gg.id} type="button" onClick={()=>updateGroup(g.id,{gender:key})}
-style={{flex:1,minWidth:0,borderRadius:solo?8:7,border:'none',background:sel?(isMale?'linear-gradient(135deg, rgba(52,131,180,.25), rgba(52,131,180,.12))':'linear-gradient(135deg, rgba(212,160,23,.25), rgba(212,160,23,.1))'):'transparent',color:sel?(isMale?'#5ca8d4':C.gold):'var(--tx4)',fontFamily:F,fontSize:solo?13:12,fontWeight:800,cursor:'pointer',transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center',gap:solo?7:5,boxShadow:sel?'inset 0 1px 0 rgba(255,255,255,.08), 0 1px 4px rgba(0,0,0,.2)':'none'}}>
+style={{flex:1,minWidth:0,borderRadius:solo?8:7,border:'none',background:sel?(isMale?'linear-gradient(135deg, rgba(52,131,180,.25), rgba(52,131,180,.12))':'linear-gradient(135deg, rgba(224,120,168,.25), rgba(224,120,168,.1))'):'transparent',color:sel?(isMale?'#5ca8d4':'#e78ac0'):'rgba(255,255,255,.5)',fontFamily:F,fontSize:solo?13:12,fontWeight:800,cursor:'pointer',transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center',gap:solo?7:5,boxShadow:sel?'inset 0 1px 0 rgba(255,255,255,.08), 0 1px 4px rgba(0,0,0,.2)':'none'}}>
 {isMale?<svg width={solo?14:12} height={solo?14:12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="14" r="5"/><path d="M19 5l-5.4 5.4M14 5h5v5"/></svg>
 :<svg width={solo?14:12} height={solo?14:12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="9" r="5"/><path d="M12 14v8M9 19h6"/></svg>}
 {gg.value_ar}
@@ -1798,7 +1857,7 @@ style={{flex:1,minWidth:0,borderRadius:solo?8:7,border:'none',background:sel?(is
 </div>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:LGAP,minWidth:0}}>
-{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>عدد التأشيرات <span style={{color:C.red}}>*</span></span>}
+{solo&&<span style={{fontSize:LFS,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,paddingRight:2}}>عدد التأشيرات <span style={{color:C.red}}>*</span></span>}
 <div style={{display:'flex',alignItems:'center',height:H,borderRadius:solo?10:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',padding:solo?4:3,gap:solo?5:3,minWidth:0}}>
 <button type="button" onClick={()=>{const n=Math.max(1,(parseInt(g.count)||1)-1);updateGroup(g.id,{count:String(n)})}}
 style={{width:BTN_W,height:'100%',borderRadius:solo?8:7,border:'none',background:'rgba(255,255,255,.05)',color:'var(--tx2)',fontSize:solo?18:16,fontWeight:700,cursor:'pointer',fontFamily:F,padding:0,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s'}}
@@ -1837,7 +1896,7 @@ if(visaFiles.length===0||sumExisting!==totalV){setVisaFiles(files);setForceCusto
 setStep3Mode('files');setErr('')
 }
 }}
-style={{display:'flex',alignItems:'center',gap:7,cursor:'pointer',flexShrink:0,fontFamily:F,userSelect:'none',padding:'6px 10px',borderRadius:8,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.05)',transition:'.15s'}}>
+style={{display:'flex',alignItems:'center',gap:7,cursor:'pointer',flexShrink:0,fontFamily:F,userSelect:'none',padding:'8px 12px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',transition:'.15s'}}>
 <div style={{width:14,height:14,borderRadius:4,border:`1.5px solid ${visaDistMode==='auto'?C.gold:'rgba(255,255,255,.25)'}`,background:visaDistMode==='auto'?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
 {visaDistMode==='auto'&&<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
 </div>
@@ -1919,61 +1978,77 @@ const currentExpiry=selWorker?.iqama_expiry_date||''
 const currentProf=selWorker?.occupation?.value_ar||''
 let expectedExpiry=''
 if(currentExpiry&&months>0){const d=new Date(currentExpiry);if(!isNaN(d)){d.setMonth(d.getMonth()+months);expectedExpiry=d.toISOString().split('T')[0]}}
-const fmtDay=(iso)=>{if(!iso)return'—';const d=new Date(iso);if(isNaN(d))return'—';return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`}
+const fmtDay=(iso)=>{if(!iso)return'—';const d=new Date(iso);if(isNaN(d))return'—';return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`}
 const hijri=(iso)=>{if(!iso)return'';try{const d=new Date(iso);if(isNaN(d))return'';const parts=new Intl.DateTimeFormat('en-SA-u-ca-islamic-umalqura',{day:'numeric',month:'numeric',year:'numeric'}).formatToParts(d);const dd=parts.find(p=>p.type==='day')?.value||'';const mm=parts.find(p=>p.type==='month')?.value||'';const yy=parts.find(p=>p.type==='year')?.value||'';return `${yy}/${mm}/${dd}`}catch{return''}}
 const changeProf=fields.change_profession===true
-const roBox={height:36,padding:'0 12px',borderRadius:8,border:'1px solid rgba(255,255,255,.08)',background:'rgba(0,0,0,.2)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}
+const roBox={height:42,padding:'0 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}
 const hijPill={fontSize:9.5,fontWeight:700,fontFamily:F,padding:'2px 6px',borderRadius:5}
-return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
-<div style={{fontSize:13,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:7,paddingBottom:8,borderBottom:'1px solid rgba(212,160,23,.15)',flexShrink:0}}>
-<RefreshCw size={14} strokeWidth={2.2}/>
-تجديد الإقامة
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:14,marginTop:11}}>
+
+{/* ─── Change profession fieldset (first) ─── */}
+<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'14px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:8}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
+<UserCog size={12} strokeWidth={2.2}/>
+<span>تغيير المهنة</span>
 </div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الإقامة الحالي</label>
-<div style={roBox}>
-<span style={{fontSize:12,fontWeight:700,color:currentExpiry?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(currentExpiry)}</span>
-{currentExpiry&&<span style={{...hijPill,color:C.gold,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.2)'}}><bdi>{hijri(currentExpiry)}</bdi> هـ</span>}
+{/* Yes/No buttons — first */}
+<div style={{display:'flex',gap:8,flexShrink:0,marginTop:6}}>
+{[{v:false,l:'لا',c:C.red,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>},
+{v:true,l:'نعم',c:C.ok,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}].map(o=>{
+const currentVal=fields.change_profession===true?true:false
+const sel=currentVal===o.v
+return<div key={String(o.v)} onClick={()=>setFields(p=>({...p,change_profession:o.v,...(o.v===false?{new_occupation:''}:{})}))}
+style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,height:34,borderRadius:8,border:`1px solid ${sel?`${o.c}80`:'rgba(255,255,255,.08)'}`,background:sel?`${o.c}15`:'rgba(0,0,0,.18)',boxShadow:sel?'none':'inset 0 1px 2px rgba(0,0,0,.2)',cursor:'pointer',transition:'.2s',color:sel?o.c:'rgba(255,255,255,.5)'}}>
+<span style={{fontSize:12,fontWeight:700,fontFamily:F}}>{o.l}</span>
+{o.icon}
 </div>
+})}
 </div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,alignItems:'end'}}>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>المهنة الحالية</label>
 <div style={{...roBox,justifyContent:'flex-start'}}>
 <Briefcase size={12} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:12,fontWeight:700,color:currentProf?'var(--tx)':'var(--tx5)',fontFamily:F,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{currentProf||'—'}</span>
+<span style={{fontSize:13,fontWeight:700,color:currentProf?'var(--tx)':'var(--tx5)',fontFamily:F,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{currentProf||'—'}</span>
+</div>
+</div>
+{changeProf?<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>المهنة الجديدة <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={42} fontSize={13} value={fields.new_occupation||''} placeholder="اختر المهنة الجديدة..."
+options={lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar}))}
+onChange={v=>setFields(p=>({...p,new_occupation:v}))}/>
+</div>:<div/>}
+</div>
+</div>
+
+{/* ─── Iqama renewal fieldset ─── */}
+<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative',display:'flex',flexDirection:'column',gap:10}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
+<RefreshCw size={12} strokeWidth={2.2}/>
+<span>تجديد الإقامة</span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الإقامة الحالي</label>
+<div style={roBox}>
+<span style={{fontSize:13,fontWeight:700,color:currentExpiry?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(currentExpiry)}</span>
+{currentExpiry&&<span style={{...hijPill,color:C.gold,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.2)'}}><bdi>{hijri(currentExpiry)}</bdi> هـ</span>}
 </div>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>عدد أشهر التجديد <span style={{color:C.red}}>*</span></label>
-<input type="text" inputMode="numeric" value={fields.renewal_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'');setFields(p=>({...p,renewal_months:raw}))}} placeholder="أدخل عدد الأشهر" style={{...fS,height:36,fontSize:12,direction:'ltr',textAlign:'center'}}/>
+<input type="text" inputMode="numeric" value={fields.renewal_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'');setFields(p=>({...p,renewal_months:raw}))}} placeholder="أدخل عدد الأشهر" style={{...fS,direction:'ltr',textAlign:'center'}}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الإقامة المتوقع</label>
 <div style={{...roBox,borderColor:expectedExpiry?'rgba(46,160,67,.3)':'rgba(255,255,255,.08)',background:expectedExpiry?'rgba(46,160,67,.06)':'rgba(0,0,0,.2)'}}>
-<span style={{fontSize:12,fontWeight:800,color:expectedExpiry?'#4cd075':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(expectedExpiry)}</span>
+<span style={{fontSize:13,fontWeight:800,color:expectedExpiry?'#4cd075':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(expectedExpiry)}</span>
 {expectedExpiry&&<span style={{...hijPill,color:'#4cd075',background:'rgba(46,160,67,.08)',border:'1px solid rgba(46,160,67,.2)'}}><bdi>{hijri(expectedExpiry)}</bdi> هـ</span>}
 </div>
 </div>
 </div>
-<div style={{paddingTop:10,marginTop:'auto',borderTop:'1px solid rgba(212,160,23,.15)',display:'grid',gridTemplateColumns:changeProf?'1fr 1.5fr':'1fr',gap:10,alignItems:'end',flexShrink:0}}>
-<div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>تغيير المهنة</label>
-<div style={{display:'flex',gap:6,height:36}}>
-{[{v:true,l:'نعم',c:C.ok},{v:false,l:'لا',c:C.red}].map(o=>{
-const sel=fields.change_profession===o.v
-return<button key={String(o.v)} type="button" onClick={()=>setFields(p=>({...p,change_profession:o.v,...(o.v===false?{new_occupation:''}:{})}))}
-style={{flex:1,borderRadius:8,border:`1.5px solid ${sel?o.c:'rgba(255,255,255,.1)'}`,background:sel?`${o.c}1f`:'rgba(255,255,255,.05)',color:sel?o.c:'var(--tx4)',fontFamily:F,fontSize:11.5,fontWeight:700,cursor:'pointer',transition:'.2s'}}>{o.l}</button>
-})}
 </div>
-</div>
-{changeProf&&<div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>المهنة الجديدة <span style={{color:C.red}}>*</span></label>
-<NiceSelect compact height={36} fontSize={12} value={fields.new_occupation||''} placeholder="اختر المهنة الجديدة..."
-options={lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar}))}
-onChange={v=>setFields(p=>({...p,new_occupation:v}))}/>
-</div>}
-</div>
+
 </div>
 }
 
@@ -2300,7 +2375,7 @@ const miniLbl={fontSize:10,fontWeight:700,color:'var(--tx4)',fontFamily:F,margin
 const cityOpts=cities.map(c=>({value:c.id,label:c.name_ar}))
 return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:8,overflow:'hidden'}}>
 <div style={{fontSize:12.5,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:6,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',flexShrink:0,justifyContent:'space-between'}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}><IdCard size={13} strokeWidth={2.2}/>تعديل بيانات الجواز</div>
+<div style={{display:'flex',alignItems:'center',gap:6}}><IdCard size={13} strokeWidth={2.2}/>تحديث بيانات الجواز</div>
 <span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)'}}>{passportPage} / 2</span>
 </div>
 {passportPage===1?<>
@@ -2529,7 +2604,7 @@ return hasSections?<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px
 </div>}
 
 {/* ═══ Step 4: Pricing ═══ */}
-{step===4&&<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',justifyContent:'center'}}>
+{step===4&&<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',justifyContent:'flex-start'}}>
 
 {/* ── Kafala-transfer editable pricing inputs ── */}
 {selSvc==='kafala_transfer'&&!kafalaPayStep&&(()=>{
@@ -2540,7 +2615,7 @@ const setK=(key,v)=>setKafalaPricing(p=>({...p,[key]:v}))
 const numIn=(key,autoVal,fallbackPH)=>{
 const minVal=Number(autoVal)||0
 const ph=minVal>0?fmtAmt(minVal):(fallbackPH||'0')
-return<input type="text" inputMode="decimal" value={fmtAmt(k[key])} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(key,raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)<minVal)setK(key,String(minVal))}} placeholder={ph} style={{...fS,height:30,fontSize:11,direction:'ltr',textAlign:'center'}}/>
+return<input type="text" inputMode="decimal" value={fmtAmt(k[key])} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(key,raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)<minVal)setK(key,String(minVal))}} placeholder={ph} style={{...fS,direction:'ltr',textAlign:'center'}}/>
 }
 const togChip=(label,stateKey,clr)=>{
 const on=!!k[stateKey+'_on']
@@ -2571,7 +2646,7 @@ return<div style={{marginBottom:0,borderRadius:12,border:'1.5px solid rgba(212,1
 <div style={{display:'flex',gap:6,alignItems:'center'}}>
 <input value={kafalaExtraName} onChange={e=>setKafalaExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2,height:32,fontSize:11,padding:'0 10px'}}/>
 <input type="text" inputMode="decimal" value={fmtAmt(kafalaExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setKafalaExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,height:32,fontSize:11,padding:'0 10px',direction:'ltr',textAlign:'center'}}/>
-<button type="button" onClick={()=>{if(!kafalaExtraName||!kafalaExtraAmount)return;setKafalaPricing(p=>({...p,extras:[...(p.extras||[]),{name:kafalaExtraName,amount:kafalaExtraAmount}]}));setKafalaExtraName('');setKafalaExtraAmount('')}} style={{height:32,padding:'0 10px',borderRadius:6,border:'1px solid rgba(201,168,76,.25)',background:'rgba(201,168,76,.1)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
+<button type="button" onClick={()=>{if(!kafalaExtraName||!kafalaExtraAmount)return;setKafalaPricing(p=>({...p,extras:[...(p.extras||[]),{name:kafalaExtraName,amount:kafalaExtraAmount}]}));setKafalaExtraName('');setKafalaExtraAmount('')}} style={{height:32,padding:'0 10px',borderRadius:6,border:'1px solid rgba(212,160,23,.25)',background:'rgba(212,160,23,.1)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
 </div>
 {(k.extras||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
 {k.extras.map((e,i)=><span key={i} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',fontSize:10,fontWeight:600,color:'var(--tx2)'}}>
@@ -2610,42 +2685,48 @@ const maxFirst=Math.max(0,total-officeFee)
 const inst=kafalaInstallments
 const sumPaid=inst.reduce((s,x)=>s+(parseFloat(x.amount)||0),0)
 const remaining=Math.max(0,total-sumPaid)
-const addInst=()=>setKafalaInstallments(p=>p.length>=4?p:[...p,{amount:'',date:''}])
+const addInst=()=>setKafalaInstallments(p=>p.length>=5?p:[...p,{amount:'',date:''}])
 const rmInst=(i)=>setKafalaInstallments(p=>p.filter((_,idx)=>idx!==i))
 const setIF=(i,k,v)=>setKafalaInstallments(p=>p.map((x,idx)=>idx===i?{...x,[k]:v}:x))
-return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'14px 18px',display:'flex',flexDirection:'column',gap:12}}>
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-<div style={{fontSize:13,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:7}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-طريقة الدفع
+return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 14px 12px',position:'relative',marginTop:11,display:'flex',flexDirection:'column',gap:10}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+<span>طريقة الدفع</span>
 </div>
-<div style={{fontSize:11,fontWeight:700,color:C.gold}}>الإجمالي: <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt(total.toFixed(2))}</span> ريال</div>
+{/* Total floating on left of top border */}
+<div style={{position:'absolute',top:-9,left:14,background:'#1a1a1a',padding:'0 8px',fontSize:11,fontWeight:700,color:C.gold,fontFamily:F}}>الإجمالي: <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt(total.toFixed(2))}</span> ريال</div>
+<div style={{display:'flex',gap:8}}>
+{[{v:'single',l:'دفعة واحدة',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>},
+{v:'split',l:'دفعات متعددة',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg>}].map(o=>{const on=kafalaPayMode===o.v;return<div key={o.v} onClick={()=>setKafalaPayMode(o.v)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,height:42,borderRadius:9,border:`1px solid ${on?'rgba(212,160,23,.5)':'rgba(255,255,255,.08)'}`,background:on?'rgba(212,160,23,.08)':'rgba(0,0,0,.18)',boxShadow:on?'none':'inset 0 1px 2px rgba(0,0,0,.2)',cursor:'pointer',transition:'.2s',color:on?C.gold:'rgba(255,255,255,.5)'}}>
+<span style={{fontSize:13,fontWeight:700,fontFamily:F}}>{o.l}</span>
+{o.icon}
+</div>})}
 </div>
-<div style={{display:'flex',gap:8,marginBottom:8}}>
-{[{v:'single',l:'دفعة واحدة'},{v:'split',l:'على دفعات'}].map(o=>{const on=kafalaPayMode===o.v;return<button key={o.v} type="button" onClick={()=>setKafalaPayMode(o.v)} style={{flex:1,height:38,borderRadius:8,border:`1.5px solid ${on?C.gold:'rgba(255,255,255,.1)'}`,background:on?C.gold+'1f':'rgba(255,255,255,.04)',color:on?C.gold:'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',transition:'.2s'}}>{o.l}</button>})}
-</div>
-{kafalaPayMode==='split'&&<div style={{display:'flex',flexDirection:'column',gap:10,flex:1,minHeight:0,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)'}}>
+{kafalaPayMode==='split'&&<div style={{display:'flex',flexDirection:'column',gap:10,flex:1,minHeight:0,paddingTop:10}}>
 {inst.map((row,i)=>{
-const idxLbl=['الدفعة الأولى','الدفعة الثانية','الدفعة الثالثة','الدفعة الرابعة'][i]||`الدفعة ${i+1}`
+const idxLbl=['الدفعة الأولى','الدفعة الثانية','الدفعة الثالثة','الدفعة الرابعة','الدفعة الخامسة'][i]||`الدفعة ${i+1}`
 const val=parseFloat(row.amount)||0
 const isFirst=i===0
 const over=isFirst&&val>maxFirst
 const dateOn=row.dateOn===true||!!row.date
+const canAdd=isFirst&&inst.length<5
 return<div key={i} style={{display:'grid',gridTemplateColumns:'auto 1fr auto auto',gap:8,alignItems:'center'}}>
 <span style={{fontSize:11,fontWeight:700,color:'var(--tx2)',minWidth:90,textAlign:'right'}}>{idxLbl}</span>
 <input type="text" inputMode="decimal" value={fmtAmt(row.amount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setIF(i,'amount',raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(isFirst&&raw!==''&&Number(raw)>maxFirst)setIF(i,'amount',String(maxFirst))}} placeholder={isFirst?fmtAmt(maxFirst.toFixed(2)):'المبلغ'} style={{...fS,height:34,fontSize:12,direction:'ltr',textAlign:'center',borderColor:over?C.red+'66':'rgba(255,255,255,.1)'}}/>
-{isFirst?<span style={{width:150}}/>:(dateOn?<div style={{display:'flex',alignItems:'center',gap:4}}>
+{isFirst?(canAdd?<button type="button" onClick={addInst} style={{height:34,width:150,padding:'0 12px',borderRadius:7,border:'1px dashed rgba(212,160,23,.4)',background:'rgba(212,160,23,.08)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+<span>إضافة دفعة</span>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>:<span style={{width:150}}/>):(dateOn?<div style={{display:'flex',alignItems:'center',gap:4}}>
 <CompactDatePicker value={row.date||''} onChange={(v)=>setIF(i,'date',v)} width={150} height={34}/>
 <button type="button" onClick={()=>{setIF(i,'date','');setIF(i,'dateOn',false)}} style={{width:22,height:22,borderRadius:5,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.06)',color:C.red,cursor:'pointer',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}} title="إلغاء التاريخ">×</button>
-</div>:<button type="button" onClick={()=>setIF(i,'dateOn',true)} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',height:34,width:150,borderRadius:7,border:'1px dashed rgba(201,168,76,.3)',background:'rgba(201,168,76,.04)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',justifyContent:'center'}}>
+</div>:<button type="button" onClick={()=>setIF(i,'dateOn',true)} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',height:34,width:150,borderRadius:7,border:'1px dashed rgba(212,160,23,.3)',background:'rgba(212,160,23,.04)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',justifyContent:'center'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>
 إضافة تاريخ
 </button>)}
 {inst.length>1&&!isFirst?<button type="button" onClick={()=>rmInst(i)} style={{width:30,height:30,borderRadius:7,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.06)',color:C.red,cursor:'pointer',fontSize:14,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>:<span style={{width:30}}/>}
 </div>
 })}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
-{inst.length<4?<button type="button" onClick={addInst} style={{height:32,padding:'0 14px',borderRadius:7,border:'1px solid rgba(201,168,76,.25)',background:'rgba(201,168,76,.1)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>+ إضافة دفعة</button>:<span/>}
+<div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',marginTop:4,marginBottom:8}}>
 <div style={{fontSize:11,fontWeight:700}}>
 <span style={{color:'var(--tx4)'}}>متبقّي: <span style={{color:remaining>0?C.gold:C.ok,direction:'ltr',display:'inline-block'}}>{fmtAmt(remaining.toFixed(2))}</span> ريال</span>
 </div>
@@ -2666,61 +2747,73 @@ const setK=(key,v)=>setIqamaPricing(p=>({...p,[key]:v}))
 const numIn=(key,autoVal,fallbackPH)=>{
 const minVal=Number(autoVal)||0
 const ph=minVal>0?fmtAmt(minVal):(fallbackPH||'0')
-return<input type="text" inputMode="decimal" value={fmtAmt(k[key])} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(key,raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)<minVal)setK(key,String(minVal))}} placeholder={ph} style={{...fS,height:30,fontSize:11,direction:'ltr',textAlign:'center'}}/>
+return<input type="text" inputMode="decimal" value={fmtAmt(k[key])} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(key,raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)<minVal)setK(key,String(minVal))}} placeholder={ph} style={{...fS,direction:'ltr',textAlign:'center'}}/>
 }
 const togChip=(label,stateKey,clr)=>{
 const on=!!k[stateKey+'_on']
 const c=clr||C.gold
-return<div style={{display:'flex',alignItems:'center',gap:6}}>
-<button type="button" onClick={()=>setK(stateKey+'_on',!on)} style={{display:'flex',alignItems:'center',gap:4,padding:'3px 10px',borderRadius:6,border:`1px solid ${on?c+'4d':'rgba(255,255,255,.1)'}`,background:on?c+'14':'rgba(255,255,255,.04)',color:on?c:'var(--tx4)',fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
-<span style={{width:8,height:8,borderRadius:4,background:on?c:'rgba(255,255,255,.15)',transition:'.2s'}}/>{label}
+return<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+<label style={{fontSize:11,fontWeight:700,color:on?c:'var(--tx4)',fontFamily:F,transition:'.2s'}}>{label}</label>
+<button type="button" onClick={()=>setK(stateKey+'_on',!on)} style={{width:28,height:16,borderRadius:999,border:'none',background:on?c:'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:12,height:12,borderRadius:'50%',background:'#fff',top:2,right:on?2:14,transition:'.2s'}}/>
 </button>
-{on&&<input type="text" inputMode="decimal" value={fmtAmt(k[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(stateKey,raw)}} placeholder="0" style={{...fS,height:28,fontSize:11,width:90,flex:'none',direction:'ltr',textAlign:'center',borderColor:c+'4d'}}/>}
-</div>}
-return<div style={{marginBottom:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'10px 14px'}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-<div style={{width:4,height:14,borderRadius:2,background:C.gold}}/>
-<div style={{fontSize:11,fontWeight:800,color:'var(--tx)'}}>التسعيرة</div>
-{iqamaExpiredRenewal&&<div style={{fontSize:8,color:C.red,background:'rgba(192,57,43,.1)',padding:'1px 6px',borderRadius:4,fontWeight:700}}>الإقامة منتهية</div>}
 </div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'14px 12px'}}>
-<div><label style={{...lblS,marginBottom:3}}>تجديد الإقامة{ac.iqamaFine>0&&<span style={{color:C.red,fontSize:9,marginRight:4}}>(شامل الغرامة)</span>}</label>{numIn('iqamaRenewalFee',ac.iqamaRenewalFee,'0')}</div>
-<div><label style={{...lblS,marginBottom:3}}>رسوم كرت العمل</label>{numIn('workPermitRate',ac.workPermit,'100')}</div>
-<div><label style={{...lblS,marginBottom:3}}>التأمين الطبي</label>{numIn('medicalFee',ac.medical,'0')}</div>
+<div style={{display:'flex',alignItems:'center',background:on?'rgba(0,0,0,.18)':'rgba(255,255,255,.02)',border:`1px solid ${on?c+'4d':'rgba(255,255,255,.05)'}`,borderRadius:9,boxShadow:on?'inset 0 1px 2px rgba(0,0,0,.2)':'none',height:36,opacity:on?1:.5,transition:'.2s'}}>
+<input type="text" inputMode="decimal" disabled={!on} value={fmtAmt(k[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(stateKey,raw)}} placeholder="0" style={{flex:1,minWidth:0,height:'100%',padding:'0 10px',border:'none',background:'transparent',fontFamily:F,fontSize:12.5,fontWeight:700,color:on?'var(--tx)':'var(--tx5)',outline:'none',direction:'ltr',textAlign:'center'}}/>
+<span style={{fontSize:10,color:'var(--tx5)',fontWeight:700,padding:'0 8px 0 4px',fontFamily:F,flexShrink:0}}>ريال</span>
+</div>
+</div>}
+return<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 14px 12px',position:'relative',marginTop:11}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
+<span>التسعيرة</span>
+{iqamaExpiredRenewal&&<span style={{fontSize:9,color:C.red,background:'rgba(192,57,43,.12)',padding:'1px 6px',borderRadius:4,fontWeight:700}}>الإقامة منتهية</span>}
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 10px'}}>
 {fields.change_profession===true&&<div><label style={{...lblS,marginBottom:3}}>رسم تغيير المهنة</label>{numIn('profChangeInput',ac.profChange,'200')}</div>}
 <div><label style={{...lblS,marginBottom:3}}>رسوم المكتب</label>{numIn('officeFee',ac.officeFee,'0')}</div>
 </div>
 
 {/* Extras */}
-<div style={{marginTop:14,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)'}}>
-<div style={{display:'flex',gap:6,alignItems:'center'}}>
-<input value={iqamaExtraName} onChange={e=>setIqamaExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2,height:32,fontSize:11,padding:'0 10px'}}/>
-<input type="text" inputMode="decimal" value={fmtAmt(iqamaExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setIqamaExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,height:32,fontSize:11,padding:'0 10px',direction:'ltr',textAlign:'center'}}/>
-<button type="button" onClick={()=>{if(!iqamaExtraName||!iqamaExtraAmount)return;setIqamaPricing(p=>({...p,extras:[...(p.extras||[]),{name:iqamaExtraName,amount:iqamaExtraAmount}]}));setIqamaExtraName('');setIqamaExtraAmount('')}} style={{height:32,padding:'0 10px',borderRadius:6,border:'1px solid rgba(201,168,76,.25)',background:'rgba(201,168,76,.1)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
+<div style={{marginTop:10}}>
+<div style={{display:'flex',gap:8,alignItems:'center'}}>
+<input value={iqamaExtraName} onChange={e=>setIqamaExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2}}/>
+<input type="text" inputMode="decimal" value={fmtAmt(iqamaExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setIqamaExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,direction:'ltr',textAlign:'center'}}/>
+<button type="button" onClick={()=>{if(!iqamaExtraName||!iqamaExtraAmount)return;setIqamaPricing(p=>({...p,extras:[...(p.extras||[]),{name:iqamaExtraName,amount:iqamaExtraAmount}]}));setIqamaExtraName('');setIqamaExtraAmount('')}} style={{height:42,padding:'0 12px',borderRadius:9,border:'1px solid rgba(212,160,23,.25)',background:'rgba(212,160,23,.1)',color:C.gold,fontFamily:F,fontSize:14,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>+</button>
 </div>
 {(k.extras||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
 {k.extras.map((e,i)=><span key={i} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',fontSize:10,fontWeight:600,color:'var(--tx2)'}}>
-{e.name} <span style={{color:C.gold,fontWeight:700}}>{Number(e.amount).toLocaleString('en-US')}</span>
+{e.name} <span style={{color:C.gold,fontWeight:700}}>{Number(e.amount).toLocaleString('en-US')} ريال</span>
 <span onClick={()=>setIqamaPricing(p=>({...p,extras:p.extras.filter((_,idx)=>idx!==i)}))} style={{color:C.red,cursor:'pointer',fontWeight:700}}>×</span>
 </span>)}
 </div>}
 </div>
 
 {/* Subtotal + Deductions + Total */}
-<div style={{marginTop:14,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)',display:'flex',flexDirection:'column',gap:10}}>
+{(()=>{const sub=Number(pricing.subtotal||0);const absh=Number(k.absherBalance_on?k.absherBalance:0)||0;const disc=Number(k.discount_on?k.discount:0)||0;return(
+<div style={{marginTop:12,paddingTop:12,borderTop:'1px solid rgba(255,255,255,.05)',display:'flex',flexDirection:'column',gap:8}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 <span style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>إجمالي الرسوم</span>
-<span style={{fontSize:13,fontWeight:800,color:'var(--tx)'}}>{Number(pricing.subtotal||0).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
+<span style={{fontSize:13,fontWeight:800,color:'var(--tx)'}}>{Number(sub).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
 </div>
-<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 {togChip('خصم','discount',C.gold)}
 {togChip('رصيد أبشر','absherBalance','#2ea043')}
 </div>
+{disc>0&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0'}}>
+<span style={{fontSize:11,fontWeight:700,color:C.gold}}>خصم</span>
+<span style={{fontSize:12,fontWeight:800,color:C.red,direction:'ltr'}}>− {Number(disc).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
+</div>}
+{absh>0&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0'}}>
+<span style={{fontSize:11,fontWeight:700,color:'#2ea043'}}>رصيد أبشر</span>
+<span style={{fontSize:12,fontWeight:800,color:C.red,direction:'ltr'}}>− {Number(absh).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
+</div>}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:5,borderTop:'1px dashed rgba(212,160,23,.2)'}}>
 <span style={{fontSize:13,fontWeight:800,color:C.gold}}>الإجمالي</span>
 <span style={{fontSize:16,fontWeight:900,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ريال</span>
 </div>
 </div>
+)})()}
 </div>
 })()}
 
@@ -2762,7 +2855,7 @@ placeholder={auto>0?fmtAmt(auto):'0'} style={{...fS,height:32,fontSize:11.5,dire
 <div style={{display:'flex',gap:6,alignItems:'center'}}>
 <input value={otherExtraName} onChange={e=>setOtherExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2,height:32,fontSize:11,padding:'0 10px'}}/>
 <input type="text" inputMode="decimal" value={fmtAmt(otherExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOtherExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,height:32,fontSize:11,padding:'0 10px',direction:'ltr',textAlign:'center'}}/>
-<button type="button" onClick={()=>{if(!otherExtraName||!otherExtraAmount)return;setOtherServicePricing(p=>({...p,extras:[...(p.extras||[]),{name:otherExtraName,amount:otherExtraAmount}]}));setOtherExtraName('');setOtherExtraAmount('')}} style={{height:32,padding:'0 10px',borderRadius:6,border:'1px solid rgba(201,168,76,.25)',background:'rgba(201,168,76,.1)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
+<button type="button" onClick={()=>{if(!otherExtraName||!otherExtraAmount)return;setOtherServicePricing(p=>({...p,extras:[...(p.extras||[]),{name:otherExtraName,amount:otherExtraAmount}]}));setOtherExtraName('');setOtherExtraAmount('')}} style={{height:32,padding:'0 10px',borderRadius:6,border:'1px solid rgba(212,160,23,.25)',background:'rgba(212,160,23,.1)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
 </div>
 {(otherServicePricing.extras||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
 {otherServicePricing.extras.map((e,i)=><span key={i} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',fontSize:10,fontWeight:600,color:'var(--tx2)'}}>
@@ -2789,30 +2882,17 @@ placeholder={auto>0?fmtAmt(auto):'0'} style={{...fS,height:32,fontSize:11.5,dire
 </div>
 })()}
 
-{selSvc!=='kafala_transfer'&&selSvc!=='iqama_renewal'&&!SVC_WITH_PRICING.has(selSvc)&&<div style={{borderRadius:10,border:'1px solid rgba(201,168,76,.1)',background:'rgba(201,168,76,.03)',padding:'10px 14px'}}>
-{/* Service name (compact) */}
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,paddingBottom:6,borderBottom:'1px solid rgba(255,255,255,.04)'}}>
-<div style={{width:22,height:22,borderRadius:6,background:'rgba(201,168,76,.1)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/></svg>
-</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:12.5,fontWeight:800,color:'var(--tx)'}}>{selectedService?.name_ar}</div>
-</div>
-</div>
-
-{/* Price rows */}
-<div style={{display:'flex',flexDirection:'column',gap:5}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:14,fontWeight:800,color:C.gold}}>الإجمالي</span>
+{selSvc!=='kafala_transfer'&&selSvc!=='iqama_renewal'&&!SVC_WITH_PRICING.has(selSvc)&&<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative',marginTop:10}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F}}>الإجمالي</div>
+<div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:10}}>
 {VISA_SERVICES.has(selSvc)?
-<div style={{display:'flex',alignItems:'center',gap:6}}>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
 <input type="text" inputMode="decimal" value={totalOverride==null?'':fmtAmt(totalOverride)} placeholder={fmtAmt(pricing.total.toFixed(2))}
 onChange={e=>{const raw=unfmtAmt(e.target.value);if(raw===''){setTotalOverride(null);return}if(!/^\d*\.?\d*$/.test(raw))return;const n=Number(raw);if(isNaN(n))return;setTotalOverride(n)}}
-style={{width:140,height:34,padding:'0 10px',borderRadius:8,border:`1.5px solid rgba(212,160,23,.3)`,background:'rgba(0,0,0,.25)',color:C.gold,fontFamily:F,fontSize:16,fontWeight:900,textAlign:'center',direction:'ltr',outline:'none'}}/>
-<span style={{fontSize:12,fontWeight:700,color:'var(--tx4)'}}>ريال</span>
+style={{width:160,height:42,padding:'0 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',color:C.gold,fontFamily:F,fontSize:16,fontWeight:900,textAlign:'center',direction:'ltr',outline:'none',boxSizing:'border-box'}}/>
+<span style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F}}>ريال</span>
 </div>
 :<span style={{fontSize:18,fontWeight:900,color:C.gold}}>{pricing.total.toFixed(2)} ريال</span>}
-</div>
 </div>
 </div>}
 
@@ -2838,49 +2918,46 @@ const authBad=hasAuth&&visaInstallments.authorization!==''&&authVal<minAuth
 const inStyle=(bad)=>({width:100,height:28,padding:'0 6px',borderRadius:6,border:`1px solid ${bad?C.red:'rgba(212,160,23,.15)'}`,background:'rgba(0,0,0,.2)',color:bad?C.red:C.gold,fontFamily:F,fontSize:12,fontWeight:700,textAlign:'center',direction:'ltr',outline:'none'})
 const totalInst=hasAuth?3:2
 const residenceIdx=hasAuth?3:2
-return<div style={{marginTop:8,borderRadius:10,border:'1px solid rgba(212,160,23,.14)',background:'rgba(212,160,23,.03)',padding:'10px 14px'}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-<div style={{width:4,height:14,borderRadius:2,background:C.gold}}/>
-<div style={{fontSize:12,fontWeight:800,color:'var(--tx)',fontFamily:F}}>خطة الدفع على {totalInst===2?'دفعتين':'3 دفعات'}</div>
-</div>
+return<div style={{marginTop:18,border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative'}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F}}>الدفعات</div>
 {/* Installment 1 — Issuance */}
 <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
-<div style={{width:20,height:20,borderRadius:5,background:'rgba(212,160,23,.15)',color:C.gold,fontSize:10.5,fontWeight:900,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>1</div>
+<div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(212,160,23,.3), rgba(212,160,23,.12))',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:11.5,fontWeight:900,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(212,160,23,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>1</div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:11.5,fontWeight:700,color:'var(--tx2)',fontFamily:F}}>عند إصدار التأشيرة</div>
-<div style={{fontSize:9.5,color:issuanceBad?C.red:'var(--tx5)',fontFamily:F}}>{issuanceBad?'⚠ السعر المدخل غير مسموح':'دفعة واحدة لجميع التأشيرات'}</div>
+<div style={{fontSize:12.5,fontWeight:700,color:'rgba(255,255,255,.95)',fontFamily:F}}>عند إصدار التأشيرة</div>
+<div style={{fontSize:10.5,color:issuanceBad?C.red:'rgba(255,255,255,.58)',fontFamily:F}}>{issuanceBad?'⚠ السعر المدخل غير مسموح':'دفعة واحدة لجميع التأشيرات'}</div>
 </div>
 <input type="text" inputMode="decimal" value={fmtAmt(visaInstallments.issuance)} onChange={e=>{const raw=unfmtAmt(e.target.value);if(raw===''||/^\d*\.?\d*$/.test(raw))setVisaInstallments(p=>({...p,issuance:raw}))}} placeholder={fmtAmt(defaultEach.toFixed(2))} style={inStyle(issuanceBad)}/>
-<span style={{fontSize:10,color:'var(--tx5)',fontFamily:F}}>ريال</span>
+<span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F}}>ريال</span>
 </div>
 {/* Installment 2 — Authorization (permanent visa only) */}
 {hasAuth&&<div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
-<div style={{width:20,height:20,borderRadius:5,background:'rgba(212,160,23,.15)',color:C.gold,fontSize:10.5,fontWeight:900,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>2</div>
+<div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(212,160,23,.3), rgba(212,160,23,.12))',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:11.5,fontWeight:900,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(212,160,23,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>2</div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:11.5,fontWeight:700,color:'var(--tx2)',fontFamily:F}}>عند توكيل التأشيرة</div>
-<div style={{fontSize:9.5,color:authBad?C.red:'var(--tx5)',fontFamily:F}}>{authBad?'⚠ السعر المدخل غير مسموح':'دفعة واحدة لجميع التأشيرات'}</div>
+<div style={{fontSize:12.5,fontWeight:700,color:'rgba(255,255,255,.95)',fontFamily:F}}>عند توكيل التأشيرة</div>
+<div style={{fontSize:10.5,color:authBad?C.red:'rgba(255,255,255,.58)',fontFamily:F}}>{authBad?'⚠ السعر المدخل غير مسموح':'دفعة واحدة لجميع التأشيرات'}</div>
 </div>
 <input type="text" inputMode="decimal" value={fmtAmt(visaInstallments.authorization)} onChange={e=>{const raw=unfmtAmt(e.target.value);if(raw===''||/^\d*\.?\d*$/.test(raw))setVisaInstallments(p=>({...p,authorization:raw}))}} placeholder={fmtAmt(defaultEach.toFixed(2))} style={inStyle(authBad)}/>
-<span style={{fontSize:10,color:'var(--tx5)',fontFamily:F}}>ريال</span>
+<span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F}}>ريال</span>
 </div>}
 {/* Final installment — Residence (per visa) */}
 <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0'}}>
-<div style={{width:20,height:20,borderRadius:5,background:'rgba(212,160,23,.15)',color:C.gold,fontSize:10.5,fontWeight:900,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{residenceIdx}</div>
+<div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(212,160,23,.3), rgba(212,160,23,.12))',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:11.5,fontWeight:900,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(212,160,23,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>{residenceIdx}</div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:11.5,fontWeight:700,color:'var(--tx2)',fontFamily:F}}>عند إصدار الإقامة <span style={{fontSize:9.5,color:C.gold,fontWeight:700}}>(لكل تأشيرة)</span></div>
-<div style={{fontSize:9.5,color:'var(--tx5)',fontFamily:F,direction:'rtl'}}><span style={{direction:'ltr',display:'inline-block'}}>{residencePerVisa.toFixed(2)}</span> × {numVisas} = <span style={{color:C.gold,fontWeight:700,direction:'ltr',display:'inline-block'}}>{residenceTotalCalc.toFixed(2)}</span> ريال</div>
+<div style={{fontSize:12.5,fontWeight:700,color:'rgba(255,255,255,.95)',fontFamily:F}}>عند إصدار الإقامة <span style={{fontSize:10.5,color:C.gold,fontWeight:700}}>(لكل تأشيرة)</span></div>
+<div style={{fontSize:10.5,color:'rgba(255,255,255,.58)',fontFamily:F,direction:'rtl'}}><span style={{direction:'ltr',display:'inline-block'}}>{residencePerVisa.toFixed(2)}</span> × {numVisas} = <span style={{color:C.gold,fontWeight:700,direction:'ltr',display:'inline-block'}}>{residenceTotalCalc.toFixed(2)}</span> ريال</div>
 </div>
 <input type="text" inputMode="decimal" value={fmtAmt(visaInstallments.residencePerVisa)} onChange={e=>{const raw=unfmtAmt(e.target.value);if(raw===''||/^\d*\.?\d*$/.test(raw))setVisaInstallments(p=>({...p,residencePerVisa:raw}))}} placeholder={fmtAmt((residenceSubtotal/numVisas).toFixed(2))} style={inStyle(false)}/>
-<span style={{fontSize:10,color:'var(--tx5)',fontFamily:F}}>ريال</span>
+<span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F}}>ريال</span>
 </div>
 {/* Sum-check footer — two clear lines: sum, then difference (if any) */}
 <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed rgba(255,255,255,.08)',display:'flex',flexDirection:'column',gap:3}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:10.5,fontWeight:700,color:'var(--tx4)',fontFamily:F}}>مجموع الدفعات</span>
-<span style={{fontSize:12,fontWeight:900,color:matchesTotal?'#2ea043':'var(--tx2)',fontFamily:F,display:'inline-flex',alignItems:'baseline',gap:4,direction:'rtl'}}>
+<span style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.75)',fontFamily:F}}>مجموع الدفعات</span>
+<span style={{fontSize:13,fontWeight:900,color:matchesTotal?'#2ea043':'rgba(255,255,255,.95)',fontFamily:F,display:'inline-flex',alignItems:'baseline',gap:5,direction:'rtl'}}>
 {matchesTotal&&<bdi style={{color:'#2ea043'}}>✓</bdi>}
 <bdi>{fmtAmt(sumCheck.toFixed(2))}</bdi>
-<bdi style={{fontSize:10,fontWeight:700,color:'var(--tx5)'}}>ريال</bdi>
+<bdi style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)'}}>ريال</bdi>
 </span>
 </div>
 {!matchesTotal&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -2924,8 +3001,8 @@ const Row=({label,value,highlight})=><div style={{display:'flex',justifyContent:
 <span style={{fontSize:11,color:'var(--tx5)',fontFamily:F}}>{label}</span>
 <span style={{fontSize:12,color:highlight||'var(--tx2)',fontWeight:700,fontFamily:F,textAlign:'left'}}>{value}</span>
 </div>
-const SummaryCard=({compact})=>(<div className={compact?'':'sr-modal-scroll'} style={{borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.04)',padding:compact?12:16,...(compact?{}:{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:12,scrollbarWidth:'none',msOverflowStyle:'none'})}}>
-<div style={{fontSize:compact?11:13,fontWeight:800,color:'var(--tx)',marginBottom:compact?8:4}}>ملخص الطلب</div>
+const SummaryCard=({compact})=>(<div className={compact?'':'sr-modal-scroll'} style={compact?{borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.04)',padding:12}:{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:14,padding:'16px 14px',border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,scrollbarWidth:'none',msOverflowStyle:'none'}}>
+{compact&&<div style={{fontSize:11,fontWeight:800,color:'var(--tx)',marginBottom:8}}>ملخص الطلب</div>}
 
 {/* Service & client info */}
 <div>
@@ -2936,6 +3013,8 @@ const SummaryCard=({compact})=>(<div className={compact?'':'sr-modal-scroll'} st
 {selWorker&&<Row label="العامل" value={workerIsClient?`${selWorker.name} (نفس العميل)`:selWorker.name}/>}
 {selWorker&&selWorker.iqama_number&&<Row label="رقم الإقامة" value={<span style={{direction:'ltr',display:'inline-block'}}>{selWorker.iqama_number}</span>}/>}
 {selWorker&&selWorker.phone&&<Row label="الجوال" value={<span style={{direction:'ltr',display:'inline-block'}}>{selWorker.phone}</span>}/>}
+{selBroker&&<Row label="الوسيط" value={selBroker.name_ar}/>}
+{!selBroker&&brokerMode==='new'&&newBroker.name_ar&&<Row label="الوسيط (جديد)" value={newBroker.name_ar}/>}
 </div>
 
 {/* Kafala transfer details */}
@@ -2978,7 +3057,7 @@ return<div key={g.id} style={{padding:'6px 10px',marginBottom:4,borderRadius:7,b
 const fc=Object.values(f.assignments||{}).reduce((s,n)=>s+(parseInt(n)||0),0)
 const parts=visaGroups.length>1?Object.entries(f.assignments||{}).filter(([,n])=>(parseInt(n)||0)>0).map(([gid,n])=>{const g=visaGroups.find(x=>x.id===(parseInt(gid)||gid));const nat=g?.nationality?(lkCountries.find(co=>co.id===g.nationality)?.nationality_ar||''):'';return`${n}× ${nat||'مجموعة'}`}).join(' · '):null
 return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',borderRadius:6,background:'rgba(212,160,23,.1)',border:'1px solid rgba(212,160,23,.22)',fontSize:10.5,fontWeight:700,color:C.gold,fontFamily:F}}>
-<span>ملف {i+1}: {fc}</span>
+<span>الملف {['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'][i]||(i+1)}: {fc}</span>
 {parts&&<span style={{fontSize:9.5,fontWeight:600,color:'var(--tx3)'}}>({parts})</span>}
 </span>
 })}
@@ -3012,7 +3091,7 @@ return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,p
 
 {/* Final exit visa details */}
 {selSvc==='final_exit_visa'&&fields.reason&&<div>
-<SectionTitle>بيانات الخروج النهائي</SectionTitle>
+<SectionTitle>بيانات الخروج / بلاغ التغيب</SectionTitle>
 <Row label="السبب" value={fields.reason}/>
 </div>}
 
@@ -3073,7 +3152,7 @@ return<div>
 
 {/* Name translation details */}
 {selSvc==='name_translation'&&<div>
-<SectionTitle>بيانات تعديل الاسم المترجم</SectionTitle>
+<SectionTitle>بيانات تعديل الراتب</SectionTitle>
 {fields.new_name_en&&<Row label="الاسم الجديد (إنجليزي)" value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_name_en}</span>}/>}
 </div>}
 
@@ -3108,9 +3187,9 @@ return<>
 {/* Payment */}
 <div>
 <SectionTitle>الدفع</SectionTitle>
-<Row label="طريقة الدفع" value={paymentMethod==='bank'?'حوالة بنكية':'نقداً'}/>
-{paymentMethod==='bank'&&transferReference&&<Row label="الرقم المرجعي" value={<span style={{direction:'ltr',display:'inline-block'}}>{transferReference}</span>}/>}
-{paymentMethod==='bank'&&transferReceipt&&<Row label="إيصال الحوالة" value={<span style={{color:'#2ea043',fontWeight:700}}>✓ {transferReceipt.name}</span>}/>}
+{paid>0&&<Row label="طريقة الدفع" value={paymentMethod==='bank'?'حوالة بنكية':'نقداً'}/>}
+{paid>0&&paymentMethod==='bank'&&transferReference&&<Row label="الرقم المرجعي" value={<span style={{direction:'ltr',display:'inline-block'}}>{transferReference}</span>}/>}
+{paid>0&&paymentMethod==='bank'&&transferReceipt&&<Row label="إيصال الحوالة" value={<span style={{color:'#2ea043',fontWeight:700}}>✓ {transferReceipt.name}</span>}/>}
 <Row label="المدفوع" value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(paid.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>} highlight={paid>0?C.ok:'var(--tx4)'}/>
 {effectiveRemaining>0&&<Row label="المتبقي" value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(effectiveRemaining.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>} highlight={C.red}/>}
 </div>
@@ -3123,34 +3202,39 @@ return<>
 </div>)
 return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10}}>
 {/* Entry screen — unified payment card, fills available space */}
-{!showSummaryScreen&&<div style={{borderRadius:14,border:'1px solid rgba(201,168,76,.14)',background:'rgba(201,168,76,.03)',padding:'20px 22px',display:'flex',flexDirection:'column',gap:14,flex:1,minHeight:0}}>
-{/* Row 1: Paid amount */}
-<div style={{display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
-<div style={{fontSize:13,fontWeight:800,color:'var(--tx)',whiteSpace:'nowrap'}}>المبلغ المدفوع</div>
+{!showSummaryScreen&&!showBrokerNoteScreen&&<div style={{display:'flex',flexDirection:'column',gap:14,flex:1,minHeight:0,marginTop:6}}>
+{/* المبلغ المدفوع — bordered frame with floating label */}
+<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'14px 14px 12px',position:'relative',flexShrink:0}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F}}>المبلغ المدفوع</div>
+<div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:8}}>
 <input type="text" inputMode="decimal" value={fmtAmt(paidAmount)}
 onChange={e=>{const raw=unfmtAmt(e.target.value);if(raw===''){setPaidAmount('');return}if(!/^\d*\.?\d*$/.test(raw))return;let n=Number(raw);if(isNaN(n))return;if(n<0)n=0;const cap=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total;if(n>cap)n=cap;setPaidAmount(String(n))}}
 placeholder="0.00"
-style={{...fS,flex:1,height:46,fontSize:16,fontWeight:700,direction:'ltr',textAlign:'center'}}/>
-<span style={{fontSize:12.5,fontWeight:700,color:'var(--tx4)',whiteSpace:'nowrap'}}>ريال</span>
+style={{width:160,height:42,padding:'0 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',color:C.gold,fontFamily:F,fontSize:16,fontWeight:900,textAlign:'center',direction:'ltr',outline:'none',boxSizing:'border-box'}}/>
+<span style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F}}>ريال</span>
 </div>
-{/* Remaining / paid-in-full indicator */}
+{/* Remaining / paid-in-full indicator — floating on bottom-left of frame border */}
 {(()=>{const eff=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total;const p=Number(paidAmount)||0;
-if(p>0&&p<eff)return<div style={{fontSize:11.5,fontWeight:700,color:C.red,textAlign:'left',direction:'rtl',paddingRight:2,marginTop:-6,flexShrink:0}}>المتبقي <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt((eff-p).toFixed(2))}</span> ريال</div>
-if(p>=eff&&eff>0)return<div style={{fontSize:11.5,fontWeight:700,color:C.ok,textAlign:'left',direction:'rtl',paddingRight:2,marginTop:-6,flexShrink:0}}>✓ مدفوع بالكامل</div>
+if(p<eff&&eff>0)return<div style={{position:'absolute',bottom:-9,left:14,background:'#1a1a1a',padding:'0 8px',fontSize:11,fontWeight:700,color:C.red,fontFamily:F,direction:'rtl'}}>المتبقي <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt((eff-p).toFixed(2))}</span> ريال</div>
+if(p>=eff&&eff>0)return<div style={{position:'absolute',bottom:-9,left:14,background:'#1a1a1a',padding:'0 8px',fontSize:11,fontWeight:700,color:C.ok,fontFamily:F}}>✓ مدفوع بالكامل</div>
 return null})()}
-{/* Row 2: Payment method */}
+</div>
+{/* طريقة الدفع — bordered frame with floating label (only when paid amount > 0) */}
+{(Number(paidAmount)||0)>0&&<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'14px 14px 12px',position:'relative',display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F}}>طريقة الدفع</div>
 <div style={{display:'flex',gap:8,flexShrink:0}}>
-{[{k:'cash',l:'نقداً',icon:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>},
-{k:'bank',l:'حوالة بنكية',icon:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/></svg>}].map(o=>{
+{[{k:'cash',l:'نقداً',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>},
+{k:'bank',l:'حوالة بنكية',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg>}].map(o=>{
 const on=paymentMethod===o.k
-return<div key={o.k} onClick={()=>setPaymentMethod(o.k)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,height:42,borderRadius:9,border:`1px solid ${on?C.gold:'rgba(255,255,255,.08)'}`,background:on?'rgba(212,160,23,.1)':'rgba(255,255,255,.02)',cursor:'pointer',transition:'.2s',color:on?C.gold:'var(--tx4)'}}>
-{o.icon}
+return<div key={o.k} onClick={()=>setPaymentMethod(o.k)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,height:42,borderRadius:9,border:`1px solid ${on?'rgba(212,160,23,.5)':'rgba(255,255,255,.08)'}`,background:on?'rgba(212,160,23,.08)':'rgba(0,0,0,.18)',boxShadow:on?'none':'inset 0 1px 2px rgba(0,0,0,.2)',cursor:'pointer',transition:'.2s',color:on?C.gold:'rgba(255,255,255,.5)'}}>
 <span style={{fontSize:13,fontWeight:700,fontFamily:F}}>{o.l}</span>
+{o.icon}
 </div>
 })}
 </div>
 {/* Row 3: Bank transfer details */}
-{paymentMethod==='bank'&&<div style={{display:'flex',gap:10,alignItems:'stretch',flexShrink:0}}
+{paymentMethod==='bank'&&<>
+<div style={{display:'flex',gap:10,alignItems:'stretch',flexShrink:0}}
 onDragEnter={e=>{e.preventDefault();e.stopPropagation();setReceiptDrag(true)}}
 onDragOver={e=>{e.preventDefault();e.stopPropagation();if(!receiptDrag)setReceiptDrag(true)}}
 onDragLeave={e=>{e.preventDefault();e.stopPropagation();if(e.currentTarget.contains(e.relatedTarget))return;setReceiptDrag(false)}}
@@ -3171,13 +3255,157 @@ onMouseLeave={e=>{if(!receiptDrag)e.currentTarget.style.background='rgba(212,160
 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 </button>
 </div>}
-</div>}
-{/* Note label + textarea (always visible, fills remaining space) */}
-<div style={{display:'flex',alignItems:'baseline',gap:8,flexShrink:0}}>
-<span style={{fontSize:12.5,fontWeight:800,color:'var(--tx2)',fontFamily:F}}>ملاحظة</span>
-<span style={{fontSize:10.5,color:'var(--tx5)',fontFamily:F}}>(اختيارية · تظهر في الفاتورة)</span>
 </div>
-<textarea value={clientNote} onChange={e=>{setClientNote(e.target.value);setAddClientNote(e.target.value.trim().length>0)}} placeholder="أدخل ملاحظة... (اختياري)" style={{...fS,flex:1,minHeight:0,padding:'12px 14px',resize:'none',fontSize:13}}/>
+{/* Bank account: search + single card (closest match or selected) */}
+{!selBankAcc&&<input value={bankAccSearch} onChange={e=>setBankAccSearch(e.target.value)} placeholder="ابحث باسم البنك أو الحساب أو IBAN..." style={{width:'100%',height:40,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:12.5,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',outline:'none',textAlign:'right',boxSizing:'border-box',flexShrink:0}}/>}
+<div style={{display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
+{(()=>{let filtered;if(selBankAcc){filtered=bankAccounts.filter(a=>a.id===selBankAcc)}else if(bankAccSearch){const q=bankAccSearch.toLowerCase();filtered=bankAccounts.filter(a=>(a.bank_name||'').toLowerCase().includes(q)||(a.account_name||'').toLowerCase().includes(q)||(a.iban||'').toLowerCase().includes(q)||(a.account_number||'').includes(bankAccSearch)).slice(0,1)}else{filtered=bankAccounts.slice(0,1)}
+if(filtered.length===0)return<div style={{padding:'14px',textAlign:'center',fontSize:11,color:'rgba(255,255,255,.5)',border:'1px dashed rgba(255,255,255,.1)',borderRadius:9,background:'rgba(0,0,0,.12)'}}>لا توجد نتائج</div>;
+return filtered.map(a=>{const sel=selBankAcc===a.id;return<div key={a.id} onClick={()=>setSelBankAcc(sel?'':a.id)} style={{padding:'8px 12px 8px 36px',borderRadius:10,cursor:'pointer',display:'flex',alignItems:'center',gap:12,position:'relative',
+border:sel?'1px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.06)',
+background:sel?'rgba(212,160,23,.06)':'rgba(255,255,255,.03)',
+transition:'all .2s'}}
+onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.05)';e.currentTarget.style.borderColor='rgba(212,160,23,.18)'}}}
+onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
+{sel&&<div style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',width:20,height:20,borderRadius:'50%',background:C.gold,display:'flex',alignItems:'center',justifyContent:'center'}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</div>}
+<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:7}}>
+<div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+<span style={{fontSize:13,fontWeight:800,color:sel?C.gold:'rgba(255,255,255,.95)'}}>{a.bank_name}</span>
+{a.is_primary&&<span style={{fontSize:9,color:C.gold,fontWeight:700,padding:'1px 6px',borderRadius:5,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.25)'}}>رئيسي</span>}
+{a.account_name&&<span style={{fontSize:10.5,color:'rgba(255,255,255,.58)'}}>· {a.account_name}</span>}
+</div>
+<div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',fontSize:10,color:'rgba(255,255,255,.5)',fontFamily:'monospace',justifyContent:'flex-start'}}>
+{a.account_number&&<span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'1px 6px',borderRadius:5,background:'rgba(255,255,255,.04)',direction:'ltr'}}>
+<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+{a.account_number}
+</span>}
+{a.iban&&<span style={{direction:'ltr'}}>{a.iban}</span>}
+</div>
+</div>
+</div>})})()}
+</div>
+</>}
+</div>}
+</div>}
+
+{/* Broker + Notes sub-step (only for kafala_transfer and visa services) */}
+{showBrokerNoteScreen&&<div style={{display:'flex',flexDirection:'column',gap:14,marginTop:6,...(brokerMode==='new'?{}:{flex:1,minHeight:0})}}>
+<div style={{display:'flex',flexDirection:'column',gap:10,...(brokerMode==='new'?{}:{flex:1,minHeight:0})}}>
+
+{/* Search + new broker button — mirrors client UI */}
+{!selBroker&&brokerMode!=='new'&&<div style={{display:'flex',alignItems:'stretch',gap:8,flexShrink:0}}>
+<div style={{position:'relative',flex:1,minWidth:0}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={brokerQ} onChange={e=>setBrokerQ(e.target.value)} placeholder="ابحث باسم الوسيط أو الجوال..." style={{width:'100%',height:40,padding:'0 40px 0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:12.5,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',outline:'none',textAlign:'right',boxSizing:'border-box'}}/>
+</div>
+{brokerMode!=='new'&&<button onClick={()=>{setBrokerMode('new');setNewBroker(p=>({...p,name_ar:/[\u0600-\u06FF]/.test(brokerQ)?brokerQ:p.name_ar,phone:/^[0-9+]+$/.test(brokerQ)?brokerQ:p.phone,id_number:/^\d{10}$/.test(brokerQ)?brokerQ:p.id_number}))}} style={{height:40,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
+<span>وسيط جديد</span>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>}
+</div>}
+
+{/* Existing broker list */}
+{brokerMode!=='new'&&<div style={{display:'flex',flexDirection:'column',gap:8,overflowY:'auto',scrollbarWidth:'none',minHeight:0}}>
+{(()=>{const filtered=selBroker?[selBroker]:(brokerQ?brokers.filter(b=>(b.name_ar||'').includes(brokerQ)||(b.phone||'').includes(brokerQ)||(b.id_number||'').includes(brokerQ)).slice(0,2):brokers.slice(0,2));
+if(filtered.length===0)return<div style={{padding:'24px 20px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
+<div style={{width:42,height:42,borderRadius:'50%',background:'rgba(212,160,23,.08)',border:'1px dashed rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+</div>
+<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:700,fontFamily:F}}>لا يوجد وسيط بهذا البحث</div>
+<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>يمكنك إضافة وسيط جديد من الأعلى</div>
+</div>;
+return filtered.map(b=>{const sel=selBroker?.id===b.id;
+const country=b.nationality_id?lkCountries.find(co=>co.id===b.nationality_id):null
+const rawCode=(country?.code||country?.flag_emoji||'SA').toString().trim().toUpperCase()
+const flagCode=/^[A-Z]{2}$/.test(rawCode)?rawCode:'SA'
+const flagUrl=`https://flagcdn.com/w80/${flagCode.toLowerCase()}.png`
+const natLabel=country?.nationality_ar||'سعودي'
+return<div key={b.id} onClick={()=>setSelBroker(sel?null:b)} style={{padding:'12px 16px',borderRadius:12,cursor:'pointer',display:'flex',alignItems:'center',gap:14,position:'relative',
+border:sel?'1px solid rgba(212,160,23,.25)':'1px solid rgba(255,255,255,.06)',
+background:sel?'rgba(212,160,23,.04)':'rgba(255,255,255,.03)',
+transition:'all .22s ease'}}
+onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.2)'}}}
+onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
+{sel&&<div style={{position:'absolute',top:8,left:8,width:20,height:20,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(212,160,23,.45)'}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</div>}
+<div title={natLabel} style={{width:sel?52:48,height:sel?52:48,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(212,160,23,.15)':'none',position:'relative',overflow:'hidden'}}>
+<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+</div>
+<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:5}}>
+<div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+<span style={{fontSize:15,fontWeight:800,color:sel?C.gold:'rgba(255,255,255,.95)',letterSpacing:'-.2px'}}>{b.name_ar}</span>
+</div>
+<div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+{b.id_number&&<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,color:'var(--tx4)',fontWeight:600,padding:'3px 8px',borderRadius:6,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.05)'}}>
+<CreditCard size={11} strokeWidth={1.8}/>
+<span style={{direction:'ltr'}}>{b.id_number}</span>
+</span>}
+{b.phone&&<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,color:'var(--tx4)',fontWeight:600,padding:'3px 8px',borderRadius:6,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.05)'}}>
+<Phone size={11} strokeWidth={1.8}/>
+<span style={{direction:'ltr'}}>{fmtPhone(b.phone)}</span>
+</span>}
+</div>
+</div>
+</div>})})()}
+</div>}
+
+{/* New broker form — mirrors new client form exactly */}
+{brokerMode==='new'&&(()=>{
+const regLblS={fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5};
+const regInpS={width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',outline:'none',textAlign:'center',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'};
+return <div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative',display:'flex',flexDirection:'column',gap:12,marginTop:11}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F}}>تسجيل وسيط جديد</div>
+<button onClick={()=>{setBrokerMode('existing');setBrokerQ('');setNewBroker({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''});setNatOpenBroker(false);setNatSearchBroker('')}} style={{position:'absolute',top:-11,left:14,height:22,padding:'0 10px',borderRadius:6,border:'1px solid rgba(192,57,43,.3)',background:'#1a1a1a',color:C.red,cursor:'pointer',fontSize:10,fontFamily:F,fontWeight:700}}>إلغاء</button>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div>
+<div style={regLblS}>الاسم بالعربي <span style={{color:C.red}}>*</span></div>
+<input value={newBroker.name_ar} onChange={e=>{const v=e.target.value.replace(/[^\u0600-\u06FF\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewBroker(p=>({...p,name_ar:v}))}} placeholder="الاسم الأول والأخير" style={regInpS}/>
+</div>
+<div>
+<div style={regLblS}>الاسم بالإنجليزي <span style={{color:C.red}}>*</span></div>
+<input value={newBroker.name_en} onChange={e=>{const v=e.target.value.replace(/[^A-Za-z\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewBroker(p=>({...p,name_en:v}))}} placeholder="First and Last Name" style={{...regInpS,direction:'ltr'}}/>
+</div>
+<div>
+<div style={regLblS}>الجنسية <span style={{color:C.red}}>*</span></div>
+<div style={{position:'relative'}}>
+<div ref={natTriggerBrokerRef} onClick={openNatBrokerDropdown} style={{width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:newBroker.nationality_id?'rgba(255,255,255,.95)':'rgba(255,255,255,.38)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',boxSizing:'border-box'}}>
+<span style={{flex:1,textAlign:'center'}}>{(()=>{if(!newBroker.nationality_id)return'اختر الجنسية';const f=lkCountries.find(co=>co.id===newBroker.nationality_id);return f?f.nationality_ar:'اختر الجنسية'})()}</span>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0,transform:natOpenBroker?'rotate(180deg)':'none',transition:'.2s'}}><polyline points="6 9 12 15 18 9" stroke={C.bentoGold} strokeWidth="2.5" fill="none"/></svg>
+</div>
+{natOpenBroker&&<><div onClick={()=>{setNatOpenBroker(false);setNatSearchBroker('')}} style={{position:'fixed',inset:0,zIndex:9998}}/>
+<div style={{position:'fixed',top:natPosBroker.top,left:natPosBroker.left,width:natPosBroker.width,background:'#1a1a1a',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,maxHeight:220,display:'flex',flexDirection:'column',zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.6)',overflow:'hidden'}}>
+<div style={{padding:'6px 8px',borderBottom:'1px solid rgba(255,255,255,.05)',flexShrink:0}}>
+<input value={natSearchBroker} onChange={e=>setNatSearchBroker(e.target.value)} placeholder="بحث..." autoFocus style={{width:'100%',height:30,padding:'0 10px',border:'1px solid rgba(255,255,255,.05)',borderRadius:7,background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',fontFamily:F,fontSize:11,fontWeight:500,color:'var(--tx2)',outline:'none',textAlign:'center',boxSizing:'border-box'}}/>
+</div>
+<div style={{flex:1,overflowY:'auto',scrollbarWidth:'none'}}>
+{lkCountries.filter(co=>!natSearchBroker||(co.nationality_ar||'').includes(natSearchBroker)).map(co=><div key={co.id} onClick={()=>{setNewBroker(p=>({...p,nationality_id:co.id}));setNatOpenBroker(false);setNatSearchBroker('')}} style={{padding:'10px 14px',fontSize:13,fontWeight:newBroker.nationality_id===co.id?700:500,color:newBroker.nationality_id===co.id?C.bentoGold:'rgba(255,255,255,.7)',cursor:'pointer',textAlign:'center',borderBottom:'1px solid var(--bd2)',background:newBroker.nationality_id===co.id?'rgba(212,160,23,.06)':'transparent'}}>{co.nationality_ar}</div>)}
+{lkCountries.filter(co=>!natSearchBroker||(co.nationality_ar||'').includes(natSearchBroker)).length===0&&<div style={{padding:12,textAlign:'center',fontSize:10,color:'var(--tx5)'}}>لا توجد نتائج</div>}
+</div>
+</div></>}
+</div>
+</div>
+<div>
+<div style={regLblS}>رقم الهوية <span style={{color:C.red}}>*</span></div>
+<input value={newBroker.id_number} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);setNewBroker(p=>({...p,id_number:v}))}} placeholder="XXXXXXXXXX" inputMode="numeric" maxLength={10} style={{...regInpS,direction:'ltr'}}/>
+</div>
+<div>
+<div style={regLblS}>رقم الجوال <span style={{color:C.red}}>*</span></div>
+<div style={{display:'flex',direction:'ltr',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,overflow:'hidden',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}>
+<div style={{height:42,padding:'0 10px',background:'rgba(255,255,255,.04)',borderRight:'1px solid rgba(255,255,255,.05)',display:'flex',alignItems:'center',fontSize:12,fontWeight:700,color:C.bentoGold,flexShrink:0,fontFamily:F}}>+966</div>
+<input value={(()=>{const r=newBroker.phone;if(!r)return'';if(r.length<=2)return r;if(r.length<=5)return r.slice(0,2)+' '+r.slice(2);return r.slice(0,2)+' '+r.slice(2,5)+' '+r.slice(5)})()} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,9);setNewBroker(p=>({...p,phone:v}))}} placeholder="5X XXX XXXX" inputMode="numeric" maxLength={12} style={{width:'100%',height:42,padding:'0 12px',border:'none',background:'transparent',fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',textAlign:'left'}}/>
+</div>
+</div>
+</div>
+</div>;
+})()}
+</div>
+{brokerMode!=='new'&&<div style={{flexShrink:0,display:'flex',flexDirection:'column',gap:6}}>
+<div style={{fontSize:11.5,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,display:'flex',alignItems:'center',gap:6}}>ملاحظة <span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.35)'}}>(اختيارية)</span></div>
+<textarea value={clientNote} onChange={e=>setClientNote(e.target.value)} placeholder="أدخل ملاحظة تظهر في الفاتورة..." rows={1} style={{width:'100%',padding:'8px 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:12.5,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',outline:'none',resize:'none',textAlign:'right',boxSizing:'border-box',display:'block',lineHeight:'1.4'}}/>
+</div>}
 </div>}
 
 {/* Summary screen — full summary, last step before submission */}
@@ -3213,17 +3441,19 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.02)'}}>
 })()}
 
 </div>
+</div>
+</div>
 
 {/* ── Footer ── */}
 <div style={{padding:'10px 28px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
 <div style={{display:'flex',gap:8}}>
 {step===1?(showOthers?<button onClick={()=>setShowOthers(false)} className="sr-next-btn dir-back">
 <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
-<span>الرجوع</span>
+<span>السابق</span>
 </button>:<div/>)
 :<button onClick={goBack} className="sr-next-btn dir-back">
 <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
-<span>الرجوع</span>
+<span>السابق</span>
 </button>}
 </div>
 

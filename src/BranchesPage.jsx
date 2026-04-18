@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const F = "'Cairo', sans-serif";
-const C = { gold: '#c9a84c', red: '#c0392b', blue: '#3483b4', ok: '#27a046' };
+const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046' };
 const nm = v => Number(v || 0).toLocaleString('en-US');
 const fS = { width: '100%', height: 42, padding: '0 14px', border: '1.5px solid var(--inputBd,rgba(255,255,255,.12))', borderRadius: 10, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg,rgba(255,255,255,.07))' };
 
@@ -153,9 +153,9 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
   ];
 
   return <div onClick={() => setViewRow(null)} style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg,rgba(14,14,14,.8))', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 16 }}>
-    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(920px,95vw)', height: 'min(650px,88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.4)', border: '1px solid rgba(201,168,76,.15)' }}>
+    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(920px,95vw)', height: 'min(650px,88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.4)', border: '1px solid rgba(212,160,23,.15)' }}>
       {/* Header */}
-      <div style={{ background: 'var(--bg)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(201,168,76,.12)', flexShrink: 0 }}>
+      <div style={{ background: 'var(--bg)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(212,160,23,.12)', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <div style={{ width: 48, height: 48, borderRadius: 14, background: viewRow.is_active !== false ? 'rgba(39,160,70,.08)' : 'rgba(153,153,153,.08)', border: '1.5px solid ' + (viewRow.is_active !== false ? 'rgba(39,160,70,.12)' : 'rgba(153,153,153,.1)'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={viewRow.is_active !== false ? C.ok : '#999'} strokeWidth="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" /></svg>
@@ -167,21 +167,21 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
             </div>
             {viewRow.name_en && <div style={{ fontSize: 12, color: 'var(--tx4)', direction: 'ltr' }}>{viewRow.name_en}</div>}
             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-              {viewRow.code && <span style={{ fontSize: 10, color: C.gold, background: 'rgba(201,168,76,.08)', padding: '1px 8px', borderRadius: 4, direction: 'ltr', fontWeight: 600 }}>{viewRow.code}</span>}
+              {viewRow.code && <span style={{ fontSize: 10, color: C.gold, background: 'rgba(212,160,23,.08)', padding: '1px 8px', borderRadius: 4, direction: 'ltr', fontWeight: 600 }}>{viewRow.code}</span>}
               {viewRow.city_name && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{viewRow.region_name} — {viewRow.city_name}</span>}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => openEdit(viewRow)} style={{ height: 32, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.08)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>تعديل</button>
+          <button onClick={() => openEdit(viewRow)} style={{ height: 32, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.08)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>تعديل</button>
           <button onClick={() => setViewRow(null)} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--hoverBg)', border: '1px solid var(--bd)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
       </div>
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <div style={{ width: 140, background: 'var(--bg)', borderLeft: '1px solid var(--bd2)', padding: '12px 6px', flexShrink: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
-          {vt.map(t => <div key={t.id} onClick={() => setViewTab(t.id)} style={{ padding: '10px 10px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: viewTab === t.id ? 700 : 500, color: viewTab === t.id ? C.gold : 'var(--tx4)', background: viewTab === t.id ? 'rgba(201,168,76,.08)' : 'transparent', border: viewTab === t.id ? '1px solid rgba(201,168,76,.12)' : '1px solid transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '.15s' }}>
-            <span>{t.l}</span>{t.n !== undefined && <span style={{ fontSize: 9, fontWeight: 700, color: viewTab === t.id ? C.gold : 'var(--tx6)', background: viewTab === t.id ? 'rgba(201,168,76,.15)' : 'var(--hoverBg,rgba(255,255,255,.04))', padding: '1px 6px', borderRadius: 4, minWidth: 18, textAlign: 'center' }}>{t.n}</span>}
+          {vt.map(t => <div key={t.id} onClick={() => setViewTab(t.id)} style={{ padding: '10px 10px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: viewTab === t.id ? 700 : 500, color: viewTab === t.id ? C.gold : 'var(--tx4)', background: viewTab === t.id ? 'rgba(212,160,23,.08)' : 'transparent', border: viewTab === t.id ? '1px solid rgba(212,160,23,.12)' : '1px solid transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '.15s' }}>
+            <span>{t.l}</span>{t.n !== undefined && <span style={{ fontSize: 9, fontWeight: 700, color: viewTab === t.id ? C.gold : 'var(--tx6)', background: viewTab === t.id ? 'rgba(212,160,23,.15)' : 'var(--hoverBg,rgba(255,255,255,.04))', padding: '1px 6px', borderRadius: 4, minWidth: 18, textAlign: 'center' }}>{t.n}</span>}
           </div>)}
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', scrollbarWidth: 'none' }}>
@@ -257,7 +257,7 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{u.name_ar}</div>
                   <div style={{ fontSize: 10, color: rc, marginTop: 2 }}>{u.role_name || u.roles?.name_ar || '—'}</div>
                 </div>
-                {isManager && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>المدير</span>}
+                {isManager && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(212,160,23,.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>المدير</span>}
               </div>;
             })}</div>}</div>}
 
@@ -290,7 +290,7 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{a.bank_name}</span>
                       {a.account_purpose && <span style={{ fontSize: 8, color: 'var(--tx5)', background: 'rgba(255,255,255,.04)', padding: '2px 6px', borderRadius: 4 }}>{a.account_purpose}</span>}
                     </div>
-                    {a.is_primary && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(201,168,76,.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>رئيسي</span>}
+                    {a.is_primary && <span style={{ fontSize: 9, color: C.gold, background: 'rgba(212,160,23,.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>رئيسي</span>}
                   </div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: lowBal ? '#e67e22' : C.ok, marginBottom: 8 }}>{nm(a.current_balance || 0)} <span style={{ fontSize: 10, opacity: .5 }}>ر.س</span></div>
                   {lowBal && <div style={{ fontSize: 9, color: '#e67e22', background: 'rgba(230,126,34,.06)', padding: '4px 8px', borderRadius: 5, marginBottom: 8, display: 'inline-block' }}>رصيد منخفض — الحد الأدنى {nm(a.min_balance_alert)}</div>}
@@ -384,22 +384,22 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
     {/* Filters Row 1: Branch */}
     <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
       <span style={{ fontSize: 10, color: 'var(--tx5)', marginLeft: 4 }}>الفرع:</span>
-      <button onClick={() => setFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: filter === 'all' ? 700 : 500, color: filter === 'all' ? C.gold : 'var(--tx4)', background: filter === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: filter === 'all' ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل ({banks.length})</button>
-      {branches.map(br => <button key={br.branch_id} onClick={() => setFilter(br.branch_id)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: filter === br.branch_id ? 700 : 500, color: filter === br.branch_id ? C.gold : 'var(--tx4)', background: filter === br.branch_id ? 'rgba(201,168,76,.08)' : 'transparent', border: filter === br.branch_id ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{br.name_ar}</button>)}
+      <button onClick={() => setFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: filter === 'all' ? 700 : 500, color: filter === 'all' ? C.gold : 'var(--tx4)', background: filter === 'all' ? 'rgba(212,160,23,.08)' : 'transparent', border: filter === 'all' ? '1px solid rgba(212,160,23,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل ({banks.length})</button>
+      {branches.map(br => <button key={br.branch_id} onClick={() => setFilter(br.branch_id)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: filter === br.branch_id ? 700 : 500, color: filter === br.branch_id ? C.gold : 'var(--tx4)', background: filter === br.branch_id ? 'rgba(212,160,23,.08)' : 'transparent', border: filter === br.branch_id ? '1px solid rgba(212,160,23,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{br.name_ar}</button>)}
     </div>
     {/* Filters Row 2: Bank + Purpose */}
     <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
       <span style={{ fontSize: 10, color: 'var(--tx5)', marginLeft: 4 }}>الغرض:</span>
-      <button onClick={() => setPurposeFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: purposeFilter === 'all' ? 700 : 500, color: purposeFilter === 'all' ? C.gold : 'var(--tx4)', background: purposeFilter === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: purposeFilter === 'all' ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل ({filtered.length})</button>
-      {purposeNames.map(p => { const cnt = filtered.filter(b => (b.account_purpose || 'عام') === p).length; return <button key={p} onClick={() => setPurposeFilter(p)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: purposeFilter === p ? 700 : 500, color: purposeFilter === p ? C.gold : 'var(--tx4)', background: purposeFilter === p ? 'rgba(201,168,76,.08)' : 'transparent', border: purposeFilter === p ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{purposeMap[p] || p} ({cnt})</button>; })}
+      <button onClick={() => setPurposeFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: purposeFilter === 'all' ? 700 : 500, color: purposeFilter === 'all' ? C.gold : 'var(--tx4)', background: purposeFilter === 'all' ? 'rgba(212,160,23,.08)' : 'transparent', border: purposeFilter === 'all' ? '1px solid rgba(212,160,23,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل ({filtered.length})</button>
+      {purposeNames.map(p => { const cnt = filtered.filter(b => (b.account_purpose || 'عام') === p).length; return <button key={p} onClick={() => setPurposeFilter(p)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: purposeFilter === p ? 700 : 500, color: purposeFilter === p ? C.gold : 'var(--tx4)', background: purposeFilter === p ? 'rgba(212,160,23,.08)' : 'transparent', border: purposeFilter === p ? '1px solid rgba(212,160,23,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{purposeMap[p] || p} ({cnt})</button>; })}
       <span style={{ fontSize: 10, color: 'var(--tx5)', marginRight: 8, marginLeft: 12 }}>البنك:</span>
-      <button onClick={() => setBankFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: bankFilter === 'all' ? 700 : 500, color: bankFilter === 'all' ? C.gold : 'var(--tx4)', background: bankFilter === 'all' ? 'rgba(201,168,76,.08)' : 'transparent', border: bankFilter === 'all' ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل</button>
-      {bankNames.map(n => <button key={n} onClick={() => setBankFilter(n)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: bankFilter === n ? 700 : 500, color: bankFilter === n ? C.gold : 'var(--tx4)', background: bankFilter === n ? 'rgba(201,168,76,.08)' : 'transparent', border: bankFilter === n ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{n}</button>)}
+      <button onClick={() => setBankFilter('all')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: bankFilter === 'all' ? 700 : 500, color: bankFilter === 'all' ? C.gold : 'var(--tx4)', background: bankFilter === 'all' ? 'rgba(212,160,23,.08)' : 'transparent', border: bankFilter === 'all' ? '1px solid rgba(212,160,23,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>الكل</button>
+      {bankNames.map(n => <button key={n} onClick={() => setBankFilter(n)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: bankFilter === n ? 700 : 500, color: bankFilter === n ? C.gold : 'var(--tx4)', background: bankFilter === n ? 'rgba(212,160,23,.08)' : 'transparent', border: bankFilter === n ? '1px solid rgba(212,160,23,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{n}</button>)}
     </div>
     {filtered2.length === 0 ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx6)' }}>لا توجد حسابات</div> :
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gap: 14 }}>{filtered2.map(a => {
         const br = branches.find(b => b.branch_id === a.branch_id); const bal = Number(a.current_balance || 0); const minA = Number(a.min_balance_alert || 0); const isLow = minA > 0 && bal <= minA;
-        return <div key={a.id} onClick={() => { setViewAcct(a); setAcctTab('data'); setTxnFilter('all'); }} style={{ background: 'var(--bg)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.2)' : 'var(--bd)'), borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = isLow ? 'rgba(192,57,43,.2)' : 'var(--bd)'}>
+        return <div key={a.id} onClick={() => { setViewAcct(a); setAcctTab('data'); setTxnFilter('all'); }} style={{ background: 'var(--bg)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.2)' : 'var(--bd)'), borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(212,160,23,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = isLow ? 'rgba(192,57,43,.2)' : 'var(--bd)'}>
           {isLow && <div style={{ padding: '5px 14px', background: 'rgba(192,57,43,.06)', borderBottom: '1px solid rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.red }} />
             <span style={{ fontSize: 9, fontWeight: 600, color: C.red }}>رصيد منخفض</span>
@@ -407,12 +407,12 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
           <div style={{ padding: '14px 18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: isLow ? 'rgba(192,57,43,.08)' : 'rgba(201,168,76,.08)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.12)' : 'rgba(201,168,76,.12)'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isLow ? C.red : C.gold} strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M2 10h20" /></svg></div>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: isLow ? 'rgba(192,57,43,.08)' : 'rgba(212,160,23,.08)', border: '1px solid ' + (isLow ? 'rgba(192,57,43,.12)' : 'rgba(212,160,23,.12)'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isLow ? C.red : C.gold} strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M2 10h20" /></svg></div>
                 <div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{a.bank_name}</div>{a.account_name && <div style={{ fontSize: 10, color: 'var(--tx4)' }}>{a.account_name}</div>}</div>
               </div>
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                 {a.account_purpose && <span style={{ fontSize: 8, padding: '2px 7px', borderRadius: 4, background: (purposeClr[a.account_purpose] || '#888') + '12', border: '1px solid ' + (purposeClr[a.account_purpose] || '#888') + '20', color: purposeClr[a.account_purpose] || '#888', fontWeight: 600 }}>{purposeMap[a.account_purpose] || a.account_purpose}</span>}
-                {a.is_primary && <span style={{ fontSize: 8, padding: '2px 7px', borderRadius: 4, background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.15)', color: C.gold, fontWeight: 700 }}>رئيسي</span>}
+                {a.is_primary && <span style={{ fontSize: 8, padding: '2px 7px', borderRadius: 4, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.15)', color: C.gold, fontWeight: 700 }}>رئيسي</span>}
               </div>
             </div>
             {br && <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
@@ -465,15 +465,15 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
       const SH2 = ({ t, c }) => <div style={{ fontSize: 12, fontWeight: 700, color: c || C.gold, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid ' + (c || C.gold) + '20' }}>{t}</div>;
       const atabs = [{ id: 'data', l: 'البيانات' }, { id: 'txns', l: 'الحركات', n: txns.length }, { id: 'payments', l: 'المدفوعات', n: 0 }, { id: 'recon', l: 'التسويات', n: pending }];
       return <div onClick={() => setViewAcct(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 16 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(920px,95vw)', height: 'min(650px,88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.4)', border: '1px solid rgba(201,168,76,.15)' }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(920px,95vw)', height: 'min(650px,88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.4)', border: '1px solid rgba(212,160,23,.15)' }}>
           {/* Header */}
-          <div style={{ background: 'var(--bg)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(201,168,76,.12)', flexShrink: 0 }}>
+          <div style={{ background: 'var(--bg)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(212,160,23,.12)', flexShrink: 0 }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(201,168,76,.08)', border: '1.5px solid rgba(201,168,76,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M2 10h20" /></svg></div>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(212,160,23,.08)', border: '1.5px solid rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M2 10h20" /></svg></div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>{a.bank_name}</span>
-                  {a.is_primary && <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 5, background: 'rgba(201,168,76,.1)', color: C.gold, fontWeight: 700 }}>رئيسي</span>}
+                  {a.is_primary && <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 5, background: 'rgba(212,160,23,.1)', color: C.gold, fontWeight: 700 }}>رئيسي</span>}
                   {a.account_purpose && <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 5, background: (purposeClr[a.account_purpose] || '#888') + '12', color: purposeClr[a.account_purpose] || '#888', fontWeight: 600 }}>{purposeMap[a.account_purpose] || a.account_purpose}</span>}
                 </div>
                 {a.account_name && <div style={{ fontSize: 12, color: 'var(--tx4)' }}>{a.account_name}</div>}
@@ -484,15 +484,15 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => { setViewAcct(null); setForm({ _id: a.id, bank_name: a.bank_name || '', account_name: a.account_name || '', account_number: a.account_number || '', iban: a.iban || '', swift_code: a.swift_code || '', branch_id: a.branch_id || '', is_primary: String(a.is_primary || false), is_active: String(a.is_active !== false), notes: a.notes || '' }); setPop(true); }} style={{ height: 32, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.08)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>تعديل</button>
+              <button onClick={() => { setViewAcct(null); setForm({ _id: a.id, bank_name: a.bank_name || '', account_name: a.account_name || '', account_number: a.account_number || '', iban: a.iban || '', swift_code: a.swift_code || '', branch_id: a.branch_id || '', is_primary: String(a.is_primary || false), is_active: String(a.is_active !== false), notes: a.notes || '' }); setPop(true); }} style={{ height: 32, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.08)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>تعديل</button>
               <button onClick={() => setViewAcct(null)} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--hoverBg)', border: '1px solid var(--bd)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
           </div>
           {/* Body */}
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
             <div style={{ width: 140, background: 'var(--bg)', borderLeft: '1px solid var(--bd2)', padding: '12px 6px', flexShrink: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
-              {atabs.map(t => <div key={t.id} onClick={() => setAcctTab(t.id)} style={{ padding: '10px 10px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: acctTab === t.id ? 700 : 500, color: acctTab === t.id ? C.gold : 'var(--tx4)', background: acctTab === t.id ? 'rgba(201,168,76,.08)' : 'transparent', border: acctTab === t.id ? '1px solid rgba(201,168,76,.12)' : '1px solid transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '.15s' }}>
-                <span>{t.l}</span>{t.n !== undefined && t.n > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: acctTab === t.id ? C.gold : 'var(--tx6)', background: acctTab === t.id ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.04)', padding: '1px 6px', borderRadius: 4, minWidth: 18, textAlign: 'center' }}>{t.n}</span>}
+              {atabs.map(t => <div key={t.id} onClick={() => setAcctTab(t.id)} style={{ padding: '10px 10px', borderRadius: 8, marginBottom: 3, fontSize: 11, fontWeight: acctTab === t.id ? 700 : 500, color: acctTab === t.id ? C.gold : 'var(--tx4)', background: acctTab === t.id ? 'rgba(212,160,23,.08)' : 'transparent', border: acctTab === t.id ? '1px solid rgba(212,160,23,.12)' : '1px solid transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '.15s' }}>
+                <span>{t.l}</span>{t.n !== undefined && t.n > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: acctTab === t.id ? C.gold : 'var(--tx6)', background: acctTab === t.id ? 'rgba(212,160,23,.15)' : 'rgba(255,255,255,.04)', padding: '1px 6px', borderRadius: 4, minWidth: 18, textAlign: 'center' }}>{t.n}</span>}
               </div>)}
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', scrollbarWidth: 'none' }}>
@@ -528,7 +528,7 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
                 </div>
                 {/* Filter chips */}
                 <div style={{ display: 'flex', gap: 4, marginBottom: 14, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  {[['all', 'الكل', txns.length], ['deposit', 'إيداع', txns.filter(t => t.transaction_type === 'deposit').length], ['withdrawal', 'سحب', txns.filter(t => t.transaction_type === 'withdrawal').length], ['transfer_in', 'وارد', txns.filter(t => t.transaction_type === 'transfer_in').length], ['transfer_out', 'صادر', txns.filter(t => t.transaction_type === 'transfer_out').length]].map(([k, l, n]) => <button key={k} onClick={() => setTxnFilter(k)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: txnFilter === k ? 700 : 500, color: txnFilter === k ? C.gold : 'var(--tx4)', background: txnFilter === k ? 'rgba(201,168,76,.08)' : 'transparent', border: txnFilter === k ? '1px solid rgba(201,168,76,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{l} ({n})</button>)}
+                  {[['all', 'الكل', txns.length], ['deposit', 'إيداع', txns.filter(t => t.transaction_type === 'deposit').length], ['withdrawal', 'سحب', txns.filter(t => t.transaction_type === 'withdrawal').length], ['transfer_in', 'وارد', txns.filter(t => t.transaction_type === 'transfer_in').length], ['transfer_out', 'صادر', txns.filter(t => t.transaction_type === 'transfer_out').length]].map(([k, l, n]) => <button key={k} onClick={() => setTxnFilter(k)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: txnFilter === k ? 700 : 500, color: txnFilter === k ? C.gold : 'var(--tx4)', background: txnFilter === k ? 'rgba(212,160,23,.08)' : 'transparent', border: txnFilter === k ? '1px solid rgba(212,160,23,.15)' : '1px solid rgba(255,255,255,.06)', cursor: 'pointer', fontFamily: F }}>{l} ({n})</button>)}
                 </div>
                 {/* Transaction list */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -604,7 +604,7 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
       </div>;
     })()}
     {pop && <div onClick={() => setPop(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(560px,95vw)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.12)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(560px,95vw)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(212,160,23,.12)' }}>
         <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,' + C.gold + ',transparent)' }} />
         <div style={{ background: 'var(--bg)', padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{form._id ? 'تعديل' : 'إضافة حساب'}</div><button onClick={() => setPop(false)} style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--hoverBg)', border: '1px solid var(--bd)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button></div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -616,7 +616,7 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
           </div>)}
         </div></div>
         <div style={{ padding: '14px 22px', borderTop: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', flexDirection: 'row-reverse' }}>
-          <button onClick={saveBankAccount} disabled={saving} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>{saving ? '...' : 'حفظ'}</button>
+          <button onClick={saveBankAccount} disabled={saving} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>{saving ? '...' : 'حفظ'}</button>
           <button onClick={() => setPop(false)} style={{ height: 42, padding: '0 18px', background: 'transparent', color: 'var(--tx4)', border: '1.5px solid var(--bd)', borderRadius: 10, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
         </div>
       </div>
@@ -627,14 +627,14 @@ function BankAccountsTab({ sb, toast, user, lang, branches, banks, docs, reload 
 /* ═══════════════════════════════════════════════════════════════
    MAIN EXPORT — BranchesPage
    ═══════════════════════════════════════════════════════════════ */
-export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPage, adminProps }) {
+export default function BranchesPage({ sb, toast, user, lang, showStaff, singleTab, AdminPage, adminProps }) {
   const T = (a, e) => (lang !== 'en' ? a : e);
   const [branches, setBranches] = useState([]); const [users, setUsers] = useState([]); const [banks, setBanks] = useState([]);
   const [regions, setRegions] = useState([]); const [cities, setCities] = useState([]);
   const [contracts, setContracts] = useState([]); const [docs, setDocs] = useState([]); const [bills, setBills] = useState([]);
   const [lookups, setLookups] = useState({});
   const [loading, setLoading] = useState(true);
-  const [mainTab, setMainTab] = useState('branches'); const [viewRow, setViewRow] = useState(null);
+  const [mainTab, setMainTab] = useState(singleTab || 'branches'); const [viewRow, setViewRow] = useState(null);
   const [pop, setPop] = useState(false); const [form, setForm] = useState({}); const [saving, setSaving] = useState(false); const [wizStep, setWizStep] = useState(0);
   const [districtsList, setDistrictsList] = useState([]);
 
@@ -722,19 +722,18 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
   const wizSteps = isEdit ? [] : addSteps;
   const step = wizSteps[wizStep] || wizSteps[0];
 
-  return <div>
+  return <div style={{position:'relative'}}>
     {/* Header */}
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-      <div><div style={{ fontSize: 22, fontWeight: 800, color: 'var(--tx)' }}>المكاتب والموظفين</div><div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 4 }}>إدارة المكاتب والفروع والموظفين</div></div>
-      <button onClick={openAdd} style={{ height: 38, padding: '0 20px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ مكتب</button>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div><div style={{ fontSize: 22, fontWeight: 800, color: 'var(--tx)' }}>{singleTab==='staff'?(lang==='ar'?'الموظفين':'Staff'):singleTab==='branches'?(lang==='ar'?'المكاتب':'Offices'):(lang==='ar'?'المكاتب والموظفين':'Offices & Staff')}</div><div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 4 }}>{singleTab==='staff'?(lang==='ar'?'إدارة الموظفين وصلاحياتهم':'Manage staff and permissions'):singleTab==='branches'?(lang==='ar'?'إدارة المكاتب والفروع':'Manage offices and branches'):(lang==='ar'?'إدارة المكاتب والفروع والموظفين':'Manage offices, branches, and staff')}</div></div>
     </div>
 
     {/* Sub-tabs: side list */}
     <div style={{ display: 'flex', gap: 0 }}>
-    <div style={{ width: 90, flexShrink: 0, borderLeft: lang === 'ar' ? '1px solid rgba(255,255,255,.05)' : 'none', borderRight: lang !== 'ar' ? '1px solid rgba(255,255,255,.05)' : 'none', paddingTop: 2 }}>
+    {!singleTab && <div style={{ width: 90, flexShrink: 0, borderLeft: lang === 'ar' ? '1px solid rgba(255,255,255,.05)' : 'none', borderRight: lang !== 'ar' ? '1px solid rgba(255,255,255,.05)' : 'none', paddingTop: 2 }}>
       {[['branches', 'المكاتب', branches.length], ['bank_accounts', 'البنكية', banks.length], ...(showStaff ? [['staff', 'الموظفين', 0],['attendance_tab', 'الحضور', 0],['roles', 'الأدوار', 0]] : [])].map(([k, l, n]) => <div key={k} onClick={() => setMainTab(k)} style={{ padding: '6px 8px', fontSize: 10, fontWeight: mainTab === k ? 700 : 500, color: mainTab === k ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRight: lang === 'ar' && mainTab === k ? '2px solid ' + C.gold : '2px solid transparent', borderLeft: lang !== 'ar' && mainTab === k ? '2px solid ' + C.gold : '2px solid transparent', transition: '.1s' }}><span>{l}</span>{n > 0 && <span style={{ fontSize: 7, fontWeight: 700, color: 'rgba(255,255,255,.2)', padding: '0 4px' }}>{n}</span>}</div>)}
-    </div>
-    <div style={{ flex: 1, paddingRight: lang === 'ar' ? 8 : 0, paddingLeft: lang !== 'ar' ? 8 : 0 }}>
+    </div>}
+    <div style={{ flex: 1, paddingRight: lang === 'ar' && !singleTab ? 8 : 0, paddingLeft: lang !== 'ar' && !singleTab ? 8 : 0 }}>
 
     {/* Branches tab */}
     {mainTab === 'branches' && <>
@@ -757,7 +756,7 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
             const cdClr = cdDays === null ? '#555' : cdDays < 0 ? C.red : cdDays < 30 ? '#e67e22' : cdDays < 90 ? C.gold : C.ok;
             const borderClr = !isActive ? 'rgba(153,153,153,.15)' : (licDays !== null && licDays < 30) ? 'rgba(192,57,43,.2)' : 'rgba(39,160,70,.15)';
             const licAlert = licDays !== null && licDays > 0 && licDays <= 30;
-            return <div key={b.branch_id} onClick={() => { setViewRow(b); }} style={{ background: 'var(--bg)', border: '1.5px solid ' + borderClr, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s', opacity: isActive ? 1 : .6 }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(201,168,76,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = borderClr}>
+            return <div key={b.branch_id} onClick={() => { setViewRow(b); }} style={{ background: 'var(--bg)', border: '1.5px solid ' + borderClr, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s', opacity: isActive ? 1 : .6 }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(212,160,23,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = borderClr}>
               {/* Alert banner */}
               {licAlert && <div style={{ padding: '5px 14px', background: 'rgba(192,57,43,.06)', borderBottom: '1px solid rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
@@ -778,7 +777,7 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
                   </div>
                   {b.code && <div style={{ fontSize: 10, color: 'var(--tx5)', direction: 'ltr' }}>{b.code}</div>}
                 </div>
-                <div onClick={e => { e.stopPropagation(); openEdit(b); }} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(201,168,76,.15)', background: 'rgba(201,168,76,.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div onClick={e => { e.stopPropagation(); openEdit(b); }} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(212,160,23,.15)', background: 'rgba(212,160,23,.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
                 </div>
               </div>
@@ -819,7 +818,7 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
 
     {/* ═══ Wizard Modal ═══ */}
     {pop && <div onClick={() => setPop(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg,rgba(14,14,14,.8))', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(720px,95vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(201,168,76,.12)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(720px,95vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(212,160,23,.12)' }}>
         <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,' + C.gold + ' 30%,#dcc06e 50%,' + C.gold + ' 70%,transparent)' }} />
         <div style={{ background: 'var(--bg)', padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--bd2)' }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{isEdit ? 'تعديل بيانات المكتب' : 'إضافة مكتب جديد'}</div>
@@ -827,7 +826,7 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
         </div>
         {!isEdit && <div style={{ display: 'flex', padding: '0 22px', background: 'var(--bg)', borderBottom: '1px solid var(--bd2)', gap: 0 }}>
           {wizSteps.map((s, i) => <div key={s.id} onClick={() => setWizStep(i)} style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', borderBottom: wizStep === i ? '2.5px solid ' + C.gold : '2.5px solid transparent', transition: 'all .2s' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: wizStep === i ? 'rgba(201,168,76,.12)' : i < wizStep ? 'rgba(39,160,70,.08)' : 'var(--hoverBg)', border: '1.5px solid ' + (wizStep === i ? 'rgba(201,168,76,.25)' : i < wizStep ? 'rgba(39,160,70,.15)' : 'var(--bd2)'), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={wizStep === i ? C.gold : i < wizStep ? C.ok : 'var(--tx5)'} strokeWidth="1.8"><path d={s.ico} /></svg></div>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: wizStep === i ? 'rgba(212,160,23,.12)' : i < wizStep ? 'rgba(39,160,70,.08)' : 'var(--hoverBg)', border: '1.5px solid ' + (wizStep === i ? 'rgba(212,160,23,.25)' : i < wizStep ? 'rgba(39,160,70,.15)' : 'var(--bd2)'), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={wizStep === i ? C.gold : i < wizStep ? C.ok : 'var(--tx5)'} strokeWidth="1.8"><path d={s.ico} /></svg></div>
             <span style={{ fontSize: 10, fontWeight: wizStep === i ? 700 : 500, color: wizStep === i ? C.gold : i < wizStep ? C.ok : 'var(--tx5)', whiteSpace: 'nowrap' }}>{s.l}</span>
           </div>)}
         </div>}
@@ -849,7 +848,7 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
                 {[['sat','السبت'],['sun','الأحد'],['mon','الاثنين'],['tue','الثلاثاء'],['wed','الأربعاء'],['thu','الخميس'],['fri','الجمعة']].map(([k,l]) => {
                   const days = Array.isArray(form.working_days) ? form.working_days : [];
                   const on = days.includes(k);
-                  return <button key={k} type="button" onClick={() => setForm(p => ({ ...p, working_days: on ? days.filter(d => d !== k) : [...days, k] }))} style={{ height: 36, padding: '0 14px', borderRadius: 8, border: on ? '1.5px solid rgba(201,168,76,.4)' : '1.5px solid rgba(255,255,255,.1)', background: on ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.04)', color: on ? C.gold : 'var(--tx5)', fontFamily: F, fontSize: 12, fontWeight: on ? 700 : 500, cursor: 'pointer', transition: '.15s' }}>{l}</button>;
+                  return <button key={k} type="button" onClick={() => setForm(p => ({ ...p, working_days: on ? days.filter(d => d !== k) : [...days, k] }))} style={{ height: 36, padding: '0 14px', borderRadius: 8, border: on ? '1.5px solid rgba(212,160,23,.4)' : '1.5px solid rgba(255,255,255,.1)', background: on ? 'rgba(212,160,23,.15)' : 'rgba(255,255,255,.04)', color: on ? C.gold : 'var(--tx5)', fontFamily: F, fontSize: 12, fontWeight: on ? 700 : 500, cursor: 'pointer', transition: '.15s' }}>{l}</button>;
                 })}
               </div>
             </div>
@@ -902,8 +901,8 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, AdminPa
             <button onClick={() => setPop(false)} style={{ height: 42, padding: '0 18px', background: 'transparent', color: 'var(--tx5)', border: '1px solid var(--bd2)', borderRadius: 10, fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>إلغاء</button>
           </div>
           <div>
-            {!isEdit && wizStep < wizSteps.length - 1 ? <button onClick={() => setWizStep(p => p + 1)} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1px solid rgba(201,168,76,.2)', background: 'rgba(201,168,76,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>التالي<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg></button>
-              : <button onClick={saveBranch} disabled={saving} style={{ height: 42, padding: '0 28px', borderRadius: 10, border: '1px solid rgba(201,168,76,.3)', background: 'rgba(201,168,76,.15)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', opacity: saving ? .6 : 1 }}>{saving ? '...' : isEdit ? 'حفظ التعديلات' : 'إضافة المكتب'}</button>}
+            {!isEdit && wizStep < wizSteps.length - 1 ? <button onClick={() => setWizStep(p => p + 1)} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>التالي<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg></button>
+              : <button onClick={saveBranch} disabled={saving} style={{ height: 42, padding: '0 28px', borderRadius: 10, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.15)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', opacity: saving ? .6 : 1 }}>{saving ? '...' : isEdit ? 'حفظ التعديلات' : 'إضافة المكتب'}</button>}
           </div>
         </div>
       </div>

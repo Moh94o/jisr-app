@@ -1,6 +1,6 @@
 import React,{useState,useEffect,useCallback} from 'react'
 const F="'Cairo','Tajawal',sans-serif"
-const C={gold:'#c9a84c',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
+const C={gold:'#D4A017',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
 const nm=v=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:2})
 
 const catMap={rent:'إيجار',utilities:'كهرباء/ماء',telecom:'إنترنت/اتصالات',maintenance:'صيانة',insurance:'تأمين',office_supplies:'مستلزمات مكتبية',supplies:'مستلزمات',transport:'مواصلات',marketing:'تسويق',legal:'قانوني',salary:'رواتب',salaries:'رواتب',gov_fee:'رسوم حكومية',government_fees:'رسوم حكومية',subscription:'اشتراكات',travel:'سفر',other:'أخرى'}
@@ -76,7 +76,7 @@ return<div style={{fontFamily:F,direction:'rtl'}}>
 <div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>المدفوعات والمصاريف</div>
 <div style={{fontSize:11,color:'var(--tx5)',marginTop:4}}>متابعة عمليات السداد والتحقق من ربطها بالمعاملات</div>
 </div>
-<button onClick={()=>{setForm({amount:'',category:'other',description:'',date:new Date().toISOString().slice(0,10),payment_method:'cash',vendor_name:''});setPop('add')}} style={{height:34,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.1)',color:C.gold,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer'}}>+ إضافة مصروف</button>
+<button onClick={()=>{setForm({amount:'',category:'other',description:'',date:new Date().toISOString().slice(0,10),payment_method:'cash',vendor_name:''});setPop('add')}} style={{height:34,padding:'0 16px',borderRadius:8,border:'1px solid rgba(212,160,23,.2)',background:'rgba(212,160,23,.1)',color:C.gold,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer'}}>+ إضافة مصروف</button>
 </div>
 
 {/* Warning: suspicious */}
@@ -102,7 +102,7 @@ return<div style={{fontFamily:F,direction:'rtl'}}>
 {/* Tabs */}
 <div style={{display:'flex',gap:4,marginBottom:12,flexWrap:'wrap'}}>
 {[['all','الكل',allOps.length],['confirmed','مؤكدة',confirmedOps.length],['unconfirmed','بدون تأكيد',unconfirmedOps.length],['suspicious','مشبوهة',suspiciousPayments.length],['invoice_pay','دفعات فواتير',allOps.filter(o=>o._src==='invoice_pay').length],['op_expense','مصاريف تشغيلية',allOps.filter(o=>o._src==='op_expense').length],['external','حوالات خارجية',allOps.filter(o=>o._src==='external').length]].map(([k,l,n])=>
-<button key={k} onClick={()=>setTab(k)} style={{height:30,padding:'0 10px',borderRadius:7,border:'1px solid '+(tab===k?'rgba(201,168,76,.2)':'rgba(255,255,255,.05)'),background:tab===k?'rgba(201,168,76,.06)':'transparent',color:tab===k?C.gold:'var(--tx5)',fontFamily:F,fontSize:9,fontWeight:tab===k?700:500,cursor:'pointer'}}>{l} <span style={{opacity:.5}}>({n})</span></button>)}
+<button key={k} onClick={()=>setTab(k)} style={{height:30,padding:'0 10px',borderRadius:7,border:'1px solid '+(tab===k?'rgba(212,160,23,.2)':'rgba(255,255,255,.05)'),background:tab===k?'rgba(212,160,23,.06)':'transparent',color:tab===k?C.gold:'var(--tx5)',fontFamily:F,fontSize:9,fontWeight:tab===k?700:500,cursor:'pointer'}}>{l} <span style={{opacity:.5}}>({n})</span></button>)}
 </div>
 
 {/* Search */}
@@ -127,7 +127,7 @@ tab==='suspicious'?<div style={{display:'flex',flexDirection:'column',gap:6}}>
 {filtered.slice(0,50).map((op,i)=>{
 const smsMatch=getSmsMatcher(op)
 const sc=statusColors[op._status]||'var(--tx6)'
-return<div key={op.id||i} onClick={()=>setDetailItem(op)} style={{padding:'12px 16px',borderRadius:10,background:'rgba(255,255,255,.015)',border:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:12,cursor:'pointer',transition:'.1s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(201,168,76,.12)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.04)'}>
+return<div key={op.id||i} onClick={()=>setDetailItem(op)} style={{padding:'12px 16px',borderRadius:10,background:'rgba(255,255,255,.015)',border:'1px solid rgba(255,255,255,.04)',display:'flex',alignItems:'center',gap:12,cursor:'pointer',transition:'.1s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(212,160,23,.12)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.04)'}>
 {/* Status dot */}
 <div style={{width:8,height:8,borderRadius:'50%',background:smsMatch?C.ok:C.red,flexShrink:0}}/>
 {/* Info */}
@@ -155,7 +155,7 @@ return<div key={op.id||i} onClick={()=>setDetailItem(op)} style={{padding:'12px 
 
 {/* Detail Modal */}
 {detailItem&&<div onClick={()=>setDetailItem(null)} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.85)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1e1e1e',borderRadius:16,width:'min(480px,94vw)',maxHeight:'85vh',overflow:'auto',border:'1px solid rgba(201,168,76,.1)',direction:'rtl',fontFamily:F}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'#1e1e1e',borderRadius:16,width:'min(480px,94vw)',maxHeight:'85vh',overflow:'auto',border:'1px solid rgba(212,160,23,.1)',direction:'rtl',fontFamily:F}}>
 <div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+',transparent)'}}/>
 <div style={{padding:'16px 20px',borderBottom:'1px solid rgba(255,255,255,.05)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 <div style={{fontSize:16,fontWeight:800,color:'var(--tx)'}}>تفاصيل العملية</div>
@@ -200,7 +200,7 @@ return<div key={op.id||i} onClick={()=>setDetailItem(op)} style={{padding:'12px 
 
 {/* Add modal */}
 {pop&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.85)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1e1e1e',borderRadius:14,width:'min(420px,90vw)',border:'1px solid rgba(201,168,76,.1)',direction:'rtl',fontFamily:F}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'#1e1e1e',borderRadius:14,width:'min(420px,90vw)',border:'1px solid rgba(212,160,23,.1)',direction:'rtl',fontFamily:F}}>
 <div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+',transparent)'}}/>
 <div style={{padding:'16px 20px',fontSize:16,fontWeight:800,color:'var(--tx)',borderBottom:'1px solid rgba(255,255,255,.05)'}}>إضافة مصروف</div>
 <div style={{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
@@ -211,7 +211,7 @@ return<div key={op.id||i} onClick={()=>setDetailItem(op)} style={{padding:'12px 
 <div><div style={{fontSize:10,color:'var(--tx6)',marginBottom:4}}>التصنيف</div><select value={form.category||'other'} onChange={e=>setForm(p=>({...p,category:e.target.value}))} style={{width:'100%',height:36,padding:'0 10px',borderRadius:8,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.03)',color:'var(--tx)',fontFamily:F,fontSize:11,outline:'none',boxSizing:'border-box'}}>{Object.entries(catMap).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
 </div>
 <div style={{padding:'14px 20px',borderTop:'1px solid rgba(255,255,255,.05)',display:'flex',gap:8,flexDirection:'row-reverse'}}>
-<button onClick={saveOp} disabled={saving} style={{flex:1,height:38,borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.1)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',opacity:saving?.5:1}}>{saving?'...':'حفظ'}</button>
+<button onClick={saveOp} disabled={saving} style={{flex:1,height:38,borderRadius:8,border:'1px solid rgba(212,160,23,.2)',background:'rgba(212,160,23,.1)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',opacity:saving?.5:1}}>{saving?'...':'حفظ'}</button>
 <button onClick={()=>setPop(null)} style={{height:38,padding:'0 16px',borderRadius:8,border:'1px solid rgba(255,255,255,.08)',background:'transparent',color:'var(--tx5)',fontFamily:F,fontSize:11,cursor:'pointer'}}>إلغاء</button>
 </div>
 </div>

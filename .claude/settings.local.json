@@ -3,7 +3,8 @@
     "allow": [
       "mcp__Claude_Preview__preview_start",
       "Bash(npx vite:*)",
-      "Bash(find 'C:\\\\Users\\\\mahdi\\\\OneDrive\\\\Desktop\\\\jisr app\\\\src\\\\services' -type f -name *.js -o -name *.jsx)"
+      "Bash(find 'C:\\\\Users\\\\mahdi\\\\OneDrive\\\\Desktop\\\\jisr app\\\\src\\\\services' -type f -name *.js -o -name *.jsx)",
+      "Bash(grep -r \"^import.*from.*['\\\\\"]\\\\\\\\./\" \"C:\\\\Users\\\\mahdi\\\\OneDrive\\\\Desktop\\\\jisr app\\\\.claude\\\\worktrees\\\\objective-moser-dc5f8c/src\" --include=\"*.jsx\" --include=\"*.js\")"
     ]
   }
 }

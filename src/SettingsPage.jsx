@@ -1,18 +1,18 @@
 import React,{useState,useEffect,useCallback} from 'react'
 const F="'Cairo',sans-serif"
-const C={dk:'#171717',fm:'#1e1e1e',gold:'#c9a84c',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
+const C={dk:'#171717',fm:'#1e1e1e',gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 
 // ═══ Components OUTSIDE main function (prevents re-creation) ═══
 const fS={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center'}
-const bS={height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5}
+const bS={height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(212,160,23,.2)',background:'rgba(212,160,23,.12)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5}
 
 const ArrowIcon=({isOpen})=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.2s',transform:isOpen?'rotate(90deg)':'none',opacity:.7,flexShrink:0}}><polyline points="9 18 15 12 9 6"/></svg>
 
-const EditIcon=()=><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+const EditIcon=()=><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
 
 const DelIcon=()=><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
 
-const EditBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><EditIcon/></button>
+const EditBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(212,160,23,.15)',background:'rgba(212,160,23,.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><EditIcon/></button>
 
 const DelBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.12)',background:'rgba(192,57,43,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><DelIcon/></button>
 
@@ -47,12 +47,12 @@ const selected=options.find(o=>String(o.v)===String(value))
 React.useEffect(()=>{if(!open)return;const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h)},[open])
 const handleOpen=()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setPos({top:r.bottom+4,left:r.left,width:r.width})};setOpen(!open)}
 return<div ref={ref} style={{position:'relative',...sx}}>
-<div onClick={handleOpen} style={{...fS,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',background:open?'rgba(255,255,255,.1)':'rgba(255,255,255,.07)',borderColor:open?'rgba(201,168,76,.35)':'rgba(255,255,255,.12)'}}>
+<div onClick={handleOpen} style={{...fS,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',background:open?'rgba(255,255,255,.1)':'rgba(255,255,255,.07)',borderColor:open?'rgba(212,160,23,.35)':'rgba(255,255,255,.12)'}}>
 <span style={{color:selected?'rgba(255,255,255,.95)':'rgba(255,255,255,.3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,textAlign:'center'}}>{selected?selected.l:placeholder||'— اختر —'}</span>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,transition:'.2s',transform:open?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
 </div>
 {open&&<div style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,background:'#252525',border:'1px solid rgba(255,255,255,.15)',borderRadius:10,overflow:'hidden',zIndex:9999,maxHeight:200,overflowY:'auto',boxShadow:'0 12px 32px rgba(0,0,0,.6)'}}>
-{options.map(o=><div key={o.v} onClick={()=>{onChange(String(o.v));setOpen(false)}} style={{padding:'10px 14px',fontSize:13,fontWeight:String(o.v)===String(value)?700:500,color:String(o.v)===String(value)?C.gold:'rgba(255,255,255,.8)',background:String(o.v)===String(value)?'rgba(201,168,76,.08)':'transparent',cursor:'pointer',borderBottom:'1px solid var(--bd2)',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{o.l}{String(o.v)===String(value)&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}</div>)}
+{options.map(o=><div key={o.v} onClick={()=>{onChange(String(o.v));setOpen(false)}} style={{padding:'10px 14px',fontSize:13,fontWeight:String(o.v)===String(value)?700:500,color:String(o.v)===String(value)?C.gold:'rgba(255,255,255,.8)',background:String(o.v)===String(value)?'rgba(212,160,23,.08)':'transparent',cursor:'pointer',borderBottom:'1px solid var(--bd2)',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{o.l}{String(o.v)===String(value)&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}</div>)}
 </div>}
 </div>}
 
@@ -233,7 +233,7 @@ return<div>
 </div>
 {s.input_type==='boolean'?
 <div style={{display:'flex',gap:4}}>
-{[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}].map(o=>{const on=s.setting_value===o.v;return<button key={o.v} onClick={()=>{saveSetting(s.setting_key,o.v);setSData(p=>p.map(x=>x.id===s.id?{...x,setting_value:o.v}:x))}} style={{height:32,padding:'0 14px',borderRadius:8,border:on?'1.5px solid rgba(201,168,76,.4)':'1.5px solid rgba(255,255,255,.1)',background:on?'rgba(201,168,76,.15)':'transparent',color:on?C.gold:'var(--tx5)',fontFamily:F,fontSize:11,fontWeight:on?700:500,cursor:'pointer'}}>{o.l}</button>})}
+{[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}].map(o=>{const on=s.setting_value===o.v;return<button key={o.v} onClick={()=>{saveSetting(s.setting_key,o.v);setSData(p=>p.map(x=>x.id===s.id?{...x,setting_value:o.v}:x))}} style={{height:32,padding:'0 14px',borderRadius:8,border:on?'1.5px solid rgba(212,160,23,.4)':'1.5px solid rgba(255,255,255,.1)',background:on?'rgba(212,160,23,.15)':'transparent',color:on?C.gold:'var(--tx5)',fontFamily:F,fontSize:11,fontWeight:on?700:500,cursor:'pointer'}}>{o.l}</button>})}
 </div>
 :s.input_type==='textarea'?
 <textarea defaultValue={s.setting_value||''} onBlur={e=>saveSetting(s.setting_key,e.target.value)} rows={2} style={{width:260,padding:'8px 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',resize:'vertical',direction:s.setting_key.includes('_ar')||s.setting_key.includes('label')?'rtl':'ltr'}}/>
@@ -322,7 +322,7 @@ countries.map(co=>{const ce=embassies.filter(e=>e.country_id===co.id);const io=o
 </div>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
 {co.code&&<img src={'https://flagcdn.com/w40/'+co.code.toLowerCase()+'.png'} width={24} height={16} style={{borderRadius:2,objectFit:'cover',flexShrink:0}} alt='' onError={e=>{e.target.style.display='none'}}/>}
-<span style={{fontSize:10,color:'rgba(201,168,76,.6)',background:'rgba(201,168,76,.08)',padding:'2px 8px',borderRadius:8}}>{co.nationality_ar||'—'}</span>
+<span style={{fontSize:10,color:'rgba(212,160,23,.6)',background:'rgba(212,160,23,.08)',padding:'2px 8px',borderRadius:8}}>{co.nationality_ar||'—'}</span>
 <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.12)'}}/>
 <span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{ce.length} {isAr?'سفارة':'embassies'}</span>
 </div>
@@ -361,7 +361,7 @@ lLists.map(ll=>{const li2=lItems.filter(i=>i.category_id===ll.id);const io=open[
 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
 <span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{ll.name_ar}</span>
 <span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{ll.name_en||''}</span>
-{ll.is_system&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.1)',padding:'2px 6px',borderRadius:6}}>نظامي</span>}
+{ll.is_system&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.1)',padding:'2px 6px',borderRadius:6}}>نظامي</span>}
 </div>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
 <span style={{fontSize:10,color:'var(--tx4)',fontFamily:'monospace',direction:'ltr'}}>{ll.category_key}</span>
@@ -381,7 +381,7 @@ li2.map(it=>{const isBnk=ll.category_key==='bank_name';const typeName=isBnk&&it.
 <span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{it.value_ar}</span>
 <span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{it.value_en||''}</span>
 <span style={{fontSize:10,color:'var(--tx6)',fontFamily:'monospace',direction:'ltr'}}>{it.code||''}</span>
-{typeName&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.08)',padding:'2px 6px',borderRadius:6}}>{typeName}</span>}
+{typeName&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.08)',padding:'2px 6px',borderRadius:6}}>{typeName}</span>}
 </div>
 {it.sort_order!=null&&<MetaText t={'#'+it.sort_order}/>}
 <div style={{display:'flex',gap:4}}>
@@ -486,8 +486,8 @@ return<>
 <div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'الخدمات الفرعية':'Sub Services'}<MetaText t={filteredSvcs.length+' '+(isAr?'خدمة':'services')}/></div>
 {/* Category filter chips */}
 <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
-<span onClick={()=>setSvcCatFilter('all')} style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontWeight:svcCatFilter==='all'?700:500,color:svcCatFilter==='all'?C.gold:'rgba(255,255,255,.35)',background:svcCatFilter==='all'?'rgba(201,168,76,.08)':'rgba(255,255,255,.04)',border:svcCatFilter==='all'?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)'}}>{isAr?'الكل':'All'}</span>
-{categories.map(c=><span key={c} onClick={()=>setSvcCatFilter(c)} style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontWeight:svcCatFilter===c?700:500,color:svcCatFilter===c?C.gold:'rgba(255,255,255,.35)',background:svcCatFilter===c?'rgba(201,168,76,.08)':'rgba(255,255,255,.04)',border:svcCatFilter===c?'1px solid rgba(201,168,76,.15)':'1px solid rgba(255,255,255,.06)'}}>{c} ({catCounts[c]})</span>)}
+<span onClick={()=>setSvcCatFilter('all')} style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontWeight:svcCatFilter==='all'?700:500,color:svcCatFilter==='all'?C.gold:'rgba(255,255,255,.35)',background:svcCatFilter==='all'?'rgba(212,160,23,.08)':'rgba(255,255,255,.04)',border:svcCatFilter==='all'?'1px solid rgba(212,160,23,.15)':'1px solid rgba(255,255,255,.06)'}}>{isAr?'الكل':'All'}</span>
+{categories.map(c=><span key={c} onClick={()=>setSvcCatFilter(c)} style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontWeight:svcCatFilter===c?700:500,color:svcCatFilter===c?C.gold:'rgba(255,255,255,.35)',background:svcCatFilter===c?'rgba(212,160,23,.08)':'rgba(255,255,255,.04)',border:svcCatFilter===c?'1px solid rgba(212,160,23,.15)':'1px solid rgba(255,255,255,.06)'}}>{c} ({catCounts[c]})</span>)}
 </div>
 </div>
 <button onClick={()=>{setForm({_table:'sub_services',name_ar:'',name_en:'',service_scope:'client',sort_order:'',notes:''});setPop('sv')}} style={bS}>{isAr?'خدمة فرعية':'Sub Service'} +</button>
@@ -497,10 +497,10 @@ return<>
 {svcCatFilter==='all'?categories.map(cat=>{const catSvcs=subSvcs.filter(s=>(s.category||'أخرى')===cat);if(catSvcs.length===0)return null;const catOpen=open['cat_'+cat]!==false
 return<div key={cat} style={{marginBottom:12}}>
 {/* Category header */}
-<div onClick={()=>setOpen(p=>({...p,['cat_'+cat]:!catOpen}))} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.08)',cursor:'pointer',marginBottom:catOpen?6:0}}>
+<div onClick={()=>setOpen(p=>({...p,['cat_'+cat]:!catOpen}))} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,background:'rgba(212,160,23,.04)',border:'1px solid rgba(212,160,23,.08)',cursor:'pointer',marginBottom:catOpen?6:0}}>
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{transform:catOpen?'rotate(90deg)':'',transition:'.2s'}}><polyline points="9 6 15 12 9 18" stroke={C.gold} strokeWidth="2.5"/></svg>
 <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{cat}</span>
-<span style={{fontSize:10,color:'rgba(201,168,76,.5)'}}>{catSvcs.length} {isAr?'خدمة':'svc'}</span>
+<span style={{fontSize:10,color:'rgba(212,160,23,.5)'}}>{catSvcs.length} {isAr?'خدمة':'svc'}</span>
 <div style={{flex:1}}/>
 <span style={{fontSize:9,color:C.ok}}>{catSvcs.filter(sv=>{const steps=subSteps.filter(s=>s.sub_service_id===sv.id);return steps.length>0&&steps.some(st=>stepFieldCounts[st.id]>0)}).length} {isAr?'جاهزة':'ready'}</span>
 </div>
@@ -512,7 +512,7 @@ return<div key={sv.id}>
 <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'wrap'}}>
 <span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
 <span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{sv.name_en||''}</span>
-<span style={{fontSize:9,color:sv.service_scope==='client'?C.gold:C.blue,background:sv.service_scope==='client'?'rgba(201,168,76,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{sv.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
+<span style={{fontSize:9,color:sv.service_scope==='client'?C.gold:C.blue,background:sv.service_scope==='client'?'rgba(212,160,23,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{sv.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
 {/* Readiness indicator */}
 {svSt.length>0&&hasFields&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.08)',padding:'2px 6px',borderRadius:6}}>✓ {isAr?'جاهزة':'Ready'}</span>}
 {svSt.length>0&&!hasFields&&<span style={{fontSize:8,color:'#e67e22',background:'rgba(230,126,34,.08)',padding:'2px 6px',borderRadius:6}}>⚠ {isAr?'بدون حقول':'No Fields'}</span>}
@@ -523,7 +523,7 @@ return<div key={sv.id}>
 {sv.expected_sla_days&&<span style={{fontSize:9,color:'rgba(255,255,255,.3)'}}>SLA: {sv.expected_sla_days}{isAr?'ي':'d'}</span>}
 {sv.default_price>0&&<span style={{fontSize:9,color:C.ok}}>{sv.default_price} {isAr?'ر.س':'SAR'}</span>}
 {sv.platform_code&&<span style={{fontSize:8,color:C.blue,background:'rgba(52,131,180,.06)',padding:'1px 5px',borderRadius:4}}>{sv.platform_code}</span>}
-{txnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.06)',padding:'2px 6px',borderRadius:6}}>{txnCount} {isAr?'معاملة':'txn'}</span>}
+{txnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.06)',padding:'2px 6px',borderRadius:6}}>{txnCount} {isAr?'معاملة':'txn'}</span>}
 </div>
 </div>
 <div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
@@ -558,7 +558,7 @@ return<div key={sv.id}>
 <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'wrap'}}>
 <span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
 <span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{sv.name_en||''}</span>
-<span style={{fontSize:9,color:sv.service_scope==='client'?C.gold:C.blue,background:sv.service_scope==='client'?'rgba(201,168,76,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{sv.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
+<span style={{fontSize:9,color:sv.service_scope==='client'?C.gold:C.blue,background:sv.service_scope==='client'?'rgba(212,160,23,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{sv.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
 {svSt.length>0&&hasFields&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.08)',padding:'2px 6px',borderRadius:6}}>✓ {isAr?'جاهزة':'Ready'}</span>}
 {svSt.length>0&&!hasFields&&<span style={{fontSize:8,color:'#e67e22',background:'rgba(230,126,34,.08)',padding:'2px 6px',borderRadius:6}}>⚠ {isAr?'بدون حقول':'No Fields'}</span>}
 {svSt.length===0&&<span style={{fontSize:8,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 6px',borderRadius:6}}>✗ {isAr?'بدون خطوات':'No Steps'}</span>}
@@ -568,7 +568,7 @@ return<div key={sv.id}>
 {sv.expected_sla_days&&<span style={{fontSize:9,color:'rgba(255,255,255,.3)'}}>SLA: {sv.expected_sla_days}{isAr?'ي':'d'}</span>}
 {sv.default_price>0&&<span style={{fontSize:9,color:C.ok}}>{sv.default_price} {isAr?'ر.س':'SAR'}</span>}
 {sv.platform_code&&<span style={{fontSize:8,color:C.blue,background:'rgba(52,131,180,.06)',padding:'1px 5px',borderRadius:4}}>{sv.platform_code}</span>}
-{txnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.06)',padding:'2px 6px',borderRadius:6}}>{txnCount} {isAr?'معاملة':'txn'}</span>}
+{txnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.06)',padding:'2px 6px',borderRadius:6}}>{txnCount} {isAr?'معاملة':'txn'}</span>}
 </div>
 </div>
 <div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
@@ -612,11 +612,11 @@ return<div key={tp.id}>
 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
 <span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{tp.name_ar}</span>
 <span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{tp.name_en||''}</span>
-<span style={{fontSize:9,color:tp.service_scope==='client'?C.gold:C.blue,background:tp.service_scope==='client'?'rgba(201,168,76,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{tp.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
+<span style={{fontSize:9,color:tp.service_scope==='client'?C.gold:C.blue,background:tp.service_scope==='client'?'rgba(212,160,23,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{tp.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
 </div>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
 <span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{tpLinks.length} {isAr?'خدمة فرعية':'sub services'}</span>
-{tplTxnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(201,168,76,.06)',padding:'2px 6px',borderRadius:6}}>{tplTxnCount} {isAr?'معاملة':'txn'}</span>}
+{tplTxnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.06)',padding:'2px 6px',borderRadius:6}}>{tplTxnCount} {isAr?'معاملة':'txn'}</span>}
 </div>
 </div>
 <div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
@@ -632,7 +632,7 @@ tpLinks.map(lk=>{const sv=subSvcs.find(s=>s.id===lk.sub_service_id);return<div k
 <span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{sv?sv.name_ar:'—'}</span>
 <span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{sv?sv.name_en:''}</span>
 </div>
-{lk.is_conditional&&<span style={{fontSize:9,color:'rgba(201,168,76,.7)',background:'rgba(201,168,76,.08)',padding:'2px 7px',borderRadius:6}}>{isAr?'شرطي':'Conditional'}{lk.condition_note?' · '+lk.condition_note.slice(0,30):''}</span>}
+{lk.is_conditional&&<span style={{fontSize:9,color:'rgba(212,160,23,.7)',background:'rgba(212,160,23,.08)',padding:'2px 7px',borderRadius:6}}>{isAr?'شرطي':'Conditional'}{lk.condition_note?' · '+lk.condition_note.slice(0,30):''}</span>}
 {lk.step_group&&<span style={{fontSize:9,color:C.blue,background:'rgba(52,131,180,.08)',padding:'2px 7px',borderRadius:6}}>{isAr?'مجموعة':'Group'} {lk.step_group}</span>}
 <div style={{display:'flex',gap:4}}>
 <EditBtn onClick={()=>{setForm({_table:'template_sub_services',_id:lk.id,template_id:lk.template_id||'',sub_service_id:lk.sub_service_id||'',step_order:lk.step_order||'',step_group:lk.step_group||'',is_conditional:String(lk.is_conditional||false),condition_note:lk.condition_note||''});setPop('tl')}}/>
@@ -668,7 +668,7 @@ return<div key={sv.id}>
 <div style={{display:'flex',alignItems:'center',gap:8}}>
 {plans.length>0?<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(39,160,70,.08)',color:C.ok,fontWeight:600}}>{plans.length} {isAr?'قسط':'inst'}</span>
 :<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.05)',color:'var(--tx5)',fontWeight:500}}>{isAr?'دفع كامل':'Full pay'}</span>}
-<button onClick={e=>{e.stopPropagation();setForm({_table:'service_installment_plans',service_id:sv.id,label_ar:'',label_en:'',installment_order:String(plans.length+1),percentage:'',fixed_amount:'',due_type:'on_request',due_days:'',is_active:'true'});setPop('ip')}} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:C.gold,fontFamily:F}}>+</button>
+<button onClick={e=>{e.stopPropagation();setForm({_table:'service_installment_plans',service_id:sv.id,label_ar:'',label_en:'',installment_order:String(plans.length+1),percentage:'',fixed_amount:'',due_type:'on_request',due_days:'',is_active:'true'});setPop('ip')}} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(212,160,23,.15)',background:'rgba(212,160,23,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:C.gold,fontFamily:F}}>+</button>
 </div>
 </div>
 {isOpen&&plans.length>0&&<div>
