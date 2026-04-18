@@ -10,6 +10,7 @@ import TransactionsPage from './DynamicTransactionEngine.jsx'
 import TasksPageV2 from './TasksPageV2.jsx'
 import KPIPage from './KPIPage.jsx'
 import ServiceRequestPage from './ServiceRequestPage.jsx'
+import ServiceAdminPage from './ServiceAdminPage.jsx'
 import KafalaCalculator from './pages/KafalaCalculator.jsx'
 import OTPMessages from './pages/OTPMessages.jsx'
 import PaymentsPageNew from './pages/PaymentsPage.jsx'
@@ -498,7 +499,7 @@ const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
   operations:[{id:'transactions_external',l:T('المعاملات','Transactions'),i:'transaction'},{id:'tasks',l:T('المهام','Tasks'),i:'notes'}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'payment'},{id:'transfer_calc',l:T('حسبة التنازل','Transfer Calc'),i:'chart'}],
-  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_staff',l:T('الموظفين','Staff'),i:'users'}]
+  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_staff',l:T('الموظفين','Staff'),i:'users'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'}]
 };const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
 cols:[['name_ar',T('الاسم','Name')],['unified_national_number',T('الرقم الموحد','Unified No.')],['cr_number',T('السجل','CR No.')],['cr_status',T('حالة السجل','CR Status')],['facility_status',T('الحالة','Status')],['nitaqat_color',T('نطاقات','Nitaqat')]],
@@ -1051,6 +1052,7 @@ return<div><div>
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_staff'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={true} singleTab="staff" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
+{pg==='admin_services'&&<ServiceAdminPage toast={tt} lang={lang}/>}
 </div></div>})()}
 
 {/* ═══ الإعدادات ═══ */}

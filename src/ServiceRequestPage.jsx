@@ -1,5 +1,6 @@
 import React,{useState,useEffect,useCallback,useMemo,useRef} from 'react'
-import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Languages,Wallet,Printer,Plane,PlaneTakeoff,TriangleAlert,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Paperclip,Copy,Check,MapPin,Sparkles} from 'lucide-react'
+import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Languages,Wallet,Printer,Plane,PlaneTakeoff,TriangleAlert,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Paperclip,Copy,Check,MapPin,Sparkles,TrendingUp} from 'lucide-react'
+import {isServiceActive,isServiceBillable} from './ServiceAdminPage.jsx'
 const F="'Cairo','Tajawal',sans-serif"
 const C={gold:'#D4A017',red:'#c0392b',ok:'#27a046',blue:'#3483b4',bentoGold:'#D4A017'}
 // Format Saudi phone: +966558908008 → 055 890 8008
@@ -84,16 +85,21 @@ const SERVICE_INPUTS={
   ],
   passport_update:[],
   name_translation:[
-    {key:'new_name_en',label_ar:'الاسم الجديد بالإنجليزي',type:'text',required:true,placeholder:'Full Name',direction:'ltr'}
+    {key:'new_salary',label_ar:'الراتب الجديد',type:'number',required:true,placeholder:'0'},
+    {key:'salary_weeks',label_ar:'مدة الراتب (أسابيع)',type:'number',required:true,placeholder:'عدد الأسابيع'}
+  ],
+  custom:[
+    {key:'custom_note',label_ar:'وصف الخدمة',type:'textarea',required:true,placeholder:'اكتب تفاصيل الخدمة المطلوبة...'}
   ],
   iqama_print:[
-    {key:'copies',label_ar:'عدد النسخ',type:'number',required:true,placeholder:'1'}
+    {key:'print_reason',label_ar:'السبب',type:'textarea',required:true,placeholder:'اكتب سبب طلب طباعة الإقامة...'}
   ],
   medical_insurance:[],
   documents:[
     {key:'doc_type',label_ar:'نوع المستند',type:'select',required:true,
       options:[{value:'work_cert',label:'شهادة عمل'},{value:'intro_letter',label:'خطاب تعريف'},{value:'salary_def',label:'تعريف راتب'},{value:'bank_letter',label:'خطاب بنكي'},{value:'other',label:'أخرى'}]},
-    {key:'doc_count',label_ar:'عدد النسخ',type:'number',required:true,placeholder:'1'}
+    {key:'doc_lang',label_ar:'لغة المستند',type:'select',required:true,
+      options:[{value:'ar',label:'عربي'},{value:'en',label:'إنجليزي'}]}
   ],
   kafala_transfer:[
     // ═══ Section 1: بيانات العامل ═══
@@ -111,8 +117,8 @@ const SERVICE_INPUTS={
     {key:'new_occupation',label_ar:'المهنة الجديدة',type:'select',show_if:'change_profession',section:2,
       options:KAFALA_OCCUPATIONS.map(o=>({value:o,label:o}))},
     {key:'renew_iqama',label_ar:'تجديد الإقامة',type:'toggle',required:true,grid_col:'1',section:2},
-    {key:'renewal_months',label_ar:'مدة التجديد (أشهر)',type:'number',show_if:'renew_iqama',section:2,placeholder:'عدد الأشهر'},
     {key:'expected_iqama_months',label_ar:'أشهر الإقامة المتوقعة بعد التجديد',type:'number',show_if:'renew_iqama',section:2,placeholder:'عدد الأشهر'},
+    {key:'renewal_months',label_ar:'مدة التجديد (أشهر)',type:'number',show_if:'renew_iqama',section:2,placeholder:'عدد الأشهر'},
   ]
 }
 
@@ -161,10 +167,12 @@ function CompactDatePicker({value,onChange,width=150,height=34}){
   const today=new Date()
   const isToday=(d)=>today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===d
   return <div style={{position:'relative',width}}>
-    <button ref={btnRef} type="button" onClick={()=>setOpen(o=>!o)} style={{width:'100%',height,padding:'0 10px',borderRadius:8,border:`1.5px solid ${open?C.gold:C.gold+'4d'}`,background:'rgba(255,255,255,.05)',color:value?'var(--tx)':'var(--tx5)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',gap:6,direction:'ltr',boxSizing:'border-box'}}>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    {(()=>{const fs=height>=42?13:11;const ic=fs+2;return(
+    <button ref={btnRef} type="button" onClick={()=>setOpen(o=>!o)} style={{width:'100%',height,padding:'0 12px',borderRadius:9,border:`1px solid ${open?C.gold+'66':'rgba(255,255,255,.05)'}`,background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',color:value?'var(--tx)':'var(--tx5)',fontFamily:F,fontSize:fs,fontWeight:600,cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',gap:6,direction:'ltr',boxSizing:'border-box'}}>
       <span>{value||'yyyy-mm-dd'}</span>
+      <svg width={ic} height={ic} viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     </button>
+    )})()}
     {open&&<div ref={popRef} style={{position:'fixed',top:pos.top,left:pos.left,zIndex:9999,width:240,padding:10,borderRadius:10,background:'#1a1611',border:`1.5px solid ${C.gold}55`,boxShadow:'0 12px 40px rgba(0,0,0,.6)',direction:'rtl'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,gap:4}}>
         <button type="button" onClick={()=>setViewDate(new Date(y,m-1,1))} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.03)',color:C.gold,cursor:'pointer',fontSize:14,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
@@ -318,9 +326,10 @@ const[visaInstallments,setVisaInstallments]=useState({issuance:'',authorization:
 // Visa services: total price override (null = use computed pricing.total)
 const[totalOverride,setTotalOverride]=useState(null)
 // Read per-installment minimum pricing config (from localStorage, with defaults)
-const getVisaMinConfig=()=>{
+const getVisaMinConfig=(svc)=>{
+const key=svc==='work_visa_temporary'?'visaPricingMin_temporary':'visaPricingMin_permanent'
 try{
-const raw=localStorage.getItem('visaPricingMin')
+const raw=localStorage.getItem(key)||localStorage.getItem('visaPricingMin')// back-compat with old shared key
 if(raw){const p=JSON.parse(raw);return{issuance:Number(p.issuance)||2000,authorization:Number(p.authorization)||2000,residence:Number(p.residence)||0}}
 }catch(e){}
 return{issuance:2000,authorization:2000,residence:0}
@@ -430,12 +439,14 @@ gov_fee:db?.gov_fee||0,pricing_rules:db?.pricing_rules||{},inputs:db?.inputs||[]
 // Resolved inputs for current service (DB first, then SERVICE_INPUTS fallback)
 const svcInputs=useMemo(()=>(selectedService?.inputs?.length?selectedService.inputs:SERVICE_INPUTS[selSvc])||[],[selectedService,selSvc])
 // If service has exactly one simple field and isn't a visa service, merge it into Step 2 (worker view)
-const svcSingleField=useMemo(()=>(!VISA_SERVICES.has(selSvc)&&selSvc!=='iqama_renewal'&&selSvc!=='profession_change'&&svcInputs.length===1)?svcInputs[0]:null,[selSvc,svcInputs])
+const svcSingleField=useMemo(()=>(!VISA_SERVICES.has(selSvc)&&selSvc!=='iqama_renewal'&&selSvc!=='profession_change'&&selSvc!=='final_exit_visa'&&selSvc!=='exit_reentry_visa'&&selSvc!=='custom'&&selSvc!=='iqama_print'&&svcInputs.length===1)?svcInputs[0]:null,[selSvc,svcInputs])
 const hasMergedField=!!svcSingleField
 // Broker is a distinct step only for services that need it (kafala/visa). Summary is the final step.
 const hasBrokerStep=selSvc==='kafala_transfer'||VISA_SERVICES.has(selSvc)
-// All STEPS + الوسيط (if applicable) - merged field
-const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)
+// Free services skip invoice + payment (steps 4 & 5)
+const isFreeSvc=!!selSvc&&!isServiceBillable(selSvc)
+// All STEPS + الوسيط (if applicable) - merged field - (free svc skips 2 steps)
+const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)-(isFreeSvc?2:0)
 const displayStep=(()=>{
 let d=hasMergedField&&step>=4?step-1:(hasMergedField&&step===3?2:step)
 // Broker sub-screen: step 6 (after payment = 5)
@@ -483,16 +494,18 @@ if(selSvc!=='kafala_transfer'||!selWorker?.iqama_expiry_date)return false
 return new Date(selWorker.iqama_expiry_date)<new Date()
 },[selSvc,selWorker])
 
-// ── Kafala: read settings from localStorage ──
-const getKafalaConfig=()=>{
-try{const r=localStorage.getItem('kafalaPricingConfig');if(r){const p=JSON.parse(r);return{transferFee:p.transferFee??2000,iqamaPerMonth:p.iqamaPerMonth??650,iqamaFine:p.iqamaFine??1000,workPermitYearly:p.workPermitYearly??100,workPermitDaily:p.workPermitDaily??23,profChange:p.profChange??200,officePerMonth:p.officePerMonth??100,medicalAge:p.medicalAge||[{min:0,max:25,rate:500},{min:25,max:35,rate:700},{min:35,max:45,rate:900},{min:45,max:100,rate:1200}]}}}catch(e){}
-return{transferFee:2000,iqamaPerMonth:650,iqamaFine:1000,workPermitYearly:100,workPermitDaily:23,profChange:200,officePerMonth:100,medicalAge:[{min:0,max:25,rate:500},{min:25,max:35,rate:700},{min:35,max:45,rate:900},{min:45,max:100,rate:1200}]}
+// ── Kafala/Iqama: read settings from localStorage (separate stores per service) ──
+const getKafalaConfig=(svc)=>{
+const key=svc==='iqama_renewal'?'iqamaRenewalPricingConfig':'kafalaPricingConfig'
+const def={transferFee:2000,iqamaPerMonth:650,iqamaFine:1000,workPermitYearly:100,workPermitDaily:23,profChange:200,officePerMonth:100,medicalAge:[{min:0,max:25,rate:500},{min:25,max:35,rate:700},{min:35,max:45,rate:900},{min:45,max:100,rate:1200}]}
+try{const r=localStorage.getItem(key);if(r){const p=JSON.parse(r);return{transferFee:p.transferFee??def.transferFee,iqamaPerMonth:p.iqamaPerMonth??def.iqamaPerMonth,iqamaFine:p.iqamaFine??def.iqamaFine,workPermitYearly:p.workPermitYearly??def.workPermitYearly,workPermitDaily:p.workPermitDaily??def.workPermitDaily,profChange:p.profChange??def.profChange,officePerMonth:p.officePerMonth??def.officePerMonth,medicalAge:p.medicalAge||def.medicalAge}}}catch(e){}
+return def
 }
 
 // ── Kafala: auto-calculated values from settings + form data ──
 const kafalaAutoCalc=useMemo(()=>{
 if(selSvc!=='kafala_transfer')return null
-const cfg=getKafalaConfig()
+const cfg=getKafalaConfig('kafala_transfer')
 // Transfer fee (fixed from settings)
 const transferFee=cfg.transferFee
 // Iqama renewal = per-month rate × renewal_months (+ fine auto-added if iqama expires within 3 days)
@@ -532,10 +545,10 @@ const discount=k.discount_on?(parseFloat(k.discount)||0):0
 return{transferFee,iqamaRenewalFee,workPermitFee,profChangeFee,medicalFee,officeFee,extras,absherBalance,discount}
 },[selSvc,kafalaPricing,kafalaAutoCalc,fields,iqamaExpiredKafala])
 
-// ── Iqama renewal: auto-calculated values (reuses kafalaPricingConfig minus transferFee) ──
+// ── Iqama renewal: auto-calculated values (uses iqamaRenewalPricingConfig) ──
 const iqamaRenewalAutoCalc=useMemo(()=>{
 if(selSvc!=='iqama_renewal')return null
-const cfg=getKafalaConfig()
+const cfg=getKafalaConfig('iqama_renewal')
 // Iqama renewal: per-month × months (+ fine if expiring within 3 days)
 const renewalMonths=parseInt(fields.renewal_months)||0
 const iqamaExpiry=selWorker?.iqama_expiry_date||''
@@ -598,7 +611,7 @@ return d
 }
 
 // ── Other services: auto pricing calc (dispatches by selSvc) ──
-const SVC_WITH_PRICING=new Set(['ajeer_contract','exit_reentry_visa','final_exit_visa','profession_change','passport_update','name_translation','iqama_print','medical_insurance','documents','chamber_certification'])
+const SVC_WITH_PRICING=new Set(['ajeer_contract','exit_reentry_visa','final_exit_visa','profession_change','passport_update','name_translation','iqama_print','medical_insurance','chamber_certification','custom'])
 const otherServiceAutoCalc=useMemo(()=>{
 if(!SVC_WITH_PRICING.has(selSvc))return null
 const cfg=getServicesConfig()
@@ -629,12 +642,11 @@ if(selSvc==='name_translation'){
   return{lines:[{label:'رسم تعديل الراتب',amount:cfg.nameTranslation.fee}]}
 }
 if(selSvc==='iqama_print'){
-  const copies=parseInt(fields.copies)||0
-  return{lines:[{label:'طباعة الإقامة',amount:cfg.iqamaPrint.perCopy*copies,detail:copies>0?`${copies} × ${cfg.iqamaPrint.perCopy}`:''}]}
+  return{lines:[{label:'طباعة الإقامة',amount:cfg.iqamaPrint.perCopy||0}]}
 }
 if(selSvc==='medical_insurance'){
   // Uses kafala medicalAge × multiplier, based on worker age (annual policy — no duration input)
-  const kcfg=getKafalaConfig()
+  const kcfg=getKafalaConfig('kafala_transfer')
   const dob=selWorker?.birth_date||''
   let ageRate=0,age=0
   if(dob){const bd=new Date(dob);age=Math.floor((new Date()-bd)/31557600000);const grp=kcfg.medicalAge.find(g=>age>=g.min&&age<g.max);ageRate=grp?grp.rate:(kcfg.medicalAge[kcfg.medicalAge.length-1]?.rate||0)}
@@ -643,16 +655,18 @@ if(selSvc==='medical_insurance'){
   return{lines:[{label:'التأمين الطبي',amount:fee,detail:dob?`${age} سنة × ${ageRate}/سنة × ${mult}`:''}]}
 }
 if(selSvc==='documents'){
-  const count=parseInt(fields.doc_count)||0
-  return{lines:[{label:'إصدار مستندات',amount:cfg.documents.perDoc*count,detail:count>0?`${count} × ${cfg.documents.perDoc}`:''}]}
+  return{lines:[{label:'إصدار مستند',amount:cfg.documents.perDoc||0}]}
 }
 if(selSvc==='chamber_certification'){
   const sub=fields.chamber_subtype
   const fee=sub==='printed'?cfg.chamberCert.printed:(sub==='open_request'?cfg.chamberCert.openRequest:0)
   return{lines:[{label:sub==='printed'?'تصديق المطبوعات':(sub==='open_request'?'تصديق طلب مفتوح':'الغرفة التجارية'),amount:fee}]}
 }
+if(selSvc==='custom'){
+  return{lines:[{label:customName.trim()||'خدمة عامة',amount:0}]}
+}
 return null
-},[selSvc,fields,selWorker])
+},[selSvc,fields,selWorker,customName])
 
 // ── Other services: editable pricing state + lines ──
 const[otherServicePricing,setOtherServicePricing]=useState({overrides:{},extras:[],absherBalance:'',discount:''})
@@ -660,6 +674,12 @@ const[otherExtraName,setOtherExtraName]=useState('')
 const[otherExtraAmount,setOtherExtraAmount]=useState('')
 // Reset when service changes
 useEffect(()=>{setOtherServicePricing({overrides:{},extras:[],absherBalance:'',discount:''});setOtherExtraName('');setOtherExtraAmount('')},[selSvc])
+// Set Arabic as default for documents language
+useEffect(()=>{if(selSvc==='documents'&&!fields.doc_lang)setFields(p=>({...p,doc_lang:'ar'}))},[selSvc])
+// Set 'final_exit' as default for final_exit_visa type
+useEffect(()=>{if(selSvc==='final_exit_visa'&&!fields.final_exit_type)setFields(p=>({...p,final_exit_type:'final_exit'}))},[selSvc])
+// Set 'single' as default for exit_reentry_visa type
+useEffect(()=>{if(selSvc==='exit_reentry_visa'&&!fields.exit_type)setFields(p=>({...p,exit_type:'single'}))},[selSvc])
 
 const otherServiceLines=useMemo(()=>{
 if(!SVC_WITH_PRICING.has(selSvc)||!otherServiceAutoCalc)return null
@@ -862,7 +882,7 @@ else if(!fields[inp.key]){setErr(`يرجى تعبئة: ${inp.label_ar}`);return 
 }
 // Step 4 (invoice) — block if any installment below its minimum for visa services
 if(step===4&&VISA_SERVICES.has(selSvc)){
-const cfg=getVisaMinConfig()
+const cfg=getVisaMinConfig(selSvc)
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?totalOverride:(pricing.total||0)
 const hasAuth=selSvc!=='work_visa_temporary'
@@ -910,6 +930,8 @@ setStep3Mode('files');setErr('');return
 if(step===3&&selSvc==='kafala_transfer'&&kafalaPage<2){setKafalaPage(2);setErr('');return}
 // Step 3 passport sub-flow: current data+type → new passport fields
 if(step===3&&selSvc==='passport_update'&&passportPage<2){setPassportPage(2);setErr('');return}
+// Free services (documents): skip invoice + payment, jump straight to summary
+if(step===3&&isFreeSvc){setStep(5);setShowSummaryScreen(true);setErr('');return}
 // Step 4 kafala/iqama sub-flow: pricing → payment-plan screen (before moving to step 5)
 if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&!kafalaPayStep){setKafalaPayStep(true);setErr('');return}
 // Step 5 sub-flow: payment → broker/note (kafala/visa only) → summary
@@ -936,6 +958,8 @@ if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPaySt
 if(step===4&&VISA_SERVICES.has(selSvc)){setStep(3);setStep3Mode(visaDistMode==='auto'?'groups':'files');return}
 if(step===4&&selSvc==='kafala_transfer'){setStep(3);setKafalaPage(2);return}
 if(step===4&&selSvc==='passport_update'){setStep(3);setPassportPage(2);return}
+// Free services (documents): summary → details (step 3) directly
+if(step===5&&showSummaryScreen&&isFreeSvc){setShowSummaryScreen(false);setStep(3);return}
 // Step 5 sub-flow: summary → broker/note (if applicable) → payment entry
 if(step===5&&showSummaryScreen){
 const needsBrokerNote=selSvc==='kafala_transfer'||VISA_SERVICES.has(selSvc)
@@ -1163,9 +1187,10 @@ input[type=number]{-moz-appearance:textfield}
 {/* ─── Main Bento Grid View ─── */}
 <div style={{position:'absolute',inset:0,opacity:showOthers?0:1,transform:showOthers?'translateX(20px)':'translateX(0)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'none':'auto'}}>
 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'1fr'}}>
-{MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id
-return<div key={s.id} className={`bento-card${sel?' selected':''}`} onClick={()=>setSelSvc(s.id)}>
-{s.id==='documents'&&<div className="bill-dot" data-tip="خدمة مجانية">مجانية</div>}
+{MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=isServiceActive(s.id);const billable=isServiceBillable(s.id)
+return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' disabled-card':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
+{!billable&&active&&<div className="bill-dot" data-tip="خدمة مجانية">مجانية</div>}
+{!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip="معطّلة">معطّلة</div>}
 <div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
 <div className="bento-label">{s.name_ar}</div>
 </div>})}
@@ -1180,9 +1205,10 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}`} onClick={()=
 {/* ─── Others View (3-column grid) ─── */}
 <div style={{position:'absolute',inset:0,opacity:showOthers?1:0,transform:showOthers?'translateX(0)':'translateX(-20px)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'auto':'none'}}>
 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'1fr'}}>
-{OTHER_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id
-return<div key={s.id} className={`sub-card${sel?' selected':''}`} onClick={()=>setSelSvc(s.id)}>
-{s.id==='documents'&&<div className="bill-dot" data-tip="خدمة مجانية">مجانية</div>}
+{OTHER_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=isServiceActive(s.id);const billable=isServiceBillable(s.id)
+return<div key={s.id} className={`sub-card${sel?' selected':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
+{!billable&&active&&<div className="bill-dot" data-tip="خدمة مجانية">مجانية</div>}
+{!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip="معطّلة">معطّلة</div>}
 <I className="sub-icon" size={22} color="#8a7a4a" strokeWidth={1.5}/>
 <div className="sub-label">{s.name_ar}</div>
 </div>})}
@@ -1913,48 +1939,62 @@ const cardOpts=[
 {id:'printed',label:'تصديق على مطبوعات المنشأة',Icon:Paperclip,desc:'يرفق ملف المطبوعات للتصديق'},
 {id:'open_request',label:'التصديق على طلب مفتوح',Icon:FileText,desc:'يكتب نص الطلب للتصديق'}
 ]
-return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:14}}>
-<div>
-<label style={lblS}>نوع التصديق <span style={{color:C.red}}>*</span></label>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:6}}>
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',display:'flex',flexDirection:'column',gap:10}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+
+{/* ═══ Fieldset 1: نوع التصديق ═══ */}
+<div style={{...fieldset,flexShrink:0}}>
+<div style={legend}>
+<FileCheck size={12} strokeWidth={2.2}/>
+<span>نوع التصديق <span style={{color:C.red}}>*</span></span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 {cardOpts.map(o=>{
 const sel=subtype===o.id
 return<button key={o.id} type="button" onClick={()=>setSubtype(o.id)}
-style={{textAlign:'right',padding:'14px 16px',borderRadius:12,border:`1.5px solid ${sel?C.gold:'rgba(255,255,255,.1)'}`,background:sel?'rgba(212,160,23,.08)':'rgba(255,255,255,.03)',color:'var(--tx)',fontFamily:F,cursor:'pointer',transition:'.2s',display:'flex',alignItems:'center',gap:12}}>
-<div style={{width:40,height:40,borderRadius:10,background:sel?'rgba(212,160,23,.18)':'rgba(255,255,255,.05)',display:'flex',alignItems:'center',justifyContent:'center',color:sel?C.gold:'var(--tx4)',flexShrink:0}}>
-<o.Icon size={20}/>
+style={{textAlign:'right',padding:'12px 14px',borderRadius:12,border:`1px solid ${sel?'rgba(212,160,23,.5)':'rgba(255,255,255,.06)'}`,background:sel?'rgba(212,160,23,.12)':'rgba(255,255,255,.03)',color:'var(--tx)',fontFamily:F,cursor:'pointer',transition:'all .2s',display:'flex',alignItems:'center',gap:10}}
+onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.2)'}}}
+onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
+<div style={{width:40,height:40,borderRadius:10,background:'rgba(212,160,23,.08)',display:'flex',alignItems:'center',justifyContent:'center',color:C.bentoGold,flexShrink:0,transition:'.2s'}}>
+<o.Icon size={20} strokeWidth={1.5}/>
 </div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:13,fontWeight:800,color:sel?C.gold:'var(--tx)',marginBottom:3}}>{o.label}</div>
-<div style={{fontSize:10,color:'var(--tx5)'}}>{o.desc}</div>
+<div style={{fontSize:13,fontWeight:500,color:'rgba(255,255,255,.85)',marginBottom:2,lineHeight:1.3}}>{o.label}</div>
+<div style={{fontSize:10,color:'rgba(255,255,255,.45)'}}>{o.desc}</div>
 </div>
 </button>
 })}
 </div>
 </div>
-{subtype==='printed'&&<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:6}}>
-<label style={lblS}>ملف المطبوعات <span style={{color:C.red}}>*</span></label>
-<label htmlFor="chamberFileInput" style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:14,padding:'24px',borderRadius:12,border:'1.5px dashed rgba(212,160,23,.35)',background:'rgba(212,160,23,.04)',color:C.gold,cursor:'pointer',transition:'.2s',position:'relative'}}
+
+{/* ═══ Fieldset 2: ملف المطبوعات / نص الطلب ═══ */}
+{subtype==='printed'&&<div style={{...fieldset,flex:1,minHeight:0,padding:'16px 12px 12px'}}>
+<div style={legend}>
+<Upload size={12} strokeWidth={2.2}/>
+<span>ملف المطبوعات <span style={{color:C.red}}>*</span></span>
+</div>
+<label htmlFor="chamberFileInput" style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,padding:'16px',borderRadius:10,border:'1.5px dashed rgba(212,160,23,.35)',background:'rgba(212,160,23,.04)',color:C.gold,cursor:'pointer',transition:'.2s',position:'relative'}}
 onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}
 onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.04)';e.currentTarget.style.borderColor='rgba(212,160,23,.35)'}}>
 {fields.chamber_file?<>
-<div style={{width:64,height:64,borderRadius:14,background:'rgba(212,160,23,.15)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<FileCheck size={32} color={C.gold}/>
+<div style={{width:52,height:52,borderRadius:12,background:'rgba(212,160,23,.15)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+<FileCheck size={26} color={C.gold}/>
 </div>
 <div style={{textAlign:'center'}}>
-<div style={{fontSize:14,fontWeight:800,marginBottom:4,wordBreak:'break-all'}}>{fields.chamber_file.name}</div>
-<div style={{fontSize:11,color:'var(--tx5)'}}>{(fields.chamber_file.size/1024).toFixed(1)} KB · اضغط لتغيير الملف</div>
+<div style={{fontSize:13,fontWeight:800,marginBottom:3,wordBreak:'break-all'}}>{fields.chamber_file.name}</div>
+<div style={{fontSize:10.5,color:'var(--tx5)'}}>{(fields.chamber_file.size/1024).toFixed(1)} KB · اضغط لتغيير الملف</div>
 </div>
 <button type="button" onClick={(e)=>{e.preventDefault();e.stopPropagation();setFields(p=>({...p,chamber_file:null}))}}
-style={{position:'absolute',top:12,left:12,width:30,height:30,borderRadius:8,border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.12)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:700}}>×</button>
+style={{position:'absolute',top:8,left:8,width:26,height:26,borderRadius:7,border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.12)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700}}>×</button>
 </>:<>
-<div style={{width:64,height:64,borderRadius:14,background:'rgba(212,160,23,.1)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<Upload size={28}/>
+<div style={{width:52,height:52,borderRadius:12,background:'rgba(212,160,23,.1)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+<Upload size={22}/>
 </div>
 <div style={{textAlign:'center'}}>
-<div style={{fontSize:15,fontWeight:800,marginBottom:6}}>اضغط لرفع الملف</div>
-<div style={{fontSize:11,color:'var(--tx5)'}}>أو اسحب الملف وأفلته هنا</div>
-<div style={{fontSize:10,color:'var(--tx5)',marginTop:8,padding:'4px 12px',borderRadius:6,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',display:'inline-block'}}>PDF · JPG · PNG</div>
+<div style={{fontSize:13,fontWeight:800,marginBottom:4}}>اضغط لرفع الملف</div>
+<div style={{fontSize:10.5,color:'var(--tx5)'}}>أو اسحب الملف وأفلته هنا</div>
+<div style={{fontSize:9.5,color:'var(--tx5)',marginTop:6,padding:'3px 10px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',display:'inline-block'}}>PDF · JPG · PNG</div>
 </div>
 </>}
 </label>
@@ -1962,12 +2002,16 @@ style={{position:'absolute',top:12,left:12,width:30,height:30,borderRadius:8,bor
 onChange={e=>{const f=e.target.files?.[0];if(f)setFields(p=>({...p,chamber_file:f}))}}
 style={{display:'none'}}/>
 </div>}
-{subtype==='open_request'&&<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:6}}>
-<label style={lblS}>نص الطلب <span style={{color:C.red}}>*</span></label>
+{subtype==='open_request'&&<div style={{...fieldset,flex:1,minHeight:0,padding:'16px 12px 12px'}}>
+<div style={legend}>
+<FileText size={12} strokeWidth={2.2}/>
+<span>نص الطلب <span style={{color:C.red}}>*</span></span>
+</div>
 <textarea value={fields.chamber_text||''} onChange={e=>setFields(p=>({...p,chamber_text:e.target.value}))}
 placeholder="اكتب نص طلب التصديق هنا..."
 style={{...fS,flex:1,height:'auto',padding:'12px 14px',resize:'none',minHeight:0}}/>
 </div>}
+
 </div>
 }
 
@@ -1995,8 +2039,7 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={{display:'flex',gap:8,flexShrink:0,marginTop:6}}>
 {[{v:false,l:'لا',c:C.red,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>},
 {v:true,l:'نعم',c:C.ok,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}].map(o=>{
-const currentVal=fields.change_profession===true?true:false
-const sel=currentVal===o.v
+const sel=fields.change_profession===o.v
 return<div key={String(o.v)} onClick={()=>setFields(p=>({...p,change_profession:o.v,...(o.v===false?{new_occupation:''}:{})}))}
 style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,height:34,borderRadius:8,border:`1px solid ${sel?`${o.c}80`:'rgba(255,255,255,.08)'}`,background:sel?`${o.c}15`:'rgba(0,0,0,.18)',boxShadow:sel?'none':'inset 0 1px 2px rgba(0,0,0,.2)',cursor:'pointer',transition:'.2s',color:sel?o.c:'rgba(255,255,255,.5)'}}>
 <span style={{fontSize:12,fontWeight:700,fontFamily:F}}>{o.l}</span>
@@ -2052,7 +2095,7 @@ onChange={v=>setFields(p=>({...p,new_occupation:v}))}/>
 </div>
 }
 
-// ─── ajeer_contract: gold card with borrowing-establishment unified#, region/city, contract months ───
+// ─── ajeer_contract: two fieldsets matching register/iqama style ───
 if(selSvc==='ajeer_contract'){
 const origFacility=selWorker?.facility?.name_ar||''
 const origQiwa=selWorker?.facility?.qiwa_file_number||selWorker?.facility?.qiwa_unified_number||''
@@ -2062,116 +2105,112 @@ const ncCode=stat?.nitaqat?.code
 const ncLabel=stat?.nitaqat?.value_ar||''
 const ncColor=ncCode?(ncMap[ncCode]||'#888'):null
 const wpsHasNotes=stat?.wps_has_notes
-// Format YYYY/MM/DD for RTL natural reading as day-month-year
 const fmtDay=(iso)=>{if(!iso)return'—';const d=new Date(iso);if(isNaN(d))return'—';return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`}
 const cityOptions=cities.filter(c=>!fields.region||c.region_id===fields.region).map(c=>({value:c.id,label:c.name_ar}))
 const weekDate=stat?.week_date||''
-const sectionLabel={fontSize:10,fontWeight:800,color:C.gold,fontFamily:F,letterSpacing:'.3px',display:'flex',alignItems:'center',gap:5,opacity:.9}
-const tinyRO={height:30,padding:'0 10px',borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:'rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:6}
-const miniLbl={fontSize:10,fontWeight:700,color:'var(--tx4)',fontFamily:F,marginBottom:0,display:'flex',alignItems:'center',justifyContent:'space-between'}
-return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:7,overflow:'hidden'}}>
-<div style={{fontSize:12.5,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:6,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',flexShrink:0}}>
-<Users size={13} strokeWidth={2.2}/>
-عقد أجير
-</div>
-{/* ═══ Section 1: بيانات منشأة العامل ═══ */}
-<div style={sectionLabel}>
-<Building2 size={10} strokeWidth={2.2}/>
+const inH=38
+const inS={...fS,height:inH}
+const roBox={height:inH,padding:'0 12px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:8}
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'14px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:8}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+
+{/* ═══ Fieldset 1: بيانات منشأة العامل ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<Building2 size={12} strokeWidth={2.2}/>
 <span>بيانات منشأة العامل</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
-{/* Row: Worker facility name + qiwa# (copyable) */}
-{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>منشأة العامل</label>
-<div style={{...tinyRO,gap:6}}>
-<Building2 size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origFacility}</span>
+{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>منشأة العامل</label>
+<div style={{...roBox,justifyContent:'flex-start'}}>
+<Building2 size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origFacility}</span>
 </div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>رقم قوى</label>
-<div style={{...tinyRO,justifyContent:'space-between',paddingInlineEnd:3}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>رقم قوى</label>
+<div style={{...roBox,justifyContent:'space-between',paddingInlineEnd:5}}>
 <div style={{display:'flex',alignItems:'center',gap:6,flex:1,justifyContent:'center'}}>
-<Hash size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:origQiwa?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origQiwa||'—'}</span>
+<Hash size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:origQiwa?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origQiwa||'—'}</span>
 </div>
-{origQiwa&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origQiwa);setCopiedQiwa(true);setTimeout(()=>setCopiedQiwa(false),1500)}catch{}}} title={copiedQiwa?'تم النسخ':'نسخ'} style={{width:22,height:22,borderRadius:5,border:`1px solid ${copiedQiwa?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedQiwa?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedQiwa?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
-{copiedQiwa?<Check size={11} strokeWidth={2.4}/>:<Copy size={10} strokeWidth={2}/>}
+{origQiwa&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origQiwa);setCopiedQiwa(true);setTimeout(()=>setCopiedQiwa(false),1500)}catch{}}} title={copiedQiwa?'تم النسخ':'نسخ'} style={{width:26,height:26,borderRadius:6,border:`1px solid ${copiedQiwa?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedQiwa?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedQiwa?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
+{copiedQiwa?<Check size={13} strokeWidth={2.4}/>:<Copy size={12} strokeWidth={2}/>}
 </button>}
 </div>
 </div>
 </div>}
-{/* Row: Weekly nitaqat band + WPS protection status (both with last check date) */}
-{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>
+{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 <span>النطاق الأسبوعي</span>
-{weekDate&&<span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(weekDate)}</span>}
+{weekDate&&<span style={{fontSize:9.5,fontWeight:600,color:'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(weekDate)}</span>}
 </label>
-<div style={{...tinyRO,gap:6,borderColor:ncColor?`${ncColor}55`:'rgba(255,255,255,.08)',background:ncColor?`${ncColor}14`:'rgba(0,0,0,.2)'}}>
+<div style={{...roBox,justifyContent:'center',gap:8,borderColor:ncColor?`${ncColor}55`:'rgba(255,255,255,.08)',background:ncColor?`${ncColor}14`:'rgba(0,0,0,.18)'}}>
 {ncColor?<>
-<Circle size={9} fill={ncColor} stroke="none"/>
-<span style={{fontSize:11.5,fontWeight:800,color:ncColor,fontFamily:F,flex:1}}>{ncLabel||'نطاق'}</span>
+<Circle size={10} fill={ncColor} stroke="none"/>
+<span style={{fontSize:13,fontWeight:800,color:ncColor,fontFamily:F}}>{ncLabel||'نطاق'}</span>
 </>:<>
-<Circle size={9} color="var(--tx5)" strokeWidth={2}/>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,flex:1}}>لا توجد بيانات</span>
+<Circle size={10} color="var(--tx5)" strokeWidth={2}/>
+<span style={{fontSize:12,fontWeight:600,color:'var(--tx5)',fontFamily:F}}>لا توجد بيانات</span>
 </>}
 </div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 <span>حماية الأجور</span>
-{weekDate&&<span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(weekDate)}</span>}
+{weekDate&&<span style={{fontSize:9.5,fontWeight:600,color:'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(weekDate)}</span>}
 </label>
-<div style={{...tinyRO,gap:6,borderColor:wpsHasNotes===true?'rgba(192,57,43,.5)':wpsHasNotes===false?'rgba(39,160,70,.4)':'rgba(255,255,255,.08)',background:wpsHasNotes===true?'rgba(192,57,43,.1)':wpsHasNotes===false?'rgba(39,160,70,.08)':'rgba(0,0,0,.2)'}}>
+<div style={{...roBox,justifyContent:'center',gap:8,borderColor:wpsHasNotes===true?'rgba(192,57,43,.5)':wpsHasNotes===false?'rgba(39,160,70,.4)':'rgba(255,255,255,.08)',background:wpsHasNotes===true?'rgba(192,57,43,.1)':wpsHasNotes===false?'rgba(39,160,70,.08)':'rgba(0,0,0,.18)'}}>
 {wpsHasNotes===true?<>
-<AlertCircle size={11} color="#c0392b" strokeWidth={2.2}/>
-<span style={{fontSize:11.5,fontWeight:800,color:'#c0392b',fontFamily:F,flex:1}}>توجد ملاحظة</span>
+<AlertCircle size={13} color="#c0392b" strokeWidth={2.2}/>
+<span style={{fontSize:13,fontWeight:800,color:'#c0392b',fontFamily:F}}>توجد ملاحظة</span>
 </>:wpsHasNotes===false?<>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#27a046" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-<span style={{fontSize:11.5,fontWeight:800,color:'#27a046',fontFamily:F,flex:1}}>نظيف</span>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#27a046" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+<span style={{fontSize:13,fontWeight:800,color:'#27a046',fontFamily:F}}>نظيف</span>
 </>:<>
-<Circle size={9} color="var(--tx5)" strokeWidth={2}/>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,flex:1}}>لا توجد بيانات</span>
+<Circle size={10} color="var(--tx5)" strokeWidth={2}/>
+<span style={{fontSize:12,fontWeight:600,color:'var(--tx5)',fontFamily:F}}>لا توجد بيانات</span>
 </>}
 </div>
 </div>
 </div>}
-{/* ═══ Horizontal divider ═══ */}
-<div style={{height:1,background:'rgba(212,160,23,.22)',margin:'2px 0',flexShrink:0}}/>
-{/* ═══ Section 2: بيانات عقد أجير ═══ */}
-<div style={sectionLabel}>
-<FileCheck size={10} strokeWidth={2.2}/>
+</div>
+
+{/* ═══ Fieldset 2: بيانات عقد أجير ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<FileCheck size={12} strokeWidth={2.2}/>
 <span>بيانات عقد أجير</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
-{/* Row: الرقم الموحد للمنشأة المستعارة + المنطقة */}
-<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}><span>الرقم الموحد للمنشأة المستعارة <span style={{color:C.red}}>*</span></span></label>
-<input type="text" inputMode="numeric" value={fields.borrower_700||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,11);setFields(p=>({...p,borrower_700:raw}))}} placeholder="7XX XXX XXXX" style={{...fS,height:30,fontSize:11.5,direction:'ltr',textAlign:'center',letterSpacing:'.5px'}}/>
+<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>الرقم الموحد للمنشأة المستعارة <span style={{color:C.red}}>*</span></label>
+<input type="text" inputMode="numeric" value={fields.borrower_700||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,11);setFields(p=>({...p,borrower_700:raw}))}} placeholder="7XX XXX XXXX" style={{...inS,direction:'ltr',textAlign:'center',letterSpacing:'.5px'}}/>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}><span>المنطقة <span style={{color:C.red}}>*</span></span></label>
-<NiceSelect compact height={30} fontSize={11.5} value={fields.region||''} placeholder="اختر المنطقة..."
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>المنطقة <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.region||''} placeholder="اختر المنطقة..."
 options={regions.map(r=>({value:r.id,label:r.name_ar}))}
 onChange={v=>setFields(p=>({...p,region:v,city:''}))}/>
 </div>
 </div>
-{/* Row: المدينة + مدة العقد */}
-<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}><span>المدينة <span style={{color:C.red}}>*</span></span></label>
-<NiceSelect compact height={30} fontSize={11.5} value={fields.city||''} placeholder={fields.region?'اختر المدينة...':'اختر المنطقة أولاً'}
+<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>المدينة <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.city||''} placeholder={fields.region?'اختر المدينة...':'اختر المنطقة أولاً'}
 options={cityOptions}
 onChange={v=>setFields(p=>({...p,city:v}))}/>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}><span>مدة العقد (أشهر) <span style={{color:C.red}}>*</span></span></label>
-<input type="text" inputMode="numeric" value={fields.contract_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,3);setFields(p=>({...p,contract_months:raw}))}} placeholder="أدخل عدد الأشهر" style={{...fS,height:30,fontSize:11.5,direction:'ltr',textAlign:'center'}}/>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>مدة العقد (أشهر) <span style={{color:C.red}}>*</span></label>
+<input type="text" inputMode="numeric" value={fields.contract_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,3);setFields(p=>({...p,contract_months:raw}))}} placeholder="أدخل عدد الأشهر" style={{...inS,direction:'ltr',textAlign:'center'}}/>
 </div>
 </div>
+</div>
+
 </div>
 }
 
@@ -2197,84 +2236,81 @@ const insStatColor=insStat==='expired'?'#c0392b':insStat==='soon'?'#e5b534':insS
 const dob=selWorker?.birth_date||''
 let age=null
 if(dob){const bd=new Date(dob);if(!isNaN(bd))age=Math.floor((new Date()-bd)/31557600000)}
-const sectionLabel={fontSize:10,fontWeight:800,color:C.gold,fontFamily:F,letterSpacing:'.3px',display:'flex',alignItems:'center',gap:5,opacity:.9}
-const tinyRO={height:30,padding:'0 10px',borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:'rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:6}
-const miniLbl={fontSize:10,fontWeight:700,color:'var(--tx4)',fontFamily:F,marginBottom:0,display:'flex',alignItems:'center',justifyContent:'space-between'}
-return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:7,overflow:'hidden'}}>
-<div style={{fontSize:12.5,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:6,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',flexShrink:0}}>
-<HeartPulse size={13} strokeWidth={2.2}/>
-التأمين الطبي
-</div>
-{/* ═══ Section 1: بيانات منشأة العامل ═══ */}
-<div style={sectionLabel}>
-<Building2 size={10} strokeWidth={2.2}/>
+const inH=38
+const roBox={height:inH,padding:'0 12px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:8}
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'14px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:8}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+
+{/* ═══ Fieldset 1: بيانات منشأة العامل ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<Building2 size={12} strokeWidth={2.2}/>
 <span>بيانات منشأة العامل</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
-{/* Row: Worker facility name + unified national number */}
-{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>منشأة العامل</label>
-<div style={{...tinyRO,gap:6}}>
-<Building2 size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origFacility}</span>
+{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>منشأة العامل</label>
+<div style={{...roBox,justifyContent:'flex-start'}}>
+<Building2 size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origFacility}</span>
 </div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>الرقم الموحد</label>
-<div style={{...tinyRO,justifyContent:'space-between',paddingInlineEnd:3}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>الرقم الموحد</label>
+<div style={{...roBox,justifyContent:'space-between',paddingInlineEnd:5}}>
 <div style={{display:'flex',alignItems:'center',gap:6,flex:1,justifyContent:'center'}}>
-<Hash size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:origUnified?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origUnified||'—'}</span>
+<Hash size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:origUnified?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origUnified||'—'}</span>
 </div>
-{origUnified&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origUnified);setCopiedUnified(true);setTimeout(()=>setCopiedUnified(false),1500)}catch{}}} title={copiedUnified?'تم النسخ':'نسخ'} style={{width:22,height:22,borderRadius:5,border:`1px solid ${copiedUnified?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedUnified?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedUnified?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
-{copiedUnified?<Check size={11} strokeWidth={2.4}/>:<Copy size={10} strokeWidth={2}/>}
+{origUnified&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origUnified);setCopiedUnified(true);setTimeout(()=>setCopiedUnified(false),1500)}catch{}}} title={copiedUnified?'تم النسخ':'نسخ'} style={{width:26,height:26,borderRadius:6,border:`1px solid ${copiedUnified?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedUnified?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedUnified?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
+{copiedUnified?<Check size={13} strokeWidth={2.4}/>:<Copy size={12} strokeWidth={2}/>}
 </button>}
 </div>
 </div>
 </div>}
-{/* ═══ Horizontal divider ═══ */}
-<div style={{height:1,background:'rgba(212,160,23,.22)',margin:'2px 0',flexShrink:0}}/>
-{/* ═══ Section 2: بيانات تأمين العامل ═══ */}
-<div style={sectionLabel}>
-<ShieldCheck size={10} strokeWidth={2.2}/>
+</div>
+
+{/* ═══ Fieldset 2: بيانات تأمين العامل ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<ShieldCheck size={12} strokeWidth={2.2}/>
 <span>بيانات تأمين العامل</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
-{/* Row: Current insurance status + Expiry date */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>وضع التأمين الحالي</label>
-<div style={{...tinyRO,gap:6,borderColor:latestIns?`${insStatColor}55`:'rgba(255,255,255,.08)',background:latestIns?`${insStatColor}14`:'rgba(0,0,0,.2)'}}>
-<ShieldCheck size={11} color={latestIns?insStatColor:'var(--tx5)'} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:800,color:latestIns?insStatColor:'var(--tx5)',fontFamily:F,flex:1}}>{insStatLabel}</span>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>وضع التأمين الحالي</label>
+<div style={{...roBox,justifyContent:'center',gap:8,borderColor:latestIns?`${insStatColor}55`:'rgba(255,255,255,.08)',background:latestIns?`${insStatColor}14`:'rgba(0,0,0,.18)'}}>
+<ShieldCheck size={13} color={latestIns?insStatColor:'var(--tx5)'} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:800,color:latestIns?insStatColor:'var(--tx5)',fontFamily:F}}>{insStatLabel}</span>
 </div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>تاريخ انتهاء التأمين</label>
-<div style={{...tinyRO,gap:6}}>
-<Calendar size={11} color={insEnd?insStatColor:'var(--tx5)'} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:insEnd?insStatColor:'var(--tx5)',fontFamily:F,direction:'ltr',flex:1,textAlign:'center'}}>{fmtDay(insEnd)}</span>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>تاريخ انتهاء التأمين</label>
+<div style={{...roBox,justifyContent:'center',gap:8}}>
+<Calendar size={13} color={insEnd?insStatColor:'var(--tx5)'} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:insEnd?insStatColor:'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(insEnd)}</span>
 </div>
 </div>
 </div>
-{/* Row: Birth date + Worker age */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>تاريخ الميلاد</label>
-<div style={{...tinyRO,gap:6}}>
-<Calendar size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:dob?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr',flex:1,textAlign:'center'}}>{fmtDay(dob)}</span>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>تاريخ الميلاد</label>
+<div style={{...roBox,justifyContent:'center',gap:8}}>
+<Calendar size={13} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:dob?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(dob)}</span>
 </div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>عمر العامل</label>
-<div style={{...tinyRO,gap:6}}>
-<User size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:age!==null?'var(--tx)':'var(--tx5)',fontFamily:F,flex:1}}>{age!==null?`${age} سنة`:'—'}</span>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>عمر العامل</label>
+<div style={{...roBox,justifyContent:'center',gap:8}}>
+<User size={13} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:age!==null?'var(--tx)':'var(--tx5)',fontFamily:F}}>{age!==null?`${age} سنة`:'—'}</span>
 </div>
 </div>
 </div>
+</div>
+
 </div>
 }
 
@@ -2284,222 +2320,512 @@ const origFacility=selWorker?.facility?.name_ar||''
 const origUnified=selWorker?.facility?.unified_national_number||''
 const origQiwa=selWorker?.facility?.qiwa_file_number||selWorker?.facility?.qiwa_unified_number||''
 const currentProf=selWorker?.occupation?.value_ar||''
-const sectionLabel={fontSize:10,fontWeight:800,color:C.gold,fontFamily:F,letterSpacing:'.3px',display:'flex',alignItems:'center',gap:5,opacity:.9}
-const tinyRO={height:30,padding:'0 10px',borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:'rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:6}
-const miniLbl={fontSize:10,fontWeight:700,color:'var(--tx4)',fontFamily:F,marginBottom:0,display:'flex',alignItems:'center',justifyContent:'space-between'}
-return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:7,overflow:'hidden'}}>
-<div style={{fontSize:12.5,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:6,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',flexShrink:0}}>
-<UserCog size={13} strokeWidth={2.2}/>
-تغيير المهنة
-</div>
-{/* ═══ Section 1: بيانات منشأة العامل ═══ */}
-<div style={sectionLabel}>
-<Building2 size={10} strokeWidth={2.2}/>
+const inH=38
+const roBox={height:inH,padding:'0 12px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:8}
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'14px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:8}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+
+{/* ═══ Fieldset 1: بيانات منشأة العامل ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<Building2 size={12} strokeWidth={2.2}/>
 <span>بيانات منشأة العامل</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
-{/* Row: Worker facility name + unified national number (with copy) */}
-{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>منشأة العامل</label>
-<div style={{...tinyRO,gap:6}}>
-<Building2 size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origFacility}</span>
+{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>منشأة العامل</label>
+<div style={{...roBox,justifyContent:'flex-start'}}>
+<Building2 size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origFacility}</span>
 </div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>الرقم الموحد</label>
-<div style={{...tinyRO,justifyContent:'space-between',paddingInlineEnd:3}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>الرقم الموحد</label>
+<div style={{...roBox,justifyContent:'space-between',paddingInlineEnd:5}}>
 <div style={{display:'flex',alignItems:'center',gap:6,flex:1,justifyContent:'center'}}>
-<Hash size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:origUnified?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origUnified||'—'}</span>
+<Hash size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:origUnified?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origUnified||'—'}</span>
 </div>
-{origUnified&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origUnified);setCopiedUnified(true);setTimeout(()=>setCopiedUnified(false),1500)}catch{}}} title={copiedUnified?'تم النسخ':'نسخ'} style={{width:22,height:22,borderRadius:5,border:`1px solid ${copiedUnified?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedUnified?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedUnified?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
-{copiedUnified?<Check size={11} strokeWidth={2.4}/>:<Copy size={10} strokeWidth={2}/>}
+{origUnified&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origUnified);setCopiedUnified(true);setTimeout(()=>setCopiedUnified(false),1500)}catch{}}} title={copiedUnified?'تم النسخ':'نسخ'} style={{width:26,height:26,borderRadius:6,border:`1px solid ${copiedUnified?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedUnified?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedUnified?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
+{copiedUnified?<Check size={13} strokeWidth={2.4}/>:<Copy size={12} strokeWidth={2}/>}
 </button>}
 </div>
 </div>
 </div>}
-{/* Row: qiwa number (with copy) + current profession */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1.3fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>رقم قوى</label>
-<div style={{...tinyRO,justifyContent:'space-between',paddingInlineEnd:3}}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1.3fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>رقم قوى</label>
+<div style={{...roBox,justifyContent:'space-between',paddingInlineEnd:5}}>
 <div style={{display:'flex',alignItems:'center',gap:6,flex:1,justifyContent:'center'}}>
-<Hash size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:origQiwa?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origQiwa||'—'}</span>
+<Hash size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:origQiwa?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origQiwa||'—'}</span>
 </div>
-{origQiwa&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origQiwa);setCopiedQiwa(true);setTimeout(()=>setCopiedQiwa(false),1500)}catch{}}} title={copiedQiwa?'تم النسخ':'نسخ'} style={{width:22,height:22,borderRadius:5,border:`1px solid ${copiedQiwa?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedQiwa?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedQiwa?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
-{copiedQiwa?<Check size={11} strokeWidth={2.4}/>:<Copy size={10} strokeWidth={2}/>}
+{origQiwa&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origQiwa);setCopiedQiwa(true);setTimeout(()=>setCopiedQiwa(false),1500)}catch{}}} title={copiedQiwa?'تم النسخ':'نسخ'} style={{width:26,height:26,borderRadius:6,border:`1px solid ${copiedQiwa?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedQiwa?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedQiwa?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
+{copiedQiwa?<Check size={13} strokeWidth={2.4}/>:<Copy size={12} strokeWidth={2}/>}
 </button>}
 </div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>المهنة الحالية</label>
-<div style={{...tinyRO,gap:6}}>
-<Briefcase size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:currentProf?'var(--tx)':'var(--tx5)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{currentProf||'—'}</span>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>المهنة الحالية</label>
+<div style={{...roBox,justifyContent:'flex-start'}}>
+<Briefcase size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:currentProf?'var(--tx)':'var(--tx5)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{currentProf||'—'}</span>
 </div>
 </div>
 </div>
-{/* ═══ Horizontal divider ═══ */}
-<div style={{height:1,background:'rgba(212,160,23,.22)',margin:'2px 0',flexShrink:0}}/>
-{/* ═══ Section 2: بيانات المهنة الجديدة ═══ */}
-<div style={sectionLabel}>
-<UserCog size={10} strokeWidth={2.2}/>
+</div>
+
+{/* ═══ Fieldset 2: بيانات المهنة الجديدة ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<UserCog size={12} strokeWidth={2.2}/>
 <span>بيانات المهنة الجديدة</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
-{/* New profession selector */}
-<div style={{display:'flex',flexDirection:'column',gap:3}}>
-<label style={miniLbl}><span>المهنة الجديدة <span style={{color:C.red}}>*</span></span></label>
-<NiceSelect compact height={34} fontSize={12} value={fields.new_occupation||''} placeholder="اختر المهنة الجديدة..."
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>المهنة الجديدة <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.new_occupation||''} placeholder="اختر المهنة الجديدة..."
 options={lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar}))}
 onChange={v=>setFields(p=>({...p,new_occupation:v}))}/>
 </div>
 </div>
+
+</div>
 }
 
-// ─── passport_update: gold card — facility header + current passport + toggle تمديد/تجديد + new passport fields ───
+// ─── documents: doc type + language in fieldset ───
+if(selSvc==='documents'){
+const inH=42
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',display:'flex',flexDirection:'column',gap:10}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+<div style={fieldset}>
+<div style={legend}>
+<FileStack size={12} strokeWidth={2.2}/>
+<span>بيانات المستند</span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>نوع المستند <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.doc_type||''} placeholder="اختر..."
+options={[{value:'work_cert',label:'شهادة عمل'},{value:'intro_letter',label:'خطاب تعريف'},{value:'salary_def',label:'تعريف راتب'},{value:'bank_letter',label:'خطاب بنكي'},{value:'other',label:'أخرى'}]}
+onChange={v=>setFields(p=>({...p,doc_type:v}))}/>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>لغة المستند <span style={{color:C.red}}>*</span></label>
+<div style={{display:'flex',gap:4,height:inH,padding:3,borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}>
+{[['ar','العربية','sa'],['en','English','us']].map(([v,l,cc])=>{const sel=fields.doc_lang===v;return<button key={v} type="button" onClick={()=>setFields(p=>({...p,doc_lang:v}))} style={{flex:1,borderRadius:7,border:'none',background:sel?'linear-gradient(135deg, rgba(212,160,23,.25), rgba(212,160,23,.1))':'transparent',color:sel?C.gold:'rgba(255,255,255,.5)',fontFamily:F,fontSize:13,fontWeight:800,cursor:'pointer',transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:sel?'inset 0 1px 0 rgba(255,255,255,.08),0 1px 4px rgba(0,0,0,.2)':'none',direction:v==='ar'?'rtl':'ltr'}}>
+<img src={`https://flagcdn.com/w40/${cc}.png`} width="20" height="14" alt="" style={{borderRadius:3,objectFit:'cover',opacity:sel?1:.75}}/>
+{l}
+</button>})}
+</div>
+</div>
+</div>
+</div>
+</div>
+}
+
+// ─── iqama_print: reason textarea in fieldset ───
+if(selSvc==='iqama_print'){
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',display:'flex',flexDirection:'column',gap:10}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+<div style={{...fieldset,flex:1,minHeight:0}}>
+<div style={legend}>
+<Printer size={12} strokeWidth={2.2}/>
+<span>سبب طلب طباعة الإقامة <span style={{color:C.red}}>*</span></span>
+</div>
+<textarea value={fields.print_reason||''} onChange={e=>setFields(p=>({...p,print_reason:e.target.value}))}
+placeholder="اكتب سبب طلب طباعة الإقامة..."
+style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:'right'}}/>
+</div>
+</div>
+}
+
+// ─── custom (عام): free-form description textarea in fieldset ───
+if(selSvc==='custom'){
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',display:'flex',flexDirection:'column',gap:10}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+<div style={{...fieldset,flex:1,minHeight:0}}>
+<div style={legend}>
+<Sparkles size={12} strokeWidth={2.2}/>
+<span>وصف الخدمة <span style={{color:C.red}}>*</span></span>
+</div>
+<textarea value={fields.custom_note||''} onChange={e=>setFields(p=>({...p,custom_note:e.target.value}))}
+placeholder="اكتب تفاصيل الخدمة المطلوبة..."
+style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:'right'}}/>
+</div>
+</div>
+}
+
+// ─── exit_reentry_visa: extension (if active visa exists) or issuance (new) ───
+if(selSvc==='exit_reentry_visa'){
+const iqamaNo=selWorker?.iqama_number||''
+const existingVisa=selWorker?.exit_reentry_visa||null
+const today=new Date()
+const endIso=existingVisa?.end_date||''
+const endDate=endIso?new Date(endIso):null
+const isActive=!!(existingVisa&&endDate&&!isNaN(endDate)&&endDate>=today)
+const inH=42
+const inS={...fS,height:inH}
+const roBox={height:inH,padding:'0 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:8}
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:10}
+const fmtDay=(iso)=>{if(!iso)return'—';const d=new Date(iso);if(isNaN(d))return'—';return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`}
+
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+
+{isActive?<>
+{/* ═══ Extension: existing active visa info + extension months ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<Plane size={12} strokeWidth={2.2}/>
+<span>التأشيرة الحالية (فعّالة)</span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>رقم الإقامة</label>
+<div style={{...roBox,justifyContent:'center'}}>
+<Hash size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:iqamaNo?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{iqamaNo||'—'}</span>
+</div>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>رقم التأشيرة</label>
+<div style={{...roBox,justifyContent:'center'}}>
+<BadgeCheck size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:existingVisa?.visa_number?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{existingVisa?.visa_number||'—'}</span>
+</div>
+</div>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>بداية التأشيرة</label>
+<div style={{...roBox,justifyContent:'center'}}>
+<Calendar size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:existingVisa?.start_date?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(existingVisa?.start_date)}</span>
+</div>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>نهاية التأشيرة</label>
+<div style={{...roBox,justifyContent:'center'}}>
+<Calendar size={12} color="#27a046" strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:existingVisa?.end_date?'#27a046':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(existingVisa?.end_date)}</span>
+</div>
+</div>
+</div>
+</div>
+
+<div style={fieldset}>
+<div style={legend}>
+<CalendarClock size={12} strokeWidth={2.2}/>
+<span>مدة التمديد المطلوبة <span style={{color:C.red}}>*</span></span>
+</div>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<input type="text" inputMode="numeric" value={fields.duration_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,2);setFields(p=>({...p,duration_months:raw,exit_type:fields.exit_type||'single'}))}} placeholder="عدد الأشهر" style={{...inS,direction:'ltr',textAlign:'center',flex:1}}/>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx4)',fontFamily:F,flexShrink:0}}>شهر</span>
+</div>
+</div>
+</>:<>
+{/* ═══ Issuance: type selector + duration ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<Plane size={12} strokeWidth={2.2}/>
+<span>نوع التأشيرة <span style={{color:C.red}}>*</span></span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+{[{id:'single',label:'مفردة',Icon:Plane,desc:'دخول وخروج مرة واحدة'},
+{id:'multiple',label:'متعددة',Icon:PlaneTakeoff,desc:'دخول وخروج عدة مرات'}].map(o=>{
+const sel=(fields.exit_type||'single')===o.id
+return<button key={o.id} type="button" onClick={()=>setFields(p=>({...p,exit_type:o.id}))}
+style={{textAlign:'right',padding:'12px 14px',borderRadius:12,border:`1px solid ${sel?'rgba(212,160,23,.5)':'rgba(255,255,255,.06)'}`,background:sel?'rgba(212,160,23,.12)':'rgba(255,255,255,.03)',color:'var(--tx)',fontFamily:F,cursor:'pointer',transition:'all .2s',display:'flex',alignItems:'center',gap:10}}
+onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.2)'}}}
+onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
+<div style={{width:40,height:40,borderRadius:10,background:'rgba(212,160,23,.08)',display:'flex',alignItems:'center',justifyContent:'center',color:C.bentoGold,flexShrink:0}}>
+<o.Icon size={20} strokeWidth={1.5}/>
+</div>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:13,fontWeight:500,color:'rgba(255,255,255,.85)',marginBottom:2,lineHeight:1.3}}>{o.label}</div>
+<div style={{fontSize:10,color:'rgba(255,255,255,.45)'}}>{o.desc}</div>
+</div>
+</button>
+})}
+</div>
+</div>
+
+<div style={fieldset}>
+<div style={legend}>
+<CalendarClock size={12} strokeWidth={2.2}/>
+<span>مدة التأشيرة <span style={{color:C.red}}>*</span></span>
+</div>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<input type="text" inputMode="numeric" value={fields.duration_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,2);setFields(p=>({...p,duration_months:raw}))}} placeholder="عدد الأشهر" style={{...inS,direction:'ltr',textAlign:'center',flex:1}}/>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx4)',fontFamily:F,flexShrink:0}}>شهر</span>
+</div>
+</div>
+</>}
+
+</div>
+}
+
+// ─── final_exit_visa: type selector + reason textarea in fieldsets ───
+if(selSvc==='final_exit_visa'){
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',display:'flex',flexDirection:'column',gap:10}
+const fexType=fields.final_exit_type||'final_exit'
+const typeOpts=[
+{id:'final_exit',label:'خروج نهائي',Icon:PlaneTakeoff,desc:'إصدار تأشيرة خروج نهائي للعامل'},
+{id:'absence_report',label:'بلاغ تغيب',Icon:TriangleAlert,desc:'تسجيل بلاغ تغيب عن العمل'}
+]
+const isAbsence=fexType==='absence_report'
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+
+{/* ═══ Fieldset 1: نوع الطلب ═══ */}
+<div style={{...fieldset,flexShrink:0}}>
+<div style={legend}>
+<FileCheck size={12} strokeWidth={2.2}/>
+<span>نوع الطلب <span style={{color:C.red}}>*</span></span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+{typeOpts.map(o=>{
+const sel=fexType===o.id
+return<button key={o.id} type="button" onClick={()=>setFields(p=>({...p,final_exit_type:o.id}))}
+style={{textAlign:'right',padding:'12px 14px',borderRadius:12,border:`1px solid ${sel?'rgba(212,160,23,.5)':'rgba(255,255,255,.06)'}`,background:sel?'rgba(212,160,23,.12)':'rgba(255,255,255,.03)',color:'var(--tx)',fontFamily:F,cursor:'pointer',transition:'all .2s',display:'flex',alignItems:'center',gap:10}}
+onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.2)'}}}
+onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
+<div style={{width:40,height:40,borderRadius:10,background:'rgba(212,160,23,.08)',display:'flex',alignItems:'center',justifyContent:'center',color:C.bentoGold,flexShrink:0,transition:'.2s'}}>
+<o.Icon size={20} strokeWidth={1.5}/>
+</div>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:13,fontWeight:500,color:'rgba(255,255,255,.85)',marginBottom:2,lineHeight:1.3}}>{o.label}</div>
+<div style={{fontSize:10,color:'rgba(255,255,255,.45)'}}>{o.desc}</div>
+</div>
+</button>
+})}
+</div>
+</div>
+
+{/* ═══ Fieldset 2: سبب الطلب ═══ */}
+<div style={{...fieldset,flex:1,minHeight:0}}>
+<div style={legend}>
+<FileText size={12} strokeWidth={2.2}/>
+<span>{isAbsence?'تفاصيل بلاغ التغيب':'سبب طلب الخروج النهائي'}</span>
+</div>
+<textarea value={fields.reason||''} onChange={e=>setFields(p=>({...p,reason:e.target.value}))}
+placeholder={isAbsence?'اكتب تفاصيل بلاغ التغيب...':'اكتب سبب طلب تأشيرة الخروج النهائي...'}
+style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:'right'}}/>
+</div>
+
+</div>
+}
+
+// ─── name_translation (تعديل الراتب): current salary/iqama + new salary + weeks ───
+if(selSvc==='name_translation'){
+const workerName=selWorker?.name_ar||''
+const iqamaNo=selWorker?.iqama_number||''
+const curSalary=selWorker?.gosi_salary||0
+const inH=42
+const inS={...fS,height:inH}
+const roBox={height:inH,padding:'0 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:8}
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:10}
+const fmtMoney=(n)=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:12,marginTop:10}}>
+
+{/* ═══ Fieldset 1: بيانات الراتب الحالي ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<Wallet size={12} strokeWidth={2.2}/>
+<span>بيانات الراتب الحالي</span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>العامل / رقم الإقامة</label>
+<div style={{...roBox,justifyContent:'space-between'}}>
+<span style={{fontSize:13,fontWeight:700,color:workerName?'var(--tx)':'var(--tx5)',fontFamily:F,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{workerName||'—'}</span>
+<span style={{fontSize:12,fontWeight:700,color:iqamaNo?C.gold:'var(--tx5)',fontFamily:F,direction:'ltr',flexShrink:0}}>{iqamaNo||'—'}</span>
+</div>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>الراتب الحالي (التأمينات)</label>
+<div style={{...roBox,justifyContent:'center',gap:6}}>
+<span style={{fontSize:13,fontWeight:800,color:curSalary>0?C.gold:'var(--tx5)',fontFamily:F,direction:'ltr'}}>{curSalary>0?fmtMoney(curSalary):'—'}</span>
+{curSalary>0&&<span style={{fontSize:10,fontWeight:700,color:'var(--tx5)'}}>ريال</span>}
+</div>
+</div>
+</div>
+</div>
+
+{/* ═══ Fieldset 2: بيانات الراتب الجديد ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<TrendingUp size={12} strokeWidth={2.2}/>
+<span>بيانات الراتب الجديد</span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>الراتب الجديد <span style={{color:C.red}}>*</span></label>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<input type="text" inputMode="decimal" value={fields.new_salary||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setFields(p=>({...p,new_salary:raw}))}} placeholder="0" style={{...inS,direction:'ltr',textAlign:'center',flex:1}}/>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx4)',fontFamily:F,flexShrink:0}}>ريال</span>
+</div>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>مدة استمرار الراتب <span style={{color:C.red}}>*</span></label>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<input type="text" inputMode="numeric" value={fields.salary_weeks||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,3);setFields(p=>({...p,salary_weeks:raw}))}} placeholder="عدد الأسابيع" style={{...inS,direction:'ltr',textAlign:'center',flex:1}}/>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx4)',fontFamily:F,flexShrink:0}}>أسبوع</span>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+}
+
+// ─── passport_update: fieldsets matching register modal (two pages) ───
 if(selSvc==='passport_update'){
 const origFacility=selWorker?.facility?.name_ar||''
 const origUnified=selWorker?.facility?.unified_national_number||''
 const curPassportNo=selWorker?.passport_number||''
 const curPassportExp=selWorker?.passport_expiry||''
 const fmtDay=(iso)=>{if(!iso)return'—';const d=new Date(iso);if(isNaN(d))return'—';return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`}
-const updateMode=fields.update_mode||'extend'// 'extend' (تمديد) or 'renew' (تجديد)
+const updateMode=fields.update_mode||'extend'
 const isRenew=updateMode==='renew'
-const sectionLabel={fontSize:10,fontWeight:800,color:C.gold,fontFamily:F,letterSpacing:'.3px',display:'flex',alignItems:'center',gap:5,opacity:.9}
-const tinyRO={height:30,padding:'0 10px',borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:'rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:6}
-const miniLbl={fontSize:10,fontWeight:700,color:'var(--tx4)',fontFamily:F,marginBottom:0,display:'flex',alignItems:'center',justifyContent:'space-between'}
+const inH=42
+const inS={...fS,height:inH}
+const roBox={height:inH,padding:'0 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:8}
+const legend={position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:10}
 const cityOpts=cities.map(c=>({value:c.id,label:c.name_ar}))
-return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:8,overflow:'hidden'}}>
-<div style={{fontSize:12.5,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:6,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',flexShrink:0,justifyContent:'space-between'}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}><IdCard size={13} strokeWidth={2.2}/>تحديث بيانات الجواز</div>
-<span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)'}}>{passportPage} / 2</span>
-</div>
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+
 {passportPage===1?<>
-{/* ═══ Page 1: Facility + Current passport data + Type toggle ═══ */}
-{/* Section 1: بيانات منشأة العامل */}
-<div style={sectionLabel}>
-<Building2 size={10} strokeWidth={2.2}/>
+{/* ═══ Fieldset 1: بيانات منشأة العامل ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<Building2 size={12} strokeWidth={2.2}/>
 <span>بيانات منشأة العامل</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
-{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>منشأة العامل</label>
-<div style={{...tinyRO,gap:6}}>
-<Building2 size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origFacility}</span>
+{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>منشأة العامل</label>
+<div style={{...roBox,justifyContent:'flex-start'}}>
+<Building2 size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:'var(--tx)',fontFamily:F,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origFacility}</span>
 </div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>الرقم الموحد</label>
-<div style={{...tinyRO,justifyContent:'space-between',paddingInlineEnd:3}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>الرقم الموحد</label>
+<div style={{...roBox,justifyContent:'space-between',paddingInlineEnd:5}}>
 <div style={{display:'flex',alignItems:'center',gap:6,flex:1,justifyContent:'center'}}>
-<Hash size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:origUnified?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origUnified||'—'}</span>
+<Hash size={12} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:origUnified?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{origUnified||'—'}</span>
 </div>
-{origUnified&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origUnified);setCopiedUnified(true);setTimeout(()=>setCopiedUnified(false),1500)}catch{}}} title={copiedUnified?'تم النسخ':'نسخ'} style={{width:22,height:22,borderRadius:5,border:`1px solid ${copiedUnified?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedUnified?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedUnified?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
-{copiedUnified?<Check size={11} strokeWidth={2.4}/>:<Copy size={10} strokeWidth={2}/>}
+{origUnified&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origUnified);setCopiedUnified(true);setTimeout(()=>setCopiedUnified(false),1500)}catch{}}} title={copiedUnified?'تم النسخ':'نسخ'} style={{width:26,height:26,borderRadius:6,border:`1px solid ${copiedUnified?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedUnified?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedUnified?'#27a046':C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
+{copiedUnified?<Check size={13} strokeWidth={2.4}/>:<Copy size={12} strokeWidth={2}/>}
 </button>}
 </div>
 </div>
 </div>}
-{/* Horizontal divider */}
-<div style={{height:1,background:'rgba(212,160,23,.22)',margin:'2px 0',flexShrink:0}}/>
-{/* Section 2: بيانات الجواز الحالية */}
-<div style={sectionLabel}>
-<IdCard size={10} strokeWidth={2.2}/>
+</div>
+
+{/* ═══ Fieldset 2: بيانات الجواز الحالية ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<IdCard size={12} strokeWidth={2.2}/>
 <span>بيانات الجواز الحالية</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>رقم جواز السفر الحالي</label>
-<div style={{...tinyRO,gap:6}}>
-<Hash size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:curPassportNo?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr',flex:1,textAlign:'center'}}>{curPassportNo||'—'}</span>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>رقم جواز السفر الحالي</label>
+<div style={{...roBox,justifyContent:'center',gap:8}}>
+<Hash size={13} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:curPassportNo?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{curPassportNo||'—'}</span>
 </div>
-</div>
-<div style={{display:'flex',flexDirection:'column',gap:2}}>
-<label style={miniLbl}>تاريخ انتهاء الجواز الحالي</label>
-<div style={{...tinyRO,gap:6}}>
-<Calendar size={11} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:11.5,fontWeight:700,color:curPassportExp?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr',flex:1,textAlign:'center'}}>{fmtDay(curPassportExp)}</span>
-</div>
-</div>
-</div>
-{/* Horizontal divider */}
-<div style={{height:1,background:'rgba(212,160,23,.22)',margin:'2px 0',flexShrink:0}}/>
-{/* Section 3: نوع التحديث */}
-<div style={sectionLabel}>
-<RefreshCw size={10} strokeWidth={2.2}/>
-<span>نوع التحديث</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={miniLbl}>اختر نوع التحديث <span style={{color:C.red}}>*</span></label>
-<div style={{display:'flex',gap:8,height:38}}>
-{[{v:'extend',l:'تمديد',d:'تمديد تاريخ الانتهاء فقط'},{v:'renew',l:'تجديد',d:'إصدار جواز جديد بكامل بياناته'}].map(o=>{
+<label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الجواز الحالي</label>
+<div style={{...roBox,justifyContent:'center',gap:8}}>
+<Calendar size={13} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:curPassportExp?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(curPassportExp)}</span>
+</div>
+</div>
+</div>
+</div>
+
+{/* ═══ Fieldset 3: نوع التحديث ═══ */}
+<div style={fieldset}>
+<div style={legend}>
+<RefreshCw size={12} strokeWidth={2.2}/>
+<span>نوع التحديث <span style={{color:C.red}}>*</span></span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+{[{v:'extend',l:'تمديد',d:'تمديد تاريخ الانتهاء فقط',Icon:CalendarClock},
+{v:'renew',l:'تجديد',d:'إصدار جواز جديد بكامل بياناته',Icon:IdCard}].map(o=>{
 const sel=updateMode===o.v
 return<button key={o.v} type="button" onClick={()=>setFields(p=>({...p,update_mode:o.v}))}
-style={{flex:1,borderRadius:8,border:`1.5px solid ${sel?C.gold:'rgba(255,255,255,.1)'}`,background:sel?'rgba(212,160,23,.1)':'rgba(255,255,255,.04)',color:sel?C.gold:'var(--tx4)',fontFamily:F,cursor:'pointer',transition:'.2s',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:'4px 6px'}}>
-<span style={{fontSize:12,fontWeight:800}}>{o.l}</span>
-<span style={{fontSize:9,fontWeight:600,opacity:.8}}>{o.d}</span>
+style={{textAlign:'right',padding:'12px 14px',borderRadius:12,border:`1px solid ${sel?'rgba(212,160,23,.5)':'rgba(255,255,255,.06)'}`,background:sel?'rgba(212,160,23,.12)':'rgba(255,255,255,.03)',color:'var(--tx)',fontFamily:F,cursor:'pointer',transition:'all .2s',display:'flex',alignItems:'center',gap:10}}
+onMouseEnter={e=>{if(!sel){e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.2)'}}}
+onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
+<div style={{width:40,height:40,borderRadius:10,background:'rgba(212,160,23,.08)',display:'flex',alignItems:'center',justifyContent:'center',color:C.bentoGold,flexShrink:0}}>
+<o.Icon size={20} strokeWidth={1.5}/>
+</div>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:13,fontWeight:500,color:'rgba(255,255,255,.85)',marginBottom:2,lineHeight:1.3}}>{o.l}</div>
+<div style={{fontSize:10,color:'rgba(255,255,255,.45)'}}>{o.d}</div>
+</div>
 </button>
 })}
 </div>
 </div>
 </>:<>
 {/* ═══ Page 2: New passport fields ═══ */}
-<div style={sectionLabel}>
-<IdCard size={10} strokeWidth={2.2}/>
+<div style={fieldset}>
+<div style={legend}>
+<IdCard size={12} strokeWidth={2.2}/>
 <span>{isRenew?'بيانات الجواز الجديد':'تمديد تاريخ الانتهاء'}</span>
-<div style={{flex:1,height:1,background:'linear-gradient(to left, rgba(212,160,23,.2), transparent)'}}/>
 </div>
 {isRenew?<>
-{/* تجديد: رقم جديد + مكان إصدار + تاريخ إصدار + تاريخ انتهاء */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div style={{display:'flex',flexDirection:'column',gap:3}}>
-<label style={miniLbl}><span>رقم جواز السفر الجديد <span style={{color:C.red}}>*</span></span></label>
-<input type="text" value={fields.new_passport_no||''} onChange={e=>setFields(p=>({...p,new_passport_no:e.target.value.toUpperCase()}))} placeholder="T0000000" style={{...fS,height:36,fontSize:12,direction:'ltr',textAlign:'center',letterSpacing:'.5px'}}/>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>رقم جواز السفر الجديد <span style={{color:C.red}}>*</span></label>
+<input type="text" value={fields.new_passport_no||''} onChange={e=>setFields(p=>({...p,new_passport_no:e.target.value.toUpperCase()}))} placeholder="T0000000" style={{...inS,direction:'ltr',textAlign:'center',letterSpacing:'.5px'}}/>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:3}}>
-<label style={miniLbl}><span>مكان إصدار الجواز <span style={{color:C.red}}>*</span></span></label>
-<NiceSelect compact height={36} fontSize={12} value={fields.new_passport_issue_city||''} placeholder="اختر مدينة الإصدار..."
-options={cityOpts}
-onChange={v=>setFields(p=>({...p,new_passport_issue_city:v}))}/>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>مكان إصدار الجواز <span style={{color:C.red}}>*</span></label>
+<input type="text" value={fields.new_passport_issue_city||''} onChange={e=>setFields(p=>({...p,new_passport_issue_city:e.target.value}))} placeholder="مدينة الإصدار" style={{...inS,textAlign:'center'}}/>
 </div>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div style={{display:'flex',flexDirection:'column',gap:3}}>
-<label style={miniLbl}><span>تاريخ إصدار الجواز <span style={{color:C.red}}>*</span></span></label>
-<input type="date" value={fields.new_passport_issue_date||''} onChange={e=>setFields(p=>({...p,new_passport_issue_date:e.target.value}))} style={{...fS,height:36,fontSize:12,direction:'ltr',textAlign:'center'}}/>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>تاريخ إصدار الجواز <span style={{color:C.red}}>*</span></label>
+<CompactDatePicker value={fields.new_passport_issue_date||''} onChange={v=>setFields(p=>({...p,new_passport_issue_date:v}))} width="100%" height={inH}/>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:3}}>
-<label style={miniLbl}><span>تاريخ انتهاء الجواز <span style={{color:C.red}}>*</span></span></label>
-<input type="date" value={fields.new_passport_expiry||''} onChange={e=>setFields(p=>({...p,new_passport_expiry:e.target.value}))} style={{...fS,height:36,fontSize:12,direction:'ltr',textAlign:'center'}}/>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الجواز <span style={{color:C.red}}>*</span></label>
+<CompactDatePicker value={fields.new_passport_expiry||''} onChange={v=>setFields(p=>({...p,new_passport_expiry:v}))} width="100%" height={inH}/>
 </div>
 </div>
 </>:<>
-{/* تمديد: فقط تاريخ انتهاء جديد */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div style={{display:'flex',flexDirection:'column',gap:3}}>
-<label style={miniLbl}><span>تاريخ انتهاء الجواز الجديد <span style={{color:C.red}}>*</span></span></label>
-<input type="date" value={fields.new_passport_expiry||''} onChange={e=>setFields(p=>({...p,new_passport_expiry:e.target.value}))} style={{...fS,height:36,fontSize:12,direction:'ltr',textAlign:'center'}}/>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>تاريخ الانتهاء الحالي</label>
+<div style={{...roBox,justifyContent:'center',gap:8}}>
+<Calendar size={13} color={C.gold} strokeWidth={1.8}/>
+<span style={{fontSize:13,fontWeight:700,color:curPassportExp?'var(--tx4)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(curPassportExp)}</span>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:3}}>
-<label style={miniLbl}>تاريخ الانتهاء الحالي</label>
-<div style={{...tinyRO,height:36,gap:6}}>
-<Calendar size={12} color={C.gold} strokeWidth={1.8}/>
-<span style={{fontSize:12,fontWeight:700,color:curPassportExp?'var(--tx4)':'var(--tx5)',fontFamily:F,direction:'ltr',flex:1,textAlign:'center'}}>{fmtDay(curPassportExp)}</span>
 </div>
+<div style={{display:'flex',flexDirection:'column',gap:4}}>
+<label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الجواز الجديد <span style={{color:C.red}}>*</span></label>
+<CompactDatePicker value={fields.new_passport_expiry||''} onChange={v=>setFields(p=>({...p,new_passport_expiry:v}))} width="100%" height={inH}/>
 </div>
 </div>
 </>}
+</div>
 </>}
+
 </div>
 }
 
@@ -2590,13 +2916,11 @@ placeholder={inp.placeholder||''} style={{...fS,...(inp.direction==='ltr'?{direc
 </div>})}
 </div>
 
-return hasSections?<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'14px 18px',display:'flex',flexDirection:'column',gap:12}}>
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-<div style={{fontSize:13,fontWeight:800,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:7}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">{kafalaPage===1?<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>:<><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/></>}</svg>
-{sectionTitles[kafalaPage]||`القسم ${kafalaPage}`}
-</div>
-<span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)'}}>{kafalaPage} / {totalSections}</span>
+return hasSections?<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative',display:'flex',flexDirection:'column',gap:12,marginTop:10}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">{kafalaPage===1?<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>:<><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/></>}</svg>
+<span>{sectionTitles[kafalaPage]||`القسم ${kafalaPage}`}</span>
+<span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',marginRight:4}}>({kafalaPage}/{totalSections})</span>
 </div>
 {fieldsGrid}
 </div>:fieldsGrid
@@ -2620,33 +2944,38 @@ return<input type="text" inputMode="decimal" value={fmtAmt(k[key])} onChange={e=
 const togChip=(label,stateKey,clr)=>{
 const on=!!k[stateKey+'_on']
 const c=clr||C.gold
-return<div style={{display:'flex',alignItems:'center',gap:6}}>
-<button type="button" onClick={()=>setK(stateKey+'_on',!on)} style={{display:'flex',alignItems:'center',gap:4,padding:'3px 10px',borderRadius:6,border:`1px solid ${on?c+'4d':'rgba(255,255,255,.1)'}`,background:on?c+'14':'rgba(255,255,255,.04)',color:on?c:'var(--tx4)',fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
-<span style={{width:8,height:8,borderRadius:4,background:on?c:'rgba(255,255,255,.15)',transition:'.2s'}}/>{label}
+return<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+<label style={{fontSize:11,fontWeight:700,color:on?c:'var(--tx4)',fontFamily:F,transition:'.2s'}}>{label}</label>
+<button type="button" onClick={()=>setK(stateKey+'_on',!on)} style={{width:28,height:16,borderRadius:999,border:'none',background:on?c:'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:12,height:12,borderRadius:'50%',background:'#fff',top:2,right:on?2:14,transition:'.2s'}}/>
 </button>
-{on&&<input type="text" inputMode="decimal" value={fmtAmt(k[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(stateKey,raw)}} placeholder="0" style={{...fS,height:28,fontSize:11,width:90,flex:'none',direction:'ltr',textAlign:'center',borderColor:c+'4d'}}/>}
-</div>}
-return<div style={{marginBottom:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'10px 14px'}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-<div style={{width:4,height:14,borderRadius:2,background:C.gold}}/>
-<div style={{fontSize:11,fontWeight:800,color:'var(--tx)'}}>التسعيرة</div>
-{iqamaExpiredKafala&&<div style={{fontSize:8,color:C.red,background:'rgba(192,57,43,.1)',padding:'1px 6px',borderRadius:4,fontWeight:700}}>الإقامة منتهية</div>}
 </div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'14px 12px'}}>
-<div><label style={{...lblS,marginBottom:3}}>رسوم النقل</label>{numIn('transferFeeInput',ac.transferFee,'2,000')}</div>
-<div><label style={{...lblS,marginBottom:3}}>تجديد الإقامة{ac.iqamaFine>0&&<span style={{color:C.red,fontSize:9,marginRight:4}}>(شامل الغرامة)</span>}</label>{numIn('iqamaRenewalFee',ac.iqamaRenewalFee,'0')}</div>
-<div><label style={{...lblS,marginBottom:3}}>رسوم كرت العمل</label>{numIn('workPermitRate',ac.workPermit,'100')}</div>
-<div><label style={{...lblS,marginBottom:3}}>التأمين الطبي</label>{numIn('medicalFee',ac.medical,'0')}</div>
-{fields.change_profession===true&&<div><label style={{...lblS,marginBottom:3}}>رسم تغيير المهنة</label>{numIn('profChangeInput',ac.profChange,'200')}</div>}
-<div><label style={{...lblS,marginBottom:3}}>رسوم المكتب</label>{numIn('officeFee',ac.officeFee,'0')}</div>
+<div style={{display:'flex',alignItems:'center',background:on?'rgba(0,0,0,.18)':'rgba(255,255,255,.02)',border:`1px solid ${on?c+'4d':'rgba(255,255,255,.05)'}`,borderRadius:9,boxShadow:on?'inset 0 1px 2px rgba(0,0,0,.2)':'none',height:36,opacity:on?1:.5,transition:'.2s'}}>
+<input type="text" inputMode="decimal" disabled={!on} value={fmtAmt(k[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(stateKey,raw)}} placeholder="0" style={{flex:1,minWidth:0,height:'100%',padding:'0 10px',border:'none',background:'transparent',fontFamily:F,fontSize:12.5,fontWeight:700,color:on?'var(--tx)':'var(--tx5)',outline:'none',direction:'ltr',textAlign:'center'}}/>
+<span style={{fontSize:10,color:'var(--tx5)',fontWeight:700,padding:'0 8px 0 4px',fontFamily:F,flexShrink:0}}>ريال</span>
+</div>
+</div>}
+return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative'}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
+<span>التسعيرة</span>
+{iqamaExpiredKafala&&<span style={{fontSize:9,color:C.red,background:'rgba(192,57,43,.12)',padding:'1px 6px',borderRadius:4,fontWeight:700}}>الإقامة منتهية</span>}
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px 10px'}}>
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>رسوم النقل</label>{numIn('transferFeeInput',ac.transferFee,'2,000')}</div>
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>تجديد الإقامة{ac.iqamaFine>0&&<span style={{color:C.red,fontSize:10,marginRight:4,fontWeight:600}}>(شامل الغرامة)</span>}</label>{numIn('iqamaRenewalFee',ac.iqamaRenewalFee,'0')}</div>
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>رسوم كرت العمل</label>{numIn('workPermitRate',ac.workPermit,'100')}</div>
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>التأمين الطبي</label>{numIn('medicalFee',ac.medical,'0')}</div>
+{fields.change_profession===true&&<div><label style={{...lblS,fontSize:12,marginBottom:5}}>رسم تغيير المهنة</label>{numIn('profChangeInput',ac.profChange,'200')}</div>}
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>رسوم المكتب</label>{numIn('officeFee',ac.officeFee,'0')}</div>
 </div>
 
 {/* Extras */}
 <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)'}}>
 <div style={{display:'flex',gap:6,alignItems:'center'}}>
-<input value={kafalaExtraName} onChange={e=>setKafalaExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2,height:32,fontSize:11,padding:'0 10px'}}/>
-<input type="text" inputMode="decimal" value={fmtAmt(kafalaExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setKafalaExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,height:32,fontSize:11,padding:'0 10px',direction:'ltr',textAlign:'center'}}/>
-<button type="button" onClick={()=>{if(!kafalaExtraName||!kafalaExtraAmount)return;setKafalaPricing(p=>({...p,extras:[...(p.extras||[]),{name:kafalaExtraName,amount:kafalaExtraAmount}]}));setKafalaExtraName('');setKafalaExtraAmount('')}} style={{height:32,padding:'0 10px',borderRadius:6,border:'1px solid rgba(212,160,23,.25)',background:'rgba(212,160,23,.1)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
+<input value={kafalaExtraName} onChange={e=>setKafalaExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2}}/>
+<input type="text" inputMode="decimal" value={fmtAmt(kafalaExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setKafalaExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,direction:'ltr',textAlign:'center'}}/>
+<button type="button" onClick={()=>{if(!kafalaExtraName||!kafalaExtraAmount)return;setKafalaPricing(p=>({...p,extras:[...(p.extras||[]),{name:kafalaExtraName,amount:kafalaExtraAmount}]}));setKafalaExtraName('');setKafalaExtraAmount('')}} style={{height:42,padding:'0 14px',borderRadius:9,border:'1px solid rgba(212,160,23,.3)',background:'rgba(212,160,23,.12)',color:C.gold,fontFamily:F,fontSize:14,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
 </div>
 {(k.extras||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
 {k.extras.map((e,i)=><span key={i} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',fontSize:10,fontWeight:600,color:'var(--tx2)'}}>
@@ -2659,8 +2988,8 @@ return<div style={{marginBottom:0,borderRadius:12,border:'1.5px solid rgba(212,1
 {/* Subtotal + Deductions + Total */}
 <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)',display:'flex',flexDirection:'column',gap:10}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>إجمالي الرسوم</span>
-<span style={{fontSize:13,fontWeight:800,color:'var(--tx)'}}>{Number(pricing.subtotal||0).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx2)'}}>إجمالي الرسوم</span>
+<span style={{fontSize:14,fontWeight:800,color:'var(--tx)'}}>{Number(pricing.subtotal||0).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
 </div>
 {/* Toggle chips for deductions */}
 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
@@ -2669,8 +2998,8 @@ return<div style={{marginBottom:0,borderRadius:12,border:'1.5px solid rgba(212,1
 </div>
 {/* Final total */}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:5,borderTop:'1px dashed rgba(212,160,23,.2)'}}>
-<span style={{fontSize:13,fontWeight:800,color:C.gold}}>الإجمالي</span>
-<span style={{fontSize:16,fontWeight:900,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ريال</span>
+<span style={{fontSize:14,fontWeight:800,color:C.gold}}>الإجمالي</span>
+<span style={{fontSize:17,fontWeight:900,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ريال</span>
 </div>
 </div>
 </div>
@@ -2713,20 +3042,20 @@ const canAdd=isFirst&&inst.length<5
 return<div key={i} style={{display:'grid',gridTemplateColumns:'auto 1fr auto auto',gap:8,alignItems:'center'}}>
 <span style={{fontSize:11,fontWeight:700,color:'var(--tx2)',minWidth:90,textAlign:'right'}}>{idxLbl}</span>
 <input type="text" inputMode="decimal" value={fmtAmt(row.amount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setIF(i,'amount',raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(isFirst&&raw!==''&&Number(raw)>maxFirst)setIF(i,'amount',String(maxFirst))}} placeholder={isFirst?fmtAmt(maxFirst.toFixed(2)):'المبلغ'} style={{...fS,height:34,fontSize:12,direction:'ltr',textAlign:'center',borderColor:over?C.red+'66':'rgba(255,255,255,.1)'}}/>
-{isFirst?(canAdd?<button type="button" onClick={addInst} style={{height:34,width:150,padding:'0 12px',borderRadius:7,border:'1px dashed rgba(212,160,23,.4)',background:'rgba(212,160,23,.08)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+{isFirst?(canAdd?<button type="button" onClick={addInst} style={{height:34,width:150,padding:'0 12px',borderRadius:7,border:'1px solid rgba(212,160,23,.4)',background:'rgba(212,160,23,.08)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
 <span>إضافة دفعة</span>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>:<span style={{width:150}}/>):(dateOn?<div style={{display:'flex',alignItems:'center',gap:4}}>
 <CompactDatePicker value={row.date||''} onChange={(v)=>setIF(i,'date',v)} width={150} height={34}/>
-<button type="button" onClick={()=>{setIF(i,'date','');setIF(i,'dateOn',false)}} style={{width:22,height:22,borderRadius:5,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.06)',color:C.red,cursor:'pointer',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}} title="إلغاء التاريخ">×</button>
+<button type="button" onClick={()=>{setIF(i,'date','');setIF(i,'dateOn',false)}} style={{width:30,height:30,borderRadius:7,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.06)',color:C.red,cursor:'pointer',fontSize:14,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}} title="إلغاء التاريخ">×</button>
 </div>:<button type="button" onClick={()=>setIF(i,'dateOn',true)} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',height:34,width:150,borderRadius:7,border:'1px dashed rgba(212,160,23,.3)',background:'rgba(212,160,23,.04)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',justifyContent:'center'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>
 إضافة تاريخ
 </button>)}
-{inst.length>1&&!isFirst?<button type="button" onClick={()=>rmInst(i)} style={{width:30,height:30,borderRadius:7,border:'1px solid rgba(192,57,43,.15)',background:'rgba(192,57,43,.06)',color:C.red,cursor:'pointer',fontSize:14,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>:<span style={{width:30}}/>}
+{inst.length>1&&!isFirst?<button type="button" onClick={()=>rmInst(i)} title="حذف الدفعة" style={{width:30,height:30,borderRadius:7,border:'1px solid rgba(192,57,43,.25)',background:'rgba(192,57,43,.12)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>:<span style={{width:30}}/>}
 </div>
 })}
-<div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',marginTop:4,marginBottom:8}}>
+<div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',marginBottom:8}}>
 <div style={{fontSize:11,fontWeight:700}}>
 <span style={{color:'var(--tx4)'}}>متبقّي: <span style={{color:remaining>0?C.gold:C.ok,direction:'ltr',display:'inline-block'}}>{fmtAmt(remaining.toFixed(2))}</span> ريال</span>
 </div>
@@ -2809,8 +3138,8 @@ return<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',pad
 <span style={{fontSize:12,fontWeight:800,color:C.red,direction:'ltr'}}>− {Number(absh).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
 </div>}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:5,borderTop:'1px dashed rgba(212,160,23,.2)'}}>
-<span style={{fontSize:13,fontWeight:800,color:C.gold}}>الإجمالي</span>
-<span style={{fontSize:16,fontWeight:900,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ريال</span>
+<span style={{fontSize:14,fontWeight:800,color:C.gold}}>الإجمالي</span>
+<span style={{fontSize:17,fontWeight:900,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ريال</span>
 </div>
 </div>
 )})()}
@@ -2825,16 +3154,22 @@ const setOV=(idx,v)=>setOtherServicePricing(p=>({...p,overrides:{...p.overrides,
 const togChip=(label,stateKey,clr)=>{
 const on=!!otherServicePricing[stateKey+'_on']
 const c=clr||C.gold
-return<div style={{display:'flex',alignItems:'center',gap:6}}>
-<button type="button" onClick={()=>setOtherServicePricing(p=>({...p,[stateKey+'_on']:!on}))} style={{display:'flex',alignItems:'center',gap:4,padding:'3px 10px',borderRadius:6,border:`1px solid ${on?c+'4d':'rgba(255,255,255,.1)'}`,background:on?c+'14':'rgba(255,255,255,.04)',color:on?c:'var(--tx4)',fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
-<span style={{width:8,height:8,borderRadius:4,background:on?c:'rgba(255,255,255,.15)',transition:'.2s'}}/>{label}
+const setTK=(key,v)=>setOtherServicePricing(p=>({...p,[key]:v}))
+return<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+<label style={{fontSize:11,fontWeight:700,color:on?c:'var(--tx4)',fontFamily:F,transition:'.2s'}}>{label}</label>
+<button type="button" onClick={()=>setTK(stateKey+'_on',!on)} style={{width:28,height:16,borderRadius:999,border:'none',background:on?c:'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:12,height:12,borderRadius:'50%',background:'#fff',top:2,right:on?2:14,transition:'.2s'}}/>
 </button>
-{on&&<input type="text" inputMode="decimal" value={fmtAmt(otherServicePricing[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOtherServicePricing(p=>({...p,[stateKey]:raw}))}} placeholder="0" style={{...fS,height:28,fontSize:11,width:90,flex:'none',direction:'ltr',textAlign:'center',borderColor:c+'4d'}}/>}
+</div>
+<div style={{display:'flex',alignItems:'center',background:on?'rgba(0,0,0,.18)':'rgba(255,255,255,.02)',border:`1px solid ${on?c+'4d':'rgba(255,255,255,.05)'}`,borderRadius:9,boxShadow:on?'inset 0 1px 2px rgba(0,0,0,.2)':'none',height:36,opacity:on?1:.5,transition:'.2s'}}>
+<input type="text" inputMode="decimal" disabled={!on} value={fmtAmt(otherServicePricing[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setTK(stateKey,raw)}} placeholder="0" style={{flex:1,minWidth:0,height:'100%',padding:'0 10px',border:'none',background:'transparent',fontFamily:F,fontSize:12.5,fontWeight:700,color:on?'var(--tx)':'var(--tx5)',outline:'none',direction:'ltr',textAlign:'center'}}/>
+<span style={{fontSize:10,color:'var(--tx5)',fontWeight:700,padding:'0 8px 0 4px',fontFamily:F,flexShrink:0}}>ريال</span>
+</div>
 </div>}
-return<div style={{marginBottom:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.22)',background:'rgba(212,160,23,.03)',padding:'10px 14px'}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
-<div style={{width:4,height:14,borderRadius:2,background:C.gold}}/>
-<div style={{fontSize:11,fontWeight:800,color:'var(--tx)'}}>التسعيرة — {selectedService?.name_ar}</div>
+return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative'}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
+<span>التسعيرة</span>
 </div>
 {/* Auto lines editable */}
 <div style={{display:'grid',gridTemplateColumns:o.lines.length>1?'1fr 1fr':'1fr',gap:'10px 12px'}}>
@@ -2842,20 +3177,20 @@ return<div style={{marginBottom:0,borderRadius:12,border:'1.5px solid rgba(212,1
 const auto=Number(ac.lines[i]?.amount)||0
 const curVal=otherServicePricing.overrides?.[i]??''
 return<div key={i}>
-<label style={{...lblS,marginBottom:3}}>{line.label}{line.detail&&<span style={{color:'var(--tx5)',fontSize:9,marginRight:4}}>({line.detail})</span>}</label>
+<label style={{...lblS,fontSize:12,marginBottom:5}}>{line.label}{line.detail&&<span style={{color:'var(--tx5)',fontSize:10,marginRight:4,fontWeight:600}}>({line.detail})</span>}</label>
 <input type="text" inputMode="decimal" value={fmtAmt(curVal)}
 onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOV(i,raw)}}
 onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)<auto)setOV(i,String(auto))}}
-placeholder={auto>0?fmtAmt(auto):'0'} style={{...fS,height:32,fontSize:11.5,direction:'ltr',textAlign:'center'}}/>
+placeholder={auto>0?fmtAmt(auto):'0'} style={{...fS,direction:'ltr',textAlign:'center'}}/>
 </div>
 })}
 </div>
 {/* Extras */}
 <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)'}}>
 <div style={{display:'flex',gap:6,alignItems:'center'}}>
-<input value={otherExtraName} onChange={e=>setOtherExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2,height:32,fontSize:11,padding:'0 10px'}}/>
-<input type="text" inputMode="decimal" value={fmtAmt(otherExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOtherExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,height:32,fontSize:11,padding:'0 10px',direction:'ltr',textAlign:'center'}}/>
-<button type="button" onClick={()=>{if(!otherExtraName||!otherExtraAmount)return;setOtherServicePricing(p=>({...p,extras:[...(p.extras||[]),{name:otherExtraName,amount:otherExtraAmount}]}));setOtherExtraName('');setOtherExtraAmount('')}} style={{height:32,padding:'0 10px',borderRadius:6,border:'1px solid rgba(212,160,23,.25)',background:'rgba(212,160,23,.1)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
+<input value={otherExtraName} onChange={e=>setOtherExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2}}/>
+<input type="text" inputMode="decimal" value={fmtAmt(otherExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOtherExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,direction:'ltr',textAlign:'center'}}/>
+<button type="button" onClick={()=>{if(!otherExtraName||!otherExtraAmount)return;setOtherServicePricing(p=>({...p,extras:[...(p.extras||[]),{name:otherExtraName,amount:otherExtraAmount}]}));setOtherExtraName('');setOtherExtraAmount('')}} style={{height:42,padding:'0 14px',borderRadius:9,border:'1px solid rgba(212,160,23,.3)',background:'rgba(212,160,23,.12)',color:C.gold,fontFamily:F,fontSize:14,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
 </div>
 {(otherServicePricing.extras||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
 {otherServicePricing.extras.map((e,i)=><span key={i} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',fontSize:10,fontWeight:600,color:'var(--tx2)'}}>
@@ -2867,16 +3202,16 @@ placeholder={auto>0?fmtAmt(auto):'0'} style={{...fS,height:32,fontSize:11.5,dire
 {/* Totals */}
 <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)',display:'flex',flexDirection:'column',gap:10}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:11,fontWeight:700,color:'var(--tx2)'}}>إجمالي الرسوم</span>
-<span style={{fontSize:13,fontWeight:800,color:'var(--tx)'}}>{Number(pricing.subtotal||0).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx2)'}}>إجمالي الرسوم</span>
+<span style={{fontSize:14,fontWeight:800,color:'var(--tx)'}}>{Number(pricing.subtotal||0).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
 </div>
 {/* رصيد أبشر only for profession_change + exit_reentry_visa (discount only for kafala_transfer/iqama_renewal, not shown here) */}
 {(selSvc==='profession_change'||selSvc==='exit_reentry_visa')&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
 {togChip('رصيد أبشر','absherBalance','#2ea043')}
 </div>}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:5,borderTop:'1px dashed rgba(212,160,23,.2)'}}>
-<span style={{fontSize:13,fontWeight:800,color:C.gold}}>الإجمالي</span>
-<span style={{fontSize:16,fontWeight:900,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ريال</span>
+<span style={{fontSize:14,fontWeight:800,color:C.gold}}>الإجمالي</span>
+<span style={{fontSize:17,fontWeight:900,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ريال</span>
 </div>
 </div>
 </div>
@@ -2900,7 +3235,7 @@ style={{width:160,height:42,padding:'0 14px',borderRadius:9,border:'1px solid rg
 {VISA_SERVICES.has(selSvc)&&(()=>{
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?totalOverride:(pricing.total||0)
-const cfg=getVisaMinConfig()
+const cfg=getVisaMinConfig(selSvc)
 const minIssuance=numVisas*cfg.issuance
 const minAuth=numVisas*cfg.authorization
 const hasAuth=selSvc!=='work_visa_temporary'
@@ -3102,9 +3437,9 @@ return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,p
 </div>}
 
 {/* Iqama print details */}
-{selSvc==='iqama_print'&&fields.copies&&<div>
+{selSvc==='iqama_print'&&fields.print_reason&&<div>
 <SectionTitle>بيانات طباعة الإقامة</SectionTitle>
-<Row label="عدد النسخ" value={fields.copies}/>
+<Row label="السبب" value={fields.print_reason}/>
 </div>}
 
 {/* Medical insurance details */}
@@ -3128,11 +3463,14 @@ return<div>
 })()}
 
 {/* Documents details */}
-{selSvc==='documents'&&fields.doc_count&&<div>
-<SectionTitle>بيانات إصدار المستندات</SectionTitle>
-<Row label="عدد المستندات" value={fields.doc_count}/>
-{fields.doc_type&&<Row label="نوع المستند" value={fields.doc_type}/>}
-</div>}
+{selSvc==='documents'&&(fields.doc_type||fields.doc_lang)&&(()=>{
+const docTypes={work_cert:'شهادة عمل',intro_letter:'خطاب تعريف',salary_def:'تعريف راتب',bank_letter:'خطاب بنكي',other:'أخرى'}
+return<div>
+<SectionTitle>بيانات إصدار المستند</SectionTitle>
+{fields.doc_type&&<Row label="نوع المستند" value={docTypes[fields.doc_type]||fields.doc_type}/>}
+{fields.doc_lang&&<Row label="لغة المستند" value={fields.doc_lang==='ar'?'عربي':'إنجليزي'}/>}
+</div>
+})()}
 
 {/* Chamber certification details */}
 {selSvc==='chamber_certification'&&fields.chamber_subtype&&<div>
@@ -3150,10 +3488,12 @@ return<div>
 {fields.new_passport_expiry&&<Row label={fields.update_mode==='renew'?'تاريخ انتهاء الجواز الجديد':'تاريخ الانتهاء الجديد'} value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_passport_expiry}</span>}/>}
 </div>}
 
-{/* Name translation details */}
+{/* Name translation (salary edit) details */}
 {selSvc==='name_translation'&&<div>
 <SectionTitle>بيانات تعديل الراتب</SectionTitle>
-{fields.new_name_en&&<Row label="الاسم الجديد (إنجليزي)" value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_name_en}</span>}/>}
+{selWorker?.gosi_salary&&<Row label="الراتب الحالي" value={<span style={{direction:'ltr',display:'inline-block'}}>{Number(selWorker.gosi_salary).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>}/>}
+{fields.new_salary&&<Row label="الراتب الجديد" value={<span style={{direction:'ltr',display:'inline-block'}}>{Number(fields.new_salary).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>}/>}
+{fields.salary_weeks&&<Row label="مدة الاستمرار" value={`${fields.salary_weeks} أسبوع`}/>}
 </div>}
 
 {/* Pricing & installments */}
