@@ -14,6 +14,7 @@ import ServiceAdminPage from './ServiceAdminPage.jsx'
 import KafalaCalculator from './pages/KafalaCalculator.jsx'
 import OTPMessages from './pages/OTPMessages.jsx'
 import PaymentsPageNew from './pages/PaymentsPage.jsx'
+import VisibilityAdmin, { getVisibility, isItemVisible } from './pages/VisibilityAdmin.jsx'
 
 import { getSupabase } from './lib/supabase.js'
 import { exportToExcel, importFromCSV, sendWhatsApp, buildWhatsAppMessage, printContent, generateClientStatement, checkDuplicate, setupKeyboardShortcuts, calculateNitaqat } from './lib/utils.js'
@@ -476,6 +477,9 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 
 function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState('home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),3000)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[profilePerf,setProfilePerf]=useState(null);const[profileAtt,setProfileAtt]=useState([]);const[profileTasks,setProfileTasks]=useState([]);const[profileSalary,setProfileSalary]=useState([]);const[profileLoans,setProfileLoans]=useState([]);const[profileLogins,setProfileLogins]=useState([]);const[stats,setStats]=useState(null);const[notifs,setNotifs]=useState([]);const[myNotifs,setMyNotifs]=useState([]);const[showNotifs,setShowNotifs]=useState(false);const[notifTab,setNotifTab]=useState('my');const[showAiChat,setShowAiChat]=useState(false);const[showUserMenu,setShowUserMenu]=useState(false);const[showTopDrop,setShowTopDrop]=useState(false);const[theme,setTheme]=useState(()=>localStorage.getItem('jisr_theme')||'dark');useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('jisr_theme',theme);const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',theme==='dark'?'#171717':'#faf8f3');document.body.style.background=theme==='dark'?'#171717':'#faf8f3'},[theme]);const toggleTheme=()=>setTheme(t=>t==='dark'?'light':'dark');const[dashBranch,setDashBranch]=useState(null);const[dashBranches,setDashBranches]=useState([]);const[sTabInfo,setSTabInfo]=useState({tab:'general',svcSubTab:'services'});const[searchQ,setSearchQ]=useState('');const[searchResults,setSearchResults]=useState([]);const[searchOpen,setSearchOpen]=useState(false);const[searchLoading,setSearchLoading]=useState(false);const[activityLog,setActivityLog]=useState([]);const[activityLoading,setActivityLoading]=useState(false);const[sideOpen,setSideOpen]=useState(false);const[taskCount,setTaskCount]=useState(0);const[approvalCount,setApprovalCount]=useState(0);const[todayAppointments,setTodayAppointments]=useState([]);const[lastWeeklyUpdate,setLastWeeklyUpdate]=useState(null);const[expanded,setExpanded]=useState({tasks_section:true,facilities_workforce:true,finance:true,data:false,reports:false,admin:false});const[showServiceRequest,setShowServiceRequest]=useState(false);const[navExpanded,setNavExpanded]=useState({});
 const[showKafalaCalc,setShowKafalaCalc]=useState(false);
+const[visibility,setVisibility]=useState(()=>getVisibility());
+const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visibility',JSON.stringify(cfg))};
+const isVisible=(id)=>isItemVisible(id)&&(visibility[id]!==false||['admin_hub','admin_visibility'].includes(id));
 const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches);
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
@@ -499,7 +503,7 @@ const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
   operations:[{id:'transactions_external',l:T('المعاملات','Transactions'),i:'transaction'},{id:'tasks',l:T('المهام','Tasks'),i:'notes'}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'payment'},{id:'transfer_calc',l:T('حسبة التنازل','Transfer Calc'),i:'chart'}],
-  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_staff',l:T('الموظفين','Staff'),i:'users'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'}]
+  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_staff',l:T('الموظفين','Staff'),i:'users'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_visibility',l:T('التبويبات المرئية','Visible Tabs'),i:'settings'}]
 };const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
 cols:[['name_ar',T('الاسم','Name')],['unified_national_number',T('الرقم الموحد','Unified No.')],['cr_number',T('السجل','CR No.')],['cr_status',T('حالة السجل','CR Status')],['facility_status',T('الحالة','Status')],['nitaqat_color',T('نطاقات','Nitaqat')]],
@@ -885,8 +889,9 @@ flds:[
 <nav style={{flex:1,overflowY:'auto',padding:'8px 10px 12px',scrollbarWidth:'none',msOverflowStyle:'none',WebkitOverflowScrolling:'touch'}}>
 <style>{'aside nav::-webkit-scrollbar{display:none}.dash-content::-webkit-scrollbar{display:none}.sr-scroll{scrollbar-width:thin;scrollbar-color:rgba(212,160,23,.25) transparent}.sr-scroll::-webkit-scrollbar{width:4px}.sr-scroll::-webkit-scrollbar-track{background:transparent}.sr-scroll::-webkit-scrollbar-thumb{background:rgba(212,160,23,.25);border-radius:4px}.sr-scroll::-webkit-scrollbar-thumb:hover{background:rgba(212,160,23,.4)}'}</style>
 <div style={{display:'flex',flexDirection:'column',gap:2}}>
-{nav.map((n)=>{
-const subs=hubTabs[n.id]||null
+{nav.filter(n=>{if(!isVisible(n.id))return false;const s=hubTabs[n.id];return !s||s.some(t=>isVisible(t.id))}).map((n)=>{
+const rawSubs=hubTabs[n.id]||null
+const subs=rawSubs?rawSubs.filter(t=>isVisible(t.id)):null
 const hubActive=subs&&subs.some(t=>t.id===pg)
 const isOpen=subs?(navExpanded[n.id]!==undefined?navExpanded[n.id]:hubActive):false
 const isActive=pg===n.id||hubActive
@@ -908,12 +913,16 @@ return<div key={n.id}>
 </div>})}
 </div>
 </nav>
-{/* Sidebar FAB — طلب */}
-<div style={{padding:'12px 14px 14px',flexShrink:0}}>
-<div className="fab-service-request" onClick={()=>setShowServiceRequest(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
+{/* Sidebar FABs — طلب + حسبة التنازل */}
+<div style={{padding:'12px 14px 14px',flexShrink:0,display:'flex',flexDirection:'column',gap:8}}>
+{isVisible('fab_service_request')&&<div className="fab-service-request" onClick={()=>setShowServiceRequest(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
 <span style={{fontSize:16,fontWeight:800,color:'#D4A017',fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.5,lineHeight:1}}>طلب</span>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-</div>
+</div>}
+{isVisible('fab_transfer_calc')&&<div className="fab-service-request" onClick={()=>setShowKafalaCalc(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
+<span style={{fontSize:14,fontWeight:800,color:'#D4A017',fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.3,lineHeight:1}}>حسبة التنازل</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><circle cx="8" cy="12" r=".5" fill="#D4A017"/><circle cx="12" cy="12" r=".5" fill="#D4A017"/><circle cx="16" cy="12" r=".5" fill="#D4A017"/><circle cx="8" cy="16" r=".5" fill="#D4A017"/><circle cx="12" cy="16" r=".5" fill="#D4A017"/></svg>
+</div>}
 <style>{`.fab-service-request:hover{background:rgba(212,160,23,.14)!important}`}</style>
 </div>
 </aside>
@@ -1043,8 +1052,7 @@ return<div><div>
 {/* العمليات */}
 {pg==='transactions_external'&&<TransactionsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultType="external"/>}
 {pg==='tasks'&&<TasksPageV2 sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='transfer_calc'&&<><TransferCalcPage sb={sb} toast={tt} user={user} lang={lang} onNewCalc={()=>setShowKafalaCalc(true)}/>
-{showKafalaCalc&&<KafalaCalculator toast={tt} lang={lang} onClose={()=>setShowKafalaCalc(false)}/>}</>}
+{pg==='transfer_calc'&&<TransferCalcPage sb={sb} toast={tt} user={user} lang={lang} onNewCalc={()=>setShowKafalaCalc(true)}/>}
 {/* المالية */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPageNew sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
@@ -1053,6 +1061,7 @@ return<div><div>
 {pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_staff'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={true} singleTab="staff" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_services'&&<ServiceAdminPage toast={tt} lang={lang}/>}
+{pg==='admin_visibility'&&<VisibilityAdmin toast={tt} lang={lang} nav={nav} hubTabs={hubTabs} visibility={visibility} onChange={saveVisibility}/>}
 </div></div>})()}
 
 {/* ═══ الإعدادات ═══ */}
@@ -1064,6 +1073,7 @@ return<div><div>
 {pg==='appointments'&&<AppointmentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 </div>
 </div>
+{showKafalaCalc&&<KafalaCalculator toast={tt} lang={lang} onClose={()=>setShowKafalaCalc(false)}/>}
 {showServiceRequest&&<div onClick={()=>setShowServiceRequest(false)} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',zIndex:998,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
 <style>{`.sr-modal-scroll::-webkit-scrollbar{width:0;display:none}.sr-modal-scroll{scrollbar-width:none;-ms-overflow-style:none}`}</style>
 <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:18,width:680,height:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid rgba(212,160,23,.08)'}}>
@@ -2033,9 +2043,7 @@ ${r.notes?'<div style="background:#f0f0f0;border-radius:6px;padding:8px 12px;fon
 </body></html>`);w.document.close();setTimeout(()=>w.print(),300)}
 const fS={width:'100%',height:40,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center',direction:'ltr'}
 return<div>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}><div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)',letterSpacing:'-.3px'}}>{T('حسبة التنازل','Transfer Calculator')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('حساب تكاليف نقل خدمات العمال وإصدار التسعيرات','Worker transfer cost calculation & pricing')}</div></div><button onClick={()=>onNewCalc?onNewCalc():openAdd()} style={{height:40,padding:'0 22px',borderRadius:10,border:'1px solid rgba(212,160,23,.25)',background:'linear-gradient(135deg,rgba(212,160,23,.15),rgba(212,160,23,.08))',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-{T('حسبة جديدة','New Calc')}</button></div>
+<div style={{marginBottom:20}}><div style={{fontSize:22,fontWeight:800,color:'var(--tx)',letterSpacing:'-.3px'}}>{T('حسبة التنازل','Transfer Calculator')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('حساب تكاليف نقل خدمات العمال وإصدار التسعيرات','Worker transfer cost calculation & pricing')}</div></div>
 {(()=>{
 const typeLabel=v=>v==='final_exit'?T('خروج نهائي','Final Exit'):T('نقل كفالة','Sponsorship')
 const[listFilter,setListFilter]=useState('all')

@@ -81,8 +81,12 @@
         color: rgba(255,255,255,.85);
         padding: 8px 12px;
       }
+      input, textarea, select {
+        border: 1px solid transparent !important;
+        transition: border-color .18s;
+      }
       select:focus, input:focus, textarea:focus {
-        border-color: rgba(201,168,76,.4) !important;
+        border-color: rgba(212,160,23,.5) !important;
         outline: none;
       }
       input[type="date"]::-webkit-calendar-picker-indicator,

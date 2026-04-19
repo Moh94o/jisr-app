@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تصميمات زر طلب</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d0d;
+    font-family: 'Cairo', sans-serif;
+    min-height: 100vh;
+    padding: 32px;
+    color: #fff;
+  }
+  h1 { color: #D4A017; margin-bottom: 8px; font-size: 22px; }
+  .hint { color: #888; margin-bottom: 32px; font-size: 13px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+  }
+  .cell {
+    background: #151515;
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 14px;
+    padding: 24px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .label { color: #888; font-size: 11px; font-weight: 600; }
+  .num { color: #D4A017; font-weight: 800; font-size: 13px; }
+
+  /* === 1. الحالي === */
+  .b1 {
+    height:42px;padding:0 14px;border-radius:12px;
+    background:linear-gradient(135deg,rgba(212,160,23,.22),rgba(212,160,23,.08));
+    border:1px solid rgba(212,160,23,.35);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .22s;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+    min-width: 180px;
+  }
+  .b1 span { font-size:18px;font-weight:900;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-1px;line-height:1; }
+  .b1:hover { background:linear-gradient(135deg,rgba(212,160,23,.32),rgba(212,160,23,.14));border-color:rgba(212,160,23,.55);box-shadow:0 6px 18px rgba(212,160,23,.15); }
+
+  /* === 2. Solid Gold CTA === */
+  .b2 {
+    height:44px;padding:0 22px;border-radius:12px;
+    background:linear-gradient(180deg,#E3B52E,#C99A10);
+    border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .2s;box-shadow:0 2px 8px rgba(212,160,23,.3),inset 0 1px 0 rgba(255,255,255,.2);
+    min-width: 180px;
+  }
+  .b2 span { font-size:17px;font-weight:900;color:#1a1400;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b2 svg { stroke:#1a1400; }
+  .b2:hover { box-shadow:0 4px 14px rgba(212,160,23,.45),inset 0 1px 0 rgba(255,255,255,.3);transform:translateY(-1px); }
+
+  /* === 3. Pill Outlined === */
+  .b3 {
+    height:44px;padding:0 24px;border-radius:999px;
+    background:transparent;
+    border:1.5px solid #D4A017;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .2s;
+    min-width: 180px;
+  }
+  .b3 span { font-size:17px;font-weight:800;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b3:hover { background:rgba(212,160,23,.1);box-shadow:0 0 0 4px rgba(212,160,23,.1); }
+
+  /* === 4. Split with Icon Badge === */
+  .b4 {
+    height:44px;padding:0 6px 0 18px;border-radius:12px;
+    background:rgba(212,160,23,.1);
+    border:1px solid rgba(212,160,23,.25);cursor:pointer;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    transition:all .2s;
+    min-width: 180px;
+  }
+  .b4 span { font-size:17px;font-weight:800;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b4 .badge {
+    width:32px;height:32px;border-radius:8px;
+    background:linear-gradient(180deg,#E3B52E,#C99A10);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(212,160,23,.3);
+  }
+  .b4 .badge svg { stroke:#1a1400; }
+  .b4:hover { background:rgba(212,160,23,.18);border-color:rgba(212,160,23,.45); }
+
+  /* === 5. Minimal Ghost === */
+  .b5 {
+    height:40px;padding:0 18px;border-radius:10px;
+    background:transparent;
+    border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:all .2s;
+    min-width: 180px;
+  }
+  .b5 span { font-size:16px;font-weight:800;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b5:hover { background:rgba(212,160,23,.08); }
+
+  /* === 6. Embossed 3D === */
+  .b6 {
+    height:44px;padding:0 20px;border-radius:12px;
+    background:linear-gradient(180deg,#2a230f,#1a1608);
+    border:1px solid rgba(212,160,23,.2);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .2s;
+    box-shadow:
+      inset 0 1px 0 rgba(212,160,23,.25),
+      inset 0 -1px 0 rgba(0,0,0,.5),
+      0 2px 6px rgba(0,0,0,.4);
+    min-width: 180px;
+  }
+  .b6 span { font-size:17px;font-weight:900;color:#E3B52E;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px;text-shadow:0 1px 0 rgba(0,0,0,.5); }
+  .b6:hover { background:linear-gradient(180deg,#332a14,#201a0b); }
+
+  /* === 7. Neon Glow === */
+  .b7 {
+    height:44px;padding:0 22px;border-radius:12px;
+    background:rgba(212,160,23,.05);
+    border:1px solid #D4A017;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .3s;
+    box-shadow:
+      0 0 8px rgba(212,160,23,.3),
+      inset 0 0 8px rgba(212,160,23,.1);
+    min-width: 180px;
+  }
+  .b7 span { font-size:17px;font-weight:900;color:#F5D76E;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px;text-shadow:0 0 8px rgba(212,160,23,.6); }
+  .b7 svg { stroke:#F5D76E;filter:drop-shadow(0 0 4px rgba(212,160,23,.6)); }
+  .b7:hover { box-shadow:0 0 16px rgba(212,160,23,.5),inset 0 0 12px rgba(212,160,23,.15); }
+
+  /* === 8. Double Border === */
+  .b8 {
+    height:44px;padding:0 20px;border-radius:10px;
+    background:rgba(212,160,23,.08);
+    border:1px solid rgba(212,160,23,.4);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .2s;
+    box-shadow:0 0 0 4px rgba(212,160,23,.06);
+    min-width: 180px;
+  }
+  .b8 span { font-size:17px;font-weight:900;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b8:hover { background:rgba(212,160,23,.14);box-shadow:0 0 0 4px rgba(212,160,23,.12); }
+
+  /* === 9. Gradient Border === */
+  .b9 {
+    height:44px;padding:0 22px;border-radius:12px;
+    background:linear-gradient(#151515,#151515) padding-box,
+               linear-gradient(135deg,#D4A017,#5a4408,#D4A017) border-box;
+    border:1.5px solid transparent;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .2s;
+    min-width: 180px;
+  }
+  .b9 span { font-size:17px;font-weight:900;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b9:hover { background:linear-gradient(#1a1a1a,#1a1a1a) padding-box,linear-gradient(135deg,#F5D76E,#8a6a14,#F5D76E) border-box; }
+
+  /* === 10. Compact Square Plus === */
+  .b10 {
+    height:42px;padding:0 4px 0 18px;border-radius:10px;
+    background:rgba(212,160,23,.12);
+    border:1px solid rgba(212,160,23,.3);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .2s;
+    min-width: 180px;
+  }
+  .b10 span { font-size:17px;font-weight:900;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b10 .sq {
+    width:30px;height:30px;border-radius:6px;
+    background:#D4A017;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .b10 .sq svg { stroke:#1a1400; }
+  .b10:hover { background:rgba(212,160,23,.2); }
+
+  /* === 11. Underline only === */
+  .b11 {
+    height:44px;padding:10px 4px;border-radius:0;
+    background:transparent;
+    border:none;border-bottom:2px solid #D4A017;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .2s;
+    min-width: 180px;
+  }
+  .b11 span { font-size:17px;font-weight:900;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b11:hover { border-bottom-width:3px;padding-bottom:9px; }
+
+  /* === 12. Icon + text, icon in circle === */
+  .b12 {
+    height:44px;padding:0 8px 0 18px;border-radius:999px;
+    background:rgba(212,160,23,.1);
+    border:1px solid rgba(212,160,23,.25);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .2s;
+    min-width: 180px;
+  }
+  .b12 span { font-size:16px;font-weight:800;color:#D4A017;font-family:'Noto Kufi Arabic','Cairo',sans-serif;letter-spacing:-.5px; }
+  .b12 .circle {
+    width:30px;height:30px;border-radius:50%;
+    background:#D4A017;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .b12 .circle svg { stroke:#1a1400; }
+  .b12:hover { background:rgba(212,160,23,.18); }
+
+</style>
+</head>
+<body>
+<h1>تصميمات زر "طلب"</h1>
+<div class="hint">ضع المؤشر على كل زر لرؤية تأثير الـ hover · اختر الرقم المناسب وأخبرني</div>
+
+<div class="grid">
+
+  <div class="cell">
+    <div class="num">#1 — الحالي</div>
+    <button class="b1"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">ذهبي خفيف مع حد</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#2 — ذهبي ممتلئ</div>
+    <button class="b2"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1400" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">خلفية ذهبية + نص أسود</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#3 — Pill مفرّغ</div>
+    <button class="b3"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">حد ذهبي على شكل حبة دواء</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#4 — Split + شارة</div>
+    <button class="b4"><span>طلب</span><div class="badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></button>
+    <div class="label">نص + شارة مربعة للأيقونة</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#5 — شفاف بسيط</div>
+    <button class="b5"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">بدون حدود — يظهر عند hover</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#6 — بارز ثلاثي الأبعاد</div>
+    <button class="b6"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E3B52E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">إحساس نافر مع ظل داخلي</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#7 — نيون متوهّج</div>
+    <button class="b7"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">توهّج ذهبي داخلي وخارجي</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#8 — هالة مزدوجة</div>
+    <button class="b8"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">حد رئيسي + هالة خارجية</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#9 — حد متدرّج</div>
+    <button class="b9"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">حد بتدرّج فاخر ذهبي-داكن</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#10 — مربع + مع أيقونة</div>
+    <button class="b10"><span>طلب</span><div class="sq"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></button>
+    <div class="label">نص + مربع ذهبي للـ+</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#11 — تحته خط فقط</div>
+    <button class="b11"><span>طلب</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="label">خط سفلي فقط — تصميم مبسّط جداً</div>
+  </div>
+
+  <div class="cell">
+    <div class="num">#12 — Pill + دائرة</div>
+    <button class="b12"><span>طلب</span><div class="circle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></button>
+    <div class="label">حبة دواء + دائرة ذهبية للـ+</div>
+  </div>
+
+</div>
+</body>
+</html>

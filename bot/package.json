@@ -1,0 +1,21 @@
+{
+  "name": "jisr-muqeem-bot",
+  "version": "1.0.0",
+  "description": "Auto-login bot that keeps a fresh Muqeem JWT in Supabase for Jisr",
+  "type": "module",
+  "main": "muqeem-bot.mjs",
+  "scripts": {
+    "start": "node muqeem-bot.mjs",
+    "start:visible": "cross-env HEADLESS=false node muqeem-bot.mjs"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "puppeteer": "^23.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

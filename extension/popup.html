@@ -1,0 +1,55 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { width: 340px; padding: 14px 16px; font-family: 'Cairo','Tajawal','Segoe UI',sans-serif; background: #141518; color: #ddd; margin: 0; }
+    h1 { font-size: 14px; color: #D4A017; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; font-weight: 800; }
+    .status { padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; line-height: 1.5; }
+    .ok   { background: rgba(39,160,70,.08);  border: 1px solid rgba(39,160,70,.3);  color: #27a046; }
+    .warn { background: rgba(212,160,23,.08); border: 1px solid rgba(212,160,23,.3); color: #D4A017; }
+    .err  { background: rgba(192,57,43,.08);  border: 1px solid rgba(192,57,43,.3);  color: #c0392b; }
+    .info { padding: 4px 0 8px; }
+    .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; color: #888; border-bottom: 1px dashed rgba(255,255,255,.05); }
+    .row:last-of-type { border-bottom: none; }
+    .row span:last-child { color: #ddd; font-weight: 600; }
+    .actions { display: flex; gap: 6px; margin-top: 10px; }
+    button { flex: 1; padding: 9px 8px; border: none; border-radius: 7px; font-weight: 700; font-family: inherit; cursor: pointer; font-size: 12px; }
+    .btn-primary { background: #D4A017; color: #000; }
+    .btn-secondary { background: rgba(255,255,255,.06); color: #ddd; border: 1px solid rgba(255,255,255,.1); }
+    details { margin-top: 14px; border-top: 1px solid rgba(255,255,255,.06); padding-top: 12px; }
+    summary { cursor: pointer; font-size: 12px; font-weight: 700; color: #D4A017; padding: 4px 0; }
+    .form { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
+    .form label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #aaa; font-weight: 600; }
+    .form input[type="text"], .form input[type="password"] { padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.25); color: #ddd; font-family: inherit; font-size: 12px; outline: none; direction: ltr; text-align: left; }
+    .toggle { flex-direction: row; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
+    .toggle input { width: 16px; height: 16px; accent-color: #D4A017; }
+    .hint { font-size: 10.5px; color: #666; margin-top: 8px; line-height: 1.6; text-align: center; }
+    #saveStatus { font-size: 10px; color: #27a046; height: 12px; }
+  </style>
+</head>
+<body>
+  <h1><span>🌉</span><span>Jisr Muqeem Sync</span></h1>
+  <div id="status"></div>
+  <div class="info" id="info"></div>
+  <div class="actions">
+    <button class="btn-primary" id="openMuqeem">فتح مقيم</button>
+    <button class="btn-secondary" id="loginNow">دخول تلقائي الآن</button>
+  </div>
+  <details>
+    <summary>إعدادات الدخول التلقائي</summary>
+    <div class="form">
+      <label>اسم المستخدم<input id="username" type="text" placeholder="7049541498" /></label>
+      <label>كلمة المرور<input id="password" type="password" placeholder="••••••••" /></label>
+      <label class="toggle">
+        <input id="autoLogin" type="checkbox" />
+        <span>تفعيل الدخول التلقائي كل ~50 دقيقة</span>
+      </label>
+      <button class="btn-primary" id="saveCreds">حفظ الإعدادات</button>
+      <div id="saveStatus"></div>
+      <div class="hint">البيانات تُخزَّن محلياً في المتصفح فقط. الـ OTP يُسحب تلقائياً من جدول الرسائل في Jisr.</div>
+    </div>
+  </details>
+  <script src="popup.js"></script>
+</body>
+</html>

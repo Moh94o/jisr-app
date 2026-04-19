@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Jisr Muqeem Sync",
+  "version": "0.1.0",
+  "description": "ينقل جلسة منصة مقيم تلقائياً إلى Jisr لجلب بيانات العمال بدون لصق يدوي",
+  "permissions": [
+    "cookies",
+    "storage",
+    "webRequest",
+    "alarms",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://muqeem.sa/*",
+    "https://gcvshzutdslmdkwqwteh.supabase.co/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://muqeem.sa/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Jisr Muqeem Sync"
+  }
+}
