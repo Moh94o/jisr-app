@@ -143,6 +143,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [msgClassifyPicker, setMsgClassifyPicker] = useState(null) // msg id when picker open
   const [msgCatAddModal, setMsgCatAddModal] = useState(null) // { ar, en, msgId } or null
   const [msgCatDeleteConfirm, setMsgCatDeleteConfirm] = useState(null) // { k, l } or null
+  const [searchText, setSearchText] = useState('')
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+  const [searchSvc, setSearchSvc] = useState('')
+  const [searchSvcCat, setSearchSvcCat] = useState('')
+  const [searchMsgCat, setSearchMsgCat] = useState('')
   const DEFAULT_MSG_CATS = [
     { k: 'otp',         l: 'رمز تحقق',       l_en: 'OTP' },
     { k: 'notification',l: 'إشعار',          l_en: 'Notification' },
@@ -457,6 +462,25 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   else if (filter === 'purchase') filtered = filtered.filter(m => /purchase|مشتريات|mada|شراء/i.test(m.message_body || ''))
   else if (filter === 'violation') filtered = filtered.filter(m => /مخالفة|violation/i.test(m.message_body || ''))
   else if (filter !== 'all' && filter !== 'overview') filtered = filtered.filter(m => detectMsgCat(m) === filter)
+  // Apply search filters
+  if (searchText && searchText.trim()) {
+    const q = searchText.trim().toLowerCase()
+    filtered = filtered.filter(m => {
+      const sv = applySvcOverrides(detectService(m.phone_from, m.message_body))
+      const pn = persons.find(p => p.id === m.person_id)?.name || ''
+      return (m.message_body || '').toLowerCase().includes(q)
+        || (m.phone_from || '').toLowerCase().includes(q)
+        || (m.otp_code || '').toLowerCase().includes(q)
+        || (sv.name || '').toLowerCase().includes(q)
+        || pn.toLowerCase().includes(q)
+    })
+  }
+  if (searchSvc) filtered = filtered.filter(m => applySvcOverrides(detectService(m.phone_from, m.message_body))._defaultName === searchSvc)
+  if (searchSvcCat) filtered = filtered.filter(m => {
+    const sv = applySvcOverrides(detectService(m.phone_from, m.message_body))
+    return (sv.cats || (sv.cat ? [sv.cat] : [])).includes(searchSvcCat)
+  })
+  if (searchMsgCat) filtered = filtered.filter(m => (m.user_classifications || []).includes(searchMsgCat))
 
   const sF = { width: '100%', height: 42, padding: '0 14px', border: '1.5px solid rgba(255,255,255,.1)', borderRadius: 10, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)', outline: 'none', background: 'rgba(255,255,255,.04)', boxSizing: 'border-box' }
   const SENDERS = [{k:'*',l:'الكل'},{k:'qiwa',l:'قوى'},{k:'nafath',l:'نفاذ'},{k:'absher',l:'أبشر'},{k:'moi',l:'داخلية'},{k:'gosi',l:'GOSI'},{k:'muqeem',l:'مقيم'},{k:'chamber',l:'الغرفة التجارية'},{k:'bank',l:'البنوك'},{k:'other',l:'أخرى'}]
@@ -529,6 +553,50 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             const lblS = { fontSize: 12, color: 'rgba(255,255,255,.55)', marginBottom: 8, fontWeight: 600 }
             const selectedPerson = selPerson !== 'all' ? persons.find(p => p.id === selPerson) : null
             return <>
+              {/* Search bar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,.4)' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="ابحث في الرسائل / الرقم / صاحب الحساب …" style={{ width: '100%', height: 38, padding: '0 36px 0 14px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', direction: 'rtl', boxSizing: 'border-box' }} />
+                </div>
+                <button onClick={() => setShowAdvancedSearch(!showAdvancedSearch)} style={{ height: 38, padding: '0 14px', borderRadius: 10, border: '1px solid ' + (showAdvancedSearch ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.1)'), background: showAdvancedSearch ? 'rgba(212,160,23,.1)' : 'rgba(255,255,255,.02)', color: showAdvancedSearch ? C.gold : 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                  بحث متقدم
+                </button>
+                {(searchText || searchSvc || searchSvcCat || searchMsgCat) && <button onClick={() => { setSearchText(''); setSearchSvc(''); setSearchSvcCat(''); setSearchMsgCat('') }} style={{ height: 38, padding: '0 12px', borderRadius: 10, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>مسح</button>}
+              </div>
+              {showAdvancedSearch && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginBottom: 14, padding: 12, borderRadius: 10, background: 'rgba(212,160,23,.03)', border: '1px solid rgba(212,160,23,.12)' }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>الجهة</div>
+                  <select value={searchSvc} onChange={e => setSearchSvc(e.target.value)} style={{ width: '100%', height: 34, padding: '0 8px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 7, color: 'var(--tx)', fontFamily: F, fontSize: 11, direction: 'rtl' }}>
+                    <option value="">— الكل —</option>
+                    {[...new Set(messages.map(m => applySvcOverrides(detectService(m.phone_from, m.message_body))._defaultName).filter(Boolean))].map(n => (
+                      <option key={n} value={n}>{customNames[n] || n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>تصنيف الجهة</div>
+                  <select value={searchSvcCat} onChange={e => setSearchSvcCat(e.target.value)} style={{ width: '100%', height: 34, padding: '0 8px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 7, color: 'var(--tx)', fontFamily: F, fontSize: 11, direction: 'rtl' }}>
+                    <option value="">— الكل —</option>
+                    {[...['gov','bank','other'].filter(c => !hiddenDefaultCats.includes(c)).map(c => ({ k: c, l: { gov:'حكومي', bank:'بنوك', other:'أخرى' }[c] })), ...customCategories.map(c => ({ k: c.k, l: c.l }))].map(c => (
+                      <option key={c.k} value={c.k}>{c.l}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>فئة الرسالة</div>
+                  <select value={searchMsgCat} onChange={e => setSearchMsgCat(e.target.value)} style={{ width: '100%', height: 34, padding: '0 8px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 7, color: 'var(--tx)', fontFamily: F, fontSize: 11, direction: 'rtl' }}>
+                    <option value="">— الكل —</option>
+                    {(() => {
+                      const seen = new Set(); const all = []
+                      Object.values(msgCategories).forEach(list => { (list || []).forEach(c => { if (!seen.has(c.k)) { seen.add(c.k); all.push(c) } }) })
+                      return all.map(c => <option key={c.k} value={c.k}>{c.l}</option>)
+                    })()}
+                  </select>
+                </div>
+              </div>}
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
