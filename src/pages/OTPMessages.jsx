@@ -140,6 +140,35 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [catAddModal, setCatAddModal] = useState(null) // { ar, en } or null
   const [catDeleteConfirm, setCatDeleteConfirm] = useState(null) // { k, l, isDefault? } or null
   const [msgClassifyPicker, setMsgClassifyPicker] = useState(null) // msg id when picker open
+  const [msgCatAddModal, setMsgCatAddModal] = useState(null) // { ar, en, msgId } or null
+  const [msgCategories, setMsgCategories] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('jisr_msg_categories') || 'null')
+      if (saved && Array.isArray(saved)) return saved
+    } catch {}
+    return [
+      { k: 'otp',         l: 'رمز تحقق',       l_en: 'OTP' },
+      { k: 'notification',l: 'إشعار',          l_en: 'Notification' },
+      { k: 'transfer_in', l: 'حوالة واردة',     l_en: 'Incoming Transfer' },
+      { k: 'transfer_out',l: 'حوالة صادرة',     l_en: 'Outgoing Transfer' },
+      { k: 'purchase',    l: 'شراء',           l_en: 'Purchase' },
+      { k: 'bill',        l: 'فاتورة',          l_en: 'Bill' },
+      { k: 'service',     l: 'نقل خدمات',       l_en: 'Service Transfer' },
+      { k: 'ad',          l: 'إعلان',          l_en: 'Advertisement' },
+      { k: 'violation',   l: 'مخالفة',         l_en: 'Violation' },
+      { k: 'other',       l: 'أخرى',            l_en: 'Other' },
+    ]
+  })
+  const addMsgCategory = (ar, en) => {
+    const key = 'mc_' + Date.now()
+    const next = [...msgCategories, { k: key, l: ar, l_en: en }]
+    setMsgCategories(next); localStorage.setItem('jisr_msg_categories', JSON.stringify(next))
+    return key
+  }
+  const removeMsgCategory = (key) => {
+    const next = msgCategories.filter(c => c.k !== key)
+    setMsgCategories(next); localStorage.setItem('jisr_msg_categories', JSON.stringify(next))
+  }
   const updateMsgClassifications = async (msgId, cats) => {
     await sb.from('otp_messages').update({ user_classifications: cats }).eq('id', msgId)
     setMessages(prev => prev.map(x => x.id === msgId ? { ...x, user_classifications: cats } : x))
@@ -792,38 +821,39 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     <pre style={{ fontSize: 10, color: 'var(--tx3)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.8, fontFamily: F, unicodeBidi: 'plaintext', background: 'rgba(255,255,255,.02)', padding: '8px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.04)' }}>{(m.message_body||'').split(/\n/).map((line, i) => <div key={i} dir="auto" style={{ minHeight: '1.8em' }}>{line}</div>)}</pre>
                   </div>}
 
-                  {/* User Classifications */}
+                  {/* User Message Category (فئة الرسالة) */}
                   {(() => {
-                    const msgCats = (m.user_classifications || []).filter(Boolean)
-                    const allCats = [...['gov','bank','other'].filter(c => !hiddenDefaultCats.includes(c)).map(c => ({ k: c, l: { gov:'حكومي', bank:'بنوك', other:'أخرى' }[c] })), ...customCategories.map(c => ({ k: c.k, l: c.l }))]
-                    const selected = msgCats.map(k => allCats.find(c => c.k === k)).filter(Boolean)
+                    const selKeys = (m.user_classifications || []).filter(Boolean)
+                    const selected = selKeys.map(k => msgCategories.find(c => c.k === k)).filter(Boolean)
                     return <div style={{ padding: '6px 14px', background: 'rgba(212,160,23,.02)', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 9, color: 'var(--tx6)', fontWeight: 600 }}>التصنيف:</span>
-                      {selected.length === 0 && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>بدون تصنيف</span>}
+                      <span style={{ fontSize: 9, color: 'var(--tx6)', fontWeight: 600 }}>فئة الرسالة:</span>
+                      {selected.length === 0 && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>بدون فئة</span>}
                       {selected.map(s => (
-                        <span key={s.k} style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: 'rgba(212,160,23,.12)', color: C.gold, border: '1px solid rgba(212,160,23,.28)' }}>{s.l}</span>
+                        <span key={s.k} style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: 'rgba(52,131,180,.14)', color: C.blue, border: '1px solid rgba(52,131,180,.32)' }}>{s.l}</span>
                       ))}
                       <div style={{ flex: 1 }} />
-                      <button onClick={() => setMsgClassifyPicker(m.id)} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(212,160,23,.28)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعديل التصنيف</button>
+                      <button onClick={() => setMsgClassifyPicker(msgClassifyPicker === m.id ? null : m.id)} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(52,131,180,.32)', background: 'rgba(52,131,180,.1)', color: C.blue, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعديل الفئة</button>
                     </div>
                   })()}
 
                   {msgClassifyPicker === m.id && (() => {
-                    const msgCats = m.user_classifications || []
-                    const allCats = [...['gov','bank','other'].filter(c => !hiddenDefaultCats.includes(c)).map(c => ({ k: c, l: { gov:'حكومي', bank:'بنوك', other:'أخرى' }[c] })), ...customCategories.map(c => ({ k: c.k, l: c.l }))]
+                    const selKeys = m.user_classifications || []
                     return <div style={{ padding: '8px 14px 10px', borderTop: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.18)' }}>
-                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', marginBottom: 6, fontWeight: 600 }}>اضغط على التصنيف لإضافته أو إزالته — يُستخدم في تدريب Claude على التصنيف الصحيح</div>
+                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', marginBottom: 6, fontWeight: 600 }}>اضغط الفئة لإضافتها أو إزالتها — تُستخدم لتحسين تصنيف Claude تلقائياً</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                        {allCats.map(c => {
-                          const isSel = msgCats.includes(c.k)
+                        {msgCategories.map(c => {
+                          const isSel = selKeys.includes(c.k)
                           return (
-                            <button key={c.k} onClick={() => {
-                              const next = isSel ? msgCats.filter(x => x !== c.k) : [...msgCats, c.k]
-                              updateMsgClassifications(m.id, next)
-                            }} style={{ fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 4, cursor: 'pointer', fontFamily: F, border: '1px solid ' + (isSel ? 'rgba(212,160,23,.5)' : 'rgba(255,255,255,.1)'), background: isSel ? 'rgba(212,160,23,.15)' : 'transparent', color: isSel ? C.gold : 'rgba(255,255,255,.6)' }}>{c.l}</button>
+                            <div key={c.k} style={{ display: 'inline-flex', alignItems: 'stretch', borderRadius: 4, overflow: 'hidden', border: '1px solid ' + (isSel ? 'rgba(52,131,180,.5)' : 'rgba(255,255,255,.1)'), background: isSel ? 'rgba(52,131,180,.14)' : 'transparent' }}>
+                              <button onClick={() => {
+                                const next = isSel ? selKeys.filter(x => x !== c.k) : [...selKeys, c.k]
+                                updateMsgClassifications(m.id, next)
+                              }} style={{ fontSize: 9, fontWeight: 700, padding: '3px 9px', cursor: 'pointer', fontFamily: F, border: 'none', background: 'transparent', color: isSel ? C.blue : 'rgba(255,255,255,.6)' }}>{c.l}</button>
+                              <button onClick={e => { e.stopPropagation(); if (window.confirm('حذف الفئة "' + c.l + '"؟')) removeMsgCategory(c.k) }} title="حذف هذه الفئة" style={{ padding: '0 4px', border: 'none', borderRight: '1px solid rgba(255,255,255,.06)', background: 'transparent', color: 'rgba(192,57,43,.7)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>×</button>
+                            </div>
                           )
                         })}
-                        <button onClick={() => setCatAddModal({ ar: '', en: '' })} title="إضافة تصنيف جديد" style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 4, border: '1px dashed rgba(212,160,23,.4)', background: 'rgba(212,160,23,.05)', color: C.gold, cursor: 'pointer', fontFamily: F, lineHeight: 1 }}>+</button>
+                        <button onClick={() => setMsgCatAddModal({ ar: '', en: '', msgId: m.id })} title="إضافة فئة رسالة جديدة" style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 4, border: '1px dashed rgba(52,131,180,.4)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F, lineHeight: 1 }}>+</button>
                         <div style={{ flex: 1 }} />
                         <button onClick={() => setMsgClassifyPicker(null)} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 4, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>تم</button>
                       </div>
@@ -1250,6 +1280,48 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             <div style={{ padding: '12px 20px 16px', display: 'flex', gap: 8, borderTop: '1px solid rgba(255,255,255,.05)' }}>
               <button onClick={() => setCatDeleteConfirm(null)} style={{ flex: 1, height: 40, borderRadius: 9, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700 }}>إلغاء</button>
               <button onClick={() => { if (catDeleteConfirm.isDefault) hideDefaultCat(catDeleteConfirm.k); else removeCustomCategory(catDeleteConfirm.k); setCatDeleteConfirm(null) }} style={{ flex: 1, height: 40, borderRadius: 9, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 800 }}>حذف</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Message Category Modal */}
+      {msgCatAddModal && (
+        <div onClick={() => setMsgCatAddModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1250, padding: 16, fontFamily: F, direction: 'rtl' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 18, width: 'min(440px,92vw)', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(52,131,180,.15)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 22px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: C.blue }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.5" fill="rgba(52,131,180,.15)"/><path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                <span style={{ fontSize: 16, fontWeight: 800 }}>إضافة فئة رسالة جديدة</span>
+              </div>
+              <button onClick={() => setMsgCatAddModal(null)} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 6 }}>الاسم بالعربي <span style={{ color: '#e74c3c' }}>*</span></div>
+                <input autoFocus value={msgCatAddModal.ar} onChange={e => setMsgCatAddModal(p => ({ ...p, ar: e.target.value }))} placeholder="مثال: رمز تحقق" style={{ width: '100%', height: 40, padding: '0 12px', border: '1px solid rgba(255,255,255,.1)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.2)', outline: 'none', direction: 'rtl', textAlign: 'center', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 6 }}>الاسم بالإنجليزي <span style={{ color: '#e74c3c' }}>*</span></div>
+                <input value={msgCatAddModal.en} onChange={e => setMsgCatAddModal(p => ({ ...p, en: e.target.value }))} placeholder="Example: OTP" style={{ width: '100%', height: 40, padding: '0 12px', border: '1px solid rgba(255,255,255,.1)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.2)', outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <style>{`.msg-cat-add-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.blue};font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.msg-cat-add-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(52,131,180,.12);display:flex;align-items:center;justify-content:center;color:${C.blue}}.msg-cat-add-btn:hover:not(:disabled) .nav-ico{background:${C.blue};color:#fff}.msg-cat-add-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
+            <div style={{ padding: '12px 22px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => {
+                const ar = msgCatAddModal.ar.trim(), en = msgCatAddModal.en.trim(), msgId = msgCatAddModal.msgId
+                if (!ar || !en) return
+                const key = addMsgCategory(ar, en)
+                // Auto-select the new category on the message that triggered add
+                const current = messages.find(x => x.id === msgId)?.user_classifications || []
+                updateMsgClassifications(msgId, [...current, key])
+                setMsgCatAddModal(null)
+              }} disabled={!msgCatAddModal.ar.trim() || !msgCatAddModal.en.trim()} className="msg-cat-add-btn">
+                <span>إضافة</span>
+                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
+              </button>
             </div>
           </div>
         </div>
