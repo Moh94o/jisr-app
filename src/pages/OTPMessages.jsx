@@ -1,9 +1,41 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import SERVICES, { detectService } from './serviceConfig.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
 const OTP_TTL = 60
+
+// Themed dropdown that matches the dark/gold aesthetic
+const ThemedSelect = ({ value, onChange, options, placeholder }) => {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+  const selected = options.find(o => o.value === value)
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+      <style>{`.themed-select-menu::-webkit-scrollbar{display:none}.themed-select-menu{scrollbar-width:none;-ms-overflow-style:none}`}</style>
+      <button onClick={() => setOpen(!open)} style={{ width: '100%', height: 34, padding: '0 10px', background: 'rgba(0,0,0,.2)', border: '1px solid ' + (open ? 'rgba(212,160,23,.4)' : 'rgba(255,255,255,.08)'), borderRadius: 7, color: 'var(--tx)', fontFamily: F, fontSize: 11, fontWeight: 600, direction: 'rtl', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, outline: 'none', transition: 'border-color .15s' }}>
+        <span style={{ flex: 1, textAlign: 'center', color: selected ? 'var(--tx)' : 'rgba(255,255,255,.4)' }}>{selected?.label || placeholder || '— الكل —'}</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(255,255,255,.5)', transform: open ? 'rotate(180deg)' : 'none', transition: '.15s', flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && <div className="themed-select-menu" style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1e1e1e', border: '1px solid rgba(212,160,23,.2)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.45)', zIndex: 50, maxHeight: 240, overflowY: 'auto', padding: 4, direction: 'rtl' }}>
+        {options.map(o => {
+          const isSel = o.value === value
+          return (
+            <button key={o.value || '_none'} onClick={() => { onChange(o.value); setOpen(false) }} style={{ display: 'block', width: '100%', textAlign: 'center', padding: '7px 10px', background: isSel ? 'rgba(212,160,23,.12)' : 'transparent', border: 'none', borderRadius: 6, color: isSel ? C.gold : 'rgba(255,255,255,.82)', fontFamily: F, fontSize: 11.5, fontWeight: isSel ? 700 : 600, cursor: 'pointer', transition: 'background .12s' }} onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }} onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
+              {o.label}
+            </button>
+          )
+        })}
+      </div>}
+    </div>
+  )
+}
 
 const SvcLogo = ({ sender, body, size = 44, customAvatars }) => {
   const svc = detectService(sender, body)
@@ -568,32 +600,25 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               {showAdvancedSearch && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginBottom: 14, padding: 12, borderRadius: 10, background: 'rgba(212,160,23,.03)', border: '1px solid rgba(212,160,23,.12)' }}>
                 <div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>الجهة</div>
-                  <select value={searchSvc} onChange={e => setSearchSvc(e.target.value)} style={{ width: '100%', height: 34, padding: '0 8px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 7, color: 'var(--tx)', fontFamily: F, fontSize: 11, direction: 'rtl' }}>
-                    <option value="">— الكل —</option>
-                    {[...new Set(messages.map(m => applySvcOverrides(detectService(m.phone_from, m.message_body))._defaultName).filter(Boolean))].map(n => (
-                      <option key={n} value={n}>{customNames[n] || n}</option>
-                    ))}
-                  </select>
+                  <ThemedSelect value={searchSvc} onChange={setSearchSvc} placeholder="— الكل —" options={[
+                    { value: '', label: '— الكل —' },
+                    ...[...new Set(messages.map(m => applySvcOverrides(detectService(m.phone_from, m.message_body))._defaultName).filter(Boolean))].map(n => ({ value: n, label: customNames[n] || n }))
+                  ]} />
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>تصنيف الجهة</div>
-                  <select value={searchSvcCat} onChange={e => setSearchSvcCat(e.target.value)} style={{ width: '100%', height: 34, padding: '0 8px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 7, color: 'var(--tx)', fontFamily: F, fontSize: 11, direction: 'rtl' }}>
-                    <option value="">— الكل —</option>
-                    {[...['gov','bank','other'].filter(c => !hiddenDefaultCats.includes(c)).map(c => ({ k: c, l: { gov:'حكومي', bank:'بنوك', other:'أخرى' }[c] })), ...customCategories.map(c => ({ k: c.k, l: c.l }))].map(c => (
-                      <option key={c.k} value={c.k}>{c.l}</option>
-                    ))}
-                  </select>
+                  <ThemedSelect value={searchSvcCat} onChange={setSearchSvcCat} placeholder="— الكل —" options={[
+                    { value: '', label: '— الكل —' },
+                    ...['gov','bank','other'].filter(c => !hiddenDefaultCats.includes(c)).map(c => ({ value: c, label: { gov:'حكومي', bank:'بنوك', other:'أخرى' }[c] })),
+                    ...customCategories.map(c => ({ value: c.k, label: c.l }))
+                  ]} />
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>فئة الرسالة</div>
-                  <select value={searchMsgCat} onChange={e => setSearchMsgCat(e.target.value)} style={{ width: '100%', height: 34, padding: '0 8px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 7, color: 'var(--tx)', fontFamily: F, fontSize: 11, direction: 'rtl' }}>
-                    <option value="">— الكل —</option>
-                    {(() => {
-                      const seen = new Set(); const all = []
-                      Object.values(msgCategories).forEach(list => { (list || []).forEach(c => { if (!seen.has(c.k)) { seen.add(c.k); all.push(c) } }) })
-                      return all.map(c => <option key={c.k} value={c.k}>{c.l}</option>)
-                    })()}
-                  </select>
+                  <ThemedSelect value={searchMsgCat} onChange={setSearchMsgCat} placeholder="— الكل —" options={[
+                    { value: '', label: '— الكل —' },
+                    ...(() => { const seen = new Set(); const all = []; Object.values(msgCategories).forEach(list => (list || []).forEach(c => { if (!seen.has(c.k)) { seen.add(c.k); all.push(c) } })); return all.map(c => ({ value: c.k, label: c.l })) })()
+                  ]} />
                 </div>
               </div>}
 
