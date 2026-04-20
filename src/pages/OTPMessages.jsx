@@ -631,10 +631,14 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   </> : <>
                   {/* Part 2 — Non-OTP parsed body + action */}
                   <div style={{ position: 'relative', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                      <button onClick={() => setMsgClassifyPicker(msgClassifyPicker === m.id ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(52,131,180,.85)', cursor: 'pointer', border: '1px dashed rgba(52,131,180,.5)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(52,131,180,.85)'; e.currentTarget.style.borderColor = 'rgba(52,131,180,.5)' }}>
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                        تعديل الفئة
-                      </button>
+                      {(() => {
+                        const active = msgClassifyPicker === m.id
+                        const idleColor = 'rgba(255,255,255,.55)', idleBorder = 'rgba(255,255,255,.22)'
+                        return <button onClick={() => setMsgClassifyPicker(active ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -10, right: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: active ? C.blue : idleColor, cursor: 'pointer', border: '1px dashed ' + (active ? C.blue : idleBorder), borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue } }} onMouseLeave={e => { if (!active) { e.currentTarget.style.color = idleColor; e.currentTarget.style.borderColor = idleBorder } }}>
+                          <span>تعديل الفئة</span>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        </button>
+                      })()}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {(()=>{
                           const body = m.message_body || ''
