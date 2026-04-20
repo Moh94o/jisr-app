@@ -1,6 +1,6 @@
 // Muqeem Auto-Login Bot
 // ──────────────────────
-// Runs forever. Every 50 minutes:
+// Runs forever. Every 10 minutes (RUN_EVERY_MIN env, default 10):
 //   1. Opens muqeem.sa login in headless Chromium
 //   2. Fills username + password (auto-passes most reCAPTCHA via stealth plugin)
 //   3. Polls Supabase for the latest OTP (sent to Jisr via existing SMS pipeline)
@@ -18,17 +18,14 @@ puppeteer.use(StealthPlugin())
 
 // ─── config from env ────────────────────────────────────────
 const env = (k, dflt) => (process.env[k] || dflt || '').trim()
-const MUQEEM_USERNAME = env('MUQEEM_USERNAME')
-const MUQEEM_PASSWORD = env('MUQEEM_PASSWORD')
+// Env credentials are an optional fallback. The primary source is the
+// muqeem_credentials table in Supabase (editable from Jisr Settings page).
+const ENV_MUQEEM_USERNAME = env('MUQEEM_USERNAME')
+const ENV_MUQEEM_PASSWORD = env('MUQEEM_PASSWORD')
 const SUPABASE_URL = env('SUPABASE_URL', 'https://gcvshzutdslmdkwqwteh.supabase.co')
 const SUPABASE_ANON_KEY = env('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM')
 const RUN_EVERY_MS = parseInt(env('RUN_EVERY_MIN', '10')) * 60 * 1000
 const HEADLESS = env('HEADLESS', 'new') === 'new' ? 'new' : env('HEADLESS') === 'false' ? false : true
-
-if (!MUQEEM_USERNAME || !MUQEEM_PASSWORD) {
-  console.error('✗ MUQEEM_USERNAME and MUQEEM_PASSWORD env vars are required')
-  process.exit(1)
-}
 
 // ─── helpers ────────────────────────────────────────────────
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -58,6 +55,34 @@ async function fetchLatestOtp() {
   return typeof v === 'string' ? v : null
 }
 
+// Prefer credentials stored in Supabase (editable from Jisr Settings → General).
+// Falls back to env vars if the RPC is unreachable or the row is missing.
+async function fetchCredentials() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_muqeem_credentials`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    })
+    if (res.ok) {
+      const v = await res.json()
+      const username = (v && typeof v === 'object' && v.username) ? String(v.username).trim() : ''
+      const password = (v && typeof v === 'object' && v.password) ? String(v.password).trim() : ''
+      if (username && password) return { username, password, source: 'supabase' }
+    }
+  } catch (e) {
+    log(`  ⚠ Supabase credentials fetch failed: ${e.message} — falling back to .env`)
+  }
+  if (ENV_MUQEEM_USERNAME && ENV_MUQEEM_PASSWORD) {
+    return { username: ENV_MUQEEM_USERNAME, password: ENV_MUQEEM_PASSWORD, source: 'env' }
+  }
+  return null
+}
+
 async function pushSession(session) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/muqeem_sessions?on_conflict=id`, {
     method: 'POST',
@@ -78,6 +103,10 @@ async function pushSession(session) {
 
 // ─── login flow ────────────────────────────────────────────
 async function loginOnce() {
+  const creds = await fetchCredentials()
+  if (!creds) throw new Error('No credentials — set them in Jisr Settings → General → Muqeem, or define MUQEEM_USERNAME/MUQEEM_PASSWORD in .env')
+  log(`→ Using credentials from ${creds.source} (username: ${creds.username.replace(/.(?=.{3})/g, '•')})`)
+
   const browser = await puppeteer.launch({
     headless: HEADLESS,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
@@ -122,9 +151,9 @@ async function loginOnce() {
     if (!usernameSel) throw new Error('Could not locate username field')
 
     await page.click(usernameSel, { clickCount: 3 })
-    await page.type(usernameSel, MUQEEM_USERNAME, { delay: 70 })
+    await page.type(usernameSel, creds.username, { delay: 70 })
     await page.click('input[type="password"]', { clickCount: 3 })
-    await page.type('input[type="password"]', MUQEEM_PASSWORD, { delay: 70 })
+    await page.type('input[type="password"]', creds.password, { delay: 70 })
 
     log('→ Clicking login')
     const loginStart = Date.now()

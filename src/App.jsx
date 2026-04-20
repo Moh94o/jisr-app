@@ -920,7 +920,7 @@ return<div key={n.id}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </div>}
 {isVisible('fab_transfer_calc')&&<div className="fab-service-request" onClick={()=>setShowKafalaCalc(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
-<span style={{fontSize:14,fontWeight:800,color:'#D4A017',fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.3,lineHeight:1}}>حسبة التنازل</span>
+<span style={{fontSize:14,fontWeight:800,color:'#D4A017',fontFamily:lang==='en'?"'Inter','Cairo',sans-serif":"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.3,lineHeight:1}}>{T('حسبة التنازل','Transfer Calc')}</span>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><circle cx="8" cy="12" r=".5" fill="#D4A017"/><circle cx="12" cy="12" r=".5" fill="#D4A017"/><circle cx="16" cy="12" r=".5" fill="#D4A017"/><circle cx="8" cy="16" r=".5" fill="#D4A017"/><circle cx="12" cy="16" r=".5" fill="#D4A017"/></svg>
 </div>}
 <style>{`.fab-service-request:hover{background:rgba(212,160,23,.14)!important}`}</style>
@@ -1074,7 +1074,7 @@ return<div><div>
 {pg==='appointments'&&<AppointmentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 </div>
 </div>
-{showKafalaCalc&&<KafalaCalculator toast={tt} lang={lang} onClose={()=>setShowKafalaCalc(false)}/>}
+{showKafalaCalc&&<KafalaCalculator sb={sb} user={user} toast={tt} lang={lang} onClose={()=>setShowKafalaCalc(false)}/>}
 {showServiceRequest&&<div onClick={()=>setShowServiceRequest(false)} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',zIndex:998,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
 <style>{`.sr-modal-scroll::-webkit-scrollbar{width:0;display:none}.sr-modal-scroll{scrollbar-width:none;-ms-overflow-style:none}`}</style>
 <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:18,width:680,height:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid rgba(212,160,23,.08)'}}>
@@ -1970,7 +1970,7 @@ function TransferCalcPage({sb,toast,user,lang,onNewCalc}){
 const T=(a,e)=>lang==='ar'?a:e;const nm=v=>Number(v||0).toLocaleString('en-US')
 const[data,setData]=useState([]);const[workers,setWorkers]=useState([]);const[facilities,setFacilities]=useState([])
 const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[wizStep,setWizStep]=useState(0);const[workerMode,setWorkerMode]=useState('existing')
-useEffect(()=>{Promise.all([sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}),sb.from('workers').select('id,name_ar').is('deleted_at',null),sb.from('facilities').select('id,name_ar').is('deleted_at',null)]).then(([t,w,f])=>{setData(t.data||[]);setWorkers(w.data||[]);setFacilities(f.data||[])})},[sb])
+useEffect(()=>{Promise.all([sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar),priced_user:priced_by(name_ar,name_en),approved_user:approved_by(name_ar,name_en),created_user:created_by(name_ar,name_en)').is('deleted_at',null).order('created_at',{ascending:false}),sb.from('workers').select('id,name_ar').is('deleted_at',null),sb.from('facilities').select('id,name_ar').is('deleted_at',null)]).then(([t,w,f])=>{setData(t.data||[]);setWorkers(w.data||[]);setFacilities(f.data||[])})},[sb])
 const stClr={draft:'#666',priced:C.gold,approved:C.blue,invoiced:C.ok,completed:'#1a8a3e',cancelled:C.red,pending:C.gold}
 const stLabel={draft:T('مسودة','Draft'),priced:T('مسعّرة','Priced'),approved:T('مصدّقة','Approved'),invoiced:T('مصدرة الفاتورة','Invoiced'),completed:T('مكتملة','Completed'),cancelled:T('ملغاة','Cancelled'),pending:T('معلّقة','Pending')}
 const stIcon={draft:'○',priced:'◐',approved:'◑',invoiced:'●',completed:'✓',cancelled:'✕',pending:'◐'}
@@ -1979,10 +1979,10 @@ const stNextLabel={draft:T('تسعير','Price'),priced:T('تصديق','Approve'
 const changeStatus=async(id,newStatus)=>{setSaving(true);try{const upd={status:newStatus,updated_by:user?.id}
 if(newStatus==='priced'){upd.priced_at=new Date().toISOString();upd.priced_by=user?.id}
 if(newStatus==='approved'){upd.approved_at=new Date().toISOString();upd.approved_by=user?.id}
-await sb.from('worker_transfers').update(upd).eq('id',id);toast(T('تم تغيير الحالة','Status updated'));const{data:r}=await sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false});setData(r||[])}catch(e){toast('خطأ: '+e.message?.slice(0,60))}setSaving(false)}
+await sb.from('worker_transfers').update(upd).eq('id',id);toast(T('تم تغيير الحالة','Status updated'));const{data:r}=await sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar),priced_user:priced_by(name_ar,name_en),approved_user:approved_by(name_ar,name_en),created_user:created_by(name_ar,name_en)').is('deleted_at',null).order('created_at',{ascending:false});setData(r||[])}catch(e){toast('خطأ: '+e.message?.slice(0,60))}setSaving(false)}
 const save=async()=>{setSaving(true);try{const d={...form};const id=d._id;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;if(['visa_cost','iqama_cost','work_permit_cost','insurance_cost','ticket_cost','gosi_cost','government_fees','other_costs','transfer_fee','client_charge'].includes(k)&&d[k]!=null)d[k]=Number(d[k])});d.total_cost=0;['visa_cost','iqama_cost','work_permit_cost','insurance_cost','ticket_cost','gosi_cost','government_fees','other_costs','transfer_fee'].forEach(k=>d.total_cost+=Number(d[k])||0);d.profit=(Number(d.client_charge)||0)-d.total_cost
 if(id){d.updated_by=user?.id;await sb.from('worker_transfers').update(d).eq('id',id)}else{d.created_by=user?.id;await sb.from('worker_transfers').insert(d)}
-toast(T('تم الحفظ','Saved'));setPop(false);const{data:r}=await sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false});setData(r||[])}catch(e){toast('خطأ: '+e.message?.slice(0,60))}setSaving(false)}
+toast(T('تم الحفظ','Saved'));setPop(false);const{data:r}=await sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar),priced_user:priced_by(name_ar,name_en),approved_user:approved_by(name_ar,name_en),created_user:created_by(name_ar,name_en)').is('deleted_at',null).order('created_at',{ascending:false});setData(r||[])}catch(e){toast('خطأ: '+e.message?.slice(0,60))}setSaving(false)}
 // Auto-calc fees based on transfer count and iqama status
 const calcTransferFee=(count)=>count<=1?2000:count===2?4000:6000
 const calcIqamaFine=(expired,fineCount)=>!expired?0:fineCount<=1?500:fineCount===2?1000:1000
@@ -2043,8 +2043,17 @@ ${r.notes?'<div style="background:#f0f0f0;border-radius:6px;padding:8px 12px;fon
 <div class="footer">جسر للأعمال — طُبعت بتاريخ ${new Date().toLocaleDateString('ar-SA')}</div>
 </body></html>`);w.document.close();setTimeout(()=>w.print(),300)}
 const fS={width:'100%',height:40,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center',direction:'ltr'}
-return<div>
-<div style={{marginBottom:20}}><div style={{fontSize:22,fontWeight:800,color:'var(--tx)',letterSpacing:'-.3px'}}>{T('حسبة التنازل','Transfer Calculator')}</div><div style={{fontSize:12,color:'var(--tx4)',marginTop:4}}>{T('حساب تكاليف نقل خدمات العمال وإصدار التسعيرات','Worker transfer cost calculation & pricing')}</div></div>
+return<div style={{fontFamily:"'Cairo',sans-serif",paddingTop:20}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
+<div>
+<div style={{fontSize:26,fontWeight:800,color:'var(--tx)'}}>{T('حسبة التنازل','Transfer Calculator')}</div>
+<div style={{fontSize:13,color:'rgba(255,255,255,.55)',marginTop:6}}>{T('حساب تكاليف نقل خدمات العمال وإصدار التسعيرات ومتابعة حالتها','Worker transfer cost calculation, quote issuance and status tracking')}</div>
+</div>
+<button onClick={onNewCalc} style={{height:42,padding:'0 20px',borderRadius:11,border:'1px solid rgba(212,160,23,.3)',background:'rgba(212,160,23,.1)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:13,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,transition:'border-color .15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(212,160,23,.55)'} onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}>
+{T('تسعيرة جديدة','New Quote')}
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+</div>
 {(()=>{
 const typeLabel=v=>v==='final_exit'?T('خروج نهائي','Final Exit'):T('نقل كفالة','Sponsorship')
 const[listFilter,setListFilter]=useState('all')
@@ -2060,52 +2069,136 @@ return<>
 {f.l} <span style={{fontWeight:800}}>({f.n})</span></button>)}
 </div>
 {filteredData.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)'}}>{T('لا توجد حسبات','No calculations')}</div>:
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(360px,1fr))',gap:14}}>{filteredData.map(r=>{const sc=stClr[r.status]||'#999';const tc=Number(r.total_cost||0);const cc=Number(r.client_charge||0);const pr=cc-tc;const prPct=tc>0?Math.round((pr/tc)*100):0;const ds=daysSince(r.created_at);const nxt=stNext[r.status]
-return<div key={r.id} style={{background:'var(--bg)',borderRadius:16,overflow:'hidden',transition:'.2s',border:'1px solid rgba(255,255,255,.06)',position:'relative'}}>
-{/* Status gradient bar */}
-<div style={{height:3,background:`linear-gradient(90deg,transparent,${sc} 30%,${sc}cc 50%,${sc} 70%,transparent)`}}/>
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(420px,1fr))',gap:14}}>{filteredData.map(r=>{const sc=stClr[r.status]||'#999';const tc=Number(r.total_cost||0);const cc=Number(r.client_charge||0);const pr=cc-tc;const ds=daysSince(r.created_at);const nxt=stNext[r.status]
+let meta={};try{if(r.notes)meta=typeof r.notes==='string'?JSON.parse(r.notes):(r.notes||{})}catch(e){}
+const workerName=r.workers?.name_ar||meta.worker_name||r.new_employer_name||T('عامل','Worker')
+const iqamaNo=r.workers?.iqama_number||meta.iqama_number||'—'
+const quoteNo=meta.quote_no||('#'+String(r.id).slice(0,8).toUpperCase())
+const pricedBy=r.priced_user?(lang==='en'?r.priced_user.name_en||r.priced_user.name_ar:r.priced_user.name_ar)||null:null
+const approvedBy=r.approved_user?(lang==='en'?r.approved_user.name_en||r.approved_user.name_ar:r.approved_user.name_ar)||null:null
+return<div key={r.id} onClick={()=>setViewRow({...r,_meta:meta})} style={{background:'var(--bg)',borderRadius:14,overflow:'hidden',transition:'.2s',border:'1px solid rgba(255,255,255,.07)',position:'relative',cursor:'pointer'}}
+onMouseEnter={e=>{e.currentTarget.style.borderColor=sc+'50';e.currentTarget.style.transform='translateY(-1px)'}}
+onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.07)';e.currentTarget.style.transform='translateY(0)'}}>
+{/* Status accent bar */}
+<div style={{height:3,background:`linear-gradient(90deg,transparent,${sc} 25%,${sc} 75%,transparent)`}}/>
 
-{/* Main content */}
-<div style={{padding:'16px 18px'}}>
-<div style={{display:'flex',alignItems:'flex-start',gap:12}}>
-{/* Icon */}
-<div style={{width:48,height:48,borderRadius:14,background:`linear-gradient(135deg,${sc}20,${sc}08)`,border:`1.5px solid ${sc}25`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0,color:sc,fontWeight:800}}>{stIcon[r.status]||'○'}</div>
+{/* Top: worker identity */}
+<div style={{padding:'14px 16px 10px'}}>
+<div style={{display:'flex',alignItems:'center',gap:12}}>
+<div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${sc}22,${sc}08)`,border:`1.5px solid ${sc}30`,display:'flex',alignItems:'center',justifyContent:'center',color:sc,flexShrink:0}}>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+</div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-<span style={{fontSize:15,fontWeight:800,color:'var(--tx)'}}>{r.workers?.name_ar||T('عامل','Worker')}</span>
-<span style={{fontSize:10,fontWeight:700,padding:'2px 10px',borderRadius:6,background:sc+'15',color:sc,border:'1px solid '+sc+'20'}}>{stLabel[r.status]||r.status}</span>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
+<span style={{fontSize:15,fontWeight:800,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{workerName}</span>
+<span style={{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:6,background:sc+'18',color:sc,border:'1px solid '+sc+'30',flexShrink:0}}>{stLabel[r.status]||r.status}</span>
 </div>
-<div style={{display:'flex',gap:10,fontSize:10,color:'var(--tx5)',flexWrap:'wrap'}}>
+<div style={{display:'flex',gap:10,fontSize:10.5,color:'var(--tx5)',flexWrap:'wrap',alignItems:'center'}}>
+<span style={{fontFamily:'monospace',direction:'ltr',color:'var(--tx4)',fontWeight:600}}>{iqamaNo}</span>
+<span style={{color:'var(--tx6)'}}>·</span>
+<span style={{color:C.gold,fontWeight:700,fontFamily:'monospace',direction:'ltr'}}>{quoteNo}</span>
+<span style={{color:'var(--tx6)'}}>·</span>
 <span>{typeLabel(r.transfer_type)}</span>
-{r.new_employer_name&&<span>{T('← ','→ ')}{r.new_employer_name}</span>}
-<span style={{direction:'ltr'}}>{r.created_at?new Date(r.created_at).toLocaleDateString('ar-SA',{day:'numeric',month:'short'}):''}</span>
-{ds>3&&r.status!=='completed'&&r.status!=='cancelled'&&<span style={{color:'#e67e22'}}>{T('منذ ','')}{ds} {T('يوم','d')}</span>}
 </div>
-{/* Dates row */}
-{(r.sedd_date||r.due_date)&&<div style={{display:'flex',gap:10,marginTop:4,fontSize:9}}>
-{r.sedd_date&&<span style={{padding:'2px 8px',borderRadius:5,background:'rgba(212,160,23,.06)',border:'1px solid rgba(212,160,23,.1)',color:C.gold}}>{T('سداد: ','Due: ')}{r.sedd_date}</span>}
-{r.due_date&&<span style={{padding:'2px 8px',borderRadius:5,background:'rgba(52,131,180,.06)',border:'1px solid rgba(52,131,180,.1)',color:C.blue}}>{T('استحقاق: ','Due: ')}{r.due_date}</span>}
-</div>}
 </div>
 </div>
 </div>
 
 {/* Financial summary */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderTop:'1px solid rgba(255,255,255,.04)',background:'rgba(255,255,255,.015)'}}>
-{[[T('التكلفة','Cost'),nm(tc),'rgba(192,57,43,.7)'],[T('المطلوب','Charge'),nm(cc),C.gold],[T('الربح','Profit'),nm(pr),pr>=0?C.ok:C.red]].map(([l,v,c],i)=><div key={i} style={{padding:'10px',textAlign:'center',borderRight:i<2?'1px solid rgba(255,255,255,.03)':'none'}}><div style={{fontSize:8,color:'var(--tx6)',marginBottom:2,fontWeight:600,letterSpacing:'.5px'}}>{l}</div><div style={{fontSize:17,fontWeight:900,color:c,letterSpacing:'-.5px'}}>{v}</div></div>)}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderTop:'1px solid rgba(255,255,255,.04)',background:'rgba(255,255,255,.012)'}}>
+{[[T('التكلفة','Cost'),nm(tc),'rgba(192,57,43,.75)'],[T('المطلوب','Charge'),nm(cc),C.gold],[T('الربح','Profit'),nm(pr),pr>=0?C.ok:C.red]].map(([l,v,c],i)=><div key={i} style={{padding:'10px 8px',textAlign:'center',borderRight:i<2?'1px solid rgba(255,255,255,.03)':'none'}}><div style={{fontSize:8.5,color:'var(--tx6)',marginBottom:3,fontWeight:600,letterSpacing:'.5px'}}>{l}</div><div style={{fontSize:16,fontWeight:900,color:c,letterSpacing:'-.3px',direction:'ltr'}}>{v}</div></div>)}
 </div>
 
-{/* Actions bar */}
-<div style={{display:'flex',gap:5,padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,.03)',alignItems:'center'}}>
-{/* Next status button */}
-{nxt&&<button onClick={e=>{e.stopPropagation();changeStatus(r.id,nxt)}} disabled={saving} style={{height:30,padding:'0 14px',borderRadius:8,border:'1.5px solid '+stClr[nxt]+'35',background:stClr[nxt]+'12',color:stClr[nxt],fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
-{stNextLabel[r.status]} →</button>}
-<div style={{flex:1}}/>
-<button onClick={e=>{e.stopPropagation();printCalc(r)}} title={T('طباعة','Print')} style={{width:30,height:30,borderRadius:8,border:'1px solid rgba(155,89,182,.15)',background:'rgba(155,89,182,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+{/* Bottom: meta + actions */}
+<div style={{display:'flex',gap:8,padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,.03)',alignItems:'center',flexWrap:'wrap'}}>
+<div style={{display:'flex',flexDirection:'column',gap:2,flex:1,minWidth:0,fontSize:10,color:'var(--tx5)'}}>
+{pricedBy&&<div>{T('سُعِّرت بواسطة: ','Priced by: ')}<span style={{color:'var(--tx3)',fontWeight:700}}>{pricedBy}</span></div>}
+{approvedBy&&<div>{T('صُدِّقت بواسطة: ','Approved by: ')}<span style={{color:'var(--tx3)',fontWeight:700}}>{approvedBy}</span></div>}
+{!pricedBy&&!approvedBy&&<div>{T('منذ ','')}{ds} {T('يوم','d')}</div>}
+</div>
+{nxt&&<button onClick={e=>{e.stopPropagation();changeStatus(r.id,nxt)}} disabled={saving} style={{height:28,padding:'0 12px',borderRadius:7,border:'1.5px solid '+stClr[nxt]+'40',background:stClr[nxt]+'14',color:stClr[nxt],fontFamily:"'Cairo',sans-serif",fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>{stNextLabel[r.status]} →</button>}
+<button onClick={e=>{e.stopPropagation();printCalc(r)}} title={T('طباعة','Print')} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(155,89,182,.2)',background:'rgba(155,89,182,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="1.8"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
-<button onClick={e=>{e.stopPropagation();openEdit(r)}} title={T('تعديل','Edit')} style={{width:30,height:30,borderRadius:8,border:'1px solid rgba(212,160,23,.15)',background:'rgba(212,160,23,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M16.5 3.5a2.121 2.121 0 013 3L8 18l-4 1 1-4L16.5 3.5z"/></svg></button>
 </div></div>})}</div>}
+{/* Details view modal */}
+{viewRow&&(()=>{const m=viewRow._meta||{};const sc=stClr[viewRow.status]||'#999'
+const workerName=viewRow.workers?.name_ar||m.worker_name||viewRow.new_employer_name||'—'
+const iqamaNo=viewRow.workers?.iqama_number||m.iqama_number||'—'
+const pricedBy=viewRow.priced_user?(lang==='en'?viewRow.priced_user.name_en||viewRow.priced_user.name_ar:viewRow.priced_user.name_ar)||null:null
+const approvedBy=viewRow.approved_user?(lang==='en'?viewRow.approved_user.name_en||viewRow.approved_user.name_ar:viewRow.approved_user.name_ar)||null:null
+const kv=(k,v,c)=><div style={{display:'flex',justifyContent:'space-between',gap:12,padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,.04)',fontSize:12}}><span style={{color:'var(--tx5)',fontWeight:600}}>{k}</span><span style={{color:c||'var(--tx2)',fontWeight:700,direction:typeof v==='string'&&/[0-9]/.test(v)?'ltr':'inherit'}}>{v||'—'}</span></div>
+const moneyRows=[[T('رسوم نقل الكفالة','Transfer Fee'),Number(viewRow.transfer_fee||0)],[T('تجديد الإقامة','Iqama Renewal'),Number(viewRow.iqama_cost||0)],[T('رخصة العمل','Work Permit'),Number(viewRow.work_permit_cost||0)],[T('التأمين الطبي','Medical Insurance'),Number(viewRow.insurance_cost||0)],[T('رسوم أخرى','Other Costs'),Number(viewRow.other_costs||0)]].filter(([,v])=>v>0)
+return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.82)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1200,padding:16,fontFamily:"'Cairo',sans-serif"}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(720px,95vw)',maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.55)',border:'1px solid '+sc+'40'}}>
+<div style={{height:3,background:`linear-gradient(90deg,transparent,${sc} 25%,${sc} 75%,transparent)`,flexShrink:0}}/>
+<div style={{padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(255,255,255,.06)',flexShrink:0}}>
+<div style={{display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:40,height:40,borderRadius:10,background:sc+'18',border:'1.5px solid '+sc+'35',display:'flex',alignItems:'center',justifyContent:'center',color:sc}}>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+</div>
+<div>
+<div style={{fontSize:15,fontWeight:800,color:'var(--tx)'}}>{workerName}</div>
+<div style={{display:'flex',gap:8,fontSize:10.5,color:'var(--tx5)',marginTop:2,alignItems:'center'}}>
+<span style={{color:C.gold,fontWeight:700,fontFamily:'monospace',direction:'ltr'}}>{m.quote_no||'#'+String(viewRow.id).slice(0,8).toUpperCase()}</span>
+<span>·</span>
+<span style={{fontSize:9.5,fontWeight:700,padding:'2px 8px',borderRadius:5,background:sc+'18',color:sc,border:'1px solid '+sc+'30'}}>{stLabel[viewRow.status]||viewRow.status}</span>
+</div>
+</div>
+</div>
+<button onClick={()=>setViewRow(null)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+</div>
+<div style={{flex:1,overflowY:'auto',padding:'16px 22px'}}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+<div>
+<div style={{fontSize:11,fontWeight:700,color:C.blue,marginBottom:8,display:'flex',alignItems:'center',gap:6}}>◆ {T('بيانات العامل','Worker Data')}</div>
+{kv(T('اسم العامل','Worker Name'),workerName)}
+{kv(T('رقم الإقامة','Iqama Number'),iqamaNo)}
+{kv(T('رقم الجوال','Mobile'),m.phone||'—')}
+{m.iqama_expiry&&kv(T('انتهاء الإقامة الحالي','Current Expiry'),m.iqama_expiry)}
+{m.expected_expiry&&kv(T('انتهاء الإقامة المتوقع','Expected Expiry'),m.expected_expiry,C.gold)}
+{(m.duration_months!=null||m.duration_days!=null)&&kv(T('المدة المتوقعة','Expected Duration'),`${m.duration_months||0} ${T('شهر','month(s)')} ${m.duration_days>0?T('و ','and ')+m.duration_days+' '+T('يوم','day(s)'):''}`)}
+</div>
+<div>
+<div style={{fontSize:11,fontWeight:700,color:C.ok,marginBottom:8,display:'flex',alignItems:'center',gap:6}}>◆ {T('تفاصيل التسعيرة','Quote Details')}</div>
+{kv(T('نوع النقل','Transfer Type'),typeLabel(viewRow.transfer_type))}
+{m.transfer_only!=null&&kv(T('نقل فقط','Transfer Only'),m.transfer_only?T('نعم','Yes'):T('لا','No'))}
+{m.change_profession&&kv(T('تغيير المهنة','Change Profession'),T('نعم','Yes')+(m.new_occupation?` (${m.new_occupation})`:''))}
+{m.print_language&&kv(T('لغة الطباعة','Print Language'),({ar:'العربية',en:'English',bn:'বাংলা',hi:'हिन्दी',ur:'اردو'}[m.print_language]||m.print_language))}
+{viewRow.created_at&&kv(T('تاريخ الإصدار','Created'),new Date(viewRow.created_at).toLocaleDateString(lang==='en'?'en-GB':'en-GB'))}
+{pricedBy&&kv(T('سُعِّرت بواسطة','Priced by'),pricedBy,C.gold)}
+{approvedBy&&kv(T('صُدِّقت بواسطة','Approved by'),approvedBy,C.blue)}
+</div>
+</div>
+
+<div style={{marginTop:22}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:8,display:'flex',alignItems:'center',gap:6}}>◆ {T('ملخص التكاليف','Cost Summary')}</div>
+<div style={{background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)',borderRadius:10,padding:'10px 14px'}}>
+{moneyRows.map(([l,v],i)=><div key={i} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:i<moneyRows.length-1?'1px solid rgba(255,255,255,.04)':'none',fontSize:12}}>
+<span style={{color:'var(--tx5)',fontWeight:600}}>{l}</span>
+<span style={{color:'var(--tx2)',fontWeight:700,direction:'ltr'}}>{nm(v)} {T('ريال','SAR')}</span>
+</div>)}
+<div style={{display:'flex',justifyContent:'space-between',padding:'10px 0 4px',marginTop:4,borderTop:'1px dashed '+C.gold+'40',fontSize:13}}>
+<span style={{color:C.gold,fontWeight:800}}>{T('الإجمالي','Grand Total')}</span>
+<span style={{color:C.gold,fontWeight:900,fontSize:15,direction:'ltr'}}>{nm(Number(viewRow.client_charge||0))} {T('ريال','SAR')}</span>
+</div>
+</div>
+</div>
+
+{Array.isArray(m.warnings)&&m.warnings.length>0&&<div style={{marginTop:22}}>
+<div style={{fontSize:11,fontWeight:700,color:'#e67e22',marginBottom:8,display:'flex',alignItems:'center',gap:6}}>◆ {T('تنبيهات وملاحظات','Notes & Warnings')}</div>
+{m.warnings.map((w,i)=><div key={i} style={{background:'rgba(230,126,34,.08)',border:'1px solid rgba(230,126,34,.25)',borderRadius:8,padding:'8px 12px',fontSize:11.5,color:'#e67e22',fontWeight:600,marginBottom:6,lineHeight:1.7}}>{w}</div>)}
+</div>}
+</div>
+<div style={{padding:'12px 22px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',gap:8,justifyContent:'flex-end',flexShrink:0,background:'var(--bg)'}}>
+{stNext[viewRow.status]&&<button onClick={()=>{changeStatus(viewRow.id,stNext[viewRow.status]);setViewRow(null)}} style={{height:38,padding:'0 18px',borderRadius:9,border:'1.5px solid '+stClr[stNext[viewRow.status]]+'50',background:stClr[stNext[viewRow.status]]+'16',color:stClr[stNext[viewRow.status]],fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:800,cursor:'pointer'}}>{stNextLabel[viewRow.status]} →</button>}
+<button onClick={()=>{printCalc(viewRow);setViewRow(null)}} style={{height:38,padding:'0 18px',borderRadius:9,border:'1px solid rgba(155,89,182,.3)',background:'rgba(155,89,182,.1)',color:'#9b59b6',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+{T('طباعة','Print')}
+</button>
+<button onClick={()=>setViewRow(null)} style={{height:38,padding:'0 18px',borderRadius:9,border:'1px solid rgba(255,255,255,.08)',background:'transparent',color:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,cursor:'pointer'}}>{T('إغلاق','Close')}</button>
+</div>
+</div>
+</div>})()}
 </>})()}
 {pop&&(()=>{
 const steps=[{id:'worker',t:T('بيانات العامل','Worker Info')},{id:'transfer',t:T('تفاصيل النقل','Transfer Details')},{id:'costs',t:T('التكاليف','Costs')},{id:'summary',t:T('الملخص','Summary')}]

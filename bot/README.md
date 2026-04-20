@@ -1,6 +1,6 @@
 # Jisr Muqeem Bot
 
-بوت يسجّل دخول مقيم تلقائياً كل ~50 دقيقة، يأخذ OTP من جدول `otp_messages` في Jisr، ينشر الجلسة الطازجة إلى Supabase. الواجهة (Jisr) تقرأ الجلسة وتستخدمها مباشرة.
+بوت يسجّل دخول مقيم تلقائياً كل 10 دقائق (قابل للضبط عبر `RUN_EVERY_MIN`)، يأخذ OTP من جدول `otp_messages` في Jisr، ينشر الجلسة الطازجة إلى Supabase. الواجهة (Jisr) تقرأ الجلسة وتستخدمها مباشرة.
 
 ## التشغيل المحلي (على جهازك)
 
@@ -46,7 +46,7 @@ pm2 save && pm2 startup                 # auto-start at boot
 ## كيف يشتغل
 
 ```
-[loop كل 50 دقيقة]
+[loop كل 10 دقائق (RUN_EVERY_MIN)]
   ├─ Playwright + Chrome stealth
   ├─ يفتح muqeem.sa/#/login
   ├─ يملأ اسم المستخدم + كلمة المرور

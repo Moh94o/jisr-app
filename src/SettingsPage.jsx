@@ -101,6 +101,11 @@ const[tplLinks,setTplLinks]=useState([])
 const[instPlans,setInstPlans]=useState([])
 const[msList,setMsList]=useState([])
 const[svcSubTab,setSvcSubTab]=useState('services');const[stepFieldCounts,setStepFieldCounts]=useState({});const[txnCounts,setTxnCounts]=useState({});const[svcCatFilter,setSvcCatFilter]=useState('all')
+const[muqeemCreds,setMuqeemCreds]=useState({username:'',password:'',updated_at:null})
+const[muqeemInputs,setMuqeemInputs]=useState({username:'',password:''})
+const[muqeemShowPw,setMuqeemShowPw]=useState(false)
+const[muqeemSaving,setMuqeemSaving]=useState(false)
+const[muqeemEditing,setMuqeemEditing]=useState(false)
 
 const toggle=id=>setOpen(p=>({...p,[id]:!p[id]}))
 useEffect(()=>{onTabChange&&onTabChange({tab,svcSubTab})},[tab,svcSubTab,onTabChange])
@@ -132,11 +137,14 @@ sb.from('step_fields').select('step_id').then(({data:sfData})=>{const counts={};
 sb.from('transactions').select('service_id').is('deleted_at',null).then(({data:txData})=>{const counts={};(txData||[]).forEach(t=>{if(t.service_id)counts[t.service_id]=(counts[t.service_id]||0)+1});setTxnCounts(counts)})
 sb.from('service_installment_plans').select('*').order('installment_order').then(({data})=>setInstPlans(data||[]))
 sb.from('service_type_milestones').select('*').eq('is_active',true).order('sort_order').then(({data})=>setMsList(data||[]))
+sb.from('muqeem_credentials').select('username,password,updated_at').eq('id','default').maybeSingle().then(({data})=>{const d=data||{username:'',password:'',updated_at:null};setMuqeemCreds(d);setMuqeemInputs({username:d.username||'',password:d.password||''})})
 setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
 
 const saveSetting=async(key,val)=>{const{error}=await sb.from('system_settings').update({setting_value:val,updated_at:new Date().toISOString()}).eq('setting_key',key);if(error)toast('خطأ');else toast(isAr?'تم الحفظ':'Saved')}
+const saveMuqeemCreds=async()=>{const u=(muqeemInputs.username||'').trim();const p=(muqeemInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setMuqeemSaving(true);const{error}=await sb.from('muqeem_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setMuqeemSaving(false);if(error){toast('خطأ: '+error.message?.slice(0,80));return}setMuqeemCreds({username:u,password:p,updated_at:new Date().toISOString()});setMuqeemEditing(false);setMuqeemShowPw(false);toast(isAr?'تم حفظ بيانات دخول مقيم':'Muqeem credentials saved')}
+const cancelMuqeemEdit=()=>{setMuqeemInputs({username:muqeemCreds.username||'',password:muqeemCreds.password||''});setMuqeemEditing(false);setMuqeemShowPw(false)}
 const saveForm=async()=>{setSaving(true);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
 if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
 if(d.is_system!==undefined&&d.is_system!==null)d.is_system=d.is_system==='true'
@@ -216,8 +224,54 @@ return<div>
 {tabs.map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setListFilter('')}} style={{padding:'10px 16px',fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.42)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap',flexShrink:0}}>{isAr?t.l:t.le}</div>)}
 </div>
 
-{/* GENERAL */}
 {tab==='general'&&<>
+{/* ── Muqeem bot credentials — read by the DigitalOcean bot every cycle ── */}
+<style>{`.muq-edit-btn{border-color:rgba(212,160,23,.45);color:rgba(212,160,23,.75);background:var(--bg);transition:.15s}.muq-edit-btn:hover{border-color:${C.gold};color:${C.gold}}.muq-save-btn{border-color:rgba(39,160,70,.5);color:rgba(39,160,70,.85);background:var(--bg);transition:.15s}.muq-save-btn:hover{border-color:${C.ok};color:${C.ok}}.muq-cancel-btn{border-color:rgba(192,57,43,.45);color:rgba(192,57,43,.8);background:var(--bg);transition:.15s}.muq-cancel-btn:hover{border-color:${C.red};color:${C.red}}.muq-in[data-editing] input:not([type=checkbox]):not([type=radio]):not([type=hidden]){border:1.5px solid rgba(255,255,255,.08)!important;box-shadow:none!important}.muq-in[data-editing] input:focus:not([type=checkbox]):not([type=radio]):not([type=hidden]){border-color:rgba(255,255,255,.22)!important}`}</style>
+<div style={{marginBottom:26,marginTop:14}}>
+<div style={{...secS,marginBottom:4}}><span style={{width:6,height:6,borderRadius:'50%',background:'#F28C28'}}/>{isAr?'بيانات دخول مقيم (البوت)':'Muqeem Bot Credentials'}</div>
+{muqeemCreds.updated_at&&<div style={{fontSize:10,color:'var(--tx5)',fontWeight:500,textAlign:isAr?'right':'left',marginBottom:8,paddingRight:16,paddingLeft:16}}>{isAr?'آخر تحديث: ':'Last updated: '}{new Date(muqeemCreds.updated_at).toLocaleString('en-GB')}</div>}
+<div className="muq-in" data-editing={muqeemEditing?'true':'false'} style={{position:'relative',padding:'26px 10px 10px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid '+(muqeemEditing?'rgba(212,160,23,.35)':'rgba(255,255,255,.1)'),display:'flex',flexDirection:'column',gap:8}}>
+{muqeemEditing
+?<div style={{position:'absolute',top:-12,left:12,zIndex:2,display:'inline-flex',alignItems:'center',gap:6}}>
+<button onClick={saveMuqeemCreds} disabled={muqeemSaving||!muqeemInputs.username||!muqeemInputs.password} title={isAr?'حفظ التعديلات':'Save changes'} className="muq-save-btn" style={{height:24,padding:'0 12px',border:'1px solid',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,opacity:(muqeemSaving||!muqeemInputs.username||!muqeemInputs.password)?0.5:1}}>
+<span>{muqeemSaving?(isAr?'جارِ الحفظ...':'Saving...'):(isAr?'حفظ':'Save')}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</button>
+<button onClick={cancelMuqeemEdit} title={isAr?'إلغاء التعديل بدون حفظ':'Cancel without saving'} className="muq-cancel-btn" style={{height:24,padding:'0 12px',border:'1px solid',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5}}>
+<span>{isAr?'إلغاء التعديل':'Cancel'}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+</button>
+</div>
+:<button onClick={()=>{setMuqeemInputs({username:muqeemCreds.username||'',password:muqeemCreds.password||''});setMuqeemEditing(true)}} title={isAr?'تعديل بيانات مقيم':'Edit Muqeem credentials'} className="muq-edit-btn" style={{position:'absolute',top:-12,left:12,height:24,padding:'0 12px',border:'1px dashed',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',zIndex:2,display:'inline-flex',alignItems:'center',gap:5}}>
+<span>{isAr?'تعديل':'Edit'}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+</button>}
+<div style={{display:'flex',flexDirection:'column',gap:8,pointerEvents:muqeemEditing?'auto':'none',filter:muqeemEditing?'none':'saturate(.75)'}}>
+<div style={{padding:'10px 14px',fontSize:11,color:'var(--tx5)',lineHeight:1.7,background:'rgba(242,140,40,.04)',border:'1px solid rgba(255,255,255,.04)',borderRadius:8}}>{isAr?'يستخدمها البوت على DigitalOcean لتسجيل الدخول إلى مقيم كل 10 دقائق. أي تغيير هنا يتم تطبيقه في الدورة التالية للبوت تلقائياً.':'Used by the DigitalOcean bot to log into Muqeem every 10 minutes. Changes here are picked up on the bot\'s next cycle automatically.'}</div>
+<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:8,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?'اسم المستخدم':'Username'}</div>
+<div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>MUQEEM_USERNAME</div>
+</div>
+<input value={muqeemInputs.username} onChange={e=>setMuqeemInputs(p=>({...p,username:e.target.value}))} readOnly={!muqeemEditing} autoComplete="off" style={{width:260,height:36,padding:'0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center'}}/>
+</div>
+<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:8,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?'كلمة المرور':'Password'}</div>
+<div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>MUQEEM_PASSWORD</div>
+</div>
+<div style={{position:'relative',width:260}}>
+<input type={muqeemShowPw?'text':'password'} value={muqeemInputs.password} onChange={e=>setMuqeemInputs(p=>({...p,password:e.target.value}))} readOnly={!muqeemEditing} autoComplete="new-password" style={{width:'100%',height:36,padding:'0 38px 0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center',boxSizing:'border-box'}}/>
+<button type="button" onClick={()=>setMuqeemShowPw(s=>!s)} style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',width:24,height:24,borderRadius:6,border:'none',background:'transparent',color:'var(--tx5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}} title={muqeemShowPw?(isAr?'إخفاء':'Hide'):(isAr?'إظهار':'Show')}>
+{muqeemShowPw?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+{/* GENERAL — system_settings categories */}
 {sLoading?<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>...</div>:
 [{k:'general',l:'معلومات الموقع',le:'Website Info'},
 {k:'invoice',l:'الفوترة والبادئات',le:'Invoicing & Prefixes'},
