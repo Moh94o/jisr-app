@@ -530,9 +530,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             return <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.06)' }}>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>عدد الرسائل</span>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>{tabMsgs.length}</span>
+                  <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>عدد الرسائل:</span>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: C.gold }}>{tabMsgs.length}</span>
                   </div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(255,255,255,.45)' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -581,7 +581,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   <button onClick={() => setDeleteConfirm(m.id)} style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(192,57,43,.75)', cursor: 'pointer', border: '1px dashed rgba(192,57,43,.45)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2 }} onMouseEnter={e => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = C.red }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(192,57,43,.75)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.45)' }}>حذف</button>
                   <div style={{ borderRadius: 14, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(212,160,23,.3)', transition: '.2s', overflow: 'hidden' }}>
                     {/* Part 1 — Unified header: Avatar + Service + Owner + (CountRing if OTP) + Date */}
-                    <div style={{ padding: '10px 14px 18px', display: 'flex', alignItems: 'flex-start', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
+                    <div style={{ padding: '18px 14px 18px', display: 'flex', alignItems: 'flex-start', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
                       <SvcLogo sender={m.phone_from} body={m.message_body} size={48} customAvatars={customAvatars} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: svc.color, lineHeight: 1.1 }}>{svc.name}</div>
