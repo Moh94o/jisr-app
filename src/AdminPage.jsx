@@ -47,7 +47,7 @@ return<div onClick={onCancel} style={{position:'fixed',inset:0,background:'rgba(
 </div></div></div></div>}
 
 // ═══ Main Component ═══
-export default function AdminPage({sb,toast,user,lang,onTabChange,defaultTab}){
+export default function AdminPage({sb,toast,user,lang,onTabChange,defaultTab,nav,hubTabs,visibility,onVisibilityChange}){
 const isAr=lang!=='en'
 const[tab,setTab]=useState(defaultTab||'branches');useEffect(()=>{if(defaultTab)setTab(defaultTab)},[defaultTab])
 const[branches,setBranches]=useState([])
@@ -504,7 +504,7 @@ return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 </>})()}
 
 {/* ═══ UI CONTROLS TAB ═══ */}
-{tab==='ui_controls'&&<UiControlsTab sb={sb} users={users} toast={toast}/>}
+{tab==='ui_controls'&&<UiControlsTab sb={sb} users={users} toast={toast} nav={nav} hubTabs={hubTabs} visibility={visibility} onVisibilityChange={onVisibilityChange}/>}
 
 {/* ═══ PERFORMANCE TAB (Enhanced) ═══ */}
 {tab==='performance'&&(()=>{const MAX_SCORE=150;const scoreColor=s=>s>=80?C.ok:s>=50?C.gold:s>=20?'#e67e22':C.red;const medals=['🥇','🥈','🥉'];const filtered=perfData.filter(e=>!perfBranch||e.branch_id===perfBranch).filter(e=>!roleFilter||roleFilter==='all'||e.role_id===roleFilter).sort((a,b)=>(Number(b[perfSort])||0)-(Number(a[perfSort])||0))
@@ -1566,7 +1566,7 @@ return <div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,backgrou
 {delTarget&&<DeletePopup itemName={delTarget.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}
 </div>}
 
-function UiControlsTab({sb,users,toast}){
+function UiControlsTab({sb,users,toast,nav,hubTabs,visibility,onVisibilityChange}){
   const F="'Cairo',sans-serif"
   const C={gold:'#D4A017',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
   // Sections grouped by feature area — add new sections here as you gate more features
@@ -1594,8 +1594,44 @@ function UiControlsTab({sb,users,toast}){
   const updateMode=async(key,mode)=>{const current=perms[key]||{control_key:key,allowed_user_ids:[]};const next={...current,mode,updated_at:new Date().toISOString()};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode,allowed_user_ids:current.allowed_user_ids||[]});toast&&toast('تم الحفظ')}
   const toggleUser=async(key,userId)=>{const current=perms[key]||{control_key:key,mode:'custom',allowed_user_ids:[]};const arr=current.allowed_user_ids||[];const nextArr=arr.includes(userId)?arr.filter(u=>u!==userId):[...arr,userId];const next={...current,allowed_user_ids:nextArr};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode:current.mode||'custom',allowed_user_ids:nextArr})}
   if(loading)return<div style={{padding:40,textAlign:'center',color:'var(--tx5)',fontFamily:F}}>جاري التحميل...</div>
+  // Sidebar visibility toggles (localStorage-based, applies to all users)
+  const LOCKED_NAV=['admin_hub','admin_visibility']
+  const visGet=(id)=>(visibility||{})[id]!==false
+  const visToggle=(id)=>{if(LOCKED_NAV.includes(id))return;const next={...(visibility||{}),[id]:!visGet(id)};onVisibilityChange&&onVisibilityChange(next);toast&&toast(next[id]?'تم الإظهار':'تم الإخفاء')}
+  const showAllNav=()=>{onVisibilityChange&&onVisibilityChange({});toast&&toast('تم إظهار كل التبويبات')}
+  const NavToggle=({id,label})=>{const on=visGet(id);const locked=LOCKED_NAV.includes(id)
+    return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'8px 12px',borderRadius:8,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.05)',opacity:locked?.6:1}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <span style={{color:on?'var(--tx)':'var(--tx4)',fontSize:12,fontWeight:600}}>{label}</span>
+        {locked&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(212,160,23,.1)',color:C.gold,fontWeight:700}}>دائم</span>}
+      </div>
+      <button type="button" disabled={locked} onClick={()=>visToggle(id)} style={{width:40,height:20,borderRadius:999,border:'none',background:on?C.ok:'rgba(255,255,255,.15)',cursor:locked?'not-allowed':'pointer',position:'relative',padding:0,transition:'.2s',flexShrink:0}}>
+        <span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:3,right:on?3:23,transition:'.2s'}}/>
+      </button>
+    </div>}
   return<div style={{fontFamily:F,direction:'rtl'}}>
-    <div style={{fontSize:12,color:'rgba(255,255,255,.55)',marginBottom:18,lineHeight:1.7}}>حدد لكل زر أو عنصر: يظهر للجميع، أو معطّل تماماً، أو للمدير العام فقط، أو لموظفين محددين.</div>
+    <div style={{fontSize:12,color:'rgba(255,255,255,.55)',marginBottom:18,lineHeight:1.7}}>حدد لكل زر أو عنصر: يظهر للجميع، أو معطّل تماماً، أو للمدير العام فقط، أو لموظفين محددين. قسم التبويبات الجانبية يُطبَّق على جميع المستخدمين.</div>
+
+    {/* ─── Sidebar Visibility Section ─── */}
+    {nav&&hubTabs&&<div style={{marginBottom:24}}>
+      <div style={{fontSize:13,fontWeight:800,color:C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:15}}>📂</span>
+          <span>التبويبات المرئية — القائمة الجانبية</span>
+        </div>
+        <button onClick={showAllNav} style={{height:28,padding:'0 12px',borderRadius:7,border:'1px solid rgba(212,160,23,.25)',background:'rgba(212,160,23,.06)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>إظهار الكل</button>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:8}}>
+        {nav.map(n=>{const subs=hubTabs[n.id]||[]
+        return<div key={n.id} style={{padding:10,borderRadius:10,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+          <NavToggle id={n.id} label={n.l}/>
+          {subs.length>0&&<div style={{paddingRight:14,marginTop:5,display:'flex',flexDirection:'column',gap:4,borderRight:'2px solid rgba(212,160,23,.12)',marginRight:8}}>
+            {subs.map(t=><NavToggle key={t.id} id={t.id} label={t.l}/>)}
+          </div>}
+        </div>})}
+      </div>
+    </div>}
+
     {SECTIONS.map(section=><div key={section.id} style={{marginBottom:24}}>
       <div style={{fontSize:13,fontWeight:800,color:C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',display:'flex',alignItems:'center',gap:8}}>
         <span style={{fontSize:15}}>{section.icon}</span>
