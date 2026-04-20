@@ -503,7 +503,7 @@ const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
   operations:[{id:'transactions_external',l:T('المعاملات','Transactions'),i:'transaction'},{id:'tasks',l:T('المهام','Tasks'),i:'notes'}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'payment'},{id:'transfer_calc',l:T('حسبة التنازل','Transfer Calc'),i:'chart'}],
-  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_staff',l:T('الموظفين','Staff'),i:'users'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_visibility',l:T('التبويبات المرئية','Visible Tabs'),i:'settings'}]
+  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_staff',l:T('الموظفين','Staff'),i:'users'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_visibility',l:T('التبويبات المرئية','Visible Tabs'),i:'settings'},{id:'admin_ui_controls',l:T('التحكم بالعرض','UI Controls'),i:'settings'}]
 };const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
 cols:[['name_ar',T('الاسم','Name')],['unified_national_number',T('الرقم الموحد','Unified No.')],['cr_number',T('السجل','CR No.')],['cr_status',T('حالة السجل','CR Status')],['facility_status',T('الحالة','Status')],['nitaqat_color',T('نطاقات','Nitaqat')]],
@@ -1062,6 +1062,7 @@ return<div><div>
 {pg==='admin_staff'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={true} singleTab="staff" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_services'&&<ServiceAdminPage toast={tt} lang={lang}/>}
 {pg==='admin_visibility'&&<VisibilityAdmin toast={tt} lang={lang} nav={nav} hubTabs={hubTabs} visibility={visibility} onChange={saveVisibility}/>}
+{pg==='admin_ui_controls'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} defaultTab="ui_controls" onTabChange={setSTabInfo}/>}
 </div></div>})()}
 
 {/* ═══ الإعدادات ═══ */}

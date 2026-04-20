@@ -184,7 +184,7 @@ const s=q.toLowerCase()
 return(b.name_ar||'').includes(s)||(b.name_en||'').toLowerCase().includes(s)||(b.code||'').toLowerCase().includes(s)||(b.mobile||'').includes(s)||(b.email||'').toLowerCase().includes(s)
 })
 
-const allTabs=[{id:'branches',l:'المكاتب',le:'Branches'},{id:'bank_accounts',l:'الحسابات البنكية',le:'Bank Accounts'},{id:'users',l:'الموظفين',le:'Users'},{id:'roles',l:'الأدوار والصلاحيات',le:'Roles & Permissions'}];const tabs=defaultTab==='users'?[{id:'users',l:'الموظفين'},{id:'performance',l:'الأداء'},{id:'attendance_tab',l:'الحضور'},{id:'roles',l:'الأدوار والصلاحيات'}]:allTabs
+const allTabs=[{id:'branches',l:'المكاتب',le:'Branches'},{id:'bank_accounts',l:'الحسابات البنكية',le:'Bank Accounts'},{id:'users',l:'الموظفين',le:'Users'},{id:'roles',l:'الأدوار والصلاحيات',le:'Roles & Permissions'},{id:'ui_controls',l:'التحكم بالعرض',le:'UI Controls'}];const tabs=defaultTab==='users'?[{id:'users',l:'الموظفين'},{id:'performance',l:'الأداء'},{id:'attendance_tab',l:'الحضور'},{id:'roles',l:'الأدوار والصلاحيات'},{id:'ui_controls',l:'التحكم بالعرض'}]:allTabs
 
 const openAdd=()=>{setForm({_table:'branches',name_ar:'',name_en:'',code:'',region_id:'',city_id:'',mobile:'',email:'',color:'#c9a84c',manager_id:'',work_from:'08:00',work_to:'17:00',work_days:'الأحد,الاثنين,الثلاثاء,الأربعاء,الخميس',opening_balance:'',daily_cash_limit:'',is_active:'true',address:'',google_maps_url:'',notes:''});setStep(1);setPop('add')}
 const openEdit=(b)=>{setForm({_table:'branches',_id:b.id,name_ar:b.name_ar||'',name_en:b.name_en||'',code:b.code?b.code.split('-').pop():'',region_id:b.region_id||'',city_id:b.city_id||'',mobile:b.mobile?b.mobile.replace('+966',''):'',email:b.email||'',color:b.color||'#c9a84c',manager_id:b.manager_id||'',work_from:b.work_from||'08:00',work_to:b.work_to||'17:00',work_days:b.work_days||'الأحد,الاثنين,الثلاثاء,الأربعاء,الخميس',opening_balance:b.opening_balance||'',daily_cash_limit:b.daily_cash_limit||'',is_active:String(b.is_active!==false),address:b.address||'',google_maps_url:b.google_maps_url||'',notes:b.notes||''});setStep(1);setPop('edit')}
@@ -502,6 +502,9 @@ return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 </div>})}
 </div>
 </>})()}
+
+{/* ═══ UI CONTROLS TAB ═══ */}
+{tab==='ui_controls'&&<UiControlsTab sb={sb} users={users} toast={toast}/>}
 
 {/* ═══ PERFORMANCE TAB (Enhanced) ═══ */}
 {tab==='performance'&&(()=>{const MAX_SCORE=150;const scoreColor=s=>s>=80?C.ok:s>=50?C.gold:s>=20?'#e67e22':C.red;const medals=['🥇','🥈','🥉'];const filtered=perfData.filter(e=>!perfBranch||e.branch_id===perfBranch).filter(e=>!roleFilter||roleFilter==='all'||e.role_id===roleFilter).sort((a,b)=>(Number(b[perfSort])||0)-(Number(a[perfSort])||0))
@@ -1562,3 +1565,66 @@ return <div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,backgrou
 {/* DELETE POPUP */}
 {delTarget&&<DeletePopup itemName={delTarget.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}
 </div>}
+
+function UiControlsTab({sb,users,toast}){
+  const F="'Cairo',sans-serif"
+  const C={gold:'#D4A017',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
+  // Sections grouped by feature area — add new sections here as you gate more features
+  const SECTIONS=[
+    {id:'sms',l:'الرسائل النصية',icon:'💬',controls:[
+      {k:'add_person',l:'إضافة شخص',d:'زر إضافة شخص جديد في أعلى الصفحة'},
+      {k:'service_settings',l:'إعدادات الجهات (الشعارات والألوان)',d:'أيقونة الترس لفتح نافذة تخصيص الجهات'},
+      {k:'person_settings',l:'إعدادات الشخص (الحساب والاتصال)',d:'أزرار إعدادات كل شخص عند اختياره من التبويب'},
+      {k:'delete_message',l:'حذف الرسالة',d:'زر حذف يظهر أعلى كل كرت رسالة'},
+      {k:'edit_msg_category',l:'تعديل فئة الرسالة',d:'زر تعديل الفئة للرسالة الواحدة'},
+      {k:'edit_permissions',l:'تعديل صلاحيات الاطلاع',d:'زر تعديل من يستطيع رؤية الرسالة'},
+      {k:'search',l:'شريط البحث',d:'خانة البحث النصي فوق قائمة الرسائل'},
+      {k:'advanced_search',l:'البحث المتقدم',d:'قائمة الفلاتر (الجهة / التصنيف / الفئة)'},
+    ]},
+  ]
+  const MODES=[
+    {v:'everyone',l:'الجميع',c:C.ok,ic:'✓'},
+    {v:'disabled',l:'معطّل',c:C.red,ic:'✕'},
+    {v:'gm_only',l:'المدير العام فقط',c:C.gold,ic:'♛'},
+    {v:'custom',l:'موظفون محددون',c:C.blue,ic:'●'},
+  ]
+  const[perms,setPerms]=React.useState({})
+  const[loading,setLoading]=React.useState(true)
+  React.useEffect(()=>{sb.from('ui_controls').select('*').then(({data})=>{if(data)setPerms(Object.fromEntries(data.map(r=>[r.control_key,r])));setLoading(false)})},[sb])
+  const updateMode=async(key,mode)=>{const current=perms[key]||{control_key:key,allowed_user_ids:[]};const next={...current,mode,updated_at:new Date().toISOString()};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode,allowed_user_ids:current.allowed_user_ids||[]});toast&&toast('تم الحفظ')}
+  const toggleUser=async(key,userId)=>{const current=perms[key]||{control_key:key,mode:'custom',allowed_user_ids:[]};const arr=current.allowed_user_ids||[];const nextArr=arr.includes(userId)?arr.filter(u=>u!==userId):[...arr,userId];const next={...current,allowed_user_ids:nextArr};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode:current.mode||'custom',allowed_user_ids:nextArr})}
+  if(loading)return<div style={{padding:40,textAlign:'center',color:'var(--tx5)',fontFamily:F}}>جاري التحميل...</div>
+  return<div style={{fontFamily:F,direction:'rtl'}}>
+    <div style={{fontSize:12,color:'rgba(255,255,255,.55)',marginBottom:18,lineHeight:1.7}}>حدد لكل زر أو عنصر: يظهر للجميع، أو معطّل تماماً، أو للمدير العام فقط، أو لموظفين محددين.</div>
+    {SECTIONS.map(section=><div key={section.id} style={{marginBottom:24}}>
+      <div style={{fontSize:13,fontWeight:800,color:C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',display:'flex',alignItems:'center',gap:8}}>
+        <span style={{fontSize:15}}>{section.icon}</span>
+        <span>{section.l}</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {section.controls.map(ctrl=>{const p=perms[ctrl.k]||{mode:'gm_only',allowed_user_ids:[]};const isCustom=p.mode==='custom'
+        return<div key={ctrl.k} style={{padding:'14px 16px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,marginBottom:10,flexWrap:'wrap'}}>
+            <div style={{flex:1,minWidth:240}}>
+              <div style={{fontSize:14,fontWeight:800,color:'var(--tx)',marginBottom:3}}>{ctrl.l}</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,.5)'}}>{ctrl.d}</div>
+            </div>
+            <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+              {MODES.map(m=>{const active=p.mode===m.v
+              return<button key={m.v} onClick={()=>updateMode(ctrl.k,m.v)} style={{fontSize:11,fontWeight:700,padding:'6px 12px',borderRadius:7,border:'1px solid '+(active?m.c+'66':'rgba(255,255,255,.1)'),background:active?m.c+'1a':'transparent',color:active?m.c:'rgba(255,255,255,.6)',cursor:'pointer',fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
+                <span>{m.ic}</span>{m.l}
+              </button>})}
+            </div>
+          </div>
+          {isCustom&&<div style={{marginTop:4,paddingTop:10,borderTop:'1px dashed rgba(255,255,255,.08)'}}>
+            <div style={{fontSize:10,color:'rgba(255,255,255,.5)',fontWeight:600,marginBottom:6}}>اختر الموظفين المسموح لهم:</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+              {users.map(u=>{const sel=(p.allowed_user_ids||[]).includes(u.id)
+              return<button key={u.id} onClick={()=>toggleUser(ctrl.k,u.id)} style={{fontSize:10.5,fontWeight:700,padding:'4px 10px',borderRadius:5,border:'1px solid '+(sel?'rgba(39,160,70,.4)':'rgba(255,255,255,.1)'),background:sel?'rgba(39,160,70,.1)':'transparent',color:sel?C.ok:'rgba(255,255,255,.55)',cursor:'pointer',fontFamily:F}}>{u.name_ar}</button>})}
+            </div>
+          </div>}
+        </div>})}
+      </div>
+    </div>)}
+  </div>
+}

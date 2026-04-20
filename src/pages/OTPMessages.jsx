@@ -74,6 +74,21 @@ const CountRing = ({ tl, ttl = 60 }) => {
 export default function OTPMessages({ sb, toast, user, lang }) {
   const T = (a, e) => (lang || 'ar') !== 'en' ? a : e
   const isGM = !user?.roles || user?.roles?.name_ar === 'المدير العام' || user?.roles?.name_en === 'General Manager'
+  const [uiPerms, setUiPerms] = useState({})
+  useEffect(() => {
+    sb.from('ui_controls').select('*').then(({ data }) => {
+      if (data) setUiPerms(Object.fromEntries(data.map(r => [r.control_key, r])))
+    })
+  }, [sb])
+  const can = (key) => {
+    if (isGM) return true
+    const p = uiPerms[key]
+    if (!p) return false
+    if (p.mode === 'everyone') return true
+    if (p.mode === 'disabled' || p.mode === 'gm_only') return false
+    if (p.mode === 'custom') return (p.allowed_user_ids || []).includes(user?.id)
+    return false
+  }
   const [persons, setPersons] = useState([])
   const [messages, setMessages] = useState([])
   const [selPerson, setSelPerson] = useState('all')
@@ -541,7 +556,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginTop: 6 }}>استقبال وعرض رموز التحقق والإشعارات من المنصات المختلفة</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {isGM && <button onClick={() => setShowAdd(true)} style={{ height: 42, padding: '0 20px', borderRadius: 11, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.1)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'border-color .15s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.55)' }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)' }}>
+          {can('add_person') && <button onClick={() => setShowAdd(true)} style={{ height: 42, padding: '0 20px', borderRadius: 11, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.1)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'border-color .15s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.55)' }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)' }}>
             إضافة
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
           </button>}
@@ -562,7 +577,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   return <div key={t.id} onClick={() => setSelPerson(t.id)} style={{ padding: '10px 22px 9px', cursor: 'pointer', color: active ? C.gold : (t.inactive ? '#e67e22' : 'rgba(255,255,255,.5)'), fontSize: 14, fontWeight: active ? 800 : 600, borderBottom: active ? '2px solid ' + C.gold : '2px solid transparent', marginBottom: -1, transition: '.15s' }}>{t.name}{t.inactive ? ' ⏸' : ''}</div>
                 })}
               </div>
-              {isGM && <button onClick={() => setShowAvatarSettings(true)} title="إعدادات شعارات الجهات" style={{ alignSelf: 'center', width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.06)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {can('service_settings') && <button onClick={() => setShowAvatarSettings(true)} title="إعدادات شعارات الجهات" style={{ alignSelf: 'center', width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.06)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
               </button>}
             </div>
@@ -586,18 +601,18 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             const selectedPerson = selPerson !== 'all' ? persons.find(p => p.id === selPerson) : null
             return <>
               {/* Search bar */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+              {can('search') && <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,.4)' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="ابحث في الرسائل / الرقم / صاحب الحساب …" style={{ width: '100%', height: 38, padding: '0 36px 0 14px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', direction: 'rtl', boxSizing: 'border-box' }} />
                 </div>
-                <button onClick={() => setShowAdvancedSearch(!showAdvancedSearch)} style={{ height: 38, padding: '0 14px', borderRadius: 10, border: '1px solid ' + (showAdvancedSearch ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.1)'), background: showAdvancedSearch ? 'rgba(212,160,23,.1)' : 'rgba(255,255,255,.02)', color: showAdvancedSearch ? C.gold : 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {can('advanced_search') && <button onClick={() => setShowAdvancedSearch(!showAdvancedSearch)} style={{ height: 38, padding: '0 14px', borderRadius: 10, border: '1px solid ' + (showAdvancedSearch ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.1)'), background: showAdvancedSearch ? 'rgba(212,160,23,.1)' : 'rgba(255,255,255,.02)', color: showAdvancedSearch ? C.gold : 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
                   بحث متقدم
-                </button>
+                </button>}
                 {(searchText || searchSvc || searchSvcCat || searchMsgCat) && <button onClick={() => { setSearchText(''); setSearchSvc(''); setSearchSvcCat(''); setSearchMsgCat('') }} style={{ height: 38, padding: '0 12px', borderRadius: 10, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>مسح</button>}
-              </div>
-              {showAdvancedSearch && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginBottom: 14, padding: 12, borderRadius: 10, background: 'rgba(212,160,23,.03)', border: '1px solid rgba(212,160,23,.12)' }}>
+              </div>}
+              {showAdvancedSearch && can('advanced_search') && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginBottom: 14, padding: 12, borderRadius: 10, background: 'rgba(212,160,23,.03)', border: '1px solid rgba(212,160,23,.12)' }}>
                 <div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>الجهة</div>
                   <ThemedSelect value={searchSvc} onChange={setSearchSvc} placeholder="— الكل —" options={[
@@ -634,7 +649,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: 'rgba(255,255,255,.85)', direction: 'ltr', fontFamily: 'monospace', letterSpacing: '.3px' }}>{fmtDateTime(lastMsg?.created_at || lastMsg?.received_at)}</span>
                   </div>
                 </div>
-                {isGM && selectedPerson ? <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                {can('person_settings') && selectedPerson ? <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                   <button onClick={() => { setPersonSettingsType('account'); setPersonSettingsId(selectedPerson.id) }} title={'إعدادات حساب ' + selectedPerson.name} style={{ width: 28, height: 28, border: 'none', background: 'transparent', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0, transition: '.2s' }} onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)' }} onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   </button>
@@ -672,7 +687,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
               return (
                 <div key={m.id} style={{ position: 'relative' }}>
-                  {isGM && <button onClick={() => setDeleteConfirm(m.id)} style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(192,57,43,.75)', cursor: 'pointer', border: '1px dashed rgba(192,57,43,.45)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2 }} onMouseEnter={e => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = C.red }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(192,57,43,.75)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.45)' }}>حذف</button>}
+                  {can('delete_message') && <button onClick={() => setDeleteConfirm(m.id)} style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(192,57,43,.75)', cursor: 'pointer', border: '1px dashed rgba(192,57,43,.45)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2 }} onMouseEnter={e => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = C.red }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(192,57,43,.75)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.45)' }}>حذف</button>}
                   <div style={{ borderRadius: 14, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(212,160,23,.3)', transition: '.2s', overflow: 'hidden' }}>
                     {/* Part 1 — Unified header: Avatar + Service + Owner + (CountRing if OTP) + Date */}
                     <div style={{ padding: '18px 14px 18px', display: 'flex', alignItems: 'flex-start', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
@@ -705,7 +720,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     return treatAsOtp ? <>
                     {/* Part 2 — OTP code + actions + copied by */}
                     <div style={{ position: 'relative', padding: '18px 16px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                      {isGM && (() => {
+                      {can('edit_msg_category') && (() => {
                         const active = msgClassifyPicker === m.id
                         const idleColor = 'rgba(255,255,255,.55)', idleBorder = 'rgba(255,255,255,.22)'
                         return <button onClick={() => setMsgClassifyPicker(active ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -11, right: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: active ? C.blue : idleColor, cursor: 'pointer', border: '1px dashed ' + (active ? C.blue : idleBorder), borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue } }} onMouseLeave={e => { if (!active) { e.currentTarget.style.color = idleColor; e.currentTarget.style.borderColor = idleBorder } }}>
@@ -752,7 +767,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   </> : <>
                   {/* Part 2 — Non-OTP parsed body + action */}
                   <div style={{ position: 'relative', padding: '18px 14px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                      {isGM && (() => {
+                      {can('edit_msg_category') && (() => {
                         const active = msgClassifyPicker === m.id
                         const idleColor = 'rgba(255,255,255,.55)', idleBorder = 'rgba(255,255,255,.22)'
                         return <button onClick={() => setMsgClassifyPicker(active ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -11, right: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: active ? C.blue : idleColor, cursor: 'pointer', border: '1px dashed ' + (active ? C.blue : idleBorder), borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue } }} onMouseLeave={e => { if (!active) { e.currentTarget.style.color = idleColor; e.currentTarget.style.borderColor = idleBorder } }}>
@@ -987,7 +1002,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         <span key={u.id} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(39,160,70,.12)', color: C.ok, border: '1px solid rgba(39,160,70,.3)' }}>{u.name_ar}</span>
                       ))}
                     </div>
-                    {isGM && <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 10, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>تعديل الصلاحيات</button>}
+                    {can('edit_permissions') && <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 10, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>تعديل الصلاحيات</button>}
                   </div>
 
                   {showPermEdit === m.id && <div style={{ padding: '8px 14px 10px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
