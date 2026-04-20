@@ -142,32 +142,38 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [msgClassifyPicker, setMsgClassifyPicker] = useState(null) // msg id when picker open
   const [msgCatAddModal, setMsgCatAddModal] = useState(null) // { ar, en, msgId } or null
   const [msgCatDeleteConfirm, setMsgCatDeleteConfirm] = useState(null) // { k, l } or null
+  const DEFAULT_MSG_CATS = [
+    { k: 'otp',         l: 'رمز تحقق',       l_en: 'OTP' },
+    { k: 'notification',l: 'إشعار',          l_en: 'Notification' },
+    { k: 'transfer_in', l: 'حوالة واردة',     l_en: 'Incoming Transfer' },
+    { k: 'transfer_out',l: 'حوالة صادرة',     l_en: 'Outgoing Transfer' },
+    { k: 'purchase',    l: 'شراء',           l_en: 'Purchase' },
+    { k: 'bill',        l: 'فاتورة',          l_en: 'Bill' },
+    { k: 'service',     l: 'نقل خدمات',       l_en: 'Service Transfer' },
+    { k: 'ad',          l: 'إعلان',          l_en: 'Advertisement' },
+    { k: 'violation',   l: 'مخالفة',         l_en: 'Violation' },
+    { k: 'other',       l: 'أخرى',            l_en: 'Other' },
+  ]
   const [msgCategories, setMsgCategories] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('jisr_msg_categories') || 'null')
-      if (saved && Array.isArray(saved)) return saved
+      // Migrate old flat-array format → per-service map with _default
+      if (Array.isArray(saved)) return { _default: saved }
+      if (saved && typeof saved === 'object') return saved
     } catch {}
-    return [
-      { k: 'otp',         l: 'رمز تحقق',       l_en: 'OTP' },
-      { k: 'notification',l: 'إشعار',          l_en: 'Notification' },
-      { k: 'transfer_in', l: 'حوالة واردة',     l_en: 'Incoming Transfer' },
-      { k: 'transfer_out',l: 'حوالة صادرة',     l_en: 'Outgoing Transfer' },
-      { k: 'purchase',    l: 'شراء',           l_en: 'Purchase' },
-      { k: 'bill',        l: 'فاتورة',          l_en: 'Bill' },
-      { k: 'service',     l: 'نقل خدمات',       l_en: 'Service Transfer' },
-      { k: 'ad',          l: 'إعلان',          l_en: 'Advertisement' },
-      { k: 'violation',   l: 'مخالفة',         l_en: 'Violation' },
-      { k: 'other',       l: 'أخرى',            l_en: 'Other' },
-    ]
+    return { _default: DEFAULT_MSG_CATS }
   })
-  const addMsgCategory = (ar, en) => {
+  const getSvcMsgCats = (svcName) => msgCategories[svcName] || msgCategories._default || DEFAULT_MSG_CATS
+  const addMsgCategory = (svcName, ar, en) => {
     const key = 'mc_' + Date.now()
-    const next = [...msgCategories, { k: key, l: ar, l_en: en }]
+    const list = getSvcMsgCats(svcName)
+    const next = { ...msgCategories, [svcName]: [...list, { k: key, l: ar, l_en: en }] }
     setMsgCategories(next); localStorage.setItem('jisr_msg_categories', JSON.stringify(next))
     return key
   }
-  const removeMsgCategory = (key) => {
-    const next = msgCategories.filter(c => c.k !== key)
+  const removeMsgCategory = (svcName, key) => {
+    const list = getSvcMsgCats(svcName)
+    const next = { ...msgCategories, [svcName]: list.filter(c => c.k !== key) }
     setMsgCategories(next); localStorage.setItem('jisr_msg_categories', JSON.stringify(next))
   }
   const updateMsgClassifications = async (msgId, cats) => {
@@ -522,15 +528,16 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             const lblS = { fontSize: 12, color: 'rgba(255,255,255,.55)', marginBottom: 8, fontWeight: 600 }
             const selectedPerson = selPerson !== 'all' ? persons.find(p => p.id === selPerson) : null
             return <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>عدد الرسائل:</span>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: C.gold }}>{tabMsgs.length}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.06)' }}>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>عدد الرسائل</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>{tabMsgs.length}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>آخر تحديث:</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', direction: 'ltr' }}>{fmtDateTime(lastMsg?.created_at || lastMsg?.received_at)}</span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(255,255,255,.45)' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>آخر تحديث</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: 'rgba(255,255,255,.85)', direction: 'ltr', fontFamily: 'monospace', letterSpacing: '.3px' }}>{fmtDateTime(lastMsg?.created_at || lastMsg?.received_at)}</span>
                   </div>
                 </div>
                 {selectedPerson ? <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -597,9 +604,21 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       </div>
                     </div>
 
-                  {m.otp_code ? <>
+                  {(() => {
+                    const userCats = m.user_classifications || []
+                    const userMarkedNonOtp = userCats.length > 0 && !userCats.includes('otp')
+                    const treatAsOtp = m.otp_code && !userMarkedNonOtp
+                    return treatAsOtp ? <>
                     {/* Part 2 — OTP code + actions + copied by */}
-                    <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ position: 'relative', padding: '18px 16px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {(() => {
+                        const active = msgClassifyPicker === m.id
+                        const idleColor = 'rgba(255,255,255,.55)', idleBorder = 'rgba(255,255,255,.22)'
+                        return <button onClick={() => setMsgClassifyPicker(active ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -11, right: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: active ? C.blue : idleColor, cursor: 'pointer', border: '1px dashed ' + (active ? C.blue : idleBorder), borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue } }} onMouseLeave={e => { if (!active) { e.currentTarget.style.color = idleColor; e.currentTarget.style.borderColor = idleBorder } }}>
+                          <span>تعديل الفئة</span>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        </button>
+                      })()}
                       {/* OTP digits (right in RTL) — last 2 always masked */}
                       <div style={{ display: 'flex', gap: 5, direction: 'ltr', flexShrink: 0 }}>
                         {m.otp_code.split('').map((d, i, arr) => {
@@ -777,7 +796,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                               </div>
                             }
                             // Default: show category "غير محددة" — or user classifications if set
-                            const userCats = (m.user_classifications || []).map(k => msgCategories.find(c => c.k === k)).filter(Boolean)
+                            const svcCats = getSvcMsgCats(svc._defaultName)
+                            const userCats = (m.user_classifications || []).map(k => svcCats.find(c => c.k === k)).filter(Boolean)
                             return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, flexWrap: 'wrap' }}>
                               <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span>
                               {userCats.length === 0
@@ -819,7 +839,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         الرسالة
                       </button>
                   </div>
-                  </>}
+                  </>
+                  })()}
 
                   {/* Raw message toggle */}
                   {showRawMsg === m.id && <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,.3)', borderTop: '1px solid rgba(255,255,255,.04)' }}>
@@ -843,10 +864,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
                   {msgClassifyPicker === m.id && (() => {
                     const selKeys = m.user_classifications || []
+                    const svcCats = getSvcMsgCats(svc._defaultName)
                     return <div style={{ padding: '8px 14px 10px', borderTop: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.18)' }}>
-                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', marginBottom: 6, fontWeight: 600 }}>اضغط الفئة لإضافتها أو إزالتها — تُستخدم لتحسين تصنيف Claude تلقائياً</div>
+                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', marginBottom: 6, fontWeight: 600 }}>اضغط الفئة لإضافتها أو إزالتها — الفئات خاصة بجهة <span style={{ color: C.gold, fontWeight: 800 }}>{svc.name}</span></div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                        {msgCategories.map(c => {
+                        {svcCats.map(c => {
                           const isSel = selKeys.includes(c.k)
                           return (
                             <div key={c.k} style={{ display: 'inline-flex', alignItems: 'stretch', height: 22, borderRadius: 4, overflow: 'hidden', border: '1px solid ' + (isSel ? 'rgba(52,131,180,.5)' : 'rgba(255,255,255,.1)'), background: isSel ? 'rgba(52,131,180,.14)' : 'transparent' }}>
@@ -854,11 +876,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                                 const next = isSel ? selKeys.filter(x => x !== c.k) : [...selKeys, c.k]
                                 updateMsgClassifications(m.id, next)
                               }} style={{ fontSize: 9, fontWeight: 700, padding: '0 9px', cursor: 'pointer', fontFamily: F, border: 'none', background: 'transparent', color: isSel ? C.blue : 'rgba(255,255,255,.6)' }}>{c.l}</button>
-                              <button onClick={e => { e.stopPropagation(); setMsgCatDeleteConfirm({ k: c.k, l: c.l }) }} title="حذف هذه الفئة" style={{ padding: '0 4px', border: 'none', borderRight: '1px solid rgba(255,255,255,.06)', background: 'transparent', color: 'rgba(192,57,43,.7)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>×</button>
+                              <button onClick={e => { e.stopPropagation(); setMsgCatDeleteConfirm({ k: c.k, l: c.l, svcName: svc._defaultName }) }} title="حذف هذه الفئة" style={{ padding: '0 4px', border: 'none', borderRight: '1px solid rgba(255,255,255,.06)', background: 'transparent', color: 'rgba(192,57,43,.7)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>×</button>
                             </div>
                           )
                         })}
-                        <button onClick={() => setMsgCatAddModal({ ar: '', en: '', msgId: m.id })} title="إضافة فئة رسالة جديدة" style={{ height: 22, padding: '0 10px', borderRadius: 4, border: '1px dashed rgba(52,131,180,.4)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>+</button>
+                        <button onClick={() => setMsgCatAddModal({ ar: '', en: '', msgId: m.id, svcName: svc._defaultName })} title={'إضافة فئة جديدة لجهة ' + svc.name} style={{ height: 22, padding: '0 10px', borderRadius: 4, border: '1px dashed rgba(52,131,180,.4)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>+</button>
                       </div>
                     </div>
                   })()}
@@ -1302,8 +1324,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             <div style={{ padding: '12px 20px 16px', display: 'flex', gap: 8, borderTop: '1px solid rgba(255,255,255,.05)' }}>
               <button onClick={() => setMsgCatDeleteConfirm(null)} style={{ flex: 1, height: 40, borderRadius: 9, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700 }}>إلغاء</button>
               <button onClick={() => {
-                const key = msgCatDeleteConfirm.k
-                removeMsgCategory(key)
+                const { k: key, svcName } = msgCatDeleteConfirm
+                removeMsgCategory(svcName, key)
                 // Also clean up any messages that had this classification
                 setMessages(prev => prev.map(x => (x.user_classifications || []).includes(key) ? { ...x, user_classifications: x.user_classifications.filter(c => c !== key) } : x))
                 sb.from('otp_messages').select('id,user_classifications').contains('user_classifications', [key]).then(({ data }) => {
@@ -1345,9 +1367,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             <style>{`.msg-cat-add-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.blue};font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.msg-cat-add-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(52,131,180,.12);display:flex;align-items:center;justify-content:center;color:${C.blue}}.msg-cat-add-btn:hover:not(:disabled) .nav-ico{background:${C.blue};color:#fff}.msg-cat-add-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
             <div style={{ padding: '12px 22px 16px', display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => {
-                const ar = msgCatAddModal.ar.trim(), en = msgCatAddModal.en.trim(), msgId = msgCatAddModal.msgId
-                if (!ar || !en) return
-                const key = addMsgCategory(ar, en)
+                const ar = msgCatAddModal.ar.trim(), en = msgCatAddModal.en.trim(), msgId = msgCatAddModal.msgId, svcName = msgCatAddModal.svcName
+                if (!ar || !en || !svcName) return
+                const key = addMsgCategory(svcName, ar, en)
                 // Auto-select the new category on the message that triggered add
                 const current = messages.find(x => x.id === msgId)?.user_classifications || []
                 updateMsgClassifications(msgId, [...current, key])
