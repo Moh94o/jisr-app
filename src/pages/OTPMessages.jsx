@@ -548,7 +548,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   ]
 
   return (
-    <div style={{ fontFamily: F, direction: 'rtl', paddingTop: 20 }}>
+    <div style={{ fontFamily: F, direction: lang==='en'?'ltr':'rtl', paddingTop: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
@@ -569,7 +569,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
           {/* Horizontal Tabs */}
           {(()=>{
-            const tabs = [{ id: 'all', name: T('الكل', 'All') }, ...persons.map(p => ({ id: p.id, name: p.name, inactive: !p.is_active }))]
+            const tabs = [{ id: 'all', name: T('الكل', 'All') }, ...persons.map(p => ({ id: p.id, name: (lang==='en' && p.name_en) ? p.name_en : p.name, inactive: !p.is_active }))]
             return <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.15)', marginBottom: 18, justifyContent: 'space-between', alignItems: 'stretch', gap: 8 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
                 {tabs.map(t => {
@@ -703,7 +703,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         })()}
                         {person && <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, fontSize: 10.5 }}>
                           <span style={{ color: 'rgba(255,255,255,.62)', fontWeight: 600 }}>{T('صاحب الحساب:', 'Account Owner:')}</span>
-                          <span style={{ color: C.gold, fontWeight: 800 }}>{person.name}</span>
+                          <span style={{ color: C.gold, fontWeight: 800 }}>{(lang==='en' && person.name_en) ? person.name_en : person.name}</span>
                         </div>}
                       </div>
                       {m.otp_code && <CountRing tl={tl} ttl={OTP_TTL} />}
