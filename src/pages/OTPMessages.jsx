@@ -574,7 +574,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   <button onClick={() => setDeleteConfirm(m.id)} style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(192,57,43,.75)', cursor: 'pointer', border: '1px dashed rgba(192,57,43,.45)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2 }} onMouseEnter={e => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = C.red }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(192,57,43,.75)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.45)' }}>حذف</button>
                   <div style={{ borderRadius: 14, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(212,160,23,.3)', transition: '.2s', overflow: 'hidden' }}>
                     {/* Part 1 — Unified header: Avatar + Service + Owner + (CountRing if OTP) + Date */}
-                    <div style={{ padding: '10px 14px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
+                    <div style={{ padding: '10px 14px 18px', display: 'flex', alignItems: 'flex-start', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
                       <SvcLogo sender={m.phone_from} body={m.message_body} size={48} customAvatars={customAvatars} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: svc.color, lineHeight: 1.1 }}>{svc.name}</div>
