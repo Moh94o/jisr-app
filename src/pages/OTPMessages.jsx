@@ -577,7 +577,17 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     <div style={{ padding: '10px 14px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
                       <SvcLogo sender={m.phone_from} body={m.message_body} size={48} customAvatars={customAvatars} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: svc.color, lineHeight: 1.1 }}>{svc.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <div style={{ fontSize: 15, fontWeight: 800, color: svc.color, lineHeight: 1.1 }}>{svc.name}</div>
+                          {(() => {
+                            const catLabel = { gov: 'حكومي', bank: 'بنوك', other: 'أخرى' }
+                            const svcCats = (svc.cats && svc.cats.length ? svc.cats : (svc.cat ? [svc.cat] : []))
+                            const labelOf = k => catLabel[k] || customCategories.find(c => c.k === k)?.l || k
+                            return svcCats.map(k => (
+                              <span key={k} style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: svc.color + '20', color: svc.color, border: '1px solid ' + svc.color + '40' }}>{labelOf(k)}</span>
+                            ))
+                          })()}
+                        </div>
                         {person && <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, fontSize: 10.5 }}>
                           <span style={{ color: 'rgba(255,255,255,.62)', fontWeight: 600 }}>صاحب الحساب:</span>
                           <span style={{ color: C.gold, fontWeight: 800 }}>{person.name}</span>
@@ -859,7 +869,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   {/* Permissions */}
                   <div style={{ padding: '8px 14px', background: 'rgba(255,255,255,.02)', borderTop: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>يشوف:</span>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>مصرّح لهم بالاطلاع:</span>
                       {sysUsers.filter(u => permUserIds.includes(u.id)).map(u => (
                         <span key={u.id} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(39,160,70,.12)', color: C.ok, border: '1px solid rgba(39,160,70,.3)' }}>{u.name_ar}</span>
                       ))}
