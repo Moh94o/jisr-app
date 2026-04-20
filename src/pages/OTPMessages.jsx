@@ -141,6 +141,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const [catDeleteConfirm, setCatDeleteConfirm] = useState(null) // { k, l, isDefault? } or null
   const [msgClassifyPicker, setMsgClassifyPicker] = useState(null) // msg id when picker open
   const [msgCatAddModal, setMsgCatAddModal] = useState(null) // { ar, en, msgId } or null
+  const [msgCatDeleteConfirm, setMsgCatDeleteConfirm] = useState(null) // { k, l } or null
   const [msgCategories, setMsgCategories] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('jisr_msg_categories') || 'null')
@@ -573,7 +574,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   <button onClick={() => setDeleteConfirm(m.id)} style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(192,57,43,.75)', cursor: 'pointer', border: '1px dashed rgba(192,57,43,.45)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2 }} onMouseEnter={e => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = C.red }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(192,57,43,.75)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.45)' }}>حذف</button>
                   <div style={{ borderRadius: 14, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(212,160,23,.3)', transition: '.2s', overflow: 'hidden' }}>
                     {/* Part 1 — Unified header: Avatar + Service + Owner + (CountRing if OTP) + Date */}
-                    <div style={{ padding: '10px 14px 8px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
+                    <div style={{ padding: '10px 14px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
                       <SvcLogo sender={m.phone_from} body={m.message_body} size={48} customAvatars={customAvatars} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: svc.color, lineHeight: 1.1 }}>{svc.name}</div>
@@ -630,11 +631,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     </div>
                   </> : <>
                   {/* Part 2 — Non-OTP parsed body + action */}
-                  <div style={{ position: 'relative', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <div style={{ position: 'relative', padding: '18px 14px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                       {(() => {
                         const active = msgClassifyPicker === m.id
                         const idleColor = 'rgba(255,255,255,.55)', idleBorder = 'rgba(255,255,255,.22)'
-                        return <button onClick={() => setMsgClassifyPicker(active ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -10, right: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: active ? C.blue : idleColor, cursor: 'pointer', border: '1px dashed ' + (active ? C.blue : idleBorder), borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue } }} onMouseLeave={e => { if (!active) { e.currentTarget.style.color = idleColor; e.currentTarget.style.borderColor = idleBorder } }}>
+                        return <button onClick={() => setMsgClassifyPicker(active ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -11, right: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: active ? C.blue : idleColor, cursor: 'pointer', border: '1px dashed ' + (active ? C.blue : idleBorder), borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue } }} onMouseLeave={e => { if (!active) { e.currentTarget.style.color = idleColor; e.currentTarget.style.borderColor = idleBorder } }}>
                           <span>تعديل الفئة</span>
                           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                         </button>
@@ -816,7 +817,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   {/* Raw message toggle */}
                   {showRawMsg === m.id && <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,.3)', borderTop: '1px solid rgba(255,255,255,.04)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.82)', letterSpacing: '.2px' }}>الرسالة الأصلية:</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)', letterSpacing: '.2px' }}>الرسالة الأصلية:</div>
                       {(() => {
                         const viewers = (m.viewed_by || '').split(/[,،]+/).map(s => s.trim()).filter(Boolean)
                         if (!viewers.length) return null
@@ -841,36 +842,34 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         {msgCategories.map(c => {
                           const isSel = selKeys.includes(c.k)
                           return (
-                            <div key={c.k} style={{ display: 'inline-flex', alignItems: 'stretch', borderRadius: 4, overflow: 'hidden', border: '1px solid ' + (isSel ? 'rgba(52,131,180,.5)' : 'rgba(255,255,255,.1)'), background: isSel ? 'rgba(52,131,180,.14)' : 'transparent' }}>
+                            <div key={c.k} style={{ display: 'inline-flex', alignItems: 'stretch', height: 22, borderRadius: 4, overflow: 'hidden', border: '1px solid ' + (isSel ? 'rgba(52,131,180,.5)' : 'rgba(255,255,255,.1)'), background: isSel ? 'rgba(52,131,180,.14)' : 'transparent' }}>
                               <button onClick={() => {
                                 const next = isSel ? selKeys.filter(x => x !== c.k) : [...selKeys, c.k]
                                 updateMsgClassifications(m.id, next)
-                              }} style={{ fontSize: 9, fontWeight: 700, padding: '3px 9px', cursor: 'pointer', fontFamily: F, border: 'none', background: 'transparent', color: isSel ? C.blue : 'rgba(255,255,255,.6)' }}>{c.l}</button>
-                              <button onClick={e => { e.stopPropagation(); if (window.confirm('حذف الفئة "' + c.l + '"؟')) removeMsgCategory(c.k) }} title="حذف هذه الفئة" style={{ padding: '0 4px', border: 'none', borderRight: '1px solid rgba(255,255,255,.06)', background: 'transparent', color: 'rgba(192,57,43,.7)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>×</button>
+                              }} style={{ fontSize: 9, fontWeight: 700, padding: '0 9px', cursor: 'pointer', fontFamily: F, border: 'none', background: 'transparent', color: isSel ? C.blue : 'rgba(255,255,255,.6)' }}>{c.l}</button>
+                              <button onClick={e => { e.stopPropagation(); setMsgCatDeleteConfirm({ k: c.k, l: c.l }) }} title="حذف هذه الفئة" style={{ padding: '0 4px', border: 'none', borderRight: '1px solid rgba(255,255,255,.06)', background: 'transparent', color: 'rgba(192,57,43,.7)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>×</button>
                             </div>
                           )
                         })}
-                        <button onClick={() => setMsgCatAddModal({ ar: '', en: '', msgId: m.id })} title="إضافة فئة رسالة جديدة" style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 4, border: '1px dashed rgba(52,131,180,.4)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F, lineHeight: 1 }}>+</button>
-                        <div style={{ flex: 1 }} />
-                        <button onClick={() => setMsgClassifyPicker(null)} style={{ fontSize: 9, padding: '3px 10px', borderRadius: 4, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>تم</button>
+                        <button onClick={() => setMsgCatAddModal({ ar: '', en: '', msgId: m.id })} title="إضافة فئة رسالة جديدة" style={{ height: 22, padding: '0 10px', borderRadius: 4, border: '1px dashed rgba(52,131,180,.4)', background: 'rgba(52,131,180,.06)', color: C.blue, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>+</button>
                       </div>
                     </div>
                   })()}
 
                   {/* Permissions */}
-                  <div style={{ padding: '6px 14px', background: 'rgba(255,255,255,.02)', borderTop: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 8, color: 'var(--tx6)' }}>يشوف:</span>
+                  <div style={{ padding: '8px 14px', background: 'rgba(255,255,255,.02)', borderTop: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>يشوف:</span>
                       {sysUsers.filter(u => permUserIds.includes(u.id)).map(u => (
-                        <span key={u.id} style={{ fontSize: 8, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'rgba(39,160,70,.12)', color: C.ok, border: '1px solid rgba(39,160,70,.28)' }}>{u.name_ar}</span>
+                        <span key={u.id} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(39,160,70,.12)', color: C.ok, border: '1px solid rgba(39,160,70,.3)' }}>{u.name_ar}</span>
                       ))}
                     </div>
-                    <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(212,160,23,.28)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعديل الصلاحيات</button>
+                    <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 10, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>تعديل الصلاحيات</button>
                   </div>
 
-                  {showPermEdit === m.id && <div style={{ padding: '6px 12px 8px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', marginBottom: 5, fontWeight: 600 }}>اضغط على الاسم للسماح أو المنع:</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {showPermEdit === m.id && <div style={{ padding: '8px 14px 10px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', marginBottom: 6, fontWeight: 600 }}>اضغط على الاسم للسماح أو المنع:</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                       {sysUsers.map(u => {
                         const allowed = !!permEdit[u.id]
                         return (
@@ -1277,6 +1276,37 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             <div style={{ padding: '12px 20px 16px', display: 'flex', gap: 8, borderTop: '1px solid rgba(255,255,255,.05)' }}>
               <button onClick={() => setCatDeleteConfirm(null)} style={{ flex: 1, height: 40, borderRadius: 9, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700 }}>إلغاء</button>
               <button onClick={() => { if (catDeleteConfirm.isDefault) hideDefaultCat(catDeleteConfirm.k); else removeCustomCategory(catDeleteConfirm.k); setCatDeleteConfirm(null) }} style={{ flex: 1, height: 40, borderRadius: 9, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 800 }}>حذف</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Message Category Confirmation */}
+      {msgCatDeleteConfirm && (
+        <div onClick={() => setMsgCatDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1260, padding: 16, fontFamily: F, direction: 'rtl' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 18, width: 'min(380px,92vw)', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(192,57,43,.15)', overflow: 'hidden' }}>
+            <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(192,57,43,.1)', border: '2px solid rgba(192,57,43,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)', marginBottom: 8 }}>حذف الفئة "{msgCatDeleteConfirm.l}"؟</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', lineHeight: 1.7 }}>سيتم إزالة هذه الفئة من القائمة ومن أي رسالة مسنّدة إليها</div>
+            </div>
+            <div style={{ padding: '12px 20px 16px', display: 'flex', gap: 8, borderTop: '1px solid rgba(255,255,255,.05)' }}>
+              <button onClick={() => setMsgCatDeleteConfirm(null)} style={{ flex: 1, height: 40, borderRadius: 9, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700 }}>إلغاء</button>
+              <button onClick={() => {
+                const key = msgCatDeleteConfirm.k
+                removeMsgCategory(key)
+                // Also clean up any messages that had this classification
+                setMessages(prev => prev.map(x => (x.user_classifications || []).includes(key) ? { ...x, user_classifications: x.user_classifications.filter(c => c !== key) } : x))
+                sb.from('otp_messages').select('id,user_classifications').contains('user_classifications', [key]).then(({ data }) => {
+                  if (data && data.length) data.forEach(row => {
+                    const cleaned = (row.user_classifications || []).filter(c => c !== key)
+                    sb.from('otp_messages').update({ user_classifications: cleaned }).eq('id', row.id)
+                  })
+                })
+                setMsgCatDeleteConfirm(null)
+              }} style={{ flex: 1, height: 40, borderRadius: 9, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 800 }}>حذف</button>
             </div>
           </div>
         </div>
