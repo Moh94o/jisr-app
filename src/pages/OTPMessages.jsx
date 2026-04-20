@@ -630,7 +630,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     </div>
                   </> : <>
                   {/* Part 2 — Non-OTP parsed body + action */}
-                  <div style={{ padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <div style={{ position: 'relative', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                      <button onClick={() => setMsgClassifyPicker(msgClassifyPicker === m.id ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(52,131,180,.85)', cursor: 'pointer', border: '1px dashed rgba(52,131,180,.5)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(52,131,180,.85)'; e.currentTarget.style.borderColor = 'rgba(52,131,180,.5)' }}>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        تعديل الفئة
+                      </button>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {(()=>{
                           const body = m.message_body || ''
@@ -760,10 +764,14 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                                 {bAmtM && <span style={{ fontSize: 14, fontWeight: 900, color: '#9b59b6' }}>{bAmtM[1]} ر.س</span>}
                               </div>
                             }
-                            // Default: show category "غير محددة"
-                            return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                            // Default: show category "غير محددة" — or user classifications if set
+                            const userCats = (m.user_classifications || []).map(k => msgCategories.find(c => c.k === k)).filter(Boolean)
+                            return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, flexWrap: 'wrap' }}>
                               <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span>
-                              <span style={{ color: 'var(--tx5)', fontWeight: 800 }}>غير محددة</span>
+                              {userCats.length === 0
+                                ? <span style={{ color: 'var(--tx5)', fontWeight: 800 }}>غير محددة</span>
+                                : userCats.map(c => <span key={c.k} style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 5, background: 'rgba(52,131,180,.14)', color: C.blue, border: '1px solid rgba(52,131,180,.35)' }}>{c.l}</span>)
+                              }
                             </div>
                           }
                           // Parse all fields from the message
@@ -820,21 +828,6 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     </div>
                     <pre style={{ fontSize: 10, color: 'var(--tx3)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.8, fontFamily: F, unicodeBidi: 'plaintext', background: 'rgba(255,255,255,.02)', padding: '8px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.04)' }}>{(m.message_body||'').split(/\n/).map((line, i) => <div key={i} dir="auto" style={{ minHeight: '1.8em' }}>{line}</div>)}</pre>
                   </div>}
-
-                  {/* User Message Category (فئة الرسالة) */}
-                  {(() => {
-                    const selKeys = (m.user_classifications || []).filter(Boolean)
-                    const selected = selKeys.map(k => msgCategories.find(c => c.k === k)).filter(Boolean)
-                    return <div style={{ padding: '6px 14px', background: 'rgba(212,160,23,.02)', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 9, color: 'var(--tx6)', fontWeight: 600 }}>فئة الرسالة:</span>
-                      {selected.length === 0 && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>بدون فئة</span>}
-                      {selected.map(s => (
-                        <span key={s.k} style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: 'rgba(52,131,180,.14)', color: C.blue, border: '1px solid rgba(52,131,180,.32)' }}>{s.l}</span>
-                      ))}
-                      <div style={{ flex: 1 }} />
-                      <button onClick={() => setMsgClassifyPicker(msgClassifyPicker === m.id ? null : m.id)} style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(52,131,180,.32)', background: 'rgba(52,131,180,.1)', color: C.blue, cursor: 'pointer', fontFamily: F, fontWeight: 600 }}>تعديل الفئة</button>
-                    </div>
-                  })()}
 
                   {msgClassifyPicker === m.id && (() => {
                     const selKeys = m.user_classifications || []
