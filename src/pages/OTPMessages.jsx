@@ -552,12 +552,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--tx)' }}>الرسائل النصية</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginTop: 6 }}>استقبال وعرض رموز التحقق والإشعارات من المنصات المختلفة</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--tx)' }}>{T('الرسائل النصية', 'SMS Messages')}</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginTop: 6 }}>{T('استقبال وعرض رموز التحقق والإشعارات من المنصات المختلفة', 'Receive and view verification codes and notifications from various platforms')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {can('add_person') && <button onClick={() => setShowAdd(true)} style={{ height: 42, padding: '0 20px', borderRadius: 11, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.1)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'border-color .15s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.55)' }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)' }}>
-            إضافة
+            {T('إضافة', 'Add')}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
           </button>}
         </div>
@@ -569,7 +569,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
           {/* Horizontal Tabs */}
           {(()=>{
-            const tabs = [{ id: 'all', name: 'الكل' }, ...persons.map(p => ({ id: p.id, name: p.name, inactive: !p.is_active }))]
+            const tabs = [{ id: 'all', name: T('الكل', 'All') }, ...persons.map(p => ({ id: p.id, name: p.name, inactive: !p.is_active }))]
             return <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.15)', marginBottom: 18, justifyContent: 'space-between', alignItems: 'stretch', gap: 8 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
                 {tabs.map(t => {
@@ -604,35 +604,35 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               {can('search') && <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,.4)' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="ابحث في الرسائل / الرقم / صاحب الحساب …" style={{ width: '100%', height: 38, padding: '0 36px 0 14px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', direction: 'rtl', boxSizing: 'border-box' }} />
+                  <input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder={T('ابحث في الرسائل / الرقم / صاحب الحساب …', 'Search messages / code / owner …')} style={{ width: '100%', height: 38, padding: '0 36px 0 14px', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', direction: lang==='en'?'ltr':'rtl', boxSizing: 'border-box' }} />
                 </div>
                 {can('advanced_search') && <button onClick={() => setShowAdvancedSearch(!showAdvancedSearch)} style={{ height: 38, padding: '0 14px', borderRadius: 10, border: '1px solid ' + (showAdvancedSearch ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.1)'), background: showAdvancedSearch ? 'rgba(212,160,23,.1)' : 'rgba(255,255,255,.02)', color: showAdvancedSearch ? C.gold : 'rgba(255,255,255,.7)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-                  بحث متقدم
+                  {T('بحث متقدم', 'Advanced Search')}
                 </button>}
-                {(searchText || searchSvc || searchSvcCat || searchMsgCat) && <button onClick={() => { setSearchText(''); setSearchSvc(''); setSearchSvcCat(''); setSearchMsgCat('') }} style={{ height: 38, padding: '0 12px', borderRadius: 10, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>مسح</button>}
+                {(searchText || searchSvc || searchSvcCat || searchMsgCat) && <button onClick={() => { setSearchText(''); setSearchSvc(''); setSearchSvcCat(''); setSearchMsgCat('') }} style={{ height: 38, padding: '0 12px', borderRadius: 10, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{T('مسح', 'Clear')}</button>}
               </div>}
               {showAdvancedSearch && can('advanced_search') && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginBottom: 14, padding: 12, borderRadius: 10, background: 'rgba(212,160,23,.03)', border: '1px solid rgba(212,160,23,.12)' }}>
                 <div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>الجهة</div>
-                  <ThemedSelect value={searchSvc} onChange={setSearchSvc} placeholder="— الكل —" options={[
-                    { value: '', label: '— الكل —' },
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>{T('الجهة', 'Service')}</div>
+                  <ThemedSelect value={searchSvc} onChange={setSearchSvc} placeholder={T('— الكل —', '— All —')} options={[
+                    { value: '', label: T('— الكل —', '— All —') },
                     ...[...new Set(messages.map(m => applySvcOverrides(detectService(m.phone_from, m.message_body))._defaultName).filter(Boolean))].map(n => ({ value: n, label: customNames[n] || n }))
                   ]} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>تصنيف الجهة</div>
-                  <ThemedSelect value={searchSvcCat} onChange={setSearchSvcCat} placeholder="— الكل —" options={[
-                    { value: '', label: '— الكل —' },
-                    ...['gov','bank','other'].filter(c => !hiddenDefaultCats.includes(c)).map(c => ({ value: c, label: { gov:'حكومي', bank:'بنوك', other:'أخرى' }[c] })),
-                    ...customCategories.map(c => ({ value: c.k, label: c.l }))
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>{T('تصنيف الجهة', 'Service Classification')}</div>
+                  <ThemedSelect value={searchSvcCat} onChange={setSearchSvcCat} placeholder={T('— الكل —', '— All —')} options={[
+                    { value: '', label: T('— الكل —', '— All —') },
+                    ...['gov','bank','other'].filter(c => !hiddenDefaultCats.includes(c)).map(c => ({ value: c, label: lang==='en'?{gov:'Government',bank:'Banks',other:'Other'}[c]:{gov:'حكومي',bank:'بنوك',other:'أخرى'}[c] })),
+                    ...customCategories.map(c => ({ value: c.k, label: lang==='en'?(c.l_en||c.l):c.l }))
                   ]} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>فئة الرسالة</div>
-                  <ThemedSelect value={searchMsgCat} onChange={setSearchMsgCat} placeholder="— الكل —" options={[
-                    { value: '', label: '— الكل —' },
-                    ...(() => { const seen = new Set(); const all = []; Object.values(msgCategories).forEach(list => (list || []).forEach(c => { if (!seen.has(c.k)) { seen.add(c.k); all.push(c) } })); return all.map(c => ({ value: c.k, label: c.l })) })()
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600, marginBottom: 4 }}>{T('فئة الرسالة', 'Message Category')}</div>
+                  <ThemedSelect value={searchMsgCat} onChange={setSearchMsgCat} placeholder={T('— الكل —', '— All —')} options={[
+                    { value: '', label: T('— الكل —', '— All —') },
+                    ...(() => { const seen = new Set(); const all = []; Object.values(msgCategories).forEach(list => (list || []).forEach(c => { if (!seen.has(c.k)) { seen.add(c.k); all.push(c) } })); return all.map(c => ({ value: c.k, label: lang==='en'?(c.l_en||c.l):c.l })) })()
                   ]} />
                 </div>
               </div>}
@@ -640,12 +640,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>عدد الرسائل:</span>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('عدد الرسائل:', 'Messages:')}</span>
                     <span style={{ fontSize: 15, fontWeight: 800, color: C.gold }}>{tabMsgs.length}</span>
                   </div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(255,255,255,.45)' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>آخر تحديث</span>
+                    <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>{T('آخر تحديث', 'Last update')}</span>
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: 'rgba(255,255,255,.85)', direction: 'ltr', fontFamily: 'monospace', letterSpacing: '.3px' }}>{fmtDateTime(lastMsg?.created_at || lastMsg?.received_at)}</span>
                   </div>
                 </div>
@@ -687,7 +687,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
               return (
                 <div key={m.id} style={{ position: 'relative' }}>
-                  {can('delete_message') && <button onClick={() => setDeleteConfirm(m.id)} style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(192,57,43,.75)', cursor: 'pointer', border: '1px dashed rgba(192,57,43,.45)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2 }} onMouseEnter={e => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = C.red }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(192,57,43,.75)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.45)' }}>حذف</button>}
+                  {can('delete_message') && <button onClick={() => setDeleteConfirm(m.id)} style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: 'rgba(192,57,43,.75)', cursor: 'pointer', border: '1px dashed rgba(192,57,43,.45)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2 }} onMouseEnter={e => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = C.red }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(192,57,43,.75)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.45)' }}>{T('حذف', 'Delete')}</button>}
                   <div style={{ borderRadius: 14, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(212,160,23,.3)', transition: '.2s', overflow: 'hidden' }}>
                     {/* Part 1 — Unified header: Avatar + Service + Owner + (CountRing if OTP) + Date */}
                     <div style={{ padding: '18px 14px 18px', display: 'flex', alignItems: 'flex-start', gap: 10, borderBottom: '1px solid rgba(255,255,255,.14)' }}>
@@ -695,14 +695,14 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: svc.color, lineHeight: 1.1 }}>{svc.name}</div>
                         {(() => {
-                          const catLabel = { gov: 'حكومي', bank: 'بنوك', other: 'أخرى' }
+                          const catLabel = lang==='en' ? { gov: 'Government', bank: 'Banks', other: 'Other' } : { gov: 'حكومي', bank: 'بنوك', other: 'أخرى' }
                           const svcCats = (svc.cats && svc.cats.length ? svc.cats : (svc.cat ? [svc.cat] : []))
-                          const labelOf = k => catLabel[k] || customCategories.find(c => c.k === k)?.l || k
+                          const labelOf = k => { if (catLabel[k]) return catLabel[k]; const c = customCategories.find(c => c.k === k); return (lang==='en' && c?.l_en) ? c.l_en : (c?.l || k) }
                           if (!svcCats.length) return null
                           return <div style={{ fontSize: 9.5, fontWeight: 600, color: 'rgba(255,255,255,.4)', marginTop: 3, letterSpacing: '.2px' }}>{svcCats.map(labelOf).join(' · ')}</div>
                         })()}
                         {person && <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, fontSize: 10.5 }}>
-                          <span style={{ color: 'rgba(255,255,255,.62)', fontWeight: 600 }}>صاحب الحساب:</span>
+                          <span style={{ color: 'rgba(255,255,255,.62)', fontWeight: 600 }}>{T('صاحب الحساب:', 'Account Owner:')}</span>
                           <span style={{ color: C.gold, fontWeight: 800 }}>{person.name}</span>
                         </div>}
                       </div>
@@ -724,7 +724,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         const active = msgClassifyPicker === m.id
                         const idleColor = 'rgba(255,255,255,.55)', idleBorder = 'rgba(255,255,255,.22)'
                         return <button onClick={() => setMsgClassifyPicker(active ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -11, right: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: active ? C.blue : idleColor, cursor: 'pointer', border: '1px dashed ' + (active ? C.blue : idleBorder), borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue } }} onMouseLeave={e => { if (!active) { e.currentTarget.style.color = idleColor; e.currentTarget.style.borderColor = idleBorder } }}>
-                          <span>تعديل الفئة</span>
+                          <span>{T('تعديل الفئة', 'Edit Category')}</span>
                           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                         </button>
                       })()}
@@ -756,11 +756,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                         <button onClick={() => copyCode(m.otp_code, m)} style={{ height: 32, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(39,160,70,.38)', background: 'rgba(39,160,70,.12)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                          نسخ
+                          {T('نسخ', 'Copy')}
                         </button>
                         <button onClick={() => toggleRawMsg(m)} title="فتح الرسالة" style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid ' + (showRawMsg === m.id ? 'rgba(212,160,23,.4)' : 'rgba(255,255,255,.22)'), background: showRawMsg === m.id ? 'rgba(212,160,23,.08)' : 'transparent', color: showRawMsg === m.id ? C.gold : 'rgba(255,255,255,.75)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: F, fontSize: 11, fontWeight: 700 }}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                          الرسالة
+                          {T('الرسالة', 'Message')}
                         </button>
                       </div>
                     </div>
@@ -771,7 +771,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                         const active = msgClassifyPicker === m.id
                         const idleColor = 'rgba(255,255,255,.55)', idleBorder = 'rgba(255,255,255,.22)'
                         return <button onClick={() => setMsgClassifyPicker(active ? null : m.id)} title="تعديل فئة الرسالة" style={{ position: 'absolute', top: -11, right: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 700, color: active ? C.blue : idleColor, cursor: 'pointer', border: '1px dashed ' + (active ? C.blue : idleBorder), borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }} onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = C.blue } }} onMouseLeave={e => { if (!active) { e.currentTarget.style.color = idleColor; e.currentTarget.style.borderColor = idleBorder } }}>
-                          <span>تعديل الفئة</span>
+                          <span>{T('تعديل الفئة', 'Edit Category')}</span>
                           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                         </button>
                       })()}
@@ -793,7 +793,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                               .replace(/Amount/gi, 'مبلغ').replace(/No/gi, 'رقم').replace(/On/gi, 'في')
                               .trim() || ''
                             return <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', direction: 'rtl' }}>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span><span style={{ color: '#9b59b6', fontWeight: 800 }}>{isRecharge ? 'شحن رصيد' : 'سداد فاتورة'}</span></div>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span><span style={{ color: '#9b59b6', fontWeight: 800 }}>{isRecharge ? 'شحن رصيد' : 'سداد فاتورة'}</span></div>
                               {amtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#9b59b6' }}>{amtM[1]} ر.س</span>}
                               {billerName && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{billerName}</span>}
                               {acctM && <span style={{ fontSize: 9, color: 'var(--tx5)' }}>من حساب: {acctM[1]}</span>}
@@ -813,7 +813,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             }
                             if (isPromo) {
                               return <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'rtl' }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span><span style={{ color: 'var(--tx3)', fontWeight: 800 }}>إعلان</span></div>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span><span style={{ color: 'var(--tx3)', fontWeight: 800 }}>إعلان</span></div>
                                 <span style={{ fontSize: 10, color: 'var(--tx5)' }}>{body.length > 80 ? body.substring(0, 80) + '...' : body}</span>
                               </div>
                             }
@@ -825,7 +825,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                               const subM = body.match(/اشتراك\s*\(?(\d+)/i)
                               return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, direction: 'rtl' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span><span style={{ color: C.ok, fontWeight: 800 }}>تسجيل مشترك</span></div>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span><span style={{ color: C.ok, fontWeight: 800 }}>تسجيل مشترك</span></div>
                                   {nameM && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{nameM[1]}</span>}
                                 </div>
                                 <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--tx4)' }}>
@@ -842,7 +842,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                               const empM = body.match(/صاحب العمل.*?رقم\s*(\d+\*+)/i) || body.match(/صاحب العمل.*?(\d+\*+)/i)
                               return <div style={{ display: 'flex', flexDirection: 'column', gap: 6, direction: 'rtl' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span><span style={{ color: C.blue, fontWeight: 800 }}>نقل خدمات</span></div>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span><span style={{ color: C.blue, fontWeight: 800 }}>نقل خدمات</span></div>
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
                                   {nameM2 && <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -868,7 +868,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                               const vDateM = body.match(/بتاريخ\s*([\d\/]+)/i)
                               return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, direction: 'rtl' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span><span style={{ color: C.red, fontWeight: 800 }}>مخالفة</span></div>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span><span style={{ color: C.red, fontWeight: 800 }}>مخالفة</span></div>
                                   {vAmtM && <span style={{ fontSize: 15, fontWeight: 900, color: C.red }}>{vAmtM[1]} ر.س</span>}
                                 </div>
                                 <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--tx4)' }}>
@@ -886,7 +886,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                               const isOnline = /online/i.test(body)
                               return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, direction: 'rtl' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span><span style={{ color: '#e67e22', fontWeight: 800 }}>{isOnline ? 'شراء أونلاين' : 'شراء مدى'}</span></div>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span><span style={{ color: '#e67e22', fontWeight: 800 }}>{isOnline ? 'شراء أونلاين' : 'شراء مدى'}</span></div>
                                   {pAmtM && <span style={{ fontSize: 15, fontWeight: 900, color: '#e67e22' }}>{pAmtM[1]} ر.س</span>}
                                 </div>
                                 <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--tx4)' }}>
@@ -900,7 +900,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             if (isMobilyBill) {
                               const bAmtM = body.match(/بمبلغ\s*([0-9,.]+)/i) || body.match(/amount.*?SAR\s*([0-9,.]+)/i)
                               return <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'rtl' }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span><span style={{ color: '#9b59b6', fontWeight: 800 }}>فاتورة</span></div>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span><span style={{ color: '#9b59b6', fontWeight: 800 }}>فاتورة</span></div>
                                 {bAmtM && <span style={{ fontSize: 14, fontWeight: 900, color: '#9b59b6' }}>{bAmtM[1]} ر.س</span>}
                               </div>
                             }
@@ -908,9 +908,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                             const svcCats = getSvcMsgCats(svc._defaultName)
                             const userCats = (m.user_classifications || []).map(k => svcCats.find(c => c.k === k)).filter(Boolean)
                             return <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, flexWrap: 'wrap' }}>
-                              <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span>
+                              <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span>
                               {userCats.length === 0
-                                ? <span style={{ color: 'var(--tx5)', fontWeight: 800 }}>غير محددة</span>
+                                ? <span style={{ color: 'var(--tx5)', fontWeight: 800 }}>{T('غير محددة', 'Unspecified')}</span>
                                 : userCats.map(c => <span key={c.k} style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 5, background: 'rgba(52,131,180,.14)', color: C.blue, border: '1px solid rgba(52,131,180,.35)' }}>{c.l}</span>)
                               }
                             </div>
@@ -929,7 +929,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           const clr = isBetween ? C.blue : isIncoming ? C.ok : '#e67e22'
                           return <div style={{ direction: 'rtl' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>الفئة:</span><span style={{ color: clr, fontWeight: 800 }}>{typeLabel}</span></div>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}><span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('الفئة:', 'Category:')}</span><span style={{ color: clr, fontWeight: 800 }}>{typeLabel}</span></div>
                               {amountMatch && <span style={{ fontSize: 16, fontWeight: 900, color: clr }}>{amountMatch[1]} ر.س</span>}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10 }}>
@@ -954,7 +954,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   {/* Raw message toggle */}
                   {showRawMsg === m.id && <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,.3)', borderTop: '1px solid rgba(255,255,255,.04)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)', letterSpacing: '.2px' }}>الرسالة الأصلية:</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)', letterSpacing: '.2px' }}>{T('الرسالة الأصلية:', 'Original message:')}</div>
                       {(() => {
                         const viewers = (m.viewed_by || '').split(/[,،]+/).map(s => s.trim()).filter(Boolean)
                         if (!viewers.length) return null
@@ -975,7 +975,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                     const selKeys = m.user_classifications || []
                     const svcCats = getSvcMsgCats(svc._defaultName)
                     return <div style={{ padding: '8px 14px 10px', borderTop: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.18)' }}>
-                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', marginBottom: 6, fontWeight: 600 }}>اضغط الفئة لإضافتها أو إزالتها — الفئات خاصة بجهة <span style={{ color: C.gold, fontWeight: 800 }}>{svc.name}</span></div>
+                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', marginBottom: 6, fontWeight: 600 }}>{T('اضغط الفئة لإضافتها أو إزالتها — الفئات خاصة بجهة', 'Tap a category to add or remove — categories are specific to')} <span style={{ color: C.gold, fontWeight: 800 }}>{svc.name}</span></div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                         {svcCats.map(c => {
                           const isSel = selKeys.includes(c.k)
@@ -984,7 +984,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                               <button onClick={() => {
                                 const next = isSel ? selKeys.filter(x => x !== c.k) : [...selKeys, c.k]
                                 updateMsgClassifications(m.id, next)
-                              }} style={{ fontSize: 9, fontWeight: 700, padding: '0 9px', cursor: 'pointer', fontFamily: F, border: 'none', background: 'transparent', color: isSel ? C.blue : 'rgba(255,255,255,.6)' }}>{c.l}</button>
+                              }} style={{ fontSize: 9, fontWeight: 700, padding: '0 9px', cursor: 'pointer', fontFamily: F, border: 'none', background: 'transparent', color: isSel ? C.blue : 'rgba(255,255,255,.6)' }}>{lang==='en'?(c.l_en||c.l):c.l}</button>
                               <button onClick={e => { e.stopPropagation(); setMsgCatDeleteConfirm({ k: c.k, l: c.l, svcName: svc._defaultName }) }} title="حذف هذه الفئة" style={{ padding: '0 4px', border: 'none', borderRight: '1px solid rgba(255,255,255,.06)', background: 'transparent', color: 'rgba(192,57,43,.7)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>×</button>
                             </div>
                           )
@@ -997,12 +997,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                   {/* Permissions */}
                   <div style={{ padding: '8px 14px', background: 'rgba(255,255,255,.02)', borderTop: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>مصرّح لهم بالاطلاع:</span>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('مصرّح لهم بالاطلاع:', 'Authorized to view:')}</span>
                       {sysUsers.filter(u => permUserIds.includes(u.id)).map(u => (
                         <span key={u.id} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(39,160,70,.12)', color: C.ok, border: '1px solid rgba(39,160,70,.3)' }}>{u.name_ar}</span>
                       ))}
                     </div>
-                    {can('edit_permissions') && <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 10, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>تعديل الصلاحيات</button>}
+                    {can('edit_permissions') && <button onClick={() => { setShowPermEdit(showPermEdit === m.id ? null : m.id); setPermEdit(Object.fromEntries(sysUsers.map(u => [u.id, permUserIds.includes(u.id)]))) }} style={{ fontSize: 10, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', fontFamily: F, fontWeight: 700, flexShrink: 0 }}>{T('تعديل الصلاحيات', 'Edit Permissions')}</button>}
                   </div>
 
                   {showPermEdit === m.id && <div style={{ padding: '8px 14px 10px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
