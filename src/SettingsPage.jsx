@@ -88,7 +88,7 @@ const kFS={width:'100%',height:38,padding:'0 14px',border:'1px solid rgba(255,25
 const KLbl=({children,req})=><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:3,textAlign:'start'}}>{children}{req&&<span style={{color:C.red}}> *</span>}</div>
 const KInp=({value,onChange,placeholder,dir,maxLength})=><input value={value||''} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type="text" maxLength={maxLength} style={{...kFS,textAlign:'center',direction:dir||'rtl'}}/>
 
-function OccupationFormPopup({form,setForm,onSave,onClose,saving,isAr,sb,toast,onSaved,kind='occupation',regions=[],cities=[]}){
+function OccupationFormPopup({form,setForm,onSave,onClose,saving,isAr,sb,toast,onSaved,kind='occupation',regions=[],cities=[],lLists=[],lItems=[]}){
 const [savedFlash,setSavedFlash]=useState(false)
 const [localSaving,setLocalSaving]=useState(false)
 const isNat=kind==='nationality'
@@ -97,18 +97,22 @@ const isReg=kind==='region'
 const isCity=kind==='city'
 const isDist=kind==='district'
 const isGeo=isReg||isCity||isDist
-const tbl=isNat?'nationalities':isEmb?'embassies':isReg?'regions':isCity?'cities':isDist?'districts':'occupations'
+const isCat=kind==='category'
+const isItem=kind==='item'
+const isBank=kind==='bank'
+const isLookup=isCat||isItem||isBank
+const tbl=isNat?'nationalities':isEmb?'embassies':isReg?'regions':isCity?'cities':isDist?'districts':isCat?'lookup_categories':(isItem||isBank)?'lookup_items':'occupations'
 const L={
-edit:isEmb?(isAr?'تعديل سفارة':'Edit Embassy'):isNat?(isAr?'تعديل جنسية':'Edit Nationality'):isReg?(isAr?'تعديل منطقة':'Edit Region'):isCity?(isAr?'تعديل مدينة':'Edit City'):isDist?(isAr?'تعديل حي':'Edit District'):(isAr?'تعديل مهنة':'Edit Occupation'),
-add:isEmb?(isAr?'إضافة سفارة':'Add Embassy'):isNat?(isAr?'إضافة جنسية':'Add Nationality'):isReg?(isAr?'إضافة منطقة':'Add Region'):isCity?(isAr?'إضافة مدينة':'Add City'):isDist?(isAr?'إضافة حي':'Add District'):(isAr?'إضافة مهنة':'Add Occupation'),
-info:isEmb?(isAr?'بيانات السفارة':'Embassy Info'):isNat?(isAr?'بيانات الجنسية':'Nationality Info'):isReg?(isAr?'بيانات المنطقة':'Region Info'):isCity?(isAr?'بيانات المدينة':'City Info'):isDist?(isAr?'بيانات الحي':'District Info'):(isAr?'بيانات المهنة':'Occupation Info'),
+edit:isEmb?(isAr?'تعديل سفارة':'Edit Embassy'):isNat?(isAr?'تعديل جنسية':'Edit Nationality'):isReg?(isAr?'تعديل منطقة':'Edit Region'):isCity?(isAr?'تعديل مدينة':'Edit City'):isDist?(isAr?'تعديل حي':'Edit District'):isCat?(isAr?'تعديل خانة':'Edit Category'):isBank?(isAr?'تعديل بنك':'Edit Bank'):isItem?(isAr?'تعديل عنصر':'Edit Item'):(isAr?'تعديل مهنة':'Edit Occupation'),
+add:isEmb?(isAr?'إضافة سفارة':'Add Embassy'):isNat?(isAr?'إضافة جنسية':'Add Nationality'):isReg?(isAr?'إضافة منطقة':'Add Region'):isCity?(isAr?'إضافة مدينة':'Add City'):isDist?(isAr?'إضافة حي':'Add District'):isCat?(isAr?'إضافة خانة':'Add Category'):isBank?(isAr?'إضافة بنك':'Add Bank'):isItem?(isAr?'إضافة عنصر':'Add Item'):(isAr?'إضافة مهنة':'Add Occupation'),
+info:isEmb?(isAr?'بيانات السفارة':'Embassy Info'):isNat?(isAr?'بيانات الجنسية':'Nationality Info'):isReg?(isAr?'بيانات المنطقة':'Region Info'):isCity?(isAr?'بيانات المدينة':'City Info'):isDist?(isAr?'بيانات الحي':'District Info'):isCat?(isAr?'بيانات الخانة':'Category Info'):isBank?(isAr?'بيانات البنك':'Bank Info'):isItem?(isAr?'بيانات العنصر':'Item Info'):(isAr?'بيانات المهنة':'Occupation Info'),
 nameArLabel:isEmb?(isAr?'اسم المدينة بالعربي':'City Name (Arabic)'):(isAr?'الاسم بالعربي':'Name (Arabic)'),
 nameEnLabel:isEmb?(isAr?'اسم المدينة بالإنجليزي':'City Name (English)'):(isAr?'الاسم بالإنجليزي':'Name (English)'),
-nameArPh:isEmb?(isAr?'مثال: الرياض':'مدينة ...'):isNat?(isAr?'مثال: سعودي':'سعودي ...'):isReg?(isAr?'مثال: الرياض':'منطقة ...'):isCity?(isAr?'مثال: الرياض':'مدينة ...'):isDist?(isAr?'مثال: النزهة':'حي ...'):(isAr?'مثال: أخصائي تسويق':'أخصائي ...'),
-nameEnPh:isEmb?'e.g. Riyadh':isNat?'e.g. Saudi':isReg?'e.g. Riyadh':isCity?'e.g. Riyadh':isDist?'e.g. Al Nuzha':'e.g. Marketing Specialist',
-codePh:isReg||isCity?(isAr?'مثال: RYD':'e.g. RYD'):isDist?(isAr?'رمز':'code'):isEmb||isNat?(isAr?'رمز':'code'):'6-digit code',
-savedEdit:isEmb?(isAr?'تم تعديل السفارة':'Embassy updated'):isNat?(isAr?'تم تعديل الجنسية':'Nationality updated'):isReg?(isAr?'تم تعديل المنطقة':'Region updated'):isCity?(isAr?'تم تعديل المدينة':'City updated'):isDist?(isAr?'تم تعديل الحي':'District updated'):(isAr?'تم تعديل المهنة':'Occupation updated'),
-savedAdd:isEmb?(isAr?'تم حفظ السفارة':'Embassy saved'):isNat?(isAr?'تم حفظ الجنسية':'Nationality saved'):isReg?(isAr?'تم حفظ المنطقة':'Region saved'):isCity?(isAr?'تم حفظ المدينة':'City saved'):isDist?(isAr?'تم حفظ الحي':'District saved'):(isAr?'تم حفظ المهنة':'Occupation saved')
+nameArPh:isEmb?(isAr?'مثال: الرياض':'مدينة ...'):isNat?(isAr?'مثال: سعودي':'سعودي ...'):isReg?(isAr?'مثال: الرياض':'منطقة ...'):isCity?(isAr?'مثال: الرياض':'مدينة ...'):isDist?(isAr?'مثال: النزهة':'حي ...'):isCat?(isAr?'مثال: حالة الدين':'e.g. Debt Status'):isBank?(isAr?'مثال: الراجحي':'e.g. Al Rajhi'):isItem?(isAr?'قيمة العنصر':'Item value'):(isAr?'مثال: أخصائي تسويق':'أخصائي ...'),
+nameEnPh:isEmb?'e.g. Riyadh':isNat?'e.g. Saudi':isReg?'e.g. Riyadh':isCity?'e.g. Riyadh':isDist?'e.g. Al Nuzha':isCat?'e.g. Debt Status':isBank?'e.g. Al Rajhi Bank':isItem?'English value':'e.g. Marketing Specialist',
+codePh:isReg||isCity?(isAr?'مثال: RYD':'e.g. RYD'):isDist?(isAr?'رمز':'code'):isEmb||isNat?(isAr?'رمز':'code'):isCat?(isAr?'مفتاح الخانة':'category key'):(isItem||isBank)?(isAr?'رمز':'code'):'6-digit code',
+savedEdit:isEmb?(isAr?'تم تعديل السفارة':'Embassy updated'):isNat?(isAr?'تم تعديل الجنسية':'Nationality updated'):isReg?(isAr?'تم تعديل المنطقة':'Region updated'):isCity?(isAr?'تم تعديل المدينة':'City updated'):isDist?(isAr?'تم تعديل الحي':'District updated'):isCat?(isAr?'تم تعديل الخانة':'Category updated'):isBank?(isAr?'تم تعديل البنك':'Bank updated'):isItem?(isAr?'تم تعديل العنصر':'Item updated'):(isAr?'تم تعديل المهنة':'Occupation updated'),
+savedAdd:isEmb?(isAr?'تم حفظ السفارة':'Embassy saved'):isNat?(isAr?'تم حفظ الجنسية':'Nationality saved'):isReg?(isAr?'تم حفظ المنطقة':'Region saved'):isCity?(isAr?'تم حفظ المدينة':'City saved'):isDist?(isAr?'تم حفظ الحي':'District saved'):isCat?(isAr?'تم حفظ الخانة':'Category saved'):isBank?(isAr?'تم حفظ البنك':'Bank saved'):isItem?(isAr?'تم حفظ العنصر':'Item saved'):(isAr?'تم حفظ المهنة':'Occupation saved')
 }
 const handleSave=async()=>{
 setLocalSaving(true)
@@ -118,14 +122,19 @@ delete d._table;delete d._id
 Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
 if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
 if(d.saudi_only!==undefined&&d.saudi_only!==null)d.saudi_only=d.saudi_only==='true'
+if(d.is_system!==undefined&&d.is_system!==null)d.is_system=d.is_system==='true'
 if(d.sort_order)d.sort_order=parseInt(d.sort_order,10)||null
 if(d.qiwa_id)d.qiwa_id=parseInt(d.qiwa_id,10)||null
+// lookup_items uses value_ar/value_en; map from normalized name_ar/name_en
+if(isItem||isBank){d.value_ar=d.name_ar;d.value_en=d.name_en;delete d.name_ar;delete d.name_en;delete d.is_system}
+// lookup_categories uses category_key (maps from 'code' input)
+if(isCat){d.category_key=d.code;delete d.code}
 let savedId=form._id
 if(form._id){const{error}=await sb.from(tbl).update(d).eq('id',form._id);if(error)throw error}
 else{const{data:ins,error}=await sb.from(tbl).insert(d).select('id').single();if(error)throw error;savedId=ins?.id}
-// Auto-resequence so sort_order stays unique 1..N
+// Auto-resequence so sort_order stays unique 1..N (skip lookup tables — their sort_order is category-scoped)
 const newSort=d.sort_order
-if(newSort&&savedId){
+if(newSort&&savedId&&!isLookup){
 const{data:all}=await sb.from(tbl).select('id,sort_order').is('deleted_at',null).order('sort_order',{nullsFirst:false}).order('name_ar')
 const others=(all||[]).filter(x=>x.id!==savedId)
 const pos=Math.max(0,Math.min(newSort-1,others.length))
@@ -178,6 +187,20 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 {regions.map(r=>{const rc=cities.filter(c=>c.region_id===r.id);if(!rc.length)return null;return<optgroup key={r.id} label={r.name_ar}>{rc.map(c=><option key={c.id} value={c.id}>{c.name_ar}{c.name_en?' · '+c.name_en:''}</option>)}</optgroup>})}
 </select>
 </div>}
+{(isItem||isBank)&&<div style={{gridColumn:'1 / span 2'}}>
+<KLbl req>{isAr?'الخانة':'Category'}</KLbl>
+<select value={form.category_id||''} onChange={e=>setForm(p=>({...p,category_id:e.target.value}))} style={{...kFS,textAlign:'center',direction:isAr?'rtl':'ltr',appearance:'none',cursor:'pointer'}}>
+<option value="">{isAr?'— اختر الخانة —':'— Select category —'}</option>
+{lLists.map(l=><option key={l.id} value={l.id}>{l.name_ar}{l.name_en?' · '+l.name_en:''}</option>)}
+</select>
+</div>}
+{isBank&&<div style={{gridColumn:'1 / span 2'}}>
+<KLbl>{isAr?'نوع البنك':'Bank Type'}</KLbl>
+<select value={form.type_id||''} onChange={e=>setForm(p=>({...p,type_id:e.target.value}))} style={{...kFS,textAlign:'center',direction:isAr?'rtl':'ltr',appearance:'none',cursor:'pointer'}}>
+<option value="">{isAr?'— اختر النوع —':'— Select type —'}</option>
+{(()=>{const bl=lLists.find(l=>l.category_key==='bank_type');if(!bl)return null;return lItems.filter(i=>i.category_id===bl.id).map(i=><option key={i.id} value={i.id}>{i.value_ar}</option>)})()}
+</select>
+</div>}
 <div>
 <KLbl req>{L.nameArLabel}</KLbl>
 <KInp value={form.name_ar} onChange={v=>setForm(p=>({...p,name_ar:v.replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g,'')}))} placeholder={L.nameArPh}/>
@@ -187,10 +210,10 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 <KInp value={form.name_en} onChange={v=>setForm(p=>({...p,name_en:v.replace(/[^a-zA-Z\s'\-().]/g,'')}))} placeholder={L.nameEnPh} dir="ltr"/>
 </div>
 <div>
-<KLbl req={!isGeo}>{isAr?'الرمز':'Code'}</KLbl>
+<KLbl req={!isGeo&&!isItem&&!isBank}>{isCat?(isAr?'مفتاح الخانة':'Category Key'):(isAr?'الرمز':'Code')}</KLbl>
 <KInp value={form.code} onChange={v=>setForm(p=>({...p,code:v}))} placeholder={L.codePh} dir="ltr"/>
 </div>
-{!isGeo&&<div>
+{!isGeo&&!isLookup&&<div>
 <KLbl>{isAr?'كود قوى':'Qiwa ID'}</KLbl>
 <KInp value={form.qiwa_id} onChange={v=>setForm(p=>({...p,qiwa_id:v.replace(/\D/g,'')}))} placeholder="0000" dir="ltr"/>
 </div>}
@@ -206,7 +229,7 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 <KLbl>{isAr?'رابط العلم':'Flag URL'}</KLbl>
 <KInp value={form.flag_url} onChange={v=>setForm(p=>({...p,flag_url:v}))} placeholder="https://flagcdn.com/w320/sa.png" dir="ltr"/>
 </div>}
-{!isGeo&&<div>
+{!isGeo&&!isLookup&&<div>
 <KLbl>{isAr?'التصنيف':'Classification'}</KLbl>
 <KInp value={form.classification} onChange={v=>setForm(p=>({...p,classification:v}))} placeholder={isAr?'—':'—'}/>
 </div>}
@@ -214,11 +237,18 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 <KLbl>{isAr?'الترتيب':'Sort Order'}</KLbl>
 <KInp value={form.sort_order} onChange={v=>setForm(p=>({...p,sort_order:v.replace(/\D/g,'')}))} placeholder="0" dir="ltr"/>
 </div>
-{!isGeo&&<div>
+{!isGeo&&!isLookup&&<div>
 <KLbl>{isAr?'سعودي فقط':'Saudi Only'}</KLbl>
 <div style={{display:'flex',gap:8}}>
 {btn('true',form.saudi_only,()=>setForm(p=>({...p,saudi_only:'true'})),isAr?'نعم':'Yes','ok')}
 {btn('false',form.saudi_only,()=>setForm(p=>({...p,saudi_only:'false'})),isAr?'لا':'No','err')}
+</div>
+</div>}
+{isCat&&<div>
+<KLbl>{isAr?'نظامي':'System'}</KLbl>
+<div style={{display:'flex',gap:8}}>
+{btn('true',form.is_system,()=>setForm(p=>({...p,is_system:'true'})),isAr?'نعم':'Yes','ok')}
+{btn('false',form.is_system,()=>setForm(p=>({...p,is_system:'false'})),isAr?'لا':'No','err')}
 </div>
 </div>}
 <div>
@@ -233,7 +263,7 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 </div>
 {/* Footer */}
 <div style={{display:'flex',justifyContent:'flex-end',padding:'8px 20px 12px',flexShrink:0,direction:isAr?'rtl':'ltr'}}>
-<button onClick={handleSave} disabled={isSaving||!form.name_ar||(!isGeo&&!form.code)||(isCity&&!form.region_id)||(isDist&&!form.city_id)} className="occ-nav-btn">
+<button onClick={handleSave} disabled={isSaving||!form.name_ar||(!isGeo&&!isItem&&!isBank&&!form.code)||(isCity&&!form.region_id)||(isDist&&!form.city_id)||((isItem||isBank)&&!form.category_id)} className="occ-nav-btn">
 <span>{isSaving?(isAr?'جار الحفظ…':'Saving…'):(form._id?(isAr?'تعديل':'Update'):(isAr?'إضافة':'Add'))}</span>
 <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
 </button>
@@ -819,49 +849,80 @@ embs.map(e=>{const eAct=e.is_active!==false;const toggleEmb=async()=>{const next
 </>}</div>
 </>})()}
 
-{/* CATEGORIES & ITEMS */}
-{tab==='categories'&&<>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'الخانات والعناصر':'Categories & Items'}<span style={{fontSize:10,color:'var(--tx5)'}}>{lLists.length} {isAr?'خانة':'categories'} · {lItems.length} {isAr?'عنصر':'items'}</span></div>
-<div style={{display:'flex',gap:6}}>
-<button onClick={()=>{setForm({_table:'lookup_categories',category_key:'',name_ar:'',name_en:'',sort_order:'',is_system:'false',is_active:'true'});setPop('ll')}} style={bS}>{isAr?'خانة':'Category'} +</button>
+{/* CATEGORIES & ITEMS — designed like Nationalities & Embassies */}
+{tab==='categories'&&(()=>{
+const qLower=(q||'').toLowerCase()
+const catMatchChild=new Set()
+if(q){lItems.forEach(it=>{if((it.value_ar||'').includes(q)||(it.value_en||'').toLowerCase().includes(qLower)||(it.code||'').includes(q))catMatchChild.add(it.category_id)})}
+const filtered=q?lLists.filter(ll=>(ll.name_ar||'').includes(q)||(ll.name_en||'').toLowerCase().includes(qLower)||(ll.category_key||'').toLowerCase().includes(qLower)||catMatchChild.has(ll.id)):lLists
+const onDragStart=(e,idx)=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(idx))}
+const onDragOver=(e)=>{e.preventDefault();e.dataTransfer.dropEffect='move'}
+const onDrop=async(e,dropIdx)=>{e.preventDefault();const fromIdx=parseInt(e.dataTransfer.getData('text/plain'),10);if(isNaN(fromIdx)||fromIdx===dropIdx||q)return;const next=[...lLists];const[moved]=next.splice(fromIdx,1);next.splice(dropIdx,0,moved);setLLists(next.map((o,i)=>({...o,sort_order:i+1})));for(let i=0;i<next.length;i++){await sb.from('lookup_categories').update({sort_order:i+1}).eq('id',next[i].id)}}
+return<>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
+<div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold}}/><span style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{isAr?'الخانات والعناصر':'Categories & Items'}</span><span style={{fontSize:11,color:'var(--tx5)'}}>{(q?filtered.length:lLists.length)} {isAr?'خانة':'categories'} · {lItems.length} {isAr?'عنصر':'items'}</span></div>
+<div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 280px',minWidth:0,justifyContent:'flex-end'}}>
+<div style={{position:'relative',flex:'1 1 200px',minWidth:160,maxWidth:460}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?12:'auto',left:isAr?'auto':12,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو المفتاح...':'Search AR/EN/key...'} style={{width:'100%',height:36,padding:isAr?'0 34px 0 12px':'0 12px 0 34px',borderRadius:8,border:'1px solid rgba(255,255,255,.12)',background:'rgba(0,0,0,.25)',color:'var(--tx)',fontFamily:F,fontSize:12,outline:'none',minWidth:0,boxSizing:'border-box'}}/>
+</div>
+<button onClick={()=>{const maxOrder=lLists.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'lookup_categories',code:'',name_ar:'',name_en:'',sort_order:String(maxOrder+1),is_system:'false',is_active:'true'});setPop('ll')}} style={{...bS,height:36,flexShrink:0}}>{isAr?'خانة':'Category'} +</button>
 </div></div>
-<div style={cardS}>{lLists.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد خانات':'No categories'}</div>:
-lLists.map(ll=>{const li2=lItems.filter(i=>i.category_id===ll.id);const io=open['ll_'+ll.id];return<div key={ll.id}>
-<div style={parentRow} onClick={()=>toggle('ll_'+ll.id)}>
-<ArrowIcon isOpen={io}/>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{ll.name_ar}</span>
-<span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{ll.name_en||''}</span>
-{ll.is_system&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.1)',padding:'2px 6px',borderRadius:6}}>نظامي</span>}
+<div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد خانات':'No categories'}</div>:<>
+{filtered.map((ll,idx)=>{const cActive=ll.is_active!==false;const toggleCat=async()=>{const next=!cActive;setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:next}:o));await sb.from('lookup_categories').update({is_active:next}).eq('id',ll.id)};const li2=lItems.filter(i=>i.category_id===ll.id);const itemsKey='ll_'+ll.id;const itemsOpen=!!open[itemsKey]||(q&&catMatchChild.has(ll.id));const isBnk=ll.category_key==='bank_name';const addItem=()=>{const maxOrder=li2.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'lookup_items',category_id:ll.id,name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',...(isBnk?{type_id:''}:{})});setPop(isBnk?'bnk':'li')};return<div key={ll.id}>
+<div className="jisr-list-row" draggable={!q} onDragStart={e=>onDragStart(e,idx)} onDragOver={onDragOver} onDrop={e=>onDrop(e,idx)} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:itemsOpen?'1px solid rgba(212,160,23,.15)':'1px solid rgba(255,255,255,.05)',cursor:q?'default':'grab',opacity:cActive?1:0.55,flexWrap:'wrap'}}>
+{!q&&<svg className="jisr-drag-handle" width="16" height="24" viewBox="0 0 16 24" fill="rgba(255,255,255,.45)" style={{flexShrink:0,cursor:'grab'}} aria-label="drag"><circle cx="3" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="13" cy="6" r="1.1"/><circle cx="3" cy="12" r="1.1"/><circle cx="8" cy="12" r="1.1"/><circle cx="13" cy="12" r="1.1"/><circle cx="3" cy="18" r="1.1"/><circle cx="8" cy="18" r="1.1"/><circle cx="13" cy="18" r="1.1"/></svg>}
+<span style={{display:'inline-flex',alignItems:'baseline',fontSize:15,fontWeight:800,color:C.gold,direction:'ltr',minWidth:32,textAlign:'center',justifyContent:'center',flexShrink:0,letterSpacing:.2}}><span style={{opacity:.5,fontWeight:700,fontSize:11,marginInlineEnd:2}}>#</span>{ll.sort_order||'—'}</span>
+<div style={{flex:'1 1 180px',display:'flex',flexDirection:'column',gap:2,minWidth:140,alignItems:'flex-start'}}>
+<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.95)'}}>{ll.name_ar}</span>
+<CopyBtn text={ll.name_ar} toast={toast} isAr={isAr}/>
+{ll.is_system&&<span style={{fontSize:10,color:C.gold,background:'rgba(212,160,23,.1)',border:'1px solid rgba(212,160,23,.3)',padding:'2px 8px',borderRadius:5,fontWeight:700,flexShrink:0}}>{isAr?'نظامي':'System'}</span>}
 </div>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{fontSize:10,color:'var(--tx4)',fontFamily:'monospace',direction:'ltr'}}>{ll.category_key}</span>
-<span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.12)'}}/>
-<span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{li2.length} {isAr?'عنصر':'items'}</span>
+{ll.name_en&&<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:12,color:'rgba(255,255,255,.65)',direction:'ltr'}}>{ll.name_en}</span><CopyBtn text={ll.name_en} toast={toast} isAr={isAr}/></div>}
 </div>
-</div>
-<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
-<button onClick={()=>{const isBnk=ll.category_key==='bank_name';setForm({_table:'lookup_items',value_ar:'',value_en:'',code:'',sort_order:'',category_id:ll.id,...(isBnk?{type_id:''}:{})});setPop(isBnk?'bnk':'li')}} style={{height:28,padding:'0 10px',borderRadius:8,border:'1px solid rgba(52,131,180,.25)',background:'rgba(52,131,180,.1)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{isAr?'عنصر':'Item'}</button>
-<EditBtn onClick={()=>{setForm({_table:'lookup_categories',_id:ll.id,category_key:ll.category_key||'',name_ar:ll.name_ar||'',name_en:ll.name_en||'',sort_order:ll.sort_order||'',is_system:String(ll.is_system===true),is_active:String(ll.is_active!==false)});setPop('ll')}}/>
+<div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,marginInlineStart:'auto',flexWrap:'wrap',justifyContent:'flex-end'}}>
+{ll.category_key&&<span style={{fontSize:11,color:'rgba(255,255,255,.7)',fontFamily:'monospace',direction:'ltr',background:'rgba(255,255,255,.06)',padding:'3px 8px',borderRadius:5,flexShrink:0}}>{ll.category_key}</span>}
+<button type="button" onClick={(e)=>{e.stopPropagation();toggleCat()}} title={cActive?(isAr?'نشطة (تظهر في القوائم)':'Active (visible in dropdowns)'):(isAr?'إخفاء من القوائم':'Hide from dropdowns')} style={{width:36,height:20,borderRadius:999,border:'none',background:cActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:2,right:cActive?2:18,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
+</button>
+<button type="button" onClick={e=>{e.stopPropagation();toggle(itemsKey)}} title={isAr?'العناصر':'Items'} style={{display:'inline-flex',alignItems:'center',gap:5,height:28,padding:'0 10px',borderRadius:7,border:'1px solid '+(itemsOpen?'rgba(52,131,180,.5)':'rgba(52,131,180,.22)'),background:itemsOpen?'rgba(52,131,180,.15)':'rgba(52,131,180,.07)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,transition:'.15s'}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+<span>{li2.length}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.18s',transform:itemsOpen?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+<div style={{display:'flex',gap:4,flexShrink:0}}>
+<EditBtn onClick={()=>{setForm({_table:'lookup_categories',_id:ll.id,code:ll.category_key||'',name_ar:ll.name_ar||'',name_en:ll.name_en||'',sort_order:ll.sort_order||'',is_system:String(ll.is_system===true),is_active:String(ll.is_active!==false)});setPop('ll')}}/>
 {!ll.is_system&&<DelBtn onClick={()=>askDel('lookup_categories',ll.id,ll.name_ar)}/>}
-</div></div>
-{io&&<div style={{background:'rgba(255,255,255,.015)'}}>{li2.length===0?<div style={{...childRow,color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد عناصر':'No items'}</div>:
-li2.map(it=>{const isBnk=ll.category_key==='bank_name';const typeName=isBnk&&it.type_id?lItems.find(x=>x.id===it.type_id)?.value_ar:'';return<div key={it.id} style={childRow}>
-<div style={{width:4,height:4,borderRadius:'50%',background:C.blue,flexShrink:0}}/>
-<div style={{flex:1,display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{it.value_ar}</span>
-<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{it.value_en||''}</span>
-<span style={{fontSize:10,color:'var(--tx6)',fontFamily:'monospace',direction:'ltr'}}>{it.code||''}</span>
+</div></div></div>
+{itemsOpen&&<div style={{background:'rgba(52,131,180,.03)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 16px 10px'}}>
+{li2.length===0?<div style={{padding:'10px 44px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد عناصر لهذه الخانة':'No items for this category'}</div>:
+li2.map(it=>{const iActive=it.is_active!==false;const toggleItem=async()=>{const next=!iActive;setLItems(p=>p.map(x=>x.id===it.id?{...x,is_active:next}:x));await sb.from('lookup_items').update({is_active:next}).eq('id',it.id)};const typeName=isBnk&&it.type_id?lItems.find(x=>x.id===it.type_id)?.value_ar:'';return<div key={it.id} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 14px 7px 20px',borderBottom:'1px dashed rgba(255,255,255,.04)',opacity:iActive?1:0.55,flexWrap:'wrap'}}>
+<div style={{width:5,height:5,borderRadius:'50%',background:'rgba(52,131,180,.7)',flexShrink:0}}/>
+<div style={{flex:'1 1 180px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.85)'}}>{it.value_ar}</span>
+<CopyBtn text={it.value_ar} toast={toast} isAr={isAr}/>
+{it.value_en&&<span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{it.value_en}</span>}
+{it.code&&<span style={{fontSize:10,color:'rgba(255,255,255,.55)',fontFamily:'monospace',direction:'ltr',background:'rgba(255,255,255,.04)',padding:'2px 6px',borderRadius:4}}>{it.code}</span>}
 {typeName&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.08)',padding:'2px 6px',borderRadius:6}}>{typeName}</span>}
 </div>
-{it.sort_order!=null&&<MetaText t={'#'+it.sort_order}/>}
-<div style={{display:'flex',gap:4}}>
-<EditBtn onClick={()=>{setForm({_table:'lookup_items',_id:it.id,category_id:it.category_id||'',value_ar:it.value_ar||'',value_en:it.value_en||'',code:it.code||'',sort_order:it.sort_order||'',...(isBnk?{type_id:it.type_id||''}:{})});setPop(isBnk?'bnk':'li')}}/>
+<button type="button" onClick={(ev)=>{ev.stopPropagation();toggleItem()}} title={iActive?(isAr?'نشط':'Active'):(isAr?'معطّل':'Inactive')} style={{width:32,height:18,borderRadius:999,border:'none',background:iActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:2,right:iActive?2:16,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
+</button>
+<div style={{display:'flex',gap:4,flexShrink:0}}>
+<EditBtn onClick={()=>{setForm({_table:'lookup_items',_id:it.id,category_id:it.category_id||ll.id,name_ar:it.value_ar||'',name_en:it.value_en||'',code:it.code||'',sort_order:it.sort_order||'',is_active:String(it.is_active!==false),...(isBnk?{type_id:it.type_id||''}:{})});setPop(isBnk?'bnk':'li')}}/>
 <DelBtn onClick={()=>askDel('lookup_items',it.id,it.value_ar)}/>
-</div></div>})}</div>}
-</div>})}</div></>}
+</div></div>})}
+<div style={{padding:'8px 14px 2px 20px'}}>
+<button type="button" onClick={addItem} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+<span>{isAr?'إضافة عنصر':'Add Item'}</span>
+</button>
+</div>
+</div>}
+</div>})}
+</>}</div>
+</>})()}
 
 
 {/* DOCUMENTS */}
@@ -1139,7 +1200,10 @@ return<div key={pl.id} style={childRow}>
 {pop==='r'&&<OccupationFormPopup kind="region" form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
 {pop==='c'&&<OccupationFormPopup kind="city" regions={regions} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
 {pop==='di'&&<OccupationFormPopup kind="district" regions={regions} cities={cities} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
-{pop&&!['occ','nat','emb','r','c','di'].includes(pop)&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
+{pop==='ll'&&<OccupationFormPopup kind="category" form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop==='li'&&<OccupationFormPopup kind="item" lLists={lLists} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop==='bnk'&&<OccupationFormPopup kind="bank" lLists={lLists} lItems={lItems} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop&&!['occ','nat','emb','r','c','di','ll','li','bnk'].includes(pop)&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
 
 {/* DELETE POPUP */}
 {delTarget&&<DeletePopup isAr={isAr} itemName={delTarget.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}
