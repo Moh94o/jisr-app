@@ -2942,16 +2942,18 @@ mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occu
 ],icoId)}
 </>}
 {detailsTab==='pricing'&&<>
-{sec(T('التكاليف الداخلية','Internal Costs'),[
+{(()=>{
+const officeFeeVal=mm.office_fee!=null?Number(mm.office_fee):(()=>{const other=Number(dr.other_costs||0);if(!other)return 0;if(mm.change_profession){const profEst=Math.min(2000,other);return Math.max(0,other-profEst)}return other})()
+return sec(T('التكاليف والرسوم','Costs & Fees'),[
 [T('نقل الكفالة','Sponsorship Transfer'),Number(dr.transfer_fee||0)>0?nmSar(dr.transfer_fee):null],
 [T('تجديد الإقامة','Iqama Renewal'),Number(dr.iqama_cost||0)>0?nmSar(dr.iqama_cost):null],
 mm.iqama_fine!=null&&Number(mm.iqama_fine)>0?[T('غرامة الإقامة','Iqama Fine'),nmSar(mm.iqama_fine)]:null,
 [T('رخصة العمل','Work Permit'),Number(dr.work_permit_cost||0)>0?nmSar(dr.work_permit_cost):null],
 [T('التأمين الطبي','Medical Insurance'),Number(dr.insurance_cost||0)>0?nmSar(dr.insurance_cost):null],
-mm.office_fee!=null?[T('رسوم المكتب','Office Fee'),nmSar(mm.office_fee)]:null,
 mm.prof_change_fee!=null?[T('رسوم تغيير مهنة','Prof Change Fee'),nmSar(mm.prof_change_fee)]:null,
+[T('رسوم المكتب','Office Fee'),nmSar(officeFeeVal),C.gold],
 Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm.absher_discount),C.gold]:null,
-],icoMoney)}
+],icoMoney)})()}
 {Array.isArray(mm.extras)&&mm.extras.length>0&&sec(T('البنود الإضافية','Extras'),mm.extras.map((e,i)=>{const amt=Number(e?.amount)||0;return[e?.name||T('بند إضافي '+(i+1),'Extra '+(i+1)),nm(amt)+' '+T('ر.س','SAR'),amt<0?C.gold:'var(--tx)']}),icoPlus)}
 {sec(T('التسعير','Pricing'),[
 [T('إجمالي التكاليف (المكتب)','Total Cost (internal)'),nmSar(dr.total_cost)],
