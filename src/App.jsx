@@ -2895,7 +2895,7 @@ return<div onClick={()=>setDetailsRow(null)} style={{position:'fixed',inset:0,ba
 <button onClick={()=>setDetailsRow(null)} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',fontSize:14}}>✕</button>
 </div>
 <div style={{display:'flex',gap:4,padding:'10px 18px 0',borderBottom:'1px solid rgba(255,255,255,.06)',flexShrink:0,direction:'rtl'}}>
-{[{k:'worker',l:T('بيانات العامل','Worker Info')},{k:'pricing',l:T('التسعيرة','Pricing')},{k:'workflow',l:T('سير العمل','Workflow')}].map(t=>{const active=detailsTab===t.k
+{[{k:'worker',l:T('بيانات العامل','Worker Info')},{k:'pricing',l:T('النقل والتسعيرة','Transfer & Pricing')},{k:'workflow',l:T('سير العمل','Workflow')}].map(t=>{const active=detailsTab===t.k
 return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,padding:'0 14px',border:'none',borderBottom:'2px solid '+(active?C.gold:'transparent'),background:'transparent',color:active?C.gold:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',letterSpacing:'.2px',transition:'.15s'}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color='var(--tx)'}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color='var(--tx4)'}}>{t.l}</button>})}
 </div>
 <div style={{flex:1,overflowY:'auto',padding:'18px 22px',direction:'rtl'}}>
@@ -2910,16 +2910,6 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 [T('رقم الجوال','Phone'),mm.w_phone],
 [T('الحالة النظامية','Legal Status'),legalMap[mm.w_legal_status]||mm.w_legal_status],
 ])}
-{sec(T('تفاصيل النقل','Transfer Details'),[
-[T('نوع النقل','Transfer Type'),typeMap[dr.transfer_type]||dr.transfer_type],
-[T('المنشأة الجديدة','New Facility'),dr.facilities?.name_ar||dr.new_employer_name],
-[T('عدد التنقلات','Transfer Count'),mm.transfer_count],
-[T('إقامة منتهية','Iqama Expired'),mm.iqama_expired!=null?yesNo(mm.iqama_expired):null],
-[T('عدد مرات الغرامة','Fine Count'),mm.iqama_fine_count],
-[T('انتهاء رخصة العمل','Work Permit Expiry'),mm.wp_expiry?fmtD(mm.wp_expiry):null],
-[T('موافقة صاحب العمل','Employer Consent'),mm.employer_consent!=null?yesNo(mm.employer_consent):null],
-[T('فترة الإشعار','Notice Period'),mm.has_notice_period!=null?yesNo(mm.has_notice_period):null],
-])}
 {sec(T('تفاصيل الإقامة','Iqama Details'),[
 [T('انتهاء الإقامة','Iqama Expiry'),mm.iqama_expiry?fmtD(mm.iqama_expiry):null],
 [T('الانتهاء المتوقع','Expected Expiry'),mm.expected_expiry?fmtD(mm.expected_expiry):null],
@@ -2931,6 +2921,16 @@ mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occu
 ])}
 </>}
 {detailsTab==='pricing'&&<>
+{sec(T('تفاصيل النقل','Transfer Details'),[
+[T('نوع النقل','Transfer Type'),typeMap[dr.transfer_type]||dr.transfer_type],
+[T('المنشأة الجديدة','New Facility'),dr.facilities?.name_ar||dr.new_employer_name],
+[T('عدد التنقلات','Transfer Count'),mm.transfer_count],
+[T('إقامة منتهية','Iqama Expired'),mm.iqama_expired!=null?yesNo(mm.iqama_expired):null],
+[T('عدد مرات الغرامة','Fine Count'),mm.iqama_fine_count],
+[T('انتهاء رخصة العمل','Work Permit Expiry'),mm.wp_expiry?fmtD(mm.wp_expiry):null],
+[T('موافقة صاحب العمل','Employer Consent'),mm.employer_consent!=null?yesNo(mm.employer_consent):null],
+[T('فترة الإشعار','Notice Period'),mm.has_notice_period!=null?yesNo(mm.has_notice_period):null],
+])}
 {sec(T('التكاليف الداخلية','Internal Costs'),[
 [T('نقل الكفالة','Sponsorship Transfer'),Number(dr.transfer_fee||0)>0?nmSar(dr.transfer_fee):null],
 [T('تجديد الإقامة','Iqama Renewal'),Number(dr.iqama_cost||0)>0?nmSar(dr.iqama_cost):null],
