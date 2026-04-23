@@ -2889,7 +2889,7 @@ const sec=(title,rows)=>{const filtered=rows.filter(Boolean);if(!filtered.length
 </div>}
 const quoteNo=mm.quote_no||'#'+String(dr.id||'').slice(0,8).toUpperCase()
 return<div onClick={()=>setDetailsRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.72)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1210,padding:16,fontFamily:"'Cairo',sans-serif"}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#17181c',borderRadius:16,width:'min(820px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',border:'1px solid rgba(212,160,23,.15)',boxShadow:'0 20px 50px rgba(0,0,0,.6)',overflow:'hidden'}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'#141414',borderRadius:16,width:'min(820px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',border:'1px solid rgba(255,255,255,.06)',boxShadow:'0 20px 50px rgba(0,0,0,.6)',overflow:'hidden'}}>
 <div style={{padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
 <div style={{fontSize:15,fontWeight:800,color:'var(--tx)',display:'flex',alignItems:'center',gap:10}}><span>{T('تفاصيل الحسبة','Full Details')}</span><span style={{fontSize:11,color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,letterSpacing:'.5px'}}>{quoteNo}</span></div>
 <button onClick={()=>setDetailsRow(null)} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',fontSize:14}}>✕</button>
