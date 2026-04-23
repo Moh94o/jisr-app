@@ -88,23 +88,27 @@ const kFS={width:'100%',height:38,padding:'0 14px',border:'1px solid rgba(255,25
 const KLbl=({children,req})=><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:3,textAlign:'start'}}>{children}{req&&<span style={{color:C.red}}> *</span>}</div>
 const KInp=({value,onChange,placeholder,dir,maxLength})=><input value={value||''} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type="text" maxLength={maxLength} style={{...kFS,textAlign:'center',direction:dir||'rtl'}}/>
 
-function OccupationFormPopup({form,setForm,onSave,onClose,saving,isAr,sb,toast,onSaved,kind='occupation'}){
+function OccupationFormPopup({form,setForm,onSave,onClose,saving,isAr,sb,toast,onSaved,kind='occupation',regions=[],cities=[]}){
 const [savedFlash,setSavedFlash]=useState(false)
 const [localSaving,setLocalSaving]=useState(false)
 const isNat=kind==='nationality'
 const isEmb=kind==='embassy'
-const tbl=isNat?'nationalities':isEmb?'embassies':'occupations'
+const isReg=kind==='region'
+const isCity=kind==='city'
+const isDist=kind==='district'
+const isGeo=isReg||isCity||isDist
+const tbl=isNat?'nationalities':isEmb?'embassies':isReg?'regions':isCity?'cities':isDist?'districts':'occupations'
 const L={
-edit:isEmb?(isAr?'تعديل سفارة':'Edit Embassy'):isNat?(isAr?'تعديل جنسية':'Edit Nationality'):(isAr?'تعديل مهنة':'Edit Occupation'),
-add:isEmb?(isAr?'إضافة سفارة':'Add Embassy'):isNat?(isAr?'إضافة جنسية':'Add Nationality'):(isAr?'إضافة مهنة':'Add Occupation'),
-info:isEmb?(isAr?'بيانات السفارة':'Embassy Info'):isNat?(isAr?'بيانات الجنسية':'Nationality Info'):(isAr?'بيانات المهنة':'Occupation Info'),
+edit:isEmb?(isAr?'تعديل سفارة':'Edit Embassy'):isNat?(isAr?'تعديل جنسية':'Edit Nationality'):isReg?(isAr?'تعديل منطقة':'Edit Region'):isCity?(isAr?'تعديل مدينة':'Edit City'):isDist?(isAr?'تعديل حي':'Edit District'):(isAr?'تعديل مهنة':'Edit Occupation'),
+add:isEmb?(isAr?'إضافة سفارة':'Add Embassy'):isNat?(isAr?'إضافة جنسية':'Add Nationality'):isReg?(isAr?'إضافة منطقة':'Add Region'):isCity?(isAr?'إضافة مدينة':'Add City'):isDist?(isAr?'إضافة حي':'Add District'):(isAr?'إضافة مهنة':'Add Occupation'),
+info:isEmb?(isAr?'بيانات السفارة':'Embassy Info'):isNat?(isAr?'بيانات الجنسية':'Nationality Info'):isReg?(isAr?'بيانات المنطقة':'Region Info'):isCity?(isAr?'بيانات المدينة':'City Info'):isDist?(isAr?'بيانات الحي':'District Info'):(isAr?'بيانات المهنة':'Occupation Info'),
 nameArLabel:isEmb?(isAr?'اسم المدينة بالعربي':'City Name (Arabic)'):(isAr?'الاسم بالعربي':'Name (Arabic)'),
 nameEnLabel:isEmb?(isAr?'اسم المدينة بالإنجليزي':'City Name (English)'):(isAr?'الاسم بالإنجليزي':'Name (English)'),
-nameArPh:isEmb?(isAr?'مثال: الرياض':'مدينة ...'):isNat?(isAr?'مثال: سعودي':'سعودي ...'):(isAr?'مثال: أخصائي تسويق':'أخصائي ...'),
-nameEnPh:isEmb?'e.g. Riyadh':isNat?'e.g. Saudi':'e.g. Marketing Specialist',
-codePh:isEmb?(isAr?'رمز':'code'):isNat?(isAr?'رمز':'code'):'6-digit code',
-savedEdit:isEmb?(isAr?'تم تعديل السفارة':'Embassy updated'):isNat?(isAr?'تم تعديل الجنسية':'Nationality updated'):(isAr?'تم تعديل المهنة':'Occupation updated'),
-savedAdd:isEmb?(isAr?'تم حفظ السفارة':'Embassy saved'):isNat?(isAr?'تم حفظ الجنسية':'Nationality saved'):(isAr?'تم حفظ المهنة':'Occupation saved')
+nameArPh:isEmb?(isAr?'مثال: الرياض':'مدينة ...'):isNat?(isAr?'مثال: سعودي':'سعودي ...'):isReg?(isAr?'مثال: الرياض':'منطقة ...'):isCity?(isAr?'مثال: الرياض':'مدينة ...'):isDist?(isAr?'مثال: النزهة':'حي ...'):(isAr?'مثال: أخصائي تسويق':'أخصائي ...'),
+nameEnPh:isEmb?'e.g. Riyadh':isNat?'e.g. Saudi':isReg?'e.g. Riyadh':isCity?'e.g. Riyadh':isDist?'e.g. Al Nuzha':'e.g. Marketing Specialist',
+codePh:isReg||isCity?(isAr?'مثال: RYD':'e.g. RYD'):isDist?(isAr?'رمز':'code'):isEmb||isNat?(isAr?'رمز':'code'):'6-digit code',
+savedEdit:isEmb?(isAr?'تم تعديل السفارة':'Embassy updated'):isNat?(isAr?'تم تعديل الجنسية':'Nationality updated'):isReg?(isAr?'تم تعديل المنطقة':'Region updated'):isCity?(isAr?'تم تعديل المدينة':'City updated'):isDist?(isAr?'تم تعديل الحي':'District updated'):(isAr?'تم تعديل المهنة':'Occupation updated'),
+savedAdd:isEmb?(isAr?'تم حفظ السفارة':'Embassy saved'):isNat?(isAr?'تم حفظ الجنسية':'Nationality saved'):isReg?(isAr?'تم حفظ المنطقة':'Region saved'):isCity?(isAr?'تم حفظ المدينة':'City saved'):isDist?(isAr?'تم حفظ الحي':'District saved'):(isAr?'تم حفظ المهنة':'Occupation saved')
 }
 const handleSave=async()=>{
 setLocalSaving(true)
@@ -160,6 +164,20 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 <span>{L.info}</span>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+{isCity&&<div style={{gridColumn:'1 / span 2'}}>
+<KLbl req>{isAr?'المنطقة':'Region'}</KLbl>
+<select value={form.region_id||''} onChange={e=>setForm(p=>({...p,region_id:e.target.value}))} style={{...kFS,textAlign:'center',direction:isAr?'rtl':'ltr',appearance:'none',cursor:'pointer'}}>
+<option value="">{isAr?'— اختر المنطقة —':'— Select region —'}</option>
+{regions.map(r=><option key={r.id} value={r.id}>{r.name_ar}{r.name_en?' · '+r.name_en:''}</option>)}
+</select>
+</div>}
+{isDist&&<div style={{gridColumn:'1 / span 2'}}>
+<KLbl req>{isAr?'المدينة':'City'}</KLbl>
+<select value={form.city_id||''} onChange={e=>setForm(p=>({...p,city_id:e.target.value}))} style={{...kFS,textAlign:'center',direction:isAr?'rtl':'ltr',appearance:'none',cursor:'pointer'}}>
+<option value="">{isAr?'— اختر المدينة —':'— Select city —'}</option>
+{regions.map(r=>{const rc=cities.filter(c=>c.region_id===r.id);if(!rc.length)return null;return<optgroup key={r.id} label={r.name_ar}>{rc.map(c=><option key={c.id} value={c.id}>{c.name_ar}{c.name_en?' · '+c.name_en:''}</option>)}</optgroup>})}
+</select>
+</div>}
 <div>
 <KLbl req>{L.nameArLabel}</KLbl>
 <KInp value={form.name_ar} onChange={v=>setForm(p=>({...p,name_ar:v.replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g,'')}))} placeholder={L.nameArPh}/>
@@ -169,13 +187,13 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 <KInp value={form.name_en} onChange={v=>setForm(p=>({...p,name_en:v.replace(/[^a-zA-Z\s'\-().]/g,'')}))} placeholder={L.nameEnPh} dir="ltr"/>
 </div>
 <div>
-<KLbl req>{isAr?'الرمز':'Code'}</KLbl>
+<KLbl req={!isGeo}>{isAr?'الرمز':'Code'}</KLbl>
 <KInp value={form.code} onChange={v=>setForm(p=>({...p,code:v}))} placeholder={L.codePh} dir="ltr"/>
 </div>
-<div>
+{!isGeo&&<div>
 <KLbl>{isAr?'كود قوى':'Qiwa ID'}</KLbl>
 <KInp value={form.qiwa_id} onChange={v=>setForm(p=>({...p,qiwa_id:v.replace(/\D/g,'')}))} placeholder="0000" dir="ltr"/>
-</div>
+</div>}
 {isNat&&<div>
 <KLbl>{isAr?'اسم الدولة بالعربي':'Country (Arabic)'}</KLbl>
 <KInp value={form.country_name_ar} onChange={v=>setForm(p=>({...p,country_name_ar:v}))} placeholder={isAr?'مثال: السعودية':'—'}/>
@@ -188,21 +206,21 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 <KLbl>{isAr?'رابط العلم':'Flag URL'}</KLbl>
 <KInp value={form.flag_url} onChange={v=>setForm(p=>({...p,flag_url:v}))} placeholder="https://flagcdn.com/w320/sa.png" dir="ltr"/>
 </div>}
-<div>
+{!isGeo&&<div>
 <KLbl>{isAr?'التصنيف':'Classification'}</KLbl>
 <KInp value={form.classification} onChange={v=>setForm(p=>({...p,classification:v}))} placeholder={isAr?'—':'—'}/>
-</div>
+</div>}
 <div>
 <KLbl>{isAr?'الترتيب':'Sort Order'}</KLbl>
 <KInp value={form.sort_order} onChange={v=>setForm(p=>({...p,sort_order:v.replace(/\D/g,'')}))} placeholder="0" dir="ltr"/>
 </div>
-<div>
+{!isGeo&&<div>
 <KLbl>{isAr?'سعودي فقط':'Saudi Only'}</KLbl>
 <div style={{display:'flex',gap:8}}>
 {btn('true',form.saudi_only,()=>setForm(p=>({...p,saudi_only:'true'})),isAr?'نعم':'Yes','ok')}
 {btn('false',form.saudi_only,()=>setForm(p=>({...p,saudi_only:'false'})),isAr?'لا':'No','err')}
 </div>
-</div>
+</div>}
 <div>
 <KLbl>{isAr?'الحالة':'Status'}</KLbl>
 <div style={{display:'flex',gap:8}}>
@@ -215,7 +233,7 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 </div>
 {/* Footer */}
 <div style={{display:'flex',justifyContent:'flex-end',padding:'8px 20px 12px',flexShrink:0,direction:isAr?'rtl':'ltr'}}>
-<button onClick={handleSave} disabled={isSaving||!form.name_ar||!form.code} className="occ-nav-btn">
+<button onClick={handleSave} disabled={isSaving||!form.name_ar||(!isGeo&&!form.code)||(isCity&&!form.region_id)||(isDist&&!form.city_id)} className="occ-nav-btn">
 <span>{isSaving?(isAr?'جار الحفظ…':'Saving…'):(form._id?(isAr?'تعديل':'Update'):(isAr?'إضافة':'Add'))}</span>
 <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
 </button>
@@ -1165,7 +1183,10 @@ return<div key={pl.id} style={childRow}>
 {pop==='occ'&&<OccupationFormPopup form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
 {pop==='nat'&&<OccupationFormPopup kind="nationality" form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
 {pop==='emb'&&<OccupationFormPopup kind="embassy" form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
-{pop&&pop!=='occ'&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
+{pop==='r'&&<OccupationFormPopup kind="region" form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop==='c'&&<OccupationFormPopup kind="city" regions={regions} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop==='di'&&<OccupationFormPopup kind="district" regions={regions} cities={cities} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop&&!['occ','nat','emb','r','c','di'].includes(pop)&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
 
 {/* DELETE POPUP */}
 {delTarget&&<DeletePopup isAr={isAr} itemName={delTarget.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}
