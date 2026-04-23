@@ -544,62 +544,121 @@ return<div>
 </div>)}</div>
 </div>})}</>}
 
-{/* REGIONS & CITIES */}
-{tab==='regions_cities'&&<>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'المناطق والمدن والأحياء':'Regions, Cities & Districts'}<span style={{fontSize:10,color:'var(--tx5)'}}>{regions.length} {isAr?'منطقة':'regions'} · {cities.length} {isAr?'مدينة':'cities'}</span></div>
-<div style={{display:'flex',gap:6}}>
-<button onClick={()=>{setForm({_table:'regions',name_ar:'',name_en:'',code:'',sort_order:'',is_active:'true'});setPop('r')}} style={bS}>{isAr?'منطقة':'Region'} +</button>
+{/* REGIONS & CITIES — designed like Nationalities & Embassies */}
+{tab==='regions_cities'&&(()=>{
+const qLower=(q||'').toLowerCase()
+const regMatchChild=new Set()
+if(q){
+  cities.forEach(c=>{if((c.name_ar||'').includes(q)||(c.name_en||'').toLowerCase().includes(qLower)||(c.code||'').includes(q))regMatchChild.add(c.region_id)})
+  districtsList.forEach(d=>{const city=cities.find(c=>c.id===d.city_id);if(city&&((d.name_ar||'').includes(q)||(d.name_en||'').toLowerCase().includes(qLower)||(d.code||'').includes(q)))regMatchChild.add(city.region_id)})
+}
+const filtered=q?regions.filter(r=>(r.name_ar||'').includes(q)||(r.name_en||'').toLowerCase().includes(qLower)||(r.code||'').includes(q)||regMatchChild.has(r.id)):regions
+const onDragStart=(e,idx)=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(idx))}
+const onDragOver=(e)=>{e.preventDefault();e.dataTransfer.dropEffect='move'}
+const onDrop=async(e,dropIdx)=>{
+  e.preventDefault()
+  const fromIdx=parseInt(e.dataTransfer.getData('text/plain'),10)
+  if(isNaN(fromIdx)||fromIdx===dropIdx||q)return
+  const next=[...regions]
+  const[moved]=next.splice(fromIdx,1)
+  next.splice(dropIdx,0,moved)
+  setRegions(next.map((o,i)=>({...o,sort_order:i+1})))
+  for(let i=0;i<next.length;i++){await sb.from('regions').update({sort_order:i+1}).eq('id',next[i].id)}
+}
+return<>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
+<div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold}}/><span style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{isAr?'المناطق والمدن والأحياء':'Regions, Cities & Districts'}</span><span style={{fontSize:11,color:'var(--tx5)'}}>{(q?filtered.length:regions.length)} {isAr?'منطقة':'regions'} · {cities.length} {isAr?'مدينة':'cities'}</span></div>
+<div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 280px',minWidth:0,justifyContent:'flex-end'}}>
+<div style={{position:'relative',flex:'1 1 200px',minWidth:160,maxWidth:460}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?12:'auto',left:isAr?'auto':12,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:36,padding:isAr?'0 34px 0 12px':'0 12px 0 34px',borderRadius:8,border:'1px solid rgba(255,255,255,.12)',background:'rgba(0,0,0,.25)',color:'var(--tx)',fontFamily:F,fontSize:12,outline:'none',minWidth:0,boxSizing:'border-box'}}/>
+</div>
+<button onClick={()=>{const maxOrder=regions.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'regions',name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true'});setPop('r')}} style={{...bS,height:36,flexShrink:0}}>{isAr?'منطقة':'Region'} +</button>
 </div></div>
-<div style={cardS}>{regions.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد مناطق':'No regions'}</div>:
-regions.map(r=>{const rc=cities.filter(c=>c.region_id===r.id);const io=open['r_'+r.id];return<div key={r.id}>
-<div style={parentRow} onClick={()=>toggle('r_'+r.id)}>
-<ArrowIcon isOpen={io}/>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{r.name_ar}</span>
-<span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{r.name_en||''}</span>
-{r.code&&<span style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr'}}>{r.code}</span>}
-<BadgeStatus v={r.is_active} isAr={isAr}/>
+<div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد مناطق':'No regions'}</div>:<>
+{filtered.map((r,idx)=>{const rActive=r.is_active!==false;const toggleRegion=async()=>{const next=!rActive;setRegions(p=>p.map(o=>o.id===r.id?{...o,is_active:next}:o));await sb.from('regions').update({is_active:next}).eq('id',r.id)};const rc=cities.filter(c=>c.region_id===r.id);const citiesKey='r_'+r.id;const citiesOpen=!!open[citiesKey]||(q&&regMatchChild.has(r.id));const addCity=()=>{const maxOrder=rc.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'cities',region_id:r.id,name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true'});setPop('c')};return<div key={r.id}>
+<div className="jisr-list-row" draggable={!q} onDragStart={e=>onDragStart(e,idx)} onDragOver={onDragOver} onDrop={e=>onDrop(e,idx)} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:citiesOpen?'1px solid rgba(212,160,23,.15)':'1px solid rgba(255,255,255,.05)',cursor:q?'default':'grab',opacity:rActive?1:0.55,flexWrap:'wrap'}}>
+{!q&&<svg className="jisr-drag-handle" width="16" height="24" viewBox="0 0 16 24" fill="rgba(255,255,255,.45)" style={{flexShrink:0,cursor:'grab'}} aria-label="drag"><circle cx="3" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="13" cy="6" r="1.1"/><circle cx="3" cy="12" r="1.1"/><circle cx="8" cy="12" r="1.1"/><circle cx="13" cy="12" r="1.1"/><circle cx="3" cy="18" r="1.1"/><circle cx="8" cy="18" r="1.1"/><circle cx="13" cy="18" r="1.1"/></svg>}
+<span style={{display:'inline-flex',alignItems:'baseline',fontSize:15,fontWeight:800,color:C.gold,direction:'ltr',minWidth:32,textAlign:'center',justifyContent:'center',flexShrink:0,letterSpacing:.2}}><span style={{opacity:.5,fontWeight:700,fontSize:11,marginInlineEnd:2}}>#</span>{r.sort_order||'—'}</span>
+<div style={{flex:'1 1 180px',display:'flex',flexDirection:'column',gap:2,minWidth:140,alignItems:'flex-start'}}>
+<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.95)'}}>{r.name_ar}</span>
+<CopyBtn text={r.name_ar} toast={toast} isAr={isAr}/>
 </div>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{rc.length} {isAr?'مدن':'cities'}</span>
+{r.name_en&&<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:12,color:'rgba(255,255,255,.65)',direction:'ltr'}}>{r.name_en}</span><CopyBtn text={r.name_en} toast={toast} isAr={isAr}/></div>}
 </div>
-</div>
-<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
-<button onClick={()=>{setForm({_table:'cities',name_ar:'',name_en:'',code:'',region_id:r.id,sort_order:'',is_active:'true'});setPop('c')}} style={{height:28,padding:'0 10px',borderRadius:8,border:'1px solid rgba(52,131,180,.25)',background:'rgba(52,131,180,.1)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{isAr?'مدينة':'City'}</button>
+<div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,marginInlineStart:'auto',flexWrap:'wrap',justifyContent:'flex-end'}}>
+{r.code&&<span style={{fontSize:11,color:'rgba(255,255,255,.7)',fontFamily:'monospace',direction:'ltr',background:'rgba(255,255,255,.06)',padding:'3px 8px',borderRadius:5,flexShrink:0}}>{r.code}</span>}
+<button type="button" onClick={(e)=>{e.stopPropagation();toggleRegion()}} title={rActive?(isAr?'نشطة (تظهر في القوائم)':'Active (visible in dropdowns)'):(isAr?'إخفاء من القوائم':'Hide from dropdowns')} style={{width:36,height:20,borderRadius:999,border:'none',background:rActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:2,right:rActive?2:18,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
+</button>
+<button type="button" onClick={e=>{e.stopPropagation();toggle(citiesKey)}} title={isAr?'المدن':'Cities'} style={{display:'inline-flex',alignItems:'center',gap:5,height:28,padding:'0 10px',borderRadius:7,border:'1px solid '+(citiesOpen?'rgba(52,131,180,.5)':'rgba(52,131,180,.22)'),background:citiesOpen?'rgba(52,131,180,.15)':'rgba(52,131,180,.07)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,transition:'.15s'}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>
+<span>{rc.length}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.18s',transform:citiesOpen?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+<div style={{display:'flex',gap:4,flexShrink:0}}>
 <EditBtn onClick={()=>{setForm({_table:'regions',_id:r.id,name_ar:r.name_ar||'',name_en:r.name_en||'',code:r.code||'',sort_order:r.sort_order||'',is_active:String(r.is_active!==false)});setPop('r')}}/>
 <DelBtn onClick={()=>askDel('regions',r.id,r.name_ar)}/>
-</div></div>
-{io&&<div style={{background:'rgba(255,255,255,.015)'}}>
-{rc.map(c=>{const cd=districtsList.filter(d=>d.city_id===c.id&&d.is_active);const cio=open['c_'+c.id];return<div key={c.id}>
-<div style={{...childRow,cursor:'pointer'}} onClick={()=>toggle('c_'+c.id)}>
-<ArrowIcon isOpen={cio}/>
-<div style={{flex:1,display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{c.name_ar}</span>
-<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{c.name_en||''}</span>
-<span style={{fontSize:10,color:'var(--tx6)',fontFamily:'monospace',direction:'ltr'}}>{c.code||''}</span>
-{cd.length>0&&<span style={{fontSize:9,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'1px 6px',borderRadius:6}}>{cd.length} {isAr?'حي':'dist'}</span>}
+</div></div></div>
+{citiesOpen&&<div style={{background:'rgba(52,131,180,.03)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 16px 10px'}}>
+{rc.length===0?<div style={{padding:'10px 44px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد مدن لهذه المنطقة':'No cities for this region'}</div>:
+rc.map(c=>{const cActive=c.is_active!==false;const toggleCity=async()=>{const next=!cActive;setCities(p=>p.map(x=>x.id===c.id?{...x,is_active:next}:x));await sb.from('cities').update({is_active:next}).eq('id',c.id)};const cd=districtsList.filter(d=>d.city_id===c.id);const distKey='c_'+c.id;const distOpen=!!open[distKey];return<div key={c.id}>
+<div style={{display:'flex',alignItems:'center',gap:10,padding:'7px 14px 7px 20px',borderBottom:distOpen?'1px dashed rgba(39,160,70,.18)':'1px dashed rgba(255,255,255,.04)',opacity:cActive?1:0.55,flexWrap:'wrap'}}>
+<div style={{width:5,height:5,borderRadius:'50%',background:'rgba(52,131,180,.7)',flexShrink:0}}/>
+<div style={{flex:'1 1 180px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.85)'}}>{c.name_ar}</span>
+<CopyBtn text={c.name_ar} toast={toast} isAr={isAr}/>
+{c.name_en&&<span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{c.name_en}</span>}
+{c.code&&<span style={{fontSize:10,color:'rgba(255,255,255,.55)',fontFamily:'monospace',direction:'ltr',background:'rgba(255,255,255,.04)',padding:'2px 6px',borderRadius:4}}>{c.code}</span>}
 </div>
-<BadgeStatus v={c.is_active} isAr={isAr}/>
-<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
-<button onClick={()=>{setForm({_table:'districts',name_ar:'',name_en:'',code:'',sort_order:'',city_id:c.id,is_active:'true'});setPop('di')}} style={{height:24,padding:'0 8px',borderRadius:6,border:'1px solid rgba(39,160,70,.2)',background:'rgba(39,160,70,.06)',color:C.ok,fontFamily:F,fontSize:9,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:3}}><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{isAr?'حي':'Dist'}</button>
-<EditBtn onClick={()=>{setForm({_table:'cities',_id:c.id,name_ar:c.name_ar||'',name_en:c.name_en||'',code:c.code||'',region_id:c.region_id||'',sort_order:c.sort_order||'',is_active:String(c.is_active!==false)});setPop('c')}}/>
+<button type="button" onClick={(ev)=>{ev.stopPropagation();toggleCity()}} title={cActive?(isAr?'نشطة':'Active'):(isAr?'معطّلة':'Inactive')} style={{width:32,height:18,borderRadius:999,border:'none',background:cActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:2,right:cActive?2:16,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
+</button>
+<button type="button" onClick={e=>{e.stopPropagation();toggle(distKey)}} title={isAr?'الأحياء':'Districts'} style={{display:'inline-flex',alignItems:'center',gap:5,height:26,padding:'0 9px',borderRadius:6,border:'1px solid '+(distOpen?'rgba(39,160,70,.5)':'rgba(39,160,70,.22)'),background:distOpen?'rgba(39,160,70,.15)':'rgba(39,160,70,.07)',color:'rgba(39,160,70,.95)',fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0,transition:'.15s'}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+<span>{cd.length}</span>
+<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.18s',transform:distOpen?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+<div style={{display:'flex',gap:4,flexShrink:0}}>
+<EditBtn onClick={()=>{setForm({_table:'cities',_id:c.id,name_ar:c.name_ar||'',name_en:c.name_en||'',code:c.code||'',region_id:c.region_id||r.id,sort_order:c.sort_order||'',is_active:String(c.is_active!==false)});setPop('c')}}/>
 <DelBtn onClick={()=>askDel('cities',c.id,c.name_ar)}/>
 </div></div>
-{cio&&cd.length>0&&<div style={{paddingRight:48,paddingBottom:8}}>
-{cd.map(d=><div key={d.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderRadius:6,marginBottom:2,background:'rgba(39,160,70,.02)',border:'1px solid rgba(39,160,70,.05)'}}>
+{distOpen&&<div style={{background:'rgba(39,160,70,.02)',padding:'6px 28px 10px'}}>
+{cd.length===0?<div style={{padding:'10px 28px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد أحياء لهذه المدينة':'No districts for this city'}</div>:
+cd.map(d=>{const dActive=d.is_active!==false;const toggleDist=async()=>{const next=!dActive;setDistrictsList(p=>p.map(x=>x.id===d.id?{...x,is_active:next}:x));await sb.from('districts').update({is_active:next}).eq('id',d.id)};return<div key={d.id} style={{display:'flex',alignItems:'center',gap:10,padding:'6px 12px',borderBottom:'1px dotted rgba(255,255,255,.04)',opacity:dActive?1:0.5,flexWrap:'wrap'}}>
 <span style={{width:3,height:3,borderRadius:'50%',background:C.ok,flexShrink:0}}/>
-<span style={{flex:1,fontSize:12,color:'rgba(255,255,255,.55)'}}>{d.name_ar}</span>
-<span style={{fontSize:9,color:'var(--tx6)',direction:'ltr'}}>{d.name_en||''}</span>
-<span style={{fontSize:9,color:'var(--tx6)',fontFamily:'monospace',direction:'ltr'}}>{d.code||''}</span>
-<div style={{display:'flex',gap:3}}>
-<EditBtn onClick={()=>{setForm({_table:'districts',_id:d.id,city_id:d.city_id,name_ar:d.name_ar||'',name_en:d.name_en||'',code:d.code||'',sort_order:d.sort_order||'',is_active:String(d.is_active!==false)});setPop('di')}}/>
+<div style={{flex:'1 1 150px',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:12,color:'rgba(255,255,255,.72)'}}>{d.name_ar}</span>
+<CopyBtn text={d.name_ar} toast={toast} isAr={isAr}/>
+{d.name_en&&<span style={{fontSize:10,color:'var(--tx6)',direction:'ltr'}}>{d.name_en}</span>}
+{d.code&&<span style={{fontSize:9,color:'var(--tx6)',fontFamily:'monospace',direction:'ltr',background:'rgba(255,255,255,.04)',padding:'2px 5px',borderRadius:4}}>{d.code}</span>}
+</div>
+<button type="button" onClick={(ev)=>{ev.stopPropagation();toggleDist()}} title={dActive?(isAr?'نشط':'Active'):(isAr?'معطّل':'Inactive')} style={{width:28,height:16,borderRadius:999,border:'none',background:dActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:12,height:12,borderRadius:'50%',background:'#fff',top:2,right:dActive?2:14,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
+</button>
+<div style={{display:'flex',gap:3,flexShrink:0}}>
+<EditBtn onClick={()=>{setForm({_table:'districts',_id:d.id,city_id:d.city_id||c.id,name_ar:d.name_ar||'',name_en:d.name_en||'',code:d.code||'',sort_order:d.sort_order||'',is_active:String(d.is_active!==false)});setPop('di')}}/>
 <DelBtn onClick={()=>askDel('districts',d.id,d.name_ar)}/>
-</div></div>)}
+</div></div>})}
+<div style={{padding:'8px 12px 2px 28px'}}>
+<button type="button" onClick={()=>{const maxOrder=cd.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'districts',city_id:c.id,name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true'});setPop('di')}} style={{display:'inline-flex',alignItems:'center',gap:6,height:28,padding:'0 12px',borderRadius:7,border:'1px dashed rgba(39,160,70,.45)',background:'rgba(39,160,70,.08)',color:'rgba(39,160,70,.95)',fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+<span>{isAr?'إضافة حي':'Add District'}</span>
+</button>
+</div>
 </div>}
-</div>})}</div>}
-</div>})}</div></>}
+</div>})}
+<div style={{padding:'8px 14px 2px 20px'}}>
+<button type="button" onClick={addCity} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+<span>{isAr?'إضافة مدينة':'Add City'}</span>
+</button>
+</div>
+</div>}
+</div>})}
+</>}</div>
+</>})()}
 
 {/* OCCUPATIONS */}
 {tab==='occupations'&&(()=>{
