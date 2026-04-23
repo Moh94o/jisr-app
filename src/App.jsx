@@ -2572,11 +2572,6 @@ return<>
 <span style={{fontFamily:"'JetBrains Mono',monospace",direction:'ltr',color:'var(--tx2)',fontWeight:700,fontSize:14,letterSpacing:'.3px'}}>{iqamaNo}</span>
 <CopyBtn val={iqamaNo}/>
 </span>
-<span style={{width:3,height:3,borderRadius:'50%',background:'var(--tx6)',opacity:.5}}/>
-<span style={{display:'inline-flex',alignItems:'center',gap:4,fontWeight:500}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-{relTime}
-</span>
 </div>
 {/* Service tags — plain white text, dot separators */}
 {tags.length>0&&<div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',fontSize:11,color:'rgba(255,255,255,.8)',fontWeight:600,letterSpacing:'.2px'}}>
