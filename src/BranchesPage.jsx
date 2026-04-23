@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const F = "'Cairo', sans-serif";
@@ -24,10 +24,88 @@ function WF({ k, l, r, d, w, opts, ph, tp, form, setForm, prefix }) {
     setForm(p => ({ ...p, [k]: v }));
   };
   return <div style={{ gridColumn: w === true || w === 'ta' ? '1/-1' : undefined }}>
-    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 5 }}>{l}{r && <span style={{ color: C.red }}> *</span>}</div>
+    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>{l}{r && <span style={{ color: C.red }}> *</span>}</div>
     {opts ? <select value={val} onChange={onChange} style={fS}><option value="">—</option>{opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</select>
       : w === 'ta' ? <textarea value={val} onChange={onChange} rows={3} style={{ ...fS, height: 'auto', padding: 10, resize: 'vertical', textAlign: d ? 'left' : 'right', direction: d ? 'ltr' : 'rtl' }} />
         : <input type={tp || 'text'} placeholder={ph || ''} value={val} onChange={onChange} style={{ ...fS, direction: d ? 'ltr' : 'rtl', textAlign: d ? 'left' : 'right' }} />}
+  </div>;
+}
+
+// Custom styled select button (matches Kafala Calculator حالة المقيم design)
+function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const val = form[k] || '';
+  const selected = (opts || []).find(o => o.v === val);
+  const displayText = selected ? selected.l : (ph || '—');
+  const handleSelect = v => {
+    if (onSelect) onSelect(v);
+    else setForm(p => ({ ...p, [k]: v }));
+    setOpen(false);
+  };
+  const computePos = () => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const maxH = 240;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    setPos({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      maxHeight: Math.max(120, Math.min(maxH, spaceBelow)),
+    });
+  };
+  useEffect(() => {
+    if (!open) return;
+    computePos();
+    const h = () => computePos();
+    window.addEventListener('resize', h); window.addEventListener('scroll', h, true);
+    return () => { window.removeEventListener('resize', h); window.removeEventListener('scroll', h, true); };
+  }, [open]);
+  return <div style={{ gridColumn: w === true ? '1/-1' : undefined }}>
+    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>{l}{r && <span style={{ color: C.red }}> *</span>}</div>
+    <div style={{ position: 'relative', width: '100%' }}>
+      <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)} style={{
+        width: '100%', height: 42, padding: '0 32px',
+        border: '1px solid rgba(255,255,255,.08)', borderRadius: 9,
+        fontFamily: F, fontSize: 13, fontWeight: 600,
+        color: selected ? 'var(--tx)' : 'var(--tx5)',
+        background: 'rgba(0,0,0,.18)',
+        boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
+        textAlign: 'center', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 6, position: 'relative', outline: 'none'
+      }}>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayText}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: open ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%)', transition: 'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && pos && <>
+        <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
+        <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#1a1a1a', border: '1px solid rgba(212,160,23,.25)', borderRadius: 9, zIndex: 9999, maxHeight: pos.maxHeight, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,.4)', scrollbarWidth: 'none' }}>
+          {(opts || []).length === 0 && <div style={{ padding: '10px 14px', fontSize: 12, color: 'var(--tx5)', textAlign: 'center' }}>لا توجد خيارات</div>}
+          {(opts || []).map(opt => (
+            <div key={opt.v} onClick={() => handleSelect(opt.v)} style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: opt.v === val ? 700 : 500, color: opt.v === val ? C.gold : 'var(--tx)', background: opt.v === val ? 'rgba(212,160,23,.08)' : 'transparent', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,.03)' }}>{opt.l}</div>
+          ))}
+        </div>
+      </>}
+    </div>
+  </div>;
+}
+
+// Phone input with +966 prefix box (exactly matches Kafala Calculator design)
+function PhoneField({ k, l, r, w, form, setForm }) {
+  const digits = (form[k] || '').replace('+966', '').replace(/\D/g, '');
+  return <div style={{ gridColumn: w === true ? '1/-1' : undefined }}>
+    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>{l}{r && <span style={{ color: C.red }}> *</span>}</div>
+    <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: '1px solid rgba(255,255,255,.08)', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42, transition: 'border-color .2s' }}>
+      <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', borderRight: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: C.gold, flexShrink: 0 }}>+966</div>
+      <input placeholder="5X XXX XXXX" maxLength={9} value={digits} onChange={e => {
+        const v = e.target.value.replace(/\D/g, '').slice(0, 9);
+        setForm(p => ({ ...p, [k]: v ? '+966' + v : '' }));
+      }} style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }}/>
+    </div>
+    <style>{`.kc-phone-wrap:focus-within{border-color:rgba(255,255,255,.18)!important}.kc-phone-wrap input{border-width:0!important}`}</style>
   </div>;
 }
 
@@ -127,28 +205,23 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
   const [viewTab, setViewTab] = useState('info');
   const [openUtil, setOpenUtil] = useState(null);
   if (!viewRow) return null;
-  const now = new Date();
-  const bU = users.filter(u => u.branch_id === viewRow.branch_id);
-  const bB = banks.filter(a => a.branch_id === viewRow.branch_id);
-  const brContracts = contracts.filter(c => c.branch_id === viewRow.branch_id);
-  const brBills = bills.filter(b => b.branch_id === viewRow.branch_id);
+  const branchKey = viewRow.id || viewRow.branch_id;
+  const bU = users.filter(u => u.branch_id === branchKey);
+  const bB = banks.filter(a => a.branch_id === branchKey);
+  const brContracts = contracts.filter(c => c.branch_id === branchKey);
+  const brBills = bills.filter(b => b.branch_id === branchKey);
   const rentC = brContracts.filter(c => c.contract_type === 'rent');
   const elecC = brContracts.filter(c => c.contract_type === 'electricity');
   const netC = brContracts.filter(c => c.contract_type === 'internet');
   const waterC = brContracts.filter(c => c.contract_type === 'water');
   const totalContracts = brContracts.length;
-  const licDays = viewRow.license_expiry_date ? Math.ceil((new Date(viewRow.license_expiry_date) - now) / 86400000) : null;
-  const cdDays = viewRow.civil_defense_expiry ? Math.ceil((new Date(viewRow.civil_defense_expiry) - now) / 86400000) : null;
-  const dClr = d => d === null ? '#555' : d < 0 ? C.red : d < 30 ? '#e67e22' : d < 90 ? '#e8c547' : C.ok;
   const totalBalance = bB.reduce((s, a) => s + Number(a.current_balance || 0), 0);
-  const dayNames = { sat: 'السبت', sun: 'الأحد', mon: 'الاثنين', tue: 'الثلاثاء', wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة' };
   const SH = ({ t, c }) => <div style={{ fontSize: 12, fontWeight: 700, color: c || C.gold, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid ' + (c || C.gold) + '20' }}>{t}</div>;
-  const HealthBar = ({ days, label }) => { const c = dClr(days); const pct = days === null ? 0 : days < 0 ? 0 : Math.min(100, days / 365 * 100); return <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: c + '08', border: '1px solid ' + c + '15' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}><span style={{ fontSize: 11, fontWeight: 700, color: c }}>{label}</span><span style={{ fontSize: 12, fontWeight: 800, color: c }}>{days === null ? '—' : days < 0 ? 'منتهية!' : days + ' يوم متبقي'}</span></div><div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}><div style={{ height: '100%', width: pct + '%', borderRadius: 3, background: c, transition: 'width .3s' }} /></div></div>; };
   const roleClr = { 'المدير العام': '#e8c547', 'مدير فرع': '#85B7EB', 'محاسب': '#AFA9EC', 'موظف استقبال': '#5DCAA5' };
   const vt = [
-    { id: 'info', l: 'البيانات' }, { id: 'permits', l: 'التراخيص' },
+    { id: 'info', l: 'البيانات' },
     { id: 'utilities', l: 'المرافق', n: totalContracts },
-    { id: 'staff', l: 'الموظفين', n: bU.length }, { id: 'stats', l: 'الإحصائيات' },
+    { id: 'staff', l: 'الموظفين', n: bU.length },
     { id: 'banks', l: 'الحسابات', n: bB.length }
   ];
 
@@ -162,12 +235,10 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>{viewRow.name_ar}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>{viewRow.display_name || viewRow.code || '—'}</div>
               <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: viewRow.is_active !== false ? 'rgba(39,160,70,.1)' : 'rgba(153,153,153,.1)', color: viewRow.is_active !== false ? C.ok : '#999' }}>{viewRow.is_active !== false ? 'نشط' : 'معطّل'}</span>
             </div>
-            {viewRow.name_en && <div style={{ fontSize: 12, color: 'var(--tx4)', direction: 'ltr' }}>{viewRow.name_en}</div>}
             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-              {viewRow.code && <span style={{ fontSize: 10, color: C.gold, background: 'rgba(212,160,23,.08)', padding: '1px 8px', borderRadius: 4, direction: 'ltr', fontWeight: 600 }}>{viewRow.code}</span>}
               {viewRow.city_name && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{viewRow.region_name} — {viewRow.city_name}</span>}
             </div>
           </div>
@@ -188,16 +259,9 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
 
           {/* ═══ TAB 1: البيانات ═══ */}
           {viewTab === 'info' && <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div><SH t="المعلومات الأساسية" c={C.gold} /><div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 8 }}><IB l="الاسم" v={viewRow.name_ar} toast={toast} /></div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}><IB l="بالإنجليزي" v={viewRow.name_en} toast={toast} /><IB l="الكود" v={viewRow.code} copy toast={toast} /><IB l="الجوال" v={viewRow.phone} copy toast={toast} /></div></div>
+            <div><SH t="المعلومات الأساسية" c={C.gold} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="الكود" v={viewRow.code} copy toast={toast} /><IB l="الجوال" v={viewRow.phone} copy toast={toast} /></div></div>
             <div><SH t="المدير" c={C.blue} />{viewRow.manager_user_name ? <div style={{ background: 'rgba(52,131,180,.04)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(52,131,180,.08)', display: 'flex', alignItems: 'center', gap: 12 }}><div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(52,131,180,.1)', border: '1px solid rgba(52,131,180,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: C.blue }}>{(viewRow.manager_user_name || '?')[0]}</div><div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{viewRow.manager_user_name}</div></div></div> : <div style={{ fontSize: 11, color: 'var(--tx5)' }}>لم يتم تعيين مدير</div>}</div>
-            <div><SH t="العنوان" c={C.ok} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="المنطقة" v={viewRow.region_name} toast={toast} /><IB l="المدينة" v={viewRow.city_name} toast={toast} /><IB l="الحي" v={viewRow.district_name} toast={toast} /><IB l="رقم المبنى" v={viewRow.building_number} toast={toast} /></div><div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginTop: 8 }}><IB l="الشارع" v={viewRow.street} toast={toast} /><IB l="الرمز البريدي" v={viewRow.postal_code} copy toast={toast} /></div>{viewRow.location_url && <a href={viewRow.location_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, padding: '10px 16px', borderRadius: 10, background: 'rgba(52,131,180,.06)', border: '1px solid rgba(52,131,180,.12)', color: C.blue, textDecoration: 'none', fontSize: 12, fontWeight: 700 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>فتح في Google Maps ↗</a>}</div>
-            <div><SH t="الدوام" c="#9b59b6" /><div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}><IB l="أيام العمل" v={(() => { const days = viewRow.working_days || []; return Array.isArray(days) ? days.map(d => dayNames[d] || d).join('، ') : '—'; })()} toast={toast} /></div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}><IB l="بداية الدوام" v={viewRow.work_start_time?.slice(0, 5)} toast={toast} /><IB l="نهاية الدوام" v={viewRow.work_end_time?.slice(0, 5)} toast={toast} /></div></div>
-          </div>}
-
-          {/* ═══ TAB 2: التراخيص ═══ */}
-          {viewTab === 'permits' && <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div><SH t="رخصة بلدي" c={C.gold} /><HealthBar days={licDays} label="الرخصة البلدية" /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="رقم الرخصة" v={viewRow.municipal_license_number} copy toast={toast} /><IB l="رقم الطلب" v={viewRow.baladi_request_number} copy toast={toast} /><IB l="النشاط" v={viewRow.activity_name} toast={toast} /><IB l="المساحة" v={viewRow.shop_area_sqm ? viewRow.shop_area_sqm + ' م²' : null} toast={toast} /><IB l="تاريخ الإصدار" v={viewRow.license_issue_date} toast={toast} /><IB l={'تاريخ الانتهاء'} v={viewRow.license_expiry_date} toast={toast} /><IB l="البلدية" v={viewRow.municipality_name} toast={toast} /></div></div>
-            <div><SH t="شهادة السلامة (الدفاع المدني)" c={C.blue} /><HealthBar days={cdDays} label="شهادة الدفاع المدني" /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="رقم الشهادة" v={viewRow.civil_defense_cert_number} copy toast={toast} /><IB l="تاريخ الانتهاء" v={viewRow.civil_defense_expiry} toast={toast} /><IB l="الأمانة" v={viewRow.authority_name} toast={toast} /></div></div>
+            <div><SH t="العنوان" c={C.ok} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><IB l="المنطقة" v={viewRow.region_name} toast={toast} /><IB l="المدينة" v={viewRow.city_name} toast={toast} /><IB l="الحي" v={viewRow.district_name} toast={toast} /><IB l="رقم المبنى" v={viewRow.building_number} toast={toast} /></div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}><IB l="الشارع" v={viewRow.street} toast={toast} /><IB l="Street (EN)" v={viewRow.street_en} toast={toast} /></div><div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginTop: 8 }}><IB l="الرمز البريدي" v={viewRow.postal_code} copy toast={toast} /></div></div>
           </div>}
 
           {/* ═══ TAB 3: المرافق (Accordion) ═══ */}
@@ -261,20 +325,7 @@ function BranchDetailModal({ viewRow, setViewRow, openEdit, del, users, banks, c
               </div>;
             })}</div>}</div>}
 
-          {/* ═══ TAB 5: الإحصائيات ═══ */}
-          {viewTab === 'stats' && <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div><SH t="التشغيل" c={C.ok} /><div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-              {[['منشآت', viewRow.facilities_count, C.blue], ['عمال', viewRow.workers_count, C.ok], ['نشطين', viewRow.active_workers, C.ok]].map(([l, v, c], i) => <div key={i} style={{ padding: 14, borderRadius: 10, background: c + '08', border: '1px solid ' + c + '15', textAlign: 'center' }}><div style={{ fontSize: 9, color: c, opacity: .7, marginBottom: 6 }}>{l}</div><div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v || 0}</div></div>)}
-            </div></div>
-            <div><SH t="المعاملات" c={C.blue} /><div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-              {[['معاملات', viewRow.transactions_count, C.gold], ['مكتملة', viewRow.completed_txn, C.ok], ['عملاء', viewRow.clients_count, '#9b59b6']].map(([l, v, c], i) => <div key={i} style={{ padding: 14, borderRadius: 10, background: c + '08', border: '1px solid ' + c + '15', textAlign: 'center' }}><div style={{ fontSize: 9, color: c, opacity: .7, marginBottom: 6 }}>{l}</div><div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v || 0}</div></div>)}
-            </div></div>
-            <div><SH t="المالية" c={C.gold} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-              {[['إيرادات', nm(viewRow.total_revenue), C.gold], ['محصّل', nm(viewRow.collected_amount), C.ok], ['مصروفات', nm(viewRow.total_expenses), C.red]].map(([l, v, c], i) => <div key={i} style={{ padding: 18, borderRadius: 12, background: c + '06', border: '1px solid ' + c + '12', textAlign: 'center' }}><div style={{ fontSize: 9, color: c, opacity: .7, marginBottom: 8 }}>{l}</div><div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v}</div><div style={{ fontSize: 8, color: c, opacity: .4, marginTop: 4 }}>ر.س</div></div>)}
-            </div></div>
-          </div>}
-
-          {/* ═══ TAB 6: الحسابات البنكية ═══ */}
+          {/* ═══ TAB: الحسابات البنكية ═══ */}
           {viewTab === 'banks' && <div>
             {bB.length > 0 && <div style={{ padding: '16px 18px', borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.1)', marginBottom: 14, textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: C.ok, opacity: .7, marginBottom: 6 }}>إجمالي الأرصدة</div>
@@ -637,11 +688,14 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, singleT
   const [mainTab, setMainTab] = useState(singleTab || 'branches'); const [viewRow, setViewRow] = useState(null);
   const [pop, setPop] = useState(false); const [form, setForm] = useState({}); const [saving, setSaving] = useState(false); const [wizStep, setWizStep] = useState(0);
   const [districtsList, setDistrictsList] = useState([]);
+  const [searchQ, setSearchQ] = useState('');
+  const [advOpen, setAdvOpen] = useState(false);
+  const [filters, setFilters] = useState({ region_id: '', city_id: '', is_active: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
     const [br, u, ba, rg, ct, cn, dc, bl, lk, di] = await Promise.all([
-      sb.from('daily_stats').select('*'),
+      sb.from('branches').select('*').is('deleted_at', null),
       sb.from('users').select('id,name_ar,name_en,branch_id').is('deleted_at', null),
       sb.from('bank_accounts').select('*').is('is_active', true),
       sb.from('regions').select('id,name_ar').is('is_active', true).order('name_ar'),
@@ -652,9 +706,24 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, singleT
       sb.from('lookup_items').select('id,category_id,value_ar,code,sort_order,type_id,lookup_categories!inner(category_key)').is('is_active', true).order('sort_order'),
       sb.from('districts').select('id,name_ar,city_id').is('is_active', true).order('name_ar')
     ]);
-    setBranches(br.data || []); setUsers(u.data || []); setBanks(ba.data || []);
-    setRegions(rg.data || []); setCities(ct.data || []); setContracts(cn.data || []);
-    setDocs(dc.data || []); setBills(bl.data || []); setDistrictsList(di.data || []);
+    const regionsData = rg.data || [];
+    const citiesData = ct.data || [];
+    const usersData = u.data || [];
+    const districtsData = di.data || [];
+    // Map branches to include computed display fields
+    const branchesData = (br.data || []).map(b => ({
+      ...b,
+      branch_id: b.id,
+      display_name: b.code || '—',
+      region_name: regionsData.find(r => r.id === b.region_id)?.name_ar || '',
+      city_name: citiesData.find(c => c.id === b.city_id)?.name_ar || '',
+      district_name: districtsData.find(d => d.id === b.district_id)?.name_ar || '',
+      manager_user_name: usersData.find(x => x.id === b.manager_user_id)?.name_ar || '',
+      workers_count: usersData.filter(x => x.branch_id === b.id).length,
+    }));
+    setBranches(branchesData); setUsers(usersData); setBanks(ba.data || []);
+    setRegions(regionsData); setCities(citiesData); setContracts(cn.data || []);
+    setDocs(dc.data || []); setBills(bl.data || []); setDistrictsList(districtsData);
     // Group lookups by category_key
     const lkMap = {};
     (lk.data || []).forEach(item => {
@@ -673,12 +742,12 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, singleT
     setSaving(true);
     try {
       const d = { ...form }; const id = d._id; delete d._id;
+      // Strip any stale display/computed fields that aren't real columns
+      ['display_name','region_name','city_name','district_name','manager_user_name','workers_count','branch_id'].forEach(k => delete d[k]);
       Object.keys(d).forEach(k => {
         if (d[k] === '') d[k] = null;
         if (k === 'is_active') d[k] = d[k] === 'true' || d[k] === true;
-        if (['shop_area_sqm'].includes(k) && d[k]) d[k] = Number(d[k]);
       });
-      if (d.metadata && typeof d.metadata === 'string') try { d.metadata = JSON.parse(d.metadata); } catch { d.metadata = {}; }
       if (id) { d.updated_by = user?.id; const { error } = await sb.from('branches').update(d).eq('id', id); if (error) throw error; toast('تم التعديل'); }
       else { d.created_by = user?.id; const { error } = await sb.from('branches').insert(d); if (error) throw error; toast('تمت الإضافة'); }
       setPop(false); load();
@@ -701,32 +770,34 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, singleT
   };
 
   const openAdd = () => {
-    setForm({ name_ar: '', name_en: '', code: '', region_id: '', city_id: '', phone: '+966', is_active: 'true', manager_user_id: '', working_days: ['sun','mon','tue','wed','thu'], work_start_time: '08:00', work_end_time: '17:00', municipal_license_number: '', baladi_request_number: '', baladi_user_id: '', activity_id: '', municipal_license_status: '', license_issue_date: '', license_expiry_date: '', shop_area_sqm: '', municipality_id: '', authority_id: '', civil_defense_cert_number: '', civil_defense_expiry: '', civil_defense_status: '', district_id: '', building_number: '', street: '', postal_code: '', location_url: '', notes: '', metadata: '{}' });
+    setForm({ code: '', region_id: '', city_id: '', district_id: '', phone: '', manager_user_id: '', building_number: '', street: '', street_en: '', postal_code: '', is_active: true });
     setWizStep(0); setPop(true);
   };
 
   const openEdit = r => {
-    setForm({ _id: r.branch_id, name_ar: r.name_ar || '', name_en: r.name_en || '', code: r.code || '', region_id: r.region_id || '', city_id: r.city_id || '', phone: r.phone || '+966', is_active: String(r.is_active), manager_user_id: r.manager_user_id || '', working_days: r.working_days || ['sun','mon','tue','wed','thu'], work_start_time: r.work_start_time?.slice(0, 5) || '08:00', work_end_time: r.work_end_time?.slice(0, 5) || '17:00', municipal_license_number: r.municipal_license_number || '', baladi_request_number: r.baladi_request_number || '', baladi_user_id: r.baladi_user_id || '', activity_id: r.activity_id || '', municipal_license_status: r.municipal_license_status === 'active' || r.municipal_license_status === 'expired' ? '' : (r.municipal_license_status || ''), license_issue_date: r.license_issue_date || '', license_expiry_date: r.license_expiry_date || '', shop_area_sqm: String(r.shop_area_sqm || ''), municipality_id: r.municipality_id || '', authority_id: r.authority_id || '', civil_defense_cert_number: r.civil_defense_cert_number || '', civil_defense_expiry: r.civil_defense_expiry || '', civil_defense_status: r.civil_defense_status === 'active' || r.civil_defense_status === 'expired' ? '' : (r.civil_defense_status || ''), district_id: r.district_id || '', building_number: r.building_number || '', street: r.street || '', postal_code: r.postal_code || '', location_url: r.location_url || '', notes: r.notes || '', metadata: JSON.stringify(r.metadata || {}, null, 2) });
+    setForm({ _id: r.id || r.branch_id, code: r.code || '', region_id: r.region_id || '', city_id: r.city_id || '', district_id: r.district_id || '', phone: r.phone || '', manager_user_id: r.manager_user_id || '', building_number: r.building_number || '', street: r.street || '', street_en: r.street_en || '', postal_code: r.postal_code || '', is_active: r.is_active !== false });
     setWizStep(0); setPop(true); setViewRow(null);
   };
 
-  const totalRev = branches.reduce((s, b) => s + Number(b.total_revenue || 0), 0);
   const wfP = { form, setForm };
   const isEdit = !!form._id;
-  // ADD wizard = 3 steps only (no license/safety — those are edited from branch detail)
-  const addSteps = [
-    { id: 'basic', l: 'البيانات الأساسية', ico: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
-    { id: 'address', l: 'العنوان والموقع', ico: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' },
-    { id: 'extra', l: 'ملاحظات', ico: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' }
-  ];
-  const wizSteps = isEdit ? [] : addSteps;
-  const step = wizSteps[wizStep] || wizSteps[0];
+  // Single-step form — all fields shown at once in one card
+  const wizSteps = [{ id: 'all', l: 'بيانات المكتب' }];
+  const step = wizSteps[0];
 
-  return <div style={{position:'relative'}}>
-    {/* Header */}
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div><div style={{ fontSize: 22, fontWeight: 800, color: 'var(--tx)' }}>{singleTab==='staff'?(lang==='ar'?'الموظفين':'Staff'):singleTab==='branches'?(lang==='ar'?'المكاتب':'Offices'):(lang==='ar'?'المكاتب والموظفين':'Offices & Staff')}</div><div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 4 }}>{singleTab==='staff'?(lang==='ar'?'إدارة الموظفين وصلاحياتهم':'Manage staff and permissions'):singleTab==='branches'?(lang==='ar'?'إدارة المكاتب والفروع':'Manage offices and branches'):(lang==='ar'?'إدارة المكاتب والفروع والموظفين':'Manage offices, branches, and staff')}</div></div>
+  return <div style={{position:'relative',fontFamily:"'Cairo',sans-serif",paddingTop:20}}>
+    {/* Header — matches OTP Messages / Transfer Calc style */}
+    <div style={{ marginBottom: 22, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--tx)' }}>{singleTab==='staff'?(lang==='ar'?'الموظفين':'Staff'):singleTab==='branches'?(lang==='ar'?'المكاتب':'Offices'):(lang==='ar'?'المكاتب والموظفين':'Offices & Staff')}</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginTop: 6 }}>{singleTab==='staff'?(lang==='ar'?'إدارة الموظفين وصلاحياتهم':'Manage staff and permissions'):singleTab==='branches'?(lang==='ar'?'إدارة المكاتب والفروع':'Manage offices and branches'):(lang==='ar'?'إدارة المكاتب والفروع والموظفين':'Manage offices, branches, and staff')}</div>
+      </div>
+      {mainTab === 'branches' && <button onClick={openAdd} className="add-branch-btn" style={{ height: 40, padding: '0 18px', borderRadius: 10, background: 'rgba(212,160,23,.08)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all .2s', fontFamily: F }}>
+        <span style={{ fontSize: 14, fontWeight: 800, color: '#D4A017', fontFamily: lang==='en'?"'Inter','Cairo',sans-serif":"'Noto Kufi Arabic','Cairo',sans-serif", letterSpacing: -.3, lineHeight: 1 }}>{lang==='ar'?'إضافة مكتب':'Add Office'}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>}
     </div>
+    <style>{`.add-branch-btn:hover{background:rgba(212,160,23,.14)!important}`}</style>
 
     {/* Sub-tabs: side list */}
     <div style={{ display: 'flex', gap: 0 }}>
@@ -737,31 +808,155 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, singleT
 
     {/* Branches tab */}
     {mainTab === 'branches' && <>
-      {/* Stats header badge */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, alignItems: 'center' }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{branches.length} فرع</span>
-        <span style={{ fontSize: 10, color: 'var(--tx5)' }}>·</span>
-        <span style={{ fontSize: 11, color: C.ok }}>{branches.filter(b => b.is_active !== false).length} نشط</span>
-        <span style={{ fontSize: 10, color: 'var(--tx5)' }}>·</span>
-        <span style={{ fontSize: 11, color: '#999' }}>{branches.filter(b => b.is_active === false).length} معطّل</span>
-      </div>
+      {/* KPI dashboard cards */}
+      {(() => {
+        const activeBr = branches.filter(b => b.is_active !== false).length
+        const inactiveBr = branches.filter(b => b.is_active === false).length
+        const totalUsers = users.length
+        const iconBox = (i, c) => <div style={{ width: 30, height: 30, borderRadius: 8, background: c + '18', color: c, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i}</div>
+        const I = {
+          building: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="22" x2="9" y2="17"/><line x1="15" y1="22" x2="15" y2="17"/><line x1="9" y1="7" x2="9" y2="7"/><line x1="15" y1="7" x2="15" y2="7"/><line x1="9" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="15" y2="12"/></svg>,
+          check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+          shield: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>,
+          users: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+        }
+        return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, marginBottom: 20 }}>
+          {/* Total branches */}
+          <div style={{ background: 'var(--bg)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, padding: '16px 18px', transition: '.18s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold + '35'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.25)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx4)' }}>{lang==='ar'?'إجمالي المكاتب':'Total Offices'}</span>
+              {iconBox(I.building, C.gold)}
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: C.gold, lineHeight: 1, marginBottom: 10, direction: 'ltr', textAlign: lang==='en'?'left':'right' }}>{branches.length}</div>
+            <div style={{ display: 'flex', height: 5, borderRadius: 4, overflow: 'hidden', background: 'rgba(255,255,255,.04)', gap: 1 }}>
+              {activeBr > 0 && <div style={{ flex: activeBr, background: C.ok }} />}
+              {inactiveBr > 0 && <div style={{ flex: inactiveBr, background: '#666' }} />}
+            </div>
+          </div>
+
+          {/* Active branches */}
+          <div style={{ background: 'var(--bg)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, padding: '16px 18px', transition: '.18s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.ok + '35'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.25)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx4)' }}>{lang==='ar'?'المكاتب النشطة':'Active Offices'}</span>
+              {iconBox(I.check, C.ok)}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10, direction: 'ltr', justifyContent: lang==='en'?'flex-start':'flex-end' }}>
+              <span style={{ fontSize: 24, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{activeBr}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx5)' }}>/ {branches.length}</span>
+            </div>
+            <div style={{ fontSize: 10.5, color: 'var(--tx5)', fontWeight: 600 }}>{inactiveBr > 0 ? <><span style={{ color: '#999', fontWeight: 800 }}>{inactiveBr}</span> {lang==='ar'?'معطّل':'inactive'}</> : (lang==='ar'?'جميع المكاتب نشطة':'all offices active')}</div>
+          </div>
+
+          {/* Total staff */}
+          <div style={{ background: 'var(--bg)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, padding: '16px 18px', transition: '.18s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.blue + '35'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.25)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx4)' }}>{lang==='ar'?'الموظفين':'Staff'}</span>
+              {iconBox(I.users, C.blue)}
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: C.gold, lineHeight: 1, marginBottom: 10, direction: 'ltr', textAlign: lang==='en'?'left':'right' }}>{totalUsers}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--tx5)', fontWeight: 600 }}>{branches.length > 0 ? <><span style={{ color: 'var(--tx3)', fontWeight: 800 }}>{(totalUsers / branches.length).toFixed(1)}</span> {lang==='ar'?'موظف لكل مكتب':'staff per office'}</> : '—'}</div>
+          </div>
+        </div>
+      })()}
+
+      {/* ═══ Search + Advanced Filters ═══ */}
+      {(() => {
+        const q = searchQ.trim().toLowerCase();
+        const hasFilters = filters.region_id || filters.city_id || filters.is_active !== '';
+        const filteredBranches = branches.filter(b => {
+          if (q) {
+            const match = (b.code || '').toLowerCase().includes(q)
+              || (b.city_name || '').toLowerCase().includes(q)
+              || (b.region_name || '').toLowerCase().includes(q)
+              || (b.district_name || '').toLowerCase().includes(q)
+              || (b.manager_user_name || '').toLowerCase().includes(q)
+              || (b.street || '').toLowerCase().includes(q)
+              || (b.phone || '').includes(q);
+            if (!match) return false;
+          }
+          if (filters.region_id && b.region_id !== filters.region_id) return false;
+          if (filters.city_id && b.city_id !== filters.city_id) return false;
+          if (filters.is_active !== '' && (b.is_active !== false) !== (filters.is_active === 'true')) return false;
+          return true;
+        });
+        const resetFilters = () => { setFilters({ region_id: '', city_id: '', is_active: '' }); setSearchQ(''); };
+        return <>
+          <style>{`.brs-search-input:focus{border-color:rgba(212,160,23,.3)!important;background:rgba(0,0,0,.25)!important}.brs-adv-btn:hover{background:rgba(212,160,23,.12)!important;border-color:rgba(212,160,23,.25)!important}`}</style>
+          <div style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap' }}>
+            {/* Search input */}
+            <div style={{ flex: '1 1 260px', position: 'relative', minWidth: 200 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" style={{ position: 'absolute', [lang==='ar'?'right':'left']: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input className="brs-search-input" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={lang==='ar'?'ابحث بالكود، المدينة، المدير، الجوال…':'Search by code, city, manager, phone…'} style={{ width: '100%', height: 42, [lang==='ar'?'paddingRight':'paddingLeft']: 40, [lang==='ar'?'paddingLeft':'paddingRight']: searchQ ? 40 : 14, border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)', background: 'rgba(0,0,0,.18)', outline: 'none', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', transition: '.2s', boxSizing: 'border-box' }}/>
+              {searchQ && <button onClick={() => setSearchQ('')} style={{ position: 'absolute', [lang==='ar'?'left':'right']: 10, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 6, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>}
+            </div>
+            {/* Advanced search toggle */}
+            <button onClick={() => setAdvOpen(v => !v)} className="brs-adv-btn" style={{ height: 42, padding: '0 16px', borderRadius: 10, border: '1px solid ' + (advOpen || hasFilters ? 'rgba(212,160,23,.35)' : 'rgba(255,255,255,.08)'), background: advOpen || hasFilters ? 'rgba(212,160,23,.08)' : 'rgba(0,0,0,.18)', color: advOpen || hasFilters ? C.gold : 'var(--tx3)', fontFamily: F, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: '.2s', flexShrink: 0, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <span>{lang==='ar'?'بحث متقدم':'Advanced'}</span>
+              {hasFilters && <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: '0 0 6px rgba(212,160,23,.6)' }}/>}
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transition: 'transform .25s', transform: advOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+          {/* Advanced filters panel */}
+          {advOpen && <div style={{ marginBottom: 14, padding: '14px 16px', background: 'rgba(212,160,23,.03)', border: '1px solid rgba(212,160,23,.12)', borderRadius: 12, animation: 'brs-fade .2s ease' }}>
+            <style>{`@keyframes brs-fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}`}</style>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10, marginBottom: 10 }}>
+              {/* Region filter */}
+              <div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5 }}>{lang==='ar'?'المنطقة':'Region'}</div>
+                <select value={filters.region_id} onChange={e => setFilters(f => ({ ...f, region_id: e.target.value, city_id: '' }))} style={{ width: '100%', height: 38, padding: '0 12px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.18)', outline: 'none', cursor: 'pointer' }}>
+                  <option value="">{lang==='ar'?'جميع المناطق':'All Regions'}</option>
+                  {regions.map(r => <option key={r.id} value={r.id}>{r.name_ar}</option>)}
+                </select>
+              </div>
+              {/* City filter */}
+              <div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5 }}>{lang==='ar'?'المدينة':'City'}</div>
+                <select value={filters.city_id} onChange={e => setFilters(f => ({ ...f, city_id: e.target.value }))} style={{ width: '100%', height: 38, padding: '0 12px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.18)', outline: 'none', cursor: 'pointer' }}>
+                  <option value="">{lang==='ar'?'جميع المدن':'All Cities'}</option>
+                  {cities.filter(c => !filters.region_id || c.region_id === filters.region_id).map(c => <option key={c.id} value={c.id}>{c.name_ar}</option>)}
+                </select>
+              </div>
+              {/* Status filter */}
+              <div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5 }}>{lang==='ar'?'الحالة':'Status'}</div>
+                <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,.18)', borderRadius: 8, padding: 2, border: '1px solid rgba(255,255,255,.08)', height: 38, boxSizing: 'border-box' }}>
+                  {[['', 'الكل', 'var(--tx3)'], ['true', 'نشط', C.ok], ['false', 'معطّل', C.red]].map(([v, l, c]) => (
+                    <button key={v} onClick={() => setFilters(f => ({ ...f, is_active: v }))} style={{ flex: 1, borderRadius: 6, border: 'none', background: filters.is_active === v ? c + '22' : 'transparent', color: filters.is_active === v ? c : 'var(--tx5)', fontFamily: F, fontSize: 11, fontWeight: filters.is_active === v ? 800 : 600, cursor: 'pointer', transition: '.15s' }}>{l}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.05)' }}>
+              <div style={{ fontSize: 11, color: 'var(--tx5)' }}>
+                {lang==='ar'
+                  ? <><span style={{ fontWeight: 800, color: C.gold }}>{filteredBranches.length}</span> نتيجة من أصل <span style={{ fontWeight: 800 }}>{branches.length}</span></>
+                  : <><span style={{ fontWeight: 800, color: C.gold }}>{filteredBranches.length}</span> of <span style={{ fontWeight: 800 }}>{branches.length}</span></>}
+              </div>
+              {(hasFilters || searchQ) && <button onClick={resetFilters} style={{ height: 30, padding: '0 14px', borderRadius: 7, background: 'transparent', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                {lang==='ar'?'إعادة تعيين':'Reset'}
+              </button>}
+            </div>
+          </div>}
+
       {loading ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx6)' }}>...</div> :
+        filteredBranches.length === 0 ? <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--tx5)', background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="1.5" style={{ marginBottom: 10 }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{lang==='ar'?'لا توجد نتائج':'No results'}</div>
+          <div style={{ fontSize: 11 }}>{lang==='ar'?'جرّب تعديل البحث أو مسح الفلاتر':'Try adjusting your search or clearing filters'}</div>
+        </div> :
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
-          {branches.map(b => {
+          {filteredBranches.map(b => {
             const isActive = b.is_active !== false;
-            const now = new Date();
-            const licDays = b.license_expiry_date ? Math.ceil((new Date(b.license_expiry_date) - now) / 86400000) : null;
-            const cdDays = b.civil_defense_expiry ? Math.ceil((new Date(b.civil_defense_expiry) - now) / 86400000) : null;
-            const licClr = licDays === null ? '#555' : licDays < 0 ? C.red : licDays < 30 ? '#e67e22' : licDays < 90 ? C.gold : C.ok;
-            const cdClr = cdDays === null ? '#555' : cdDays < 0 ? C.red : cdDays < 30 ? '#e67e22' : cdDays < 90 ? C.gold : C.ok;
-            const borderClr = !isActive ? 'rgba(153,153,153,.15)' : (licDays !== null && licDays < 30) ? 'rgba(192,57,43,.2)' : 'rgba(39,160,70,.15)';
-            const licAlert = licDays !== null && licDays > 0 && licDays <= 30;
-            return <div key={b.branch_id} onClick={() => { setViewRow(b); }} style={{ background: 'var(--bg)', border: '1.5px solid ' + borderClr, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s', opacity: isActive ? 1 : .6 }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(212,160,23,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = borderClr}>
-              {/* Alert banner */}
-              {licAlert && <div style={{ padding: '5px 14px', background: 'rgba(192,57,43,.06)', borderBottom: '1px solid rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
-                <span style={{ fontSize: 9, fontWeight: 600, color: C.red }}>رخصة بلدية تنتهي خلال {licDays} يوماً</span>
-              </div>}
+            const borderClr = !isActive ? 'rgba(153,153,153,.15)' : 'rgba(39,160,70,.15)';
+            return <div key={b.id} onClick={() => { setViewRow(b); }} style={{ background: 'var(--bg)', border: '1.5px solid ' + borderClr, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: '.15s', opacity: isActive ? 1 : .6 }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(212,160,23,.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = borderClr}>
               {!isActive && <div style={{ padding: '5px 14px', background: 'rgba(153,153,153,.04)', borderBottom: '1px solid rgba(153,153,153,.08)' }}>
                 <span style={{ fontSize: 9, fontWeight: 600, color: '#999' }}>معطّل</span>
               </div>}
@@ -772,42 +967,35 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, singleT
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{b.name_ar}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>{b.display_name || b.code || '—'}</span>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: isActive ? 'rgba(39,160,70,.1)' : 'rgba(153,153,153,.1)', color: isActive ? C.ok : '#999' }}>{isActive ? 'نشط' : 'معطّل'}</span>
                   </div>
-                  {b.code && <div style={{ fontSize: 10, color: 'var(--tx5)', direction: 'ltr' }}>{b.code}</div>}
+                  {(b.city_name || b.region_name) && <div style={{ fontSize: 10, color: 'var(--tx5)' }}>{[b.city_name, b.region_name].filter(Boolean).join(' · ')}</div>}
                 </div>
                 <div onClick={e => { e.stopPropagation(); openEdit(b); }} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(212,160,23,.15)', background: 'rgba(212,160,23,.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
                 </div>
               </div>
-              {/* 4 Indicators */}
+              {/* Indicators */}
               <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,.04)', background: 'rgba(255,255,255,.01)' }}>
                 {[
-                  [b.workers_count || 0, 'عامل', C.ok],
-                  [b.facilities_count || 0, 'منشأة', C.blue],
-                  [licDays === null ? '—' : licDays < 0 ? 'منتهية' : licDays + ' يوم', 'الرخصة', licClr],
-                  [cdDays === null ? '—' : cdDays < 0 ? 'منتهية' : cdDays + ' أيام', 'الدفاع المدني', cdClr]
+                  [b.workers_count || 0, 'موظفين', C.ok],
+                  [b.phone || '—', 'الجوال', C.blue],
                 ].map(([val, lbl, clr], i) => <div key={i} style={{ flex: 1, padding: '8px 6px', textAlign: 'center', borderLeft: i > 0 ? '1px solid rgba(255,255,255,.03)' : 'none' }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: clr, lineHeight: 1, marginBottom: 3 }}>{val}</div>
-                  <div style={{ fontSize: 7, fontWeight: 600, color: clr, opacity: .7 }}>{lbl}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: clr, lineHeight: 1.2, marginBottom: 3, direction: typeof val === 'string' && val.startsWith('+') ? 'ltr' : 'inherit' }}>{val}</div>
+                  <div style={{ fontSize: 8, fontWeight: 600, color: clr, opacity: .7 }}>{lbl}</div>
                 </div>)}
               </div>
-              {/* Footer: Manager + Working hours */}
-              <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,.015)' }}>
-                {b.manager_user_name ? <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-                  <span style={{ fontSize: 9, color: C.gold }}>{b.manager_user_name}</span>
-                </div> : <span />}
-                {(b.work_start_time || b.work_end_time) ? <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                  <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr' }}>{(b.work_start_time || '').slice(0, 5)} - {(b.work_end_time || '').slice(0, 5)}</span>
-                  <span style={{ fontSize: 8, color: 'var(--tx6)' }}>الدوام</span>
-                </div> : <span />}
-              </div>
+              {/* Footer: Manager */}
+              {b.manager_user_name && <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,.015)' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                <span style={{ fontSize: 9, color: C.gold }}>{b.manager_user_name}</span>
+              </div>}
             </div>;
           })}
         </div>}
+        </>;
+      })()}
     </>}
 
     {mainTab === 'bank_accounts' && <BankAccountsTab sb={sb} toast={toast} user={user} lang={lang} branches={branches} banks={banks} contracts={contracts} docs={docs} reload={load} />}
@@ -816,94 +1004,68 @@ export default function BranchesPage({ sb, toast, user, lang, showStaff, singleT
 
     <BranchDetailModal viewRow={viewRow} setViewRow={setViewRow} openEdit={openEdit} del={del} users={users} banks={banks} contracts={contracts} bills={bills} docs={docs} toast={toast} T={T} />
 
-    {/* ═══ Wizard Modal ═══ */}
-    {pop && <div onClick={() => setPop(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg,rgba(14,14,14,.8))', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(720px,95vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid rgba(212,160,23,.12)' }}>
-        <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,' + C.gold + ' 30%,#dcc06e 50%,' + C.gold + ' 70%,transparent)' }} />
-        <div style={{ background: 'var(--bg)', padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--bd2)' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{isEdit ? 'تعديل بيانات المكتب' : 'إضافة مكتب جديد'}</div>
-          <button onClick={() => setPop(false)} style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--hoverBg)', border: '1px solid var(--bd)', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-        </div>
-        {!isEdit && <div style={{ display: 'flex', padding: '0 22px', background: 'var(--bg)', borderBottom: '1px solid var(--bd2)', gap: 0 }}>
-          {wizSteps.map((s, i) => <div key={s.id} onClick={() => setWizStep(i)} style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', borderBottom: wizStep === i ? '2.5px solid ' + C.gold : '2.5px solid transparent', transition: 'all .2s' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: wizStep === i ? 'rgba(212,160,23,.12)' : i < wizStep ? 'rgba(39,160,70,.08)' : 'var(--hoverBg)', border: '1.5px solid ' + (wizStep === i ? 'rgba(212,160,23,.25)' : i < wizStep ? 'rgba(39,160,70,.15)' : 'var(--bd2)'), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={wizStep === i ? C.gold : i < wizStep ? C.ok : 'var(--tx5)'} strokeWidth="1.8"><path d={s.ico} /></svg></div>
-            <span style={{ fontSize: 10, fontWeight: wizStep === i ? 700 : 500, color: wizStep === i ? C.gold : i < wizStep ? C.ok : 'var(--tx5)', whiteSpace: 'nowrap' }}>{s.l}</span>
-          </div>)}
-        </div>}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', scrollbarWidth: 'none' }}>
-          {/* Step 1: Basic */}
-          {(isEdit || step.id === 'basic') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <WF k="name_ar" l="الاسم بالعربي" r {...wfP} />
-            <WF k="name_en" l="الاسم بالإنجليزي" d {...wfP} />
-            <WF k="region_id" l="المنطقة" r opts={regions.map(r => ({ v: r.id, l: r.name_ar }))} form={form} setForm={v => { setForm(v); }} />
-            <div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 5 }}>المدينة <span style={{ color: C.red }}>*</span></div>
-              <select value={form.city_id || ''} onChange={e => updateCode(e.target.value)} style={fS}><option value="">—</option>{cities.filter(c => !form.region_id || c.region_id === form.region_id).map(c => <option key={c.id} value={c.id}>{c.name_ar}</option>)}</select></div>
-            <WF k="code" l="كود المكتب" d ph="RYD01-03" {...wfP} />
-            <WF k="phone" l="الجوال (+966)" d ph="+966501234567" {...wfP} />
-            <WF k="manager_user_id" l="المدير المسؤول" opts={users.map(u => ({ v: u.id, l: u.name_ar }))} {...wfP} />
-            <WF k="is_active" l="الحالة" opts={[{ v: 'true', l: 'نشط' }, { v: 'false', l: 'غير نشط' }]} {...wfP} />
-            <div style={{ gridColumn: '1/-1' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 5 }}>أيام العمل</div>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {[['sat','السبت'],['sun','الأحد'],['mon','الاثنين'],['tue','الثلاثاء'],['wed','الأربعاء'],['thu','الخميس'],['fri','الجمعة']].map(([k,l]) => {
-                  const days = Array.isArray(form.working_days) ? form.working_days : [];
-                  const on = days.includes(k);
-                  return <button key={k} type="button" onClick={() => setForm(p => ({ ...p, working_days: on ? days.filter(d => d !== k) : [...days, k] }))} style={{ height: 36, padding: '0 14px', borderRadius: 8, border: on ? '1.5px solid rgba(212,160,23,.4)' : '1.5px solid rgba(255,255,255,.1)', background: on ? 'rgba(212,160,23,.15)' : 'rgba(255,255,255,.04)', color: on ? C.gold : 'var(--tx5)', fontFamily: F, fontSize: 12, fontWeight: on ? 700 : 500, cursor: 'pointer', transition: '.15s' }}>{l}</button>;
-                })}
+    {/* Wizard Modal — Kafala Calculator design */}
+    {pop && <div onClick={() => setPop(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+      <style>{`.br-wiz-scroll::-webkit-scrollbar{width:0;display:none}.br-wiz-scroll{scrollbar-width:none;-ms-overflow-style:none}.br-wiz input,.br-wiz select,.br-wiz textarea{width:100%;height:42px;padding:0 14px!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:9px!important;font-family:${F};font-size:13px!important;font-weight:600;color:var(--tx);outline:none;background:rgba(0,0,0,.18)!important;box-sizing:border-box;box-shadow:inset 0 1px 2px rgba(0,0,0,.2);text-align:center!important;transition:.2s}.br-wiz textarea{height:auto!important;min-height:80px!important;padding:10px 14px!important}.br-wiz input:focus,.br-wiz select:focus,.br-wiz textarea:focus,.br-wiz input:not(:placeholder-shown):not([type=checkbox]):not([type=radio]){border-color:rgba(255,255,255,.08)!important}.br-wiz input:-webkit-autofill,.br-wiz input:-webkit-autofill:hover,.br-wiz input:-webkit-autofill:focus,.br-wiz input:-webkit-autofill:active{-webkit-box-shadow:0 0 0 30px rgba(15,15,15,1) inset!important;-webkit-text-fill-color:var(--tx)!important;border-color:rgba(255,255,255,.08)!important;caret-color:var(--tx)!important;transition:background-color 9999s ease-in-out 0s}.br-wiz .wf-lbl{font-size:11px!important;font-weight:700!important;color:rgba(255,255,255,.58)!important;margin-bottom:5px!important;text-align:start!important}.br-wiz .kc-phone-wrap{background:rgba(0,0,0,.18)!important;box-shadow:inset 0 1px 2px rgba(0,0,0,.2)!important;border-radius:9px!important}.br-wiz .kc-phone-wrap input{padding:0 12px!important;border:none!important;background:transparent!important;box-shadow:none!important;text-align:left!important;border-radius:0!important}.br-wiz .kc-phone-wrap:focus-within{border-color:rgba(255,255,255,.08)!important}`}</style>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 18, width: 720, maxWidth: '95vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(212,160,23,.08)' }}>
+        <div dir={lang === 'en' ? 'ltr' : 'rtl'} style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+          {/* Header — icon + title + close */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px 18px', flexShrink: 0, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
+            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="22" x2="9" y2="17"/><line x1="15" y1="22" x2="15" y2="17"/><line x1="9" y1="7" x2="9" y2="7"/><line x1="15" y1="7" x2="15" y2="7"/><line x1="9" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="15" y2="12"/></svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,.95)', fontFamily: F }}>{isEdit ? (lang==='ar'?'تعديل بيانات المكتب':'Edit Office') : (lang==='ar'?'إضافة مكتب جديد':'Add New Office')}</div>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <WF k="work_start_time" l="بداية الدوام" d tp="time" {...wfP} />
-              <WF k="work_end_time" l="نهاية الدوام" d tp="time" {...wfP} />
+            <button onClick={() => setPop(false)} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="إغلاق">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <div className="br-wiz br-wiz-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'visible', padding: '8px 16px 12px' }}>
+          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 14px 14px', position: 'relative', marginTop: 10 }}>
+            <div style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+              <span>بيانات المكتب</span>
             </div>
-          </div>}
-          {/* ADD Step 2 / EDIT: Address */}
-          {(isEdit || step?.id === 'address') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {!isEdit && <div style={{ gridColumn: '1/-1', padding: '12px 16px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.08)', marginBottom: 4 }}><div style={{ fontSize: 12, fontWeight: 600, color: C.blue, marginBottom: 4 }}>العنوان والموقع</div></div>}
-            {isEdit && <div style={{ gridColumn: '1/-1', fontSize: 13, fontWeight: 700, color: C.blue, paddingBottom: 6, borderBottom: '1px solid rgba(52,131,180,.12)', marginBottom: 4 }}>العنوان والموقع</div>}
-            <WF k="district_id" l="الحي" opts={distOpts(form.city_id)} {...wfP} />
-            <WF k="building_number" l="رقم المبنى" d {...wfP} />
-            <WF k="street" l="الشارع" ph="شارع حائل" {...wfP} />
-            <WF k="postal_code" l="الرمز البريدي" d ph="32416" {...wfP} />
-            <WF k="location_url" l="رابط Google Maps" d w={true} ph="https://maps.google.com/..." {...wfP} />
-          </div>}
-          {/* EDIT ONLY: رخصة بلدي */}
-          {isEdit && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 20 }}>
-            <div style={{ gridColumn: '1/-1', fontSize: 13, fontWeight: 700, color: C.ok, paddingBottom: 6, borderBottom: '1px solid rgba(39,160,70,.12)', marginBottom: 4 }}>رخصة بلدي</div>
-            <WF k="municipal_license_number" l="رقم الرخصة" d ph="470220637006" {...wfP} />
-            <WF k="baladi_request_number" l="رقم الطلب" d ph="4750787127" {...wfP} />
-            <WF k="baladi_user_id" l="حساب بلدي (المستخدم)" opts={users.map(u => ({ v: u.id, l: u.name_ar }))} {...wfP} />
-            <WF k="activity_id" l="النشاط التجاري" opts={lkOpts('cr_activities')} {...wfP} />
-            <WF k="municipal_license_status" l="حالة يدوية (اختياري)" opts={[{ v: '', l: 'تلقائي' }, { v: 'pending', l: 'قيد الإصدار' }, { v: 'issue', l: 'مشكلة' }]} {...wfP} />
-            <WF k="license_issue_date" l="تاريخ الإصدار" d tp="date" {...wfP} />
-            <WF k="license_expiry_date" l="تاريخ الانتهاء" d tp="date" {...wfP} />
-            <WF k="shop_area_sqm" l="مساحة المحل م²" d tp="number" ph="25" {...wfP} />
-            <WF k="municipality_id" l="البلدية" opts={lkOpts('municipality')} {...wfP} />
-          </div>}
-          {/* EDIT ONLY: السلامة */}
-          {isEdit && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 20 }}>
-            <div style={{ gridColumn: '1/-1', fontSize: 13, fontWeight: 700, color: '#e67e22', paddingBottom: 6, borderBottom: '1px solid rgba(230,126,34,.12)', marginBottom: 4 }}>السلامة والدفاع المدني</div>
-            <WF k="authority_id" l="الأمانة" opts={lkOpts('municipality_authority')} {...wfP} />
-            <WF k="civil_defense_cert_number" l="رقم شهادة السلامة" d ph="CD-DMM-2025-1105" {...wfP} />
-            <WF k="civil_defense_expiry" l="تاريخ انتهاء السلامة" d tp="date" {...wfP} />
-            <WF k="civil_defense_status" l="حالة يدوية (اختياري)" opts={[{ v: '', l: 'تلقائي' }, { v: 'pending', l: 'قيد الإصدار' }, { v: 'issue', l: 'مشكلة' }]} {...wfP} />
-          </div>}
-          {/* ADD Step 3 / EDIT: Notes */}
-          {(isEdit || step?.id === 'extra') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: isEdit ? 20 : 0 }}>
-            {isEdit && <div style={{ gridColumn: '1/-1', fontSize: 13, fontWeight: 700, color: 'var(--tx4)', paddingBottom: 6, borderBottom: '1px solid var(--bd2)', marginBottom: 4 }}>ملاحظات</div>}
-            <WF k="notes" l="ملاحظات" w="ta" {...wfP} />
-            <WF k="metadata" l="بيانات إضافية JSON" w="ta" d {...wfP} />
-          </div>}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              {/* Row 1: Region + City + Code */}
+              <CustomSel k="region_id" l="المنطقة" r opts={regions.map(r => ({ v: r.id, l: r.name_ar }))} ph="اختر المنطقة…" {...wfP} />
+              <CustomSel k="city_id" l="المدينة" r opts={cities.filter(c => !form.region_id || c.region_id === form.region_id).map(c => ({ v: c.id, l: c.name_ar }))} ph="اختر المدينة…" onSelect={updateCode} {...wfP} />
+              <WF k="code" l="كود المكتب" d ph="RYD01" {...wfP} />
+              {/* Row 2: District + Street + Street EN */}
+              <CustomSel k="district_id" l="الحي" opts={distOpts(form.city_id)} ph="اختر الحي…" {...wfP} />
+              <WF k="street" l="الشارع" ph="شارع حائل" {...wfP} />
+              <WF k="street_en" l="الشارع (إنجليزي)" d ph="Hail Street" {...wfP} />
+              {/* Row 3: Postal + Building + Manager */}
+              <WF k="postal_code" l="الرمز البريدي" d ph="32416" {...wfP} />
+              <WF k="building_number" l="رقم المبنى" d {...wfP} />
+              <CustomSel k="manager_user_id" l="المدير المسؤول" opts={users.map(u => ({ v: u.id, l: u.name_ar }))} ph="اختر المدير…" {...wfP} />
+              {/* Row 4: Phone spans 2 cols + optional Status */}
+              <div style={{ gridColumn: isEdit ? 'span 2' : '1/-1' }}><PhoneField k="phone" l="رقم الجوال" {...wfP} /></div>
+              {isEdit && <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>الحالة</div>
+                <div style={{ display: 'flex', gap: 3, background: 'rgba(0,0,0,.18)', borderRadius: 9, padding: 3, border: '1px solid rgba(255,255,255,.08)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42, boxSizing: 'border-box' }}>
+                  <button type="button" onClick={() => setForm(p => ({ ...p, is_active: true }))} style={{ flex: 1, borderRadius: 6, border: 'none', background: form.is_active === true ? 'rgba(39,160,70,.15)' : 'transparent', color: form.is_active === true ? C.ok : 'var(--tx5)', fontFamily: F, fontSize: 12, fontWeight: form.is_active === true ? 800 : 600, cursor: 'pointer', transition: '.15s' }}>نشط</button>
+                  <button type="button" onClick={() => setForm(p => ({ ...p, is_active: false }))} style={{ flex: 1, borderRadius: 6, border: 'none', background: form.is_active === false ? 'rgba(192,57,43,.15)' : 'transparent', color: form.is_active === false ? C.red : 'var(--tx5)', fontFamily: F, fontSize: 12, fontWeight: form.is_active === false ? 800 : 600, cursor: 'pointer', transition: '.15s' }}>معطّل</button>
+                </div>
+              </div>}
+            </div>
+          </div>
+          </div>
+        {/* Footer — save button (matches Kafala إصدار/التالي style) */}
+        <style>{`.br-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.br-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.br-nav-btn:hover .nav-ico{background:#D4A017;color:#000}.br-nav-btn:hover .nav-ico{transform:translateX(4px)}.br-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
+        <div style={{ padding: '14px 20px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexShrink: 0, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
+          <button onClick={saveBranch} disabled={saving} className="br-nav-btn">
+            <span>{saving ? '...' : isEdit ? (lang==='ar'?'حفظ':'Save') : (lang==='ar'?'إضافة':'Add')}</span>
+            <span className="nav-ico">
+              {isEdit ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>}
+            </span>
+          </button>
         </div>
-        <div style={{ padding: '14px 22px', borderTop: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {!isEdit && wizStep > 0 && <button onClick={() => setWizStep(p => p - 1)} style={{ height: 42, padding: '0 20px', borderRadius: 10, border: '1.5px solid var(--bd)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>السابق</button>}
-            <button onClick={() => setPop(false)} style={{ height: 42, padding: '0 18px', background: 'transparent', color: 'var(--tx5)', border: '1px solid var(--bd2)', borderRadius: 10, fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>إلغاء</button>
-          </div>
-          <div>
-            {!isEdit && wizStep < wizSteps.length - 1 ? <button onClick={() => setWizStep(p => p + 1)} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>التالي<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg></button>
-              : <button onClick={saveBranch} disabled={saving} style={{ height: 42, padding: '0 28px', borderRadius: 10, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.15)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', opacity: saving ? .6 : 1 }}>{saving ? '...' : isEdit ? 'حفظ التعديلات' : 'إضافة المكتب'}</button>}
-          </div>
         </div>
       </div>
     </div>}

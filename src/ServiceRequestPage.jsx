@@ -338,6 +338,7 @@ const[addAdminNote,setAddAdminNote]=useState(false)
 const[addClientNote,setAddClientNote]=useState(false)
 const[showSummaryScreen,setShowSummaryScreen]=useState(false)
 const[showBrokerNoteScreen,setShowBrokerNoteScreen]=useState(false)
+const[brokerOpen,setBrokerOpen]=useState(false)// broker fieldset collapsed by default — user opens via icon
 const[fields,setFields]=useState({})
 // Kafala-transfer-specific pricing inputs (only used when selSvc==='kafala_transfer')
 // Empty = use auto-calculated value from settings; user override takes precedence
@@ -365,6 +366,11 @@ const[visaGroups,setVisaGroups]=useState([{id:1,nationality:'',embassy:'',profes
 const[expandedGroups,setExpandedGroups]=useState(new Set([1]))
 const[step3Mode,setStep3Mode]=useState('groups')// 'groups' | 'files' (visa services only)
 const[kafalaPage,setKafalaPage]=useState(1)// 1=worker data, 2=transfer details
+// Kafala transfer quote search (replaces step 3 fields for kafala_transfer)
+const[kafalaQuoteQ,setKafalaQuoteQ]=useState('')
+const[kafalaQuotes,setKafalaQuotes]=useState([])
+const[selKafalaQuote,setSelKafalaQuote]=useState(null)
+const[loadingKafalaQuotes,setLoadingKafalaQuotes]=useState(false)
 const[passportPage,setPassportPage]=useState(1)// 1=facility+current+type, 2=new passport fields
 const prefilledRef=useRef(new Set())// tracks which fields have already been auto-prefilled
 const[visaDistMode,setVisaDistMode]=useState('auto')// 'auto' (4 per file) | 'custom' (open files sub-step)
@@ -675,6 +681,16 @@ const[otherExtraAmount,setOtherExtraAmount]=useState('')
 // Reset when service changes
 useEffect(()=>{setOtherServicePricing({overrides:{},extras:[],absherBalance:'',discount:''});setOtherExtraName('');setOtherExtraAmount('')},[selSvc])
 // Set Arabic as default for documents language
+// Load priced kafala transfer quotes when entering step 3 with kafala_transfer
+useEffect(()=>{
+if(!sb||step!==3||selSvc!=='kafala_transfer'||loadingKafalaQuotes||kafalaQuotes.length>0)return
+setLoadingKafalaQuotes(true)
+sb.from('worker_transfers').select('id,new_employer_name,client_charge,transfer_fee,iqama_cost,work_permit_cost,insurance_cost,other_costs,priced_at,notes,transfer_type').eq('status','priced').order('priced_at',{ascending:false}).limit(200).then(({data})=>{
+const parsed=(data||[]).map(q=>{let n={};try{n=JSON.parse(q.notes||'{}')}catch{}return{...q,_notes:n,quote_no:n.quote_no||'',worker_name:n.worker_name||q.new_employer_name||'',iqama_number:n.iqama_number||'',phone:n.phone||''}})
+setKafalaQuotes(parsed)
+setLoadingKafalaQuotes(false)
+})
+},[sb,step,selSvc])
 useEffect(()=>{if(selSvc==='documents'&&!fields.doc_lang)setFields(p=>({...p,doc_lang:'ar'}))},[selSvc])
 // Set 'final_exit' as default for final_exit_visa type
 useEffect(()=>{if(selSvc==='final_exit_visa'&&!fields.final_exit_type)setFields(p=>({...p,final_exit_type:'final_exit'}))},[selSvc])
@@ -822,6 +838,11 @@ if(svcSingleField&&svcSingleField.required&&!fields[svcSingleField.key]){setErr(
 }
 }
 if(step===3){
+// Kafala transfer: must select a certified quote
+if(selSvc==='kafala_transfer'){
+if(!selKafalaQuote){setErr('يرجى اختيار حسبة تنازل مصدقة');return false}
+return true
+}
 if(VISA_SERVICES.has(selSvc)){
 if(step3Mode==='groups'){
 for(let i=0;i<visaGroups.length;i++){
@@ -899,8 +920,8 @@ return true
 
 const goNext=()=>{
 if(!canNext())return
-// Step 2 sub-flow: client → (if worker not same and not visa service) worker → next step
-if(step===2&&step2Mode==='client'&&!VISA_SERVICES.has(selSvc)){setStep2Mode('worker');setErr('');return}
+// Step 2 sub-flow: client → (if worker not same and not visa/kafala service) worker → next step
+if(step===2&&step2Mode==='client'&&!VISA_SERVICES.has(selSvc)&&selSvc!=='kafala_transfer'){setStep2Mode('worker');setErr('');return}
 // If the service's single field is merged into Step 2, skip Step 3 entirely
 if(step===2&&hasMergedField){setStep(4);return}
 // Step 3 sub-flow (visa services): groups → [auto: skip to step 4] or [custom: files distribution → step 4]
@@ -926,8 +947,8 @@ setForceCustomFiles(false)
 }
 setStep3Mode('files');setErr('');return
 }
-// Step 3 kafala sub-flow: section 1 → section 2
-if(step===3&&selSvc==='kafala_transfer'&&kafalaPage<2){setKafalaPage(2);setErr('');return}
+// Step 3 kafala sub-flow: quote search IS the entire step. Skip the pricing entry (التسعيرة) — go directly to the payment plan inside step 4.
+if(step===3&&selSvc==='kafala_transfer'){setStep(4);setKafalaPayStep(true);setErr('');return}
 // Step 3 passport sub-flow: current data+type → new passport fields
 if(step===3&&selSvc==='passport_update'&&passportPage<2){setPassportPage(2);setErr('');return}
 // Free services (documents): skip invoice + payment, jump straight to summary
@@ -946,17 +967,18 @@ setStep(s=>Math.min(s+1,5))
 const goBack=()=>{
 setErr('')
 if(step===2&&step2Mode==='worker'){setStep2Mode('client');return}
-// Step 3 kafala sub-flow: section 2 → section 1
-if(step===3&&selSvc==='kafala_transfer'&&kafalaPage>1){setKafalaPage(1);return}
+// Step 3 kafala sub-flow: removed — quote search is the entire step now
 // Step 3 passport sub-flow: new passport fields → current data+type
 if(step===3&&selSvc==='passport_update'&&passportPage>1){setPassportPage(1);return}
 // Step 3 sub-flow: files → groups
 if(step===3&&step3Mode==='files'){setStep3Mode('groups');return}
-// Step 4 kafala/iqama sub-flow: payment-plan → pricing
-if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayStep){setKafalaPayStep(false);return}
+// Step 4 iqama sub-flow: payment-plan → pricing
+if(step===4&&selSvc==='iqama_renewal'&&kafalaPayStep){setKafalaPayStep(false);return}
+// Step 4 kafala sub-flow: payment-plan → step 3 (skip pricing entry — prices come from the quote)
+if(step===4&&selSvc==='kafala_transfer'&&kafalaPayStep){setKafalaPayStep(false);setStep(3);return}
 // Coming back from step 4 into step 3: visa → restore sub-mode, kafala → section 2
 if(step===4&&VISA_SERVICES.has(selSvc)){setStep(3);setStep3Mode(visaDistMode==='auto'?'groups':'files');return}
-if(step===4&&selSvc==='kafala_transfer'){setStep(3);setKafalaPage(2);return}
+if(step===4&&selSvc==='kafala_transfer'){setStep(3);return}
 if(step===4&&selSvc==='passport_update'){setStep(3);setPassportPage(2);return}
 // Free services (documents): summary → details (step 3) directly
 if(step===5&&showSummaryScreen&&isFreeSvc){setShowSummaryScreen(false);setStep(3);return}
@@ -1144,7 +1166,7 @@ input[type=number]{-moz-appearance:textfield}
 <div style={{flex:1,minHeight:0,padding:'4px 22px 6px',display:'flex',flexDirection:'column'}}>
 <div style={{borderRadius:12,padding:'0 0 4px',position:'relative',flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
 <div style={{display:'flex',alignItems:'center',marginBottom:12,flexShrink:0,gap:10}}>
-<div style={{fontSize:13,fontWeight:800,color:C.bentoGold,fontFamily:F}}>{(()=>{const titles=['الخدمة','العميل','التفاصيل','الفاتورة','الدفع'];let t=step===2&&step2Mode==='worker'?'العامل':(titles[step-1]||'');if(step===5&&showSummaryScreen)t='الملخص';if(step===5&&showBrokerNoteScreen)t=<>الوسيط <span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.4)',marginRight:4}}>(اختياري)</span></>;if(step===4&&kafalaPayStep)t='طريقة الدفع';return t})()}</div>
+<div style={{fontSize:13,fontWeight:800,color:C.bentoGold,fontFamily:F}}>{(()=>{const titles=['الخدمة','العميل','التفاصيل','الفاتورة','الدفع'];let t=step===2&&step2Mode==='worker'?'العامل':(titles[step-1]||'');if(step===5&&showSummaryScreen)t='الملخص';if(step===5&&showBrokerNoteScreen)t='الوسيط والملاحظات';if(step===4&&kafalaPayStep)t='طريقة الدفع';return t})()}</div>
 </div>
 <div className="sr-modal-scroll" style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',justifyContent:'flex-start',overflowY:'auto',overflowX:'hidden'}}>
 
@@ -1223,8 +1245,16 @@ return<div key={s.id} className={`sub-card${sel?' selected':''}`} onClick={()=>{
 {step===2&&<div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
 {step2Mode==='client'&&<div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
 
-{/* Unified search — hidden when a client is selected or in new-client mode */}
-{!selClient&&clientMode!=='new'&&<>
+{/* Worker-is-client checkbox — placed above the search; when checked, hides the search & new-client form */}
+{!VISA_SERVICES.has(selSvc)&&<label onClick={()=>{const newVal=!workerIsClient;setWorkerIsClient(newVal);if(newVal){if(selClient){const matchedWorker=workers.find(w=>w.iqama_number===selClient.id_number||w.phone===selClient.phone);setSelWorker(matchedWorker||null)}setClientMode('existing')}else{setSelWorker(null)}}} style={{display:'flex',alignItems:'center',gap:7,cursor:'pointer',flexShrink:0,fontFamily:F,userSelect:'none',padding:'10px 14px',borderRadius:9,background:workerIsClient?'rgba(212,160,23,.08)':'rgba(0,0,0,.18)',border:workerIsClient?'1px solid rgba(212,160,23,.35)':'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',transition:'.15s',marginBottom:10}}>
+<div style={{width:14,height:14,borderRadius:4,border:`1.5px solid ${workerIsClient?C.bentoGold:'rgba(255,255,255,.25)'}`,background:workerIsClient?C.bentoGold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
+{workerIsClient&&<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+</div>
+<span style={{fontSize:11,fontWeight:700,color:workerIsClient?C.bentoGold:'var(--tx4)'}}>العامل هو العميل</span>
+</label>}
+
+{/* Unified search — hidden when a client is selected, in new-client mode, or when worker-is-client is checked */}
+{!workerIsClient&&!selClient&&clientMode!=='new'&&<>
 <div style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(clientQ&&filteredClients.length===0)?14:8}}>
 <div style={{position:'relative',flex:1,minWidth:0}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1237,8 +1267,8 @@ return<div key={s.id} className={`sub-card${sel?' selected':''}`} onClick={()=>{
 </div>
 </>}
 
-{/* Mode: existing (show results) */}
-{clientMode==='existing'&&<div>
+{/* Mode: existing (show results) — hidden when worker-is-client is checked */}
+{!workerIsClient&&clientMode==='existing'&&<div>
 {filteredClients.length>0?<div style={{display:'flex',flexDirection:'column',gap:8}}>
 {(selClient?[selClient]:filteredClients).map(c=>{
 const sel=selClient?.id===c.id
@@ -1290,14 +1320,6 @@ onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.0
 </div>}
 </div>}
 
-{/* Worker-is-client checkbox — hidden when selecting/registering a client */}
-{!VISA_SERVICES.has(selSvc)&&!selClient&&clientMode!=='new'&&<label onClick={()=>{const newVal=!workerIsClient;setWorkerIsClient(newVal);if(newVal&&selClient){const matchedWorker=workers.find(w=>w.iqama_number===selClient.id_number||w.phone===selClient.phone);setSelWorker(matchedWorker||null)}else if(!newVal){setSelWorker(null)}}} style={{display:'flex',alignItems:'center',gap:7,cursor:'pointer',flexShrink:0,fontFamily:F,userSelect:'none',padding:'8px 12px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',transition:'.15s',marginTop:'auto'}}>
-<div style={{width:14,height:14,borderRadius:4,border:`1.5px solid ${workerIsClient?C.bentoGold:'rgba(255,255,255,.25)'}`,background:workerIsClient?C.bentoGold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s',flexShrink:0}}>
-{workerIsClient&&<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-</div>
-<span style={{fontSize:11,fontWeight:700,color:workerIsClient?C.bentoGold:'var(--tx4)'}}>العامل هو العميل</span>
-</label>}
-
 {/* When worker=client and a worker record matches, show expanded worker-style details below */}
 {workerIsClient&&selClient&&selWorker&&(()=>{const w=selWorker;const iqStat=dateStatus(w.iqama_expiry_date);const natName=w.country?.nationality_ar||w.nationality||'—';const pillBase={display:'flex',alignItems:'center',gap:6,padding:'5px 9px',borderRadius:8,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.06)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:28};const lbl={fontSize:9,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px'};const val={fontSize:12,color:'var(--tx)',fontWeight:700,direction:'ltr'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'};
 return<div style={{marginTop:12,padding:10,borderRadius:14,background:'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.015))',border:'1px solid rgba(212,160,23,.2)',display:'flex',flexDirection:'column',gap:6}}>
@@ -1339,8 +1361,8 @@ return<div style={{marginTop:12,padding:10,borderRadius:14,background:'linear-gr
 لا يوجد سجل عامل مرتبط بهذا العميل
 </div>}
 
-{/* Mode: new client form */}
-{clientMode==='new'&&(()=>{
+{/* Mode: new client form — hidden when worker-is-client is checked */}
+{!workerIsClient&&clientMode==='new'&&(()=>{
 const regLblS={fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5};
 const regInpS={width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',outline:'none',textAlign:'center',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'};
 return <div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative',display:'flex',flexDirection:'column',gap:12,marginTop:11}}>
@@ -2829,6 +2851,82 @@ onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.0
 </div>
 }
 
+// ─── Kafala transfer: search certified transfer quotes by worker name / iqama / quote no ───
+if(selSvc==='kafala_transfer'){
+const q=kafalaQuoteQ.trim().toLowerCase()
+const matches=q?kafalaQuotes.filter(it=>(it.worker_name||'').toLowerCase().includes(q)||(it.iqama_number||'').includes(q)||(it.quote_no||'').toLowerCase().includes(q)).slice(0,3):kafalaQuotes.slice(0,3)
+const fmtPrice=(n)=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+const fmtPricedAt=(iso)=>{if(!iso)return'';const d=new Date(iso);if(isNaN(d))return'';return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`}
+const pickQuote=(qt)=>{
+setSelKafalaQuote(qt)
+const n=qt._notes||{}
+setFields(p=>({...p,
+nationality:n.nationality||p.nationality||'',
+iqama_expiry:n.iqama_expiry||p.iqama_expiry||'',
+worker_status:n.worker_status||p.worker_status||'',
+current_profession:n.current_profession||p.current_profession||'',
+work_card_expiry:n.work_card_expiry||p.work_card_expiry||'',
+birth_date:n.birth_date||p.birth_date||'',
+change_profession:n.change_profession??p.change_profession,
+new_occupation:n.new_occupation||p.new_occupation||'',
+renew_iqama:typeof n.duration_months==='number'?n.duration_months>0:p.renew_iqama,
+renewal_months:n.duration_months?String(n.duration_months):p.renewal_months,
+expected_iqama_months:n.expected_iqama_days?String(Math.round(n.expected_iqama_days/30)):p.expected_iqama_months,
+}))
+setKafalaPricing(p=>({...p,
+transferFeeInput:String(qt.transfer_fee||''),
+iqamaRenewalFee:String(qt.iqama_cost||''),
+workPermitRate:String(qt.work_permit_cost||''),
+medicalFee:String(qt.insurance_cost||''),
+officeFee:String(qt.other_costs||''),
+extras:Array.isArray(n.extras)?n.extras:p.extras,
+}))
+}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+{/* Search input — hidden when a quote is selected */}
+{!selKafalaQuote&&<div style={{position:'relative'}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={kafalaQuoteQ} onChange={e=>setKafalaQuoteQ(e.target.value)} placeholder="ابحث باسم العامل أو رقم الإقامة أو رقم طلب حسبة التنازل..." style={{width:'100%',height:42,padding:'0 40px 0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',outline:'none',textAlign:'right',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}/>
+</div>}
+{/* Selected quote summary */}
+{selKafalaQuote&&(()=>{const qt=selKafalaQuote;return<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.45)',background:'linear-gradient(135deg,rgba(212,160,23,.08),rgba(212,160,23,.02))',padding:14,position:'relative',display:'flex',flexDirection:'column',gap:10}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+<span>حسبة تنازل مصدقة</span>
+</div>
+<button onClick={()=>{setSelKafalaQuote(null)}} title="إلغاء الاختيار" style={{position:'absolute',top:-11,left:14,height:22,padding:'0 10px',borderRadius:6,border:'1px solid rgba(192,57,43,.3)',background:'#1a1a1a',color:C.red,cursor:'pointer',fontSize:10,fontFamily:F,fontWeight:700}}>إلغاء</button>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>العامل</div><div style={{fontSize:13,fontWeight:800,color:'var(--tx)',fontFamily:F}}>{qt.worker_name||'—'}</div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>رقم الإقامة</div><div style={{fontSize:13,fontWeight:800,color:'var(--tx)',direction:'ltr',textAlign:'right'}}>{qt.iqama_number||'—'}</div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>رقم طلب التسعيرة</div><div style={{fontSize:13,fontWeight:800,color:C.gold,direction:'ltr',textAlign:'right'}}>{qt.quote_no||'—'}</div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>الإجمالي</div><div style={{fontSize:13,fontWeight:800,color:C.gold,textAlign:'right'}}><bdi>{fmtPrice(qt.client_charge)}</bdi> <span style={{fontSize:10,color:'var(--tx5)'}}>ريال</span></div></div>
+</div>
+</div>})()}
+{/* Results / loading / empty */}
+{!selKafalaQuote&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{loadingKafalaQuotes?<div style={{padding:'40px 20px',textAlign:'center',color:'var(--tx5)',fontSize:12,fontFamily:F}}>...جاري التحميل</div>
+:matches.length>0?matches.map(qt=>(
+<div key={qt.id} onClick={()=>pickQuote(qt)} style={{padding:'12px 14px',borderRadius:10,cursor:'pointer',border:'1px solid rgba(255,255,255,.06)',background:'rgba(255,255,255,.03)',display:'flex',flexDirection:'column',gap:6,transition:'.2s'}}
+onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.25)'}}
+onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+<span style={{fontSize:13,fontWeight:800,color:'var(--tx)',fontFamily:F,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{qt.worker_name||'—'}</span>
+<span style={{fontSize:11,fontWeight:700,color:C.gold,flexShrink:0}}><bdi>{fmtPrice(qt.client_charge)}</bdi> ريال</span>
+</div>
+<div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}}>
+{qt.iqama_number&&<span style={{fontSize:10.5,color:'var(--tx4)',fontWeight:600,padding:'2px 7px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.05)',direction:'ltr'}}>إقامة: {qt.iqama_number}</span>}
+{qt.quote_no&&<span style={{fontSize:10.5,color:C.bentoGold,fontWeight:700,padding:'2px 7px',borderRadius:5,background:'rgba(212,160,23,.06)',border:'1px solid rgba(212,160,23,.18)',direction:'ltr'}}>{qt.quote_no}</span>}
+{qt.priced_at&&<span style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginRight:'auto',direction:'ltr'}}>{fmtPricedAt(qt.priced_at)}</span>}
+</div>
+</div>
+)):<div style={{padding:'40px 20px',textAlign:'center',color:'var(--tx5)',fontSize:12,fontFamily:F,background:'rgba(0,0,0,.18)',borderRadius:9,border:'1px solid rgba(255,255,255,.05)'}}>
+<div style={{fontSize:13,fontWeight:700,color:'var(--tx2)',marginBottom:5}}>لا توجد حسبة تنازل مطابقة</div>
+<div style={{fontSize:10.5,color:'var(--tx5)'}}>{q?'جرّب بحثاً آخر':'يمكنك إصدار حسبة تنازل من حاسبة التنازل'}</div>
+</div>}
+</div>}
+</div>
+}
+
 const allInputs=(selectedService?.inputs?.length?selectedService.inputs:SERVICE_INPUTS[selSvc])||[]
 if(allInputs.length===0)return<div style={{textAlign:'center',padding:40,color:'var(--tx5)',fontSize:12,background:'rgba(255,255,255,.02)',borderRadius:12,border:'1px solid rgba(255,255,255,.04)'}}>
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom:8}}><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -3631,9 +3729,19 @@ onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.0
 </div>}
 
 {/* Broker + Notes sub-step (only for kafala_transfer and visa services) */}
-{showBrokerNoteScreen&&<div style={{display:'flex',flexDirection:'column',gap:14,marginTop:6,...(brokerMode==='new'?{}:{flex:1,minHeight:0})}}>
-<div style={{display:'flex',flexDirection:'column',gap:10,...(brokerMode==='new'?{}:{flex:1,minHeight:0})}}>
-
+{showBrokerNoteScreen&&<div style={{display:'flex',flexDirection:'column',gap:14,marginTop:6,flex:1,minHeight:0}}>
+{/* ── Broker fieldset (collapsed by default — opens via the icon) ── */}
+<div style={{position:'relative',border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:brokerOpen?'18px 14px 14px':'14px 14px',marginTop:10,display:'flex',flexDirection:'column',gap:10}}>
+{/* Legend on the border */}
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 10px',display:'inline-flex',alignItems:'center',gap:7,fontFamily:F}}>
+<span style={{fontSize:12,fontWeight:800,color:C.bentoGold}}>الوسيط</span>
+<span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.4)'}}>(اختياري)</span>
+<button onClick={()=>{setBrokerOpen(o=>{const next=!o;if(!next){setSelBroker(null);setBrokerMode('existing');setBrokerQ('');setNewBroker({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''})}return next})}} title={brokerOpen?'إغلاق':'إضافة وسيط'} style={{width:22,height:22,borderRadius:6,border:'1px solid rgba(212,160,23,.45)',background:'rgba(212,160,23,.12)',color:C.bentoGold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,transition:'.15s'}}>
+{brokerOpen?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>}
+</button>
+</div>
+{!brokerOpen&&<div style={{fontSize:11,color:'var(--tx5)',fontFamily:F,textAlign:'center',padding:'2px 0'}}>اضغط على + لإضافة وسيط</div>}
+{brokerOpen&&<>
 {/* Search + new broker button — mirrors client UI */}
 {!selBroker&&brokerMode!=='new'&&<div style={{display:'flex',alignItems:'stretch',gap:8,flexShrink:0}}>
 <div style={{position:'relative',flex:1,minWidth:0}}>
@@ -3647,14 +3755,11 @@ onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.0
 </div>}
 
 {/* Existing broker list */}
-{brokerMode!=='new'&&<div style={{display:'flex',flexDirection:'column',gap:8,overflowY:'auto',scrollbarWidth:'none',minHeight:0}}>
+{brokerMode!=='new'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
 {(()=>{const filtered=selBroker?[selBroker]:(brokerQ?brokers.filter(b=>(b.name_ar||'').includes(brokerQ)||(b.phone||'').includes(brokerQ)||(b.id_number||'').includes(brokerQ)).slice(0,2):brokers.slice(0,2));
-if(filtered.length===0)return<div style={{padding:'24px 20px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
-<div style={{width:42,height:42,borderRadius:'50%',background:'rgba(212,160,23,.08)',border:'1px dashed rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-</div>
-<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:700,fontFamily:F}}>لا يوجد وسيط بهذا البحث</div>
-<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>يمكنك إضافة وسيط جديد من الأعلى</div>
+if(filtered.length===0)return<div style={{padding:'10px 14px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<span style={{fontSize:11,color:'var(--tx4)',fontWeight:600,fontFamily:F}}>لا يوجد وسيط بهذا البحث — أضف من الأعلى</span>
 </div>;
 return filtered.map(b=>{const sel=selBroker?.id===b.id;
 const country=b.nationality_id?lkCountries.find(co=>co.id===b.nationality_id):null
@@ -3741,10 +3846,11 @@ return <div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,pa
 </div>
 </div>;
 })()}
+</>}
 </div>
-{brokerMode!=='new'&&<div style={{flexShrink:0,display:'flex',flexDirection:'column',gap:6}}>
-<div style={{fontSize:11.5,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,display:'flex',alignItems:'center',gap:6}}>ملاحظة <span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.35)'}}>(اختيارية)</span></div>
-<textarea value={clientNote} onChange={e=>setClientNote(e.target.value)} placeholder="أدخل ملاحظة تظهر في الفاتورة..." rows={1} style={{width:'100%',padding:'8px 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:12.5,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',outline:'none',resize:'none',textAlign:'right',boxSizing:'border-box',display:'block',lineHeight:'1.4'}}/>
+{brokerMode!=='new'&&<div style={{display:'flex',flexDirection:'column',gap:6,...(brokerOpen?{flexShrink:0}:{flex:1,minHeight:0})}}>
+<div style={{fontSize:11.5,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,display:'flex',alignItems:'center',gap:6,flexShrink:0}}>ملاحظة <span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.35)'}}>(اختيارية)</span></div>
+<textarea value={clientNote} onChange={e=>setClientNote(e.target.value)} placeholder="أدخل ملاحظة تظهر في الفاتورة..." rows={brokerOpen?1:6} style={{width:'100%',padding:'10px 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:12.5,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',outline:'none',resize:'none',textAlign:'right',boxSizing:'border-box',display:'block',lineHeight:'1.5',...(brokerOpen?{}:{flex:1,minHeight:0,height:'auto'})}}/>
 </div>}
 </div>}
 

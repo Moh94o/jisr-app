@@ -1124,92 +1124,103 @@ loadAll();
 }catch(e){toast('خطأ: '+(e.message||''))}
 setSaving(false);
 };
-return <div onClick={()=>{setPop(null);setReviewUser(null)}} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.78)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:16,width:'min(680px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid var(--bd)'}}>
-<div style={{padding:'18px 22px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexShrink:0,borderBottom:'1px solid var(--bd)'}}>
-<div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+return <div onClick={()=>{setPop(null);setReviewUser(null)}} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:18,width:720,maxWidth:'95vw',height:'min(620px,95vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.08)'}}>
+{/* Header — Kafala Calculator style */}
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 20px 14px',flexShrink:0}}>
+<div style={{display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:36,height:36,borderRadius:8,background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.2)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold}}>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+</div>
 <div>
-<div style={{fontSize:16,fontWeight:800,color:'var(--tx)'}}>تعديل بيانات الموظف</div>
-<div style={{fontSize:11,color:'var(--tx4)',marginTop:3}}>إدارة الأدوار، الفرع، والحالة</div>
+<div style={{fontSize:20,fontWeight:800,color:'rgba(255,255,255,.95)',fontFamily:F}}>تعديل بيانات الموظف</div>
 </div>
 </div>
-<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',color:'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
 </button>
 </div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px',display:'flex',flexDirection:'column',gap:16}}>
-<div style={{padding:'14px 18px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:46,height:46,borderRadius:'50%',background:ac+'20',border:'1px solid '+ac+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:ac,flexShrink:0}}>{(ru.name_ar||'?')[0]}</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
-<span style={{fontSize:15,fontWeight:800,color:'var(--tx)'}}>{ru.name_ar}</span>
-<span style={{fontSize:10,padding:'3px 10px',borderRadius:12,background:'rgba(39,160,70,.15)',color:C.ok,fontWeight:700,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:C.ok}}/>نشط
-</span>
-</div>
-<div style={{fontSize:11,color:'var(--tx4)',direction:'ltr',textAlign:'right',marginBottom:4}}>{ru.name_en||''}{ru.last_login_at?' · آخر دخول: '+relD(ru.last_login_at):''}</div>
-<div style={{display:'flex',gap:12,flexWrap:'wrap',fontSize:10,color:'var(--tx4)'}}>
-{ru.email?<span style={{display:'inline-flex',alignItems:'center',gap:5}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg><span style={{direction:'ltr'}}>{ru.email}</span></span>:null}
-{br?<span style={{display:'inline-flex',alignItems:'center',gap:5}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>{br.name_ar}</span>:null}
-</div>
-</div>
-</div>
-<div style={{display:'flex',gap:0,borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',padding:4}}>
-{[['roles','الأدوار والصلاحيات','shield'],['personal','البيانات الشخصية','user'],['activity','سجل النشاط','clock']].map(([k,l,i])=>{const sel=editTab===k;return <div key={k} onClick={()=>setEditTab(k)} style={{flex:1,padding:'10px 12px',borderRadius:7,fontSize:11,fontWeight:sel?800:600,color:sel?'var(--tx)':'var(--tx4)',background:sel?'rgba(255,255,255,.06)':'transparent',cursor:'pointer',textAlign:'center',transition:'.15s',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+{/* Tabs — above progress bar, clickable for navigation */}
+<div style={{padding:'0 20px 8px',display:'flex',gap:8,flexShrink:0}}>
+{[['roles','الأدوار والصلاحيات','shield'],['personal','البيانات الشخصية','user'],['activity','سجل النشاط','clock']].map(([k,l,i])=>{const sel=editTab===k;return <div key={k} onClick={()=>setEditTab(k)} style={{flex:1,padding:'8px 10px',borderRadius:8,fontSize:12,fontWeight:sel?800:600,color:sel?C.gold:'var(--tx4)',background:sel?'rgba(201,168,76,.08)':'transparent',border:'1px solid '+(sel?'rgba(201,168,76,.25)':'transparent'),cursor:'pointer',textAlign:'center',transition:'.15s',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+{i==='shield'?<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>:i==='user'?<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0113 0"/></svg>:<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
 <span>{l}</span>
-{i==='shield'?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>:i==='user'?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0113 0"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
 </div>})}
 </div>
-{editTab==='roles'?<div style={{display:'flex',flexDirection:'column',gap:16}}>
-<div>
-<div style={{fontSize:13,fontWeight:700,color:'var(--tx)',marginBottom:4}}>الأدوار الحالية</div>
-<div style={{fontSize:10,color:'var(--tx4)',marginBottom:10}}>يمكنك إضافة أو إزالة أدوار في أي وقت. التغييرات تصبح فعّالة فوراً.</div>
-<div style={{padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',flexWrap:'wrap',gap:6,minHeight:48,alignItems:'center'}}>
-{selRoles.length>0?selRoles.map(rid=>{const r=roles.find(x=>x.id===rid);if(!r)return null;const rc=roleClrs[r.name_ar]||r.color||C.gold;return <span key={rid} style={{fontSize:11,padding:'5px 10px',borderRadius:12,background:rc+'15',border:'1px solid '+rc+'30',color:rc,fontWeight:700,display:'inline-flex',alignItems:'center',gap:6}}>{r.name_ar}<span onClick={()=>setSelRoles(sr=>sr.filter(id=>id!==rid))} style={{cursor:'pointer',display:'flex'}}>✕</span></span>}):<span style={{fontSize:10,color:'var(--tx5)'}}>لا توجد أدوار</span>}
+{/* Progress bar — below tabs */}
+<div style={{padding:'0 22px 10px',flexShrink:0,display:'flex',gap:6}}>
+{['roles','personal','activity'].map((k,i)=>{const tabIdx={roles:0,personal:1,activity:2}[editTab];return <div key={k} onClick={()=>setEditTab(k)} style={{flex:1,height:3,borderRadius:2,background:i<=tabIdx?C.gold:'rgba(255,255,255,.08)',transition:'.25s',cursor:'pointer'}}/>})}
 </div>
-<button onClick={()=>{const next=roles.find(r=>!selRoles.includes(r.id));if(next)setSelRoles(sr=>[...sr,next.id])}} style={{marginTop:10,width:'100%',padding:'14px',borderRadius:10,border:'1px dashed rgba(255,255,255,.12)',background:'transparent',color:'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>+ إضافة دور</button>
+<div style={{flex:1,overflow:'hidden',padding:'2px 16px 10px',display:'flex',flexDirection:'column'}}>
+{/* Gold-bordered card matching Kafala design */}
+<div style={{flex:1,borderRadius:12,border:'1.5px solid rgba(201,168,76,.35)',padding:'18px 14px 14px',position:'relative',marginTop:10,display:'flex',flexDirection:'column',minHeight:0}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
+{editTab==='roles'?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>:editTab==='personal'?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0113 0"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+<span>{editTab==='roles'?'الأدوار والصلاحيات':editTab==='personal'?'البيانات الشخصية':'سجل النشاط'}</span>
+</div>
+{/* Compact user strip */}
+<div style={{display:'flex',alignItems:'center',gap:10,paddingBottom:10,marginBottom:10,borderBottom:'1px dashed rgba(255,255,255,.06)'}}>
+<div style={{width:34,height:34,borderRadius:'50%',background:ac+'20',border:'1px solid '+ac+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:800,color:ac,flexShrink:0}}>{(ru.name_ar||'?')[0]}</div>
+<div style={{flex:1,minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
+<span style={{fontSize:13,fontWeight:800,color:'var(--tx)'}}>{ru.name_ar}</span>
+<span style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:'rgba(39,160,70,.15)',color:C.ok,fontWeight:700,display:'inline-flex',alignItems:'center',gap:4}}><span style={{width:4,height:4,borderRadius:'50%',background:C.ok}}/>نشط</span>
+</div>
+<div style={{fontSize:10,color:'var(--tx5)',direction:'ltr',textAlign:'right',marginTop:1}}>{ru.email||ru.name_en||''}{br?' · '+br.name_ar:''}</div>
+</div>
+</div>
+{editTab==='roles'?<div style={{flex:1,display:'flex',flexDirection:'column',gap:10,minHeight:0,overflowY:'auto',scrollbarWidth:'none'}}>
+<style>{`.ap-roles-scroll::-webkit-scrollbar{width:0;display:none}`}</style>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div>
+<div style={{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,textAlign:'start'}}>الأدوار</div>
+<div style={{padding:'10px 12px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.08)',display:'flex',flexWrap:'wrap',gap:5,minHeight:42,alignItems:'center'}}>
+{selRoles.length>0?selRoles.map(rid=>{const r=roles.find(x=>x.id===rid);if(!r)return null;const rc=roleClrs[r.name_ar]||r.color||C.gold;return <span key={rid} style={{fontSize:10,padding:'3px 8px',borderRadius:10,background:rc+'15',border:'1px solid '+rc+'30',color:rc,fontWeight:700,display:'inline-flex',alignItems:'center',gap:5}}>{r.name_ar}<span onClick={()=>setSelRoles(sr=>sr.filter(id=>id!==rid))} style={{cursor:'pointer',display:'flex'}}>✕</span></span>}):<span style={{fontSize:10,color:'var(--tx5)'}}>لا توجد أدوار</span>}
+</div>
+<button onClick={()=>{const next=roles.find(r=>!selRoles.includes(r.id));if(next)setSelRoles(sr=>[...sr,next.id])}} style={{marginTop:6,width:'100%',padding:'8px',borderRadius:8,border:'1px dashed rgba(255,255,255,.12)',background:'transparent',color:'var(--tx4)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:F}}>+ إضافة دور</button>
 </div>
 <div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>الفرع</div>
+<div style={{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,textAlign:'start'}}>الفرع</div>
 <CustomSelect value={editBranch} onChange={v=>setEditBranch(v)} options={branches.map(b=>({v:b.id,l:b.name_ar}))}/>
 </div>
+</div>
 <div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:10}}>معلومات الحساب</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-{[['تاريخ الإضافة',ru.created_at?String(ru.created_at).slice(0,10):'—'],['تاريخ التفعيل',ru.activated_at?String(ru.activated_at).slice(0,10):'—'],['آخر دخول',ru.last_login_at?String(ru.last_login_at).slice(0,10):'—'],['فُعل بواسطة',user?.name_ar||'—']].map(([l,v])=><div key={l} style={{padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)'}}>
-<div style={{fontSize:9,color:'var(--tx5)',marginBottom:4}}>{l}</div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{v}</div>
+<div style={{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,textAlign:'start'}}>معلومات الحساب</div>
+<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
+{[['الإضافة',ru.created_at?String(ru.created_at).slice(0,10):'—'],['التفعيل',ru.activated_at?String(ru.activated_at).slice(0,10):'—'],['آخر دخول',ru.last_login_at?String(ru.last_login_at).slice(0,10):'—'],['فُعل بواسطة',user?.name_ar||'—']].map(([l,v])=><div key={l} style={{padding:'8px 10px',borderRadius:8,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.08)'}}>
+<div style={{fontSize:9,color:'var(--tx5)',marginBottom:3}}>{l}</div>
+<div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{v}</div>
 </div>)}
 </div>
 </div>
+<div style={{padding:'10px 12px',borderRadius:9,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.03)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginTop:'auto'}}>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
 <div>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-<span style={{fontSize:12,fontWeight:700,color:C.red}}>منطقة الخطر</span>
-</div>
-<div style={{padding:'14px 16px',borderRadius:10,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.03)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:C.red,marginBottom:3}}>تعطيل الحساب</div>
-<div style={{fontSize:10,color:'var(--tx4)'}}>سيتم منع الموظف من تسجيل الدخول</div>
-</div>
-<button onClick={()=>{setDeactReason('');setDeactNotes('');setDeactConfirm('');setPop('deactivate_user')}} style={{height:34,padding:'0 14px',borderRadius:8,border:'none',background:C.red,color:'#fff',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>تعطيل الحساب</button>
+<div style={{fontSize:11,fontWeight:700,color:C.red}}>منطقة الخطر — تعطيل الحساب</div>
+<div style={{fontSize:9,color:'var(--tx5)'}}>سيتم منع الموظف من تسجيل الدخول</div>
 </div>
 </div>
-</div>:editTab==='personal'?<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<button onClick={()=>{setDeactReason('');setDeactNotes('');setDeactConfirm('');setPop('deactivate_user')}} style={{height:30,padding:'0 12px',borderRadius:7,border:'none',background:C.red,color:'#fff',fontFamily:F,fontSize:10.5,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>تعطيل</button>
+</div>
+</div>:editTab==='personal'?<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,alignContent:'start'}}>
 {[['name_ar','الاسم بالعربي'],['name_en','الاسم بالإنجليزي'],['email','البريد'],['phone','الجوال'],['id_number','رقم الهوية'],['nationality','الجنسية']].map(([k,l])=><div key={k}>
-<div style={{fontSize:10,color:'var(--tx5)',marginBottom:6}}>{l}</div>
-<div style={{padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',fontSize:12,color:'var(--tx3)'}}>{ru[k]||'—'}</div>
+<div style={{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,textAlign:'start'}}>{l}</div>
+<div style={{padding:'10px 12px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.08)',fontSize:12,fontWeight:600,color:'var(--tx2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',direction:k==='email'||k==='phone'||k==='id_number'||k==='name_en'?'ltr':'inherit',textAlign:k==='email'||k==='phone'||k==='id_number'||k==='name_en'?'left':'inherit'}}>{ru[k]||'—'}</div>
 </div>)}
-</div>:<div style={{padding:40,textAlign:'center',color:'var(--tx5)',fontSize:12}}>سجل النشاط غير متاح حالياً</div>}
+</div>:<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx5)',fontSize:12}}>سجل النشاط غير متاح حالياً</div>}
 </div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,gap:10}}>
+</div>
+<style>{`.ap-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#c9a84c;font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.ap-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(201,168,76,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#c9a84c}.ap-nav-btn:hover .nav-ico{background:#c9a84c;color:#000}.ap-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
+<div style={{padding:'14px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,gap:10}}>
 <div style={{fontSize:10,color:'var(--tx5)'}}>{ru.updated_at?'آخر تعديل: قبل '+updDays+' أيام':''}</div>
 <div style={{display:'flex',gap:10,alignItems:'center'}}>
-<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'none',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>إلغاء</button>
-<button onClick={submit} disabled={saving} style={{height:42,padding:'0 20px',background:C.gold,color:'#000',border:'none',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:800,cursor:saving?'not-allowed':'pointer',display:'flex',alignItems:'center',gap:8,opacity:saving?.6:1}}>
-{saving?'...':'حفظ التعديلات'}
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{height:40,padding:'0 14px',background:'transparent',color:'var(--tx4)',border:'none',fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer'}}>إلغاء</button>
+<button onClick={submit} disabled={saving} className="ap-nav-btn">
+<span>{saving?'...':'حفظ'}</span>
+<span className="nav-ico">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</span>
 </button>
 </div>
 </div>

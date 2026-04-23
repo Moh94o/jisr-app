@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { User, FileText, Calculator, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer } from 'lucide-react'
+import ReactDOM from 'react-dom'
+import { User, FileText, Calculator, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../ServiceAdminPage.jsx'
 
@@ -77,9 +78,47 @@ const NATIONALITIES = ['يمني', 'مصري', 'باكستاني', 'هندي', '
 const OCCUPATIONS = ['عامل بناء', 'نجار', 'حداد', 'كهربائي', 'سباك', 'دهان', 'مشغل معدات', 'سائق', 'مقاول', 'فني تكييف', 'حارس أمن', 'عامل نظافة', 'بائع', 'موظف إداري', 'أخرى']
 
 // ═══ Shared UI Components — matches register modal style ═══
-const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', textAlign: 'center', transition: '.2s' }
+const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', textAlign: 'center', transition: '.2s' }
+const sFRO = { ...sF, border: '1px solid rgba(255,255,255,.05)', cursor: 'not-allowed' }
 
 const Lbl = ({ children, req }) => <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red }}> *</span>}</div>
+
+const CAPTCHA_TTL = 30
+const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
+  const [remaining, setRemaining] = useState(CAPTCHA_TTL)
+  const firedRef = useRef(false)
+  useEffect(() => {
+    firedRef.current = false
+    setRemaining(CAPTCHA_TTL)
+    const start = Date.now()
+    const iv = setInterval(() => {
+      const rem = Math.max(0, CAPTCHA_TTL - Math.floor((Date.now() - start) / 1000))
+      setRemaining(rem)
+      if (rem === 0 && !firedRef.current) {
+        firedRef.current = true
+        clearInterval(iv)
+        onExpire && onExpire()
+      }
+    }, 250)
+    return () => clearInterval(iv)
+  }, [captchaKey])
+  const urgent = remaining <= 10
+  const displayColor = urgent ? C.red : color
+  const size = 38
+  const stroke = 3
+  const r = (size - stroke) / 2
+  const circ = 2 * Math.PI * r
+  const offset = circ * (1 - remaining / CAPTCHA_TTL)
+  return (
+    <div style={{ position: 'relative', width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth={stroke} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={displayColor} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset .25s linear' }} />
+      </svg>
+      <span style={{ position: 'absolute', fontSize: 13, fontWeight: 800, color: displayColor, fontFamily: F, lineHeight: 1 }}>{remaining}</span>
+    </div>
+  )
+}
 
 const Inp = ({ value, onChange, placeholder, type, dir, maxLength }) => (
   <input value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} type={type || 'text'} maxLength={maxLength}
@@ -90,7 +129,7 @@ const DateInp = ({ value, onChange }) => {
   const [open, setOpen] = useState(false)
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button type="button" onClick={() => setOpen(o=>!o)} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, direction: 'ltr', color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? C.gold+'66' : 'rgba(255,255,255,.05)'}` }}>
+      <button type="button" onClick={() => setOpen(o=>!o)} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, direction: 'ltr', color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${value || open ? C.gold+'b3' : C.gold+'40'}` }}>
         <span>{value || 'yyyy-mm-dd'}</span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       </button>
@@ -157,8 +196,8 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
         })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-        <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 700, padding: '4px 8px' }}>{lang === 'en' ? 'Clear' : 'مسح'}</button>
         <button type="button" onClick={() => { const t = new Date(); onPick(fmtDate(t.getFullYear(), t.getMonth(), t.getDate())); onClose() }} style={{ fontSize: 11, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 800, padding: '4px 8px' }}>{lang === 'en' ? 'Today' : 'اليوم'}</button>
+        <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 700, padding: '4px 8px' }}>{lang === 'en' ? 'Clear' : 'مسح'}</button>
       </div>
     </div>
   )
@@ -177,6 +216,18 @@ const DateField = ({ value, onChange, label, req, lang }) => {
     if (v.length > 4 && v[4] !== '-') v = v.slice(0,4) + '-' + v.slice(4)
     if (v.length > 7 && v[7] !== '-') v = v.slice(0,7) + '-' + v.slice(7)
     v = v.slice(0, 10)
+    // Clamp month to 01-12 once both digits are entered
+    if (v.length >= 7) {
+      const m = parseInt(v.slice(5, 7), 10)
+      if (m > 12) v = v.slice(0, 5) + '12' + v.slice(7)
+      else if (m === 0) v = v.slice(0, 5) + '01' + v.slice(7)
+    }
+    // Clamp day to 01-31 once both digits are entered
+    if (v.length >= 10) {
+      const d = parseInt(v.slice(8, 10), 10)
+      if (d > 31) v = v.slice(0, 8) + '31'
+      else if (d === 0) v = v.slice(0, 8) + '01'
+    }
     setText(v)
     if (/^\d{4}-\d{2}-\d{2}$/.test(v) || v === '') onChange(v)
   }
@@ -193,7 +244,7 @@ const DateField = ({ value, onChange, label, req, lang }) => {
       <div ref={wrapRef} style={{ position: 'relative', width: '100%' }}>
         <input type="text" value={text} onChange={e => handleType(e.target.value)} placeholder="yyyy-mm-dd"
           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-          style={{ ...sF, direction: 'ltr', textAlign: 'center', padding: '0 40px 0 14px', letterSpacing: '.5px', border: `1px solid ${focused || pickerOpen ? C.gold+'66' : 'rgba(255,255,255,.05)'}`, cursor: 'text' }} />
+          style={{ ...sF, direction: 'ltr', textAlign: 'center', padding: '0 40px 0 14px', letterSpacing: '.5px', cursor: 'text' }} />
         <button type="button" onClick={openPicker} aria-label="calendar"
           style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 30, height: 30, border: 'none', background: pickerOpen ? 'rgba(212,160,23,.12)' : 'transparent', cursor: 'pointer', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: 7, transition: '.15s' }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -207,38 +258,99 @@ const DateField = ({ value, onChange, label, req, lang }) => {
   )
 }
 
+const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
+  const isAr = lang !== 'en'
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 380 })
+  const btnRef = useRef(null)
+  const popRef = useRef(null)
+  const filtered = q ? items.filter(o => (o.name_ar || '').includes(q) || (o.name_en || '').toLowerCase().includes(q.toLowerCase())) : items
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - r.bottom - 12
+      // Show ~2 items at a time (search bar ~50px + ~2 rows of ~62px each ≈ 180px); rest scrolls.
+      const maxH = Math.max(150, Math.min(190, spaceBelow))
+      setPos({ top: r.bottom + 6, left: r.left, width: r.width, maxH })
+    }
+    setQ('')
+    setOpen(o => !o)
+  }
+  useEffect(() => {
+    if (!open) return
+    const onDoc = e => { if (popRef.current && !popRef.current.contains(e.target) && btnRef.current && !btnRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: value ? 700 : 500 }}>{value || placeholder || '...'}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && ReactDOM.createPortal(
+        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#0f0f0f', border: '1px solid rgba(212,160,23,.25)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
+          <div style={{ padding: 10, borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0, position: 'relative' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', [isAr ? 'right' : 'left']: 22, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder={isAr ? 'ابحث بالاسم...' : 'Search by name...'} autoFocus style={{ width: '100%', height: 34, padding: '0 34px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 8, background: 'rgba(0,0,0,.25)', fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+          </div>
+          <style>{`.occ-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}.occ-sel-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
+          <div className="occ-sel-scroll" style={{ flex: 1, overflowY: 'auto' }}>
+            {filtered.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 12, color: 'var(--tx5)' }}>{isAr ? 'لا توجد نتائج' : 'No results'}</div>}
+            {filtered.slice(0, 200).map(o => {
+              const selLabel = isAr && o.name_ar ? o.name_ar : (o.name_en || o.name_ar)
+              const isSel = value === selLabel
+              return (
+                <div key={o.id} onClick={() => { onChange(selLabel, o); setOpen(false); setQ('') }}
+                  style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.03)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
+                  onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: isSel ? 800 : 700, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: isAr ? 'right' : 'left', width: '100%' }}>{o.name_ar}</span>
+                    {o.name_en && <span style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', textAlign: isAr ? 'right' : 'left', width: '100%', unicodeBidi: 'plaintext' }}>{o.name_en}</span>}
+                  </div>
+                  {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+              )
+            })}
+            {filtered.length > 200 && <div style={{ padding: 10, textAlign: 'center', fontSize: 10, color: 'var(--tx5)' }}>{isAr ? `… و ${filtered.length - 200} نتيجة أخرى. ضيّق البحث.` : `… and ${filtered.length - 200} more. Narrow your search.`}</div>}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
 const Sel = ({ value, onChange, options, placeholder }) => {
   const [open, setOpen] = useState(false)
-  const [flipUp, setFlipUp] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
   const btnRef = useRef(null)
   const [q, setQ] = useState('')
   const filtered = q ? options.filter(o => String(o).toLowerCase().includes(q.toLowerCase())) : options
   const toggle = () => {
-    setQ('')
     if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect()
-      let sc = btnRef.current.parentElement
-      while (sc && sc !== document.body) {
-        const s = getComputedStyle(sc)
-        if (/(auto|scroll|overlay)/.test(s.overflowY) || /(auto|scroll|overlay)/.test(s.overflow)) break
-        sc = sc.parentElement
-      }
-      const scRect = sc && sc !== document.body ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight }
-      const spaceBelow = scRect.bottom - rect.bottom
-      const spaceAbove = rect.top - scRect.top
-      setFlipUp(spaceBelow < 220 && spaceAbove > spaceBelow)
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: r.width })
     }
+    setQ('')
     setOpen(o => !o)
   }
+  useEffect(() => {
+    if (!open) return
+    const onDoc = e => { if (btnRef.current && !btnRef.current.contains(e.target)) setOpen(false) }
+    setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? C.gold+'66' : 'rgba(255,255,255,.05)'}`, padding: '0 32px 0 32px', position: 'relative' }}>
+      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px 0 32px', position: 'relative' }}>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value || placeholder || '...'}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
-      {open && (<>
-        <div onClick={() => { setOpen(false); setQ('') }} style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
-        <div style={{ position: 'absolute', ...(flipUp ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }), right: 0, left: 0, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 9, maxHeight: 280, display: 'flex', flexDirection: 'column', zIndex: 1000, boxShadow: '0 12px 40px rgba(0,0,0,.65)', overflow: 'hidden' }}>
+      {open && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 9, maxHeight: 220, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 12px 40px rgba(0,0,0,.65)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
           {options.length > 6 && (
             <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0, position: 'relative' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', right: 18, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -254,25 +366,27 @@ const Sel = ({ value, onChange, options, placeholder }) => {
             ))}
             {filtered.length === 0 && <div style={{ padding: 14, textAlign: 'center', fontSize: 11, color: 'var(--tx5)' }}>—</div>}
           </div>
-        </div>
-      </>)}
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
 
-const ToggleGroup = ({ options, value, onChange }) => (
-  <div style={{ display: 'flex', gap: 6, height: 42 }}>
+const ToggleGroup = ({ options, value, onChange, disabled, height = 36 }) => (
+  <div style={{ display: 'flex', gap: 6, height }}>
     {options.map(o => {
       const sel = value === o.v
       const clr = o.c || C.gold
       return (
-        <button key={String(o.v)} type="button" onClick={() => onChange(o.v)} style={{
+        <button key={String(o.v)} type="button" disabled={disabled} onClick={() => !disabled && onChange(o.v)} style={{
           flex: 1, borderRadius: 9, border: `1.5px solid ${sel ? clr : 'rgba(255,255,255,.08)'}`,
           background: sel ? clr + '15' : 'rgba(0,0,0,.18)',
           color: sel ? clr : 'var(--tx4)',
           fontFamily: F, fontSize: 12, fontWeight: sel ? 700 : 600,
-          cursor: 'pointer', transition: '.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-          boxShadow: sel ? 'none' : 'inset 0 1px 2px rgba(0,0,0,.2)'
+          cursor: disabled ? 'not-allowed' : 'pointer', transition: '.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+          boxShadow: sel ? 'none' : 'inset 0 1px 2px rgba(0,0,0,.2)',
+          opacity: disabled && !sel ? 0.4 : 1
         }}>
           <span>{o.l}</span>
           {o.sub && <span style={{ fontSize: 9, opacity: .6 }}>{o.sub}</span>}
@@ -282,11 +396,48 @@ const ToggleGroup = ({ options, value, onChange }) => (
   </div>
 )
 
-const YesNo = ({ value, onChange, lang }) => (
-  <ToggleGroup value={value} onChange={onChange} options={[
+const YesNo = ({ value, onChange, lang, disabled, height }) => (
+  <ToggleGroup value={value} onChange={onChange} disabled={disabled} height={height} options={[
     { v: true, l: lang === 'en' ? 'Yes' : 'نعم', c: C.ok },
     { v: false, l: lang === 'en' ? 'No' : 'لا', c: C.blue }
   ]} />
+)
+
+const KCard = ({ Icon, label, hint, children, span }) => (
+  <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '16px 12px 6px', position: 'relative', marginTop: 9, transition: '.2s' }}>
+    <div style={{ position: 'absolute', top: -9, right: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      {Icon && <Icon size={12} strokeWidth={2.2} />}
+      <span>{label}</span>
+      {hint && <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.4)', marginInlineStart: 4 }}>· {hint}</span>}
+    </div>
+    <div>{children}</div>
+  </div>
+)
+
+const RenewalPill = ({ selected, onClick, children, flex }) => (
+  <button type="button" onClick={onClick}
+    style={{
+      flex: flex || 1,
+      height: 36,
+      borderRadius: 10,
+      border: `1.5px solid ${selected ? C.gold : 'rgba(255,255,255,.08)'}`,
+      background: selected ? 'linear-gradient(180deg, rgba(212,160,23,.22), rgba(212,160,23,.08))' : 'rgba(0,0,0,.22)',
+      color: selected ? C.gold : 'rgba(255,255,255,.55)',
+      fontFamily: F,
+      fontSize: 13,
+      fontWeight: 800,
+      cursor: 'pointer',
+      transition: '.18s',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      boxShadow: selected ? 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 8px rgba(212,160,23,.12)' : 'inset 0 1px 2px rgba(0,0,0,.25)'
+    }}
+    onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = 'rgba(255,255,255,.8)' } }}
+    onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.color = 'rgba(255,255,255,.55)' } }}>
+    {children}
+  </button>
 )
 
 const nm = v => Number(v || 0).toLocaleString('en-US')
@@ -311,7 +462,7 @@ const QUOTE_TEXTS = {
 }
 
 // ═══ Main Component ═══
-export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
+export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoToTransferCalc }) {
   const T = (a, e) => (lang || 'ar') !== 'en' ? a : e
 
   // Screen: 'form' (home screen removed — go directly to new worker form)
@@ -323,6 +474,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
   const [tried, setTried] = useState([false, false, false, false])
   const [calendarType, setCalendarType] = useState('gregorian') // 'gregorian' | 'hijri'
   const [nationalities, setNationalities] = useState(NATIONALITIES)
+  const [occupations, setOccupations] = useState([])
+  useEffect(() => {
+    const sbx = getSupabase()
+    if (!sbx) return
+    sbx.from('occupations').select('id,name_ar,name_en,code').is('deleted_at', null).eq('is_active', true).order('sort_order', { nullsFirst: false }).order('name_ar').limit(5000).then(({ data }) => {
+      if (data) setOccupations(data)
+    })
+  }, [])
 
   // ═══ CHI Insurance Check state ═══
   const [insCheck, setInsCheck] = useState({
@@ -332,7 +491,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
     captchaInput: '',
     result: null,
     error: null,
+    attempts: 0,
   })
+  const INS_MAX_ATTEMPTS = 3
 
   // ═══ HRSD (Ministry of Labor) Worker Inquiry state ═══
   const [hrsdCheck, setHrsdCheck] = useState({
@@ -355,6 +516,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
   const [muqeemFetchStatus, setMuqeemFetchStatus] = useState('idle') // idle | loading | ok | error | unavailable
   // Language selector for the printable quote — opens after the user clicks "إصدار التسعيرة".
   const [printLangModal, setPrintLangModal] = useState(false)
+  // Success modal shown after "إصدار" — carries the saved quote info + copy/navigate actions.
+  const [issuedQuote, setIssuedQuote] = useState(null) // { quoteNo, workerName, iqNo, total }
 
   useEffect(() => {
     if (muqeemSession) localStorage.setItem('jisr.muqeem.session', JSON.stringify(muqeemSession))
@@ -406,14 +569,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
   }, [])
 
   // Form state — pricing defaults pulled from admin config (إدارة الخدمات > نقل كفالة)
-  const [f, setF] = useState(() => {
+  const makeInitialForm = () => {
     const cfg = getKafalaPricingConfig()
     const midBracket = (cfg.medicalBrackets || [])[Math.floor((cfg.medicalBrackets || []).length / 2)] || { rate: 800 }
     return {
       name: '', iqama: '', phone: '', iqamaExpiry: '', dob: '', nationality: 'بنغلاديشي', gender: 'ذكر', occupation: '', legalStatus: 'صالح',
-      workerType: 'facility', currentEmployer: '', currentEmployerId: '', newOccupation: '', wpExpiry: '',
+      workerType: 'facility', currentEmployer: '', currentEmployerId: '', newOccupation: '', newOccupationId: null, occupationId: null, wpExpiry: '',
       hasNoticePeriod: false, employerConsent: false, changeProfession: false, renewIqama: true, transferOnly: false,
-      transferCount: '1', renewalMonths: '12', iqamaFineCount: '1',
+      transferCount: '0', renewalMonths: '12', iqamaFineCount: '1',
       transferFeeInput: String(cfg.transferFee1),
       iqamaRenewalFee: String(Math.round(cfg.iqamaPerMonth * 12)),
       workPermitRate: String(cfg.workPermit12M || 100),
@@ -421,9 +584,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
       officeFee: String(cfg.officeFee),
       profChangeInput: String(cfg.profChange),
       extras: [],
-      insuranceWaived: false, insuranceExpiry: ''
+      insuranceWaived: false, insuranceExpiry: '', medicalInsurance: false
     }
-  })
+  }
+  const [f, setF] = useState(makeInitialForm)
 
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
 
@@ -463,12 +627,39 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
     return Math.max(0, Math.ceil((now - exp) / (30 * 86400000)))
   }, [f.iqamaExpiry])
 
+  // Expected iqama duration in CALENDAR DAYS — mirrors the tab-3 display ("المدة المتوقعة في الإقامة")
+  // and drives the hidden office discount floor. Picks procDays from المدة المتوقعة cases.
+  const expectedIqamaDays = useMemo(() => {
+    if (!f.iqamaExpiry) return 0
+    const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return 0
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    exp.setHours(0, 0, 0, 0)
+    const threshold = parseInt(cfg.thresholdCase2) || 30
+    const daysSinceExpiry = Math.floor((today - exp) / 86400000)
+    // procDays = which "expected duration" case applies
+    const procDays = !f.renewIqama
+      ? (parseInt(cfg.procDaysCase1) || 7)
+      : daysSinceExpiry >= threshold ? (parseInt(cfg.procDaysCase2) || 7) : (parseInt(cfg.procDaysCase3) || 7)
+    const renewalMos = f.renewIqama ? (parseInt(f.renewalMonths) || 0) : 0
+    // expected expiry — ignores old expiry when renewing a long-expired iqama (case 2)
+    let expectedExpiry
+    if (!f.renewIqama) expectedExpiry = exp
+    else if (daysSinceExpiry >= threshold) {
+      expectedExpiry = new Date(today); expectedExpiry.setDate(expectedExpiry.getDate() + (parseInt(cfg.procDaysCase2) || 7))
+      expectedExpiry.setMonth(expectedExpiry.getMonth() + renewalMos)
+    } else {
+      expectedExpiry = new Date(exp); expectedExpiry.setMonth(expectedExpiry.getMonth() + renewalMos)
+    }
+    const base = new Date(today); base.setDate(base.getDate() + procDays)
+    return Math.max(0, Math.round((expectedExpiry - base) / 86400000))
+  }, [f.iqamaExpiry, f.renewIqama, f.renewalMonths, cfg])
+
   // ═══ Auto-sync effects ═══
   // Medical fee ← 0 if insurance is valid >2 months 5 days ahead, else age bracket from DOB
   useEffect(() => {
-    if (f.insuranceWaived) { setF(p => ({ ...p, medicalFee: '0' })); return }
+    if (f.insuranceWaived && !f.medicalInsurance) { setF(p => ({ ...p, medicalFee: '0' })); return }
     if (medicalBracket) setF(p => ({ ...p, medicalFee: String(medicalBracket.rate) }))
-  }, [medicalBracket, f.insuranceWaived])
+  }, [medicalBracket, f.insuranceWaived, f.medicalInsurance])
 
   // Iqama renewal fee:
   //   - Days left = iqamaExpiry - today
@@ -488,24 +679,58 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
     const daysLeft = Math.round((exp - today) / 86400000)
     return daysLeft <= (parseFloat(cfg.iqamaGraceDays) || 7)
   })()
+  // Billed months = total calendar span from iqama expiry → (today + renewalMonths).
+  // Any residual day (even 1) rounds UP to the next full month. When iqama is still valid, bill just renewalMonths.
   useEffect(() => {
-    const totalMonths = monthsPastExpiry + (parseInt(f.renewalMonths) || 0)
-    const renewalBase = totalMonths * (parseFloat(cfg.iqamaPerMonth) || 0)
+    const renewalMos = parseInt(f.renewalMonths) || 0
+    let billedMonths = renewalMos
+    const exp = f.iqamaExpiry ? new Date(f.iqamaExpiry) : null
+    if (exp && !isNaN(exp)) {
+      const today = new Date(); today.setHours(0, 0, 0, 0)
+      exp.setHours(0, 0, 0, 0)
+      if (exp < today) {
+        const end = new Date(today); end.setMonth(end.getMonth() + renewalMos)
+        let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
+        let d = end.getDate() - exp.getDate()
+        if (d < 0) {
+          m -= 1
+          d += new Date(end.getFullYear(), end.getMonth(), 0).getDate()
+        }
+        billedMonths = d > 0 ? m + 1 : m
+      }
+    }
+    const renewalBase = billedMonths * (parseFloat(cfg.iqamaPerMonth) || 0)
     const fine = iqamaInGracePeriod
       ? (f.renewalAdd500 ? (parseFloat(cfg.iqamaFine2) || 0) : (parseFloat(cfg.iqamaFine1) || 0))
       : 0
     setF(p => ({ ...p, iqamaRenewalFee: String(Math.round(renewalBase + fine)) }))
-  }, [monthsPastExpiry, f.renewalMonths, iqamaInGracePeriod, f.renewalAdd500, cfg])
+  }, [f.iqamaExpiry, f.renewalMonths, iqamaInGracePeriod, f.renewalAdd500, cfg])
 
-  // Work permit fee ← quarters before cutoff × per-3-months + days after cutoff × daily
-  // Work permit fee — driven by selected renewal months (3/6/9/12) instead of a manual date.
+  // Work permit fee — driven by selected renewal months (3/6/9/12).
   //   - Bracket pricing (workPermit3M/6M/9M/12M) for periods entirely before cutoff date.
   //   - Daily rate (workPermitDailyAfter) for any portion after cutoff date.
-  //   - When iqama expired, period start shifts forward by workPermitExpiredOffsetDays.
+  //   - Start date rules:
+  //       · Iqama still valid        → start = iqama expiry (no procDays)
+  //       · Iqama expired < threshold → start = today + workPermitProcDays
+  //       · Iqama expired ≥ threshold → start = today + workPermitExpiredProcDays
   useEffect(() => {
     const months = parseInt(f.renewalMonths) || 12
-    const offsetDays = (muqeemData?.iqamaExpired || iqamaInGracePeriod) ? (parseFloat(cfg.workPermitExpiredOffsetDays) || 57) : 0
-    const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() + offsetDays)
+    const defaultProc = parseFloat(cfg.workPermitProcDays) || 7
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const exp = f.iqamaExpiry ? new Date(f.iqamaExpiry) : null
+    if (exp && !isNaN(exp)) exp.setHours(0, 0, 0, 0)
+    const start = (() => {
+      if (exp && !isNaN(exp) && exp > today) {
+        return new Date(exp)
+      }
+      const daysSinceExpiry = exp && !isNaN(exp) ? Math.floor((today - exp) / 86400000) : 0
+      const thr = parseFloat(cfg.workPermitExpiredThreshold) || 30
+      const procDays = daysSinceExpiry >= thr
+        ? (parseFloat(cfg.workPermitExpiredProcDays) || defaultProc)
+        : defaultProc
+      const s = new Date(today); s.setDate(s.getDate() + procDays)
+      return s
+    })()
     const end = new Date(start); end.setMonth(end.getMonth() + months)
     const cutoff = new Date(cfg.workPermitCutoffDate)
     const bracketKey = `workPermit${months}M`
@@ -518,11 +743,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
     } else if (start >= cutoff) {
       total = Math.ceil((end - start) / 86400000) * dailyRate
     } else {
-      // Mixed: bracket fee for the portion before cutoff + daily for portion after
       total = bracketFee + Math.ceil((end - cutoff) / 86400000) * dailyRate
     }
     setF(p => ({ ...p, workPermitRate: String(Math.round(total)) }))
-  }, [f.renewalMonths, muqeemData?.iqamaExpired, iqamaInGracePeriod, cfg])
+  }, [f.renewalMonths, f.iqamaExpiry, cfg])
 
   // Auto-set transfer fee from Muqeem sponsor changes:
   //   0 transfers  → cfg.transferFee1 (المرة الأولى)
@@ -532,25 +756,51 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
     // Look up the latest Muqeem result if available (state set after fetch)
     return typeof muqeemData?.sponsorChanges === 'number' ? muqeemData.sponsorChanges : null
   })()
+  // Bump rule: when the worker's CURRENT occupation is in cfg.transferBumpOccupations (e.g. domestic workers),
+  // treat transfer count as +1. The new occupation is not considered — the bump is based on the existing contract only.
+  const transferBumpIds = Array.isArray(cfg.transferBumpOccupations) ? cfg.transferBumpOccupations : []
+  const occupationBumps = transferBumpIds.length > 0 && transferBumpIds.includes(f.occupationId)
+
   useEffect(() => {
     if (muqeemSponsorChanges === null) return
-    const fee = muqeemSponsorChanges === 0 ? cfg.transferFee1
-              : muqeemSponsorChanges === 1 ? cfg.transferFee2
+    const effective = (muqeemSponsorChanges || 0) + (occupationBumps ? 1 : 0)
+    const fee = effective === 0 ? cfg.transferFee1
+              : effective === 1 ? cfg.transferFee2
               : cfg.transferFee3
     if (fee != null) setF(p => ({ ...p, transferFeeInput: String(Math.round(fee)) }))
-  }, [muqeemSponsorChanges, cfg])
+  }, [muqeemSponsorChanges, occupationBumps, cfg])
+
+  // Manual fallback (when Muqeem data is unavailable): use f.transferCount (0-based: number of previous transfers) to pick the tier.
+  //   0 previous  → transferFee1 (2000)
+  //   1 previous  → transferFee2 (4000)
+  //   2+ previous → transferFee3 (6000, stays flat beyond that)
+  // Same bump rule applies.
+  useEffect(() => {
+    if (muqeemSponsorChanges !== null) return
+    if (muqeemFetchStatus !== 'unavailable' && muqeemFetchStatus !== 'error') return
+    const n = parseInt(f.transferCount)
+    if (isNaN(n)) return
+    const effective = Math.max(0, n) + (occupationBumps ? 1 : 0)
+    const fee = effective <= 0 ? cfg.transferFee1
+              : effective === 1 ? cfg.transferFee2
+              : cfg.transferFee3
+    if (fee != null) setF(p => ({ ...p, transferFeeInput: String(Math.round(fee)) }))
+  }, [f.transferCount, muqeemSponsorChanges, muqeemFetchStatus, occupationBumps, cfg])
 
   // ═══ Totals (use unified input values) ═══
   // transferOnly — bill only the sponsorship transfer fee; skip renewal, work permit, and medical charges.
   const transferFee = parseFloat(f.transferFeeInput) || 0
   const iqamaRenewalFee = f.transferOnly ? 0 : (parseFloat(f.iqamaRenewalFee) || 0)
   const workPermitFee = f.transferOnly ? 0 : (parseFloat(f.workPermitRate) || 0)
-  const profChangeFee = f.changeProfession ? (parseFloat(f.profChangeInput) || 0) : 0
+  // Profession change fee — waived if either the current or the new occupation is in the free-change list
+  const profChangeFreeIds = Array.isArray(cfg.profChangeFreeOccupations) ? cfg.profChangeFreeOccupations : []
+  const profChangeIsFree = profChangeFreeIds.length > 0 && (profChangeFreeIds.includes(f.occupationId) || profChangeFreeIds.includes(f.newOccupationId))
+  const profChangeFee = (f.changeProfession && !profChangeIsFree) ? (parseFloat(f.profChangeInput) || 0) : 0
   const medicalFee = f.transferOnly ? 0 : (parseFloat(f.medicalFee) || 0)
 
-  // Office fee with floor (general discount will be applied later, NOT absher).
-  // Counts the remaining iqama as months + days. Days < 15 are dropped (don't add to the cost);
-  // days ≥ 15 are billed pro-rated at (monthly/30) × days.
+  // Office fee — fixed at the admin "general price" at submission time.
+  // Discounts (if any) are applied later in the approval workflow, never at submission.
+  // The hidden minimum floor (for future approval validation) = officeDailyRate × expected iqama duration in days.
   const iqamaRemainderParts = (() => {
     if (!f.iqamaExpiry) return { months: 0, days: 0 }
     const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return { months: 0, days: 0 }
@@ -564,13 +814,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
     }
     return { months: Math.max(0, months), days: Math.max(0, days) }
   })()
-  const officePerMonth = parseFloat(cfg.officePerMonth) || 541.67
-  const officeMonths = iqamaRemainderParts.months + (parseInt(f.renewalMonths) || 0)
-  // Always pro-rate remainder days at (monthly / 30), regardless of how many days are left.
-  const officeDaysCharge = iqamaRemainderParts.days * (officePerMonth / 30)
-  const officeMin = officeMonths * officePerMonth + officeDaysCharge
-  const officeBase = parseFloat(f.officeFee) || parseFloat(cfg.officeFee) || 0
-  const officeFee = Math.max(officeBase, officeMin)
+  const officeFee = parseFloat(f.officeFee) || parseFloat(cfg.officeFee) || 0
+  // Hidden discount floor — daily rate × expected iqama duration (calendar days). Stored for the approval-side logic.
+  const officeDailyRate = parseFloat(cfg.officeDailyRate) || 0
+  const officeDiscountFloor = officeDailyRate * expectedIqamaDays
 
   // Absher discount applies ONLY to transfer + renewal fees (not other items).
   const absherAmount = f.absherBalance_on ? (parseFloat(f.absherBalance) || 0) : 0
@@ -628,9 +875,25 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
       iqamaExpiry: m.iqamaExpiryGregorian || p.iqamaExpiry,
       occupation: m.occupationAr || p.occupation,
       legalStatus: STATUS_MAP[m.statusAr] || p.legalStatus,
-      transferCount: m.sponsorChanges != null ? String(Math.min(3, Math.max(1, m.sponsorChanges))) : p.transferCount,
+      transferCount: m.sponsorChanges != null ? String(Math.max(0, m.sponsorChanges)) : p.transferCount,
     }))
     setMuqeemData(m)
+    // Ask Claude to map Muqeem's free-text occupation to the closest row in our occupations table.
+    // Store both the canonical name AND the id so downstream logic (e.g. free-change list) can match by id.
+    if (m.occupationAr && Array.isArray(occupations) && occupations.length) {
+      const raw = m.occupationAr
+      fetch('/.netlify/functions/match-occupation', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ raw, occupations: occupations.map(o => ({ id: o.id, name_ar: o.name_ar, name_en: o.name_en })) }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          const match = data && data.match
+          if (match && match.name_ar) setF(p => (p.occupation === raw ? { ...p, occupation: match.name_ar, occupationId: match.id } : p))
+        })
+        .catch(() => {})
+    }
   }
 
   // Auto-fetch Muqeem data the moment a valid iqama is typed. Silent + debounced.
@@ -727,14 +990,21 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
       setErrors(e => ({ ...e, iqama: 'رقم الإقامة غير صحيح' }))
       return
     }
-    setInsCheck(c => ({ ...c, phase: 'loading', error: null }))
+    setInsCheck(c => ({ ...c, phase: 'loading', error: null, attempts: 0 }))
     try {
       const sb = getSupabase()
       if (sb) {
         const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         const { data } = await sb.from('insurance_check_cache').select('*').eq('iqama_number', iq).gte('checked_at', since).maybeSingle()
         if (data) {
-          const meta = data.is_active ? applyInsuranceToCalc(data.expiry_date) : { waived: false, daysLeft: null }
+          let meta
+          if (data.is_active) {
+            meta = applyInsuranceToCalc(data.expiry_date)
+          } else {
+            // Not insured — force insurance toggle to "yes" by clearing waiver and expiry.
+            setF(p => ({ ...p, insuranceWaived: false, insuranceExpiry: '' }))
+            meta = { waived: false, daysLeft: null }
+          }
           let muqeemData = null
           const mq = await queryMuqeem(iq)
           if (mq.ok) { muqeemData = mq.result; applyMuqeemToForm(mq.result) }
@@ -779,6 +1049,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
         session: insCheck.sessionToken,
       })
       if (r.status === 'invalid_captcha') {
+        const nextAttempts = (insCheck.attempts || 0) + 1
+        if (nextAttempts >= INS_MAX_ATTEMPTS) {
+          setF(p => ({ ...p, insuranceWaived: false, insuranceExpiry: '' }))
+          setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'not_insured', autoSkipped: true }, error: null, attempts: 0 })
+          setErrors({}); setTab(1)
+          return
+        }
         const fresh = await callInsFn({ action: 'init' })
         setInsCheck(c => ({
           ...c,
@@ -786,7 +1063,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
           sessionToken: fresh.session,
           captchaImage: fresh.captchaImage,
           captchaInput: '',
-          error: 'رمز التحقق غير صحيح — جرّب مرة ثانية',
+          error: `رمز التحقق غير صحيح — المحاولة ${nextAttempts + 1} من ${INS_MAX_ATTEMPTS}`,
+          attempts: nextAttempts,
         }))
         return
       }
@@ -840,7 +1118,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
   }
 
   function closeInsCheck() {
-    setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null })
+    setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
   }
 
   async function refreshInsCaptcha() {
@@ -948,9 +1226,19 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
     }
     const expectedExpiry = (() => {
       if (!f.iqamaExpiry) return null
-      const d = new Date(f.iqamaExpiry); if (isNaN(d)) return null
-      d.setMonth(d.getMonth() + (f.renewIqama ? renewalMos : 0))
-      return d.toISOString().slice(0, 10)
+      const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return null
+      const today = new Date(); today.setHours(0,0,0,0)
+      // Case 1: no renewal → end = current expiry
+      if (!f.renewIqama) return f.iqamaExpiry
+      const threshold = parseInt(cfg.thresholdCase2) || 30
+      const daysSinceExpiry = Math.floor((today - exp) / 86400000)
+      // Case 2: expired ≥ threshold — use case-2 processing days from today
+      // Case 3: still valid or recently expired — use current expiry
+      const start = daysSinceExpiry >= threshold
+        ? (() => { const d = new Date(today); d.setDate(d.getDate() + (parseInt(cfg.procDaysCase2) || 7)); return d })()
+        : new Date(exp)
+      start.setMonth(start.getMonth() + renewalMos)
+      return start.toISOString().slice(0, 10)
     })()
     const rows = [
       [t.transferFee, transferFee, ''],
@@ -974,76 +1262,288 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose }) {
     const quoteNo = 'Q-' + Date.now().toString(36).toUpperCase()
     const now = new Date()
     const dateStr = now.toISOString().slice(0, 10)
+    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+    const refDisplay = `JSR · ${now.getFullYear()} · ${String(Date.now()).slice(-4)}`
     const nmFmt = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]))
-    const warnColor = { danger: '#c0392b', warn: '#d4a017', ok: '#27a046' }
+    // ── Extra variables for the new single-page Arabic layout ──
+    const currentOcc = f.occupation || muqeemData?.occupationAr || '—'
+    const newOcc = f.newOccupation || ''
+    const iqamaValidFlag = !iqamaExpired && !!f.iqamaExpiry
+    const iqamaStatusText = iqamaValidFlag ? 'سارية' : (f.iqamaExpiry ? 'منتهية' : '—')
+    const insured = insCheck.result?.status === 'insured'
+    const medStatusText = insured ? 'نشط' : 'غير نشط'
+    const expiryHijri = muqeemData?.iqamaExpiryHijri || gregorianToHijri(f.iqamaExpiry).replace(' هـ','') || '—'
+    // Expected duration in calendar (months + days) — mirrors tab-3 behaviour
+    const durParts = (() => {
+      if (!expectedExpiry) return null
+      const end = new Date(expectedExpiry); if (isNaN(end)) return null
+      const today = new Date(); today.setHours(0,0,0,0)
+      end.setHours(0,0,0,0)
+      if (end < today) return null
+      let m = (end.getFullYear() - today.getFullYear()) * 12 + (end.getMonth() - today.getMonth())
+      let d = end.getDate() - today.getDate()
+      if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
+      return { m: Math.max(0, m), d: Math.max(0, d) }
+    })()
+    const serviceType = (() => {
+      const parts = ['نقل كفالة']
+      if (!f.transferOnly && f.renewIqama) parts.push('تجديد الإقامة')
+      if (f.changeProfession) parts.push('تغيير المهنة')
+      return parts.join(' + ')
+    })()
+    const submitter = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '—'
+    const approver = '—'
+    const officeDiscountOptional = 0 // reserved for the approval workflow — 0 at submission time
+    const initialTotal = Math.max(0, subtotal - absher)
+    const grandTotal = Math.max(0, initialTotal - officeDiscountOptional)
+    // Arabic-Indic digits helper for the month suffix (e.g. "12 شهر" → "١٢ شهر")
+    const toArDigits = s => String(s).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[+d])
+    const monthsSfx = renewalMos ? `${toArDigits(renewalMos)} شهر` : ''
     const html = `<!DOCTYPE html>
-<html lang="${langCode}" dir="${dir}">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8"/>
-<title>${esc(t.title)} — ${esc(quoteNo)}</title>
+<title>تسعيرة نقل كفالة — ${esc(quoteNo)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}
-body{font-family:${dir==='rtl'?"'Cairo','Tajawal',Arial,sans-serif":'Arial,sans-serif'};margin:0;padding:28px;color:#1a1a1a;background:#fff;font-size:13px;line-height:1.6}
-h1{font-size:20px;color:#b8860b;margin:0 0 4px;text-align:center}
-.sub{text-align:center;color:#555;font-size:11px;margin-bottom:14px}
-.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #b8860b;padding-bottom:10px;margin-bottom:14px}
-.head .meta{font-size:11px;color:#555}
-.head .meta b{color:#1a1a1a}
-section{margin-bottom:18px}
-h2{font-size:13px;color:#b8860b;border-bottom:1px solid #e0d09a;padding-bottom:4px;margin:0 0 8px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{padding:6px 8px;text-align:${dir==='rtl'?'right':'left'};border-bottom:1px solid #eee}
-th{background:#f6f0da;color:#6b4e00;font-weight:700;font-size:11px}
-tr.sub{background:#fafafa;font-weight:700}
-tr.total{background:#fff7d6;font-weight:900;font-size:14px;color:#b8860b}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px}
-.grid .k{color:#555;font-size:11px}
-.grid .v{font-weight:700}
-.warn{padding:8px 12px;border-radius:6px;font-size:11.5px;margin:4px 0;border:1px solid}
-.sign{display:flex;justify-content:space-between;margin-top:40px;font-size:11px;color:#555}
-.sign div{border-top:1px solid #999;padding-top:6px;width:40%;text-align:center}
-.footer{margin-top:28px;padding-top:10px;border-top:1px dashed #ccc;text-align:center;color:#777;font-size:10px}
-.no-print{margin:10px 0;text-align:center}
-.print-btn{background:#b8860b;color:#fff;border:none;padding:10px 30px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer}
-@media print{.no-print{display:none}body{padding:18mm}}
+:root{--gold:#b8954a;--gold-line:#c9a855;--gold-faint:#e8d9a6;--ink:#0f1424;--ink-soft:#2a2f44;--mute:#7c8393;--mute-light:#b8bcc8;--paper:#ffffff;--cream:#fafaf7;--line:#e8e6e0;--hairline:rgba(184,149,74,.35)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+body{font-family:'Cairo',sans-serif;background:#d8d4c8;background-image:radial-gradient(circle at 50% 0%,rgba(184,149,74,.08) 0%,transparent 40%);padding:30px 20px;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;color:var(--ink)}
+.toolbar{position:fixed;top:16px;left:16px;display:flex;gap:8px;z-index:100}
+.tool-btn{background:var(--ink);color:#fff;border:none;padding:10px 18px;border-radius:3px;font-family:'Cairo',sans-serif;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);letter-spacing:.3px}
+.tool-btn:hover{background:#000}
+.paper{width:210mm;min-height:297mm;background:var(--paper);position:relative;box-shadow:0 30px 80px rgba(0,0,0,.15);padding:22mm 20mm 18mm;display:flex;flex-direction:column}
+.paper::before{content:"";position:absolute;top:10mm;right:10mm;bottom:10mm;left:10mm;border:1px solid var(--hairline);pointer-events:none}
+.paper::after{content:"";position:absolute;top:11mm;right:11mm;bottom:11mm;left:11mm;border:.5px solid rgba(184,149,74,.15);pointer-events:none}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:22px;border-bottom:.5px solid var(--hairline);position:relative}
+.hdr::after{content:"";position:absolute;bottom:-.5px;right:0;width:90px;height:2px;background:var(--gold)}
+.brand{display:flex;align-items:flex-start;gap:14px}
+.brand-mark{width:44px;height:44px;border:1.5px solid var(--gold);display:flex;align-items:center;justify-content:center;color:var(--gold);font-family:'Cairo',sans-serif;font-weight:700;font-size:26px;line-height:1;position:relative;background:var(--paper)}
+.brand-mark::after{content:"";position:absolute;inset:3px;border:.5px solid rgba(184,149,74,.4)}
+.brand-text{padding-top:2px}
+.brand-name{font-family:'Cairo',sans-serif;font-size:20px;font-weight:700;color:var(--ink);line-height:1;letter-spacing:-.2px}
+.brand-tag{font-family:'Cairo',sans-serif;font-size:10px;color:var(--mute);margin-top:6px;font-weight:400;letter-spacing:.1px}
+.brand-line{width:40px;height:1px;background:var(--gold);margin-top:6px}
+.ref{text-align:start}
+.ref-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mute);letter-spacing:2px;font-weight:400;text-transform:uppercase;margin-bottom:4px}
+.ref-num{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--ink);font-weight:500;letter-spacing:.5px;line-height:1}
+.ref-date{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mute);margin-top:8px;letter-spacing:.5px;font-weight:400}
+.doc-title-block{text-align:center;padding:32px 0 28px}
+.doc-title{font-family:'Cairo',sans-serif;font-size:30px;font-weight:300;color:var(--ink);line-height:1;letter-spacing:.5px}
+.doc-divider{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px}
+.doc-divider-line{width:60px;height:1px;background:var(--gold)}
+.doc-divider-dot{width:5px;height:5px;border:1px solid var(--gold);background:var(--paper);transform:rotate(45deg)}
+.section{margin-top:20px}
+.section-head{display:flex;align-items:baseline;gap:12px;margin-bottom:10px;padding-bottom:6px;border-bottom:.5px solid var(--line);position:relative}
+.section-head::after{content:"";position:absolute;bottom:-.5px;right:0;width:32px;height:1.5px;background:var(--gold)}
+.section-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold);letter-spacing:3px;font-weight:500}
+.section-title{font-family:'Cairo',sans-serif;font-size:14px;color:var(--ink);font-weight:700;letter-spacing:.2px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:0 40px}
+.field-row{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:14px;padding:7px 0;border-bottom:.5px dotted var(--line);min-height:30px}
+.field-row.full{grid-column:1 / -1}
+.field-row:last-child{border-bottom:none}
+.field-label{font-family:'Cairo',sans-serif;font-size:11px;color:var(--mute);font-weight:500;white-space:nowrap;letter-spacing:.1px}
+.field-value{font-family:'Cairo',sans-serif;font-size:12.5px;color:var(--ink);font-weight:600;text-align:start;letter-spacing:.1px}
+.field-value.mono{font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:.3px;font-size:12.5px}
+.field-value .sub-en{font-family:'Cairo',sans-serif;font-size:10px;color:var(--mute-light);font-weight:500;margin-inline-start:8px;letter-spacing:.2px}
+.status{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--mute)}
+.status.on::before{background:#2d7a3e}
+.status.off::before{background:#a03030}
+.status.on{color:#2d7a3e}
+.status.off{color:#a03030}
+.profession-change{margin-top:14px;padding:14px 18px;background:var(--cream);border-inline-start:3px solid var(--gold);position:relative}
+.profession-change::before{content:"";position:absolute;top:0;right:0;width:30px;height:1px;background:var(--gold)}
+.pc-label{font-family:'Cairo',sans-serif;font-size:10px;color:var(--gold);letter-spacing:1.5px;font-weight:600;margin-bottom:6px;text-transform:uppercase}
+.pc-transition{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pc-old{font-family:'Cairo',sans-serif;font-size:13px;color:var(--mute);text-decoration:line-through;text-decoration-color:rgba(0,0,0,.3);font-weight:500}
+.pc-arrow{color:var(--gold);font-size:16px;font-weight:300}
+.pc-new{font-family:'Cairo',sans-serif;font-size:15px;color:var(--ink);font-weight:700;letter-spacing:.2px}
+.duration-card{margin-top:14px;display:grid;grid-template-columns:1fr auto;align-items:center;padding:14px 18px;border:.5px solid var(--hairline);background:var(--cream);position:relative;overflow:hidden}
+.duration-card::before{content:"";position:absolute;top:0;right:0;bottom:0;width:3px;background:var(--gold)}
+.dur-label{font-family:'Cairo',sans-serif;font-size:10px;color:var(--gold);letter-spacing:1.5px;font-weight:600;margin-bottom:4px;text-transform:uppercase}
+.dur-value{font-family:'Cairo',sans-serif;font-size:19px;font-weight:600;color:var(--ink);line-height:1}
+.dur-expiry{text-align:end;border-inline-start:1px solid var(--hairline);padding-inline-start:18px}
+.exp-label{font-family:'Cairo',sans-serif;font-size:10px;color:var(--mute);letter-spacing:.5px;margin-bottom:3px;font-weight:500}
+.exp-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;color:var(--ink-soft);letter-spacing:.5px}
+.statement{margin-top:8px}
+.stmt-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:9px 0 7px;border-top:1.5px solid var(--ink);border-bottom:.5px solid var(--line)}
+.stmt-head-num,.stmt-head-desc,.stmt-head-amt{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--mute);letter-spacing:2.5px;font-weight:500;text-transform:uppercase}
+.stmt-head-num{min-width:32px}
+.stmt-row{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:14px;padding:9px 0;border-bottom:.5px dotted var(--line);font-family:'Cairo',sans-serif;font-size:12.5px}
+.stmt-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold);font-weight:500;min-width:32px;letter-spacing:.3px}
+.stmt-desc{color:var(--ink);font-weight:500}
+.stmt-desc .sub{color:var(--mute);font-weight:400;margin-inline-start:6px;font-size:11px}
+.stmt-amt{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:13px;color:var(--ink);letter-spacing:.3px;white-space:nowrap;text-align:end;min-width:110px}
+.stmt-amt.empty{color:var(--mute-light);font-weight:300}
+.totals{margin-top:4px;padding-top:12px;border-top:1.5px solid var(--ink)}
+.total-row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:14px;padding:5px 0;font-family:'Cairo',sans-serif}
+.total-label{font-size:12.5px;color:var(--ink-soft);font-weight:500}
+.total-amt{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:13px;color:var(--ink);letter-spacing:.3px;white-space:nowrap;min-width:110px;text-align:end}
+.total-row.discount .total-label{color:#2d7a3e}
+.total-row.discount .total-label::before{content:"( − )";color:#2d7a3e;font-family:'JetBrains Mono',monospace;font-size:10px;margin-inline-end:8px;letter-spacing:1px}
+.total-row.discount .total-amt{color:#2d7a3e}
+.total-row.subtotal{padding:8px 0;border-top:.5px solid var(--hairline);border-bottom:.5px solid var(--hairline);margin:4px 0}
+.total-row.subtotal .total-label{font-weight:700;color:var(--ink);font-size:13px}
+.total-row.subtotal .total-amt{font-weight:700;color:var(--ink);font-size:14px}
+.total-row.grand{margin-top:10px;padding:14px 0 6px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);position:relative}
+.total-row.grand::before{content:"";position:absolute;top:-2px;right:0;width:80px;height:2px;background:var(--gold)}
+.total-row.grand .total-label{font-family:'Cairo',sans-serif;font-weight:700;font-size:15px;color:var(--ink);letter-spacing:.2px}
+.total-row.grand .total-amt{font-family:'Playfair Display',serif;font-weight:500;font-size:30px;color:var(--ink);letter-spacing:-.3px;display:flex;align-items:baseline;gap:8px;min-width:auto;line-height:1}
+.total-row.grand .total-amt .curr{font-family:'Cairo',sans-serif;font-size:13px;color:var(--gold);font-weight:600;letter-spacing:.5px}
+.signatures{margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:30px;padding-top:16px;border-top:.5px solid var(--hairline);position:relative}
+.signatures::before{content:"";position:absolute;top:-.5px;right:0;width:60px;height:1.5px;background:var(--gold)}
+.sig{display:flex;flex-direction:column;gap:3px}
+.sig-title{font-family:'Cairo',sans-serif;font-size:10px;color:var(--gold);letter-spacing:1.5px;font-weight:600;text-transform:uppercase;margin-bottom:4px}
+.sig-name{font-family:'Cairo',sans-serif;font-size:14px;color:var(--ink);font-weight:700;letter-spacing:.2px}
+.sig-role{font-family:'Cairo',sans-serif;font-size:11px;color:var(--mute);font-weight:500;margin-top:2px}
+.sig-line{margin-top:16px;width:100%;height:.5px;background:var(--ink);opacity:.3}
+.sig-hint{font-family:'Cairo',sans-serif;font-size:9.5px;color:var(--mute-light);margin-top:5px;letter-spacing:.2px;font-weight:400}
+.footer{margin-top:auto;padding-top:16px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.footer-contact{display:flex;gap:18px;flex-wrap:wrap;font-family:'Cairo',sans-serif;font-size:10px;color:var(--mute);font-weight:500;letter-spacing:.2px}
+.footer-contact .fc-item{display:inline-flex;align-items:center;gap:5px}
+.footer-contact .fc-item::before{content:"";width:3px;height:3px;background:var(--gold);border-radius:50%;display:inline-block}
+.footer-validity{font-family:'Cairo',sans-serif;font-size:10px;color:var(--gold);font-weight:600;letter-spacing:.3px;padding-inline-start:12px;border-inline-start:1px solid var(--hairline)}
+@media print{
+  body{background:#fff;padding:0}
+  .toolbar{display:none!important}
+  .paper{box-shadow:none;width:210mm;min-height:auto;height:auto;padding:18mm 18mm 14mm}
+  .section,.duration-card,.profession-change,.statement,.totals,.signatures,.hdr{page-break-inside:avoid}
+  @page{size:A4;margin:0}
+}
+@media (max-width:600px){
+  body{padding:10px 0;background:#fff}
+  .paper{padding:15mm 12mm}
+  .toolbar{position:static;padding:10px;background:#f0f0f0}
+  .fields{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
-<div class="no-print"><button class="print-btn" onclick="window.print()">${esc(t.print)}</button></div>
-<h1>${esc(t.title)}</h1>
-<div class="sub">${esc(t.quoteNo)}: <b>${esc(quoteNo)}</b> &nbsp;·&nbsp; ${esc(t.date)}: <b>${esc(dateStr)}</b></div>
-
-<section>
-<h2>${esc(t.workerData)}</h2>
-<div class="grid">
-<div><div class="k">${esc(t.workerName)}</div><div class="v" dir="ltr" style="text-align:${dir==='rtl'?'right':'left'}">${esc(workerName)}</div></div>
-<div><div class="k">${esc(t.iqamaNo)}</div><div class="v" dir="ltr" style="text-align:${dir==='rtl'?'right':'left'}">${esc(iqNo)}</div></div>
-<div><div class="k">${esc(t.mobile)}</div><div class="v" dir="ltr" style="text-align:${dir==='rtl'?'right':'left'}">${esc(mobile)}</div></div>
-<div><div class="k">${esc(t.currentIqamaExpiry)}</div><div class="v" dir="ltr" style="text-align:${dir==='rtl'?'right':'left'}">${esc(f.iqamaExpiry || '—')}</div></div>
-<div><div class="k">${esc(t.expectedIqamaExpiry)}</div><div class="v" dir="ltr" style="text-align:${dir==='rtl'?'right':'left'}">${esc(expectedExpiry || '—')}</div></div>
-<div><div class="k">${esc(t.expectedDuration)}</div><div class="v">${esc(fmtMonths(officeMos - renewalMos, officeDays))}</div></div>
+<div class="toolbar"><button class="tool-btn" onclick="confirmPrint()">طباعة الوثيقة</button></div>
+<div class="paper">
+  <header class="hdr">
+    <div class="brand">
+      <div class="brand-mark">ح</div>
+      <div class="brand-text">
+        <div class="brand-name">مكاتب حسين</div>
+        <div class="brand-line"></div>
+        <div class="brand-tag">بواسطة جسر للأعمال والخدمات الحكومية والعمالية</div>
+      </div>
+    </div>
+    <div class="ref">
+      <div class="ref-label">المرجع</div>
+      <div class="ref-num">${esc(refDisplay)}</div>
+      <div class="ref-date">${esc(dateStr)}&nbsp;&nbsp;·&nbsp;&nbsp;${esc(timeStr)}</div>
+    </div>
+  </header>
+  <div class="doc-title-block">
+    <div class="doc-title">تَسْعِيرَة نَقْل كَفَالَة</div>
+    <div class="doc-divider">
+      <div class="doc-divider-line"></div>
+      <div class="doc-divider-dot"></div>
+      <div class="doc-divider-line"></div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="section-head"><div class="section-num">I</div><div class="section-title">بيانات العامل</div></div>
+    <div class="fields">
+      <div class="field-row"><div class="field-label">الاسم الكامل</div><div class="field-value mono">${esc(workerName)}</div></div>
+      <div class="field-row"><div class="field-label">رقم الإقامة</div><div class="field-value mono">${esc(iqNo)}</div></div>
+      <div class="field-row"><div class="field-label">رقم الجوال</div><div class="field-value mono">${esc(mobile)}</div></div>
+      <div class="field-row"><div class="field-label">المهنة الحالية</div><div class="field-value">${esc(currentOcc)}</div></div>
+      <div class="field-row"><div class="field-label">حالة الإقامة</div><div class="field-value"><span class="status ${iqamaValidFlag?'on':'off'}">${esc(iqamaStatusText)}</span></div></div>
+      <div class="field-row"><div class="field-label">التأمين الطبي</div><div class="field-value"><span class="status ${insured?'on':'off'}">${esc(medStatusText)}</span></div></div>
+      <div class="field-row full"><div class="field-label">انتهاء الإقامة</div><div class="field-value mono">${esc(f.iqamaExpiry || '—')}<span class="sub-en">ميلادي</span>&nbsp;&nbsp;·&nbsp;&nbsp;${esc(expiryHijri)}<span class="sub-en">هجري</span></div></div>
+    </div>
+  </section>
+  <section class="section">
+    <div class="section-head"><div class="section-num">II</div><div class="section-title">تفاصيل الخدمة</div></div>
+    <div class="fields">
+      <div class="field-row full"><div class="field-label">نوع الخدمة</div><div class="field-value">${esc(serviceType)}</div></div>
+      <div class="field-row"><div class="field-label">تغيير المهنة</div><div class="field-value"><span class="status ${f.changeProfession?'on':'off'}">${f.changeProfession?'نعم':'لا'}</span></div></div>
+      <div class="field-row"><div class="field-label">عدد الأشهر</div><div class="field-value mono">${renewalMos || '—'}</div></div>
+    </div>
+    ${f.changeProfession && newOcc ? `
+    <div class="profession-change">
+      <div class="pc-label">المهنة الجديدة</div>
+      <div class="pc-transition">
+        <span class="pc-old">${esc(currentOcc)}</span>
+        <span class="pc-arrow">←</span>
+        <span class="pc-new">${esc(newOcc)}</span>
+      </div>
+    </div>` : ''}
+    ${durParts ? `
+    <div class="duration-card">
+      <div>
+        <div class="dur-label">المدة المتوقعة في الإقامة</div>
+        <div class="dur-value">${durParts.m} شهر و ${durParts.d} يوم</div>
+      </div>
+      <div class="dur-expiry">
+        <div class="exp-label">تنتهي في</div>
+        <div class="exp-val">${esc(expectedExpiry || '—')}</div>
+      </div>
+    </div>` : ''}
+  </section>
+  <section class="section">
+    <div class="section-head"><div class="section-num">III</div><div class="section-title">ملخص التكاليف</div></div>
+    <div class="statement">
+      <div class="stmt-head">
+        <div class="stmt-head-num">رقم</div>
+        <div class="stmt-head-desc">البند</div>
+        <div class="stmt-head-amt">المبلغ · ريال</div>
+      </div>
+      ${rows.map(([label, value, sfx], i) => `
+      <div class="stmt-row">
+        <div class="stmt-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="stmt-desc">${esc(label)}${sfx ? ` <span class="sub">${esc(toArDigits(sfx.replace(/[0-9]/g, d => d)))}</span>` : ''}</div>
+        <div class="stmt-amt ${Number(value) > 0 ? '' : 'empty'}">${Number(value) > 0 ? nmFmt(value) : '—'}</div>
+      </div>`).join('')}
+    </div>
+    <div class="totals">
+      <div class="total-row"><div class="total-label">مجموع الرسوم</div><div class="total-amt">${nmFmt(subtotal)}</div></div>
+      ${absher > 0 ? `<div class="total-row discount"><div class="total-label">خصم رصيد أبشر</div><div class="total-amt">${nmFmt(absher)}</div></div>` : ''}
+      <div class="total-row subtotal"><div class="total-label">الإجمالي الابتدائي</div><div class="total-amt">${nmFmt(initialTotal)}</div></div>
+      ${officeDiscountOptional > 0 ? `<div class="total-row discount"><div class="total-label">خصم المكتب <span style="font-size:10.5px;color:var(--mute);font-weight:400">(اختياري)</span></div><div class="total-amt">${nmFmt(officeDiscountOptional)}</div></div>` : ''}
+      <div class="total-row grand">
+        <div class="total-label">الإجمالي الكلي</div>
+        <div class="total-amt">${Number(grandTotal).toLocaleString('en-US',{maximumFractionDigits:0})}<span class="curr">ريال سعودي</span></div>
+      </div>
+    </div>
+  </section>
+  <section class="signatures">
+    <div class="sig">
+      <div class="sig-title">رافع الطلب</div>
+      <div class="sig-name">${esc(submitter)}</div>
+      <div class="sig-role">موظف خدمات</div>
+      <div class="sig-line"></div>
+      <div class="sig-hint">التوقيع والتاريخ</div>
+    </div>
+    <div class="sig">
+      <div class="sig-title">مصدِّق الطلب</div>
+      <div class="sig-name">${esc(approver)}</div>
+      <div class="sig-role">مدير المكتب</div>
+      <div class="sig-line"></div>
+      <div class="sig-hint">التوقيع والختم</div>
+    </div>
+  </section>
+  <footer class="footer">
+    <div class="footer-contact">
+      <span class="fc-item">الدمام · الخبر · الجبيل</span>
+      <span class="fc-item">+966 XXX XXX XXX</span>
+      <span class="fc-item">info@jisr.sa</span>
+    </div>
+    <div class="footer-validity">صالحة لمدة ٧ أيام من تاريخ الإصدار</div>
+  </footer>
 </div>
-</section>
-
-<section>
-<h2>${esc(t.costSummary)}</h2>
-<table>
-<thead><tr><th>${esc(t.item)}</th><th style="width:120px;text-align:center">${esc(t.amount)} (${esc(t.sar)})</th></tr></thead>
-<tbody>
-${rows.map(([l, v, sfx]) => `<tr><td>${esc(l)}${sfx ? ` <span style="color:#888;font-size:10.5px">(${esc(sfx)})</span>` : ''}</td><td style="text-align:center;font-weight:700" dir="ltr">${nmFmt(v)}</td></tr>`).join('')}
-<tr class="sub"><td>${esc(t.subtotal)}</td><td style="text-align:center" dir="ltr">${nmFmt(subtotal)}</td></tr>
-${absher > 0 ? `<tr><td style="color:#27a046">${esc(t.absher)}</td><td style="text-align:center;color:#27a046" dir="ltr">-${nmFmt(absher)}</td></tr>` : ''}
-<tr class="total"><td>${esc(t.grandTotal)}</td><td style="text-align:center" dir="ltr">${nmFmt(total)} ${esc(t.sar)}</td></tr>
-</tbody>
-</table>
-</section>
-
-${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<div class="warn" style="border-color:${warnColor[w.level]};color:${warnColor[w.level]};background:${warnColor[w.level]}14">${esc(w.text)}</div>`).join('')}</section>` : ''}
-
-<div class="sign"><div>${esc(t.signature)}</div><div>${esc(t.stamp)}</div></div>
-<div class="footer">${esc(t.footer)}</div>
-<script>window.addEventListener('load', () => { setTimeout(() => window.print(), 300) })</script>
+<script>
+function confirmPrint(){
+  if(window.confirm('تأكد من تفعيل "Background graphics" في إعدادات الطباعة للحصول على أفضل نتيجة.\\n\\nهل تريد المتابعة؟'))window.print()
+}
+</script>
 </body>
 </html>`
     // Persist the quote in worker_transfers so it shows up in Finance → Transfer Calc with status 'priced'.
@@ -1062,10 +1562,16 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
         transfer_only: !!f.transferOnly,
         change_profession: !!f.changeProfession,
         new_occupation: f.newOccupation || null,
+        prof_change_fee: profChangeFee,
+        office_fee: officeFee,
+        transfer_fee: transferFee,
         absher_discount: absher,
         extras: f.extras,
         print_language: langCode,
         warnings: warnings.map(w => w.text),
+        // Approval-side metadata — hidden from the user. The reviewer UI can't discount office fees below this floor.
+        office_discount_floor: Number(officeDiscountFloor.toFixed(2)),
+        expected_iqama_days: expectedIqamaDays,
       })
       // NOTE: total_cost and profit are GENERATED columns (summed from the individual cost fields)
       // — do NOT set them directly or Postgres rejects the insert.
@@ -1094,6 +1600,97 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
     w.document.write(html)
     w.document.close()
     setPrintLangModal(false)
+    toast && toast(T('تم إصدار التسعيرة','Quote issued'))
+  }
+
+  // Issue the quote without printing — save to DB and show the success modal with copy + navigate actions.
+  async function issueQuote() {
+    const sb = getSupabase()
+    const workerName = hrsdCheck.result?.name || f.name || '—'
+    const iqNo = f.iqama || '—'
+    const mobile = f.phone ? '+966' + f.phone : '—'
+    const renewalMos = parseInt(f.renewalMonths) || 0
+    const officeMos = iqamaRemainderParts.months + renewalMos
+    const officeDays = iqamaRemainderParts.days
+    const expectedExpiry = (() => {
+      if (!f.iqamaExpiry) return null
+      const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return null
+      const today = new Date(); today.setHours(0,0,0,0)
+      // Case 1: no renewal → end = current expiry
+      if (!f.renewIqama) return f.iqamaExpiry
+      const threshold = parseInt(cfg.thresholdCase2) || 30
+      const daysSinceExpiry = Math.floor((today - exp) / 86400000)
+      // Case 2: expired ≥ threshold — use case-2 processing days from today
+      // Case 3: still valid or recently expired — use current expiry
+      const start = daysSinceExpiry >= threshold
+        ? (() => { const d = new Date(today); d.setDate(d.getDate() + (parseInt(cfg.procDaysCase2) || 7)); return d })()
+        : new Date(exp)
+      start.setMonth(start.getMonth() + renewalMos)
+      return start.toISOString().slice(0, 10)
+    })()
+    const rows = [
+      [T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee],
+      !f.transferOnly && renewalMos > 0 ? [T('تجديد الإقامة','Iqama Renewal'), iqamaRenewalFee] : null,
+      !f.transferOnly ? [T('رخصة العمل','Work Permit'), workPermitFee] : null,
+      profChangeFee > 0 ? [T('تغيير المهنة','Change Profession'), profChangeFee] : null,
+      !f.transferOnly ? [T('التأمين الطبي','Medical Insurance'), medicalFee] : null,
+      [T('رسوم المكتب','Office Fees'), officeFee],
+      ...f.extras.map(ex => [ex.name, Number(ex.amount)]),
+    ].filter(Boolean)
+    const subtotal = rows.reduce((s, [, v]) => s + (Number(v) || 0), 0)
+    const absher = f.absherBalance_on ? (parseFloat(f.absherBalance) || 0) : 0
+    const total = Math.max(0, subtotal - absher)
+    const warnings = []
+    if (iqamaExpired) warnings.push({ level: 'danger', text: T(`الإقامة منتهية منذ ${expiredDays} يوم — تم إضافة غرامة التأخير.`, `Iqama expired ${expiredDays} day(s) ago — late fine applied.`) })
+    else if (f.iqamaExpiry) {
+      const daysLeft = Math.ceil((new Date(f.iqamaExpiry) - new Date()) / 86400000)
+      if (daysLeft <= 30 && daysLeft >= 0) warnings.push({ level: 'warn', text: T(`الإقامة ستنتهي خلال ${daysLeft} يوم — يُنصح بالتجديد قبل الانتهاء.`, `Iqama expires in ${daysLeft} day(s) — renew before expiry.`) })
+    }
+    if (insCheck.result?.status === 'not_insured') warnings.push({ level: 'warn', text: T('التأمين الصحي غير نشط — احتُسبت الرسوم حسب الفئة العمرية.','Health insurance not active — fee calculated by age bracket.') })
+    if (f.changeProfession && !f.newOccupation) warnings.push({ level: 'warn', text: T('لم يتم تحديد المهنة الجديدة.','New occupation not specified.') })
+    const quoteNo = 'Q-' + Date.now().toString(36).toUpperCase()
+    if (sb) {
+      const notesJson = JSON.stringify({
+        quote_no: quoteNo,
+        worker_name: workerName,
+        iqama_number: iqNo,
+        phone: mobile,
+        iqama_expiry: f.iqamaExpiry || null,
+        expected_expiry: expectedExpiry,
+        duration_months: Math.max(0, officeMos - renewalMos),
+        duration_days: officeDays,
+        renewal_months: renewalMos,
+        transfer_only: !!f.transferOnly,
+        change_profession: !!f.changeProfession,
+        new_occupation: f.newOccupation || null,
+        prof_change_fee: profChangeFee,
+        office_fee: officeFee,
+        transfer_fee: transferFee,
+        absher_discount: absher,
+        extras: f.extras,
+        office_discount_floor: Number(officeDiscountFloor.toFixed(2)),
+        expected_iqama_days: expectedIqamaDays,
+      })
+      const { error } = await sb.from('worker_transfers').insert({
+        transfer_type: f.transferOnly ? 'transfer_only' : 'sponsorship',
+        status: 'priced',
+        priced_at: new Date().toISOString(),
+        priced_by: user?.id || null,
+        transfer_fee: transferFee,
+        iqama_cost: iqamaRenewalFee,
+        work_permit_cost: workPermitFee,
+        insurance_cost: medicalFee,
+        other_costs: officeFee + profChangeFee + f.extras.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0),
+        other_costs_desc: [profChangeFee > 0 ? 'تغيير المهنة' : null, 'رسوم المكتب', ...(f.extras.map(e => e.name))].filter(Boolean).join(' + '),
+        government_fees: 0,
+        client_charge: total,
+        new_employer_name: workerName,
+        notes: notesJson,
+        created_by: user?.id || null,
+      })
+      if (error) { toast && toast('تعذّر حفظ التسعيرة: ' + (error.message || '').slice(0, 80)); return }
+    }
+    setIssuedQuote({ quoteNo, workerName, iqNo, total, warnings })
     toast && toast(T('تم إصدار التسعيرة','Quote issued'))
   }
 
@@ -1136,9 +1733,9 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
   const headerSubtitle = screen === 'home' ? T('حساب تكاليف نقل خدمات العمال والرسوم الحكومية','Calculate worker transfer costs and government fees') : (workerMode === 'existing' ? T('عامل مسجّل','Registered Worker') : T('عامل جديد','New Worker')) + (f.name ? ` — ${f.name}` : '')
 
   const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }
-  // Fixed modal height so the popup doesn't jump between steps. Inner content area (.kc-scroll) handles overflow.
-  const modalBox = { background: '#1a1a1a', borderRadius: 18, width: 720, maxWidth: '95vw', height: 'min(700px, 95vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(212,160,23,.08)' }
-  const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px 6px', flexShrink: 0, fontFamily: F, direction: 'rtl' }
+  // Compact fixed modal height — tight enough that each step fits without a scrollbar.
+  const modalBox = { background: '#1a1a1a', borderRadius: 18, width: 720, maxWidth: '95vw', height: 'min(620px, 95vh)', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(212,160,23,.08)' }
+  const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px 18px', flexShrink: 0, fontFamily: F, direction: 'rtl' }
 
   if (screen === 'home') return (
     <div onClick={() => onClose && onClose()} style={modalOverlay}><div onClick={e => e.stopPropagation()} style={modalBox}>
@@ -1220,7 +1817,6 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
           </div>
           <div>
             <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,.95)', fontFamily: F }}>{T('حسبة التنازل','Transfer Calculator')}</div>
-            <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: F, marginTop: 3 }}>{T(`الخطوة ${tab+1} من ${tabs.length}`,`Step ${tab+1} of ${tabs.length}`)}</div>
           </div>
         </div>
         <button onClick={() => onClose && onClose()} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
@@ -1235,8 +1831,8 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
 
 
       {/* ═══ Scrollable Content ═══ */}
-      <style>{`.kc-scroll::-webkit-scrollbar{width:0;display:none}.kc-scroll{scrollbar-width:none;-ms-overflow-style:none}`}</style>
-      <div className="kc-scroll" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 16px 12px' }}>
+      <style>{`.kc-scroll::-webkit-scrollbar{width:0;display:none}.kc-scroll{scrollbar-width:none;-ms-overflow-style:none}.kc-scroll input:focus,.kc-scroll select:focus,.kc-scroll textarea:focus,.kc-scroll input:not(:placeholder-shown):not([type=checkbox]):not([type=radio]){border-color:rgba(255,255,255,.08)!important}`}</style>
+      <div className="kc-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'visible', padding: '8px 16px 12px' }}>
 
       {/* ═══════════════════════════════════════ */}
       {/* TAB 0: بيانات العامل — matches ServiceRequest kafala step 3 page 1 */}
@@ -1264,8 +1860,8 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
             <User size={12} strokeWidth={2.2} />
             <span>{T('بيانات العامل','Worker Data')}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+            <div style={{ gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
                 <Lbl req>{T('رقم الإقامة','Iqama Number')}</Lbl>
                 {muqeemFetchStatus !== 'idle' && (
@@ -1278,35 +1874,102 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
                        { background: 'rgba(192,57,43,.1)', color: C.red })
                   }}>
                     {muqeemFetchStatus === 'loading' && <><span style={{ width: 8, height: 8, border: '1.5px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite' }} /> {T('جاري جلب البيانات…','Fetching data…')}</>}
-                    {muqeemFetchStatus === 'ok' && <>✓ {T('تم جلب بيانات مقيم','Muqeem data loaded')}</>}
+                    {muqeemFetchStatus === 'ok' && <>{T('تمت المزامنة مع مقيم','Synced with Muqeem')}<span style={{ marginInlineStart: 6 }}>✓</span></>}
                     {muqeemFetchStatus === 'unavailable' && <>• {T('خدمة مقيم غير متاحة','Muqeem service unavailable')}</>}
-                    {muqeemFetchStatus === 'error' && <>! {T('تعذّر الاتصال بمقيم','Could not connect to Muqeem')}</>}
+                    {muqeemFetchStatus === 'error' && <>{T('فشل المزامنة مع مقيم','Muqeem sync failed')}<span style={{ marginInlineStart: 6 }}>!</span></>}
                   </span>
                 )}
                 <style>{`@keyframes mq-spin{to{transform:rotate(360deg)}}`}</style>
               </div>
-              <Inp value={f.iqama} onChange={v => set('iqama', v.replace(/\D/g,'').slice(0,10))} placeholder="2XXXXXXXXX" dir="ltr" maxLength={10}/>
+              <Inp value={f.iqama} onChange={v => {
+                const cleaned = v.replace(/\D/g,'').slice(0,10)
+                // Changing the iqama invalidates all the auto-fetched data from previous iqama — clear it.
+                if (cleaned !== f.iqama) {
+                  setF(p => ({
+                    ...p,
+                    iqama: cleaned,
+                    iqamaExpiry: '',
+                    occupation: '',
+                    occupationId: null,
+                    legalStatus: 'صالح',
+                    transferCount: '0',
+                    name: '',
+                    insuranceWaived: false,
+                    insuranceExpiry: '',
+                    medicalInsurance: false,
+                  }))
+                  setMuqeemData(null)
+                  setMuqeemFetchStatus('idle')
+                  setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
+                  setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null })
+                }
+              }} placeholder="2XXXXXXXXX" dir="ltr" maxLength={10}/>
             </div>
             <div>
-              <Lbl>{T('رقم الجوال','Mobile Number')}</Lbl>
-              <div style={{ display: 'flex', direction: 'ltr', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42 }}>
-                <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', borderRight: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: C.gold, flexShrink: 0 }}>+966</div>
-                <input value={f.phone || ''} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
-                  style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
-              </div>
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
               <DateField value={f.dob} onChange={v=>set('dob',v)} label={T('تاريخ الميلاد','Date of Birth')} req lang={lang}/>
             </div>
-            {/* Manual fallback fields — appear when Muqeem is unreachable or the query failed.
-                Transfer fee has its own editable input in the review tab, so it is not duplicated here. */}
-            {(muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error') && <>
+            <div>
+              <Lbl req>{T('رقم الجوال','Mobile Number')}</Lbl>
+              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: '1px solid rgba(255,255,255,.08)', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42, transition: 'border-color .2s' }}>
+                <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', borderRight: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: C.gold, flexShrink: 0 }}>+966</div>
+                <input value={f.phone || ''} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
+                  style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
+              </div>
+              <style>{`.kc-phone-wrap:focus-within{border-color:rgba(255,255,255,.18)!important}.kc-phone-wrap input{border-width:0!important}`}</style>
+            </div>
+            {/* Muqeem OK → show fetched values as read-only. Failed/unavailable → manual inputs.
+                Transfer count is not asked here — it's inferred from the transfer fee selection in the pricing tab. */}
+            {muqeemFetchStatus === 'ok' && <>
               <div>
-                <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ نهاية الإقامة','Iqama Expiry Date')} req lang={lang}/>
+                <Lbl>{T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')}</Lbl>
+                {(() => {
+                  const g = muqeemData?.iqamaExpiryGregorian
+                  const m = g && /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(g.trim())
+                  const txt = m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : (g || '—')
+                  return <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: g ? 'var(--tx)' : 'var(--tx5)' }}>{txt}</div>
+                })()}
               </div>
               <div>
-                <Lbl req>{T('المهنة الحالية','Current Occupation')}</Lbl>
-                <Inp value={f.occupation || ''} onChange={v=>set('occupation',v)} placeholder={T('مثال: سائق خاص','e.g. Private Driver')}/>
+                <Lbl>{T('تاريخ انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')}</Lbl>
+                {(() => {
+                  const h = muqeemData?.iqamaExpiryHijri
+                  const m = h && /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(h.trim())
+                  const txt = m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : (h || '—')
+                  return <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: h ? 'var(--tx)' : 'var(--tx5)' }}>{txt}</div>
+                })()}
+              </div>
+              <div>
+                <Lbl>{T('حالة الإقامة','Iqama Status')}</Lbl>
+                {(()=>{const exp=muqeemData?.iqamaExpired;const isExpired=exp===true;const isValid=exp===false;return<div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isExpired ? '#e06157' : isValid ? '#34c759' : 'var(--tx5)', fontWeight: 700 }}>{isExpired ? T('منتهية','Expired') : isValid ? T('سارية','Valid') : '—'}</div>})()}
+              </div>
+              <div>
+                <Lbl>{T('المهنة','Occupation')}</Lbl>
+                <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: (f.occupation || muqeemData?.occupationAr) ? 'var(--tx)' : 'var(--tx5)' }}>{f.occupation || muqeemData?.occupationAr || '—'}</div>
+              </div>
+              <div>
+                <Lbl>{T('حالة المقيم','Resident Status')}</Lbl>
+                <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: muqeemData?.statusAr ? 'var(--tx)' : 'var(--tx5)' }}>{muqeemData?.statusAr || '—'}</div>
+              </div>
+              <div>
+                <Lbl>{T('عدد مرات نقل الخدمات','Service Transfer Count')}</Lbl>
+                <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: typeof muqeemData?.sponsorChanges === 'number' ? 'var(--tx)' : 'var(--tx5)' }}>{typeof muqeemData?.sponsorChanges === 'number' ? String(muqeemData.sponsorChanges) : '—'}</div>
+              </div>
+            </>}
+            {(muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error') && <>
+              <div>
+                <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
+              </div>
+              <div>
+                <Lbl req>{T('المهنة','Occupation')}</Lbl>
+                <OccSelect value={f.occupation || ''} onChange={(v,item)=>setF(p=>({...p,occupation:v,occupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')}/>
+              </div>
+              <div>
+                <Lbl req>{T('حالة المقيم','Resident Status')}</Lbl>
+                <Sel value={f.legalStatus} onChange={v=>set('legalStatus',v)} options={WORKER_STATUSES} placeholder={T('اختر…','Select…')}/>
+              </div>
+              <div>
+                <Lbl req>{T('عدد مرات نقل الخدمات السابقة','Previous Service Transfers')}</Lbl>
+                <input value={f.transferCount || ''} onChange={e=>set('transferCount', e.target.value.replace(/\D/g,'').slice(0,2))} inputMode="numeric" maxLength={2} placeholder={T('0','0')} style={{ ...sF, textAlign: 'center', direction: 'ltr' }} />
               </div>
             </>}
           </div>
@@ -1319,18 +1982,18 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
       {tab === 1 && (()=>{
         // Match review-tab visual: subtle blue panel, key-value rows, no colored boxes per field.
         const Row = ({ label, value, color }) => (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, padding: '2px 0' }}>
-            <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>{label}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12.5, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+            <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{label}</span>
             <span style={{ fontWeight: 700, color: color || 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value || '—'}</span>
           </div>
         )
         const Group = ({ title, Icon, children }) => (
-          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.1)', marginBottom: 8 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-              {Icon && <Icon size={12} />}
+          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 14px 14px', position: 'relative', marginTop: 12 }}>
+            <div style={{ position: 'absolute', top: -9, right: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {Icon && <Icon size={12} strokeWidth={2.2} />}
               <span>{title}</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, rowGap: 2 }}>{children}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 24, rowGap: 0 }}>{children}</div>
           </div>
         )
 
@@ -1349,25 +2012,51 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
 
         return (<div>
           <Group title={T('هوية العامل','Worker Identity')} Icon={User}>
-            <Row label={T('اسم العامل','Worker Name')} value={hrsdCheck.result?.name || f.name} />
+            <Row label={T('الإسم','Name')} value={hrsdCheck.result?.name || f.name} />
             <Row label={T('رقم الإقامة','Iqama Number')} value={f.iqama} />
             <Row label={T('حالة العامل','Worker Status')} value={hrsdCheck.result?.workerStatus} />
-            <Row label={T('المهنة الحالية','Current Occupation')} value={muqeemData?.occupationAr} />
-            <Row label={T('عدد مرات نقل الكفالة','Sponsorship Transfer Count')} value={typeof muqeemData?.sponsorChanges === 'number' ? String(muqeemData.sponsorChanges) : null} />
+            <Row label={T('المهنة','Occupation')} value={muqeemData?.occupationAr} />
+            <Row label={T('عدد مرات نقل الخدمات','Service Transfer Count')} value={typeof muqeemData?.sponsorChanges === 'number' ? String(muqeemData.sponsorChanges) : null} />
           </Group>
 
-          <Group title={T('الإقامة','Iqama')} Icon={Building2}>
-            <Row label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData?.iqamaExpiryGregorian || f.iqamaExpiry} />
-            <Row label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={muqeemData?.iqamaExpiryHijri ? (lang === 'en' ? muqeemData.iqamaExpiryHijri + ' H' : '\u200Fهـ ' + muqeemData.iqamaExpiryHijri) : null} />
-            <Row label={T('حالة الإقامة','Iqama Status')} value={iqamaExpiredFlag === null ? null : iqamaExpiredFlag ? T('منتهية','Expired') : T('سارية','Valid')} color={iqamaExpiredFlag ? C.red : iqamaExpiredFlag === false ? GREEN : null} />
-            <Row label={T('حالة العامل في الجوازات','Passport Worker Status')} value={muqeemData?.statusAr} />
-          </Group>
+          {(() => {
+            const hijriRaw = muqeemData?.iqamaExpiryHijri
+            const hijriFormatted = hijriRaw
+              ? (lang === 'en'
+                  ? hijriRaw + ' H'
+                  : (/^\d{4}-\d{2}-\d{2}$/.test(hijriRaw) ? hijriRaw.split('-').reverse().join('-') : hijriRaw))
+              : null
+            return (
+              <Group title={T('الإقامة','Iqama')} Icon={Building2}>
+                <Row label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData?.iqamaExpiryGregorian || f.iqamaExpiry} />
+                <Row label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={hijriFormatted} />
+                <Row label={T('حالة الإقامة','Iqama Status')} value={iqamaExpiredFlag === null ? null : iqamaExpiredFlag ? T('منتهية','Expired') : T('سارية','Valid')} color={iqamaExpiredFlag ? C.red : iqamaExpiredFlag === false ? GREEN : null} />
+                <Row label={T('حالة المقيم','Resident Status')} value={muqeemData?.statusAr} />
+              </Group>
+            )
+          })()}
 
-          <Group title={T('التأمين الصحي والعمر','Health Insurance & Age')} Icon={Shield}>
-            <Row label={T('حالة التأمين','Insurance Status')} value={insuredOk ? T('نشط','Active') : T('غير نشط','Inactive')} color={insuredOk ? GREEN : C.red} />
-            <Row label={T('انتهاء التأمين','Insurance Expiry')} value={insuredOk ? insExpiry : null} color={insuredOk ? GREEN : null} />
-            <Row label={T('العمر','Age')} value={ageYears !== null ? (lang === 'en' ? `${ageYears} years` : `${ageYears} سنة`) : null} />
-          </Group>
+          {(() => {
+            let ageStr = null
+            if (f.dob) {
+              const dob = new Date(f.dob)
+              const today = new Date()
+              let years = today.getFullYear() - dob.getFullYear()
+              let months = today.getMonth() - dob.getMonth()
+              if (today.getDate() < dob.getDate()) months -= 1
+              if (months < 0) { years -= 1; months += 12 }
+              ageStr = lang === 'en'
+                ? `${years} years ${months} months`
+                : (<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, direction: 'rtl' }}><span>{years}</span><span>سنة</span><span>{months}</span><span>شهر</span></span>)
+            }
+            return (
+              <Group title={T('التأمين الصحي','Health Insurance')} Icon={Shield}>
+                <Row label={T('حالة التأمين','Insurance Status')} value={insuredOk ? T('نشط','Active') : T('غير نشط','Inactive')} color={insuredOk ? GREEN : C.red} />
+                <Row label={T('انتهاء التأمين','Insurance Expiry')} value={insuredOk ? insExpiry : null} color={insuredOk ? GREEN : null} />
+                <Row label={T('العمر','Age')} value={ageStr} />
+              </Group>
+            )
+          })()}
         </div>)
       })()}
 
@@ -1396,67 +2085,91 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
         const absher = f.absherBalance_on ? (parseFloat(f.absherBalance) || 0) : 0
         const total = Math.max(0, subtotal - discount - absher)
         // Card-based: each option is a tile with icon + label + control. Cleaner visual hierarchy.
-        const Card = ({ Icon, label, hint, children, span }) => (
-          <div style={{ gridColumn: span ? `span ${span}` : 'auto', padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 6, transition: '.2s' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(212,160,23,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, flexShrink: 0 }}>
-                <Icon size={11} strokeWidth={2} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.85)' }}>{label}</div>
-                {hint && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>{hint}</div>}
-              </div>
-            </div>
-            <div>{children}</div>
-          </div>
-        )
-        return <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:2}}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {/* فترة التجديد */}
-            <Card Icon={Calendar} label={T('فترة تجديد الإقامة','Iqama Renewal Period')} span={2}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button type="button" onClick={() => { set('transferOnly', true); set('renewIqama', false) }}
-                  style={{ flex: 1.2, height: 40, borderRadius: 8, border: `1.5px solid ${f.transferOnly ? C.gold : 'rgba(255,255,255,.08)'}`, background: f.transferOnly ? 'rgba(212,160,23,.14)' : 'rgba(0,0,0,.2)', color: f.transferOnly ? C.gold : 'rgba(255,255,255,.6)', fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer', transition: '.18s' }}>
-                  {T('نقل فقط','Transfer only')}
-                </button>
-                {['3', '6', '9', '12'].map(m => {
-                  const sel = !f.transferOnly && f.renewalMonths === m
-                  return (
-                    <button key={m} type="button" onClick={() => { set('renewalMonths', m); set('renewIqama', true); set('transferOnly', false) }}
-                      style={{ flex: 1, height: 40, borderRadius: 8, border: `1.5px solid ${sel ? C.gold : 'rgba(255,255,255,.08)'}`, background: sel ? 'rgba(212,160,23,.14)' : 'rgba(0,0,0,.2)', color: sel ? C.gold : 'rgba(255,255,255,.6)', fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', transition: '.18s' }}>
-                      {m} <span style={{ fontSize: 10, opacity: .8 }}>{T('أشهر','months')}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </Card>
+        const Card = KCard
+        return <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:0}}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {/* فترة التجديد — «نقل فقط» يختفي إذا المتبقي في الإقامة أقل من الحد الأدنى أو منتهية */}
+            {(() => {
+              const transferOnlyAllowed = (() => {
+                if (!f.iqamaExpiry) return true
+                const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return true
+                const today = new Date(); today.setHours(0, 0, 0, 0)
+                exp.setHours(0, 0, 0, 0)
+                const daysLeft = Math.floor((exp - today) / 86400000)
+                const minDays = parseInt(cfg.transferOnlyMinDays) || 30
+                return daysLeft >= minDays
+              })()
+              // Auto-switch away from transferOnly if it became disallowed
+              if (!transferOnlyAllowed && f.transferOnly) {
+                setTimeout(() => setF(p => ({ ...p, transferOnly: false, renewIqama: true })), 0)
+              }
+              return (
+                <Card Icon={Calendar} label={T('تجديد الإقامة','Iqama Renewal')} span={2}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {transferOnlyAllowed && (
+                      <RenewalPill flex={1.3} selected={f.transferOnly} onClick={() => { set('transferOnly', true); set('renewIqama', false) }}>
+                        <span>{T('نقل فقط','Transfer only')}</span>
+                      </RenewalPill>
+                    )}
+                    {['3', '6', '9', '12'].map(m => {
+                      const sel = !f.transferOnly && f.renewalMonths === m
+                      return (
+                        <RenewalPill key={m} selected={sel} onClick={() => { set('renewalMonths', m); set('renewIqama', true); set('transferOnly', false) }}>
+                          <span style={{ fontSize: 15 }}>{m}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, opacity: .75 }}>{T('شهر','mo')}</span>
+                        </RenewalPill>
+                      )
+                    })}
+                  </div>
+                </Card>
+              )
+            })()}
+
+            {/* تأمين طبي — دائمًا ظاهر؛ مقفل على "نعم" إذا التأمين غير نشط (لازم شراء تأمين) */}
+            {(() => {
+              const insOk = insCheck.result?.status === 'insured'
+              const canEdit = insOk && f.insuranceWaived
+              return (
+                <Card Icon={Shield} label={T('تأمين طبي','Medical Insurance')}>
+                  <YesNo
+                    value={canEdit ? f.medicalInsurance : true}
+                    onChange={v => { if (canEdit) set('medicalInsurance', v) }}
+                    disabled={!canEdit}
+                    lang={lang}
+                  />
+                </Card>
+              )
+            })()}
 
             {/* تغيير المهنة */}
-            <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Profession')} span={f.changeProfession ? 2 : 1}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <div style={{ flex: f.changeProfession ? '0 0 130px' : 1 }}>
-                  <YesNo value={f.changeProfession} onChange={v => set('changeProfession', v)} lang={lang} />
-                </div>
-                {f.changeProfession && (
-                  <Inp value={f.newOccupation || ''} onChange={v => set('newOccupation', v)} placeholder={T('المهنة الجديدة','New Occupation')} />
-                )}
-              </div>
+            <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Profession')}>
+              <YesNo value={f.changeProfession} onChange={v => set('changeProfession', v)} lang={lang} />
             </Card>
+
+            {/* المهنة الجديدة — بطاقة مستقلة تظهر عند اختيار نعم */}
+            {f.changeProfession && (
+              <Card Icon={Briefcase} label={T('المهنة الجديدة','New Occupation')} span={2}>
+                <OccSelect value={f.newOccupation || ''} onChange={(v,item) => setF(p => ({...p,newOccupation:v,newOccupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')} />
+              </Card>
+            )}
 
             {/* رسوم إضافية */}
             <Card Icon={Plus} label={T('رسوم إضافية','Additional Fees')} hint={f.extras.length ? (lang === 'en' ? `${f.extras.length} items added` : `${f.extras.length} بنود مضافة`) : T('اختياري','Optional')} span={2}>
-              <div style={{ display: 'flex', gap: 5 }}>
-                <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 36 }} />
-                <input type="text" inputMode="decimal" value={extraAmount} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 36, direction: 'ltr', textAlign: 'center' }} />
-                <button onClick={addExtra} disabled={!extraName || !extraAmount} style={{ height: 36, width: 40, borderRadius: 8, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.12)', color: C.gold, fontFamily: F, fontSize: 18, fontWeight: 700, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, lineHeight: 1, padding: 0 }}>+</button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38 }} />
+                <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, direction: 'ltr', textAlign: 'center' }} />
+                <button onClick={addExtra} disabled={!extraName || !extraAmount} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 9, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
               </div>
               {f.extras.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, direction: 'rtl' }}>
                   {f.extras.map((ex, i) => (
-                    <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.2)', fontSize: 11 }}>
-                      <span style={{ color: 'rgba(255,255,255,.85)', fontWeight: 600 }}>{ex.name}</span>
-                      <span style={{ color: C.gold, fontWeight: 800 }}>{nm(ex.amount)}﷼</span>
-                      <button onClick={() => removeExtra(i)} style={{ color: C.red, cursor: 'pointer', fontWeight: 700, background: 'transparent', border: 'none', fontSize: 14, padding: 0, lineHeight: 1, marginRight: -2 }}>×</button>
+                    <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.25)', direction: 'rtl' }}>
+                      <span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 700, fontSize: 12.5 }}>{ex.name}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, direction: 'ltr', color: C.gold, fontWeight: 800, fontSize: 13 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700 }}>{T('ريال','SAR')}</span>
+                        <span>{Number(ex.amount).toLocaleString('en-US')}</span>
+                      </span>
+                      <button onClick={() => removeExtra(i)} title={T('حذف','Remove')} style={{ width: 22, height: 22, borderRadius: 6, color: C.red, cursor: 'pointer', background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}><X size={12} strokeWidth={2.5} /></button>
                     </div>
                   ))}
                 </div>
@@ -1465,14 +2178,14 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
           </div>
 
           {/* Total — emphasized */}
-          <div style={{ marginTop: 2, padding: '10px 16px', borderRadius: 10, background: 'linear-gradient(135deg, rgba(212,160,23,.18), rgba(212,160,23,.06))', border: '1px solid rgba(212,160,23,.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 20px rgba(212,160,23,.08)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(212,160,23,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>
-                <Calculator size={13} strokeWidth={2.2} />
+          <div style={{ marginTop: 2, padding: '10px 18px', borderRadius: 11, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.35)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(212,160,23,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>
+                <Calculator size={15} strokeWidth={2.2} />
               </div>
-              <span style={{ fontSize: 12, fontWeight: 800, color: C.gold }}>{T('الإجمالي المتوقع','Expected Total')}</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: C.gold }}>{T('الإجمالي المتوقع','Expected Total')}</span>
             </div>
-            <span style={{ fontSize: 19, fontWeight: 900, color: C.gold }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(total.toFixed(2))}</span> <span style={{ fontSize: 12, fontWeight: 700 }}>{T('ريال','SAR')}</span></span>
+            <span style={{ fontSize: 23, fontWeight: 900, color: C.gold, lineHeight: 1 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(total.toFixed(2))}</span> <span style={{ fontSize: 13, fontWeight: 700 }}>{T('ريال','SAR')}</span></span>
           </div>
         </div>
       })()}
@@ -1485,20 +2198,35 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
           {/* Worker summary */}
           <div style={{ padding: '7px 12px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.1)' }}>
             {(() => {
-              const addMonths = (dateStr, months) => {
-                if (!dateStr) return null
-                const d = new Date(dateStr); if (isNaN(d)) return null
-                d.setMonth(d.getMonth() + months)
-                return d.toISOString().slice(0, 10)
-              }
               const renewalMonthsNum = f.renewIqama ? (parseInt(f.renewalMonths) || 0) : 0
-              const expectedExpiry = addMonths(f.iqamaExpiry, renewalMonthsNum)
+              const threshold = parseInt(cfg.thresholdCase2) || 30
+              // Determine which of the 3 cases applies → picks the right processing-days setting
+              const procDays = (() => {
+                if (!f.renewIqama) return parseInt(cfg.procDaysCase1) || 7
+                if (!f.iqamaExpiry) return parseInt(cfg.procDaysCase3) || 7
+                const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return parseInt(cfg.procDaysCase3) || 7
+                const today = new Date(); today.setHours(0,0,0,0)
+                const daysSinceExpiry = Math.floor((today - exp) / 86400000)
+                return daysSinceExpiry >= threshold ? (parseInt(cfg.procDaysCase2) || 7) : (parseInt(cfg.procDaysCase3) || 7)
+              })()
+              const expectedExpiry = (() => {
+                if (!f.iqamaExpiry) return null
+                const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return null
+                const today = new Date(); today.setHours(0,0,0,0)
+                if (!f.renewIqama) return f.iqamaExpiry
+                const daysSinceExpiry = Math.floor((today - exp) / 86400000)
+                const start = daysSinceExpiry >= threshold
+                  ? (() => { const d = new Date(today); d.setDate(d.getDate() + (parseInt(cfg.procDaysCase2) || 7)); return d })()
+                  : new Date(exp)
+                start.setMonth(start.getMonth() + renewalMonthsNum)
+                return start.toISOString().slice(0, 10)
+              })()
               // Expected iqama duration expressed as months + days, measured from (today − 7 days) to the expected expiry.
               // The −7 day offset accounts for the processing buffer before the renewal actually takes effect.
               const expectedIqamaDuration = (() => {
                 if (!expectedExpiry) return null
                 const end = new Date(expectedExpiry); if (isNaN(end)) return null
-                const base = new Date(); base.setHours(0,0,0,0); base.setDate(base.getDate() - 7)
+                const base = new Date(); base.setHours(0,0,0,0); base.setDate(base.getDate() + procDays)
                 const sign = end >= base ? 1 : -1
                 const [a, b] = sign === 1 ? [base, end] : [end, base]
                 let months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
@@ -1510,19 +2238,20 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
                 }
                 return { months, days, sign }
               })()
-              const cell = (l, v, vColor) => (
+              const cell = (l, v, vColor, vSize) => (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5 }}>
                   <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>{l}</span>
-                  <span style={{ fontWeight: 700, color: vColor || 'rgba(255,255,255,.92)' }}>{v}</span>
+                  <span style={{ fontWeight: 700, color: vColor || 'rgba(255,255,255,.92)', fontSize: vSize || 'inherit' }}>{v}</span>
                 </div>
               )
               return (
                 <>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}><User size={12} /> {T('بيانات العامل','Worker Data')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.blue, marginBottom: 7, display: 'flex', alignItems: 'center', gap: 6 }}><User size={15} /> {T('بيانات العامل','Worker Data')}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, rowGap: 2 }}>
                     {cell(T('اسم العامل','Worker Name'), hrsdCheck.result?.name || f.name || '—')}
+                    {cell(T('رقم الجوال','Mobile Number'), f.phone ? (<span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>+966{f.phone}</span>) : '—')}
                     {cell(T('رقم الإقامة','Iqama Number'), f.iqama || '—')}
-                    {cell(T('رقم الجوال','Mobile Number'), f.phone ? '+966' + f.phone : '—')}
+                    {f.changeProfession && cell(T('المهنة الجديدة','New Occupation'), f.newOccupation || '—', f.newOccupation ? C.gold : null)}
                     {cell(T('انتهاء الإقامة الحالي','Current Iqama Expiry'), f.iqamaExpiry || '—')}
                     {cell(T('انتهاء الإقامة المتوقع','Expected Iqama Expiry'), expectedExpiry || '—', expectedExpiry ? C.gold : null)}
                     {cell(T('المدة المتوقعة في الإقامة','Expected Iqama Duration'), expectedIqamaDuration ? `${expectedIqamaDuration.sign < 0 ? '-' : ''}${expectedIqamaDuration.months} ${lang === 'en' ? (expectedIqamaDuration.months === 1 ? 'month' : 'months') : 'شهر'} ${lang === 'en' ? 'and' : 'و'} ${expectedIqamaDuration.days} ${lang === 'en' ? (expectedIqamaDuration.days === 1 ? 'day' : 'days') : 'يوم'}` : '—', expectedIqamaDuration ? (expectedIqamaDuration.sign > 0 ? C.ok : C.red) : null)}
@@ -1535,7 +2264,7 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
 
           {/* Cost summary */}
           <div style={{ padding: '10px 14px', borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.1)' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.ok, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Calculator size={13} /> {T('ملخص التكاليف','Cost Summary')}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.ok, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Calculator size={15} /> {T('ملخص التكاليف','Cost Summary')}</div>
             {(() => {
               // Human-readable month/day suffix so each row hints the duration driving the amount.
               const renewalMos = parseInt(f.renewalMonths) || 0
@@ -1545,7 +2274,13 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
               const officeMos = iqamaRemainderParts.months + renewalMos
               const officeDays = iqamaRemainderParts.days
               const officeLabelSuffix = officeMos > 0 || officeDays > 0 ? ` (${officeMos} ${monthLbl(officeMos)}${officeDays > 0 ? ' ' + (lang === 'en' ? 'and' : 'و') + ' ' + officeDays + ' ' + dayLbl(officeDays) : ''})` : ''
-              const items = [[T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee, 'transferFee'], [T('تجديد الإقامة','Iqama Renewal') + renewalLabelSuffix, iqamaRenewalFee, 'iqamaRenewal'], [T('رخصة العمل','Work Permit') + renewalLabelSuffix, workPermitFee], ...(profChangeFee > 0 ? [[T('تغيير المهنة','Change Profession'), profChangeFee]] : []), [T('التأمين الطبي','Medical Insurance'), medicalFee], [T('رسوم المكتب','Office Fees') + officeLabelSuffix, officeFee], ...f.extras.map(ex => [ex.name, Number(ex.amount)])]
+              const extrasRows = (() => {
+                if (!f.extras.length) return []
+                if (f.extras.length === 1) return f.extras.map(ex => [ex.name, Number(ex.amount)])
+                const sum = f.extras.reduce((s, ex) => s + (Number(ex.amount) || 0), 0)
+                return [[T('مجموع الرسوم الإضافية','Additional Fees Total'), sum]]
+              })()
+              const items = [[T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee, 'transferFee'], [T('تجديد الإقامة','Iqama Renewal') + renewalLabelSuffix, iqamaRenewalFee, 'iqamaRenewal'], [T('رخصة العمل','Work Permit') + renewalLabelSuffix, workPermitFee], ...(profChangeFee > 0 ? [[T('تغيير المهنة','Change Profession'), profChangeFee]] : []), [T('التأمين الطبي','Medical Insurance'), medicalFee], [T('رسوم المكتب','Office Fees'), officeFee], ...extrasRows]
               const subtotal = items.reduce((s, [, v]) => s + (Number(v) || 0), 0)
               const absherOn = !!f.absherBalance_on
               const absher = absherOn ? (parseFloat(f.absherBalance) || 0) : 0
@@ -1588,15 +2323,15 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
                   {/* Absher discount — aligned with subtotal row style */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ color: absherOn ? absherClr : 'var(--tx2)', fontWeight: 700, transition: '.2s' }}>{T('رصيد أبشر (خصم)','Absher Balance (discount)')}</span>
-                      <button type="button" onClick={() => set('absherBalance_on', !absherOn)} style={{ width: 26, height: 15, borderRadius: 999, border: 'none', background: absherOn ? absherClr : 'rgba(255,255,255,.15)', cursor: 'pointer', position: 'relative', transition: '.2s', padding: 0, flexShrink: 0 }}>
-                        <span style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 2, right: absherOn ? 2 : 13, transition: '.2s' }} />
+                      <button type="button" onClick={() => set('absherBalance_on', !absherOn)} style={{ width: 14, height: 14, borderRadius: 4, border: `1.5px solid ${absherOn ? absherClr : 'rgba(255,255,255,.25)'}`, background: absherOn ? absherClr : 'transparent', cursor: 'pointer', transition: '.2s', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                        {absherOn && <Check size={10} strokeWidth={3.5} />}
                       </button>
+                      <span style={{ color: absherOn ? absherClr : 'var(--tx2)', fontWeight: 700, transition: '.2s' }}>{T('رصيد أبشر (خصم)','Absher Balance (discount)')}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', width: 130, background: absherOn ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.02)', border: `1px solid ${absherOn ? absherClr + '4d' : 'rgba(255,255,255,.05)'}`, borderRadius: 7, height: 28, opacity: absherOn ? 1 : .5, transition: '.2s' }}>
-                      <input type="text" inputMode="decimal" disabled={!absherOn} value={f.absherBalance || ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 8px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 12, fontWeight: 700, color: absherOn ? 'var(--tx)' : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center' }} />
-                      <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 700, padding: '0 8px', flexShrink: 0 }}>{T('ريال','SAR')}</span>
-                    </div>
+                    <span style={{ fontWeight: 800, color: absherOn ? absherClr : 'var(--tx5)', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: absherOn ? 1 : .55, transition: '.2s' }}>
+                      <input type="text" inputMode="decimal" disabled={!absherOn} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ width: 88, height: 26, padding: '0 8px', borderRadius: 7, border: `1px solid ${absherOn ? absherClr + '55' : 'rgba(255,255,255,.08)'}`, background: absherOn ? absherClr + '0d' : 'rgba(255,255,255,.02)', fontFamily: F, fontSize: 13, fontWeight: 800, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center', transition: '.2s' }} />
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{T('ريال','SAR')}</span>
+                    </span>
                   </div>
                   {/* Grand total */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0 0', marginTop: 2, borderTop: '1px dashed rgba(212,160,23,.25)' }}>
@@ -1608,27 +2343,6 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
             })()}
           </div>
 
-          {/* Warnings — shown before the print button so the user sees risks before issuing. */}
-          {(() => {
-            const warnings = []
-            if (iqamaExpired) warnings.push({ level: 'danger', text: T(`الإقامة منتهية منذ ${expiredDays} يوم — تم إضافة غرامة التأخير. تجديد الإقامة قبل الانتهاء يُسقط الغرامة.`, `Iqama expired ${expiredDays} day(s) ago — late fine applied. Renewing before expiry removes the fine.`) })
-            else if (f.iqamaExpiry) {
-              const daysLeft = Math.ceil((new Date(f.iqamaExpiry) - new Date()) / 86400000)
-              if (daysLeft <= 30 && daysLeft >= 0) warnings.push({ level: 'warn', text: T(`الإقامة ستنتهي خلال ${daysLeft} يوم — يُنصح بالتجديد قبل الانتهاء لتجنّب غرامة التأخير.`, `Iqama expires in ${daysLeft} day(s) — renew before expiry to avoid the late fine.`) })
-              else warnings.push({ level: 'ok', text: T('الإقامة سارية — لا توجد غرامة.','Iqama is valid — no fine applies.') })
-            }
-            if (!warnings.length) return null
-            const colors = { danger: { bg: 'rgba(192,57,43,.08)', bd: 'rgba(192,57,43,.3)', tx: '#e67265' }, warn: { bg: 'rgba(212,160,23,.08)', bd: 'rgba(212,160,23,.3)', tx: C.gold }, ok: { bg: 'rgba(39,160,70,.06)', bd: 'rgba(39,160,70,.25)', tx: '#27a046' } }
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={13} /> {T('تنبيهات وملاحظات','Notes & Warnings')}</div>
-                {warnings.map((w, i) => (
-                  <div key={i} style={{ background: colors[w.level].bg, border: `1px solid ${colors[w.level].bd}`, borderRadius: 9, padding: '8px 12px', fontSize: 11.5, color: colors[w.level].tx, fontWeight: 600, lineHeight: 1.7 }}>{w.text}</div>
-                ))}
-              </div>
-            )
-          })()}
-
         </div>
       )}
 
@@ -1638,7 +2352,19 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
       <style>{`.kc-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.kc-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.kc-nav-btn:hover .nav-ico{background:#D4A017;color:#000}.kc-nav-btn.dir-fwd:hover .nav-ico{transform:translateX(-4px)}.kc-nav-btn.dir-back:hover .nav-ico{transform:translateX(4px)}.kc-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 20px 12px', flexShrink: 0 }}>
         {tab > 0 ? (
-          <button onClick={() => setTab(tab - 1)} className="kc-nav-btn dir-fwd">
+          <button onClick={() => {
+            // Going back from the pricing step → clear the current worker's data so the user can start fresh.
+            if (tab === 2) {
+              setF(makeInitialForm())
+              setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
+              setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null })
+              setMuqeemData(null)
+              setMuqeemFetchStatus('idle')
+              setTab(0)
+              return
+            }
+            setTab(tab - 1)
+          }} className="kc-nav-btn dir-fwd">
             <span className="nav-ico">{lang === 'en' ? <ChevronLeft size={14} strokeWidth={2.5} /> : <ChevronRight size={14} strokeWidth={2.5} />}</span>
             <span>{T('السابق','Previous')}</span>
           </button>
@@ -1649,9 +2375,9 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
             <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2.5} /> : <ChevronLeft size={14} strokeWidth={2.5} />}</span>
           </button>
         ) : (
-          <button onClick={() => setPrintLangModal(true)} className="kc-nav-btn dir-back">
-            <span>{T('إصدار التسعيرة','Issue Quote')}</span>
-            <span className="nav-ico"><Printer size={14} strokeWidth={2.5} /></span>
+          <button onClick={issueQuote} className="kc-nav-btn dir-back">
+            <span>{T('إصدار','Issue')}</span>
+            <span className="nav-ico"><Send size={14} strokeWidth={2.5} /></span>
           </button>
         )}
       </div>
@@ -1663,11 +2389,10 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
             <button onClick={closeInsCheck} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
 
             <div style={{ textAlign: lang === 'en' ? 'left' : 'right', marginBottom: 16, [lang === 'en' ? 'paddingRight' : 'paddingLeft']: 36 }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start' }}>
-                <Shield size={16} style={{ color: C.gold }} />
-                <span>{T('التحقق — الضمان الصحي','Verification — Health Insurance')}</span>
+              <div style={{ fontSize: insCheck.phase === 'result' ? 19 : 15, fontWeight: 800, color: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start', marginTop: insCheck.phase === 'result' ? -4 : 0 }}>
+                {insCheck.phase === 'result' ? <Database size={22} style={{ color: C.gold }} /> : <Shield size={16} style={{ color: C.gold }} />}
+                <span>{insCheck.phase === 'result' ? T('استرجاع البيانات','Data Retrieval') : T('الضمان الصحي','Health Insurance')}</span>
               </div>
-              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.4)', marginTop: 4 }}>{T('أدخل رمز التحقق الظاهر في الصورة','Enter the captcha shown in the image')}</div>
             </div>
 
             {insCheck.phase === 'loading' && (
@@ -1680,15 +2405,16 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
 
             {insCheck.phase === 'captcha' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', borderRadius: 10, padding: 10, border: '1px solid rgba(255,255,255,.06)', minHeight: 76 }}>
+                  {insCheck.captchaImage ? <img src={insCheck.captchaImage} alt="captcha" style={{ height: 56 }} /> : <span style={{ fontSize: 11, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
+                  {insCheck.captchaImage && <CaptchaCountdown captchaKey={insCheck.captchaImage} onExpire={refreshInsCaptcha} color={C.gold} />}
                   <button type="button" onClick={refreshInsCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ height: 26, padding: '0 10px', borderRadius: 6, border: '1px dashed rgba(212,160,23,.35)', background: 'transparent', color: C.gold, fontFamily: F, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
                     <span>{T('رمز جديد','New')}</span>
                   </button>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', borderRadius: 10, padding: 10, border: '1px solid rgba(255,255,255,.06)', minHeight: 76 }}>
-                  {insCheck.captchaImage ? <img src={insCheck.captchaImage} alt="captcha" style={{ height: 56 }} /> : <span style={{ fontSize: 11, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
                 </div>
                 <input
                   value={insCheck.captchaInput}
@@ -1705,7 +2431,6 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
                   disabled={!insCheck.captchaInput || insCheck.captchaInput.length < 3}
                   style={{ height: 44, borderRadius: 10, border: 'none', background: C.gold, color: '#000', fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', opacity: (!insCheck.captchaInput || insCheck.captchaInput.length < 3) ? 0.5 : 1 }}
                 >{T('تحقق','Verify')}</button>
-                <button onClick={skipInsAndAdvance} style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}>{T('تخطّي والمتابعة','Skip and continue')}</button>
               </div>
             )}
 
@@ -1722,9 +2447,14 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
               const insured = r.status === 'insured'
               const notIns = r.status === 'not_insured'
               const unknown = r.status === 'unknown'
-              const color = insured ? '#27a046' : notIns ? C.red : '#d4a017'
-              const icon = insured ? <CheckCircle2 size={32} /> : notIns ? <X size={32} /> : <AlertCircle size={32} />
-              const title = insured ? T('التأمين الصحي ساري','Health Insurance Active') : notIns ? T('لا يوجد تأمين صحي نشط','No Active Health Insurance') : T('نتيجة غير واضحة','Unclear Result')
+              const chiOk = insured || notIns
+              const muqeemOk = !!r.muqeem
+              const hrsdOk = hrsdCheck.result && hrsdCheck.result.status === 'found'
+              const allOk = chiOk && muqeemOk && hrsdOk
+              const anyOk = chiOk || muqeemOk || hrsdOk
+              const color = allOk ? '#27a046' : anyOk ? '#d4a017' : C.red
+              const icon = allOk ? <CheckCircle2 size={32} /> : anyOk ? <AlertCircle size={32} /> : <X size={32} />
+              const title = allOk ? T('تم التحقق بنجاح','Verification Successful') : anyOk ? T('التحقق','Verification') : T('تعذّر التحقق','Verification Failed')
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
@@ -1733,25 +2463,6 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
                     {r.cached && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)' }}>• {T('من الكاش (آخر 24 ساعة)','cached (last 24 hours)')}</div>}
                   </div>
 
-                  {insured && r.expiryDate && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.2)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.8)' }}>
-                        <span style={{ color: 'rgba(255,255,255,.5)' }}>{T('تاريخ الانتهاء','Expiry Date')}</span>
-                        <span style={{ fontWeight: 700 }}>{r.expiryDate}{typeof r.daysLeft === 'number' ? <span style={{ color: 'rgba(255,255,255,.4)', fontWeight: 500, [lang === 'en' ? 'marginLeft' : 'marginRight']: 6, fontSize: 11 }}> ({r.daysLeft} {T('يوم','days')})</span> : null}</span>
-                      </div>
-                      {r.waived ? (
-                        <div style={{ background: 'rgba(39,160,70,.1)', border: '1px solid rgba(39,160,70,.3)', borderRadius: 10, padding: '10px 14px', fontSize: 11.5, color: '#27a046', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                          <CheckCircle2 size={14} />
-                          <span>{lang === 'en' ? `Medical insurance fee waived (insurance valid more than ${cfg.medicalGraceMonths || 2} months and ${cfg.medicalGraceDays || 7} days)` : `تم إعفاء رسوم التأمين الطبي (التأمين سارٍ أكثر من ${cfg.medicalGraceMonths || 2} شهر و${cfg.medicalGraceDays || 7} أيام)`}</span>
-                        </div>
-                      ) : (
-                        <div style={{ background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.25)', borderRadius: 10, padding: '10px 14px', fontSize: 11.5, color: C.gold, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                          <AlertCircle size={14} />
-                          <span>{lang === 'en' ? `Medical insurance fee will be calculated by age bracket (less than ${cfg.medicalGraceMonths || 2} months and ${cfg.medicalGraceDays || 7} days remaining)` : `سيتم احتساب رسوم التأمين الطبي حسب الفئة العمرية (المتبقي أقل من ${cfg.medicalGraceMonths || 2} شهر و${cfg.medicalGraceDays || 7} أيام)`}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {notIns && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1772,7 +2483,7 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
                       {r.debug?.panelText && (
                         <>
                           <div style={{ fontSize: 10, color: '#d4a017', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('محتوى نتيجة CHI:','CHI result content:')}</div>
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.2)', padding: 10, borderRadius: 8, maxHeight: 120, overflowY: 'auto', textAlign: 'right', direction: 'rtl', lineHeight: 1.6 }}>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.3)', padding: 10, borderRadius: 8, maxHeight: 120, overflowY: 'auto', textAlign: 'right', direction: 'rtl', lineHeight: 1.6 }}>
                             {r.debug.panelText}
                           </div>
                         </>
@@ -1785,17 +2496,32 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
                     </div>
                   )}
 
-                  {/* ─── Source success summary (no details, those appear in next step) ─── */}
-                  {r.muqeem && (
+                  {/* ─── Source success summary — hidden while CHI is in unknown/retry state so the user focuses on the retry UI ─── */}
+                  {!unknown && r.muqeem && (
                     <div style={{ background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.25)', borderRadius: 10, padding: '8px 12px', fontSize: 11.5, color: '#27a046', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
                       <CheckCircle2 size={14} />
-                      <span>{T('تم جلب البيانات من مقيم بنجاح','Muqeem data fetched successfully')}</span>
+                      <span>{T('تم استرجاع البيانات من مقيم بنجاح','Muqeem data retrieved successfully')}</span>
                     </div>
                   )}
-                  {hrsdCheck.result && hrsdCheck.result.status === 'found' && (
+                  {!unknown && chiOk && (() => {
+                    const statusSuffix = insured
+                      ? (r.waived ? T('ساري','Active') : T('ساري (على وشك الانتهاء)','Active (about to expire)'))
+                      : T('غير نشط','Inactive')
+                    const statusColor = insured
+                      ? (r.waived ? C.blue : C.gold)
+                      : C.red
+                    return (
+                      <div style={{ background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.25)', borderRadius: 10, padding: '8px 12px', fontSize: 11.5, color: '#27a046', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+                        <CheckCircle2 size={14} />
+                        <span style={{ flex: 1 }}>{T('تم استرجاع البيانات من الضمان الصحي بنجاح','Health Insurance data retrieved successfully')}</span>
+                        <span style={{ color: statusColor, fontWeight: 800, fontSize: 11, whiteSpace: 'nowrap' }}>{statusSuffix}</span>
+                      </div>
+                    )
+                  })()}
+                  {!unknown && hrsdOk && (
                     <div style={{ background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.25)', borderRadius: 10, padding: '8px 12px', fontSize: 11.5, color: '#27a046', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
                       <CheckCircle2 size={14} />
-                      <span>{T('تم جلب البيانات من وزارة العمل بنجاح','Ministry of Labor data fetched successfully')}</span>
+                      <span>{T('تم استرجاع البيانات من وزارة العمل بنجاح','Ministry of Labor data retrieved successfully')}</span>
                     </div>
                   )}
 
@@ -1852,6 +2578,66 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
         </div>
       )}
 
+      {/* ═══ Quote Issued Success Modal ═══ */}
+      {issuedQuote && (() => {
+        const copy = (text) => { try { navigator.clipboard.writeText(text); toast && toast(T('تم النسخ','Copied')) } catch { toast && toast('تعذّر النسخ') } }
+        const CopyBtn = ({ text }) => (
+          <button onClick={() => copy(text)} title={T('نسخ','Copy')} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        )
+        const row = (label, value, withCopy, amountSplit) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
+            <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>{label}</span>
+            {amountSplit ? (
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, direction: 'ltr', fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,.92)' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, opacity: .75 }}>{amountSplit.unit}</span>
+                <span>{amountSplit.num}</span>
+              </span>
+            ) : (
+              <span style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value}</span>
+            )}
+            {withCopy && <CopyBtn text={String(value)} />}
+          </div>
+        )
+        return (
+          <div onClick={() => setIssuedQuote(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2300, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(39,160,70,.3)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
+              <button onClick={() => setIssuedQuote(null)} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 14px' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(39,160,70,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#27a046' }}><CheckCircle2 size={30} /></div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'rgba(255,255,255,.95)', textAlign: 'center' }}>{T('تم إصدار التسعيرة','Quote Issued')}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار تسعيرة للعامل ${issuedQuote.workerName} بنجاح`, `Quote successfully issued for ${issuedQuote.workerName}`)}</div>
+                {issuedQuote.warnings && issuedQuote.warnings.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 }}>
+                    {issuedQuote.warnings.map((w, i) => {
+                      const clr = w.level === 'danger' ? { bg: 'rgba(192,57,43,.08)', bd: 'rgba(192,57,43,.3)', tx: '#e67265' } : { bg: 'rgba(212,160,23,.08)', bd: 'rgba(212,160,23,.3)', tx: C.gold }
+                      return (
+                        <div key={i} style={{ background: clr.bg, border: `1px solid ${clr.bd}`, borderRadius: 8, padding: '7px 11px', fontSize: 11, color: clr.tx, fontWeight: 600, lineHeight: 1.55, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                          <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 2 }} />
+                          <span>{w.text}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {row(T('رقم طلب التسعيرة','Quote No.'), issuedQuote.quoteNo, true)}
+                {row(T('رقم الإقامة','Iqama Number'), issuedQuote.iqNo, true)}
+                {row(T('الإجمالي','Total'), `${nm(issuedQuote.total.toFixed(2))} ${T('ريال','SAR')}`, false, { unit: T('ريال','SAR'), num: nm(issuedQuote.total.toFixed(2)) })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                <button onClick={() => { setIssuedQuote(null); if (typeof onGoToTransferCalc === 'function') onGoToTransferCalc(issuedQuote.quoteNo); else onClose && onClose() }} className="kc-nav-btn dir-back">
+                  <span>{T('الذهاب إلى التسعيرة','Go to Quote')}</span>
+                  <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2.5} /> : <ChevronLeft size={14} strokeWidth={2.5} />}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ═══ HRSD (Ministry of Labor) CAPTCHA Overlay ═══ */}
       {hrsdCheck.phase !== 'idle' && hrsdCheck.phase !== 'result' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
@@ -1861,9 +2647,8 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
             <div style={{ textAlign: lang === 'en' ? 'left' : 'right', marginBottom: 16, [lang === 'en' ? 'paddingRight' : 'paddingLeft']: 36 }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start' }}>
                 <Briefcase size={16} style={{ color: '#9b59b6' }} />
-                <span>{T('التحقق — وزارة العمل','Verification — Ministry of Labor')}</span>
+                <span>{T('وزارة العمل','Ministry of Labor')}</span>
               </div>
-              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.4)', marginTop: 4 }}>{T('أدخل رمز التحقق الظاهر في الصورة','Enter the captcha shown in the image')}</div>
             </div>
 
             {hrsdCheck.phase === 'loading' && (
@@ -1875,15 +2660,16 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
 
             {hrsdCheck.phase === 'captcha' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', borderRadius: 10, padding: 10, border: '1px solid rgba(255,255,255,.06)', minHeight: 76 }}>
+                  {hrsdCheck.captchaImage ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 56 }} /> : <span style={{ fontSize: 11, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
+                  {hrsdCheck.captchaImage && <CaptchaCountdown captchaKey={hrsdCheck.captchaImage} onExpire={refreshHrsdCaptcha} color="#9b59b6" />}
                   <button type="button" onClick={refreshHrsdCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ height: 26, padding: '0 10px', borderRadius: 6, border: '1px dashed rgba(155,89,182,.4)', background: 'transparent', color: '#9b59b6', fontFamily: F, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
                     <span>{T('رمز جديد','New')}</span>
                   </button>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', borderRadius: 10, padding: 10, border: '1px solid rgba(255,255,255,.06)', minHeight: 76 }}>
-                  {hrsdCheck.captchaImage ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 56 }} /> : <span style={{ fontSize: 11, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
                 </div>
                 <input
                   value={hrsdCheck.captchaInput}
@@ -1895,7 +2681,6 @@ ${warnings.length ? `<section><h2>${esc(t.warnings)}</h2>${warnings.map(w => `<d
                 />
                 {hrsdCheck.error && <div style={{ fontSize: 11, color: C.red, textAlign: lang === 'en' ? 'left' : 'right' }}>{hrsdCheck.error}</div>}
                 <button onClick={submitHrsdCaptcha} disabled={!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 3} style={{ height: 44, borderRadius: 10, border: 'none', background: '#9b59b6', color: '#fff', fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', opacity: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 3) ? 0.5 : 1 }}>{T('تحقق','Verify')}</button>
-                <button onClick={closeHrsdCheck} style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}>{T('إلغاء','Cancel')}</button>
               </div>
             )}
 

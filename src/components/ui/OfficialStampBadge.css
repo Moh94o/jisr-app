@@ -1,0 +1,112 @@
+/* ============================================
+   Official Stamp Badge
+   - ٤ زوايا L-shape متناظرة
+   - بدون أي خط فاصل أفقي
+   - مسافات متساوية بين الأسطر
+   ============================================ */
+
+.official-stamp {
+  position: relative;
+  display: inline-block;
+  padding: 7px 16px;
+  color: var(--stamp-color, #c9a84c);
+  background: transparent;
+  opacity: 0.94;
+  font-family: 'Cairo', sans-serif;
+  text-align: center;
+  line-height: 1;
+  min-width: 120px;
+  user-select: none;
+}
+
+/* زاوية علوية-يسار + سفلية-يمين (على العنصر الرئيسي) */
+.official-stamp::before,
+.official-stamp::after {
+  content: '';
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+.official-stamp::before {
+  top: 0; left: 0;
+  border-top: 2px solid var(--stamp-color, #c9a84c);
+  border-left: 2px solid var(--stamp-color, #c9a84c);
+}
+.official-stamp::after {
+  bottom: 0; right: 0;
+  border-bottom: 2px solid var(--stamp-color, #c9a84c);
+  border-right: 2px solid var(--stamp-color, #c9a84c);
+}
+
+/* زاوية علوية-يمين + سفلية-يسار (على الـ body) */
+.official-stamp__body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 6px;
+}
+.official-stamp__body::before,
+.official-stamp__body::after {
+  content: '';
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+.official-stamp__body::before {
+  /* محسوب بناءً على padding العنصر الأب */
+  top: -7px; right: -16px;
+  border-top: 2px solid var(--stamp-color, #c9a84c);
+  border-right: 2px solid var(--stamp-color, #c9a84c);
+}
+.official-stamp__body::after {
+  bottom: -7px; left: -16px;
+  border-bottom: 2px solid var(--stamp-color, #c9a84c);
+  border-left: 2px solid var(--stamp-color, #c9a84c);
+}
+
+/* السطر العلوي: كود الفرع + التاريخ */
+.official-stamp__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  opacity: 0.75;
+}
+.official-stamp__branch { color: var(--stamp-color, #c9a84c); }
+.official-stamp__date { color: var(--stamp-color, #c9a84c); }
+
+/* الحالة — الأكبر والأبرز */
+.official-stamp__status {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  line-height: 1.2;
+  padding: 1px 0;
+}
+
+/* اسم الموظف — سفلي */
+.official-stamp__employee {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  opacity: 0.88;
+}
+
+/* تعديل للموبايل: قلل الميلان والحجم */
+@media (max-width: 640px) {
+  .official-stamp {
+    transform: rotate(-3deg) !important;
+    padding: 7px 18px;
+    min-width: 130px;
+  }
+  .official-stamp__body::before { top: -7px; right: -18px; }
+  .official-stamp__body::after { bottom: -7px; left: -18px; }
+  .official-stamp__status { font-size: 13px; letter-spacing: 2px; }
+}

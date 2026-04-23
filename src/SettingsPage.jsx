@@ -8,13 +8,17 @@ const bS={height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(212,1
 
 const ArrowIcon=({isOpen})=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.2s',transform:isOpen?'rotate(90deg)':'none',opacity:.7,flexShrink:0}}><polyline points="9 18 15 12 9 6"/></svg>
 
-const EditIcon=()=><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+const EditIcon=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
 
-const DelIcon=()=><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+const DelIcon=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
 
-const EditBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(212,160,23,.15)',background:'rgba(212,160,23,.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><EditIcon/></button>
+const EditBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} className="jisr-icon-btn jisr-edit-btn" title="تعديل" style={{width:32,height:32,borderRadius:9,border:'1px solid rgba(212,160,23,.22)',background:'linear-gradient(145deg, rgba(212,160,23,.14), rgba(212,160,23,.06))',color:C.gold,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'.18s',flexShrink:0}}><EditIcon/></button>
 
-const DelBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.12)',background:'rgba(192,57,43,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><DelIcon/></button>
+const DelBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} className="jisr-icon-btn jisr-del-btn" title="حذف" style={{width:32,height:32,borderRadius:9,border:'1px solid rgba(192,57,43,.22)',background:'linear-gradient(145deg, rgba(192,57,43,.14), rgba(192,57,43,.05))',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'.18s',flexShrink:0}}><DelIcon/></button>
+
+const CopyIcon=()=><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+
+const CopyBtn=({text,toast,isAr})=><button type="button" onClick={e=>{e.stopPropagation();e.preventDefault();if(!text)return;try{navigator.clipboard.writeText(String(text));toast&&toast(isAr?'تم النسخ':'Copied')}catch{toast&&toast(isAr?'تعذر النسخ':'Copy failed')}}} className="jisr-copy-btn" title={isAr?'نسخ':'Copy'} style={{width:20,height:20,borderRadius:5,border:'none',background:'transparent',color:'rgba(255,255,255,.35)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0,transition:'.15s'}}><CopyIcon/></button>
 
 const BadgeStatus=({v,isAr})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'rgba(255,255,255,.05)',color:v?C.ok:'rgba(255,255,255,.3)'}}>{v?(isAr?'نشطة':'Active'):(isAr?'معطّلة':'Inactive')}</span>
 
@@ -68,7 +72,8 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 <div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 {fields.map(f=><div key={f.k} style={{gridColumn:f.w?'1/-1':undefined}}>
 <div style={{fontSize:12,fontWeight:600,color:'var(--tx3)',marginBottom:5}}>{f.l}{f.r&&<span style={{color:C.red}}> *</span>}</div>
-{f.opts?<CustomSelect value={form[f.k]||''} onChange={v=>setForm(p=>({...p,[f.k]:v}))} options={f.opts} placeholder={isAr?'— اختر —':'— Select —'}/>:
+{f.opts&&f.btn?<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>{f.opts.map(o=>{const on=String(form[f.k])===String(o.v);return<button key={o.v} type="button" onClick={()=>setForm(p=>({...p,[f.k]:o.v}))} style={{flex:1,minWidth:0,height:42,padding:'0 14px',borderRadius:10,border:'1.5px solid '+(on?(o.v==='true'||o.v===true?'rgba(39,160,70,.55)':(o.v==='false'||o.v===false?'rgba(192,57,43,.45)':'rgba(212,160,23,.5)')):'rgba(255,255,255,.1)'),background:on?(o.v==='true'||o.v===true?'rgba(39,160,70,.18)':(o.v==='false'||o.v===false?'rgba(192,57,43,.12)':'rgba(212,160,23,.12)')):'transparent',color:on?(o.v==='true'||o.v===true?'#34c759':(o.v==='false'||o.v===false?'#e06157':C.gold)):'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:on?700:600,cursor:'pointer',transition:'.15s'}}>{o.l}</button>})}</div>:
+f.opts?<CustomSelect value={form[f.k]||''} onChange={v=>setForm(p=>({...p,[f.k]:v}))} options={f.opts} placeholder={isAr?'— اختر —':'— Select —'}/>:
 f.w?<textarea value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/>:
 <input value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fS}/>}
 </div>)}
@@ -78,15 +83,168 @@ f.w?<textarea value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.targe
 <button onClick={onClose} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>{isAr?'إلغاء':'Cancel'}</button>
 </div></div></div>}
 
+// ═══ OccupationFormPopup — styled to match KafalaCalculator modal ═══
+const kFS={width:'100%',height:38,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(0,0,0,.18)',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',textAlign:'center',transition:'.2s'}
+const KLbl=({children,req})=><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:3,textAlign:'start'}}>{children}{req&&<span style={{color:C.red}}> *</span>}</div>
+const KInp=({value,onChange,placeholder,dir,maxLength})=><input value={value||''} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type="text" maxLength={maxLength} style={{...kFS,textAlign:'center',direction:dir||'rtl'}}/>
+
+function OccupationFormPopup({form,setForm,onSave,onClose,saving,isAr,sb,toast,onSaved,kind='occupation'}){
+const [savedFlash,setSavedFlash]=useState(false)
+const [localSaving,setLocalSaving]=useState(false)
+const isNat=kind==='nationality'
+const isEmb=kind==='embassy'
+const tbl=isNat?'nationalities':isEmb?'embassies':'occupations'
+const L={
+edit:isEmb?(isAr?'تعديل سفارة':'Edit Embassy'):isNat?(isAr?'تعديل جنسية':'Edit Nationality'):(isAr?'تعديل مهنة':'Edit Occupation'),
+add:isEmb?(isAr?'إضافة سفارة':'Add Embassy'):isNat?(isAr?'إضافة جنسية':'Add Nationality'):(isAr?'إضافة مهنة':'Add Occupation'),
+info:isEmb?(isAr?'بيانات السفارة':'Embassy Info'):isNat?(isAr?'بيانات الجنسية':'Nationality Info'):(isAr?'بيانات المهنة':'Occupation Info'),
+nameArLabel:isEmb?(isAr?'اسم المدينة بالعربي':'City Name (Arabic)'):(isAr?'الاسم بالعربي':'Name (Arabic)'),
+nameEnLabel:isEmb?(isAr?'اسم المدينة بالإنجليزي':'City Name (English)'):(isAr?'الاسم بالإنجليزي':'Name (English)'),
+nameArPh:isEmb?(isAr?'مثال: الرياض':'مدينة ...'):isNat?(isAr?'مثال: سعودي':'سعودي ...'):(isAr?'مثال: أخصائي تسويق':'أخصائي ...'),
+nameEnPh:isEmb?'e.g. Riyadh':isNat?'e.g. Saudi':'e.g. Marketing Specialist',
+codePh:isEmb?(isAr?'رمز':'code'):isNat?(isAr?'رمز':'code'):'6-digit code',
+savedEdit:isEmb?(isAr?'تم تعديل السفارة':'Embassy updated'):isNat?(isAr?'تم تعديل الجنسية':'Nationality updated'):(isAr?'تم تعديل المهنة':'Occupation updated'),
+savedAdd:isEmb?(isAr?'تم حفظ السفارة':'Embassy saved'):isNat?(isAr?'تم حفظ الجنسية':'Nationality saved'):(isAr?'تم حفظ المهنة':'Occupation saved')
+}
+const handleSave=async()=>{
+setLocalSaving(true)
+try{
+const d={...form}
+delete d._table;delete d._id
+Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
+if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
+if(d.saudi_only!==undefined&&d.saudi_only!==null)d.saudi_only=d.saudi_only==='true'
+if(d.sort_order)d.sort_order=parseInt(d.sort_order,10)||null
+if(d.qiwa_id)d.qiwa_id=parseInt(d.qiwa_id,10)||null
+let savedId=form._id
+if(form._id){const{error}=await sb.from(tbl).update(d).eq('id',form._id);if(error)throw error}
+else{const{data:ins,error}=await sb.from(tbl).insert(d).select('id').single();if(error)throw error;savedId=ins?.id}
+// Auto-resequence so sort_order stays unique 1..N
+const newSort=d.sort_order
+if(newSort&&savedId){
+const{data:all}=await sb.from(tbl).select('id,sort_order').is('deleted_at',null).order('sort_order',{nullsFirst:false}).order('name_ar')
+const others=(all||[]).filter(x=>x.id!==savedId)
+const pos=Math.max(0,Math.min(newSort-1,others.length))
+others.splice(pos,0,{id:savedId,sort_order:newSort})
+const origMap=new Map((all||[]).map(x=>[x.id,x.sort_order]))
+const updates=[]
+others.forEach((it,idx)=>{const nv=idx+1;if(origMap.get(it.id)!==nv)updates.push({id:it.id,sort_order:nv})})
+for(const u of updates){await sb.from(tbl).update({sort_order:u.sort_order}).eq('id',u.id)}
+}
+setSavedFlash(true)
+setTimeout(()=>{setSavedFlash(false);onSaved&&onSaved();onClose()},1400)
+}catch(e){const msg=(e.message||'').toLowerCase();const dup=msg.includes('duplicate')||msg.includes('unique')||e.code==='23505';toast&&toast(dup?(isAr?'الرمز مستخدم مسبقاً':'Code already exists'):('خطأ: '+(e.message||'').slice(0,80)))}
+setLocalSaving(false)
+}
+const isSaving=localSaving||saving
+const btn=(val,cur,onClick,label,kind)=>{const on=String(cur)===String(val);const col=kind==='ok'?'#27a046':kind==='err'?'#e06157':C.gold;const bg=kind==='ok'?'rgba(39,160,70,.18)':kind==='err'?'rgba(192,57,43,.12)':'rgba(212,160,23,.12)';const bd=kind==='ok'?'rgba(39,160,70,.55)':kind==='err'?'rgba(192,57,43,.45)':'rgba(212,160,23,.5)';return<button type="button" onClick={onClick} style={{flex:1,height:38,borderRadius:9,border:'1px solid '+(on?bd:'rgba(255,255,255,.05)'),background:on?bg:'rgba(0,0,0,.18)',color:on?col:'rgba(255,255,255,.58)',fontFamily:F,fontSize:13,fontWeight:on?700:600,cursor:'pointer',transition:'.2s'}}>{label}</button>}
+return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
+<style>{`.occ-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.occ-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.occ-nav-btn:hover .nav-ico{background:#D4A017;color:#000}.occ-nav-btn:hover .nav-ico{transform:translateX(-4px)}.occ-nav-btn:disabled{opacity:.5;cursor:not-allowed}.occ-nav-btn:disabled .nav-ico{background:rgba(212,160,23,.1);color:#D4A017;transform:none}`}</style>
+<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:18,width:isNat?880:720,maxWidth:'95vw',display:'flex',flexDirection:'column',overflow:'visible',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid rgba(212,160,23,.08)',position:'relative'}}>
+<div dir={isAr?'rtl':'ltr'} style={{fontFamily:F,color:'rgba(255,255,255,.85)',display:'flex',flexDirection:'column',height:'100%',overflow:'visible'}}>
+{/* Header */}
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 20px 18px',flexShrink:0,direction:isAr?'rtl':'ltr'}}>
+<div style={{display:'flex',alignItems:'center',gap:10}}>
+<div style={{width:36,height:36,borderRadius:8,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.2)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold}}>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-3V5a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><line x1="9" y1="7" x2="15" y2="7"/></svg>
+</div>
+<div style={{fontSize:20,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{form._id?L.edit:L.add}</div>
+</div>
+<button onClick={onClose} style={{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',color:'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+</div>
+{/* Content */}
+<div style={{flex:1,overflow:'visible',padding:'6px 16px 10px'}}>
+<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative',marginTop:10}}>
+<div style={{position:'absolute',top:-9,[isAr?'right':'left']:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold,display:'inline-flex',alignItems:'center',gap:6}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-3V5a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
+<span>{L.info}</span>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div>
+<KLbl req>{L.nameArLabel}</KLbl>
+<KInp value={form.name_ar} onChange={v=>setForm(p=>({...p,name_ar:v.replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g,'')}))} placeholder={L.nameArPh}/>
+</div>
+<div>
+<KLbl>{L.nameEnLabel}</KLbl>
+<KInp value={form.name_en} onChange={v=>setForm(p=>({...p,name_en:v.replace(/[^a-zA-Z\s'\-().]/g,'')}))} placeholder={L.nameEnPh} dir="ltr"/>
+</div>
+<div>
+<KLbl req>{isAr?'الرمز':'Code'}</KLbl>
+<KInp value={form.code} onChange={v=>setForm(p=>({...p,code:v}))} placeholder={L.codePh} dir="ltr"/>
+</div>
+<div>
+<KLbl>{isAr?'كود قوى':'Qiwa ID'}</KLbl>
+<KInp value={form.qiwa_id} onChange={v=>setForm(p=>({...p,qiwa_id:v.replace(/\D/g,'')}))} placeholder="0000" dir="ltr"/>
+</div>
+{isNat&&<div>
+<KLbl>{isAr?'اسم الدولة بالعربي':'Country (Arabic)'}</KLbl>
+<KInp value={form.country_name_ar} onChange={v=>setForm(p=>({...p,country_name_ar:v}))} placeholder={isAr?'مثال: السعودية':'—'}/>
+</div>}
+{isNat&&<div>
+<KLbl>{isAr?'اسم الدولة بالإنجليزي':'Country (English)'}</KLbl>
+<KInp value={form.country_name_en} onChange={v=>setForm(p=>({...p,country_name_en:v}))} placeholder="e.g. Saudi Arabia" dir="ltr"/>
+</div>}
+{isNat&&<div style={{gridColumn:'1 / span 2'}}>
+<KLbl>{isAr?'رابط العلم':'Flag URL'}</KLbl>
+<KInp value={form.flag_url} onChange={v=>setForm(p=>({...p,flag_url:v}))} placeholder="https://flagcdn.com/w320/sa.png" dir="ltr"/>
+</div>}
+<div>
+<KLbl>{isAr?'التصنيف':'Classification'}</KLbl>
+<KInp value={form.classification} onChange={v=>setForm(p=>({...p,classification:v}))} placeholder={isAr?'—':'—'}/>
+</div>
+<div>
+<KLbl>{isAr?'الترتيب':'Sort Order'}</KLbl>
+<KInp value={form.sort_order} onChange={v=>setForm(p=>({...p,sort_order:v.replace(/\D/g,'')}))} placeholder="0" dir="ltr"/>
+</div>
+<div>
+<KLbl>{isAr?'سعودي فقط':'Saudi Only'}</KLbl>
+<div style={{display:'flex',gap:8}}>
+{btn('true',form.saudi_only,()=>setForm(p=>({...p,saudi_only:'true'})),isAr?'نعم':'Yes','ok')}
+{btn('false',form.saudi_only,()=>setForm(p=>({...p,saudi_only:'false'})),isAr?'لا':'No','err')}
+</div>
+</div>
+<div>
+<KLbl>{isAr?'الحالة':'Status'}</KLbl>
+<div style={{display:'flex',gap:8}}>
+{btn('true',form.is_active,()=>setForm(p=>({...p,is_active:'true'})),isAr?'نشط':'Active','ok')}
+{btn('false',form.is_active,()=>setForm(p=>({...p,is_active:'false'})),isAr?'معطّل':'Inactive','err')}
+</div>
+</div>
+</div>
+</div>
+</div>
+{/* Footer */}
+<div style={{display:'flex',justifyContent:'flex-end',padding:'8px 20px 12px',flexShrink:0,direction:isAr?'rtl':'ltr'}}>
+<button onClick={handleSave} disabled={isSaving||!form.name_ar||!form.code} className="occ-nav-btn">
+<span>{isSaving?(isAr?'جار الحفظ…':'Saving…'):(form._id?(isAr?'تعديل':'Update'):(isAr?'إضافة':'Add'))}</span>
+<span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+</button>
+</div>
+{/* Saved Flash Overlay */}
+{savedFlash&&<div style={{position:'absolute',inset:0,background:'#1a1a1a',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,zIndex:10,borderRadius:18}}>
+<div style={{width:72,height:72,borderRadius:'50%',background:'rgba(39,160,70,.15)',border:'2px solid rgba(39,160,70,.5)',display:'flex',alignItems:'center',justifyContent:'center',color:'#27a046',animation:'occ-pop .3s ease-out'}}>
+<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</div>
+<div style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{form._id?L.savedEdit:L.savedAdd}</div>
+<style>{`@keyframes occ-pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}`}</style>
+</div>}
+</div>
+</div>
+</div>
+}
+
 // ═══ Main Component ═══
-export default function SettingsPage({sb,toast,user,lang,onTabChange}){
+export default function SettingsPage({sb,toast,user,lang,onTabChange,defaultMainTab}){
 const isAr=lang!=='en'
-const[tab,setTab]=useState('general')
+const[mainTab,setMainTab]=useState(defaultMainTab||'general_group')
+const[tab,setTab]=useState(()=>{
+const g=(defaultMainTab==='fields_group')?{id:'fields_group',first:'categories'}:{id:'general_group',first:'general'}
+return g.first
+})
 const[sData,setSData]=useState([]);const[sLoading,setSLoading]=useState(true)
 const[regions,setRegions]=useState([]);const[cities,setCities]=useState([]);const[districtsList,setDistrictsList]=useState([])
 const[authoritiesList,setAuthoritiesList]=useState([]);const[municipalitiesList,setMunicipalitiesList]=useState([])
-const[countries,setCountries]=useState([]);const[embassies,setEmbassies]=useState([])
-const[lLists,setLLists]=useState([]);const[lItems,setLItems]=useState([])
+const[lLists,setLLists]=useState([]);const[lItems,setLItems]=useState([]);const[occupationsList,setOccupationsList]=useState([]);const[natList,setNatList]=useState([]);const[embList,setEmbList]=useState([])
 const[docs,setDocs]=useState([])
 const[loading,setLoading]=useState(false)
 const[q,setQ]=useState('');const[pop,setPop]=useState(null)
@@ -106,18 +264,21 @@ const[muqeemInputs,setMuqeemInputs]=useState({username:'',password:''})
 const[muqeemShowPw,setMuqeemShowPw]=useState(false)
 const[muqeemSaving,setMuqeemSaving]=useState(false)
 const[muqeemEditing,setMuqeemEditing]=useState(false)
+const[sbcCreds,setSbcCreds]=useState({username:'',password:'',updated_at:null})
+const[sbcInputs,setSbcInputs]=useState({username:'',password:''})
+const[sbcShowPw,setSbcShowPw]=useState(false)
+const[sbcSaving,setSbcSaving]=useState(false)
+const[sbcEditing,setSbcEditing]=useState(false)
 
 const toggle=id=>setOpen(p=>({...p,[id]:!p[id]}))
 useEffect(()=>{onTabChange&&onTabChange({tab,svcSubTab})},[tab,svcSubTab,onTabChange])
 
 const loadAll=useCallback(async()=>{
 setLoading(true)
-const[s,rg,ct,co,em,ll,li,dc,sv,ss,tp,tl,di,au,mn]=await Promise.all([
+const[s,rg,ct,ll,li,dc,sv,ss,tp,tl,di,au,mn,oc,nat,emb]=await Promise.all([
 sb.from('system_settings').select('*').order('category').order('setting_key'),
 sb.from('regions').select('*').order('sort_order').order('name_ar'),
 sb.from('cities').select('*').order('sort_order').order('name_ar'),
-sb.from('countries').select('*').order('sort_order').order('name_ar'),
-sb.from('embassies_consulates').select('*').order('sort_order').order('city_ar'),
 sb.from('lookup_categories').select('*').order('sort_order').order('name_ar'),
 sb.from('lookup_items').select('*').order('sort_order'),
 sb.from('documents').select('*').is('deleted_at',null).order('created_at',{ascending:false}).limit(200),
@@ -127,17 +288,21 @@ sb.from('transaction_templates').select('*').order('sort_order').order('name_ar'
 sb.from('template_sub_services').select('*').order('step_order'),
 sb.from('districts').select('*').order('sort_order').order('name_ar'),
 sb.from('authorities').select('*').order('sort_order').order('name_ar'),
-sb.from('municipalities').select('*').order('sort_order').order('name_ar')
+sb.from('municipalities').select('*').order('sort_order').order('name_ar'),
+sb.from('occupations').select('*').is('deleted_at',null).order('sort_order',{nullsFirst:false}).order('name_ar'),
+sb.from('nationalities').select('*').is('deleted_at',null).order('sort_order',{nullsFirst:false}).order('name_ar'),
+sb.from('embassies').select('*').is('deleted_at',null).order('name_ar')
 ])
 setSData(s.data||[]);setSLoading(false);setRegions(rg.data||[]);setCities(ct.data||[]);setDistrictsList(di.data||[]);setAuthoritiesList(au.data||[]);setMunicipalitiesList(mn.data||[])
-setCountries(co.data||[]);setEmbassies(em.data||[])
 setLLists(ll.data||[]);setLItems(li.data||[]);setDocs(dc.data||[]);setSubSvcs(sv.data||[]);setSubSteps(ss.data||[]);setTplts(tp.data||[]);setTplLinks(tl.data||[])
+setOccupationsList(oc.data||[]);setNatList(nat.data||[]);setEmbList(emb.data||[])
 // Load step_fields counts per step and txn counts per service
 sb.from('step_fields').select('step_id').then(({data:sfData})=>{const counts={};(sfData||[]).forEach(f=>{counts[f.step_id]=(counts[f.step_id]||0)+1});setStepFieldCounts(counts)})
 sb.from('transactions').select('service_id').is('deleted_at',null).then(({data:txData})=>{const counts={};(txData||[]).forEach(t=>{if(t.service_id)counts[t.service_id]=(counts[t.service_id]||0)+1});setTxnCounts(counts)})
 sb.from('service_installment_plans').select('*').order('installment_order').then(({data})=>setInstPlans(data||[]))
 sb.from('service_type_milestones').select('*').eq('is_active',true).order('sort_order').then(({data})=>setMsList(data||[]))
 sb.from('muqeem_credentials').select('username,password,updated_at').eq('id','default').maybeSingle().then(({data})=>{const d=data||{username:'',password:'',updated_at:null};setMuqeemCreds(d);setMuqeemInputs({username:d.username||'',password:d.password||''})})
+sb.from('sbc_credentials').select('username,password,updated_at').eq('id','default').maybeSingle().then(({data})=>{const d=data||{username:'',password:'',updated_at:null};setSbcCreds(d);setSbcInputs({username:d.username||'',password:d.password||''})})
 setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
@@ -145,6 +310,8 @@ useEffect(()=>{loadAll()},[loadAll])
 const saveSetting=async(key,val)=>{const{error}=await sb.from('system_settings').update({setting_value:val,updated_at:new Date().toISOString()}).eq('setting_key',key);if(error)toast('خطأ');else toast(isAr?'تم الحفظ':'Saved')}
 const saveMuqeemCreds=async()=>{const u=(muqeemInputs.username||'').trim();const p=(muqeemInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setMuqeemSaving(true);const{error}=await sb.from('muqeem_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setMuqeemSaving(false);if(error){toast('خطأ: '+error.message?.slice(0,80));return}setMuqeemCreds({username:u,password:p,updated_at:new Date().toISOString()});setMuqeemEditing(false);setMuqeemShowPw(false);toast(isAr?'تم حفظ بيانات دخول مقيم':'Muqeem credentials saved')}
 const cancelMuqeemEdit=()=>{setMuqeemInputs({username:muqeemCreds.username||'',password:muqeemCreds.password||''});setMuqeemEditing(false);setMuqeemShowPw(false)}
+const saveSbcCreds=async()=>{const u=(sbcInputs.username||'').trim();const p=(sbcInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setSbcSaving(true);const{error}=await sb.from('sbc_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setSbcSaving(false);if(error){toast('خطأ: '+error.message?.slice(0,80));return}setSbcCreds({username:u,password:p,updated_at:new Date().toISOString()});setSbcEditing(false);setSbcShowPw(false);toast(isAr?'تم حفظ بيانات دخول المركز السعودي':'SBC credentials saved')}
+const cancelSbcEdit=()=>{setSbcInputs({username:sbcCreds.username||'',password:sbcCreds.password||''});setSbcEditing(false);setSbcShowPw(false)}
 const saveForm=async()=>{setSaving(true);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
 if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
 if(d.is_system!==undefined&&d.is_system!==null)d.is_system=d.is_system==='true'
@@ -154,6 +321,13 @@ else{if(['documents'].includes(t))d.created_by=user?.id;const{error}=await sb.fr
 setPop(null);loadAll()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
 const confirmDel=async()=>{if(!delTarget)return;const{table,id}=delTarget
 if(table==='documents'){await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id)}
+else if(table==='occupations'){await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id)
+const{data:rest}=await sb.from('occupations').select('id').is('deleted_at',null).order('sort_order',{nullsFirst:false}).order('name_ar')
+if(rest){await Promise.all(rest.map((r,i)=>sb.from('occupations').update({sort_order:i+1}).eq('id',r.id)))}}
+else if(table==='nationalities'){await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id)
+const{data:rest}=await sb.from('nationalities').select('id').is('deleted_at',null).order('sort_order',{nullsFirst:false}).order('name_ar')
+if(rest){await Promise.all(rest.map((r,i)=>sb.from('nationalities').update({sort_order:i+1}).eq('id',r.id)))}}
+else if(table==='embassies'){await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id)}
 else{await sb.from(table).delete().eq('id',id)}
 toast(isAr?'تم الحذف':'Deleted');setDelTarget(null);loadAll()}
 const askDel=(table,id,name)=>setDelTarget({table,id,name})
@@ -165,15 +339,22 @@ const cardS={background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14
 const parentRow={display:'flex',alignItems:'center',gap:10,padding:'12px 16px',cursor:'pointer',borderBottom:'1px solid var(--bd2)',transition:'.1s'}
 const childRow={display:'flex',alignItems:'center',gap:10,padding:'9px 16px 9px 42px',borderBottom:'1px solid rgba(255,255,255,.02)',background:'rgba(255,255,255,.015)'}
 
-const tabs=[
-{id:'general',l:'الإعدادات العامة',le:'General'},
+const tabGroups=[
+{id:'general_group',l:'الإعدادات العامة',le:'General Settings',tabs:[
+{id:'general',l:'إعدادات البرنامج',le:'Program Settings'},
 {id:'services',l:'الخدمات والمعاملات',le:'Services & Transactions'},
-{id:'categories',l:'الخانات والعناصر',le:'Categories & Items'},
-{id:'countries_nat',l:'الدول والجنسيات والسفارات',le:'Countries & Embassies'},
+{id:'documents',l:'الوثائق',le:'Documents'},
+]},
+{id:'fields_group',l:'الحقول',le:'Fields',tabs:[
+{id:'categories',l:'حقول عامة',le:'General Fields'},
+{id:'occupations',l:'المهن',le:'Occupations'},
+{id:'nationalities',l:'الجنسيات والسفارات',le:'Nationalities & Embassies'},
 {id:'regions_cities',l:'المناطق والمدن',le:'Regions & Cities'},
 {id:'authorities_muni',l:'الأمانات والبلديات',le:'Authorities & Municipalities'},
-{id:'documents',l:'الوثائق',le:'Documents'},
+]},
 ]
+const tabs=tabGroups.flatMap(g=>g.tabs)
+const currentGroup=tabGroups.find(g=>g.id===mainTab)||tabGroups[0]
 
 const popFields={
 r:[{k:'name_ar',l:isAr?'الاسم بالعربي':'Name (Arabic)',r:1},{k:'name_en',l:isAr?'الاسم بالإنجليزي':'Name (English)',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشطة':'Active'},{v:'false',l:isAr?'معطّلة':'Inactive'}]}],
@@ -191,7 +372,8 @@ sv:[{k:'name_ar',l:isAr?'اسم الخدمة بالعربي':'Service (Arabic)',
 ss:[{k:'name_ar',l:isAr?'اسم الخطوة':'Step (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'step_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'is_required',l:isAr?'مطلوبة':'Required',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'sadad_requirement',l:isAr?'متطلب سداد':'SADAD',opts:[{v:'none',l:isAr?'بدون':'None'},{v:'required_blocking',l:isAr?'مطلوب (حظر)':'Blocking'},{v:'required_before_complete',l:isAr?'قبل الإنهاء':'Before Complete'}]},{k:'default_sadad_amount',l:isAr?'مبلغ سداد':'Amount',d:1},{k:'description',l:isAr?'الوصف':'Description',w:1}],
 tp:[{k:'name_ar',l:isAr?'اسم القالب بالعربي':'Template (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'transaction_type',l:isAr?'نوع المعاملة':'Type',opts:[{v:'recruitment',l:isAr?'استقدام':'Recruitment'},{v:'transfer',l:isAr?'نقل خدمات':'Transfer'},{v:'exit',l:isAr?'خروج':'Exit'},{v:'renewal',l:isAr?'تجديد':'Renewal'},{v:'other',l:isAr?'أخرى':'Other'}]},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]},{k:'notes',l:isAr?'ملاحظات':'Notes',w:1}],
 tl:[{k:'sub_service_id',l:isAr?'الخدمة الفرعية':'Sub Service',r:1,opts:subSvcs.map(s=>({v:s.id,l:isAr?s.name_ar:s.name_en||s.name_ar}))},{k:'step_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'step_group',l:isAr?'مجموعة تبديل':'Swap Group',d:1},{k:'is_conditional',l:isAr?'شرطية؟':'Conditional?',opts:[{v:'false',l:isAr?'لا':'No'},{v:'true',l:isAr?'نعم':'Yes'}]},{k:'condition_note',l:isAr?'وصف الشرط':'Condition Note',w:1}],
-ip:[{k:'service_id',l:isAr?'الخدمة':'Service',r:1,opts:subSvcs.map(s=>({v:s.id,l:isAr?s.name_ar:s.name_en||s.name_ar}))},{k:'label_ar',l:isAr?'اسم القسط':'Label (AR)',r:1},{k:'label_en',l:isAr?'بالإنجليزي':'Label (EN)',d:1},{k:'installment_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'percentage',l:isAr?'النسبة %':'Percentage',d:1},{k:'fixed_amount',l:isAr?'مبلغ ثابت':'Fixed Amount',d:1},{k:'due_type',l:isAr?'نوع الاستحقاق':'Due Type',r:1,opts:[{v:'on_request',l:isAr?'عند رفع الطلب':'On Request'},{v:'after_days',l:isAr?'بعد عدد أيام':'After Days'},{v:'on_milestone',l:isAr?'عند إنجاز مرحلة':'On Milestone'},{v:'on_completion',l:isAr?'عند اكتمال المعاملة':'On Completion'}]},{k:'due_days',l:isAr?'عدد الأيام':'Days',d:1},{k:'milestone_id',l:isAr?'المرحلة':'Milestone',opts:[{v:'',l:'—'},...msList.map(m=>({v:m.id,l:m.name_ar}))]},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]}]
+ip:[{k:'service_id',l:isAr?'الخدمة':'Service',r:1,opts:subSvcs.map(s=>({v:s.id,l:isAr?s.name_ar:s.name_en||s.name_ar}))},{k:'label_ar',l:isAr?'اسم القسط':'Label (AR)',r:1},{k:'label_en',l:isAr?'بالإنجليزي':'Label (EN)',d:1},{k:'installment_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'percentage',l:isAr?'النسبة %':'Percentage',d:1},{k:'fixed_amount',l:isAr?'مبلغ ثابت':'Fixed Amount',d:1},{k:'due_type',l:isAr?'نوع الاستحقاق':'Due Type',r:1,opts:[{v:'on_request',l:isAr?'عند رفع الطلب':'On Request'},{v:'after_days',l:isAr?'بعد عدد أيام':'After Days'},{v:'on_milestone',l:isAr?'عند إنجاز مرحلة':'On Milestone'},{v:'on_completion',l:isAr?'عند اكتمال المعاملة':'On Completion'}]},{k:'due_days',l:isAr?'عدد الأيام':'Days',d:1},{k:'milestone_id',l:isAr?'المرحلة':'Milestone',opts:[{v:'',l:'—'},...msList.map(m=>({v:m.id,l:m.name_ar}))]},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]}],
+occ:[{k:'name_ar',l:isAr?'الاسم بالعربي':'Name (Arabic)',r:1},{k:'name_en',l:isAr?'الاسم بالإنجليزي':'Name (English)',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'classification',l:isAr?'التصنيف':'Classification',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'saudi_only',l:isAr?'سعودي فقط':'Saudi Only',btn:1,opts:[{v:'false',l:isAr?'لا':'No'},{v:'true',l:isAr?'نعم':'Yes'}]},{k:'is_active',l:isAr?'الحالة':'Status',btn:1,opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]}]
 }
 const popTitles={
 r:form._id?(isAr?'تعديل منطقة':'Edit Region'):(isAr?'إضافة منطقة':'Add Region'),
@@ -209,19 +391,37 @@ sv:form._id?(isAr?'تعديل خدمة فرعية':'Edit Sub Service'):(isAr?'إ
 ss:form._id?(isAr?'تعديل خطوة':'Edit Step'):(isAr?'إضافة خطوة':'Add Step'),
 tp:form._id?(isAr?'تعديل قالب':'Edit Template'):(isAr?'إضافة قالب معاملة':'Add Template'),
 tl:form._id?(isAr?'تعديل ربط':'Edit Link'):(isAr?'ربط خدمة فرعية بقالب':'Link Sub Service'),
-ip:form._id?(isAr?'تعديل قسط':'Edit Installment'):(isAr?'إضافة قسط جديد':'Add Installment')
+ip:form._id?(isAr?'تعديل قسط':'Edit Installment'):(isAr?'إضافة قسط جديد':'Add Installment'),
+occ:form._id?(isAr?'تعديل مهنة':'Edit Occupation'):(isAr?'إضافة مهنة':'Add Occupation')
 }
 
 const fLItems=lItems.filter(i=>{if(listFilter&&i.category_id!==listFilter)return false;if(q)return(i.value_ar||'').includes(q)||(i.value_en||'').toLowerCase().includes(q.toLowerCase());return true})
 
 return<div>
+<style>{`
+.jisr-icon-btn:hover{transform:translateY(-1px)}
+.jisr-edit-btn:hover{background:linear-gradient(145deg,rgba(212,160,23,.28),rgba(212,160,23,.14))!important;border-color:rgba(212,160,23,.5)!important;box-shadow:0 4px 12px rgba(212,160,23,.18)}
+.jisr-edit-btn:active{transform:translateY(0)}
+.jisr-del-btn:hover{background:linear-gradient(145deg,rgba(192,57,43,.3),rgba(192,57,43,.12))!important;border-color:rgba(192,57,43,.55)!important;color:#e06157!important;box-shadow:0 4px 12px rgba(192,57,43,.2)}
+.jisr-del-btn:active{transform:translateY(0)}
+.jisr-list-row{transition:background .18s ease,box-shadow .18s ease}
+.jisr-list-row:hover{background:rgba(212,160,23,.045)}
+.jisr-list-row:last-child{border-bottom:none!important}
+.jisr-drag-handle{transition:fill .18s ease,transform .18s ease}
+.jisr-list-row:hover .jisr-drag-handle{fill:rgba(212,160,23,.9)!important;transform:scale(1.08)}
+.jisr-copy-btn:hover{color:rgba(212,160,23,.95)!important}
+.jisr-copy-btn:active{transform:scale(.9)}
+`}</style>
 <div style={{marginBottom:20}}>
 <div style={{fontSize:20,fontWeight:700,color:'rgba(255,255,255,.93)'}}>{isAr?'الإعدادات والتصنيفات':'Settings & Categories'}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginTop:6}}>{isAr?'إدارة البيانات الأساسية والتصنيفات':'Manage core data & categories'}</div>
 </div>
 
-<div style={{display:'flex',gap:0,marginBottom:20,borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none'}}>
-{tabs.map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setListFilter('')}} style={{padding:'10px 16px',fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.42)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap',flexShrink:0}}>{isAr?t.l:t.le}</div>)}
+{!defaultMainTab&&<div style={{display:'flex',gap:6,marginBottom:0,overflowX:'auto',scrollbarWidth:'none'}}>
+{tabGroups.map(g=><div key={g.id} onClick={()=>{setMainTab(g.id);setTab(g.tabs[0].id);setQ('');setListFilter('')}} style={{padding:'10px 18px',fontSize:13,fontWeight:mainTab===g.id?800:600,color:mainTab===g.id?C.gold:'rgba(255,255,255,.55)',background:mainTab===g.id?'rgba(212,160,23,.08)':'transparent',border:'1px solid '+(mainTab===g.id?'rgba(212,160,23,.3)':'rgba(255,255,255,.06)'),borderBottom:'none',borderRadius:'8px 8px 0 0',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap',flexShrink:0}}>{isAr?g.l:g.le}</div>)}
+</div>}
+<div style={{display:'flex',gap:0,marginBottom:20,borderTop:defaultMainTab?'none':'1px solid var(--bd)',borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none',background:defaultMainTab?'transparent':'rgba(255,255,255,.015)'}}>
+{currentGroup.tabs.map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setListFilter('')}} style={{padding:'10px 16px',fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.42)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap',flexShrink:0}}>{isAr?t.l:t.le}</div>)}
 </div>
 
 {tab==='general'&&<>
@@ -264,6 +464,51 @@ return<div>
 <input type={muqeemShowPw?'text':'password'} value={muqeemInputs.password} onChange={e=>setMuqeemInputs(p=>({...p,password:e.target.value}))} readOnly={!muqeemEditing} autoComplete="new-password" style={{width:'100%',height:36,padding:'0 38px 0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center',boxSizing:'border-box'}}/>
 <button type="button" onClick={()=>setMuqeemShowPw(s=>!s)} style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',width:24,height:24,borderRadius:6,border:'none',background:'transparent',color:'var(--tx5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}} title={muqeemShowPw?(isAr?'إخفاء':'Hide'):(isAr?'إظهار':'Show')}>
 {muqeemShowPw?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+{/* ── SBC (Saudi Business Center) bot credentials — same pattern as Muqeem ── */}
+<div style={{marginBottom:26}}>
+<div style={{...secS,marginBottom:4}}><span style={{width:6,height:6,borderRadius:'50%',background:'#D4A017'}}/>{isAr?'بيانات دخول المركز السعودي للأعمال (البوت)':'SBC Bot Credentials'}</div>
+{sbcCreds.updated_at&&<div style={{fontSize:10,color:'var(--tx5)',fontWeight:500,textAlign:isAr?'right':'left',marginBottom:8,paddingRight:16,paddingLeft:16}}>{isAr?'آخر تحديث: ':'Last updated: '}{new Date(sbcCreds.updated_at).toLocaleString('en-GB')}</div>}
+<div className="muq-in" data-editing={sbcEditing?'true':'false'} style={{position:'relative',padding:'26px 10px 10px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid '+(sbcEditing?'rgba(212,160,23,.35)':'rgba(255,255,255,.1)'),display:'flex',flexDirection:'column',gap:8}}>
+{sbcEditing
+?<div style={{position:'absolute',top:-12,left:12,zIndex:2,display:'inline-flex',alignItems:'center',gap:6}}>
+<button onClick={saveSbcCreds} disabled={sbcSaving||!sbcInputs.username||!sbcInputs.password} title={isAr?'حفظ التعديلات':'Save changes'} className="muq-save-btn" style={{height:24,padding:'0 12px',border:'1px solid',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,opacity:(sbcSaving||!sbcInputs.username||!sbcInputs.password)?0.5:1}}>
+<span>{sbcSaving?(isAr?'جارِ الحفظ...':'Saving...'):(isAr?'حفظ':'Save')}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</button>
+<button onClick={cancelSbcEdit} title={isAr?'إلغاء التعديل بدون حفظ':'Cancel without saving'} className="muq-cancel-btn" style={{height:24,padding:'0 12px',border:'1px solid',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5}}>
+<span>{isAr?'إلغاء التعديل':'Cancel'}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+</button>
+</div>
+:<button onClick={()=>{setSbcInputs({username:sbcCreds.username||'',password:sbcCreds.password||''});setSbcEditing(true)}} title={isAr?'تعديل بيانات المركز السعودي':'Edit SBC credentials'} className="muq-edit-btn" style={{position:'absolute',top:-12,left:12,height:24,padding:'0 12px',border:'1px dashed',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',zIndex:2,display:'inline-flex',alignItems:'center',gap:5}}>
+<span>{isAr?'تعديل':'Edit'}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+</button>}
+<div style={{display:'flex',flexDirection:'column',gap:8,pointerEvents:sbcEditing?'auto':'none',filter:sbcEditing?'none':'saturate(.75)'}}>
+<div style={{padding:'10px 14px',fontSize:11,color:'var(--tx5)',lineHeight:1.7,background:'rgba(212,160,23,.04)',border:'1px solid rgba(255,255,255,.04)',borderRadius:8}}>{isAr?'يستخدمها البوت للدخول إلى نفاذ ثم بوابة تيسير (المركز السعودي للأعمال). رمز التحقق يصل إلى قاعدة البيانات تلقائياً.':'Used by the bot to log into Nafath then Tayseer (SBC). The OTP arrives in the database automatically.'}</div>
+<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:8,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?'اسم المستخدم (هوية نفاذ)':'Username (Nafath ID)'}</div>
+<div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>SBC_USERNAME</div>
+</div>
+<input value={sbcInputs.username} onChange={e=>setSbcInputs(p=>({...p,username:e.target.value}))} readOnly={!sbcEditing} autoComplete="off" style={{width:260,height:36,padding:'0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center'}}/>
+</div>
+<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:8,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?'كلمة المرور':'Password'}</div>
+<div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>SBC_PASSWORD</div>
+</div>
+<div style={{position:'relative',width:260}}>
+<input type={sbcShowPw?'text':'password'} value={sbcInputs.password} onChange={e=>setSbcInputs(p=>({...p,password:e.target.value}))} readOnly={!sbcEditing} autoComplete="new-password" style={{width:'100%',height:36,padding:'0 38px 0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center',boxSizing:'border-box'}}/>
+<button type="button" onClick={()=>setSbcShowPw(s=>!s)} style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',width:24,height:24,borderRadius:6,border:'none',background:'transparent',color:'var(--tx5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}} title={sbcShowPw?(isAr?'إخفاء':'Hide'):(isAr?'إظهار':'Show')}>
+{sbcShowPw?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
 </button>
 </div>
 </div>
@@ -356,49 +601,154 @@ regions.map(r=>{const rc=cities.filter(c=>c.region_id===r.id);const io=open['r_'
 </div>})}</div>}
 </div>})}</div></>}
 
-{/* COUNTRIES & EMBASSIES */}
-{tab==='countries_nat'&&<>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'الدول والجنسيات والسفارات':'Countries & Embassies'}<span style={{fontSize:10,color:'var(--tx5)'}}>{countries.length} {isAr?'دولة':'countries'} · {embassies.length} {isAr?'سفارة':'embassies'}</span></div>
-<div style={{display:'flex',gap:6}}>
-<button onClick={()=>{setForm({_table:'countries',name_ar:'',name_en:'',nationality_ar:'',nationality_en:'',code:'',sort_order:'',flag_emoji:'',is_active:'true'});setPop('co')}} style={bS}>{isAr?'دولة':'Country'} +</button>
+{/* OCCUPATIONS */}
+{tab==='occupations'&&(()=>{
+const filtered=q?occupationsList.filter(i=>(i.name_ar||'').includes(q)||(i.name_en||'').toLowerCase().includes(q.toLowerCase())||(i.code||'').includes(q)):occupationsList
+const maxShow=2000
+const shown=filtered.slice(0,maxShow)
+const onDragStart=(e,idx)=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(idx))}
+const onDragOver=(e)=>{e.preventDefault();e.dataTransfer.dropEffect='move'}
+const onDrop=async(e,dropIdx)=>{
+e.preventDefault()
+const fromIdx=parseInt(e.dataTransfer.getData('text/plain'),10)
+if(isNaN(fromIdx)||fromIdx===dropIdx||q)return
+const next=[...occupationsList]
+const[moved]=next.splice(fromIdx,1)
+next.splice(dropIdx,0,moved)
+setOccupationsList(next.map((o,i)=>({...o,sort_order:i+1})))
+const updates=next.map((o,i)=>({id:o.id,sort_order:i+1}))
+const affected=updates.filter((u,i)=>occupationsList[i]?.id!==u.id||occupationsList[i]?.sort_order!==u.sort_order)
+if(affected.length){
+const rowsToPersist=affected.map(u=>({id:u.id,sort_order:u.sort_order}))
+for(const row of rowsToPersist){await sb.from('occupations').update({sort_order:row.sort_order}).eq('id',row.id)}
+}
+}
+return<>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
+<div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold}}/><span style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{isAr?'المهن':'Occupations'}</span><span style={{fontSize:11,color:'var(--tx5)'}}>{(q?filtered.length:occupationsList.length)} {isAr?'مهنة':'occupations'}</span></div>
+<div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 280px',minWidth:0,justifyContent:'flex-end'}}>
+<div style={{position:'relative',flex:'1 1 200px',minWidth:160,maxWidth:460}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?12:'auto',left:isAr?'auto':12,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:36,padding:isAr?'0 34px 0 12px':'0 12px 0 34px',borderRadius:8,border:'1px solid rgba(255,255,255,.12)',background:'rgba(0,0,0,.25)',color:'var(--tx)',fontFamily:F,fontSize:12,outline:'none',minWidth:0,boxSizing:'border-box'}}/>
+</div>
+<button onClick={()=>{const maxOrder=occupationsList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'occupations',name_ar:'',name_en:'',code:'',qiwa_id:'',classification:'',saudi_only:'false',is_active:'true',sort_order:String(maxOrder+1)});setPop('occ')}} style={{...bS,height:36,flexShrink:0}}>{isAr?'مهنة':'Occupation'} +</button>
 </div></div>
-<div style={cardS}>{countries.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد دول':'No countries'}</div>:
-countries.map(co=>{const ce=embassies.filter(e=>e.country_id===co.id);const io=open['co_'+co.id];return<div key={co.id}>
-<div style={parentRow} onClick={()=>toggle('co_'+co.id)}>
-<ArrowIcon isOpen={io}/>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{co.name_ar}</span>
-<span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{co.name_en||''}</span>
-{co.code&&<span style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr'}}>{co.code}</span>}
-<BadgeStatus v={co.is_active} isAr={isAr}/>
+<div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد مهن':'No occupations'}</div>:<>
+{shown.map((it,idx)=>{const active=it.is_active!==false;const toggleActive=async()=>{const next=!active;setOccupationsList(p=>p.map(o=>o.id===it.id?{...o,is_active:next}:o));await sb.from('occupations').update({is_active:next}).eq('id',it.id)};return<div key={it.id} className="jisr-list-row" draggable={!q} onDragStart={e=>onDragStart(e,idx)} onDragOver={onDragOver} onDrop={e=>onDrop(e,idx)} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:'1px solid rgba(255,255,255,.05)',cursor:q?'default':'grab',opacity:active?1:0.55,flexWrap:'wrap'}}>
+{!q&&<svg className="jisr-drag-handle" width="16" height="24" viewBox="0 0 16 24" fill="rgba(255,255,255,.45)" style={{flexShrink:0,cursor:'grab'}} aria-label="drag"><circle cx="3" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="13" cy="6" r="1.1"/><circle cx="3" cy="12" r="1.1"/><circle cx="8" cy="12" r="1.1"/><circle cx="13" cy="12" r="1.1"/><circle cx="3" cy="18" r="1.1"/><circle cx="8" cy="18" r="1.1"/><circle cx="13" cy="18" r="1.1"/></svg>}
+<span style={{display:'inline-flex',alignItems:'baseline',fontSize:15,fontWeight:800,color:C.gold,direction:'ltr',minWidth:32,textAlign:'center',justifyContent:'center',flexShrink:0,letterSpacing:.2}}><span style={{opacity:.5,fontWeight:700,fontSize:11,marginInlineEnd:2}}>#</span>{it.sort_order||'—'}</span>
+<div style={{flex:'1 1 180px',display:'flex',flexDirection:'column',gap:2,minWidth:140,alignItems:'flex-start'}}>
+<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.95)'}}>{it.name_ar}</span>
+<CopyBtn text={it.name_ar} toast={toast} isAr={isAr}/>
+{it.saudi_only&&<span style={{fontSize:10,color:'#27a046',background:'rgba(0,108,53,.15)',border:'1px solid rgba(0,108,53,.45)',padding:'2px 8px',borderRadius:5,fontWeight:700,flexShrink:0}}>{isAr?'سعودي فقط':'Saudi only'}</span>}
 </div>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-{co.code&&<img src={'https://flagcdn.com/w40/'+co.code.toLowerCase()+'.png'} width={24} height={16} style={{borderRadius:2,objectFit:'cover',flexShrink:0}} alt='' onError={e=>{e.target.style.display='none'}}/>}
-<span style={{fontSize:10,color:'rgba(212,160,23,.6)',background:'rgba(212,160,23,.08)',padding:'2px 8px',borderRadius:8}}>{co.nationality_ar||'—'}</span>
-<span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.12)'}}/>
-<span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{ce.length} {isAr?'سفارة':'embassies'}</span>
+{it.name_en&&<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:12,color:'rgba(255,255,255,.65)',direction:'ltr'}}>{it.name_en}</span><CopyBtn text={it.name_en} toast={toast} isAr={isAr}/></div>}
 </div>
+<div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,marginInlineStart:'auto',flexWrap:'wrap',justifyContent:'flex-end'}}>
+{it.code&&<span style={{fontSize:11,color:'rgba(255,255,255,.7)',fontFamily:'monospace',direction:'ltr',background:'rgba(255,255,255,.06)',padding:'3px 8px',borderRadius:5,flexShrink:0}}>{it.code}</span>}
+<button type="button" onClick={(e)=>{e.stopPropagation();toggleActive()}} title={active?(isAr?'نشط (يظهر في القوائم)':'Active (visible in dropdowns)'):(isAr?'إخفاء من القوائم':'Hide from dropdowns')} style={{width:36,height:20,borderRadius:999,border:'none',background:active?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:2,right:active?2:18,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
+</button>
+<div style={{display:'flex',gap:4,flexShrink:0}}>
+<EditBtn onClick={()=>{setForm({_table:'occupations',_id:it.id,name_ar:it.name_ar||'',name_en:it.name_en||'',code:it.code||'',qiwa_id:it.qiwa_id||'',classification:it.classification||'',saudi_only:String(it.saudi_only===true),is_active:String(it.is_active!==false),sort_order:it.sort_order||''});setPop('occ')}}/>
+<DelBtn onClick={()=>askDel('occupations',it.id,it.name_ar)}/>
+</div></div></div>})}
+{filtered.length>maxShow&&<div style={{textAlign:'center',padding:16,color:'var(--tx6)',fontSize:11}}>{isAr?`… و ${filtered.length-maxShow} مهنة أخرى. استخدم البحث لتضييق النتائج.`:`… and ${filtered.length-maxShow} more. Use search to narrow.`}</div>}
+</>}</div>
+</>})()}
+
+{/* NATIONALITIES (dedicated table) */}
+{tab==='nationalities'&&(()=>{
+const qLower=(q||'').toLowerCase()
+const natMatchEmb=new Set()
+if(q){embList.forEach(e=>{if((e.name_ar||'').includes(q)||(e.name_en||'').toLowerCase().includes(qLower))natMatchEmb.add(e.nationality_id)})}
+const filtered=q?natList.filter(i=>(i.name_ar||'').includes(q)||(i.name_en||'').toLowerCase().includes(qLower)||(i.code||'').includes(q)||(i.country_name_ar||'').includes(q)||(i.country_name_en||'').toLowerCase().includes(qLower)||natMatchEmb.has(i.id)):natList
+const maxShow=2000
+const shown=filtered.slice(0,maxShow)
+const onDragStart=(e,idx)=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(idx))}
+const onDragOver=(e)=>{e.preventDefault();e.dataTransfer.dropEffect='move'}
+const onDrop=async(e,dropIdx)=>{
+e.preventDefault()
+const fromIdx=parseInt(e.dataTransfer.getData('text/plain'),10)
+if(isNaN(fromIdx)||fromIdx===dropIdx||q)return
+const next=[...natList]
+const[moved]=next.splice(fromIdx,1)
+next.splice(dropIdx,0,moved)
+setNatList(next.map((o,i)=>({...o,sort_order:i+1})))
+const updates=next.map((o,i)=>({id:o.id,sort_order:i+1}))
+const affected=updates.filter((u,i)=>natList[i]?.id!==u.id||natList[i]?.sort_order!==u.sort_order)
+if(affected.length){
+const rowsToPersist=affected.map(u=>({id:u.id,sort_order:u.sort_order}))
+for(const row of rowsToPersist){await sb.from('nationalities').update({sort_order:row.sort_order}).eq('id',row.id)}
+}
+}
+return<>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
+<div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold}}/><span style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{isAr?'الجنسيات والسفارات':'Nationalities & Embassies'}</span><span style={{fontSize:11,color:'var(--tx5)'}}>{(q?filtered.length:natList.length)} {isAr?'جنسية':'nationalities'}</span></div>
+<div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 280px',minWidth:0,justifyContent:'flex-end'}}>
+<div style={{position:'relative',flex:'1 1 200px',minWidth:160,maxWidth:460}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?12:'auto',left:isAr?'auto':12,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:36,padding:isAr?'0 34px 0 12px':'0 12px 0 34px',borderRadius:8,border:'1px solid rgba(255,255,255,.12)',background:'rgba(0,0,0,.25)',color:'var(--tx)',fontFamily:F,fontSize:12,outline:'none',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
-<button onClick={()=>{setForm({_table:'embassies_consulates',city_ar:'',city_en:'',country_id:co.id,sort_order:'',is_active:'true'});setPop('em')}} style={{height:28,padding:'0 10px',borderRadius:8,border:'1px solid rgba(52,131,180,.25)',background:'rgba(52,131,180,.1)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{isAr?'سفارة':'Embassy'}</button>
-<EditBtn onClick={()=>{setForm({_table:'countries',_id:co.id,name_ar:co.name_ar||'',name_en:co.name_en||'',nationality_ar:co.nationality_ar||'',nationality_en:co.nationality_en||'',code:co.code||'',sort_order:co.sort_order||'',flag_emoji:co.flag_emoji||'',is_active:String(co.is_active!==false)});setPop('co')}}/>
-<DelBtn onClick={()=>askDel('countries',co.id,co.name_ar)}/>
+<button onClick={()=>{const maxOrder=natList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'nationalities',name_ar:'',name_en:'',code:'',qiwa_id:'',country_name_ar:'',country_name_en:'',flag_url:'',classification:'',saudi_only:'false',is_active:'true',sort_order:String(maxOrder+1)});setPop('nat')}} style={{...bS,height:36,flexShrink:0}}>{isAr?'جنسية':'Nationality'} +</button>
 </div></div>
-{io&&<div style={{background:'rgba(255,255,255,.015)'}}>{ce.length===0?<div style={{...childRow,color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد سفارات':'No embassies'}</div>:
-ce.map(e=><div key={e.id} style={childRow}>
-<div style={{width:4,height:4,borderRadius:'50%',background:C.blue,flexShrink:0}}/>
-<div style={{flex:1,display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{e.city_ar}</span>
-<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{e.city_en||''}</span>
+<div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد جنسيات':'No nationalities'}</div>:<>
+{shown.map((it,idx)=>{const active=it.is_active!==false;const toggleActive=async()=>{const next=!active;setNatList(p=>p.map(o=>o.id===it.id?{...o,is_active:next}:o));await sb.from('nationalities').update({is_active:next}).eq('id',it.id)};const embs=embList.filter(e=>e.nationality_id===it.id);const embKey='nat_'+it.id;const embOpen=!!open[embKey]||(q&&natMatchEmb.has(it.id));const addEmbassy=()=>{setForm({_table:'embassies',nationality_id:it.id,name_ar:'',name_en:'',code:'',qiwa_id:'',classification:'',saudi_only:'false',is_active:'true',sort_order:''});setPop('emb')};return<div key={it.id}>
+<div className="jisr-list-row" draggable={!q} onDragStart={e=>onDragStart(e,idx)} onDragOver={onDragOver} onDrop={e=>onDrop(e,idx)} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:embOpen?'1px solid rgba(212,160,23,.15)':'1px solid rgba(255,255,255,.05)',cursor:q?'default':'grab',opacity:active?1:0.55,flexWrap:'wrap'}}>
+{!q&&<svg className="jisr-drag-handle" width="16" height="24" viewBox="0 0 16 24" fill="rgba(255,255,255,.45)" style={{flexShrink:0,cursor:'grab'}} aria-label="drag"><circle cx="3" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="13" cy="6" r="1.1"/><circle cx="3" cy="12" r="1.1"/><circle cx="8" cy="12" r="1.1"/><circle cx="13" cy="12" r="1.1"/><circle cx="3" cy="18" r="1.1"/><circle cx="8" cy="18" r="1.1"/><circle cx="13" cy="18" r="1.1"/></svg>}
+<span style={{display:'inline-flex',alignItems:'baseline',fontSize:15,fontWeight:800,color:C.gold,direction:'ltr',minWidth:32,textAlign:'center',justifyContent:'center',flexShrink:0,letterSpacing:.2}}><span style={{opacity:.5,fontWeight:700,fontSize:11,marginInlineEnd:2}}>#</span>{it.sort_order||'—'}</span>
+<div style={{flex:'1 1 180px',display:'flex',flexDirection:'column',gap:2,minWidth:140,alignItems:'flex-start'}}>
+<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+<span style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.95)'}}>{it.name_ar}</span>
+<CopyBtn text={it.name_ar} toast={toast} isAr={isAr}/>
+{it.country_name_ar&&<span style={{fontSize:10,color:'rgba(212,160,23,.85)',background:'rgba(212,160,23,.08)',padding:'2px 8px',borderRadius:5,flexShrink:0}}>{it.country_name_ar}</span>}
+{it.flag_url&&<img src={it.flag_url} width={24} height={16} style={{borderRadius:2,objectFit:'cover',flexShrink:0}} alt='' onError={e=>{e.target.style.display='none'}}/>}
+{it.saudi_only&&<span style={{fontSize:10,color:'#27a046',background:'rgba(0,108,53,.15)',border:'1px solid rgba(0,108,53,.45)',padding:'2px 8px',borderRadius:5,fontWeight:700,flexShrink:0}}>{isAr?'سعودي فقط':'Saudi only'}</span>}
 </div>
-<BadgeStatus v={e.is_active} isAr={isAr}/>
-<div style={{display:'flex',gap:4}}>
-<EditBtn onClick={()=>{setForm({_table:'embassies_consulates',_id:e.id,city_ar:e.city_ar||'',city_en:e.city_en||'',country_id:e.country_id||'',sort_order:e.sort_order||'',is_active:String(e.is_active!==false)});setPop('em')}}/>
-<DelBtn onClick={()=>askDel('embassies_consulates',e.id,e.city_ar)}/>
-</div></div>)}</div>}
-</div>})}</div></>}
+{it.name_en&&<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:12,color:'rgba(255,255,255,.65)',direction:'ltr'}}>{it.name_en}</span><CopyBtn text={it.name_en} toast={toast} isAr={isAr}/></div>}
+</div>
+<div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,marginInlineStart:'auto',flexWrap:'wrap',justifyContent:'flex-end'}}>
+{it.code&&<span style={{fontSize:11,color:'rgba(255,255,255,.7)',fontFamily:'monospace',direction:'ltr',background:'rgba(255,255,255,.06)',padding:'3px 8px',borderRadius:5,flexShrink:0}}>{it.code}</span>}
+<button type="button" onClick={(e)=>{e.stopPropagation();toggleActive()}} title={active?(isAr?'نشطة (تظهر في القوائم)':'Active (visible in dropdowns)'):(isAr?'إخفاء من القوائم':'Hide from dropdowns')} style={{width:36,height:20,borderRadius:999,border:'none',background:active?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:2,right:active?2:18,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
+</button>
+<button type="button" onClick={e=>{e.stopPropagation();toggle(embKey)}} title={isAr?'السفارات':'Embassies'} style={{display:'inline-flex',alignItems:'center',gap:5,height:28,padding:'0 10px',borderRadius:7,border:'1px solid '+(embOpen?'rgba(52,131,180,.5)':'rgba(52,131,180,.22)'),background:embOpen?'rgba(52,131,180,.15)':'rgba(52,131,180,.07)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,transition:'.15s'}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+<span>{embs.length}</span>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.18s',transform:embOpen?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+<div style={{display:'flex',gap:4,flexShrink:0}}>
+<EditBtn onClick={()=>{setForm({_table:'nationalities',_id:it.id,name_ar:it.name_ar||'',name_en:it.name_en||'',code:it.code||'',qiwa_id:it.qiwa_id||'',country_name_ar:it.country_name_ar||'',country_name_en:it.country_name_en||'',flag_url:it.flag_url||'',classification:it.classification||'',saudi_only:String(it.saudi_only===true),is_active:String(it.is_active!==false),sort_order:it.sort_order||''});setPop('nat')}}/>
+<DelBtn onClick={()=>askDel('nationalities',it.id,it.name_ar)}/>
+</div></div></div>
+{embOpen&&<div style={{background:'rgba(52,131,180,.03)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 16px 10px'}}>
+{embs.length===0?<div style={{padding:'10px 44px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد سفارات لهذه الجنسية':'No embassies for this nationality'}</div>:
+embs.map(e=>{const eAct=e.is_active!==false;const toggleEmb=async()=>{const next=!eAct;setEmbList(p=>p.map(x=>x.id===e.id?{...x,is_active:next}:x));await sb.from('embassies').update({is_active:next}).eq('id',e.id)};return<div key={e.id} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 14px 7px 44px',borderBottom:'1px dashed rgba(255,255,255,.04)',opacity:eAct?1:0.55}}>
+<div style={{width:5,height:5,borderRadius:'50%',background:'rgba(52,131,180,.7)',flexShrink:0}}/>
+<div style={{flex:1,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.85)'}}>{e.name_ar}</span>
+{e.name_en&&<span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{e.name_en}</span>}
+{e.code&&<span style={{fontSize:10,color:'rgba(255,255,255,.55)',fontFamily:'monospace',direction:'ltr',background:'rgba(255,255,255,.04)',padding:'2px 6px',borderRadius:4}}>{e.code}</span>}
+</div>
+<button type="button" onClick={(ev)=>{ev.stopPropagation();toggleEmb()}} title={eAct?(isAr?'نشطة':'Active'):(isAr?'معطّلة':'Inactive')} style={{width:32,height:18,borderRadius:999,border:'none',background:eAct?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
+<span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:2,right:eAct?2:16,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
+</button>
+<div style={{display:'flex',gap:4,flexShrink:0}}>
+<EditBtn onClick={()=>{setForm({_table:'embassies',_id:e.id,nationality_id:e.nationality_id||it.id,name_ar:e.name_ar||'',name_en:e.name_en||'',code:e.code||'',qiwa_id:e.qiwa_id||'',classification:e.classification||'',saudi_only:String(e.saudi_only===true),is_active:String(e.is_active!==false),sort_order:e.sort_order||''});setPop('emb')}}/>
+<DelBtn onClick={()=>askDel('embassies',e.id,e.name_ar)}/>
+</div></div>})}
+<div style={{padding:'8px 14px 2px 44px'}}>
+<button type="button" onClick={addEmbassy} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+<span>{isAr?'إضافة سفارة':'Add Embassy'}</span>
+</button>
+</div>
+</div>}
+</div>})}
+{filtered.length>maxShow&&<div style={{textAlign:'center',padding:16,color:'var(--tx6)',fontSize:11}}>{isAr?`… و ${filtered.length-maxShow} جنسية أخرى. استخدم البحث لتضييق النتائج.`:`… and ${filtered.length-maxShow} more. Use search to narrow.`}</div>}
+</>}</div>
+</>})()}
 
 {/* CATEGORIES & ITEMS */}
 {tab==='categories'&&<>
@@ -753,7 +1103,10 @@ return<div key={pl.id} style={childRow}>
 
 
 {/* FORM POPUP */}
-{pop&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
+{pop==='occ'&&<OccupationFormPopup form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop==='nat'&&<OccupationFormPopup kind="nationality" form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop==='emb'&&<OccupationFormPopup kind="embassy" form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
+{pop&&pop!=='occ'&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
 
 {/* DELETE POPUP */}
 {delTarget&&<DeletePopup isAr={isAr} itemName={delTarget.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}
