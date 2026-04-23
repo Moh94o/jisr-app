@@ -2886,6 +2886,7 @@ const icoPlus=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke
 const icoCalc=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M9 14h.01M15 14h.01M9 18h.01M15 18h.01"/></svg>
 const icoClock=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
 const icoNote=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+const icoShield=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
 const sec=(title,rows,icon)=>{const filtered=rows.filter(Boolean);if(!filtered.length)return null;return<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative',marginTop:20,marginBottom:6}}>
 <div style={{position:'absolute',top:-9,right:14,background:'#141414',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold,fontFamily:"'Cairo',sans-serif",display:'inline-flex',alignItems:'center',gap:6}}>
 {icon||icoNote}<span>{title}</span>
@@ -2937,6 +2938,14 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 mm.change_profession?[T('تغيير مهنة','Profession Change'),yesNo(mm.change_profession)]:null,
 mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occupation]:null,
 ],icoId)}
+{sec(T('بيانات التأمين','Insurance Details'),[
+[T('حالة التأمين','Insurance'),Number(dr.insurance_cost||0)>0?T('يوجد','Included'):T('لا يوجد','None'),Number(dr.insurance_cost||0)>0?C.ok:'var(--tx5)'],
+Number(dr.insurance_cost||0)>0?[T('تكلفة التأمين','Insurance Cost'),nmSar(dr.insurance_cost)]:null,
+[T('شركة التأمين','Insurance Company'),mm.insurance_company],
+[T('رقم الوثيقة','Policy No.'),mm.insurance_policy_no],
+[T('بداية التأمين','Start Date'),mm.insurance_start?fmtD(mm.insurance_start):null],
+[T('نهاية التأمين','End Date'),mm.insurance_end?fmtD(mm.insurance_end):null],
+],icoShield)}
 </>}
 {detailsTab==='pricing'&&<>
 {sec(T('التكاليف الداخلية','Internal Costs'),[
