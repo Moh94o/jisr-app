@@ -2903,21 +2903,13 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 {sec(T('بيانات العامل','Worker Info'),[
 [T('الاسم','Name'),dr.workers?.name_ar||mm.worker_name||mm.w_name],
 [T('رقم الإقامة','Iqama No.'),dr.workers?.iqama_number||mm.iqama_number||mm.w_iqama],
+[T('تاريخ انتهاء الإقامة','Iqama Expiry'),mm.iqama_expiry?fmtD(mm.iqama_expiry):null],
 [T('تاريخ الميلاد','Date of Birth'),fmtD(mm.w_dob)],
 [T('الجنسية','Nationality'),mm.w_nationality],
 [T('الجنس','Gender'),genderMap[mm.w_gender]||mm.w_gender],
 [T('المهنة الحالية','Current Occupation'),mm.w_occupation],
 [T('رقم الجوال','Phone'),mm.w_phone],
 [T('الحالة النظامية','Legal Status'),legalMap[mm.w_legal_status]||mm.w_legal_status],
-])}
-{sec(T('تفاصيل الإقامة','Iqama Details'),[
-[T('انتهاء الإقامة','Iqama Expiry'),mm.iqama_expiry?fmtD(mm.iqama_expiry):null],
-[T('الانتهاء المتوقع','Expected Expiry'),mm.expected_expiry?fmtD(mm.expected_expiry):null],
-[T('مدة التجديد (أشهر)','Renewal Months'),mm.renewal_months],
-[T('المدة المتوقعة (أشهر)','Duration (mo)'),mm.duration_months],
-[T('الأيام المتوقعة','Expected Days'),mm.expected_iqama_days],
-mm.change_profession?[T('تغيير مهنة','Profession Change'),yesNo(mm.change_profession)]:null,
-mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occupation]:null,
 ])}
 </>}
 {detailsTab==='pricing'&&<>
@@ -2930,6 +2922,15 @@ mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occu
 [T('انتهاء رخصة العمل','Work Permit Expiry'),mm.wp_expiry?fmtD(mm.wp_expiry):null],
 [T('موافقة صاحب العمل','Employer Consent'),mm.employer_consent!=null?yesNo(mm.employer_consent):null],
 [T('فترة الإشعار','Notice Period'),mm.has_notice_period!=null?yesNo(mm.has_notice_period):null],
+])}
+{sec(T('تفاصيل الإقامة','Iqama Details'),[
+[T('انتهاء الإقامة','Iqama Expiry'),mm.iqama_expiry?fmtD(mm.iqama_expiry):null],
+[T('الانتهاء المتوقع','Expected Expiry'),mm.expected_expiry?fmtD(mm.expected_expiry):null],
+[T('مدة التجديد (أشهر)','Renewal Months'),mm.renewal_months],
+[T('المدة المتوقعة (أشهر)','Duration (mo)'),mm.duration_months],
+[T('الأيام المتوقعة','Expected Days'),mm.expected_iqama_days],
+mm.change_profession?[T('تغيير مهنة','Profession Change'),yesNo(mm.change_profession)]:null,
+mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occupation]:null,
 ])}
 {sec(T('التكاليف الداخلية','Internal Costs'),[
 [T('نقل الكفالة','Sponsorship Transfer'),Number(dr.transfer_fee||0)>0?nmSar(dr.transfer_fee):null],
