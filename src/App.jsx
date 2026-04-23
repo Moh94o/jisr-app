@@ -1983,7 +1983,7 @@ function TransferCalcPage({sb,toast,user,lang,onNewCalc}){
 const T=(a,e)=>lang==='ar'?a:e;const nm=v=>Number(v||0).toLocaleString('en-US')
 const isGM=!user?.roles||user?.roles?.name_ar==='المدير العام'||user?.roles?.name_en==='General Manager'
 const[data,setData]=useState([]);const[workers,setWorkers]=useState([]);const[facilities,setFacilities]=useState([]);const[branches,setBranches]=useState([])
-const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[detailsRow,setDetailsRow]=useState(null);const[wizStep,setWizStep]=useState(0);const[workerMode,setWorkerMode]=useState('existing');const[addingExtra,setAddingExtra]=useState(false);const[extraDraft,setExtraDraft]=useState({name:'',amount:''});const[savingExtra,setSavingExtra]=useState(false);const[editingExtraIdx,setEditingExtraIdx]=useState(null);const[editExtraDraft,setEditExtraDraft]=useState({name:'',amount:''})
+const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[detailsRow,setDetailsRow]=useState(null);const[detailsTab,setDetailsTab]=useState('worker');const[wizStep,setWizStep]=useState(0);const[workerMode,setWorkerMode]=useState('existing');const[addingExtra,setAddingExtra]=useState(false);const[extraDraft,setExtraDraft]=useState({name:'',amount:''});const[savingExtra,setSavingExtra]=useState(false);const[editingExtraIdx,setEditingExtraIdx]=useState(null);const[editExtraDraft,setEditExtraDraft]=useState({name:'',amount:''})
 // Office filter: GM defaults to all (''); non-GM is locked to their own branch.
 const[officeFilter,setOfficeFilter]=useState(()=>isGM?'':(user?.branch_id||''))
 const[officeDropOpen,setOfficeDropOpen]=useState(false)
@@ -2543,7 +2543,7 @@ const invFoot=r.status==='invoiced'||r.status==='completed'?{text:T('دُفع ب
 return<div key={r.id} onClick={()=>setViewRow({...r,_meta:meta})} style={{background:'linear-gradient(180deg,rgba(0,0,0,.3) 0%,rgba(0,0,0,.2) 100%)',borderRadius:16,overflow:'visible',transition:'.25s cubic-bezier(.4,0,.2,1)',border:'1px solid rgba(255,255,255,.07)',position:'relative',cursor:'pointer',padding:'18px 22px',display:'grid',gridTemplateColumns:'1fr auto auto',gap:22,alignItems:'center'}}
 onMouseEnter={e=>{e.currentTarget.style.borderColor=sc+'55';e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 10px 30px rgba(0,0,0,.3), 0 0 0 1px '+sc+'25'}}
 onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.07)';e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
-<button onClick={e=>{e.stopPropagation();setDetailsRow({...r,_meta:meta})}} title={T('التفاصيل الكاملة','Full details')} style={{position:'absolute',top:10,left:10,width:26,height:26,borderRadius:'50%',background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.3)',color:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,zIndex:2,transition:'background .15s, border-color .15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.22)';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}}>
+<button onClick={e=>{e.stopPropagation();setDetailsTab('worker');setDetailsRow({...r,_meta:meta})}} title={T('التفاصيل الكاملة','Full details')} style={{position:'absolute',top:10,left:10,width:26,height:26,borderRadius:'50%',background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.3)',color:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,zIndex:2,transition:'background .15s, border-color .15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.22)';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}}>
 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
 </button>
 {(()=>{const CopyBtn=({val})=><button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(val);toast&&toast(T('تم النسخ','Copied'))}} title={T('نسخ','Copy')} style={{width:18,height:18,background:'transparent',border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,color:'var(--tx6)',transition:'color .15s',flexShrink:0,opacity:.55}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.opacity=1}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx6)';e.currentTarget.style.opacity=.55}}>
@@ -2894,7 +2894,12 @@ return<div onClick={()=>setDetailsRow(null)} style={{position:'fixed',inset:0,ba
 <div style={{fontSize:15,fontWeight:800,color:'var(--tx)',display:'flex',alignItems:'center',gap:10}}><span>{T('تفاصيل الحسبة','Full Details')}</span><span style={{fontSize:11,color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,letterSpacing:'.5px'}}>{quoteNo}</span></div>
 <button onClick={()=>setDetailsRow(null)} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',fontSize:14}}>✕</button>
 </div>
+<div style={{display:'flex',gap:4,padding:'10px 18px 0',borderBottom:'1px solid rgba(255,255,255,.06)',flexShrink:0,direction:'rtl'}}>
+{[{k:'worker',l:T('بيانات العامل','Worker Info')},{k:'pricing',l:T('التسعيرة','Pricing')},{k:'workflow',l:T('سير العمل','Workflow')}].map(t=>{const active=detailsTab===t.k
+return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,padding:'0 14px',border:'none',borderBottom:'2px solid '+(active?C.gold:'transparent'),background:'transparent',color:active?C.gold:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',letterSpacing:'.2px',transition:'.15s'}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color='var(--tx)'}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color='var(--tx4)'}}>{t.l}</button>})}
+</div>
 <div style={{flex:1,overflowY:'auto',padding:'18px 22px',direction:'rtl'}}>
+{detailsTab==='worker'&&<>
 {sec(T('بيانات العامل','Worker Info'),[
 [T('الاسم','Name'),dr.workers?.name_ar||mm.worker_name||mm.w_name],
 [T('رقم الإقامة','Iqama No.'),dr.workers?.iqama_number||mm.iqama_number||mm.w_iqama],
@@ -2924,6 +2929,8 @@ return<div onClick={()=>setDetailsRow(null)} style={{position:'fixed',inset:0,ba
 mm.change_profession?[T('تغيير مهنة','Profession Change'),yesNo(mm.change_profession)]:null,
 mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occupation]:null,
 ])}
+</>}
+{detailsTab==='pricing'&&<>
 {sec(T('التكاليف الداخلية','Internal Costs'),[
 [T('نقل الكفالة','Sponsorship Transfer'),Number(dr.transfer_fee||0)>0?nmSar(dr.transfer_fee):null],
 [T('تجديد الإقامة','Iqama Renewal'),Number(dr.iqama_cost||0)>0?nmSar(dr.iqama_cost):null],
@@ -2940,6 +2947,8 @@ Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm
 [T('قيمة الفاتورة (العميل)','Client Charge'),nmSar(dr.client_charge),C.gold],
 [T('الربح','Profit'),nmSar(dr.profit),Number(dr.profit||0)>=0?C.ok:C.red],
 ])}
+</>}
+{detailsTab==='workflow'&&<>
 {sec(T('سير العمل','Workflow'),[
 [T('الحالة','Status'),stLabel[dr.status]||dr.status,stClr[dr.status]],
 [T('تاريخ الإنشاء','Created'),fmtD(dr.created_at)],
@@ -2953,6 +2962,7 @@ dr.approved_user?[T('صدّق بواسطة','Approved by'),lang==='en'?(dr.appro
 mm.internal_notes?[T('ملاحظات داخلية','Internal Notes'),mm.internal_notes]:null,
 (dr.notes&&typeof dr.notes==='string'&&!dr.notes.trim().startsWith('{'))?[T('ملاحظات','Notes'),dr.notes]:null,
 ]):null}
+</>}
 </div>
 </div>
 </div>
