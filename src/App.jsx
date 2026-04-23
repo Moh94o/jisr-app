@@ -2913,16 +2913,16 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 {detailsTab==='worker'&&<>
 {sec(T('بيانات العامل','Worker Info'),[
 [T('الاسم','Name'),dr.workers?.name_ar||mm.worker_name||mm.w_name],
+[T('الجنسية','Nationality'),mm.w_nationality],
+[T('رقم الجوال','Phone'),mm.w_phone],
 [T('رقم الإقامة','Iqama No.'),dr.workers?.iqama_number||mm.iqama_number||mm.w_iqama],
 [T('تاريخ انتهاء الإقامة','Iqama Expiry'),mm.iqama_expiry?fmtD(mm.iqama_expiry):null],
 [T('الحالة النظامية','Legal Status'),legalMap[mm.w_legal_status]||mm.w_legal_status],
+[T('تاريخ الميلاد','Date of Birth'),fmtD(mm.w_dob)],
+[T('الجنس','Gender'),genderMap[mm.w_gender]||mm.w_gender],
+[T('المهنة الحالية','Current Occupation'),mm.w_occupation],
 [T('حالة التأمين','Insurance'),Number(dr.insurance_cost||0)>0?T('يوجد','Included'):T('لا يوجد','None'),Number(dr.insurance_cost||0)>0?C.ok:'var(--tx5)'],
 [T('نهاية التأمين','Insurance End'),mm.insurance_end?fmtD(mm.insurance_end):null],
-[T('المهنة الحالية','Current Occupation'),mm.w_occupation],
-[T('الجنسية','Nationality'),mm.w_nationality],
-[T('الجنس','Gender'),genderMap[mm.w_gender]||mm.w_gender],
-[T('تاريخ الميلاد','Date of Birth'),fmtD(mm.w_dob)],
-[T('رقم الجوال','Phone'),mm.w_phone],
 ],icoUser)}
 </>}
 {detailsTab==='request'&&<>
