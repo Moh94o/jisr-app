@@ -3003,6 +3003,16 @@ mm.internal_notes?[T('ملاحظات داخلية','Internal Notes'),mm.internal
 ],icoNote):null}
 </>}
 </div>
+{(dr.status==='priced'||dr.status==='approved')&&<div style={{padding:'12px 22px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',justifyContent:'flex-end',gap:10,flexShrink:0}}>
+{dr.status==='priced'&&<button onClick={async()=>{await changeStatus(dr.id,'approved');setDetailsRow(null)}} disabled={saving} style={{height:38,padding:'0 20px',borderRadius:10,border:'1px solid '+C.blue+'55',background:C.blue+'18',color:C.blue,fontFamily:F,fontSize:12,fontWeight:800,cursor:saving?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:7,opacity:saving?.6:1,transition:'.15s'}} onMouseEnter={e=>{if(!saving){e.currentTarget.style.background=C.blue+'28';e.currentTarget.style.borderColor=C.blue+'88'}}} onMouseLeave={e=>{e.currentTarget.style.background=C.blue+'18';e.currentTarget.style.borderColor=C.blue+'55'}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+<span>{T('تصديق الحسبة','Approve Quote')}</span>
+</button>}
+{dr.status==='approved'&&<button onClick={async()=>{await changeStatus(dr.id,'invoiced');setDetailsRow(null)}} disabled={saving} style={{height:38,padding:'0 20px',borderRadius:10,border:'1px solid '+C.ok+'55',background:C.ok+'18',color:C.ok,fontFamily:F,fontSize:12,fontWeight:800,cursor:saving?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:7,opacity:saving?.6:1,transition:'.15s'}} onMouseEnter={e=>{if(!saving){e.currentTarget.style.background=C.ok+'28';e.currentTarget.style.borderColor=C.ok+'88'}}} onMouseLeave={e=>{e.currentTarget.style.background=C.ok+'18';e.currentTarget.style.borderColor=C.ok+'55'}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+<span>{T('إصدار فاتورة','Issue Invoice')}</span>
+</button>}
+</div>}
 </div>
 </div>
 })()}
