@@ -2956,19 +2956,42 @@ Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm
 {sec(T('التسعير','Pricing'),[
 [T('إجمالي التكاليف (المكتب)','Total Cost (internal)'),nmSar(dr.total_cost)],
 [T('قيمة الفاتورة (العميل)','Client Charge'),nmSar(dr.client_charge),C.gold],
-[T('الربح','Profit'),nmSar(dr.profit),Number(dr.profit||0)>=0?C.ok:C.red],
 ],icoCalc)}
 </>}
 {detailsTab==='workflow'&&<>
 {sec(T('سير العمل','Workflow'),[
-[T('الحالة','Status'),stLabel[dr.status]||dr.status,stClr[dr.status]],
-[T('تاريخ الإنشاء','Created'),fmtD(dr.created_at)],
-dr.created_user?[T('أنشأ بواسطة','Created by'),lang==='en'?(dr.created_user.name_en||dr.created_user.name_ar):dr.created_user.name_ar]:null,
-dr.priced_at?[T('تاريخ التسعير','Priced At'),fmtD(dr.priced_at)]:null,
-dr.priced_user?[T('سعّر بواسطة','Priced by'),lang==='en'?(dr.priced_user.name_en||dr.priced_user.name_ar):dr.priced_user.name_ar]:null,
-dr.approved_at?[T('تاريخ التصديق','Approved At'),fmtD(dr.approved_at)]:null,
-dr.approved_user?[T('صدّق بواسطة','Approved by'),lang==='en'?(dr.approved_user.name_en||dr.approved_user.name_ar):dr.approved_user.name_ar]:null,
+[T('الحالة الحالية','Current Status'),stLabel[dr.status]||dr.status,stClr[dr.status]],
 ],icoClock)}
+{(()=>{const pricedBy=dr.priced_user?(lang==='en'?(dr.priced_user.name_en||dr.priced_user.name_ar):dr.priced_user.name_ar):(dr.created_user?(lang==='en'?(dr.created_user.name_en||dr.created_user.name_ar):dr.created_user.name_ar):null)
+const approvedBy=dr.approved_user?(lang==='en'?(dr.approved_user.name_en||dr.approved_user.name_ar):dr.approved_user.name_ar):null
+const stages=[
+{k:'priced',label:T('التسعير','Priced'),date:dr.priced_at||dr.created_at,user:pricedBy,color:'#eab308',done:!!(dr.priced_at||dr.created_at)},
+{k:'approved',label:T('التصديق','Approved'),date:dr.approved_at,user:approvedBy,color:C.blue,done:dr.status==='approved'||dr.status==='invoiced'||dr.status==='completed'},
+{k:'invoiced',label:T('الفوترة','Invoiced'),date:dr.invoiced_at||null,user:null,color:C.ok,done:dr.status==='invoiced'||dr.status==='completed'},
+]
+return<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'22px 18px 16px',position:'relative',marginTop:10,marginBottom:6}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#141414',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold,fontFamily:"'Cairo',sans-serif",display:'inline-flex',alignItems:'center',gap:6}}>{icoClock}<span>{T('مراحل المعاملة','Pipeline')}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:0}}>
+{stages.map((s,i)=>{const last=i===stages.length-1
+return<div key={s.k} style={{display:'flex',alignItems:'stretch',gap:14,position:'relative'}}>
+<div style={{width:28,display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+<div style={{width:22,height:22,borderRadius:'50%',background:s.done?s.color+'22':'rgba(255,255,255,.04)',border:'2px solid '+(s.done?s.color:'rgba(255,255,255,.1)'),display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'.2s'}}>{s.done?<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={s.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<div style={{width:6,height:6,borderRadius:'50%',background:'rgba(255,255,255,.2)'}}/>}</div>
+{!last&&<div style={{flex:1,width:2,background:s.done?s.color+'55':'rgba(255,255,255,.06)',marginTop:2,marginBottom:2,minHeight:16}}/>}
+</div>
+<div style={{flex:1,paddingBottom:last?0:14}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+<span style={{fontSize:13,fontWeight:800,color:s.done?s.color:'var(--tx5)',letterSpacing:'.3px'}}>{s.label}</span>
+{!s.done&&<span style={{fontSize:9,color:'var(--tx6)',fontWeight:600}}>— {T('قيد الانتظار','Pending')}</span>}
+</div>
+{s.done&&(s.date||s.user)&&<div style={{display:'flex',gap:14,fontSize:10.5,color:'var(--tx4)',fontWeight:600,flexWrap:'wrap'}}>
+{s.date&&<span style={{display:'inline-flex',alignItems:'center',gap:5}}><span style={{color:'var(--tx5)'}}>{T('التاريخ','Date')}:</span><span style={{color:'var(--tx2)',fontFamily:"'JetBrains Mono',monospace",direction:'ltr'}}>{fmtD(s.date)}</span></span>}
+{s.user&&<span style={{display:'inline-flex',alignItems:'center',gap:5}}><span style={{color:'var(--tx5)'}}>{T('بواسطة','By')}:</span><span style={{color:C.gold,fontWeight:700}}>{s.user}</span></span>}
+</div>}
+</div>
+</div>})}
+</div>
+</div>
+})()}
 {(dr.notes&&typeof dr.notes==='string'&&dr.notes.trim()&&!dr.notes.trim().startsWith('{'))||mm.internal_notes?sec(T('ملاحظات','Notes'),[
 mm.internal_notes?[T('ملاحظات داخلية','Internal Notes'),mm.internal_notes]:null,
 (dr.notes&&typeof dr.notes==='string'&&!dr.notes.trim().startsWith('{'))?[T('ملاحظات','Notes'),dr.notes]:null,
