@@ -2927,7 +2927,7 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 </>}
 {detailsTab==='request'&&<>
 {sec(T('تفاصيل النقل','Transfer Details'),[
-[T('نوع النقل','Transfer Type'),typeMap[dr.transfer_type]||dr.transfer_type],
+[T('نوع النقل','Transfer Type'),(()=>{if(dr.transfer_type==='final_exit')return T('خروج نهائي','Final Exit');const ren=Number(mm.renewal_months||0);if(mm.transfer_only||(!ren&&dr.transfer_type==='sponsorship'))return T('نقل فقط','Transfer Only');if(ren>0)return T('نقل + '+ren+' '+(ren===1?'شهر':(ren===2?'شهرين':(ren<=10?'أشهر':'شهر')))+' تجديد','Transfer + '+ren+' mo renewal');return typeMap[dr.transfer_type]||dr.transfer_type})()],
 [T('عدد مرات نقل الخدمات','Service Transfer Count'),mm.transfer_count],
 [T('انتهاء رخصة العمل','Work Permit Expiry'),mm.wp_expiry?fmtD(mm.wp_expiry):null],
 [T('موافقة صاحب العمل','Employer Consent'),mm.employer_consent!=null?yesNo(mm.employer_consent):null],
