@@ -2287,6 +2287,16 @@ return [...seen.values()].sort((a,b)=>(a.name||'').localeCompare(b.name||''))
 })()
 const searched=data.filter(matches)
 const filteredData=listFilter==='all'?searched:searched.filter(r=>r.status===listFilter)
+// Group filtered calcs by day (use priced_at/approved_at/created_at depending on status)
+const todayStr=new Date().toISOString().slice(0,10)
+const tcDayKey=(r)=>{const d=r.status==='priced'?(r.priced_at||r.created_at):(r.status==='approved'||r.status==='invoiced'||r.status==='completed')?(r.approved_at||r.priced_at||r.created_at):r.created_at;return(d||'').slice(0,10)||'بدون تاريخ'}
+const tcGroups={}
+const tcGroupOrder=[]
+filteredData.forEach(r=>{const key=tcDayKey(r);if(!tcGroups[key]){tcGroups[key]=[];tcGroupOrder.push(key)}tcGroups[key].push(r)})
+const tcDayNames=[T('الأحد','Sun'),T('الاثنين','Mon'),T('الثلاثاء','Tue'),T('الأربعاء','Wed'),T('الخميس','Thu'),T('الجمعة','Fri'),T('السبت','Sat')]
+const tcMonthNames=[T('يناير','Jan'),T('فبراير','Feb'),T('مارس','Mar'),T('أبريل','Apr'),T('مايو','May'),T('يونيو','Jun'),T('يوليو','Jul'),T('أغسطس','Aug'),T('سبتمبر','Sep'),T('أكتوبر','Oct'),T('نوفمبر','Nov'),T('ديسمبر','Dec')]
+const tcDayLabel=(k)=>{if(k===todayStr)return T('اليوم','Today');try{const d=new Date(k+'T12:00:00');return tcDayNames[d.getDay()]}catch{return k}}
+const tcDayFull=(k)=>{try{const d=new Date(k+'T12:00:00');return d.getDate()+' '+tcMonthNames[d.getMonth()]+' '+d.getFullYear()}catch{return k}}
 // ═══ Trend comparisons (this month vs last) ═══
 const monthKey=d=>{const x=new Date(d);return x.getFullYear()+'-'+x.getMonth()}
 const now=new Date()
@@ -2506,7 +2516,7 @@ return<div style={{marginBottom:14,padding:'14px 16px',background:'var(--bg)',bo
 </div>
 </div>})()}
 {filteredData.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)'}}>{T('لا توجد حسبات','No calculations')}</div>:
-<div style={{display:'flex',flexDirection:'column',gap:6}}>{filteredData.map((r,idx)=>{const sc=stClr[r.status]||'#999';const tc=Number(r.total_cost||0);const cc=Number(r.client_charge||0);const pr=cc-tc;const prMargin=cc>0?Math.round((pr/cc)*100):0;const ds=daysSince(r.created_at);const nxt=stNext[r.status]
+<div>{tcGroupOrder.map(dateKey=>{const items=tcGroups[dateKey];const isToday=dateKey===todayStr;const dayCounts={priced:items.filter(rr=>rr.status==='priced').length,approved:items.filter(rr=>rr.status==='approved').length,invoiced:items.filter(rr=>rr.status==='invoiced'||rr.status==='completed').length};return<div key={dateKey} style={{marginBottom:22}}><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}><div style={{width:10,height:10,borderRadius:'50%',background:isToday?C.gold:'rgba(255,255,255,.18)',border:isToday?'2px solid rgba(212,160,23,.25)':'none',flexShrink:0}}/><div style={{fontSize:13,fontWeight:700,color:isToday?C.gold:'rgba(255,255,255,.65)'}}>{tcDayLabel(dateKey)}</div><div style={{fontSize:10,color:'var(--tx5)'}}>{tcDayFull(dateKey)}</div><div style={{flex:1,height:1,background:'rgba(255,255,255,.07)'}}/><div style={{display:'flex',gap:6,fontSize:9,fontWeight:600}}><span style={{color:'var(--tx5)'}}>{items.length} {T('حسبة','calc')}</span>{dayCounts.priced>0&&<span style={{color:'#eab308'}}>{dayCounts.priced} {T('مسعّرة','priced')}</span>}{dayCounts.approved>0&&<span style={{color:C.blue}}>{dayCounts.approved} {T('مصدّقة','approved')}</span>}{dayCounts.invoiced>0&&<span style={{color:C.ok}}>{dayCounts.invoiced} {T('مفوترة','invoiced')}</span>}</div></div><div style={{display:'flex',flexDirection:'column',gap:6,paddingInlineStart:20,borderInlineStart:'2px solid '+(isToday?'rgba(212,160,23,.15)':'rgba(255,255,255,.07)')}}>{items.map((r,idx)=>{const sc=stClr[r.status]||'#999';const tc=Number(r.total_cost||0);const cc=Number(r.client_charge||0);const pr=cc-tc;const prMargin=cc>0?Math.round((pr/cc)*100):0;const ds=daysSince(r.created_at);const nxt=stNext[r.status]
 let meta={};try{if(r.notes)meta=typeof r.notes==='string'?JSON.parse(r.notes):(r.notes||{})}catch(e){}
 const workerName=r.workers?.name_ar||meta.worker_name||r.new_employer_name||T('عامل','Worker')
 const iqamaNo=r.workers?.iqama_number||meta.iqama_number||'—'
@@ -2631,7 +2641,7 @@ return<div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,letterSpacing:'
 <div style={{lineHeight:1,fontVariantNumeric:'tabular-nums',textAlign:'center'}}><bdi style={{fontSize:28,fontWeight:900,color:C.gold,letterSpacing:'-.6px'}}>{nm(Math.round(Number(cc)||0))}</bdi> <span style={{fontSize:13,fontWeight:700,color:C.gold,opacity:.7,letterSpacing:'.3px'}}>{T('ريال','SAR')}</span></div>
 </div>
 </>})()}
-</div>})}</div>}
+</div>})}</div></div>})}</div>}
 {/* Details view modal — premium quote preview design */}
 {viewRow&&(()=>{const m=viewRow._meta||{};const sc=stClr[viewRow.status]||'#999'
 const workerName=viewRow.workers?.name_ar||m.worker_name||viewRow.new_employer_name||'—'
