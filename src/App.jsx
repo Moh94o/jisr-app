@@ -2878,8 +2878,18 @@ const legalMap={regular:T('منتظم','Regular'),expired:T('منتهي','Expire
 const typeMap={sponsorship:T('نقل كفالة','Sponsorship'),final_exit:T('خروج نهائي','Final Exit')}
 const genderMap={male:T('ذكر','Male'),female:T('أنثى','Female')}
 const nmSar=v=>v===null||v===undefined||v===''?'—':nm(v)+' '+T('ر.س','SAR')
-const sec=(title,rows)=>{const filtered=rows.filter(Boolean);if(!filtered.length)return null;return<div style={{marginBottom:18}}>
-<div style={{fontSize:11,color:C.gold,fontWeight:800,letterSpacing:'.6px',marginBottom:8,paddingBottom:5,borderBottom:'1px solid rgba(212,160,23,.15)'}}>{title}</div>
+const icoUser=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+const icoSwap=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+const icoId=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h3M15 12h3M6 16h12"/></svg>
+const icoMoney=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+const icoPlus=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+const icoCalc=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M9 14h.01M15 14h.01M9 18h.01M15 18h.01"/></svg>
+const icoClock=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+const icoNote=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+const sec=(title,rows,icon)=>{const filtered=rows.filter(Boolean);if(!filtered.length)return null;return<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative',marginTop:20,marginBottom:6}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#141414',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold,fontFamily:"'Cairo',sans-serif",display:'inline-flex',alignItems:'center',gap:6}}>
+{icon||icoNote}<span>{title}</span>
+</div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
 {filtered.map((row,i)=><div key={i} style={{background:'rgba(255,255,255,.025)',borderRadius:8,padding:'8px 12px',border:'1px solid rgba(255,255,255,.04)'}}>
 <div style={{fontSize:9,color:'var(--tx5)',fontWeight:600,marginBottom:4,letterSpacing:'.3px'}}>{row[0]}</div>
@@ -2910,7 +2920,7 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 [T('الجنس','Gender'),genderMap[mm.w_gender]||mm.w_gender],
 [T('المهنة الحالية','Current Occupation'),mm.w_occupation],
 [T('الحالة النظامية','Legal Status'),legalMap[mm.w_legal_status]||mm.w_legal_status],
-])}
+],icoUser)}
 </>}
 {detailsTab==='request'&&<>
 {sec(T('تفاصيل النقل','Transfer Details'),[
@@ -2919,14 +2929,14 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 [T('انتهاء رخصة العمل','Work Permit Expiry'),mm.wp_expiry?fmtD(mm.wp_expiry):null],
 [T('موافقة صاحب العمل','Employer Consent'),mm.employer_consent!=null?yesNo(mm.employer_consent):null],
 [T('فترة الإشعار','Notice Period'),mm.has_notice_period!=null?yesNo(mm.has_notice_period):null],
-])}
+],icoSwap)}
 {sec(T('تفاصيل الإقامة','Iqama Details'),[
 [T('الانتهاء المتوقع','Expected Expiry'),mm.expected_expiry?fmtD(mm.expected_expiry):null],
 [T('مدة التجديد (أشهر)','Renewal Months'),mm.renewal_months],
 [T('المدة المتوقعة (أشهر)','Duration (mo)'),mm.duration_months],
 mm.change_profession?[T('تغيير مهنة','Profession Change'),yesNo(mm.change_profession)]:null,
 mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occupation]:null,
-])}
+],icoId)}
 </>}
 {detailsTab==='pricing'&&<>
 {sec(T('التكاليف الداخلية','Internal Costs'),[
@@ -2938,13 +2948,13 @@ mm.iqama_fine!=null&&Number(mm.iqama_fine)>0?[T('غرامة الإقامة','Iqa
 mm.office_fee!=null?[T('رسوم المكتب','Office Fee'),nmSar(mm.office_fee)]:null,
 mm.prof_change_fee!=null?[T('رسوم تغيير مهنة','Prof Change Fee'),nmSar(mm.prof_change_fee)]:null,
 Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm.absher_discount),C.gold]:null,
-])}
-{Array.isArray(mm.extras)&&mm.extras.length>0&&sec(T('البنود الإضافية','Extras'),mm.extras.map((e,i)=>{const amt=Number(e?.amount)||0;return[e?.name||T('بند إضافي '+(i+1),'Extra '+(i+1)),nm(amt)+' '+T('ر.س','SAR'),amt<0?C.gold:'var(--tx)']}))}
+],icoMoney)}
+{Array.isArray(mm.extras)&&mm.extras.length>0&&sec(T('البنود الإضافية','Extras'),mm.extras.map((e,i)=>{const amt=Number(e?.amount)||0;return[e?.name||T('بند إضافي '+(i+1),'Extra '+(i+1)),nm(amt)+' '+T('ر.س','SAR'),amt<0?C.gold:'var(--tx)']}),icoPlus)}
 {sec(T('التسعير','Pricing'),[
 [T('إجمالي التكاليف (المكتب)','Total Cost (internal)'),nmSar(dr.total_cost)],
 [T('قيمة الفاتورة (العميل)','Client Charge'),nmSar(dr.client_charge),C.gold],
 [T('الربح','Profit'),nmSar(dr.profit),Number(dr.profit||0)>=0?C.ok:C.red],
-])}
+],icoCalc)}
 </>}
 {detailsTab==='workflow'&&<>
 {sec(T('سير العمل','Workflow'),[
@@ -2955,11 +2965,11 @@ dr.priced_at?[T('تاريخ التسعير','Priced At'),fmtD(dr.priced_at)]:nul
 dr.priced_user?[T('سعّر بواسطة','Priced by'),lang==='en'?(dr.priced_user.name_en||dr.priced_user.name_ar):dr.priced_user.name_ar]:null,
 dr.approved_at?[T('تاريخ التصديق','Approved At'),fmtD(dr.approved_at)]:null,
 dr.approved_user?[T('صدّق بواسطة','Approved by'),lang==='en'?(dr.approved_user.name_en||dr.approved_user.name_ar):dr.approved_user.name_ar]:null,
-])}
+],icoClock)}
 {(dr.notes&&typeof dr.notes==='string'&&dr.notes.trim()&&!dr.notes.trim().startsWith('{'))||mm.internal_notes?sec(T('ملاحظات','Notes'),[
 mm.internal_notes?[T('ملاحظات داخلية','Internal Notes'),mm.internal_notes]:null,
 (dr.notes&&typeof dr.notes==='string'&&!dr.notes.trim().startsWith('{'))?[T('ملاحظات','Notes'),dr.notes]:null,
-]):null}
+],icoNote):null}
 </>}
 </div>
 </div>
