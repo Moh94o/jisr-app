@@ -2945,7 +2945,7 @@ mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occu
 {(()=>{
 const officeFeeVal=mm.office_fee!=null?Number(mm.office_fee):(()=>{const other=Number(dr.other_costs||0);if(!other)return 0;if(mm.change_profession){const profEst=Math.min(2000,other);return Math.max(0,other-profEst)}return other})()
 const extras=Array.isArray(mm.extras)?mm.extras:[]
-const extraRows=extras.map((e,i)=>{const amt=Number(e?.amount)||0;if(amt===0)return null;const isDisc=amt<0;const bg=isDisc?'rgba(212,160,23,.08)':'rgba(52,131,180,.08)';const bd=isDisc?'rgba(212,160,23,.25)':'rgba(52,131,180,.25)';const tc=isDisc?C.gold:C.blue;return[e?.name||T('بند إضافي '+(i+1),'Extra '+(i+1)),nm(amt)+' '+T('ر.س','SAR'),tc,bg,bd]}).filter(Boolean)
+const extraRows=extras.map((e,i)=>{const amt=Number(e?.amount)||0;if(amt<=0)return null;return[e?.name||T('بند إضافي '+(i+1),'Extra '+(i+1)),nm(amt)+' '+T('ر.س','SAR'),C.blue,'rgba(52,131,180,.08)','rgba(52,131,180,.25)']}).filter(Boolean)
 return sec(T('التكاليف والرسوم','Costs & Fees'),[
 [T('نقل الكفالة','Sponsorship Transfer'),Number(dr.transfer_fee||0)>0?nmSar(dr.transfer_fee):null],
 [T('تجديد الإقامة','Iqama Renewal'),Number(dr.iqama_cost||0)>0?nmSar(dr.iqama_cost):null],
@@ -2954,7 +2954,6 @@ mm.iqama_fine!=null&&Number(mm.iqama_fine)>0?[T('غرامة الإقامة','Iqa
 [T('التأمين الطبي','Medical Insurance'),Number(dr.insurance_cost||0)>0?nmSar(dr.insurance_cost):null],
 mm.prof_change_fee!=null?[T('رسوم تغيير مهنة','Prof Change Fee'),nmSar(mm.prof_change_fee)]:null,
 [T('رسوم المكتب','Office Fee'),nmSar(officeFeeVal),C.gold],
-Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm.absher_discount),C.gold,'rgba(212,160,23,.08)','rgba(212,160,23,.25)']:null,
 ...extraRows,
 ],icoMoney)})()}
 {(()=>{const extraDisc=(Array.isArray(mm.extras)?mm.extras:[]).reduce((s,e)=>{const a=Number(e?.amount)||0;return a<0?s+Math.abs(a):s},0)
