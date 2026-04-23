@@ -2892,7 +2892,7 @@ const sec=(title,rows,icon)=>{const filtered=rows.filter(Boolean);if(!filtered.l
 {icon||icoNote}<span>{title}</span>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
-{filtered.map((row,i)=><div key={i} style={{background:'rgba(255,255,255,.025)',borderRadius:8,padding:'8px 12px',border:'1px solid rgba(255,255,255,.04)'}}>
+{filtered.map((row,i)=><div key={i} style={{background:row[3]||'rgba(255,255,255,.025)',borderRadius:8,padding:'8px 12px',border:'1px solid '+(row[4]||'rgba(255,255,255,.04)')}}>
 <div style={{fontSize:9,color:'var(--tx5)',fontWeight:600,marginBottom:4,letterSpacing:'.3px'}}>{row[0]}</div>
 <div style={{fontSize:12,color:row[2]||'var(--tx)',fontWeight:700,wordBreak:'break-word'}}>{fmt(row[1])}</div>
 </div>)}
@@ -2944,6 +2944,8 @@ mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occu
 {detailsTab==='pricing'&&<>
 {(()=>{
 const officeFeeVal=mm.office_fee!=null?Number(mm.office_fee):(()=>{const other=Number(dr.other_costs||0);if(!other)return 0;if(mm.change_profession){const profEst=Math.min(2000,other);return Math.max(0,other-profEst)}return other})()
+const extras=Array.isArray(mm.extras)?mm.extras:[]
+const extraRows=extras.map((e,i)=>{const amt=Number(e?.amount)||0;if(amt===0)return null;const isDisc=amt<0;const bg=isDisc?'rgba(212,160,23,.08)':'rgba(52,131,180,.08)';const bd=isDisc?'rgba(212,160,23,.25)':'rgba(52,131,180,.25)';const tc=isDisc?C.gold:C.blue;return[e?.name||T('بند إضافي '+(i+1),'Extra '+(i+1)),nm(amt)+' '+T('ر.س','SAR'),tc,bg,bd]}).filter(Boolean)
 return sec(T('التكاليف والرسوم','Costs & Fees'),[
 [T('نقل الكفالة','Sponsorship Transfer'),Number(dr.transfer_fee||0)>0?nmSar(dr.transfer_fee):null],
 [T('تجديد الإقامة','Iqama Renewal'),Number(dr.iqama_cost||0)>0?nmSar(dr.iqama_cost):null],
@@ -2952,9 +2954,9 @@ mm.iqama_fine!=null&&Number(mm.iqama_fine)>0?[T('غرامة الإقامة','Iqa
 [T('التأمين الطبي','Medical Insurance'),Number(dr.insurance_cost||0)>0?nmSar(dr.insurance_cost):null],
 mm.prof_change_fee!=null?[T('رسوم تغيير مهنة','Prof Change Fee'),nmSar(mm.prof_change_fee)]:null,
 [T('رسوم المكتب','Office Fee'),nmSar(officeFeeVal),C.gold],
-Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm.absher_discount),C.gold]:null,
+Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm.absher_discount),C.gold,'rgba(212,160,23,.08)','rgba(212,160,23,.25)']:null,
+...extraRows,
 ],icoMoney)})()}
-{Array.isArray(mm.extras)&&mm.extras.length>0&&sec(T('البنود الإضافية','Extras'),mm.extras.map((e,i)=>{const amt=Number(e?.amount)||0;return[e?.name||T('بند إضافي '+(i+1),'Extra '+(i+1)),nm(amt)+' '+T('ر.س','SAR'),amt<0?C.gold:'var(--tx)']}),icoPlus)}
 {sec(T('التسعير','Pricing'),[
 [T('إجمالي التكاليف (المكتب)','Total Cost (internal)'),nmSar(dr.total_cost)],
 [T('قيمة الفاتورة (العميل)','Client Charge'),nmSar(dr.client_charge),C.gold],
