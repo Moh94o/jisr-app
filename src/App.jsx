@@ -2957,10 +2957,12 @@ mm.prof_change_fee!=null?[T('رسوم تغيير مهنة','Prof Change Fee'),nm
 Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm.absher_discount),C.gold,'rgba(212,160,23,.08)','rgba(212,160,23,.25)']:null,
 ...extraRows,
 ],icoMoney)})()}
-{sec(T('التسعير','Pricing'),[
-[T('إجمالي التكاليف (المكتب)','Total Cost (internal)'),nmSar(dr.total_cost)],
+{(()=>{const extraDisc=(Array.isArray(mm.extras)?mm.extras:[]).reduce((s,e)=>{const a=Number(e?.amount)||0;return a<0?s+Math.abs(a):s},0)
+const totalDisc=extraDisc+(Number(mm.absher_discount)||0)
+return sec(T('التسعير','Pricing'),[
+[T('الخصم','Discount'),totalDisc>0?nmSar(totalDisc):T('لا يوجد','None'),totalDisc>0?C.gold:'var(--tx5)'],
 [T('قيمة الفاتورة (العميل)','Client Charge'),nmSar(dr.client_charge),C.gold],
-],icoCalc)}
+],icoCalc)})()}
 </>}
 {detailsTab==='workflow'&&<>
 {sec(T('سير العمل','Workflow'),[
