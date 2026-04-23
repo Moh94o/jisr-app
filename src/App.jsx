@@ -2895,7 +2895,7 @@ return<div onClick={()=>setDetailsRow(null)} style={{position:'fixed',inset:0,ba
 <button onClick={()=>setDetailsRow(null)} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',fontSize:14}}>✕</button>
 </div>
 <div style={{display:'flex',gap:4,padding:'10px 18px 0',flexShrink:0,direction:'rtl',justifyContent:'center'}}>
-{[{k:'worker',l:T('بيانات العامل','Worker Info')},{k:'pricing',l:T('النقل والتسعيرة','Transfer & Pricing')},{k:'workflow',l:T('سير العمل','Workflow')}].map(t=>{const active=detailsTab===t.k
+{[{k:'worker',l:T('بيانات العامل','Worker Info')},{k:'request',l:T('بيانات الطلب','Request Info')},{k:'pricing',l:T('التسعيرة','Pricing')},{k:'workflow',l:T('سير العمل','Workflow')}].map(t=>{const active=detailsTab===t.k
 return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,padding:'0 14px',border:'none',borderBottom:'2px solid '+(active?C.gold:'transparent'),background:'transparent',color:active?C.gold:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',letterSpacing:'.2px',transition:'.15s'}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color='var(--tx)'}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color='var(--tx4)'}}>{t.l}</button>})}
 </div>
 <div style={{flex:1,overflowY:'auto',padding:'18px 22px',direction:'rtl'}}>
@@ -2912,7 +2912,7 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 [T('الحالة النظامية','Legal Status'),legalMap[mm.w_legal_status]||mm.w_legal_status],
 ])}
 </>}
-{detailsTab==='pricing'&&<>
+{detailsTab==='request'&&<>
 {sec(T('تفاصيل النقل','Transfer Details'),[
 [T('نوع النقل','Transfer Type'),typeMap[dr.transfer_type]||dr.transfer_type],
 [T('المنشأة الجديدة','New Facility'),dr.facilities?.name_ar||dr.new_employer_name],
@@ -2932,6 +2932,8 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 mm.change_profession?[T('تغيير مهنة','Profession Change'),yesNo(mm.change_profession)]:null,
 mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occupation]:null,
 ])}
+</>}
+{detailsTab==='pricing'&&<>
 {sec(T('التكاليف الداخلية','Internal Costs'),[
 [T('نقل الكفالة','Sponsorship Transfer'),Number(dr.transfer_fee||0)>0?nmSar(dr.transfer_fee):null],
 [T('تجديد الإقامة','Iqama Renewal'),Number(dr.iqama_cost||0)>0?nmSar(dr.iqama_cost):null],
