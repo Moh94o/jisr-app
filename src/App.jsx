@@ -2717,7 +2717,10 @@ return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,backg
 <div style={{marginBottom:8,display:'flex',flexDirection:'column',gap:10}}>
 {/* Row 1: Worker name (right) | Iqama expiry (left) */}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-<div style={{fontSize:14,color:'var(--tx)',fontWeight:700,direction:'ltr'}}>{workerName}</div>
+<div style={{fontSize:14,color:'var(--tx)',fontWeight:700,direction:'ltr',display:'inline-flex',alignItems:'baseline',gap:6}}>
+<span>{workerName}</span>
+{(()=>{const ls=m.w_legal_status||m.legal_status;if(!ls)return null;const map={regular:{ar:'منتظم',en:'Regular',c:C.ok},expired:{ar:'منتهي',en:'Expired',c:C.red},runaway:{ar:'هارب',en:'Runaway',c:C.red}};const s=map[ls];if(!s)return null;return<span style={{fontSize:11,color:s.c,fontFamily:"'Cairo',sans-serif",fontWeight:700,direction:'rtl',letterSpacing:'.2px'}}>({T(s.ar,s.en)})</span>})()}
+</div>
 <div style={{fontSize:13,color:'var(--tx)',fontFamily:"'JetBrains Mono',monospace",direction:'ltr',fontWeight:700,letterSpacing:'.3px'}}>{fmtD(m.iqama_expiry)}</div>
 </div>
 {/* Row 2: Iqama number (right) | Expected months (left) */}
