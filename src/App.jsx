@@ -1983,7 +1983,7 @@ function TransferCalcPage({sb,toast,user,lang,onNewCalc}){
 const T=(a,e)=>lang==='ar'?a:e;const nm=v=>Number(v||0).toLocaleString('en-US')
 const isGM=!user?.roles||user?.roles?.name_ar==='المدير العام'||user?.roles?.name_en==='General Manager'
 const[data,setData]=useState([]);const[workers,setWorkers]=useState([]);const[facilities,setFacilities]=useState([]);const[branches,setBranches]=useState([])
-const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[wizStep,setWizStep]=useState(0);const[workerMode,setWorkerMode]=useState('existing');const[addingExtra,setAddingExtra]=useState(false);const[extraDraft,setExtraDraft]=useState({name:'',amount:''});const[savingExtra,setSavingExtra]=useState(false);const[editingExtraIdx,setEditingExtraIdx]=useState(null);const[editExtraDraft,setEditExtraDraft]=useState({name:'',amount:''})
+const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[detailsRow,setDetailsRow]=useState(null);const[wizStep,setWizStep]=useState(0);const[workerMode,setWorkerMode]=useState('existing');const[addingExtra,setAddingExtra]=useState(false);const[extraDraft,setExtraDraft]=useState({name:'',amount:''});const[savingExtra,setSavingExtra]=useState(false);const[editingExtraIdx,setEditingExtraIdx]=useState(null);const[editExtraDraft,setEditExtraDraft]=useState({name:'',amount:''})
 // Office filter: GM defaults to all (''); non-GM is locked to their own branch.
 const[officeFilter,setOfficeFilter]=useState(()=>isGM?'':(user?.branch_id||''))
 const[officeDropOpen,setOfficeDropOpen]=useState(false)
@@ -2543,6 +2543,9 @@ const invFoot=r.status==='invoiced'||r.status==='completed'?{text:T('دُفع ب
 return<div key={r.id} onClick={()=>setViewRow({...r,_meta:meta})} style={{background:'linear-gradient(180deg,rgba(0,0,0,.3) 0%,rgba(0,0,0,.2) 100%)',borderRadius:16,overflow:'visible',transition:'.25s cubic-bezier(.4,0,.2,1)',border:'1px solid rgba(255,255,255,.07)',position:'relative',cursor:'pointer',padding:'18px 22px',display:'grid',gridTemplateColumns:'1fr auto auto',gap:22,alignItems:'center'}}
 onMouseEnter={e=>{e.currentTarget.style.borderColor=sc+'55';e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 10px 30px rgba(0,0,0,.3), 0 0 0 1px '+sc+'25'}}
 onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.07)';e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
+<button onClick={e=>{e.stopPropagation();setDetailsRow({...r,_meta:meta})}} title={T('التفاصيل الكاملة','Full details')} style={{position:'absolute',top:10,left:10,width:26,height:26,borderRadius:'50%',background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.3)',color:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,zIndex:2,transition:'background .15s, border-color .15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.22)';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}}>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+</button>
 {(()=>{const CopyBtn=({val})=><button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(val);toast&&toast(T('تم النسخ','Copied'))}} title={T('نسخ','Copy')} style={{width:18,height:18,background:'transparent',border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,color:'var(--tx6)',transition:'color .15s',flexShrink:0,opacity:.55}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.opacity=1}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx6)';e.currentTarget.style.opacity=.55}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
 </button>;const absher=Number(meta.absher_discount||0);const durMo=meta.duration_months||0;const durDays=meta.duration_days||0;const durText=durMo>0?durMo+T(' شهر','mo'):(durDays>0?durDays+T(' يوم','d'):'');const fmtD=d=>{if(!d)return'—';const dt=new Date(d);if(isNaN(dt))return'—';const y=dt.getFullYear();const mo=String(dt.getMonth()+1).padStart(2,'0');const da=String(dt.getDate()).padStart(2,'0');return `${da}-${mo}-${y}`};return <>
@@ -2867,6 +2870,93 @@ setSavingExtra(false)
 </div>
 </div>})()}
 </>})()}
+{detailsRow&&(()=>{const dr=detailsRow;const mm=dr._meta||(()=>{try{return typeof dr.notes==='string'?JSON.parse(dr.notes):(dr.notes||{})}catch{return{}}})()
+const fmt=v=>(v===null||v===undefined||v==='')?'—':v
+const fmtD=d=>{if(!d)return'—';const dt=new Date(d);if(isNaN(dt))return'—';return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')}
+const yesNo=v=>(v===true||v==='true'||v==='yes')?T('نعم','Yes'):(v===false||v==='false'||v==='no')?T('لا','No'):'—'
+const legalMap={regular:T('منتظم','Regular'),expired:T('منتهي','Expired'),runaway:T('هارب','Runaway')}
+const typeMap={sponsorship:T('نقل كفالة','Sponsorship'),final_exit:T('خروج نهائي','Final Exit')}
+const genderMap={male:T('ذكر','Male'),female:T('أنثى','Female')}
+const nmSar=v=>v===null||v===undefined||v===''?'—':nm(v)+' '+T('ر.س','SAR')
+const sec=(title,rows)=>{const filtered=rows.filter(Boolean);if(!filtered.length)return null;return<div style={{marginBottom:18}}>
+<div style={{fontSize:11,color:C.gold,fontWeight:800,letterSpacing:'.6px',marginBottom:8,paddingBottom:5,borderBottom:'1px solid rgba(212,160,23,.15)'}}>{title}</div>
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
+{filtered.map((row,i)=><div key={i} style={{background:'rgba(255,255,255,.025)',borderRadius:8,padding:'8px 12px',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{fontSize:9,color:'var(--tx5)',fontWeight:600,marginBottom:4,letterSpacing:'.3px'}}>{row[0]}</div>
+<div style={{fontSize:12,color:row[2]||'var(--tx)',fontWeight:700,wordBreak:'break-word'}}>{fmt(row[1])}</div>
+</div>)}
+</div>
+</div>}
+const quoteNo=mm.quote_no||'#'+String(dr.id||'').slice(0,8).toUpperCase()
+return<div onClick={()=>setDetailsRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.72)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1210,padding:16,fontFamily:"'Cairo',sans-serif"}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'#17181c',borderRadius:16,width:'min(820px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',border:'1px solid rgba(212,160,23,.15)',boxShadow:'0 20px 50px rgba(0,0,0,.6)',overflow:'hidden'}}>
+<div style={{padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(255,255,255,.07)',flexShrink:0}}>
+<div style={{fontSize:15,fontWeight:800,color:'var(--tx)',display:'flex',alignItems:'center',gap:10}}><span>{T('تفاصيل الحسبة','Full Details')}</span><span style={{fontSize:11,color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,letterSpacing:'.5px'}}>{quoteNo}</span></div>
+<button onClick={()=>setDetailsRow(null)} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',fontSize:14}}>✕</button>
+</div>
+<div style={{flex:1,overflowY:'auto',padding:'18px 22px',direction:'rtl'}}>
+{sec(T('بيانات العامل','Worker Info'),[
+[T('الاسم','Name'),dr.workers?.name_ar||mm.worker_name||mm.w_name],
+[T('رقم الإقامة','Iqama No.'),dr.workers?.iqama_number||mm.iqama_number||mm.w_iqama],
+[T('تاريخ الميلاد','Date of Birth'),fmtD(mm.w_dob)],
+[T('الجنسية','Nationality'),mm.w_nationality],
+[T('الجنس','Gender'),genderMap[mm.w_gender]||mm.w_gender],
+[T('المهنة الحالية','Current Occupation'),mm.w_occupation],
+[T('رقم الجوال','Phone'),mm.w_phone],
+[T('الحالة النظامية','Legal Status'),legalMap[mm.w_legal_status]||mm.w_legal_status],
+])}
+{sec(T('تفاصيل النقل','Transfer Details'),[
+[T('نوع النقل','Transfer Type'),typeMap[dr.transfer_type]||dr.transfer_type],
+[T('المنشأة الجديدة','New Facility'),dr.facilities?.name_ar||dr.new_employer_name],
+[T('عدد التنقلات','Transfer Count'),mm.transfer_count],
+[T('إقامة منتهية','Iqama Expired'),mm.iqama_expired!=null?yesNo(mm.iqama_expired):null],
+[T('عدد مرات الغرامة','Fine Count'),mm.iqama_fine_count],
+[T('انتهاء رخصة العمل','Work Permit Expiry'),mm.wp_expiry?fmtD(mm.wp_expiry):null],
+[T('موافقة صاحب العمل','Employer Consent'),mm.employer_consent!=null?yesNo(mm.employer_consent):null],
+[T('فترة الإشعار','Notice Period'),mm.has_notice_period!=null?yesNo(mm.has_notice_period):null],
+])}
+{sec(T('تفاصيل الإقامة','Iqama Details'),[
+[T('انتهاء الإقامة','Iqama Expiry'),mm.iqama_expiry?fmtD(mm.iqama_expiry):null],
+[T('الانتهاء المتوقع','Expected Expiry'),mm.expected_expiry?fmtD(mm.expected_expiry):null],
+[T('مدة التجديد (أشهر)','Renewal Months'),mm.renewal_months],
+[T('المدة المتوقعة (أشهر)','Duration (mo)'),mm.duration_months],
+[T('الأيام المتوقعة','Expected Days'),mm.expected_iqama_days],
+mm.change_profession?[T('تغيير مهنة','Profession Change'),yesNo(mm.change_profession)]:null,
+mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occupation]:null,
+])}
+{sec(T('التكاليف الداخلية','Internal Costs'),[
+[T('نقل الكفالة','Sponsorship Transfer'),Number(dr.transfer_fee||0)>0?nmSar(dr.transfer_fee):null],
+[T('تجديد الإقامة','Iqama Renewal'),Number(dr.iqama_cost||0)>0?nmSar(dr.iqama_cost):null],
+mm.iqama_fine!=null&&Number(mm.iqama_fine)>0?[T('غرامة الإقامة','Iqama Fine'),nmSar(mm.iqama_fine)]:null,
+[T('رخصة العمل','Work Permit'),Number(dr.work_permit_cost||0)>0?nmSar(dr.work_permit_cost):null],
+[T('التأمين الطبي','Medical Insurance'),Number(dr.insurance_cost||0)>0?nmSar(dr.insurance_cost):null],
+mm.office_fee!=null?[T('رسوم المكتب','Office Fee'),nmSar(mm.office_fee)]:null,
+mm.prof_change_fee!=null?[T('رسوم تغيير مهنة','Prof Change Fee'),nmSar(mm.prof_change_fee)]:null,
+Number(mm.absher_discount||0)>0?[T('خصم أبشر','Absher Discount'),nmSar(mm.absher_discount),C.gold]:null,
+])}
+{Array.isArray(mm.extras)&&mm.extras.length>0&&sec(T('البنود الإضافية','Extras'),mm.extras.map((e,i)=>{const amt=Number(e?.amount)||0;return[e?.name||T('بند إضافي '+(i+1),'Extra '+(i+1)),nm(amt)+' '+T('ر.س','SAR'),amt<0?C.gold:'var(--tx)']}))}
+{sec(T('التسعير','Pricing'),[
+[T('إجمالي التكاليف (المكتب)','Total Cost (internal)'),nmSar(dr.total_cost)],
+[T('قيمة الفاتورة (العميل)','Client Charge'),nmSar(dr.client_charge),C.gold],
+[T('الربح','Profit'),nmSar(dr.profit),Number(dr.profit||0)>=0?C.ok:C.red],
+])}
+{sec(T('سير العمل','Workflow'),[
+[T('الحالة','Status'),stLabel[dr.status]||dr.status,stClr[dr.status]],
+[T('تاريخ الإنشاء','Created'),fmtD(dr.created_at)],
+dr.created_user?[T('أنشأ بواسطة','Created by'),lang==='en'?(dr.created_user.name_en||dr.created_user.name_ar):dr.created_user.name_ar]:null,
+dr.priced_at?[T('تاريخ التسعير','Priced At'),fmtD(dr.priced_at)]:null,
+dr.priced_user?[T('سعّر بواسطة','Priced by'),lang==='en'?(dr.priced_user.name_en||dr.priced_user.name_ar):dr.priced_user.name_ar]:null,
+dr.approved_at?[T('تاريخ التصديق','Approved At'),fmtD(dr.approved_at)]:null,
+dr.approved_user?[T('صدّق بواسطة','Approved by'),lang==='en'?(dr.approved_user.name_en||dr.approved_user.name_ar):dr.approved_user.name_ar]:null,
+])}
+{(dr.notes&&typeof dr.notes==='string'&&dr.notes.trim()&&!dr.notes.trim().startsWith('{'))||mm.internal_notes?sec(T('ملاحظات','Notes'),[
+mm.internal_notes?[T('ملاحظات داخلية','Internal Notes'),mm.internal_notes]:null,
+(dr.notes&&typeof dr.notes==='string'&&!dr.notes.trim().startsWith('{'))?[T('ملاحظات','Notes'),dr.notes]:null,
+]):null}
+</div>
+</div>
+</div>
+})()}
 {pop&&(()=>{
 const steps=[{id:'worker',t:T('بيانات العامل','Worker Info')},{id:'transfer',t:T('تفاصيل النقل','Transfer Details')},{id:'costs',t:T('التكاليف','Costs')},{id:'summary',t:T('الملخص','Summary')}]
 const selWorker=workers.find(w=>w.id===form.worker_id)
