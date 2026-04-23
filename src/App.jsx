@@ -2902,13 +2902,13 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 {detailsTab==='worker'&&<>
 {sec(T('بيانات العامل','Worker Info'),[
 [T('الاسم','Name'),dr.workers?.name_ar||mm.worker_name||mm.w_name],
+[T('رقم الجوال','Phone'),mm.w_phone],
 [T('رقم الإقامة','Iqama No.'),dr.workers?.iqama_number||mm.iqama_number||mm.w_iqama],
 [T('تاريخ انتهاء الإقامة','Iqama Expiry'),mm.iqama_expiry?fmtD(mm.iqama_expiry):null],
 [T('تاريخ الميلاد','Date of Birth'),fmtD(mm.w_dob)],
 [T('الجنسية','Nationality'),mm.w_nationality],
 [T('الجنس','Gender'),genderMap[mm.w_gender]||mm.w_gender],
 [T('المهنة الحالية','Current Occupation'),mm.w_occupation],
-[T('رقم الجوال','Phone'),mm.w_phone],
 [T('الحالة النظامية','Legal Status'),legalMap[mm.w_legal_status]||mm.w_legal_status],
 ])}
 </>}
