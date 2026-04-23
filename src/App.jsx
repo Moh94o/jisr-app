@@ -2940,10 +2940,6 @@ mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occu
 ],icoId)}
 {sec(T('بيانات التأمين','Insurance Details'),[
 [T('حالة التأمين','Insurance'),Number(dr.insurance_cost||0)>0?T('يوجد','Included'):T('لا يوجد','None'),Number(dr.insurance_cost||0)>0?C.ok:'var(--tx5)'],
-Number(dr.insurance_cost||0)>0?[T('تكلفة التأمين','Insurance Cost'),nmSar(dr.insurance_cost)]:null,
-[T('شركة التأمين','Insurance Company'),mm.insurance_company],
-[T('رقم الوثيقة','Policy No.'),mm.insurance_policy_no],
-[T('بداية التأمين','Start Date'),mm.insurance_start?fmtD(mm.insurance_start):null],
 [T('نهاية التأمين','End Date'),mm.insurance_end?fmtD(mm.insurance_end):null],
 ],icoShield)}
 </>}
