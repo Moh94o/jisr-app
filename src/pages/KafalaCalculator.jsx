@@ -814,12 +814,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     }
     return { months: Math.max(0, months), days: Math.max(0, days) }
   })()
-  // Office fee: flat general price up to 12 months; for expected durations beyond that,
-  // excess days are billed at the daily rate and added on top of the general price.
+  // Office fee: flat general price up to the configured monthly cap; any excess days
+  // are billed at the daily rate and added on top of the general price.
   const officeDailyRate = parseFloat(cfg.officeDailyRate) || 0
   const baseOfficeFee = parseFloat(cfg.officeFee) || 0
-  const OFFICE_FLAT_DAYS = 365
-  const officeExcessDays = Math.max(0, expectedIqamaDays - OFFICE_FLAT_DAYS)
+  const officeFlatMonths = parseFloat(cfg.officeFlatMonths) || 12
+  const officeFlatDays = Math.round(officeFlatMonths * 30)
+  const officeExcessDays = Math.max(0, expectedIqamaDays - officeFlatDays)
   const officeAutoFee = baseOfficeFee + officeExcessDays * officeDailyRate
   const officeFee = parseFloat(f.officeFee) || officeAutoFee
   // Hidden discount floor — daily rate × expected iqama duration (calendar days). Stored for the approval-side logic.

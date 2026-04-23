@@ -12,7 +12,7 @@ export const KAFALA_DEFAULTS={
   workPermit3M:25,workPermit6M:50,workPermit9M:75,workPermit12M:100,
   workPermitDailyAfter:22,workPermitCutoffDate:'2027-02-20',
   workPermitProcDays:7,workPermitExpiredThreshold:30,workPermitExpiredProcDays:7,
-  profChange:1000,profChangeFreeOccupations:['2381e970-e939-4c6b-a7a9-8862f2133d41','1b4568be-0ea5-4079-bc90-ecca71d30adb'],officeFee:6500,officeDailyRate:18.06,
+  profChange:1000,profChangeFreeOccupations:['2381e970-e939-4c6b-a7a9-8862f2133d41','1b4568be-0ea5-4079-bc90-ecca71d30adb'],officeFee:6500,officeDailyRate:18.06,officeFlatMonths:12,
   medicalGraceMonths:2,medicalGraceDays:7,
   medicalBrackets:[{min:20,max:30,rate:400},{min:30,max:40,rate:500},{min:40,max:50,rate:600},{min:50,max:60,rate:700},{min:60,max:70,rate:900}]
 }
@@ -178,9 +178,10 @@ const KAFALA_SECTIONS=[
   {title:'رسوم تغيير المهنة',fields:[
     {k:'profChange',l:'رسوم تغيير المهنة',d:1000,sfx:'ريال'}
   ]},
-  {title:'رسوم المكتب',note:'السعر العام يُعرض ثابتاً عند رفع الطلب. سعر اليوم يُستخدم لحساب الحد الأدنى المسموح للخصم عند التصديق — هذا الحد لا يظهر للموظف المُصدِّق (يُرفض الطلب فقط عند النزول تحته).',fields:[
+  {title:'رسوم المكتب',note:'السعر العام يُعرض ثابتاً عند رفع الطلب. سعر اليوم يُستخدم لحساب الحد الأدنى المسموح للخصم عند التصديق — هذا الحد لا يظهر للموظف المُصدِّق (يُرفض الطلب فقط عند النزول تحته). إذا تجاوزت المدة المتوقعة في الإقامة الحد الشهري، الأيام الزائدة تُحسب بسعر اليوم وتُضاف للسعر العام.',fields:[
     {k:'officeFee',l:'السعر العام (عند رفع الطلب)',d:6500,sfx:'ريال'},
-    {k:'officeDailyRate',l:'سعر اليوم (الحد الأدنى للخصم)',d:18.06,sfx:'ريال/يوم'}
+    {k:'officeDailyRate',l:'سعر اليوم (الحد الأدنى للخصم)',d:18.06,sfx:'ريال/يوم'},
+    {k:'officeFlatMonths',l:'الحد الشهري للسعر العام',d:12,sfx:'شهر'}
   ]}
 ]
 const KAFALA_FIELDS=KAFALA_SECTIONS.flatMap(s=>s.fields)
