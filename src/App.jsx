@@ -2925,7 +2925,7 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 {detailsTab==='request'&&<>
 {sec(T('تفاصيل النقل','Transfer Details'),[
 [T('نوع النقل','Transfer Type'),typeMap[dr.transfer_type]||dr.transfer_type],
-[T('عدد التنقلات','Transfer Count'),mm.transfer_count],
+[T('عدد مرات نقل الخدمات','Service Transfer Count'),mm.transfer_count],
 [T('انتهاء رخصة العمل','Work Permit Expiry'),mm.wp_expiry?fmtD(mm.wp_expiry):null],
 [T('موافقة صاحب العمل','Employer Consent'),mm.employer_consent!=null?yesNo(mm.employer_consent):null],
 [T('فترة الإشعار','Notice Period'),mm.has_notice_period!=null?yesNo(mm.has_notice_period):null],
