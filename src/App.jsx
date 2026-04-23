@@ -2921,6 +2921,8 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 [T('الجنس','Gender'),genderMap[mm.w_gender]||mm.w_gender],
 [T('المهنة الحالية','Current Occupation'),mm.w_occupation],
 [T('الحالة النظامية','Legal Status'),legalMap[mm.w_legal_status]||mm.w_legal_status],
+[T('حالة التأمين','Insurance'),Number(dr.insurance_cost||0)>0?T('يوجد','Included'):T('لا يوجد','None'),Number(dr.insurance_cost||0)>0?C.ok:'var(--tx5)'],
+[T('نهاية التأمين','Insurance End'),mm.insurance_end?fmtD(mm.insurance_end):null],
 ],icoUser)}
 </>}
 {detailsTab==='request'&&<>
@@ -2938,10 +2940,6 @@ return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,paddi
 mm.change_profession?[T('تغيير مهنة','Profession Change'),yesNo(mm.change_profession)]:null,
 mm.new_occupation?[T('المهنة الجديدة','New Occupation'),mm.new_occupation]:null,
 ],icoId)}
-{sec(T('بيانات التأمين','Insurance Details'),[
-[T('حالة التأمين','Insurance'),Number(dr.insurance_cost||0)>0?T('يوجد','Included'):T('لا يوجد','None'),Number(dr.insurance_cost||0)>0?C.ok:'var(--tx5)'],
-[T('نهاية التأمين','End Date'),mm.insurance_end?fmtD(mm.insurance_end):null],
-],icoShield)}
 </>}
 {detailsTab==='pricing'&&<>
 {sec(T('التكاليف الداخلية','Internal Costs'),[
