@@ -2902,10 +2902,10 @@ const quoteNo=mm.quote_no||'#'+String(dr.id||'').slice(0,8).toUpperCase()
 return<div onClick={()=>setDetailsRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.72)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1210,padding:16,fontFamily:"'Cairo',sans-serif"}}>
 <div onClick={e=>e.stopPropagation()} style={{background:'#141414',borderRadius:16,width:'min(820px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',border:'1px solid rgba(255,255,255,.06)',boxShadow:'0 20px 50px rgba(0,0,0,.6)',overflow:'hidden'}}>
 <div style={{padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-<div style={{fontSize:15,fontWeight:800,color:'var(--tx)',display:'flex',alignItems:'center',gap:10}}><span>{T('تفاصيل الحسبة','Full Details')}</span><span style={{fontSize:11,color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,letterSpacing:'.5px'}}>{quoteNo}</span></div>
+<div style={{fontSize:18,fontWeight:800,color:'var(--tx)',display:'flex',alignItems:'center',gap:10,letterSpacing:'-.2px'}}><span>{T('تفاصيل الحسبة','Full Details')}</span><span style={{fontSize:12,color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,letterSpacing:'.5px'}}>{quoteNo}</span></div>
 <button onClick={()=>setDetailsRow(null)} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',fontSize:14}}>✕</button>
 </div>
-<div style={{display:'flex',gap:4,padding:'10px 18px 0',flexShrink:0,direction:'rtl',justifyContent:'center'}}>
+<div style={{display:'flex',gap:4,padding:'10px 22px 0',flexShrink:0,direction:'rtl',justifyContent:'flex-start'}}>
 {[{k:'worker',l:T('بيانات العامل','Worker Info')},{k:'request',l:T('تفاصيل الطلب','Request Details')},{k:'pricing',l:T('التسعيرة','Pricing')},{k:'workflow',l:T('سير العمل','Workflow')}].map(t=>{const active=detailsTab===t.k
 return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,padding:'0 14px',border:'none',borderBottom:'2px solid '+(active?C.gold:'transparent'),background:'transparent',color:active?C.gold:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',letterSpacing:'.2px',transition:'.15s'}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color='var(--tx)'}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color='var(--tx4)'}}>{t.l}</button>})}
 </div>
