@@ -4,6 +4,17 @@ const PAGE_SIZE = 20
 
 export const ROLE_LABELS = ['موظف مكتب', 'عامل', 'وسيط', 'عميل', 'مدير منشأة', 'مالك منشأة']
 
+// Full list (no server filter/pagination) — used by the Transfer-Calc-style page
+// that does all filtering + date grouping in memory. Persons are low-cardinality
+// (hundreds, not millions) so one query is simpler than server-side pagination.
+export async function listAllPersons() {
+  const sb = getSupabase()
+  if (!sb) return { rows: [] }
+  const { data, error } = await sb.from('v_person_profile').select('*').order('created_at', { ascending: false })
+  if (error) throw error
+  return { rows: data || [] }
+}
+
 export async function listPersons({ search = '', role = '', status = '', branch = '', page = 1 } = {}) {
   const sb = getSupabase()
   if (!sb) return { rows: [], count: 0 }

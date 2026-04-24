@@ -1070,7 +1070,7 @@ return<div><div>
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_staff'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={true} singleTab="staff" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
-{pg==='admin_persons'&&<PersonsPage toast={tt}/>}
+{pg==='admin_persons'&&<PersonsPage toast={tt} user={user}/>}
 {pg==='admin_services'&&<ServiceAdminPage toast={tt} lang={lang}/>}
 {pg==='admin_ui_controls'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} defaultTab="ui_controls" onTabChange={setSTabInfo} nav={nav} hubTabs={hubTabs} visibility={visibility} onVisibilityChange={saveVisibility}/>}
 {pg==='admin_visibility'&&(()=>{window.setTimeout(()=>setPg('admin_ui_controls'),0);return null})()}
