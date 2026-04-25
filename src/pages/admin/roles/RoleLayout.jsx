@@ -24,7 +24,16 @@ export default function RoleLayout({ title, subtitle, color = C.gold, onBack, ac
 
       {/* Header row — matches Persons detail spacing */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
+          {title}
+        </div>
+        {subtitle && (
+          <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, letterSpacing: '.3px' }}>
+            {subtitle}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 14 }}>
           <button onClick={onBack} title="رجوع"
             style={{ height: 34, padding: '0 12px', borderRadius: 8,
               background: '#141414', border: '1px solid rgba(255,255,255,.06)',
@@ -37,15 +46,6 @@ export default function RoleLayout({ title, subtitle, color = C.gold, onBack, ac
           </button>
           {actions && <div style={{ display: 'flex', gap: 8 }}>{actions}</div>}
         </div>
-
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
-          {title}
-        </div>
-        {subtitle && (
-          <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, letterSpacing: '.3px' }}>
-            {subtitle}
-          </div>
-        )}
       </div>
 
       {children}

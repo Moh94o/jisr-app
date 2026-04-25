@@ -8,6 +8,7 @@ import OwnerRolePage from './OwnerRolePage.jsx'
 import BeneficiaryRolePage from './BeneficiaryRolePage.jsx'
 import ManagerRolePage from './ManagerRolePage.jsx'
 import SupervisorRolePage from './SupervisorRolePage.jsx'
+import TrackerRolePage from './TrackerRolePage.jsx'
 import SaudizationRolePage from './SaudizationRolePage.jsx'
 import SmsForwarderRolePage from './SmsForwarderRolePage.jsx'
 
@@ -56,6 +57,7 @@ export default function RolePageRouter({ roleKey, personId, onBack, toast, count
     case 'beneficiary': return <BeneficiaryRolePage {...shared} />
     case 'manager':     return <ManagerRolePage {...shared} />
     case 'supervisor':  return <SupervisorRolePage {...shared} />
+    case 'tracker':     return <TrackerRolePage {...shared} />
     case 'saudization': return <SaudizationRolePage {...shared} />
     case 'sms_forwarder': return <SmsForwarderRolePage {...shared} />
     default: return null

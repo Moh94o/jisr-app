@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import ReactDOM from 'react-dom'
 import SbcFacilities from './SbcFacilities.jsx'
 import QiwaFacilities from './QiwaFacilities.jsx'
 import { buildBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
+import * as rolesService from '../services/rolesService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', purple: '#9b59b6' }
@@ -85,7 +87,6 @@ export default function SyncHub({ sb, toast, user, lang }) {
   const [changes, setChanges] = useState([])
   const [activePerson, setActivePerson] = useState('all') // 'all' or person.id
   const [focused, setFocused] = useState(null)            // source.id being viewed in drill-down
-  const [personMgr, setPersonMgr] = useState(false)
   const [syncModal, setSyncModal] = useState(null)        // { sourceId, personId }
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -147,19 +148,18 @@ export default function SyncHub({ sb, toast, user, lang }) {
 
   // ── Render ──
   return (
-    <div style={{ fontFamily: F, paddingTop: 16 }}>
-      <Header T={T} lang={lang} focusedSource={focused ? sources.find(s => s.id === focused) : null} runs={runs} changes={changes} onSync={focused ? () => onOpenSync(focused) : null} />
-
-      <PersonTabs
-        persons={persons}
-        active={activePerson}
-        onChange={setActivePerson}
-        onManage={() => setPersonMgr(true)}
-        T={T}
-      />
+    <div style={{ fontFamily: F, paddingTop: 0 }}>
+      <Header T={T} lang={lang}
+        focusedSource={focused ? sources.find(s => s.id === focused) : null}
+        runs={runs} changes={changes}
+        onSync={focused ? () => onOpenSync(focused) : null}
+        onBack={() => setFocused(null)} />
 
       {!focused && (
         <>
+          <KpiRow T={T} lang={lang} sources={sources}
+            getSourceStats={getSourceStats}
+            changes={filteredChanges} />
           <SourceGrid
             sources={sources}
             stats={sources.reduce((acc, s) => { acc[s.id] = getSourceStats(s.id); return acc }, {})}
@@ -169,15 +169,6 @@ export default function SyncHub({ sb, toast, user, lang }) {
             lang={lang}
             activePerson={activePerson}
             personName={personName}
-          />
-
-          <ChangeTimeline
-            changes={filteredChanges}
-            persons={persons}
-            sourceName={sourceName}
-            sourceAccent={sourceAccent}
-            T={T}
-            lang={lang}
           />
         </>
       )}
@@ -210,16 +201,6 @@ export default function SyncHub({ sb, toast, user, lang }) {
         <ComingSoonPanel sourceId={focused} sourceName={sourceName(focused)} onBack={() => setFocused(null)} T={T} />
       )}
 
-      {personMgr && (
-        <PersonManagerPanel
-          sb={sb} toast={toast} lang={lang} user={user}
-          persons={persons}
-          onClose={() => setPersonMgr(false)}
-          onChanged={() => setRefreshTick(t => t + 1)}
-          T={T}
-        />
-      )}
-
       {syncModal && (
         <SyncInstallPanel
           sourceId={syncModal.sourceId}
@@ -235,9 +216,9 @@ export default function SyncHub({ sb, toast, user, lang }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Header — adapts to focused source (or all-sources overview)
+// Header — Persons-style for overview; source-branded for drilldown
 // ═══════════════════════════════════════════════════════════════
-function Header({ T, lang, focusedSource, runs, changes, onSync }) {
+function Header({ T, lang, focusedSource, runs, changes, onSync, onBack }) {
   const latestRun = runs[0]
   const changesLast7d = changes.filter(c => {
     const t = new Date(c.detected_at).getTime()
@@ -245,47 +226,207 @@ function Header({ T, lang, focusedSource, runs, changes, onSync }) {
   }).length
 
   const isAr = (lang || 'ar') !== 'en'
-  let title, badge, description, accent
+
+  // ── Drilldown mode (keeps source-branded look) ──
   if (focusedSource) {
     const meta = SOURCE_META[focusedSource.id] || {}
     const name = isAr ? focusedSource.name_ar : (focusedSource.name_en || focusedSource.name_ar)
-    title = T(`مزامنة ${name}`, `${name} Sync`)
-    badge = isAr ? (meta.badgeAr || focusedSource.name_ar) : (meta.badgeEn || focusedSource.name_en || focusedSource.id.toUpperCase())
-    description = focusedSource.description_ar || (isAr ? meta.descAr : meta.descEn) || ''
-    accent = SOURCE_ACCENT[focusedSource.id] || C.gold
-  } else {
-    title = T('مزامنة البيانات', 'Data Sync')
-    badge = T('جميع المصادر', 'All Sources')
-    description = T('مركز موحد لمزامنة بياناتك من جميع المصادر الحكومية — كل تغيير مسجّل ومحفوظ بالتاريخ.', 'Unified hub to sync data from all government sources — every change tracked and timestamped.')
-    accent = C.gold
-  }
+    const title = T(`مزامنة ${name}`, `${name} Sync`)
+    const badge = isAr ? (meta.badgeAr || focusedSource.name_ar) : (meta.badgeEn || focusedSource.name_en || focusedSource.id.toUpperCase())
+    const description = focusedSource.description_ar || (isAr ? meta.descAr : meta.descEn) || ''
+    const accent = SOURCE_ACCENT[focusedSource.id] || C.gold
 
-  return (
-    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-      <div style={{ flex: 1, minWidth: 240 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--tx)' }}>{title}</span>
-          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 5, background: `${accent}1A`, color: accent, fontWeight: 700, border: `1px solid ${accent}40`, whiteSpace: 'nowrap' }}>{badge}</span>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 6, lineHeight: 1.7 }}>
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 8, lineHeight: 1.7 }}>
           {description}
           {latestRun && ` · ${T('آخر مزامنة', 'Last sync')}: ${fmtTime(latestRun.started_at)}`}
           {changesLast7d > 0 && ` · ${changesLast7d} ${T('تغيير خلال أسبوع', 'changes in 7d')}`}
         </div>
-        {!focusedSource && (
-          <div style={{ fontSize: 10.5, color: 'var(--tx4)', marginTop: 4 }}>
-            {T('قوى · التأمينات · مقيم · مدد · هيئة الزكاة والدخل — قريباً في تبويبات منفصلة', 'Qiwa · GOSI · Muqeem · Mudad · ZATCA — coming soon in separate tabs')}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 14 }}>
+          <button onClick={onBack} title={T('رجوع', 'Back')}
+            style={{ height: 34, padding: '0 12px', borderRadius: 8,
+              background: '#141414', border: '1px solid rgba(255,255,255,.06)',
+              color: 'var(--tx2)', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = C.gold }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+            {T('رجوع', 'Back')}
+          </button>
+          {onSync && (
+            <button onClick={onSync}
+              style={{ height: 34, padding: '0 14px', borderRadius: 8,
+                background: 'transparent',
+                border: `1px solid ${accent}`, color: accent,
+                fontFamily: F, fontSize: 11, fontWeight: 800,
+                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                transition: '.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${accent}14` }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+              {T('مزامنة', 'Sync')}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Hub overview — matches Persons page layout ──
+  return (
+    <div style={{ marginBottom: 14, position: 'relative' }}>
+      <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
+        {T('مركز المزامنة', 'Sync Hub')}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 8, lineHeight: 1.7 }}>
+        {T('نقطة واحدة لمتابعة جميع التحديثات من مصادر متنوعة', 'One point to track all updates from multiple sources.')}
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KPI Row — matches Persons page KPI card layout
+// ═══════════════════════════════════════════════════════════════
+function KpiRow({ T, lang, sources, getSourceStats, changes }) {
+  const glassCard = { background: '#141414', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '10px 12px', position: 'relative', overflow: 'hidden', transition: '.2s' }
+  const innerBox = { background: '#1a1a1a', border: '1px solid rgba(255,255,255,.04)' }
+
+  const totalRecords = sources.reduce((s, src) => s + (getSourceStats(src.id).total || 0), 0)
+  const activeSourceCount = sources.filter(s => (getSourceStats(s.id).runCount || 0) > 0).length
+
+  // Changes over last 7 days, bucketed by day + type
+  const now = Date.now()
+  const buckets = 7
+  const periodSeries = Array.from({ length: buckets }, () => ({ added: 0, modified: 0, removed: 0, total: 0 }))
+  const totalsLast7 = { added: 0, modified: 0, removed: 0 }
+  changes.forEach(c => {
+    const t = new Date(c.detected_at).getTime()
+    const age = Math.floor((now - t) / 86400000)
+    if (age < 0 || age >= buckets) return
+    const idx = buckets - 1 - age
+    const k = c.change_type
+    if (periodSeries[idx][k] != null) { periodSeries[idx][k]++; periodSeries[idx].total++ }
+    if (totalsLast7[k] != null) totalsLast7[k]++
+  })
+  const totalChanges7 = totalsLast7.added + totalsLast7.modified + totalsLast7.removed
+
+  const COLORS = { added: '#22c55e', modified: '#f59e0b', removed: '#ef4444' }
+
+  // Area chart helpers (same smoothing as Persons page)
+  const n = periodSeries.length
+  const W = 560, H = 88, padL = 22, padR = 12, padT = 12, padB = 12
+  const cw = W - padL - padR, ch = H - padT - padB
+  const mx = Math.max(1, ...periodSeries.flatMap(p => [p.added, p.modified, p.removed]))
+  const niceMx = Math.max(2, Math.ceil(mx / 2) * 2)
+  const xAt = i => (padL + (i / Math.max(1, n - 1)) * cw).toFixed(1)
+  const yAt = v => (padT + ch - (v / niceMx) * ch).toFixed(1)
+  const smooth = (pts) => {
+    if (pts.length < 2) return ''
+    let d = 'M' + pts[0][0] + ',' + pts[0][1]
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[Math.max(0, i - 1)], [x1, y1] = pts[i]
+      const [x2, y2] = pts[i + 1], [x3, y3] = pts[Math.min(pts.length - 1, i + 2)]
+      const tt = .22
+      const c1x = x1 + (x2 - x0) * tt, c1y = y1 + (y2 - y0) * tt
+      const c2x = x2 - (x3 - x1) * tt, c2y = y2 - (y3 - y1) * tt
+      d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + x2 + ',' + y2
+    }
+    return d
+  }
+  const ptsOf = (k) => periodSeries.map((p, i) => [Number(xAt(i)), Number(yAt(p[k]))])
+  const lineP = (k) => smooth(ptsOf(k))
+  const areaP = (k) => {
+    const p = ptsOf(k); if (p.length < 2) return ''
+    return smooth(p) + ' L' + p[p.length - 1][0] + ',' + (padT + ch) + ' L' + p[0][0] + ',' + (padT + ch) + ' Z'
+  }
+  const yTicks = [0, niceMx / 2, niceMx]
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 22 }}>
+      {/* Wide: last-7d change counts + trend chart */}
+      <div style={glassCard}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+          {[
+            { l: T('مُضاف', 'Added'), v: totalsLast7.added, c: COLORS.added },
+            { l: T('مُعدّل', 'Modified'), v: totalsLast7.modified, c: COLORS.modified },
+            { l: T('محذوف', 'Removed'), v: totalsLast7.removed, c: COLORS.removed }
+          ].map(s => (
+            <div key={s.l} style={{ padding: '7px 12px', borderRadius: 10, ...innerBox,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.c, boxShadow: `0 0 5px ${s.c}` }} />
+                <div style={{ fontSize: 18, fontWeight: 900, color: s.c, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{s.v}</div>
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{s.l}</div>
+            </div>
+          ))}
+          <div style={{ minWidth: 0, padding: '0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('آخر 7 أيام', 'Last 7d')}</span>
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 13, fontWeight: 900, color: C.gold, direction: 'ltr' }}>{totalChanges7}</span>
+            <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('تغيير', 'changes')}</span>
+          </div>
+        </div>
+
+        {n >= 2 && (
+          <div style={{ padding: '6px 10px' }}>
+            <svg width="100%" viewBox={`0 0 ${W} ${H - padB + 14}`} preserveAspectRatio="none" style={{ display: 'block', height: 90 }}>
+              <defs>
+                <linearGradient id="sxa" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={COLORS.added} stopOpacity=".4" />
+                  <stop offset="100%" stopColor={COLORS.added} stopOpacity="0" /></linearGradient>
+                <linearGradient id="sxm" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={COLORS.modified} stopOpacity=".35" />
+                  <stop offset="100%" stopColor={COLORS.modified} stopOpacity="0" /></linearGradient>
+                <linearGradient id="sxr" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={COLORS.removed} stopOpacity=".35" />
+                  <stop offset="100%" stopColor={COLORS.removed} stopOpacity="0" /></linearGradient>
+              </defs>
+              {yTicks.map((t, i) => (
+                <g key={i}>
+                  <line x1={padL} x2={W - padR} y1={yAt(t)} y2={yAt(t)} stroke="rgba(255,255,255,.05)" strokeWidth="1" />
+                  <text x={padL - 6} y={Number(yAt(t)) + 3} fontSize="9" fill="rgba(255,255,255,.3)" textAnchor="end" fontFamily={F}>{t}</text>
+                </g>
+              ))}
+              <path d={areaP('added')} fill="url(#sxa)" />
+              <path d={lineP('added')} fill="none" stroke={COLORS.added} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={areaP('modified')} fill="url(#sxm)" />
+              <path d={lineP('modified')} fill="none" stroke={COLORS.modified} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={areaP('removed')} fill="url(#sxr)" />
+              <path d={lineP('removed')} fill="none" stroke={COLORS.removed} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {['added', 'modified', 'removed'].map(k => {
+                const c = COLORS[k]
+                const pts = ptsOf(k); const last = pts[pts.length - 1]
+                return <circle key={k} cx={last[0]} cy={last[1]} r="4" fill="#1a1a1a" stroke={c} strokeWidth="2" />
+              })}
+            </svg>
           </div>
         )}
       </div>
-      {focusedSource && onSync && (
-        <button onClick={onSync} style={{ padding: '10px 18px', border: `1px solid ${accent}55`, background: 'rgba(0,0,0,.35)', color: 'var(--tx)', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s', flexShrink: 0 }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,.55)'; e.currentTarget.style.borderColor = accent; e.currentTarget.style.boxShadow = `0 0 0 3px ${accent}15` }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,.35)'; e.currentTarget.style.borderColor = `${accent}55`; e.currentTarget.style.boxShadow = 'none' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          {T('مزامنة', 'Sync')}
-        </button>
-      )}
+
+      {/* Narrow: total records hero number */}
+      <div style={{ ...glassCard, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', letterSpacing: '.1px' }}>{T('إجمالي السجلات', 'Total Records')}</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
+          <span style={{ fontSize: 56, fontWeight: 900, color: C.gold, letterSpacing: '-1.4px', lineHeight: 1,
+            textShadow: `0 0 22px ${C.gold}33`, direction: 'ltr' }}>{totalRecords.toLocaleString('en-US')}</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: C.gold, opacity: .75 }}>{T('سجل', 'records')}</span>
+        </div>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.3px' }}>
+          {activeSourceCount} {T('مصدر نشط', 'active')} · {sources.length} {T('مصدر', 'total')}
+        </div>
+      </div>
     </div>
   )
 }
@@ -356,10 +497,28 @@ function SourceGrid({ sources, stats, onOpen, onSync, T, activePerson, personNam
         const removed = st.lastRun?.records_removed || 0
         const hasDiffs = !st.lastRun?.is_baseline && (added + modified + removed) > 0
         return (
-          <div key={s.id} style={{ padding: 18, borderRadius: 14, background: bg, border: `1px solid ${accent}22`, opacity: available ? 1 : 0.55, transition: 'transform .18s, box-shadow .18s', cursor: available ? 'pointer' : 'default', position: 'relative', overflow: 'hidden' }}
-            onClick={() => available && onOpen(s.id)}
-            onMouseEnter={e => { if (available) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 20px ${accent}15` } }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}>
+          <div key={s.id} style={{ padding: 18, borderRadius: 14,
+              background: `linear-gradient(135deg, ${accent}22 0%, ${accent}0a 45%, rgba(20,20,20,.85) 100%)`,
+              border: `1px solid ${accent}33`,
+              transition: '.25s cubic-bezier(.4,0,.2,1)',
+              cursor: 'pointer',
+              position: 'relative', overflow: 'hidden',
+              boxShadow: `inset 1px 1px 0 ${accent}22, 0 4px 14px rgba(0,0,0,.25)`,
+              backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+              display: 'flex', flexDirection: 'column' }}
+            onClick={() => onOpen(s.id)}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = accent + '66'
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = `inset 1px 1px 0 ${accent}33, 0 12px 32px rgba(0,0,0,.4), 0 0 0 1px ${accent}33`
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = accent + '33'
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = `inset 1px 1px 0 ${accent}22, 0 4px 14px rgba(0,0,0,.25)`
+            }}>
+            {/* glassy shine */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${accent}55, transparent)`, pointerEvents: 'none' }} />
 
             {/* Header: icon + name + status */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
@@ -369,11 +528,10 @@ function SourceGrid({ sources, stats, onOpen, onSync, T, activePerson, personNam
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name_ar}</div>
-                  {available && fresh && <span title={fresh.label} style={{ width: 7, height: 7, borderRadius: '50%', background: fresh.color, flexShrink: 0, boxShadow: `0 0 6px ${fresh.color}80` }} />}
+                  {fresh && <span title={fresh.label} style={{ width: 7, height: 7, borderRadius: '50%', background: fresh.color, flexShrink: 0, boxShadow: `0 0 6px ${fresh.color}80` }} />}
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--tx4)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description_ar || s.name_en}</div>
               </div>
-              {!available && <span style={{ fontSize: 9, padding: '3px 8px', borderRadius: 5, background: 'rgba(255,255,255,.06)', color: 'var(--tx3)', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>{T('قريباً', 'Soon')}</span>}
             </div>
 
             {/* Number */}
@@ -398,22 +556,14 @@ function SourceGrid({ sources, stats, onOpen, onSync, T, activePerson, personNam
             </div>
 
             {/* Actions */}
-            {available && (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={e => { e.stopPropagation(); onOpen(s.id) }} style={{ flex: 1, padding: '8px 10px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: 'var(--tx2)', borderRadius: 8, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, fontFamily: F, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: '.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.07)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  {T('عرض', 'View')}
-                </button>
-                <button onClick={e => { e.stopPropagation(); onSync(s.id) }} style={{ flex: 1, padding: '8px 10px', border: `1px solid ${accent}55`, background: 'rgba(0,0,0,.35)', color: 'var(--tx)', borderRadius: 8, cursor: 'pointer', fontSize: 11.5, fontWeight: 800, fontFamily: F, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: '.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,.55)'; e.currentTarget.style.borderColor = accent }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,.35)'; e.currentTarget.style.borderColor = `${accent}55` }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                  {T('مزامنة', 'Sync')}
-                </button>
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: 6, marginTop: 'auto' }}>
+              <button onClick={e => { e.stopPropagation(); onOpen(s.id) }} style={{ flex: 1, padding: '8px 10px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: 'var(--tx2)', borderRadius: 8, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, fontFamily: F, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: '.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.07)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                {T('عرض', 'View')}
+              </button>
+            </div>
           </div>
         )
       })}
@@ -527,24 +677,218 @@ function formatValue(v) {
 // ═══════════════════════════════════════════════════════════════
 // SBC drill-down — uses existing SbcFacilities component
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// Role-filtered person tabs — used inside source drilldowns to scope
+// the view to a specific person (owner/manager). Tabs persist in
+// localStorage so the user keeps their selection across sessions.
+// ═══════════════════════════════════════════════════════════════
+function RolePersonTabs({ sb, toast, allowedRoles, T, tabs, setTabs, active, setActive }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [candidates, setCandidates] = useState([])
+  const [loadingCands, setLoadingCands] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const openPicker = async () => {
+    setPickerOpen(true)
+    setLoadingCands(true)
+    try {
+      const lists = await Promise.all(allowedRoles.map(r => rolesService.listPersonsByRole(r)))
+      const map = new Map()
+      lists.flat().forEach(p => { if (!map.has(p.person_id)) map.set(p.person_id, p) })
+      setCandidates(Array.from(map.values()))
+    } catch (e) { toast?.('خطأ في تحميل الأشخاص: ' + (e?.message || '')) }
+    finally { setLoadingCands(false) }
+  }
+
+  const addTab = (person) => {
+    setTabs(prev => prev.find(t => t.person_id === person.person_id) ? prev : [...prev, person])
+    setActive(person.person_id)
+    setPickerOpen(false)
+    setSearch('')
+  }
+
+  const removeTab = (personId) => {
+    setTabs(prev => prev.filter(t => t.person_id !== personId))
+    if (active === personId) setActive('all')
+  }
+
+  const colorFor = (i) => PERSON_PALETTE[i % PERSON_PALETTE.length]
+  const filteredCands = candidates.filter(p => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return [p.name_ar, p.name_en, p.id_number, p.phone_primary]
+      .filter(Boolean).some(v => String(v).toLowerCase().includes(q))
+  })
+  const tabIds = tabs.map(t => t.person_id)
+
+  return (
+    <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.10)', marginBottom: 14, alignItems: 'stretch', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, flex: 1 }}>
+        {[{ person_id: 'all', name_ar: T('الكل', 'All') }, ...tabs].map((p, i) => {
+          const isActive = active === p.person_id
+          const c = p.person_id === 'all' ? C.gold : colorFor(i - 1)
+          return (
+            <div key={p.person_id} onClick={() => setActive(p.person_id)}
+              style={{ padding: '10px 16px 9px', cursor: 'pointer',
+                color: isActive ? c : 'var(--tx3)',
+                fontSize: 13, fontWeight: isActive ? 800 : 600,
+                borderBottom: isActive ? `2px solid ${c}` : '2px solid transparent',
+                marginBottom: -1, transition: '.15s', fontFamily: F,
+                display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              {p.person_id !== 'all' && (
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: c,
+                  boxShadow: isActive ? `0 0 6px ${c}90` : 'none' }} />
+              )}
+              {p.name_ar}
+              {p.person_id !== 'all' && (
+                <span onClick={(e) => { e.stopPropagation(); removeTab(p.person_id) }} title={T('إزالة', 'Remove')}
+                  style={{ width: 14, height: 14, borderRadius: '50%', display: 'inline-flex',
+                    alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    color: 'var(--tx5)', marginInlineStart: 2 }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <button onClick={openPicker} title={T('إضافة شخص', 'Add person')}
+        style={{ alignSelf: 'center', height: 30, padding: '0 12px', borderRadius: 8,
+          border: `1px solid ${C.gold}55`, background: `${C.gold}10`, color: C.gold,
+          fontFamily: F, fontSize: 11, fontWeight: 800, cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        {T('إضافة شخص', 'Add person')}
+      </button>
+
+      {pickerOpen && ReactDOM.createPortal(
+        <div onClick={() => setPickerOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} dir="rtl"
+            style={{ background: '#1a1a1a', borderRadius: 14, width: 480, maxWidth: '95vw',
+              maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+              border: '1px solid rgba(212,160,23,.2)', boxShadow: '0 24px 60px rgba(0,0,0,.5)',
+              fontFamily: F }}>
+            <div style={{ padding: '14px 18px 10px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)', marginBottom: 8 }}>
+                {T('اختر شخصاً', 'Pick a person')}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 10 }}>
+                {T(`الأشخاص المعيّنون كـ${allowedRoles.map(r => ({ owner: 'مالك', manager: 'مدير', beneficiary: 'مستفيد', supervisor: 'مشرف' })[r] || r).join(' أو ')}`,
+                   `Persons assigned as ${allowedRoles.join(' or ')}`)}
+              </div>
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder={T('ابحث بالاسم أو الجوال أو الهوية...', 'Search by name, phone, or ID...')}
+                style={{ width: '100%', height: 36, padding: '0 12px', borderRadius: 8,
+                  background: '#141414', border: '1px solid rgba(255,255,255,.08)',
+                  color: 'var(--tx)', fontFamily: F, fontSize: 12, outline: 'none' }} />
+            </div>
+            <div style={{ flex: 1, overflow: 'auto', padding: 10 }}>
+              {loadingCands ? (
+                <div style={{ padding: 30, textAlign: 'center', color: 'var(--tx5)', fontSize: 12 }}>
+                  {T('جاري التحميل...', 'Loading...')}
+                </div>
+              ) : filteredCands.length === 0 ? (
+                <div style={{ padding: 30, textAlign: 'center', color: 'var(--tx5)', fontSize: 12 }}>
+                  {T('لا يوجد أشخاص معيّنون بعد', 'No assigned persons yet')}
+                </div>
+              ) : filteredCands.map(p => {
+                const already = tabIds.includes(p.person_id)
+                return (
+                  <div key={p.person_id} onClick={() => !already && addTab(p)}
+                    style={{ padding: '10px 12px', borderRadius: 8, marginBottom: 4,
+                      cursor: already ? 'default' : 'pointer',
+                      opacity: already ? .5 : 1,
+                      background: 'rgba(255,255,255,.025)',
+                      border: '1px solid rgba(255,255,255,.05)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                      transition: '.12s' }}
+                    onMouseEnter={e => { if (!already) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.025)' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{p.name_ar}</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--tx4)', marginTop: 2,
+                        display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {(p.roles_summary || []).filter(r => ['مالك', 'مدير', 'مستفيد', 'مشرف'].includes(r))
+                          .map(r => <span key={r} style={{ color: C.gold }}>{r}</span>)}
+                        {p.id_number && <span style={{ direction: 'ltr' }}>{p.id_number}</span>}
+                      </div>
+                    </div>
+                    {already && <span style={{ fontSize: 10, color: C.ok, fontWeight: 800 }}>✓ {T('مُضاف', 'added')}</span>}
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ padding: '10px 18px', borderTop: '1px solid rgba(255,255,255,.06)',
+              display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setPickerOpen(false)}
+                style={{ height: 32, padding: '0 14px', borderRadius: 8,
+                  background: 'transparent', border: '1px solid rgba(255,255,255,.15)',
+                  color: 'var(--tx2)', fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                {T('إغلاق', 'Close')}
+              </button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
+    </div>
+  )
+}
+
 function SbcDrilldown({ sb, toast, user, lang, activePerson, persons, onBack, onOpenSync, filteredChanges, personName, T }) {
+  const tabsKey = 'syncDrilldown.sbc.tabs'
+  const activeKey = 'syncDrilldown.sbc.active'
+  const [tabs, setTabs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(tabsKey) || '[]') } catch { return [] }
+  })
+  const [tabActive, setTabActive] = useState(() => {
+    try { return localStorage.getItem(activeKey) || 'all' } catch { return 'all' }
+  })
+  const [changesOpen, setChangesOpen] = useState(false)
+
+  useEffect(() => { try { localStorage.setItem(tabsKey, JSON.stringify(tabs)) } catch {} }, [tabs])
+  useEffect(() => { try { localStorage.setItem(activeKey, tabActive) } catch {} }, [tabActive])
+
+  const activePersonObj = tabActive === 'all' ? null : (tabs.find(t => t.person_id === tabActive) || null)
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12 }}>
-        <button onClick={onBack} style={{ padding: '7px 14px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: 'var(--tx)', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: F, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          {T('رجوع لكل المصادر', 'All sources')}
-        </button>
-      </div>
-      <SbcFacilities sb={sb} toast={toast} user={user} lang={lang} />
+      <RolePersonTabs sb={sb} toast={toast} allowedRoles={['owner', 'manager']} T={T}
+        tabs={tabs} setTabs={setTabs} active={tabActive} setActive={setTabActive} />
+      <SbcFacilities sb={sb} toast={toast} user={user} lang={lang} personFilter={activePersonObj} />
       {filteredChanges.length > 0 && (
-        <div style={{ marginTop: 20, padding: 16, borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', marginBottom: 10 }}>{T('تغييرات المركز السعودي للأعمال', 'SBC Changes')}</div>
-          {filteredChanges.slice(0, 20).map((c, i) => (
-            <div key={c.id} style={{ fontSize: 11.5, padding: '6px 0', borderBottom: i < Math.min(filteredChanges.length, 20) - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', color: 'var(--tx2)' }}>
-              {changeLabel(c, T)} <span style={{ color: 'var(--tx4)', fontSize: 10 }}>· {personName(c.person_id)} · {fmtRelative(c.detected_at, lang)}</span>
+        <div style={{ marginTop: 20, borderRadius: 14, background: '#141414',
+          border: '1px solid rgba(255,255,255,.06)', overflow: 'hidden' }}>
+          <button onClick={() => setChangesOpen(o => !o)}
+            style={{ width: '100%', padding: '14px 16px', background: 'transparent', border: 'none',
+              color: 'var(--tx)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', fontFamily: F, gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/>
+              </svg>
+              <span style={{ fontSize: 13, fontWeight: 800 }}>{T('تغييرات المركز السعودي للأعمال', 'SBC Changes')}</span>
+              <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
+                background: `${C.gold}1A`, color: C.gold, fontWeight: 800,
+                border: `1px solid ${C.gold}40` }}>{filteredChanges.length}</span>
             </div>
-          ))}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: changesOpen ? 'rotate(180deg)' : 'none', transition: '.2s', color: 'var(--tx4)' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {changesOpen && (
+            <div style={{ padding: '0 16px 14px', borderTop: '1px solid rgba(255,255,255,.05)' }}>
+              {filteredChanges.slice(0, 20).map((c, i) => (
+                <div key={c.id} style={{ fontSize: 11.5, padding: '8px 0',
+                  borderBottom: i < Math.min(filteredChanges.length, 20) - 1 ? '1px dashed rgba(255,255,255,.06)' : 'none',
+                  color: 'var(--tx2)' }}>
+                  {changeLabel(c, T)} <span style={{ color: 'var(--tx4)', fontSize: 10 }}>· {personName(c.person_id)} · {fmtRelative(c.detected_at, lang)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -557,12 +901,6 @@ function SbcDrilldown({ sb, toast, user, lang, activePerson, persons, onBack, on
 function QiwaDrilldown({ sb, toast, user, lang, activePerson, onBack, filteredChanges, personName, T }) {
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12 }}>
-        <button onClick={onBack} style={{ padding: '7px 14px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: 'var(--tx)', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: F, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          {T('رجوع لكل المصادر', 'All sources')}
-        </button>
-      </div>
       <QiwaFacilities sb={sb} toast={toast} user={user} lang={lang} />
       {filteredChanges.length > 0 && (
         <div style={{ marginTop: 20, padding: 16, borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
@@ -583,15 +921,9 @@ function QiwaDrilldown({ sb, toast, user, lang, activePerson, onBack, filteredCh
 // ═══════════════════════════════════════════════════════════════
 function ComingSoonPanel({ sourceId, sourceName, onBack, T }) {
   return (
-    <div>
-      <button onClick={onBack} style={{ padding: '7px 14px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: 'var(--tx)', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: F, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        {T('رجوع', 'Back')}
-      </button>
-      <div style={{ padding: 40, borderRadius: 14, background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.08)', textAlign: 'center' }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)', marginBottom: 8 }}>{sourceName}</div>
-        <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{T('قيد التطوير — سيتم تفعيل المزامنة قريباً.', 'Under development — sync will be enabled soon.')}</div>
-      </div>
+    <div style={{ padding: 40, borderRadius: 14, background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.08)', textAlign: 'center' }}>
+      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)', marginBottom: 8 }}>{sourceName}</div>
+      <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{T('قيد التطوير — سيتم تفعيل المزامنة قريباً.', 'Under development — sync will be enabled soon.')}</div>
     </div>
   )
 }

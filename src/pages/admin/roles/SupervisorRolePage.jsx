@@ -1,11 +1,36 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { UserCheck } from 'lucide-react'
+import { UserCheck, BadgeCheck, CheckCircle2, X } from 'lucide-react'
 import RoleLayout from './RoleLayout.jsx'
-import { KCard, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, PersonIdentityChip, FacilityCard, AddBtn, EmptyState, FacilityPicker, C } from './RoleUI.jsx'
+import { KCard, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, FacilityCard, AddBtn, EmptyState, FacilityPicker, C } from './RoleUI.jsx'
 import * as rolesService from '../../../services/rolesService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const MINT = '#5acbb0'
+
+function AssignedPill({ text, onUnassign }) {
+  const okColor = C.ok
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'stretch', height: 38,
+      borderRadius: 10, overflow: 'hidden',
+      border: `1px solid ${okColor}55`, background: `${okColor}14`,
+      boxShadow: `inset 0 0 0 1px ${okColor}1a, 0 0 12px ${okColor}18` }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8,
+        padding: '0 14px', color: okColor, fontFamily: F, fontSize: 12, fontWeight: 800 }}>
+        <CheckCircle2 size={14} strokeWidth={2.5} />
+        {text}
+      </div>
+      <button onClick={onUnassign} title="إلغاء التعيين"
+        style={{ width: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          border: 'none', borderInlineStart: `1px solid ${okColor}33`,
+          background: 'transparent', padding: 0,
+          color: okColor, cursor: 'pointer', transition: '.15s' }}
+        onMouseEnter={e => { e.currentTarget.style.background = `${okColor}22` }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+        <X size={13} strokeWidth={2.5} />
+      </button>
+    </div>
+  )
+}
 
 export default function SupervisorRolePage({ person, onBack, toast, countries, reload }) {
   const [rows, setRows] = useState([])
@@ -13,15 +38,18 @@ export default function SupervisorRolePage({ person, onBack, toast, countries, r
   const [loading, setLoading] = useState(true)
   const [editRow, setEditRow] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [isMarked, setIsMarked] = useState(false)
+  const [marking, setMarking] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [r, f] = await Promise.all([
+      const [r, f, flag] = await Promise.all([
         rolesService.listSupervisors(person.id),
         rolesService.listFacilities(),
+        rolesService.getPersonRoleFlag(person.id, 'supervisor'),
       ])
-      setRows(r); setFacilities(f)
+      setRows(r); setFacilities(f); setIsMarked(flag)
     } catch (e) { toast?.(rolesService.humanizeDbError(e)) }
     finally { setLoading(false) }
   }, [person.id, toast])
@@ -33,7 +61,28 @@ export default function SupervisorRolePage({ person, onBack, toast, countries, r
   const endedRows = rows.filter(r => !r.is_active || r.end_date)
 
   const onSaved = () => { setShowModal(false); setEditRow(null); load(); reload?.() }
-  const openAdd = () => { setEditRow(null); setShowModal(true) }
+  const onAssign = async () => {
+    if (isMarked || marking) return
+    setMarking(true)
+    try {
+      await rolesService.setPersonRoleFlag(person.id, 'supervisor')
+      setIsMarked(true)
+      toast?.('تم تعيين الشخص كمشرف — الآن يظهر في قوائم المشرفين عند ربطه بمنشأة')
+      reload?.()
+    } catch (e) { toast?.(rolesService.humanizeDbError(e)) }
+    finally { setMarking(false) }
+  }
+  const onUnassign = async () => {
+    if (marking) return
+    setMarking(true)
+    try {
+      await rolesService.removePersonRoleFlag(person.id, 'supervisor')
+      setIsMarked(false)
+      toast?.('تم إلغاء تعيين الشخص كمشرف')
+      reload?.()
+    } catch (e) { toast?.(rolesService.humanizeDbError(e)) }
+    finally { setMarking(false) }
+  }
   const openEdit = (r) => { setEditRow(r); setShowModal(true) }
   const onEnd = async (r) => {
     if (!confirm(`إنهاء صلاحية الإشراف على "${r.facility?.name_ar}"؟`)) return
@@ -43,9 +92,9 @@ export default function SupervisorRolePage({ person, onBack, toast, countries, r
 
   return (
     <RoleLayout title="ملف المشرف" subtitle={person?.name_ar} color={MINT} onBack={onBack}
-      actions={<AddBtn text="إضافة صلاحية إشراف" onClick={openAdd} color={MINT} />}>
-
-      <PersonIdentityChip person={person} nationality={nationality} color={MINT} />
+      actions={isMarked
+        ? <AssignedPill text="معيّن كمشرف" onUnassign={onUnassign} />
+        : <AddBtn text="تعيين كمشرف" onClick={onAssign} color={MINT} Icon={BadgeCheck} iconAfter />}>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 22 }}>
         <div style={{ background: '#141414', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '10px 12px' }}>

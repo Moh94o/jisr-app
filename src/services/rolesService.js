@@ -225,6 +225,47 @@ export async function listFacilities() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Person role flags — mark a person as eligible for a CR-party role
+// (owner/manager/beneficiary/supervisor) without requiring a facility.
+// Lets these persons appear in role dropdowns even when not yet linked.
+// ═══════════════════════════════════════════════════════════════════
+
+export async function getPersonRoleFlag(personId, roleType) {
+  const sb = getSupabase()
+  const { data } = await sb.from('person_role_flags')
+    .select('person_id').eq('person_id', personId).eq('role_type', roleType).maybeSingle()
+  return !!data
+}
+
+export async function setPersonRoleFlag(personId, roleType) {
+  const sb = getSupabase()
+  const { error } = await sb.from('person_role_flags')
+    .upsert({ person_id: personId, role_type: roleType }, { onConflict: 'person_id,role_type' })
+  if (error) throw error
+}
+
+export async function removePersonRoleFlag(personId, roleType) {
+  const sb = getSupabase()
+  const { error } = await sb.from('person_role_flags')
+    .delete().eq('person_id', personId).eq('role_type', roleType)
+  if (error) throw error
+}
+
+// Returns persons whose `roles_summary` contains the Arabic label for the
+// given role_type — covers BOTH actual facility relationships AND flagged-only.
+export async function listPersonsByRole(roleType) {
+  const sb = getSupabase()
+  const ROLE_AR = { owner: 'مالك', manager: 'مدير', beneficiary: 'مستفيد', supervisor: 'مشرف', tracker: 'معقب' }
+  const ar = ROLE_AR[roleType]
+  if (!ar) return []
+  const { data } = await sb.from('v_person_profile')
+    .select('person_id, name_ar, name_en, id_number, phone_primary, roles_summary, role_flags')
+    .contains('roles_summary', [ar])
+    .order('name_ar')
+  return data || []
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // SMS Forwarder (otp_persons row linked to persons.id)
 // ═══════════════════════════════════════════════════════════════════
 

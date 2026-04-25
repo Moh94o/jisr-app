@@ -678,7 +678,14 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
 
       {/* Header row — matches Transfer Calc spacing */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 14 }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
+          {profile.name_ar}
+        </div>
+        <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, textAlign: 'right', letterSpacing: '.3px' }}>
+          <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{profile.name_en || '—'}</span>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 14 }}>
           <button onClick={onBack} title="رجوع"
             style={{ height: 34, padding: '0 12px', borderRadius: 8,
               background: '#141414', border: '1px solid rgba(255,255,255,.06)',
@@ -690,14 +697,6 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
             <ArrowRight size={13} /> رجوع
           </button>
         </div>
-
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
-          {profile.name_ar}
-        </div>
-        <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, textAlign: 'right', letterSpacing: '.3px' }}>
-          <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{profile.name_en || '—'}</span>
-        </div>
-
       </div>
 
       {/* 3-column grid of cards */}
@@ -750,6 +749,10 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
               onOpen={() => openRole('client')} />
             <ProfileRow Icon={UserCheck} label="ملف الوسيط" linked={!!profile.broker_id} color="#d9a15a" toast={toast}
               onOpen={() => openRole('broker')} />
+            <ProfileRow Icon={UserCheck} label="ملف المعقب"
+              assigned={(profile.role_flags || []).includes('tracker')} color="#06b6d4" toast={toast}
+              onOpen={() => openRole('tracker')}
+              linkLabel="تعيين" assignedLabel="معيّن" />
             <ProfileRow Icon={Phone} label="ملف SMS Forwarder" linked={!!profile.sms_forwarder_id} color="#f39c12" toast={toast}
               count={Number(profile.sms_messages_count || 0) || null} unit="رسالة"
               onOpen={() => openRole('sms_forwarder')} />
@@ -757,14 +760,29 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
 
           <div className="prs-card">
             <div className="prs-card-title"><Briefcase size={15} color="#e5867a" /> ملفات السجل التجاري</div>
-            <ProfileRow Icon={UserCheck} label="ملف المالك" linked={Number(profile.owned_facilities_count || 0) > 0} color="#e5867a" toast={toast}
-              count={Number(profile.owned_facilities_count || 0)} onOpen={() => openRole('owner')} />
-            <ProfileRow Icon={UserCheck} label="ملف المستفيد" linked={Number(profile.beneficiary_facilities_count || 0) > 0} color="#e3b341" toast={toast}
-              count={Number(profile.beneficiary_facilities_count || 0)} onOpen={() => openRole('beneficiary')} />
-            <ProfileRow Icon={UserCheck} label="ملف المدير" linked={Number(profile.managed_facilities_count || 0) > 0} color="#b58cf5" toast={toast}
-              count={Number(profile.managed_facilities_count || 0)} onOpen={() => openRole('manager')} />
-            <ProfileRow Icon={UserCheck} label="ملف المشرف" linked={Number(profile.supervisor_facilities_count || 0) > 0} color="#5acbb0" toast={toast}
-              count={Number(profile.supervisor_facilities_count || 0)} onOpen={() => openRole('supervisor')} />
+            {(() => {
+              const flags = profile.role_flags || []
+              return (
+                <>
+                  <ProfileRow Icon={UserCheck} label="ملف المالك" linked={Number(profile.owned_facilities_count || 0) > 0}
+                    assigned={flags.includes('owner')} color="#e5867a" toast={toast}
+                    count={Number(profile.owned_facilities_count || 0)} onOpen={() => openRole('owner')}
+                    linkLabel="تعيين" assignedLabel="معيّن" />
+                  <ProfileRow Icon={UserCheck} label="ملف المستفيد" linked={Number(profile.beneficiary_facilities_count || 0) > 0}
+                    assigned={flags.includes('beneficiary')} color="#e3b341" toast={toast}
+                    count={Number(profile.beneficiary_facilities_count || 0)} onOpen={() => openRole('beneficiary')}
+                    linkLabel="تعيين" assignedLabel="معيّن" />
+                  <ProfileRow Icon={UserCheck} label="ملف المدير" linked={Number(profile.managed_facilities_count || 0) > 0}
+                    assigned={flags.includes('manager')} color="#b58cf5" toast={toast}
+                    count={Number(profile.managed_facilities_count || 0)} onOpen={() => openRole('manager')}
+                    linkLabel="تعيين" assignedLabel="معيّن" />
+                  <ProfileRow Icon={UserCheck} label="ملف المشرف" linked={Number(profile.supervisor_facilities_count || 0) > 0}
+                    assigned={flags.includes('supervisor')} color="#5acbb0" toast={toast}
+                    count={Number(profile.supervisor_facilities_count || 0)} onOpen={() => openRole('supervisor')}
+                    linkLabel="تعيين" assignedLabel="معيّن" />
+                </>
+              )
+            })()}
           </div>
 
           <div className="prs-card">
@@ -915,41 +933,56 @@ const RoleGroupLabel = ({ text }) => (
   </div>
 )
 
-const ProfileRow = ({ Icon, label, linked, color, toast, count, unit, onOpen }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
-    borderBottom: '1px solid rgba(255,255,255,.03)' }}>
-    <div style={{ width: 28, height: 28, borderRadius: 8, background: color + '15',
-      border: `1px solid ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <Icon size={12} color={color} />
-    </div>
-    <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)' }}>{label}</div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: linked ? color : 'var(--tx5)', marginTop: 2 }}>
-        {linked ? (count != null ? `● ${count} ${unit || 'منشأة'}` : '● مُرتبط') : 'غير مُرتبط'}
+const ProfileRow = ({ Icon, label, linked, assigned, color, toast, count, unit, onOpen, linkLabel = 'تعيين', assignedLabel = 'معيّن' }) => {
+  const isLinked = !!linked
+  const isAssigned = !isLinked && !!assigned
+  const active = isLinked || isAssigned
+  const statusText = isLinked
+    ? (count != null ? `● ${count} ${unit || 'منشأة'} · مرتبط` : '● مرتبط')
+    : isAssigned ? '● معيّن — غير مرتبط بمنشأة بعد' : 'لم يُعيّن بعد'
+  const btnLabel = isLinked ? 'فتح' : isAssigned ? assignedLabel : linkLabel
+  // Three visual states for the button:
+  // - Linked / Assigned (active): solid colored
+  // - Not assigned: dashed border (hints "potential / opt-in" action)
+  const btnBorderStyle = active ? 'solid' : 'dashed'
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10,
+      padding: '10px 12px', marginBottom: 6, borderRadius: 10,
+      border: `1px dashed ${active ? color + '40' : 'rgba(255,255,255,.10)'}`,
+      background: 'rgba(255,255,255,.015)' }}>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: color + '15',
+        border: `1px solid ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon size={12} color={color} />
       </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)' }}>{label}</div>
+        <div style={{ fontSize: 10, fontWeight: 600, color: active ? color : 'var(--tx5)', marginTop: 2 }}>
+          {statusText}
+        </div>
+      </div>
+      <button type="button" onClick={onOpen || (() => toast?.(active ? 'فتح الملف قريباً' : 'الربط قريباً'))}
+        style={{ height: 28, minWidth: 64, padding: '0 16px', borderRadius: 7,
+          border: `1px ${btnBorderStyle} ${active ? color + '55' : 'rgba(255,255,255,.25)'}`,
+          background: active ? color + '18' : 'transparent',
+          color: active ? color : 'rgba(255,255,255,.6)', fontFamily: F, fontSize: 11, fontWeight: 800, cursor: 'pointer',
+          transition: '.15s' }}
+        onMouseEnter={e => {
+          if (!active) {
+            e.currentTarget.style.color = '#fff'
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,.6)'
+          }
+        }}
+        onMouseLeave={e => {
+          if (!active) {
+            e.currentTarget.style.color = 'rgba(255,255,255,.6)'
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,.25)'
+          }
+        }}>
+        {btnLabel}
+      </button>
     </div>
-    <button type="button" onClick={onOpen || (() => toast?.(linked ? 'فتح الملف قريباً' : 'الربط قريباً'))}
-      style={{ height: 24, padding: '0 10px', borderRadius: 7,
-        border: `1px solid ${linked ? color + '55' : 'rgba(255,255,255,.15)'}`,
-        background: linked ? color + '18' : 'transparent',
-        color: linked ? color : 'rgba(255,255,255,.45)', fontFamily: F, fontSize: 10, fontWeight: 800, cursor: 'pointer',
-        transition: '.15s' }}
-      onMouseEnter={e => {
-        if (!linked) {
-          e.currentTarget.style.color = '#fff'
-          e.currentTarget.style.borderColor = 'rgba(255,255,255,1)'
-        }
-      }}
-      onMouseLeave={e => {
-        if (!linked) {
-          e.currentTarget.style.color = 'rgba(255,255,255,.45)'
-          e.currentTarget.style.borderColor = 'rgba(255,255,255,.15)'
-        }
-      }}>
-      {linked ? 'فتح' : 'ربط'}
-    </button>
-  </div>
-)
+  )
+}
 
 export default function PersonsPage({ toast, user }) {
   const [view, setView] = useState('list')

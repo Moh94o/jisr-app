@@ -163,17 +163,22 @@ export const FacilityCard = ({ facility, color = C.gold, badges = [], fields = [
 )
 
 // Add button that sits at the top of a list.
-export const AddBtn = ({ text, onClick, color = C.gold }) => (
-  <button onClick={onClick}
-    style={{ height: 38, padding: '0 16px', borderRadius: 10,
-      border: `1px solid ${color}55`, background: color + '0d',
-      color, fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-      display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.15s' }}
-    onMouseEnter={e => { e.currentTarget.style.background = color + '18' }}
-    onMouseLeave={e => { e.currentTarget.style.background = color + '0d' }}>
-    <Plus size={14} strokeWidth={2.5} /> {text}
-  </button>
-)
+export const AddBtn = ({ text, onClick, color = C.gold, Icon, iconAfter = false }) => {
+  const IconComp = Icon || Plus
+  return (
+    <button onClick={onClick}
+      style={{ height: 38, padding: '0 16px', borderRadius: 10,
+        border: `1px solid ${color}55`, background: color + '0d',
+        color, fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+        display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.15s' }}
+      onMouseEnter={e => { e.currentTarget.style.background = color + '18' }}
+      onMouseLeave={e => { e.currentTarget.style.background = color + '0d' }}>
+      {!iconAfter && <IconComp size={14} strokeWidth={2.5} />}
+      {text}
+      {iconAfter && <IconComp size={14} strokeWidth={2.5} />}
+    </button>
+  )
+}
 
 // Empty state for a list.
 export const EmptyState = ({ text }) => (

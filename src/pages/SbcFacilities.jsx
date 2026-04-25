@@ -144,7 +144,7 @@ const currencyShort = (s, lang) => {
   return v
 }
 
-export default function SbcFacilities({ sb, toast, user, lang }) {
+export default function SbcFacilities({ sb, toast, user, lang, personFilter }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
   const [rows, setRows] = useState([])
@@ -355,6 +355,15 @@ export default function SbcFacilities({ sb, toast, user, lang }) {
   }
   const filtered = useMemo(() => {
     let out = normalized
+    // Person tab filter — narrows to facilities where the active person is a partner or manager.
+    if (personFilter?.id_number) {
+      const pid = String(personFilter.id_number)
+      out = out.filter(r => {
+        const inPartners = (r._partners || []).some(p => String(p?.personInfo?.identifierNo || '') === pid)
+        const inManagers = (r._managers || []).some(p => String(p?.personInfo?.identifierNo || '') === pid)
+        return inPartners || inManagers
+      })
+    }
     if (filter === 'main') out = out.filter(r => r.is_main)
     else if (filter === 'manager') out = out.filter(r => r.is_manager)
     else if (filter === 'partner') out = out.filter(r => r.is_partner)
@@ -382,7 +391,7 @@ export default function SbcFacilities({ sb, toast, user, lang }) {
     if (!isNaN(mMin)) out = out.filter(r => ((r._managers || []).length) >= mMin)
     if (!isNaN(mMax)) out = out.filter(r => ((r._managers || []).length) <= mMax)
     return out
-  }, [normalized, search, filter, adv])
+  }, [normalized, search, filter, adv, personFilter])
 
   // Group branches under their main parent, then produce a flat display list
   // where each branch row carries `_isBranch: true` and appears directly after
@@ -444,14 +453,53 @@ export default function SbcFacilities({ sb, toast, user, lang }) {
     <div style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', ...style }}>{children}</div>
   )
 
+  // When a person tab is active, the whole view (KPI + chart + table) is scoped
+  // to facilities where that person appears as partner or manager.
+  const scopedRows = useMemo(() => {
+    if (!personFilter?.id_number) return rows
+    const pid = String(personFilter.id_number)
+    return rows.filter(r => {
+      const partners = Array.isArray(r.partners) ? r.partners : []
+      const managers = Array.isArray(r.managers) ? r.managers : []
+      const inP = partners.some(p => String(p?.personInfo?.identifierNo || '') === pid)
+      const inM = managers.some(p => String(p?.personInfo?.identifierNo || '') === pid)
+      return inP || inM
+    })
+  }, [rows, personFilter])
+
   const counts = useMemo(() => ({
-    total: rows.length,
-    main: rows.filter(r => r.is_main).length,
-    manager: rows.filter(r => r.is_manager).length,
-    partner: rows.filter(r => r.is_partner).length,
-    confirmation: rows.filter(r => r.is_in_confirmation_period).length,
-    liquidation: rows.filter(r => r.in_liquidation_process).length,
-  }), [rows])
+    total: scopedRows.length,
+    main: scopedRows.filter(r => r.is_main).length,
+    branches: scopedRows.filter(r => !r.is_main).length,
+    manager: scopedRows.filter(r => r.is_manager).length,
+    partner: scopedRows.filter(r => r.is_partner).length,
+    confirmation: scopedRows.filter(r => r.is_in_confirmation_period).length,
+    liquidation: scopedRows.filter(r => r.in_liquidation_process).length,
+  }), [scopedRows])
+
+  // 12-month CR registration trend — buckets `cr_issue_date` per calendar month.
+  const periodSeries = useMemo(() => {
+    const today = new Date()
+    const buckets = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1)
+      return { date: d, main: 0, branch: 0, total: 0 }
+    })
+    scopedRows.forEach(r => {
+      let raw = r.cr_issue_date
+      if (typeof raw === 'string' && raw.startsWith('{')) { try { raw = JSON.parse(raw) } catch {} }
+      const iso = (raw && typeof raw === 'object') ? (raw.gregorianDate || raw.dateG || raw.gregorian) : raw
+      if (!iso) return
+      const d = new Date(String(iso).slice(0, 10))
+      if (Number.isNaN(d.getTime())) return
+      const months = (today.getFullYear() - d.getFullYear()) * 12 + (today.getMonth() - d.getMonth())
+      if (months < 0 || months >= 12) return
+      const idx = 11 - months
+      if (r.is_main) buckets[idx].main += 1
+      else buckets[idx].branch += 1
+      buckets[idx].total += 1
+    })
+    return buckets
+  }, [scopedRows])
 
   // Quick count of non-empty advanced fields (for the badge on the "بحث متقدم" button).
   const advCount = Object.values(adv).filter(v => String(v || '').trim() !== '').length
@@ -459,11 +507,120 @@ export default function SbcFacilities({ sb, toast, user, lang }) {
   const advLbl = { fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.55)', marginBottom: 4, display: 'block' }
   const resultCount = filtered.length
 
+  // KPI row helpers (matches Persons page glassCard / KpiBox aesthetic)
+  const glassCard = { background: '#141414', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '10px 12px', position: 'relative', overflow: 'hidden', transition: '.2s' }
+  const innerBox = { background: '#1a1a1a', border: '1px solid rgba(255,255,255,.04)' }
+
+  // Build smooth area chart paths for the 12-month trend
+  const n = periodSeries.length
+  const W = 560, H = 88, padL = 22, padR = 12, padT = 12, padB = 12
+  const cw = W - padL - padR, ch = H - padT - padB
+  const mx = Math.max(1, ...periodSeries.flatMap(p => [p.main, p.branch]))
+  const niceMx = Math.max(2, Math.ceil(mx / 2) * 2)
+  const xAt = i => (padL + (i / Math.max(1, n - 1)) * cw).toFixed(1)
+  const yAt = v => (padT + ch - (v / niceMx) * ch).toFixed(1)
+  const smooth = (pts) => {
+    if (pts.length < 2) return ''
+    let d = 'M' + pts[0][0] + ',' + pts[0][1]
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[Math.max(0, i - 1)], [x1, y1] = pts[i]
+      const [x2, y2] = pts[i + 1], [x3, y3] = pts[Math.min(pts.length - 1, i + 2)]
+      const tt = .22
+      const c1x = x1 + (x2 - x0) * tt, c1y = y1 + (y2 - y0) * tt
+      const c2x = x2 - (x3 - x1) * tt, c2y = y2 - (y3 - y1) * tt
+      d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + x2 + ',' + y2
+    }
+    return d
+  }
+  const ptsOf = (k) => periodSeries.map((p, i) => [Number(xAt(i)), Number(yAt(p[k]))])
+  const lineP = (k) => smooth(ptsOf(k))
+  const areaP = (k) => {
+    const p = ptsOf(k); if (p.length < 2) return ''
+    return smooth(p) + ' L' + p[p.length - 1][0] + ',' + (padT + ch) + ' L' + p[0][0] + ',' + (padT + ch) + ' Z'
+  }
+  const yTicks = [0, niceMx / 2, niceMx]
+
   return (
     <div style={{ fontFamily: F }}>
+      <style>{`.sbc-tbl-scroll::-webkit-scrollbar{display:none}`}</style>
       {err && <Card style={{ marginBottom: 14, borderColor: 'rgba(192,57,43,.35)', background: 'rgba(192,57,43,.06)' }}>
         <div style={{ fontSize: 12, color: C.red, fontWeight: 600 }}>{err}</div>
       </Card>}
+
+      {/* KPI Row — matches Persons page layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 14 }}>
+        <div style={glassCard}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            {[
+              { l: T('رئيسية', 'Main'), v: counts.main, c: C.gold },
+              { l: T('شركاء', 'Partners'), v: counts.partner, c: C.blue },
+              { l: T('إدارة', 'Managers'), v: counts.manager, c: '#d9a15a' },
+            ].map(s => (
+              <div key={s.l} style={{ padding: '7px 12px', borderRadius: 10, ...innerBox,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.c, boxShadow: `0 0 5px ${s.c}` }} />
+                  <div style={{ fontSize: 18, fontWeight: 900, color: s.c, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{s.v}</div>
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{s.l}</div>
+              </div>
+            ))}
+            <div style={{ minWidth: 0, padding: '0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('في تأكيد', 'In confirm')}</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#f59e0b', direction: 'ltr' }}>{counts.confirmation}</span>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('تصفية', 'Liquidation')}</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: C.red, direction: 'ltr' }}>{counts.liquidation}</span>
+            </div>
+          </div>
+
+          {n >= 2 && (
+            <div style={{ padding: '6px 10px' }}>
+              <svg width="100%" viewBox={`0 0 ${W} ${H - padB + 14}`} preserveAspectRatio="none" style={{ display: 'block', height: 90 }}>
+                <defs>
+                  <linearGradient id="sbcgr1" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.gold} stopOpacity=".4" />
+                    <stop offset="100%" stopColor={C.gold} stopOpacity="0" /></linearGradient>
+                  <linearGradient id="sbcgr2" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.blue} stopOpacity=".35" />
+                    <stop offset="100%" stopColor={C.blue} stopOpacity="0" /></linearGradient>
+                </defs>
+                {yTicks.map((t, i) => (
+                  <g key={i}>
+                    <line x1={padL} x2={W - padR} y1={yAt(t)} y2={yAt(t)} stroke="rgba(255,255,255,.05)" strokeWidth="1" />
+                    <text x={padL - 6} y={Number(yAt(t)) + 3} fontSize="9" fill="rgba(255,255,255,.3)" textAnchor="end" fontFamily={F}>{t}</text>
+                  </g>
+                ))}
+                <path d={areaP('main')} fill="url(#sbcgr1)" />
+                <path d={lineP('main')} fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d={areaP('branch')} fill="url(#sbcgr2)" />
+                <path d={lineP('branch')} fill="none" stroke={C.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                {['main', 'branch'].map(k => {
+                  const c = k === 'main' ? C.gold : C.blue
+                  const pts = ptsOf(k); const last = pts[pts.length - 1]
+                  return <circle key={k} cx={last[0]} cy={last[1]} r="4" fill="#1a1a1a" stroke={c} strokeWidth="2" />
+                })}
+              </svg>
+            </div>
+          )}
+        </div>
+
+        <div style={{ ...glassCard, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', letterSpacing: '.1px' }}>{T('إجمالي المنشآت', 'Total Facilities')}</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
+            <span style={{ fontSize: 56, fontWeight: 900, color: C.gold, letterSpacing: '-1.4px', lineHeight: 1,
+              textShadow: `0 0 22px ${C.gold}33`, direction: 'ltr' }}>{counts.total}</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: C.gold, opacity: .75 }}>{T('منشأة', 'fac.')}</span>
+          </div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.3px' }}>
+            {counts.main} {T('رئيسية', 'main')} · {counts.branches} {T('فرع', 'branch')}
+          </div>
+        </div>
+      </div>
 
       {/* Search bar + advanced toggle */}
       <div style={{ display: 'flex', gap: 8, marginBottom: advOpen ? 10 : 14, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -534,7 +691,7 @@ export default function SbcFacilities({ sb, toast, user, lang }) {
 
       {/* Table — compact rows, combined dates, semantic status chip, branches indented under their main */}
       {displayRows.length > 0 ? (
-        <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.012)', boxShadow: '0 4px 16px rgba(0,0,0,.18)', overflow: 'auto', maxHeight: 'calc(100vh - 260px)' }}>
+        <div className="sbc-tbl-scroll" style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: '#141414', boxShadow: '0 4px 16px rgba(0,0,0,.18)', overflow: 'auto', maxHeight: 1500, scrollbarWidth: 'none' }}>
           <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0, fontSize: 11 }}>
             <thead>
               <tr>

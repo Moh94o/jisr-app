@@ -738,9 +738,21 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
 
   return (
     <div dir="rtl" style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
-      {/* Header row — back button on one side, identity + actions on the other */}
+      {/* Header row — identity first, then back + edit buttons underneath */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ marginBottom: 4 }}>
+            <span style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.95)',
+              fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '.3px' }}>
+              {branch.code || '—'}
+            </span>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--tx5)', fontWeight: 600, display: 'flex', gap: 5, alignItems: 'center' }}>
+            <MapPin size={12} /> {[branch.city_name, branch.region_name].filter(Boolean).join(' · ') || '—'}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 14 }}>
           <button onClick={onBack} title="رجوع"
             style={{ height: 34, padding: '0 12px', borderRadius: 8,
               background: '#141414', border: '1px solid rgba(255,255,255,.06)',
@@ -760,18 +772,6 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
             تعديل <Edit2 size={13} strokeWidth={2.5} />
           </button>
-        </div>
-
-        <div style={{ minWidth: 0 }}>
-          <div style={{ marginBottom: 4 }}>
-            <span style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.95)',
-              fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '.3px' }}>
-              {branch.code || '—'}
-            </span>
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--tx5)', fontWeight: 600, display: 'flex', gap: 5, alignItems: 'center' }}>
-            <MapPin size={12} /> {[branch.city_name, branch.region_name].filter(Boolean).join(' · ') || '—'}
-          </div>
         </div>
       </div>
 

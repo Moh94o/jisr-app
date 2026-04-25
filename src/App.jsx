@@ -511,11 +511,11 @@ const loadActivityLog=useCallback(async()=>{setActivityLoading(true);try{const{d
 const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);const nav=[
 {id:'home',l:T('الرئيسية','Dashboard'),i:'home'},
 {id:'workforce',l:T('المنشآت والعمالة','Workforce'),i:'worker'},
-{id:'sync_hub',l:T('مزامنة البيانات','Data Sync'),i:'transaction'},
 {id:'operations',l:T('العمليات','Operations'),i:'transaction'},
 {id:'finance_hub',l:T('المالية','Finance'),i:'invoice'},
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'},
 {id:'otp_messages',l:T('الرسائل النصية','SMS'),i:'alert'},
+{id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
 {id:'settings',l:T('الإعدادات','Settings'),i:'settings'}
 ];
 const hubTabs={
@@ -933,10 +933,10 @@ return<div key={n.id}>
 </div>})}
 </div>
 </nav>
-{/* Sidebar FABs — طلب + حسبة التنازل */}
+{/* Sidebar FABs — خدمة + حسبة التنازل */}
 <div style={{padding:'12px 14px 14px',flexShrink:0,display:'flex',flexDirection:'column',gap:8}}>
 {isVisible('fab_service_request')&&<div className="fab-service-request" onClick={()=>setShowServiceRequest(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
-<span style={{fontSize:16,fontWeight:800,color:'#D4A017',fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.5,lineHeight:1}}>طلب</span>
+<span style={{fontSize:16,fontWeight:800,color:'#D4A017',fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.5,lineHeight:1}}>{T('خدمة','Service')}</span>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </div>}
 {isVisible('fab_transfer_calc')&&<div className="fab-service-request" onClick={()=>setShowKafalaCalc(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
