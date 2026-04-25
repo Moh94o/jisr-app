@@ -492,7 +492,17 @@ const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matc
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
 useEffect(()=>{const h=e=>{e.preventDefault();setInstallPrompt(e);if(!isStandalone&&!localStorage.getItem('jisr_install_dismissed'))setShowInstallBanner(true)};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h)},[isStandalone]);
-const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',operations:'transactions_external',finance_hub:'invoices',admin_hub:'admin_offices',settings:'settings_general'};const setPage=(id)=>{const mapped=hubDefaults[id]||id;setPg(mapped);setSideOpen(false)};
+const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',operations:'transactions_external',finance_hub:'invoices',admin_hub:'admin_offices',settings:'settings_general'};// Pages with inner hash routing land on this canonical hash so they reset
+// to their list/home view (PersonsPage relies on this).
+const pageHashes={admin_persons:'#/admin/persons'};
+// Bumped when the user taps a sidebar entry while already on that page.
+// Used as a `key` on page roots so they force-remount, clearing any
+// in-component state (e.g. BranchesPage's open detail view).
+const[navResetKey,setNavResetKey]=useState(0);
+const setPage=(id)=>{const mapped=hubDefaults[id]||id;if(mapped===pg)setNavResetKey(k=>k+1);setPg(mapped);setSideOpen(false);
+// Normalize the URL so pages with internal hash routing return to their
+// default view (pages without hash routing are unaffected).
+try{const target=pageHashes[mapped]||'';if(window.location.hash!==target){window.history.replaceState(null,'',target||window.location.pathname);window.dispatchEvent(new HashChangeEvent('hashchange'))}}catch{}};
 const loadStats=useCallback(()=>{const brId=dashBranch||null;const today=new Date().toISOString().slice(0,10);Promise.all([sb.rpc('get_branch_stats',{p_branch_id:brId}),sb.from('notifications_view').select('*'),sb.from('employee_notifications').select('*').eq('user_id',user?.id).order('created_at',{ascending:false}).limit(50),sb.from('branches').select('id,name_ar').is('deleted_at',null).order('name_ar'),sb.from('system_settings').select('setting_value').eq('setting_key','last_weekly_update').single(),sb.from('tasks').select('id',{count:'exact',head:true}).is('deleted_at',null).in('status',['pending','in_progress','overdue']),sb.from('approval_requests').select('id',{count:'exact',head:true}).eq('status','pending'),sb.from('appointments').select('*').is('deleted_at',null).eq('date',today).in('status',['scheduled','confirmed'])]).then(([statsR,notifsR,myNotifsR,branchesR,weeklyR,tasksR,approvalsR,apptsR])=>{if(statsR.data)setStats(statsR.data);setNotifs(notifsR.data||[]);setMyNotifs(myNotifsR.data||[]);setDashBranches(branchesR.data||[]);if(weeklyR.data?.setting_value)setLastWeeklyUpdate(new Date(weeklyR.data.setting_value));setTaskCount(tasksR.count||0);setApprovalCount(approvalsR.count||0);setTodayAppointments(apptsR.data||[])})},[sb,dashBranch]);useEffect(()=>{loadStats()},[loadStats]);
 useEffect(()=>{if(!sb)return;const ch=sb.channel('jisr-realtime-sync').on('postgres_changes',{event:'*',schema:'public',table:'invoices'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'clients'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'workers'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'facilities'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'smart_alerts'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'attendance'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'activity_log'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'daily_stats'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'invoice_payments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'escalations'},()=>loadStats()).subscribe();return()=>{sb.removeChannel(ch)}},[sb,loadStats]);
 useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+k':()=>{const el=document.querySelector('.topbar-search-box input');if(el)el.focus()},'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+K بحث سريع | Ctrl+N إضافة جديد','Ctrl+K Quick Search | Ctrl+N New'))},'escape':()=>{setSideOpen(false);setShowNotifs(false);setShowAiChat(false)}});return cleanup},[]);
@@ -511,8 +521,8 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
   operations:[{id:'transactions_external',l:T('المعاملات','Transactions'),i:'transaction'},{id:'tasks',l:T('المهام','Tasks'),i:'notes'}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'payment'},{id:'transfer_calc',l:T('حسبة التنازل','Transfer Calc'),i:'chart'}],
-  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_staff',l:T('الموظفين','Staff'),i:'users'},{id:'admin_persons',l:T('الأشخاص','Persons'),i:'client'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_ui_controls',l:T('التحكم بالعرض','UI Controls'),i:'settings'}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'payment'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'}],
+  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_persons',l:T('الأشخاص','Persons'),i:'client'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_ui_controls',l:T('التحكم بالعرض','UI Controls'),i:'settings'}],
   settings:[{id:'settings_general',l:T('الإعدادات العامة','General Settings'),i:'settings'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
@@ -907,13 +917,13 @@ const isOpen=subs?(navExpanded[n.id]!==undefined?navExpanded[n.id]:hubActive):fa
 const isActive=pg===n.id||hubActive
 const mainClr=isActive?C.gold:'rgba(255,255,255,.55)'
 return<div key={n.id}>
-<div onClick={()=>{if(subs){setNavExpanded(isOpen?{}:{[n.id]:true})}else{setPage(n.id)}}} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',cursor:'pointer',fontSize:13,fontWeight:600,color:mainClr,letterSpacing:'.2px',transition:'.18s',opacity:isActive?1:.9}}>
+<div onClick={()=>{if(subs){setNavExpanded(p=>({...p,[n.id]:!isOpen}))}else{setPage(n.id)}}} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',cursor:'pointer',fontSize:13,fontWeight:600,color:mainClr,letterSpacing:'.2px',transition:'.18s',opacity:isActive?1:.9}}>
 <span style={{flex:1,textAlign:lang==='ar'?'right':'left'}}>{n.l}</span>
 {n.n>0&&<span style={{fontSize:9,fontWeight:700,background:C.red,color:'#fff',padding:'1px 6px',borderRadius:8,minWidth:16,textAlign:'center'}}>{n.n}</span>}
 {subs&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={isActive?C.gold:'rgba(255,255,255,.35)'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{transition:'transform .2s',transform:isOpen?'rotate(0deg)':'rotate(180deg)',flexShrink:0}}><polyline points="18 15 12 9 6 15"/></svg>}
 </div>
 {subs&&isOpen&&<div style={{display:'flex',flexDirection:'column',gap:1,margin:'3px 0 6px',[lang==='ar'?'paddingLeft':'paddingRight']:10}}>
-{subs.map(t=>{const sAct=pg===t.id;const subClr=sAct?C.gold:'rgba(255,255,255,.5)';const subIcon=DT(subClr)[t.i||n.i];return<div key={t.id} onClick={()=>{setPg(t.id);setSideOpen(false)}} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderRadius:10,cursor:'pointer',fontSize:12,fontWeight:sAct?700:500,color:subClr,background:sAct?'rgba(212,160,23,.08)':'transparent',transition:'.15s',position:'relative'}}>
+{subs.map(t=>{const sAct=pg===t.id;const subClr=sAct?C.gold:'rgba(255,255,255,.5)';const subIcon=DT(subClr)[t.i||n.i];return<div key={t.id} onClick={()=>setPage(t.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderRadius:10,cursor:'pointer',fontSize:12,fontWeight:sAct?700:500,color:subClr,background:sAct?'rgba(212,160,23,.08)':'transparent',transition:'.15s',position:'relative'}}>
 {sAct&&<div style={{position:'absolute',[lang==='ar'?'right':'left']:4,top:10,bottom:10,width:3,borderRadius:3,background:C.gold}}/>}
 <span style={{width:16,height:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:sAct?1:.5}}>{subIcon}</span>
 <span style={{flex:1,textAlign:lang==='ar'?'right':'left'}}>{t.l}</span>
@@ -930,7 +940,7 @@ return<div key={n.id}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </div>}
 {isVisible('fab_transfer_calc')&&<div className="fab-service-request" onClick={()=>setShowKafalaCalc(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
-<span style={{fontSize:14,fontWeight:800,color:'#D4A017',fontFamily:lang==='en'?"'Inter','Cairo',sans-serif":"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.3,lineHeight:1}}>{T('حسبة التنازل','Transfer Calc')}</span>
+<span style={{fontSize:14,fontWeight:800,color:'#D4A017',fontFamily:lang==='en'?"'Inter','Cairo',sans-serif":"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.3,lineHeight:1}}>{T('تسعيرة تنازل','Transfer Calc')}</span>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><circle cx="8" cy="12" r=".5" fill="#D4A017"/><circle cx="12" cy="12" r=".5" fill="#D4A017"/><circle cx="16" cy="12" r=".5" fill="#D4A017"/><circle cx="8" cy="16" r=".5" fill="#D4A017"/><circle cx="12" cy="16" r=".5" fill="#D4A017"/></svg>
 </div>}
 <style>{`.fab-service-request:hover{background:rgba(212,160,23,.14)!important}`}</style>
@@ -1068,8 +1078,7 @@ return<div><div>
 {pg==='payments'&&<PaymentsPageNew sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {pg==='ext_payments'&&<PaymentsPageNew sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {/* الإدارة */}
-{pg==='admin_offices'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
-{pg==='admin_staff'&&<BranchesPage sb={sb} toast={tt} user={user} lang={lang} showStaff={true} singleTab="staff" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
+{pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_persons'&&<PersonsPage toast={tt} user={user}/>}
 {pg==='admin_services'&&<ServiceAdminPage toast={tt} lang={lang}/>}
 {pg==='admin_ui_controls'&&<AdminPageFull sb={sb} toast={tt} user={user} lang={lang} defaultTab="ui_controls" onTabChange={setSTabInfo} nav={nav} hubTabs={hubTabs} visibility={visibility} onVisibilityChange={saveVisibility}/>}
@@ -1991,6 +2000,10 @@ const[officeFilter,setOfficeFilter]=useState(()=>isGM?'':(user?.branch_id||''))
 const[officeDropOpen,setOfficeDropOpen]=useState(false)
 const[periodOffset,setPeriodOffset]=useState(0) // 0=current, -1=previous period, etc.
 const[statsPeriod,setStatsPeriod]=useState('daily')
+const[listFilter,setListFilter]=useState('all')
+const[searchQ,setSearchQ]=useState('')
+const[advOpen,setAdvOpen]=useState(false)
+const[advFilter,setAdvFilter]=useState({from:'',to:'',service:'',employee:'',officeMin:'',officeMax:''})
 useEffect(()=>{Promise.all([sb.from('worker_transfers').select('*,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar),priced_user:priced_by(name_ar,name_en,branch_id,branch:branch_id(code)),approved_user:approved_by(name_ar,name_en,branch_id,branch:branch_id(code)),created_user:created_by(name_ar,name_en,branch_id,branch:branch_id(code))').is('deleted_at',null).order('created_at',{ascending:false}),sb.from('workers').select('id,name_ar').is('deleted_at',null),sb.from('facilities').select('id,name_ar').is('deleted_at',null),sb.from('branches').select('id,code').eq('is_active',true).order('code')]).then(([t,w,f,b])=>{setData(t.data||[]);setWorkers(w.data||[]);setFacilities(f.data||[]);setBranches(b?.data||[])})},[sb])
 const stClr={draft:'#666',priced:'#eab308',approved:C.blue,invoiced:C.ok,completed:'#1a8a3e',cancelled:C.red,pending:C.gold}
 const stLabel={draft:T('مسودة','Draft'),priced:T('مسعّرة','Priced'),approved:T('مصدّقة','Approved'),invoiced:T('مفوترة','Invoiced'),completed:T('مكتملة','Completed'),cancelled:T('ملغاة','Cancelled'),pending:T('معلّقة','Pending')}
@@ -2019,9 +2032,37 @@ client_charge:'',status:'draft',new_employer_name:'',notes:'',due_date:'',sedd_d
 const openEdit=r=>{const f={_id:r.id};['worker_id','facility_id','transfer_type','visa_cost','iqama_cost','work_permit_cost','insurance_cost','ticket_cost','gosi_cost','government_fees','other_costs','other_costs_desc','transfer_fee','client_charge','status','new_employer_name','notes','due_date','sedd_date'].forEach(k=>f[k]=r[k]??'');setPop(true);setForm(f);setWizStep(0)}
 const totalCost=()=>{let t=0;['transfer_fee','iqama_cost','iqama_fine','insurance_cost','work_permit_cost','occupation_change_cost','office_fee','extra_fee_amount'].forEach(k=>t+=Number(form[k])||0);t-=Number(form.absher_balance)||0;return Math.max(t,0)}
 const profit=()=>(Number(form.client_charge)||0)-totalCost()
-const printCalc=(r)=>{
-const ar=lang==='ar'
-const T2=(a,e)=>ar?a:e
+const printCalc=(r,printLang='ar')=>{
+const ar=printLang==='ar'
+const rtl=printLang==='ar'||printLang==='ur'
+const DICT={
+'تسعيرة تنازل':{bn:'স্থানান্তর কোটেশন',ur:'منتقلی کوٹیشن'},
+'رقم المرجع':{bn:'রেফারেন্স নম্বর',ur:'حوالہ نمبر'},
+'تاريخ التسعيرة':{bn:'মূল্য নির্ধারণের তারিখ',ur:'قیمت کی تاریخ'},
+'تاريخ التصديق':{bn:'অনুমোদনের তারিখ',ur:'تصدیق کی تاریخ'},
+'تاريخ الإصدار':{bn:'ইস্যুর তারিখ',ur:'اجراء کی تاریخ'},
+'المكتب: ':{bn:'অফিস: ',ur:'دفتر: '},
+'أشهر':{bn:'মাস',ur:'ماہ'},
+'بنود الخدمات والرسوم':{bn:'সেবা ও ফি',ur:'خدمات اور فیسیں'},
+'الإجمالي':{bn:'মোট',ur:'کل رقم'},
+'ر.س':{bn:'রিয়াল',ur:'ریال'},
+'رسوم متضمّنة':{bn:'অন্তর্ভুক্ত',ur:'شامل'},
+'بند إضافي':{bn:'অতিরিক্ত',ur:'اضافی'},
+'نقل كفالة':{bn:'স্পনসরশিপ ট্রান্সফার',ur:'کفالہ کی منتقلی'},
+'تجديد إقامة':{bn:'ইকামা নবায়ন',ur:'اقامہ تجدید'},
+'تجديد رخصة العمل':{bn:'ওয়ার্ক পারমিট নবায়ন',ur:'ورک پرمٹ تجدید'},
+'تأمين طبي':{bn:'চিকিৎসা বীমা',ur:'طبی بیمہ'},
+'تغيير مهنة':{bn:'পেশা পরিবর্তন',ur:'پیشہ کی تبدیلی'},
+'رسوم المكتب':{bn:'অফিস ফি',ur:'دفتر فیس'},
+'مسعّرة':{bn:'মূল্যায়িত',ur:'قیمت شدہ'},
+'مصدّقة':{bn:'অনুমোদিত',ur:'تصدیق شدہ'},
+'مفوترة':{bn:'চালান ইস্যু',ur:'چالان ہو گیا'},
+'مكتملة':{bn:'সম্পন্ন',ur:'مکمل'},
+'ملغاة':{bn:'বাতিল',ur:'منسوخ'},
+'مسودة':{bn:'খসড়া',ur:'مسودہ'},
+'معلّقة':{bn:'স্থগিত',ur:'معلق'},
+}
+const T2=(a,e)=>{if(printLang==='ar')return a;if(printLang==='en')return e;const entry=DICT[a];if(entry&&entry[printLang])return entry[printLang];const matchEntry=Object.entries(DICT).find(([k])=>a.startsWith(k));if(matchEntry&&matchEntry[1][printLang])return a.replace(matchEntry[0],matchEntry[1][printLang]);return e||a}
 const nm2=v=>Number(v||0).toLocaleString('en-US')
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c])
 const fmtD=d=>{if(!d)return'—';const dt=new Date(d);if(isNaN(dt))return'—';const y=dt.getFullYear();const mo=String(dt.getMonth()+1).padStart(2,'0');const da=String(dt.getDate()).padStart(2,'0');return `${y}-${mo}-${da}`}
@@ -2060,11 +2101,11 @@ const statusTxt=esc(stLabel[r.status]||r.status||'')
 const statusTag=r.status==='approved'?'Approved':(r.status==='invoiced'||r.status==='completed')?'Invoiced':'Issued'
 const curLbl=T2('ر.س','SAR')
 const svcHtml=svcItems.map(([name,amt],i)=>{const n=Number(amt);const isDisc=n<0||String(name).includes('خصم')||/discount/i.test(String(name));return `<div class="svc-row"><div class="svc-left"><span class="svc-badge">${String(i+1).padStart(2,'0')}</span><span class="svc-name${isDisc?' disc':''}">${esc(name)}</span></div><span class="svc-amt${isDisc?' disc':''}" dir="rtl">${n!==0?`<span class="num">${nm2(n)}</span><span class="cur">${curLbl}</span>`:`<span class="inc">${T2('رسوم متضمّنة','Included')}</span>`}</span></div>`}).join('')
-const dateLabel=r.status==='priced'?T2('تاريخ التسعير','Pricing Date'):(r.status==='approved'||r.status==='invoiced'||r.status==='completed')?T2('تاريخ التصديق','Approval Date'):T2('تاريخ الإصدار','Issue Date')
+const dateLabel=r.status==='priced'?T2('تاريخ التسعيرة','Pricing Date'):(r.status==='approved'||r.status==='invoiced'||r.status==='completed')?T2('تاريخ التصديق','Approval Date'):T2('تاريخ الإصدار','Issue Date')
 const dateValue=r.status==='priced'?(r.priced_at||r.created_at):(r.status==='approved'||r.status==='invoiced'||r.status==='completed')?(r.approved_at||r.priced_at||r.created_at):r.created_at
 const officeCode=r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||''
 const stampStatus=stLabel[r.status]||r.status||''
-const html=`<!DOCTYPE html><html dir="${ar?'rtl':'ltr'}" lang="${ar?'ar':'en'}"><head><meta charset="utf-8"><title>${T2('حسبة تنازل','Transfer')} ${esc(quoteNo)}</title>
+const html=`<!DOCTYPE html><html dir="${rtl?'rtl':'ltr'}" lang="${printLang}"><head><meta charset="utf-8"><title>${T2('تسعيرة تنازل','Transfer Quote')} ${esc(quoteNo)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@500;600;700&display=swap">
 <style>
@@ -2074,7 +2115,7 @@ html,body{width:210mm;background:#f3ecdd;color:#15130e;font-family:'Cairo','Taja
 .page{width:210mm;height:297mm;padding:26mm 24mm;position:relative;background:linear-gradient(180deg,#faf6ec 0%,#f3ecdd 100%);display:flex;flex-direction:column;overflow:hidden}
 .dots-top{position:absolute;top:0;left:0;right:0;height:26px;background-image:radial-gradient(circle at 10px 10px,rgba(212,160,23,.32) 1.2px,transparent 1.5px);background-size:20px 20px;opacity:.75;pointer-events:none}
 .dots-bot{position:absolute;bottom:0;left:0;right:0;height:26px;background-image:radial-gradient(circle at 10px 10px,rgba(212,160,23,.32) 1.2px,transparent 1.5px);background-size:20px 20px;opacity:.75;pointer-events:none}
-.content{position:relative;z-index:2;direction:${ar?'rtl':'ltr'};flex:1;display:flex;flex-direction:column}
+.content{position:relative;z-index:2;direction:${rtl?'rtl':'ltr'};flex:1;display:flex;flex-direction:column}
 .header{position:relative;min-height:60px;margin-bottom:8px}
 .title-center{text-align:center}
 .eyebrow{font-size:15px;letter-spacing:4px;color:#D4A017;font-weight:600;font-family:'Playfair Display',serif}
@@ -2107,7 +2148,7 @@ html,body{width:210mm;background:#f3ecdd;color:#15130e;font-family:'Cairo','Taja
 .svc-name.disc{color:#D4A017}
 .svc-amt .inc{font-size:11px;font-weight:500;color:rgba(0,0,0,.4);font-family:'Cairo',sans-serif;font-style:italic}
 .foot{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:6px}
-.foot .grand{display:inline-flex;flex-direction:column;align-items:${ar?'flex-end':'flex-start'}}
+.foot .grand{display:inline-flex;flex-direction:column;align-items:${rtl?'flex-end':'flex-start'}}
 .foot .gl{font-size:16px;letter-spacing:3px;color:#D4A017;font-weight:700;font-family:'Playfair Display','Cairo',serif;margin-bottom:8px;text-align:left}
 .foot .gv{font-size:36px;color:#D4A017;font-weight:700;letter-spacing:.8px;line-height:1;font-family:'JetBrains Mono',monospace;white-space:nowrap;direction:ltr}
 .stamp{position:relative;display:inline-block;padding:8px 18px;color:${sc};opacity:.94;font-family:'Cairo',sans-serif;text-align:center;line-height:1;min-width:130px;transform:rotate(-5deg)}
@@ -2130,7 +2171,7 @@ html,body{width:210mm;background:#f3ecdd;color:#15130e;font-family:'Cairo','Taja
 <div class="header">
 <div class="title-center">
 <div class="eyebrow">HUSSAIN &middot; OFFICES</div>
-<div class="title">${T2('حسبة تنازل','Transfer')}</div>
+<div class="title">${T2('تسعيرة تنازل','Transfer Quote')}</div>
 </div>
 <div class="corner-left">
 <div class="mini-label">${T2('رقم المرجع','Reference No.')}</div>
@@ -2155,7 +2196,7 @@ ${officeCode?`<div class="office-line">${T2('المكتب: ','Office: ')}<span c
 </div>
 <div class="dashed-divider"></div>
 <div>
-<div class="svc-head">${T2('بنود الخدمة والتسعير','Service Items & Pricing')} <span class="count">(${svcItems.length})</span></div>
+<div class="svc-head">${T2('بنود الخدمات والرسوم','Services & Fees')} <span class="count">(${svcItems.length})</span></div>
 ${svcHtml}
 </div>
 <div class="dashed-divider"></div>
@@ -2180,6 +2221,7 @@ setTimeout(()=>{try{w.focus();w.print()}catch{}},600)
 }
 const fS={width:'100%',height:40,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center',direction:'ltr'}
 return<div style={{fontFamily:"'Cairo',sans-serif",paddingTop:0}}>
+{!detailsRow&&<>
 <div style={{marginBottom:8,position:'relative'}}>
 {isGM&&branches.length>0&&(()=>{const sel=branches.find(b=>b.id===officeFilter)
 const items=[{id:'',label:T('كل المكاتب','All offices')},...branches.map(b=>({id:b.id,label:b.code||b.id.slice(0,6)}))]
@@ -2196,7 +2238,7 @@ return<div key={it.id||'__all__'} onClick={()=>{setOfficeFilter(it.id);setOffice
 </div></>}
 </div>
 </div>})()}
-<div style={{fontSize:24,fontWeight:800,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{T('حسبة التنازل','Transfer Calculator')}</div>
+<div style={{fontSize:24,fontWeight:800,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{T('تسعيرات التنازل','Transfer Calculator')}</div>
 <div style={{fontSize:12,color:'var(--tx4)',marginTop:8}}>{T('حساب تكاليف نقل خدمات العمال وإصدار التسعيرات ومتابعة حالتها','Worker transfer cost calculation, quote issuance and status tracking')}</div>
 {/* Period stats row — heading on the right, period label + cycler on the left */}
 <div style={{display:'flex',alignItems:'center',gap:6,marginTop:10,marginBottom:0}}>
@@ -2223,10 +2265,6 @@ return<div style={{display:'flex',alignItems:'center',gap:6}}>
 </div>
 {(()=>{
 const typeLabel=v=>v==='final_exit'?T('خروج نهائي','Final Exit'):T('نقل كفالة','Sponsorship')
-const[listFilter,setListFilter]=useState('all')
-const[searchQ,setSearchQ]=useState('')
-const[advOpen,setAdvOpen]=useState(false)
-const[advFilter,setAdvFilter]=useState({from:'',to:'',service:'',employee:'',officeMin:'',officeMax:''})
 const daysSince=d=>{if(!d)return 0;return Math.floor((Date.now()-new Date(d).getTime())/86400000)}
 // Status pipeline stats
 const sCounts={draft:data.filter(r=>r.status==='draft').length,priced:data.filter(r=>r.status==='priced').length,approved:data.filter(r=>r.status==='approved').length,invoiced:data.filter(r=>r.status==='invoiced').length,completed:data.filter(r=>r.status==='completed').length,cancelled:data.filter(r=>r.status==='cancelled').length}
@@ -2542,10 +2580,10 @@ if(meta.change_profession)tags.push(T('تغيير مهنة','Profession Chg'))
 const warn=(()=>{if(meta.iqama_expiry){const d=new Date(meta.iqama_expiry);if(!isNaN(d)){const diffDays=Math.floor((Date.now()-d.getTime())/86400000);if(diffDays>0)return{text:T('إقامة منتهية منذ '+diffDays+' يوم','Iqama expired '+diffDays+' days ago')+(meta.renewal_months?' · '+T('غرامة 500 ر.س','500 SAR fine'):''),color:C.red}}}return null})()
 // Invoice footer when invoiced
 const invFoot=r.status==='invoiced'||r.status==='completed'?{text:T('دُفع بالكامل · تحويل بنكي','Paid in full · bank transfer'),color:C.ok}:null
-return<div key={r.id} onClick={()=>setViewRow({...r,_meta:meta})} style={{background:'linear-gradient(180deg,rgba(0,0,0,.3) 0%,rgba(0,0,0,.2) 100%)',borderRadius:16,overflow:'visible',transition:'.25s cubic-bezier(.4,0,.2,1)',border:'1px solid rgba(255,255,255,.07)',position:'relative',cursor:'pointer',padding:'18px 22px',display:'grid',gridTemplateColumns:'1fr auto auto',gap:22,alignItems:'center'}}
+return<div key={r.id} onClick={()=>{setDetailsTab('worker');setDetailsRow({...r,_meta:meta})}} style={{background:'linear-gradient(180deg,rgba(0,0,0,.3) 0%,rgba(0,0,0,.2) 100%)',borderRadius:16,overflow:'visible',transition:'.25s cubic-bezier(.4,0,.2,1)',border:'1px solid rgba(255,255,255,.07)',position:'relative',cursor:'pointer',padding:'18px 22px',display:'grid',gridTemplateColumns:'1fr auto auto',gap:22,alignItems:'center'}}
 onMouseEnter={e=>{e.currentTarget.style.borderColor=sc+'55';e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 10px 30px rgba(0,0,0,.3), 0 0 0 1px '+sc+'25'}}
 onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.07)';e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
-<button onClick={e=>{e.stopPropagation();setDetailsTab('worker');setDetailsRow({...r,_meta:meta})}} title={T('التفاصيل الكاملة','Full details')} style={{position:'absolute',top:10,left:10,width:26,height:26,borderRadius:'50%',background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.3)',color:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,zIndex:2,transition:'background .15s, border-color .15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.22)';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}}>
+<button onClick={e=>{e.stopPropagation();setViewRow({...r,_meta:meta})}} title={T('معاينة الحسبة','Quote preview')} style={{position:'absolute',top:10,left:10,width:26,height:26,borderRadius:'50%',background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.3)',color:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,zIndex:2,transition:'background .15s, border-color .15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.22)';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}}>
 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
 </button>
 {(()=>{const CopyBtn=({val})=><button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(val);toast&&toast(T('تم النسخ','Copied'))}} title={T('نسخ','Copy')} style={{width:18,height:18,background:'transparent',border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,color:'var(--tx6)',transition:'color .15s',flexShrink:0,opacity:.55}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.opacity=1}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx6)';e.currentTarget.style.opacity=.55}}>
@@ -2692,31 +2730,31 @@ setViewRow(v=>({...v,notes:JSON.stringify(nextMeta),_meta:nextMeta,other_costs:n
 setData(d=>d.map(r=>r.id===viewRow.id?{...r,notes:JSON.stringify(nextMeta),other_costs:nextOther,total_cost:nextTotalCost,client_charge:nextCharge}:r))
 }
 return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,background:'rgba(5,5,10,.88)',backdropFilter:'blur(10px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1200,padding:16,fontFamily:"'Cairo','Tajawal',sans-serif"}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#17181c',borderRadius:18,width:'min(620px,94vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',border:'1px solid rgba(212,160,23,.15)',boxShadow:'0 40px 100px rgba(0,0,0,.7)',position:'relative',overflow:'hidden'}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'#17181c',borderRadius:18,width:'min(520px,94vw)',height:'min(780px,92vh)',display:'flex',flexDirection:'column',border:'1px solid rgba(212,160,23,.15)',boxShadow:'0 40px 100px rgba(0,0,0,.7)',position:'relative',overflow:'hidden'}}>
 {/* Dots pattern top accent */}
 <div style={{position:'absolute',top:0,left:0,right:0,height:26,backgroundImage:'radial-gradient(circle at 10px 10px, rgba(212,160,23,.18) 1.2px, transparent 1.5px)',backgroundSize:'20px 20px',opacity:.7,pointerEvents:'none',zIndex:2}}/>
 {/* Dots pattern bottom accent — mirrors the top */}
 <div style={{position:'absolute',bottom:0,left:0,right:0,height:26,backgroundImage:'radial-gradient(circle at 10px 10px, rgba(212,160,23,.18) 1.2px, transparent 1.5px)',backgroundSize:'20px 20px',opacity:.7,pointerEvents:'none',zIndex:2}}/>
-<div className='qpv-body' style={{padding:'20px 34px 30px',direction:'rtl',flex:1,overflowY:'auto',minHeight:0}}><style>{`.qpv-body::-webkit-scrollbar{width:0;display:none}.qpv-body{scrollbar-width:none;-ms-overflow-style:none}`}</style>
+<div className='qpv-body' style={{padding:'24px 34px 28px',direction:'rtl',flex:1,overflowY:'auto',minHeight:0,display:'flex',flexDirection:'column'}}><style>{`.qpv-body::-webkit-scrollbar{width:0;display:none}.qpv-body{scrollbar-width:none;-ms-overflow-style:none}`}</style>
 {/* Top: Title centered, reference anchored on the left */}
 <div style={{position:'relative',marginBottom:8,minHeight:54}}>
 <div style={{textAlign:'center'}}>
 <div style={{fontSize:14,letterSpacing:'4px',color:C.gold,fontWeight:600,fontFamily:"'Playfair Display',serif"}}>HUSSAIN · OFFICES</div>
-<div style={{fontSize:22,fontWeight:500,color:'var(--tx)',fontFamily:"'Playfair Display','Cairo',serif",marginTop:10,letterSpacing:'-.7px',lineHeight:1.05}}>{T('حسبة تنازل','Transfer')}</div>
+<div style={{fontSize:22,fontWeight:500,color:'var(--tx)',fontFamily:"'Playfair Display','Cairo',serif",marginTop:10,letterSpacing:'-.7px',lineHeight:1.05}}>{T('تسعيرة تنازل','Transfer')}</div>
 </div>
 <div style={{position:'absolute',top:0,left:0,textAlign:'left'}}>
 <div style={{fontSize:9,color:'rgba(255,255,255,.45)',fontWeight:600,letterSpacing:'.5px',marginBottom:2}}>{T('رقم المرجع','Reference No.')}</div>
 <div style={{fontSize:11,color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,direction:'ltr',letterSpacing:'.5px'}}>{m.quote_no||'#'+String(viewRow.id).slice(0,8).toUpperCase()}</div>
 </div>
 <div style={{position:'absolute',top:0,right:0,textAlign:'right'}}>
-<div style={{fontSize:9,color:'rgba(255,255,255,.45)',fontWeight:600,letterSpacing:'.5px',marginBottom:2}}>{viewRow.status==='priced'?T('تاريخ التسعير','Pricing Date'):(viewRow.status==='approved'||viewRow.status==='invoiced'||viewRow.status==='completed')?T('تاريخ التصديق','Approval Date'):T('تاريخ الإصدار','Issue Date')}</div>
+<div style={{fontSize:9,color:'rgba(255,255,255,.45)',fontWeight:600,letterSpacing:'.5px',marginBottom:2}}>{viewRow.status==='priced'?T('تاريخ التسعيرة','Pricing Date'):(viewRow.status==='approved'||viewRow.status==='invoiced'||viewRow.status==='completed')?T('تاريخ التصديق','Approval Date'):T('تاريخ الإصدار','Issue Date')}</div>
 <div style={{fontSize:11,color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,direction:'ltr',letterSpacing:'.5px'}}>{fmtD(viewRow.status==='priced'?(viewRow.priced_at||viewRow.created_at):(viewRow.status==='approved'||viewRow.status==='invoiced'||viewRow.status==='completed')?(viewRow.approved_at||viewRow.priced_at||viewRow.created_at):viewRow.created_at)}</div>
 {(()=>{const code=viewRow.priced_user?.branch?.code||viewRow.approved_user?.branch?.code||viewRow.created_user?.branch?.code;return code?<div style={{fontSize:9,color:'rgba(255,255,255,.5)',fontWeight:600,letterSpacing:'.8px',marginTop:4,direction:'rtl'}}>{T('المكتب: ','Office: ')}<span style={{color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>{code}</span></div>:null})()}
 </div>
 </div>
 
 {/* Divider */}
-<div style={{height:1,background:'linear-gradient(90deg,rgba(212,160,23,.3) 0%,transparent 30%,transparent 70%,rgba(212,160,23,.3) 100%)',margin:'6px 0 12px'}}/>
+<div style={{height:1,background:'linear-gradient(90deg,rgba(212,160,23,.3) 0%,transparent 30%,transparent 70%,rgba(212,160,23,.3) 100%)',margin:'18px 0 18px'}}/>
 
 {/* Worker details — 2 rows × 2 columns (values only, no labels) */}
 <div style={{marginBottom:8,display:'flex',flexDirection:'column',gap:10}}>
@@ -2739,14 +2777,11 @@ return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,backg
 <div style={{borderTop:'1px dashed rgba(212,160,23,.18)',margin:'10px 0'}}/>
 
 {/* Service items */}
+<div style={{marginBottom:8,flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
 <div style={{marginBottom:8}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-<div style={{fontSize:11,color:C.gold,fontWeight:700,letterSpacing:'.5px'}}>{T('بنود الخدمة والتسعير','Service Items & Pricing')} <span style={{color:'rgba(255,255,255,.5)',fontWeight:600,fontFamily:"'JetBrains Mono',monospace"}}>({svcItems.length})</span></div>
-<button onClick={()=>{setExtraDraft({name:'',amount:''});setAddingExtra(true)}} title={T('إضافة بند جديد','Add new item')} style={{width:20,height:20,background:'transparent',border:'none',color:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,opacity:.8,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.opacity='1';e.currentTarget.style.transform='scale(1.15)'}} onMouseLeave={e=>{e.currentTarget.style.opacity='.8';e.currentTarget.style.transform='none'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-</button>
+<div style={{fontSize:11,color:C.gold,fontWeight:700,letterSpacing:'.5px'}}>{T('بنود الخدمات والرسوم','Service Items & Pricing')} <span style={{color:'rgba(255,255,255,.5)',fontWeight:600,fontFamily:"'JetBrains Mono',monospace"}}>({svcItems.length})</span></div>
 </div>
-<div className='qpv-items' style={{maxHeight:200,overflowY:'auto'}}>
+<div className='qpv-items' style={{flex:1,overflowY:'auto',minHeight:0}}>
 <style>{`.qpv-items::-webkit-scrollbar{width:0;display:none}.qpv-items{scrollbar-width:none;-ms-overflow-style:none}`}</style>
 {svcItems.map(([name,amt,meta2],i)=>{const isDiscount=Number(amt)<0||String(name).includes('خصم')||/discount/i.test(String(name));const extraIdx=meta2?.extraIdx;const isExtra=typeof extraIdx==='number';const isEditing=isExtra&&editingExtraIdx===extraIdx;
 if(isEditing)return<div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderBottom:'1px dashed rgba(212,160,23,.25)',gap:10}}>
@@ -2801,47 +2836,6 @@ toast(T('تم الحذف','Deleted'))
 </div>})}
 <style>{`.svc-extra-actions{display:none}.svc-extra-row:hover .svc-extra-actions{display:inline-flex}.qpv-num::-webkit-outer-spin-button,.qpv-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}`}</style>
 </div>
-{addingExtra&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderTop:'1px dashed rgba(212,160,23,.25)',marginTop:4,gap:10}}>
-<div style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}}>
-<span style={{fontSize:10,padding:'2px 7px',border:'1px solid '+C.gold+'60',color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,borderRadius:3,letterSpacing:'.5px',flexShrink:0}}>{String(svcItems.length+1).padStart(2,'0')}</span>
-<input autoFocus value={extraDraft.name} onChange={e=>setExtraDraft(p=>({...p,name:e.target.value}))} placeholder={T('اسم البند (اكتب "خصم" للخصم)','Item name (type "خصم" for discount)')} style={{flex:1,minWidth:0,height:26,padding:'0 10px',border:'1px solid rgba(212,160,23,.25)',borderRadius:6,background:'rgba(212,160,23,.05)',color:'var(--tx)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,outline:'none',textAlign:'right'}}/>
-</div>
-<div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-<input className='qpv-num' type="number" value={extraDraft.amount} onChange={e=>setExtraDraft(p=>({...p,amount:e.target.value}))} placeholder="0" style={{width:80,height:26,padding:'0 8px',border:'1px solid rgba(212,160,23,.25)',borderRadius:6,background:'rgba(212,160,23,.05)',color:'var(--tx)',fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,outline:'none',textAlign:'center',direction:'ltr',MozAppearance:'textfield'}}/>
-<button disabled={savingExtra||!extraDraft.name.trim()||!Number(extraDraft.amount)} onClick={async()=>{
-setSavingExtra(true)
-try{
-const curMeta=(()=>{try{return typeof viewRow.notes==='string'?JSON.parse(viewRow.notes):(viewRow.notes||{})}catch{return {}}})()
-const extras=Array.isArray(curMeta.extras)?[...curMeta.extras]:[]
-const rawAmt=Math.abs(Number(extraDraft.amount))
-const trimmedName=extraDraft.name.trim()
-const isDiscount=trimmedName.includes('خصم')||/discount/i.test(trimmedName)
-if(isDiscount&&extras.some(e=>{const n=String(e?.name||'');return n.includes('خصم')||/discount/i.test(n)||Number(e?.amount)<0})){
-toast(T('يوجد خصم مسبق — يُضاف مرة واحدة فقط','A discount already exists — only one allowed'))
-setSavingExtra(false);return
-}
-const signed=isDiscount?-rawAmt:rawAmt
-extras.push({name:trimmedName,amount:signed})
-const nextMeta={...curMeta,extras}
-const nextOther=Number(viewRow.other_costs||0)+signed
-const nextTotalCost=Number(viewRow.total_cost||0)+signed
-const nextCharge=Number(viewRow.client_charge||0)+signed
-const{error}=await sb.from('worker_transfers').update({notes:JSON.stringify(nextMeta),other_costs:nextOther,client_charge:nextCharge,updated_by:user?.id}).eq('id',viewRow.id)
-if(error)throw error
-setViewRow(v=>({...v,notes:JSON.stringify(nextMeta),_meta:nextMeta,other_costs:nextOther,total_cost:nextTotalCost,client_charge:nextCharge}))
-setData(d=>d.map(r=>r.id===viewRow.id?{...r,notes:JSON.stringify(nextMeta),other_costs:nextOther,total_cost:nextTotalCost,client_charge:nextCharge}:r))
-toast(isDiscount?T('تم خصم '+rawAmt+' ر.س','Discount '+rawAmt+' SAR'):T('تمت الإضافة','Added'))
-setAddingExtra(false);setExtraDraft({name:'',amount:''})
-}catch(e){toast('خطأ: '+(e.message?.slice(0,60)||''))}
-setSavingExtra(false)
-}} title={T('حفظ','Save')} style={{width:26,height:26,borderRadius:6,background:'rgba(39,160,70,.12)',border:'1px solid rgba(39,160,70,.35)',color:C.ok,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,opacity:savingExtra||!extraDraft.name.trim()||!Number(extraDraft.amount)?.4:1}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-</button>
-<button onClick={()=>{setAddingExtra(false);setExtraDraft({name:'',amount:''})}} title={T('إلغاء','Cancel')} style={{width:26,height:26,borderRadius:6,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.25)',color:C.red,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0}}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-</button>
-</div>
-</div>}
 </div>
 
 {/* Divider */}
@@ -2849,15 +2843,16 @@ setSavingExtra(false)
 
 {/* Approve & Print buttons (right) + Stamp (center) + Grand Total (left) */}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6,gap:16}}>
-<div style={{display:'inline-flex',flexDirection:'column',alignItems:'stretch',gap:8,flexShrink:0}}>
-<button onClick={()=>{if(viewRow.status==='priced')changeStatus(viewRow.id,'approved')}} disabled={viewRow.status!=='priced'} title={T('تصديق','Approve')} style={{height:32,padding:'0 13px',borderRadius:8,background:'#17181c',border:'1px dashed rgba(52,131,180,.55)',color:C.blue,fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:700,cursor:viewRow.status==='priced'?'pointer':'default',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,direction:'rtl',letterSpacing:'.3px',transition:'background .12s',visibility:viewRow.status==='priced'?'visible':'hidden'}} onMouseEnter={e=>{if(viewRow.status==='priced')e.currentTarget.style.background='#202127'}} onMouseLeave={e=>{e.currentTarget.style.background='#17181c'}}>
-<span>{T('تصديق','Approve')}</span>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-</button>
-<button onClick={()=>printCalc(viewRow)} title={T('طباعة','Print')} style={{height:32,padding:'0 13px',borderRadius:8,background:'#17181c',border:'1px dashed rgba(212,160,23,.55)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,direction:'rtl',letterSpacing:'.3px',transition:'background .12s'}} onMouseEnter={e=>{e.currentTarget.style.background='#202127'}} onMouseLeave={e=>{e.currentTarget.style.background='#17181c'}}>
+<div style={{flexShrink:0,border:'1px dashed rgba(212,160,23,.4)',borderRadius:10,padding:'14px 12px 10px',background:'rgba(212,160,23,.04)',position:'relative',minWidth:160}}>
+<div style={{position:'absolute',top:-9,right:14,background:'#17181c',padding:'0 8px',display:'inline-flex',alignItems:'center',gap:6,color:C.gold,fontSize:11,fontWeight:800,letterSpacing:'.5px'}}>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
 <span>{T('طباعة','Print')}</span>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-</button>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+{[{k:'ar',l:'عربي'},{k:'en',l:'English'},{k:'bn',l:'বাংলা'},{k:'ur',l:'اُردُو'}].map(o=>
+<button key={o.k} onClick={()=>printCalc(viewRow,o.k)} title={o.l} style={{height:28,padding:'0 8px',borderRadius:6,background:'#17181c',border:'1px solid rgba(212,160,23,.3)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',transition:'.12s',letterSpacing:'.2px'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor=C.gold}} onMouseLeave={e=>{e.currentTarget.style.background='#17181c';e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}}>{o.l}</button>
+)}
+</div>
 </div>
 <div style={{flexShrink:0}}>
 <OfficialStampBadge status={stLabel[viewRow.status]||viewRow.status} employeeName={pricedBy} color={sc}/>
@@ -2872,6 +2867,7 @@ setSavingExtra(false)
 </div>
 </div>})()}
 </>})()}
+</>}
 {detailsRow&&(()=>{const dr=detailsRow;const mm=dr._meta||(()=>{try{return typeof dr.notes==='string'?JSON.parse(dr.notes):(dr.notes||{})}catch{return{}}})()
 const fmt=v=>(v===null||v===undefined||v==='')?'—':v
 const fmtD=d=>{if(!d)return'—';const dt=new Date(d);if(isNaN(dt))return'—';return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')}
@@ -2901,17 +2897,32 @@ const sec=(title,rows,icon)=>{const filtered=rows.filter(Boolean);if(!filtered.l
 </div>
 </div>}
 const quoteNo=mm.quote_no||'#'+String(dr.id||'').slice(0,8).toUpperCase()
-return<div onClick={()=>setDetailsRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.72)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1210,padding:16,fontFamily:"'Cairo',sans-serif"}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#141414',borderRadius:16,width:'min(820px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',border:'1px solid rgba(255,255,255,.06)',boxShadow:'0 20px 50px rgba(0,0,0,.6)',overflow:'hidden'}}>
-<div style={{padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-<div style={{fontSize:18,fontWeight:800,color:'var(--tx)',display:'flex',alignItems:'center',gap:10,letterSpacing:'-.2px'}}><span>{T('تفاصيل الحسبة','Full Details')}</span><span style={{fontSize:12,color:C.gold,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,letterSpacing:'.5px'}}>{quoteNo}</span></div>
-<button onClick={()=>setDetailsRow(null)} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',fontSize:14}}>✕</button>
+return<div style={{fontFamily:"'Cairo','Tajawal',sans-serif",paddingTop:0,color:'var(--tx2)'}}>
+<div style={{marginBottom:20}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:14}}>
+<button onClick={()=>setDetailsRow(null)} title={T('رجوع','Back')} style={{height:34,padding:'0 12px',borderRadius:8,background:'#141414',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx2)',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,fontFamily:"'Cairo','Tajawal',sans-serif",fontSize:11,fontWeight:700,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.1)';e.currentTarget.style.borderColor='rgba(212,160,23,.3)';e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{e.currentTarget.style.background='#141414';e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.color='var(--tx2)'}}>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+<span>{T('رجوع','Back')}</span>
+</button>
+<div style={{display:'flex',gap:8}}>
+{dr.status==='priced'&&<button onClick={async()=>{await changeStatus(dr.id,'approved');setDetailsRow(null)}} disabled={saving} style={{height:34,padding:'0 14px',borderRadius:8,border:'1px solid '+C.blue,background:'transparent',color:C.blue,fontFamily:F,fontSize:11,fontWeight:800,cursor:saving?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:6,opacity:saving?.6:1,transition:'.15s'}} onMouseEnter={e=>{if(!saving)e.currentTarget.style.background='rgba(52,131,180,.08)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>
+<span>{T('تصديق الحسبة','Approve Quote')}</span>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+</button>}
+{dr.status==='approved'&&<button onClick={async()=>{await changeStatus(dr.id,'invoiced');setDetailsRow(null)}} disabled={saving} style={{height:34,padding:'0 14px',borderRadius:8,border:'1px solid '+C.ok,background:'transparent',color:C.ok,fontFamily:F,fontSize:11,fontWeight:800,cursor:saving?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:6,opacity:saving?.6:1,transition:'.15s'}} onMouseEnter={e=>{if(!saving)e.currentTarget.style.background='rgba(39,160,70,.08)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>
+<span>{T('إصدار فاتورة','Issue Invoice')}</span>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+</button>}
 </div>
-<div style={{display:'flex',gap:4,padding:'10px 22px 0',flexShrink:0,direction:'rtl',justifyContent:'flex-start'}}>
+</div>
+<div style={{fontSize:24,fontWeight:800,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{T('تفاصيل الحسبة','Full Details')}</div>
+<div style={{fontSize:13,color:C.gold,fontWeight:700,marginTop:8,letterSpacing:'.5px',fontFamily:"'JetBrains Mono',monospace"}}>{quoteNo}</div>
+</div>
+<div style={{display:'flex',gap:4,marginBottom:16,direction:'rtl',justifyContent:'flex-start',borderBottom:'1px solid rgba(255,255,255,.06)'}}>
 {[{k:'worker',l:T('بيانات العامل','Worker Info')},{k:'request',l:T('تفاصيل الطلب','Request Details')},{k:'pricing',l:T('التسعيرة','Pricing')},{k:'workflow',l:T('سير العمل','Workflow')}].map(t=>{const active=detailsTab===t.k
 return<button key={t.k} onClick={()=>setDetailsTab(t.k)} style={{height:34,padding:'0 14px',border:'none',borderBottom:'2px solid '+(active?C.gold:'transparent'),background:'transparent',color:active?C.gold:'var(--tx4)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer',letterSpacing:'.2px',transition:'.15s'}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color='var(--tx)'}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color='var(--tx4)'}}>{t.l}</button>})}
 </div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px',direction:'rtl'}}>
+<div style={{direction:'rtl'}}>
 {detailsTab==='worker'&&<>
 {sec(T('بيانات العامل','Worker Info'),[
 [T('الاسم','Name'),dr.workers?.name_ar||mm.worker_name||mm.w_name],
@@ -3005,17 +3016,6 @@ mm.internal_notes?[T('ملاحظات داخلية','Internal Notes'),mm.internal
 ],icoNote):null}
 </>}
 </div>
-{(dr.status==='priced'||dr.status==='approved')&&<div style={{padding:'12px 22px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',justifyContent:'flex-end',gap:10,flexShrink:0}}>
-{dr.status==='priced'&&<button onClick={async()=>{await changeStatus(dr.id,'approved');setDetailsRow(null)}} disabled={saving} style={{height:38,padding:'0 20px',borderRadius:10,border:'1px solid '+C.blue+'55',background:C.blue+'18',color:C.blue,fontFamily:F,fontSize:12,fontWeight:800,cursor:saving?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:7,opacity:saving?.6:1,transition:'.15s'}} onMouseEnter={e=>{if(!saving){e.currentTarget.style.background=C.blue+'28';e.currentTarget.style.borderColor=C.blue+'88'}}} onMouseLeave={e=>{e.currentTarget.style.background=C.blue+'18';e.currentTarget.style.borderColor=C.blue+'55'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-<span>{T('تصديق الحسبة','Approve Quote')}</span>
-</button>}
-{dr.status==='approved'&&<button onClick={async()=>{await changeStatus(dr.id,'invoiced');setDetailsRow(null)}} disabled={saving} style={{height:38,padding:'0 20px',borderRadius:10,border:'1px solid '+C.ok+'55',background:C.ok+'18',color:C.ok,fontFamily:F,fontSize:12,fontWeight:800,cursor:saving?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:7,opacity:saving?.6:1,transition:'.15s'}} onMouseEnter={e=>{if(!saving){e.currentTarget.style.background=C.ok+'28';e.currentTarget.style.borderColor=C.ok+'88'}}} onMouseLeave={e=>{e.currentTarget.style.background=C.ok+'18';e.currentTarget.style.borderColor=C.ok+'55'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
-<span>{T('إصدار فاتورة','Issue Invoice')}</span>
-</button>}
-</div>}
-</div>
 </div>
 })()}
 {pop&&(()=>{
@@ -3039,7 +3039,7 @@ const TOG=({k,labels})=><div style={{display:'flex',gap:8}}>{(labels||[{v:true,l
 return<div onClick={()=>setPop(false)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}><div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(840px,95vw)',height:'88vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(212,160,23,.15)'}}>
 {/* Header */}
 <div style={{background:'var(--bg)',padding:'14px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(212,160,23,.12)',flexShrink:0}}>
-<div><div style={{fontSize:16,fontWeight:800,color:'var(--tx)'}}>{form._id?T('تعديل الحسبة','Edit'):T('حسبة تنازل جديدة','New Transfer Calc')}</div></div>
+<div><div style={{fontSize:16,fontWeight:800,color:'var(--tx)'}}>{form._id?T('تعديل التسعيرة','Edit'):T('تسعيرة تنازل جديدة','New Transfer Calc')}</div></div>
 <div style={{display:'flex',gap:6}}>
 <button onClick={save} disabled={saving} style={{height:34,padding:'0 16px',borderRadius:8,border:'1px solid rgba(212,160,23,.2)',background:'rgba(212,160,23,.12)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:700,cursor:'pointer',opacity:saving?.6:1}}>{saving?'...':T('حفظ','Save')}</button>
 <button onClick={()=>setPop(false)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>x</button>

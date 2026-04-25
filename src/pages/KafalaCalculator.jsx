@@ -478,9 +478,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   useEffect(() => {
     const sbx = getSupabase()
     if (!sbx) return
-    sbx.from('occupations').select('id,name_ar,name_en,code').is('deleted_at', null).eq('is_active', true).order('sort_order', { nullsFirst: false }).order('name_ar').limit(5000).then(({ data }) => {
+    ;(async () => {
+      const { data: arch } = await sbx.from('lookup_items').select('id,lookup_categories!inner(category_key)').eq('code', 'archived').eq('lookup_categories.category_key', 'occupation_category').maybeSingle()
+      let q = sbx.from('occupations').select('id,name_ar,name_en,code').is('deleted_at', null).eq('is_active', true).order('sort_order', { nullsFirst: false }).order('name_ar').limit(5000)
+      if (arch?.id) q = q.neq('category_id', arch.id)
+      const { data } = await q
       if (data) setOccupations(data)
-    })
+    })()
   }, [])
 
   // ═══ CHI Insurance Check state ═══

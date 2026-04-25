@@ -1,22 +1,29 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import ReactDOM from 'react-dom'
 import {
   Users, Plus, Eye, Edit2, Archive, ArchiveRestore, ArrowRight,
   Phone, Mail, MapPin, Building2, Briefcase, UserCheck, HardHat,
-  Shield, CreditCard, Calendar, Flag, AlertCircle
+  Shield, CreditCard, Calendar, Flag, AlertCircle, Info, Copy, Power,
+  Trash2, X
 } from 'lucide-react'
 import * as personsService from '../../services/personsService.js'
 import PersonFormModal from '../../components/persons/PersonFormModal.jsx'
+import OfficialStampBadge from '../../components/ui/OfficialStampBadge.jsx'
+import RolePageRouter from './roles/RolePageRouter.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
 
 const ROLE_STYLES = {
-  'موظف مكتب': { bg: 'rgba(212,160,23,.15)', fg: '#d9bf5e', bd: 'rgba(212,160,23,.3)', plain: C.gold },
-  'عامل':       { bg: 'rgba(155,155,155,.12)', fg: '#c0c0c0', bd: 'rgba(155,155,155,.25)', plain: '#c0c0c0' },
-  'وسيط':       { bg: 'rgba(168,114,40,.18)', fg: '#d9a15a', bd: 'rgba(168,114,40,.35)', plain: '#d9a15a' },
-  'عميل':       { bg: 'rgba(52,131,180,.18)', fg: '#5ca0e6', bd: 'rgba(52,131,180,.35)', plain: C.blue },
-  'مدير منشأة': { bg: 'rgba(155,89,182,.18)', fg: '#b58cf5', bd: 'rgba(155,89,182,.35)', plain: '#b58cf5' },
-  'مالك منشأة': { bg: 'rgba(192,57,43,.18)', fg: '#e5867a', bd: 'rgba(192,57,43,.35)', plain: '#e5867a' },
+  'مستخدم':  { bg: 'rgba(212,160,23,.15)', fg: '#d9bf5e', bd: 'rgba(212,160,23,.3)', plain: C.gold },
+  'عميل':    { bg: 'rgba(52,131,180,.18)', fg: '#5ca0e6', bd: 'rgba(52,131,180,.35)', plain: C.blue },
+  'وسيط':    { bg: 'rgba(168,114,40,.18)', fg: '#d9a15a', bd: 'rgba(168,114,40,.35)', plain: '#d9a15a' },
+  'عامل':    { bg: 'rgba(155,155,155,.12)', fg: '#c0c0c0', bd: 'rgba(155,155,155,.25)', plain: '#c0c0c0' },
+  'مالك':    { bg: 'rgba(192,57,43,.18)', fg: '#e5867a', bd: 'rgba(192,57,43,.35)', plain: '#e5867a' },
+  'مدير':    { bg: 'rgba(155,89,182,.18)', fg: '#b58cf5', bd: 'rgba(155,89,182,.35)', plain: '#b58cf5' },
+  'مستفيد':  { bg: 'rgba(227,179,65,.15)', fg: '#e3b341', bd: 'rgba(227,179,65,.3)', plain: '#e3b341' },
+  'مشرف':    { bg: 'rgba(90,203,176,.15)', fg: '#5acbb0', bd: 'rgba(90,203,176,.3)', plain: '#5acbb0' },
+  'سعودة':   { bg: 'rgba(52,131,180,.15)', fg: '#6bb6e6', bd: 'rgba(52,131,180,.3)', plain: '#3483b4' },
 }
 
 const RoleChip = ({ role, small }) => {
@@ -47,22 +54,20 @@ const StatusBadge = ({ status }) => {
   )
 }
 
-function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
+function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetail, user }) {
   const isGM = !user?.roles || user?.roles?.name_ar === 'المدير العام' || user?.roles?.name_en === 'General Manager'
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQ, setSearchQ] = useState('')
   const [advOpen, setAdvOpen] = useState(false)
-  const [advFilter, setAdvFilter] = useState({ from: '', to: '', role: '', status: '', nationality: '' })
-  const [officeFilter, setOfficeFilter] = useState(() => isGM ? '' : (user?.branch_id || ''))
-  const [officeDropOpen, setOfficeDropOpen] = useState(false)
-  const [periodOffset, setPeriodOffset] = useState(0)
-  const [statsPeriod, setStatsPeriod] = useState('daily')
+  const [advFilter, setAdvFilter] = useState({ from: '', to: '', role: '', nationality: '' })
 
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState(null)
   const [editProfile, setEditProfile] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -79,14 +84,27 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
 
   useEffect(() => { load() }, [load])
 
-  const onArchive = async (p) => {
-    if (!confirm(`هل تريد أرشفة "${p.full_name_ar}"؟ (لن يتم حذف البيانات)`)) return
-    try { await personsService.archivePerson(p.person_id); toast?.('تم أرشفة الشخص'); load() }
-    catch (e) { toast?.('خطأ: ' + (e.message || '')) }
+  const onDelete = (p) => {
+    if (p.is_system) { toast?.('لا يمكن حذف هذا الشخص لأنه محمي'); return }
+    setDeleteTarget(p)
   }
-  const onUnarchive = async (p) => {
-    try { await personsService.unarchivePerson(p.person_id); toast?.('تمت إعادة التفعيل'); load() }
-    catch (e) { toast?.('خطأ: ' + (e.message || '')) }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await personsService.deletePerson(deleteTarget.person_id)
+      toast?.('تم حذف الشخص')
+      setDeleteTarget(null)
+      load()
+    } catch (e) {
+      const code = e?.code
+      if (code === '23503') toast?.('لا يمكن الحذف — مرتبط بسجلات أخرى')
+      else if (code === '23514') toast?.('لا يمكن حذف هذا الشخص لأنه محمي')
+      else toast?.('خطأ: ' + (e.message || ''))
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const openEdit = (p) => { setEditId(p.person_id); setEditProfile(p); setShowForm(true) }
@@ -94,81 +112,49 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
 
   // ── Filters (client-side, matches Transfer Calc pattern) ───────────
   const matches = (r) => {
-    if (!isGM && user?.branch_id && r.branch_id && r.branch_id !== user.branch_id) return false
-    if (isGM && officeFilter && r.branch_id !== officeFilter) return false
     if (searchQ) {
       const q = searchQ.toLowerCase().trim()
-      const hay = [r.full_name_ar, r.full_name_en, r.id_number, r.phone, r.email]
+      const hay = [r.name_ar, r.name_en, r.id_number, r.phone_primary, r.email]
         .filter(Boolean).map(String).map(s => s.toLowerCase()).join(' ')
       if (!hay.includes(q)) return false
     }
     if (advFilter.role && !(r.roles_summary || []).includes(advFilter.role)) return false
-    if (advFilter.status && r.status !== advFilter.status) return false
     if (advFilter.nationality && r.nationality_id !== advFilter.nationality) return false
     if (advFilter.from && r.created_at && new Date(r.created_at) < new Date(advFilter.from)) return false
     if (advFilter.to && r.created_at && new Date(r.created_at) > new Date(advFilter.to + 'T23:59:59')) return false
     return true
   }
 
-  const filteredData = useMemo(() => rows.filter(matches), [rows, searchQ, advFilter, officeFilter, isGM, user])
+  const filteredData = useMemo(() => rows.filter(matches), [rows, searchQ, advFilter])
 
   // ── Role counts (for the 3 mini-stat boxes) ───────────────────────
   const roleCounts = useMemo(() => {
-    const c = { 'موظف مكتب': 0, 'عميل': 0, 'وسيط': 0, 'عامل': 0, 'مدير منشأة': 0, 'مالك منشأة': 0 }
+    const c = { 'مستخدم': 0, 'عميل': 0, 'وسيط': 0, 'عامل': 0, 'مدير': 0, 'مالك': 0, 'مستفيد': 0, 'مشرف': 0, 'سعودة': 0 }
     rows.forEach(r => (r.roles_summary || []).forEach(role => { if (role in c) c[role]++ }))
     return c
   }, [rows])
 
-  const activeCount = rows.filter(r => r.status === 'active').length
-  const archivedCount = rows.filter(r => r.status === 'archived').length
+  const protectedCount = rows.filter(r => r.is_system).length
   const totalRoles = rows.reduce((s, r) => s + (r.roles_summary || []).length, 0)
-  const avgPerBranch = branches.length ? Math.round(rows.length / branches.length) : 0
 
-  // ── Date grouping (like Transfer Calc) ────────────────────────────
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const dayKey = (r) => (r.created_at || '').slice(0, 10) || 'بدون تاريخ'
-  const groups = {}, groupOrder = []
   const sortedFiltered = [...filteredData].sort((a, b) =>
     new Date(b.created_at || 0) - new Date(a.created_at || 0))
-  sortedFiltered.forEach(r => {
-    const k = dayKey(r)
-    if (!groups[k]) { groups[k] = []; groupOrder.push(k) }
-    groups[k].push(r)
-  })
 
-  const dayNames = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
-  const monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
-  const dayLabel = (k) => {
-    if (k === todayStr) return 'اليوم'
-    try { const d = new Date(k + 'T12:00:00'); return dayNames[d.getDay()] } catch { return k }
-  }
-  const dayFull = (k) => {
-    try {
-      const d = new Date(k + 'T12:00:00')
-      return d.getDate() + ' ' + monthNames[d.getMonth()] + ' ' + d.getFullYear()
-    } catch { return k }
-  }
-
-  // ── Period area-chart series (last N periods of registrations grouped by role bucket) ──
+  // ── Area chart: last 7 days of registrations, bucketed by role ──
   const now = new Date()
   const periodSeries = (() => {
     const buckets = 7
-    const bucketMs = statsPeriod === 'daily' ? 86400000 : statsPeriod === 'weekly' ? 7 * 86400000 : 30 * 86400000
-    const offsetShift = periodOffset * buckets * bucketMs
+    const bucketMs = 86400000
     const result = Array.from({ length: buckets }, () => ({ employee: 0, broker: 0, client: 0, total: 0 }))
-    rows.filter(r => {
-      if (!isGM && user?.branch_id && r.branch_id && r.branch_id !== user.branch_id) return false
-      if (isGM && officeFilter && r.branch_id !== officeFilter) return false
-      return true
-    }).forEach(r => {
+    rows.forEach(r => {
       if (!r.created_at) return
       const d = new Date(r.created_at)
-      const age = Math.floor((now - d - offsetShift) / bucketMs)
+      const age = Math.floor((now - d) / bucketMs)
       if (age < 0 || age >= buckets) return
       const idx = buckets - 1 - age
       result[idx].total += 1
       const roles = r.roles_summary || []
-      if (roles.includes('موظف مكتب')) result[idx].employee += 1
+      if (roles.includes('مستخدم')) result[idx].employee += 1
       if (roles.includes('وسيط')) result[idx].broker += 1
       if (roles.includes('عميل')) result[idx].client += 1
     })
@@ -194,7 +180,14 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
         input.px-noring.px-noring.px-noring.px-noring:focus,
         select.px-noring.px-noring.px-noring.px-noring:focus,
         textarea.px-noring.px-noring.px-noring.px-noring:focus{
-          border-color:rgba(255,255,255,.2)!important; box-shadow:none!important;
+          border-color:rgba(255,255,255,.08)!important; box-shadow:none!important;
+        }
+        /* Re-enable the app-wide gold search-box focus ring: this selector
+           beats the .px-noring x4 specificity above. */
+        input.px-noring.px-noring.px-noring.px-noring[placeholder^="ابحث"]:focus,
+        input.px-noring.px-noring.px-noring.px-noring[placeholder^="ابحث"]:not(:placeholder-shown){
+          border-color:rgba(212,160,23,.55)!important;
+          box-shadow:0 0 0 1px rgba(212,160,23,.18), inset 0 1px 2px rgba(0,0,0,.2)!important;
         }
         input[type="date"].px-noring.px-noring.px-noring.px-noring::-webkit-calendar-picker-indicator{
           filter:invert(70%) sepia(60%) saturate(500%) hue-rotate(20deg)
@@ -202,116 +195,24 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
       `}</style>
 
       {/* ═══ Header ═══ */}
-      <div style={{ marginBottom: 8, position: 'relative' }}>
-        {/* Office dropdown (top-left) — GM only */}
-        {isGM && branches.length > 0 && (() => {
-          const sel = branches.find(b => b.id === officeFilter)
-          const items = [{ id: '', label: 'كل المكاتب' }, ...branches.map(b => ({ id: b.id, label: b.code || b.id.slice(0,6) }))]
-          return (
-            <div style={{ position: 'absolute', top: -2, left: 0, display: 'inline-flex', zIndex: 2 }}>
-              <div style={{ position: 'relative' }}>
-                <button onClick={() => setOfficeDropOpen(o => !o)}
-                  style={{ height: 34, padding: '0 12px', borderRadius: 8,
-                    background: '#141414',
-                    border: `1px solid ${officeDropOpen ? 'rgba(212,160,23,.35)' : 'rgba(255,255,255,.06)'}`,
-                    color: sel ? C.gold : 'var(--tx2)',
-                    fontFamily: F, fontSize: 10, fontWeight: 700,
-                    outline: 'none', cursor: 'pointer', display: 'inline-flex',
-                    alignItems: 'center', justifyContent: 'space-between', gap: 7,
-                    minWidth: 105, transition: '.15s' }}>
-                  <span style={{ flex: 1, textAlign: 'center' }}>
-                    {sel ? (sel.code || sel.id.slice(0,6)) : 'كل المكاتب'}
-                  </span>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '.2s', transform: officeDropOpen ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </button>
-                {officeDropOpen && <>
-                  <div onClick={() => setOfficeDropOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 98 }} />
-                  <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, minWidth: '100%', width: 'max-content',
-                    maxWidth: 'min(220px, calc(100vw - 24px))', background: '#141414',
-                    border: '1px solid rgba(255,255,255,.08)', borderRadius: 10,
-                    boxShadow: '0 12px 32px rgba(0,0,0,.5)', zIndex: 99, padding: 5,
-                    display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {items.map(it => {
-                      const active = officeFilter === it.id
-                      return (
-                        <div key={it.id || '__all__'}
-                          onClick={() => { setOfficeFilter(it.id); setOfficeDropOpen(false) }}
-                          style={{ padding: '9px 14px', fontSize: 11, fontWeight: 700,
-                            color: active ? C.gold : 'var(--tx2)',
-                            background: active ? 'rgba(212,160,23,.1)' : 'transparent',
-                            borderRadius: 7, cursor: 'pointer', textAlign: 'center',
-                            transition: '.12s', whiteSpace: 'nowrap' }}
-                          onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
-                          onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}>
-                          {it.label}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </>}
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* Add button (top-right) */}
+      <div style={{ marginBottom: 14, position: 'relative' }}>
+        {/* Add button (top-left) — outlined gold, no fill */}
         <button onClick={openAdd}
-          style={{ position: 'absolute', top: -2, right: 0, zIndex: 2,
+          style={{ position: 'absolute', top: -2, left: 0, zIndex: 2,
             height: 34, padding: '0 14px', borderRadius: 8,
-            background: `linear-gradient(180deg, ${C.gold}, #b88914)`,
-            border: 'none', color: '#0a0a0a',
-            fontFamily: F, fontSize: 11, fontWeight: 900,
+            background: 'transparent',
+            border: `1px solid ${C.gold}`, color: C.gold,
+            fontFamily: F, fontSize: 11, fontWeight: 800,
             cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
-            boxShadow: '0 4px 14px rgba(212,160,23,.22)' }}>
-          <Plus size={13} strokeWidth={2.8} /> إضافة شخص
+            transition: '.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+          شخص <Plus size={13} strokeWidth={2.5} />
         </button>
 
         <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>الأشخاص</div>
         <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 8 }}>
           إدارة هويات الأشخاص والأدوار المرتبطة بهم — موظفون، عملاء، وسطاء، ملاك ومدراء منشآت
-        </div>
-
-        {/* Period row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.58)' }}>الفترة</span>
-          </div>
-          <div style={{ flex: 1 }} />
-          {(() => {
-            const order = [['monthly', 'شهري'], ['weekly', 'أسبوعي'], ['daily', 'يومي']]
-            const idx = order.findIndex(([k]) => k === statsPeriod)
-            const cycle = (dir) => {
-              const next = idx + dir
-              if (next < 0 || next >= order.length) return
-              setStatsPeriod(order[next][0]); setPeriodOffset(0)
-            }
-            const atStart = idx === 0, atEnd = idx === order.length - 1
-            const btnStyle = (dis) => ({
-              width: 26, height: 26, borderRadius: 7,
-              border: '1px solid rgba(255,255,255,.04)', background: '#1a1a1a',
-              color: 'var(--tx3)', cursor: dis ? 'not-allowed' : 'pointer',
-              opacity: dis ? .35 : 1,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0
-            })
-            return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button disabled={atEnd} onClick={() => cycle(1)} title="التالي" style={btnStyle(atEnd)}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="9 18 15 12 9 6"/></svg>
-                </button>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: C.gold, minWidth: 64, textAlign: 'center' }}>
-                  {order[idx][1]}
-                </span>
-                <button disabled={atStart} onClick={() => cycle(-1)} title="السابق" style={btnStyle(atStart)}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 18 9 12 15 6"/></svg>
-                </button>
-              </div>
-            )
-          })()}
         </div>
       </div>
 
@@ -324,7 +225,7 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
           onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 8, marginBottom: 8, alignItems: 'center' }}>
             {[
-              { l: 'موظفون', v: roleCounts['موظف مكتب'], c: C.gold },
+              { l: 'مستخدمون', v: roleCounts['مستخدم'], c: C.gold },
               { l: 'عملاء', v: roleCounts['عميل'], c: C.blue },
               { l: 'وسطاء', v: roleCounts['وسيط'], c: '#d9a15a' }
             ].map(s => (
@@ -337,20 +238,13 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
                 <div style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{s.l}</div>
               </div>
             ))}
-            {(() => {
-              const pct = rows.length ? Math.round((activeCount / rows.length) * 100) : 0
-              return (
-                <div style={{ minWidth: 0, padding: '0 6px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>نسبة النشط</span>
-                  <div style={{ flex: 1, height: 7, borderRadius: 5, background: 'rgba(255,255,255,.06)', overflow: 'hidden', position: 'relative' }}>
-                    <div style={{ width: pct + '%', height: '100%',
-                      background: `linear-gradient(90deg, ${C.ok}cc, ${C.ok})`,
-                      borderRadius: 5, transition: '.4s', boxShadow: `0 0 8px ${C.ok}66` }} />
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: C.ok, direction: 'ltr' }}>{pct}%</span>
-                </div>
-              )
-            })()}
+            <div style={{ minWidth: 0, padding: '0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>عمّال</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#c0c0c0', direction: 'ltr' }}>{roleCounts['عامل'] || 0}</span>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>ملّاك</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#e5867a', direction: 'ltr' }}>{roleCounts['مالك'] || 0}</span>
+            </div>
           </div>
 
           {/* Area chart */}
@@ -431,7 +325,7 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
             <span style={{ fontSize: 16, fontWeight: 800, color: C.gold, opacity: .75 }}>شخص</span>
           </div>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.3px' }}>
-            {activeCount} نشط · {archivedCount} مؤرشف
+            {totalRoles} دور · {protectedCount} محمي
           </div>
         </div>
       </div>
@@ -470,14 +364,6 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
             </span>
           )}
         </button>
-        {searchQ && (
-          <button onClick={() => setSearchQ('')}
-            style={{ height: 38, padding: '0 12px', borderRadius: 10,
-              border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)',
-              color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-            مسح
-          </button>
-        )}
       </div>
 
       {advOpen && (() => {
@@ -504,13 +390,6 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
                   <option value="">الكل</option>
                   {personsService.ROLE_LABELS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select></div>
-              <div><div style={lblS}>الحالة</div>
-                <select className="px-noring" value={advFilter.status}
-                  onChange={e => setAdvFilter(f => ({ ...f, status: e.target.value }))} style={selS}>
-                  <option value="">الكل</option>
-                  <option value="active">نشط</option>
-                  <option value="archived">مؤرشف</option>
-                </select></div>
               <div><div style={lblS}>الجنسية</div>
                 <select className="px-noring" value={advFilter.nationality}
                   onChange={e => setAdvFilter(f => ({ ...f, nationality: e.target.value }))} style={selS}>
@@ -520,7 +399,7 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
                   ))}
                 </select></div>
               <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <button onClick={() => setAdvFilter({ from: '', to: '', role: '', status: '', nationality: '' })}
+                <button onClick={() => setAdvFilter({ from: '', to: '', role: '', nationality: '' })}
                   style={{ width: '100%', height: 36, borderRadius: 8,
                     border: '1px solid rgba(192,57,43,.25)', background: 'rgba(192,57,43,.06)',
                     color: C.red, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
@@ -546,145 +425,154 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
           {rows.length === 0 ? 'لا يوجد أشخاص بعد' : 'لا توجد نتائج مطابقة'}
         </div>
       ) : (
-        <div>
-          {groupOrder.map(dateKey => {
-            const items = groups[dateKey]
-            const isToday = dateKey === todayStr
-            const dayRoleCounts = {
-              employee: items.filter(r => (r.roles_summary || []).includes('موظف مكتب')).length,
-              broker: items.filter(r => (r.roles_summary || []).includes('وسيط')).length,
-              client: items.filter(r => (r.roles_summary || []).includes('عميل')).length,
-            }
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {sortedFiltered.map(r => {
+            const roles = r.roles_summary || []
+            const primaryRole = roles[0]
+            const primaryColor = (ROLE_STYLES[primaryRole] || {}).plain || C.gold
+            const nationality = (countries || []).find(c => c.id === r.nationality_id)
+            const relTime = (() => {
+              if (!r.created_at) return null
+              const diffMs = Date.now() - new Date(r.created_at).getTime()
+              const h = Math.floor(diffMs / 3600000)
+              if (h < 1) return 'الآن'
+              if (h < 24) return h === 1 ? 'منذ ساعة' : 'منذ ' + h + ' ساعات'
+              const d = Math.floor(h / 24)
+              return d === 1 ? 'أمس' : 'منذ ' + d + ' يوم'
+            })()
+            const CopyBtn = ({ val }) => (
+              <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(val); toast?.('تم النسخ') }}
+                title="نسخ"
+                style={{ width: 18, height: 18, background: 'transparent', border: 'none', cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                  color: 'var(--tx6)', transition: 'color .15s', flexShrink: 0, opacity: .55 }}
+                onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.opacity = 1 }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--tx6)'; e.currentTarget.style.opacity = .55 }}>
+                <Copy size={14} strokeWidth={2} />
+              </button>
+            )
+
             return (
-              <div key={dateKey} style={{ marginBottom: 22 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%',
-                    background: isToday ? C.gold : 'rgba(255,255,255,.18)',
-                    border: isToday ? '2px solid rgba(212,160,23,.25)' : 'none',
-                    flexShrink: 0 }} />
-                  <div style={{ fontSize: 13, fontWeight: 700, color: isToday ? C.gold : 'rgba(255,255,255,.65)' }}>
-                    {dayLabel(dateKey)}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--tx5)' }}>{dayFull(dateKey)}</div>
-                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.07)' }} />
-                  <div style={{ display: 'flex', gap: 6, fontSize: 9, fontWeight: 600 }}>
-                    <span style={{ color: 'var(--tx5)' }}>{items.length} شخص</span>
-                    {dayRoleCounts.employee > 0 && <span style={{ color: C.gold }}>{dayRoleCounts.employee} موظف</span>}
-                    {dayRoleCounts.broker > 0 && <span style={{ color: '#d9a15a' }}>{dayRoleCounts.broker} وسيط</span>}
-                    {dayRoleCounts.client > 0 && <span style={{ color: C.blue }}>{dayRoleCounts.client} عميل</span>}
-                  </div>
+              <div key={r.person_id} onClick={() => onOpenDetail(r.person_id)}
+                style={{ background: 'linear-gradient(180deg,rgba(0,0,0,.3) 0%,rgba(0,0,0,.2) 100%)',
+                  borderRadius: 16, overflow: 'visible',
+                  transition: '.25s cubic-bezier(.4,0,.2,1)',
+                  border: '1px solid rgba(255,255,255,.07)',
+                  position: 'relative', cursor: 'pointer',
+                  padding: '18px 22px',
+                  display: 'grid', gridTemplateColumns: '1fr auto',
+                  gap: 22, alignItems: 'center' }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = primaryColor + '55'
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                  e.currentTarget.style.boxShadow = `0 10px 30px rgba(0,0,0,.3), 0 0 0 1px ${primaryColor}25`
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}>
+
+                {/* Quick actions (top-left) + protected shield */}
+                <div onClick={e => e.stopPropagation()}
+                  style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, display: 'flex', gap: 4 }}>
+                  {r.is_system ? (
+                    <span title="شخص محمي"
+                      style={{ width: 26, height: 26, borderRadius: '50%',
+                        background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)',
+                        color: C.gold,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                      <Shield size={12} />
+                    </span>
+                  ) : (
+                    <button title="حذف" onClick={() => onDelete(r)}
+                      style={{ width: 26, height: 26, borderRadius: '50%',
+                        background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.25)',
+                        color: '#e68a80', cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                      <Archive size={12} />
+                    </button>
+                  )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingInlineStart: 20,
-                  borderInlineStart: `2px solid ${isToday ? 'rgba(212,160,23,.15)' : 'rgba(255,255,255,.07)'}` }}>
-                  {items.map(r => {
-                    const roles = r.roles_summary || []
-                    const primaryRole = roles[0]
-                    const primaryColor = (ROLE_STYLES[primaryRole] || {}).plain || 'var(--tx5)'
-                    const initials = (r.full_name_ar || '').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('') || '—'
-                    const relTime = (() => {
-                      if (!r.created_at) return '—'
-                      const diffMs = Date.now() - new Date(r.created_at).getTime()
-                      const h = Math.floor(diffMs / 3600000)
-                      if (h < 1) return 'الآن'
-                      if (h < 24) return h === 1 ? 'منذ ساعة' : 'منذ ' + h + ' ساعات'
-                      const d = Math.floor(h / 24)
-                      return d === 1 ? 'أمس' : 'منذ ' + d + ' يوم'
-                    })()
-                    const brCode = (branches || []).find(b => b.id === r.branch_id)?.code || '—'
+                {/* ═══ Section 1: Name + English name + Roles ═══ */}
+                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Arabic name + flag (after name) + copy */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', whiteSpace: 'nowrap', letterSpacing: '.15px' }}>
+                      {r.name_ar}
+                    </span>
+                    {nationality?.code && (
+                      <img
+                        src={`https://flagcdn.com/w40/${nationality.code.toLowerCase()}.png`}
+                        srcSet={`https://flagcdn.com/w80/${nationality.code.toLowerCase()}.png 2x`}
+                        width={20}
+                        height={15}
+                        alt={nationality.nationality_ar || nationality.name_ar || ''}
+                        title={nationality.nationality_ar || nationality.name_ar || ''}
+                        style={{ borderRadius: 2, objectFit: 'cover', flexShrink: 0, verticalAlign: 'middle' }}
+                      />
+                    )}
+                    <CopyBtn val={r.name_ar} />
+                  </div>
 
-                    return (
-                      <div key={r.person_id} onClick={() => onOpenDetail(r.person_id)}
-                        style={{ background: 'linear-gradient(180deg,rgba(0,0,0,.3) 0%,rgba(0,0,0,.2) 100%)',
-                          borderRadius: 16, overflow: 'visible',
-                          transition: '.25s cubic-bezier(.4,0,.2,1)',
-                          border: '1px solid rgba(255,255,255,.07)',
-                          position: 'relative', cursor: 'pointer',
-                          padding: '16px 20px 16px 20px',
-                          display: 'grid', gridTemplateColumns: 'auto 1fr auto auto',
-                          gap: 18, alignItems: 'center' }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = primaryColor + '55'
-                          e.currentTarget.style.transform = 'translateY(-2px)'
-                          e.currentTarget.style.boxShadow = `0 10px 30px rgba(0,0,0,.3), 0 0 0 1px ${primaryColor}25`
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'
-                          e.currentTarget.style.transform = 'translateY(0)'
-                          e.currentTarget.style.boxShadow = 'none'
-                        }}>
+                  {/* English name + copy */}
+                  {r.name_en && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ direction: 'ltr', color: 'var(--tx2)', fontWeight: 600, fontSize: 13, letterSpacing: '.2px' }}>
+                        {r.name_en}
+                      </span>
+                      <CopyBtn val={r.name_en} />
+                    </div>
+                  )}
 
-                        {/* Avatar */}
-                        <div style={{ width: 42, height: 42, borderRadius: 12,
-                          background: `linear-gradient(135deg, ${primaryColor}22, ${primaryColor}08)`,
-                          border: `1.5px solid ${primaryColor}44`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 14, fontWeight: 900, color: primaryColor, flexShrink: 0,
-                          direction: 'ltr' }}>
-                          {initials}
-                        </div>
-
-                        {/* Name + meta */}
-                        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', whiteSpace: 'nowrap', letterSpacing: '.15px' }}>
-                              {r.full_name_ar}
-                            </span>
-                            {r.full_name_en && (
-                              <span style={{ fontSize: 10, color: 'var(--tx5)', direction: 'ltr', fontWeight: 500 }}>
-                                · {r.full_name_en}
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 11, color: 'var(--tx5)' }}>
-                            {r.id_number && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>
-                                <CreditCard size={11} opacity={.6} />
-                                <span style={{ fontFamily: "'JetBrains Mono',monospace", letterSpacing: '.3px' }}>{r.id_number}</span>
-                              </span>
-                            )}
-                            {r.phone && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>
-                                <Phone size={11} opacity={.6} />
-                                <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>{r.phone}</span>
-                              </span>
-                            )}
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              <Building2 size={11} opacity={.6} />
-                              {brCode}
-                            </span>
-                            <span style={{ color: 'var(--tx6)' }}>· {relTime}</span>
-                          </div>
-                          {roles.length > 0 && (
-                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
-                              {roles.map(role => <RoleChip key={role} role={role} small />)}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Status */}
-                        <div style={{ flexShrink: 0 }}>
-                          <StatusBadge status={r.status} />
-                        </div>
-
-                        {/* Actions */}
-                        <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                          <button title="عرض" onClick={() => onOpenDetail(r.person_id)} style={iconBtnS}>
-                            <Eye size={13} /></button>
-                          <button title="تعديل" onClick={() => openEdit(r)} style={iconBtnS}>
-                            <Edit2 size={13} /></button>
-                          {r.status === 'active' ? (
-                            <button title="أرشفة" onClick={() => onArchive(r)}
-                              style={{ ...iconBtnS, color: '#e68a80' }}><Archive size={13} /></button>
-                          ) : (
-                            <button title="إعادة التفعيل" onClick={() => onUnarchive(r)}
-                              style={{ ...iconBtnS, color: '#6dcc89' }}><ArchiveRestore size={13} /></button>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
+                  {/* Role tags — plain text with dot separators */}
+                  {roles.length > 0 && (
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
+                      fontSize: 11, color: 'rgba(255,255,255,.8)', fontWeight: 600, letterSpacing: '.2px' }}>
+                      {roles.map((role, i) => {
+                        const rc = (ROLE_STYLES[role] || {}).plain || 'rgba(255,255,255,.8)'
+                        return (
+                          <React.Fragment key={role}>
+                            {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.3)' }} />}
+                            <span style={{ color: rc }}>{role}</span>
+                          </React.Fragment>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
+
+                {/* ═══ Section 2 (far left): Contact info ═══ */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start',
+                  borderInlineStart: '1px dashed rgba(255,255,255,.12)', paddingInlineStart: 18, flexShrink: 0 }}>
+                  {r.id_number && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
+                      <CreditCard size={12} color={C.gold} opacity={.7} />
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700,
+                        color: C.gold, letterSpacing: '.4px' }}>{r.id_number}</span>
+                      <CopyBtn val={r.id_number} />
+                    </div>
+                  )}
+                  {r.phone_primary && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
+                      <Phone size={12} color="var(--tx5)" opacity={.7} />
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700,
+                        color: 'var(--tx2)', letterSpacing: '.3px' }}>{r.phone_primary}</span>
+                      <CopyBtn val={r.phone_primary} />
+                    </div>
+                  )}
+                  {r.email && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
+                      <Mail size={12} color="var(--tx5)" opacity={.7} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', letterSpacing: '.2px' }}>
+                        {r.email}
+                      </span>
+                      <CopyBtn val={r.email} />
+                    </div>
+                  )}
+                </div>
+
               </div>
             )
           })}
@@ -693,7 +581,11 @@ function PersonsList({ toast, countries, branches, onOpenDetail, user }) {
 
       <PersonFormModal open={showForm} onClose={() => setShowForm(false)}
         personId={editId} profile={editProfile} onSaved={() => load()}
-        toast={toast} countries={countries} branches={branches} />
+        toast={toast} countries={countries} branches={branches}
+        idTypes={idTypes} genders={genders} />
+
+      <DeleteConfirmModal target={deleteTarget} saving={deleting}
+        onCancel={() => setDeleteTarget(null)} onConfirm={confirmDelete} />
     </div>
   )
 }
@@ -708,7 +600,8 @@ const iconBtnS = {
 // ═══════════════════════════════════════════════════════════════════
 // Detail page (kept from previous version, slight header tweak)
 // ═══════════════════════════════════════════════════════════════════
-function PersonDetail({ personId, onBack, toast, countries, branches }) {
+function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches, idTypes, genders }) {
+  const openRole = (key) => onOpenRole?.(key)
   const [profile, setProfile] = useState(null)
   const [person, setPerson] = useState(null)
   const [owned, setOwned] = useState([])
@@ -735,25 +628,10 @@ function PersonDetail({ personId, onBack, toast, countries, branches }) {
 
   useEffect(() => { load() }, [load])
 
-  const onArchive = async () => {
-    if (!confirm(`هل تريد أرشفة "${profile?.full_name_ar}"؟`)) return
-    try { await personsService.archivePerson(personId); toast?.('تم أرشفة الشخص'); load() }
-    catch (e) { toast?.('خطأ: ' + (e.message || '')) }
-  }
-  const onUnarchive = async () => {
-    try { await personsService.unarchivePerson(personId); toast?.('تمت إعادة التفعيل'); load() }
-    catch (e) { toast?.('خطأ: ' + (e.message || '')) }
-  }
-
   const nationality = useMemo(() => {
     if (!person?.nationality_id || !countries) return null
     return countries.find(c => c.id === person.nationality_id)
   }, [person, countries])
-
-  const branch = useMemo(() => {
-    if (!person?.branch_id || !branches) return null
-    return branches.find(b => b.id === person.branch_id)
-  }, [person, branches])
 
   if (loading) {
     return (
@@ -779,7 +657,6 @@ function PersonDetail({ personId, onBack, toast, countries, branches }) {
   }
 
   const roles = profile.roles_summary || []
-  const active = profile.status === 'active'
   const primaryRole = roles[0]
   const primaryColor = (ROLE_STYLES[primaryRole] || {}).plain || C.gold
 
@@ -788,144 +665,115 @@ function PersonDetail({ personId, onBack, toast, countries, branches }) {
       <style>{`
         .prs-card { background: #141414; border: 1px solid rgba(255,255,255,.06); border-radius: 14px;
           padding: 16px; transition: .2s; }
-        .prs-card-title { font-size: 13px; font-weight: 800; color: var(--tx); margin-bottom: 12px;
+        .prs-card-title { font-size: 15px; font-weight: 800; color: var(--tx); margin-bottom: 12px;
           display: flex; align-items: center; gap: 8px; padding-bottom: 10px;
           border-bottom: 1px solid rgba(255,255,255,.05) }
         .prs-kv { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0 }
         .prs-kv-ico { width: 26px; height: 26px; border-radius: 7px; background: rgba(212,160,23,.08);
           border: 1px solid rgba(212,160,23,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0 }
         .prs-kv-text { flex: 1; min-width: 0 }
-        .prs-kv-l { font-size: 10px; color: var(--tx5); font-weight: 700; margin-bottom: 2px }
+        .prs-kv-l { font-size: 10px; color: var(--tx2); font-weight: 700; margin-bottom: 3px; letter-spacing: .2px }
         .prs-kv-v { font-size: 12.5px; color: var(--tx); font-weight: 600; word-break: break-word }
       `}</style>
 
       {/* Header row — matches Transfer Calc spacing */}
-      <div style={{ marginBottom: 20, position: 'relative' }}>
-        <button onClick={onBack} title="رجوع"
-          style={{ position: 'absolute', top: -2, left: 0, zIndex: 2,
-            height: 34, padding: '0 12px', borderRadius: 8,
-            background: '#141414', border: '1px solid rgba(255,255,255,.06)',
-            color: 'var(--tx2)', cursor: 'pointer',
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = C.gold }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
-          <ArrowRight size={13} /> رجوع
-        </button>
-
-        <div style={{ position: 'absolute', top: -2, right: 0, zIndex: 2, display: 'flex', gap: 8 }}>
-          <button onClick={() => setShowForm(true)}
-            style={{ height: 34, padding: '0 14px', borderRadius: 8,
-              border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.08)',
-              color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 800,
-              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Edit2 size={12} /> تعديل
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 14 }}>
+          <button onClick={onBack} title="رجوع"
+            style={{ height: 34, padding: '0 12px', borderRadius: 8,
+              background: '#141414', border: '1px solid rgba(255,255,255,.06)',
+              color: 'var(--tx2)', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = C.gold }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
+            <ArrowRight size={13} /> رجوع
           </button>
-          {active ? (
-            <button onClick={onArchive}
-              style={{ height: 34, padding: '0 14px', borderRadius: 8,
-                border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)',
-                color: '#e68a80', fontFamily: F, fontSize: 11, fontWeight: 800,
-                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Archive size={12} /> أرشفة
-            </button>
-          ) : (
-            <button onClick={onUnarchive}
-              style={{ height: 34, padding: '0 14px', borderRadius: 8,
-                border: '1px solid rgba(39,160,70,.3)', background: 'rgba(39,160,70,.08)',
-                color: '#6dcc89', fontFamily: F, fontSize: 11, fontWeight: 800,
-                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <ArchiveRestore size={12} /> إعادة التفعيل
-            </button>
-          )}
         </div>
 
         <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
-          {profile.full_name_ar}
+          {profile.name_ar}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 8, direction: 'ltr', textAlign: 'start' }}>
-          {profile.full_name_en || '—'}
+        <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, textAlign: 'right', letterSpacing: '.3px' }}>
+          <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{profile.name_en || '—'}</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <StatusBadge status={profile.status} />
-          {roles.length === 0
-            ? <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>لم يُعيَّن أي دور بعد</span>
-            : roles.map(r => <RoleChip key={r} role={r} />)}
-        </div>
       </div>
 
       {/* 3-column grid of cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="prs-card">
-            <div className="prs-card-title"><Shield size={15} color={C.gold} /> الهوية</div>
-            <KV icon={CreditCard} label="رقم الهوية" value={person?.id_number || '—'} dir="ltr" />
-            <KV icon={Flag} label="الجنسية" value={nationality ? `${nationality.flag_emoji || ''} ${nationality.nationality_ar || nationality.name_ar}` : '—'} />
-            <KV icon={Calendar} label="تاريخ الميلاد" value={person?.date_of_birth || '—'} dir="ltr" />
-          </div>
-
-          <div className="prs-card">
-            <div className="prs-card-title"><Phone size={15} color={C.gold} /> التواصل</div>
-            <KV icon={Phone} label="الجوال" value={person?.phone || '—'} dir="ltr" />
-            {person?.secondary_phone && <KV icon={Phone} label="جوال ثانوي" value={person.secondary_phone} dir="ltr" />}
-            <KV icon={Mail} label="البريد الإلكتروني" value={person?.email || '—'} dir="ltr" />
-            <KV icon={MapPin} label="العنوان" value={person?.address || '—'} />
-            <KV icon={Building2} label="الفرع" value={branch?.code || '—'} />
+            <div className="prs-card-title">
+              <Shield size={15} color={C.gold} />
+              البيانات الشخصية
+              <button onClick={() => setShowForm(true)} title="تعديل"
+                style={{ marginInlineStart: 'auto', width: 26, height: 26, borderRadius: 7,
+                  background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.25)',
+                  color: C.gold, cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                  transition: '.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.16)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.08)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' }}>
+                <Edit2 size={12} strokeWidth={2.2} />
+              </button>
+            </div>
+            <KV icon={CreditCard} label="رقم الهوية" value={person?.id_number || '—'} dir="ltr" copy={person?.id_number} toast={toast} />
+            <KV icon={Flag} label="الجنسية" dir="ltr" value={nationality ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'rtl' }}>
+                {nationality.code && (
+                  <img
+                    src={`https://flagcdn.com/w40/${nationality.code.toLowerCase()}.png`}
+                    srcSet={`https://flagcdn.com/w80/${nationality.code.toLowerCase()}.png 2x`}
+                    width={20}
+                    height={15}
+                    alt=""
+                    style={{ borderRadius: 2, objectFit: 'cover', flexShrink: 0, verticalAlign: 'middle' }}
+                  />
+                )}
+                <span>{nationality.nationality_ar || nationality.name_ar}</span>
+              </span>
+            ) : '—'} />
+            <KV icon={Calendar} label="تاريخ الميلاد" value={person?.date_of_birth || '—'} dir="ltr" copy={person?.date_of_birth} toast={toast} />
+            <KV icon={Phone} label="الجوال" value={person?.phone_primary || '—'} dir="ltr" copy={person?.phone_primary} toast={toast} />
+            {person?.phone_secondary && <KV icon={Phone} label="جوال ثانوي" value={person.phone_secondary} dir="ltr" copy={person.phone_secondary} toast={toast} />}
+            <KV icon={Mail} label="البريد الإلكتروني" value={person?.email || '—'} dir="ltr" copy={person?.email} toast={toast} />
           </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="prs-card">
-            <div className="prs-card-title">
-              <Building2 size={15} color="#e5867a" />
-              المنشآت المملوكة
-              <span style={{ marginInlineStart: 'auto', fontSize: 10, fontWeight: 700,
-                padding: '2px 9px', borderRadius: 6, background: 'rgba(255,255,255,.04)', color: 'var(--tx4)' }}>
-                {owned.length}
-              </span>
-            </div>
-            {owned.length === 0 ? <EmptyCard text="لا توجد منشآت مملوكة" /> : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {owned.map(o => (
-                  <FacilityTile key={o.assignment_id || o.facility_id}
-                    title={o.facility_name_ar}
-                    subtitle={`نسبة الملكية ${o.ownership_percentage || 0}%`}
-                    badge={o.is_primary ? 'أساسي' : null} color="#e5867a" />
-                ))}
-              </div>
-            )}
+            <div className="prs-card-title"><UserCheck size={15} color={C.gold} /> ملفات النظام والمكتب (داخلي)</div>
+            <ProfileRow Icon={UserCheck} label="ملف المستخدم" linked={!!profile.user_id} color={C.gold} toast={toast}
+              onOpen={() => openRole('user')} />
+            <ProfileRow Icon={UserCheck} label="ملف العميل" linked={!!profile.client_id} color="#5ca0e6" toast={toast}
+              onOpen={() => openRole('client')} />
+            <ProfileRow Icon={UserCheck} label="ملف الوسيط" linked={!!profile.broker_id} color="#d9a15a" toast={toast}
+              onOpen={() => openRole('broker')} />
+            <ProfileRow Icon={Phone} label="ملف SMS Forwarder" linked={!!profile.sms_forwarder_id} color="#f39c12" toast={toast}
+              count={Number(profile.sms_messages_count || 0) || null} unit="رسالة"
+              onOpen={() => openRole('sms_forwarder')} />
           </div>
 
           <div className="prs-card">
-            <div className="prs-card-title">
-              <Briefcase size={15} color="#b58cf5" />
-              المنشآت المُدارة
-              <span style={{ marginInlineStart: 'auto', fontSize: 10, fontWeight: 700,
-                padding: '2px 9px', borderRadius: 6, background: 'rgba(255,255,255,.04)', color: 'var(--tx4)' }}>
-                {managed.length}
-              </span>
-            </div>
-            {managed.length === 0 ? <EmptyCard text="لا توجد منشآت مُدارة" /> : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {managed.map(m => (
-                  <FacilityTile key={m.assignment_id || m.facility_id}
-                    title={m.facility_name_ar}
-                    subtitle={m.manager_type || 'مدير'}
-                    badge={m.is_primary ? 'أساسي' : null} color="#b58cf5" />
-                ))}
-              </div>
-            )}
+            <div className="prs-card-title"><Briefcase size={15} color="#e5867a" /> ملفات السجل التجاري</div>
+            <ProfileRow Icon={UserCheck} label="ملف المالك" linked={Number(profile.owned_facilities_count || 0) > 0} color="#e5867a" toast={toast}
+              count={Number(profile.owned_facilities_count || 0)} onOpen={() => openRole('owner')} />
+            <ProfileRow Icon={UserCheck} label="ملف المستفيد" linked={Number(profile.beneficiary_facilities_count || 0) > 0} color="#e3b341" toast={toast}
+              count={Number(profile.beneficiary_facilities_count || 0)} onOpen={() => openRole('beneficiary')} />
+            <ProfileRow Icon={UserCheck} label="ملف المدير" linked={Number(profile.managed_facilities_count || 0) > 0} color="#b58cf5" toast={toast}
+              count={Number(profile.managed_facilities_count || 0)} onOpen={() => openRole('manager')} />
+            <ProfileRow Icon={UserCheck} label="ملف المشرف" linked={Number(profile.supervisor_facilities_count || 0) > 0} color="#5acbb0" toast={toast}
+              count={Number(profile.supervisor_facilities_count || 0)} onOpen={() => openRole('supervisor')} />
           </div>
-        </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="prs-card">
-            <div className="prs-card-title"><UserCheck size={15} color={C.gold} /> الأدوار المُرتبطة</div>
-            <ProfileRow Icon={UserCheck} label="ملف الموظف" linked={!!profile.user_id} color={C.gold} toast={toast} />
-            <ProfileRow Icon={UserCheck} label="ملف العميل" linked={!!profile.client_id} color="#5ca0e6" toast={toast} />
-            <ProfileRow Icon={UserCheck} label="ملف الوسيط" linked={!!profile.broker_id} color="#d9a15a" toast={toast} />
-            <ProfileRow Icon={HardHat} label="ملف العامل" linked={!!profile.worker_id} color="#c0c0c0" toast={toast} />
+            <div className="prs-card-title"><HardHat size={15} color="#c0c0c0" /> ملفات القوى العاملة</div>
+            <ProfileRow Icon={HardHat} label="ملف العامل" linked={!!profile.worker_id} color="#c0c0c0" toast={toast}
+              onOpen={() => openRole('worker')} />
+            <ProfileRow Icon={UserCheck} label="ملف السعودة" linked={Number(profile.saudization_weeks_count || 0) > 0} color="#3483b4" toast={toast}
+              count={Number(profile.saudization_weeks_count || 0)} unit="أسبوع"
+              onOpen={() => openRole('saudization')} />
           </div>
 
           {person?.notes && (
@@ -941,18 +789,85 @@ function PersonDetail({ personId, onBack, toast, countries, branches }) {
 
       <PersonFormModal open={showForm} onClose={() => setShowForm(false)}
         personId={personId} profile={profile} onSaved={() => load()}
-        toast={toast} countries={countries} branches={branches} />
+        toast={toast} countries={countries} branches={branches}
+        idTypes={idTypes} genders={genders} />
     </div>
   )
 }
 
-const KV = ({ icon: Icon, label, value, dir }) => (
+const DeleteConfirmModal = ({ target, saving, onCancel, onConfirm }) => {
+  if (!target) return null
+  return ReactDOM.createPortal(
+    <div onClick={() => !saving && onCancel()}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} dir="rtl"
+        style={{ background: '#1a1a1a', borderRadius: 16, width: 420, maxWidth: '95vw',
+          padding: '28px 26px', border: '1px solid rgba(192,57,43,.2)',
+          boxShadow: '0 24px 60px rgba(0,0,0,.5)', fontFamily: F }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12,
+            background: 'rgba(192,57,43,.1)', border: '1px solid rgba(192,57,43,.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e68a80', flexShrink: 0 }}>
+            <Trash2 size={20} strokeWidth={2} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'rgba(255,255,255,.95)', marginBottom: 2 }}>
+              حذف الشخص
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx5)' }}>
+              هذا الإجراء يرسل السجل إلى الأرشيف
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: '14px 16px', borderRadius: 10,
+          background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)',
+          fontSize: 13, color: 'var(--tx2)', lineHeight: 1.7, marginBottom: 20 }}>
+          هل أنت متأكد من حذف <span style={{ color: C.gold, fontWeight: 800 }}>"{target.name_ar}"</span>؟
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-start' }}>
+          <button onClick={onConfirm} disabled={saving}
+            style={{ height: 38, padding: '0 18px', borderRadius: 9,
+              background: '#c0392b', border: '1px solid #c0392b',
+              color: '#fff', fontFamily: F, fontSize: 12, fontWeight: 800,
+              cursor: saving ? 'wait' : 'pointer', opacity: saving ? .7 : 1,
+              display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}>
+            <Trash2 size={13} strokeWidth={2.5} />
+            {saving ? 'جاري الحذف...' : 'حذف'}
+          </button>
+          <button onClick={onCancel} disabled={saving}
+            style={{ height: 38, padding: '0 18px', borderRadius: 9,
+              background: 'transparent', border: '1px solid rgba(255,255,255,.15)',
+              color: 'var(--tx2)', fontFamily: F, fontSize: 12, fontWeight: 700,
+              cursor: saving ? 'wait' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}>
+            إلغاء
+          </button>
+        </div>
+      </div>
+    </div>, document.body
+  )
+}
+
+const KV = ({ icon: Icon, label, value, dir, copy, toast }) => (
   <div className="prs-kv">
     <div className="prs-kv-ico"><Icon size={13} color={C.gold} opacity={.85} /></div>
     <div className="prs-kv-text">
       <div className="prs-kv-l">{label}</div>
-      <div className="prs-kv-v" style={{ direction: dir || 'rtl', textAlign: dir === 'ltr' ? 'start' : 'inherit' }}>
-        {value || '—'}
+      <div className="prs-kv-v" style={{ direction: dir || 'rtl', textAlign: dir === 'ltr' ? 'start' : 'inherit',
+        display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span>{value || '—'}</span>
+        {copy && (
+          <button type="button" title="نسخ"
+            onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(copy); toast?.('تم النسخ') }}
+            style={{ width: 20, height: 20, borderRadius: 5, background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+              color: 'var(--tx6)', opacity: .55, transition: '.15s', flexShrink: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.opacity = 1 }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--tx6)'; e.currentTarget.style.opacity = .55 }}>
+            <Copy size={12} strokeWidth={2} />
+          </button>
+        )}
       </div>
     </div>
   </div>
@@ -989,7 +904,18 @@ const EmptyCard = ({ text }) => (
   </div>
 )
 
-const ProfileRow = ({ Icon, label, linked, color, toast }) => (
+const RoleGroupLabel = ({ text }) => (
+  <div style={{
+    fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '.4px',
+    marginTop: 14, marginBottom: 4, paddingBottom: 6,
+    borderBottom: '1px dashed rgba(212,160,23,.2)',
+    textTransform: 'none'
+  }}>
+    {text}
+  </div>
+)
+
+const ProfileRow = ({ Icon, label, linked, color, toast, count, unit, onOpen }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
     borderBottom: '1px solid rgba(255,255,255,.03)' }}>
     <div style={{ width: 28, height: 28, borderRadius: 8, background: color + '15',
@@ -999,13 +925,27 @@ const ProfileRow = ({ Icon, label, linked, color, toast }) => (
     <div style={{ flex: 1 }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)' }}>{label}</div>
       <div style={{ fontSize: 10, fontWeight: 600, color: linked ? color : 'var(--tx5)', marginTop: 2 }}>
-        {linked ? '● مُرتبط' : 'غير مُرتبط'}
+        {linked ? (count != null ? `● ${count} ${unit || 'منشأة'}` : '● مُرتبط') : 'غير مُرتبط'}
       </div>
     </div>
-    <button type="button" onClick={() => toast?.(linked ? 'فتح الملف قريباً' : 'الربط قريباً')}
+    <button type="button" onClick={onOpen || (() => toast?.(linked ? 'فتح الملف قريباً' : 'الربط قريباً'))}
       style={{ height: 24, padding: '0 10px', borderRadius: 7,
-        border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)',
-        color: 'var(--tx3)', fontFamily: F, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+        border: `1px solid ${linked ? color + '55' : 'rgba(255,255,255,.15)'}`,
+        background: linked ? color + '18' : 'transparent',
+        color: linked ? color : 'rgba(255,255,255,.45)', fontFamily: F, fontSize: 10, fontWeight: 800, cursor: 'pointer',
+        transition: '.15s' }}
+      onMouseEnter={e => {
+        if (!linked) {
+          e.currentTarget.style.color = '#fff'
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,1)'
+        }
+      }}
+      onMouseLeave={e => {
+        if (!linked) {
+          e.currentTarget.style.color = 'rgba(255,255,255,.45)'
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,.15)'
+        }
+      }}>
       {linked ? 'فتح' : 'ربط'}
     </button>
   </div>
@@ -1014,21 +954,27 @@ const ProfileRow = ({ Icon, label, linked, color, toast }) => (
 export default function PersonsPage({ toast, user }) {
   const [view, setView] = useState('list')
   const [detailId, setDetailId] = useState(null)
+  const [roleKey, setRoleKey] = useState(null)
   const [countries, setCountries] = useState([])
   const [branches, setBranches] = useState([])
+  const [idTypes, setIdTypes] = useState([])
+  const [genders, setGenders] = useState([])
 
   useEffect(() => {
-    personsService.loadReferenceData().then(({ countries, branches }) => {
+    personsService.loadReferenceData().then(({ countries, branches, idTypes, genders }) => {
       setCountries(countries); setBranches(branches)
+      setIdTypes(idTypes || []); setGenders(genders || [])
     })
   }, [])
 
   useEffect(() => {
     const parseHash = () => {
       const h = window.location.hash.replace(/^#/, '')
+      const mRole = h.match(/^\/?admin\/persons\/([a-f0-9-]{36})\/role\/([a-z_]+)/i)
+      if (mRole) { setDetailId(mRole[1]); setRoleKey(mRole[2]); setView('role'); return }
       const m = h.match(/^\/?admin\/persons\/([a-f0-9-]{36})/i)
-      if (m) { setDetailId(m[1]); setView('detail') }
-      else if (/^\/?admin\/persons/i.test(h)) { setDetailId(null); setView('list') }
+      if (m) { setDetailId(m[1]); setRoleKey(null); setView('detail') }
+      else if (/^\/?admin\/persons/i.test(h)) { setDetailId(null); setRoleKey(null); setView('list') }
     }
     parseHash()
     window.addEventListener('hashchange', parseHash)
@@ -1036,21 +982,33 @@ export default function PersonsPage({ toast, user }) {
   }, [])
 
   const openDetail = (id) => {
-    setDetailId(id); setView('detail')
+    setDetailId(id); setRoleKey(null); setView('detail')
     try { window.history.replaceState(null, '', '#/admin/persons/' + id) } catch {}
   }
+  const openRole = (id, key) => {
+    setDetailId(id); setRoleKey(key); setView('role')
+    try { window.history.replaceState(null, '', `#/admin/persons/${id}/role/${key}`) } catch {}
+  }
+  const goBackToDetail = () => {
+    setRoleKey(null); setView('detail')
+    try { window.history.replaceState(null, '', '#/admin/persons/' + detailId) } catch {}
+  }
   const goBack = () => {
-    setView('list'); setDetailId(null)
+    setView('list'); setDetailId(null); setRoleKey(null)
     try { window.history.replaceState(null, '', '#/admin/persons') } catch {}
   }
 
   return (
     <div style={{ width: '100%', minHeight: '100%' }}>
-      {view === 'detail' && detailId ? (
-        <PersonDetail personId={detailId} onBack={goBack} toast={toast}
-          countries={countries} branches={branches} />
+      {view === 'role' && detailId && roleKey ? (
+        <RolePageRouter roleKey={roleKey} personId={detailId} onBack={goBackToDetail}
+          toast={toast} countries={countries} branches={branches} idTypes={idTypes} genders={genders} user={user} />
+      ) : view === 'detail' && detailId ? (
+        <PersonDetail personId={detailId} onBack={goBack} onOpenRole={(key) => openRole(detailId, key)}
+          toast={toast} countries={countries} branches={branches} idTypes={idTypes} genders={genders} />
       ) : (
         <PersonsList toast={toast} countries={countries} branches={branches}
+          idTypes={idTypes} genders={genders}
           onOpenDetail={openDetail} user={user} />
       )}
     </div>

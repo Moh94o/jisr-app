@@ -293,7 +293,7 @@ const [occupations,setOccupations]=useState([])
 useEffect(()=>{
   if(expanded!=='kafala_transfer'||occupations.length)return
   const sb=getSupabase();if(!sb)return
-  sb.from('occupations').select('id,name_ar,name_en').eq('is_active',true).order('sort_order',{nullsFirst:false}).order('name_ar').limit(5000).then(({data})=>{if(Array.isArray(data))setOccupations(data)})
+  ;(async()=>{const{data:arch}=await sb.from('lookup_items').select('id,lookup_categories!inner(category_key)').eq('code','archived').eq('lookup_categories.category_key','occupation_category').maybeSingle();let q=sb.from('occupations').select('id,name_ar,name_en').eq('is_active',true).order('sort_order',{nullsFirst:false}).order('name_ar').limit(5000);if(arch?.id)q=q.neq('category_id',arch.id);const{data}=await q;if(Array.isArray(data))setOccupations(data)})()
 },[expanded,occupations.length])
 
 const getState=(id)=>{

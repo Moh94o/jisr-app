@@ -32,18 +32,17 @@
     <title>جسر للأعمال | Jisr Business</title>
     
     <style>
-      body { 
-        margin: 0; 
-        background: #171717; 
-        overflow: hidden;
-        overscroll-behavior: none;
-        -webkit-overflow-scrolling: touch;
-      }
       html, body {
-        overscroll-behavior-y: none;
-        position: fixed;
+        margin: 0;
         width: 100%;
         height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+        overscroll-behavior-y: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      body {
+        background: #171717;
       }
       #root {
         width: 100%;
@@ -86,8 +85,20 @@
         transition: border-color .18s;
       }
       select:focus, input:focus, textarea:focus {
-        border-color: rgba(212,160,23,.5) !important;
         outline: none;
+      }
+      /* Gold focus ring on search boxes (placeholder starting with "ابحث")
+         — applied while focused and while they hold user input. The :has()
+         rule pulls the preceding search icon into the gold state too. */
+      input[placeholder^="ابحث"]:focus,
+      input[placeholder^="ابحث"]:not(:placeholder-shown) {
+        border: 1px solid rgba(212,160,23,.55) !important;
+        box-shadow: 0 0 0 1px rgba(212,160,23,.18), inset 0 1px 2px rgba(0,0,0,.2) !important;
+      }
+      div:has(> input[placeholder^="ابحث"]:focus) > svg,
+      div:has(> input[placeholder^="ابحث"]:not(:placeholder-shown)) > svg {
+        stroke: #D4A017 !important;
+        color: #D4A017 !important;
       }
       input[type="date"]::-webkit-calendar-picker-indicator,
       input[type="time"]::-webkit-calendar-picker-indicator,
