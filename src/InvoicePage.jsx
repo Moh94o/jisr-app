@@ -11,10 +11,10 @@ const isAr=lang!=='en';const T=(a,e)=>isAr?a:e
 const isGM=!user?.roles||user?.roles?.name_ar==='المدير العام'||user?.roles?.name_en==='General Manager'
 const[invs,setInvs]=useState([]);const[loading,setLoading]=useState(true)
 const[q,setQ]=useState('');const[filter,setFilter]=useState('all')
-const[popup,setPopup]=useState(null);const[payPop,setPayPop]=useState(null);const[viewPop,setViewPop]=useState(null);const[delPop,setDelPop]=useState(null)
-const[form,setForm]=useState({});const[payF,setPayF]=useState({amount:'',method:'cash',date:'',reference:'',bank:'',notes:''})
+const[payPop,setPayPop]=useState(null);const[viewPop,setViewPop]=useState(null);const[delPop,setDelPop]=useState(null)
+const[payF,setPayF]=useState({amount:'',method:'cash',date:'',reference:'',bank:'',notes:''})
 const[saving,setSaving]=useState(false);const[clients,setClients]=useState([]);const[brokersList,setBrokers]=useState([])
-const[step,setStep]=useState(1);const[payments,setPayments]=useState([]);const[viewTab,setViewTab]=useState('info');const[installments,setInstallments]=useState([]);const[invoiceItems,setInvoiceItems]=useState([])
+const[payments,setPayments]=useState([]);const[viewTab,setViewTab]=useState('info');const[installments,setInstallments]=useState([]);const[invoiceItems,setInvoiceItems]=useState([])
 const[branches,setBranches]=useState([])
 const[aging,setAging]=useState([])
 const[officeFilter,setOfficeFilter]=useState(()=>isGM?'':(user?.branch_id||''))
@@ -131,55 +131,9 @@ const dayFull=(key)=>{
 try{const d=new Date(key+'T12:00:00');return d.getDate()+' '+monthNames[d.getMonth()]+' '+d.getFullYear()}catch{return key}
 }
 
-// Open forms
-const openAdd=()=>{setForm({client_id:'',broker_id:'',total_amount:'',discount_amount:'0',vat_amount:'0',status:'unpaid',issue_date:today,notes:'',service:'',worker_name:'',worker_iqama:'',pay_system:'full',installments_count:'1',installments:[],pay_method:'cash',paid_now:'',nationality:'',occupation:'',gender:'',_clientMode:'existing',_clientQ:'',_newName:'',_newNameEn:'',_newId:'',_newPhone:'',visa_count:'1',iqama_expiry:'',company_unn:'',ajeer_facility:'',ajeer_duration:'',ajeer_city:'',service_desc:'',embassy:'',visa_type:'permanent',renewal_duration:'',internal_notes:'',transfer_calc_id:'',_tcQ:'',_workerIsClient:false});setStep(1);setPopup('add')}
-const openEdit=(inv)=>{setForm({_id:inv.id,client_id:inv.client_id||'',broker_id:inv.broker_id||'',total_amount:inv.total_amount||'',discount_amount:inv.discount_amount||'0',vat_amount:inv.vat_amount||'0',status:inv.status||'unpaid',issue_date:inv.issue_date||'',notes:inv.notes||''});setStep(1);setPopup('edit')}
 const openView=async(inv)=>{await loadPayments(inv.id);const[instR,itemsR]=await Promise.all([sb.from('invoice_installments').select('*').eq('invoice_id',inv.id).is('deleted_at',null).order('installment_order'),sb.from('invoice_items').select('*').eq('invoice_id',inv.id).order('sort_order')]);setInstallments(instR.data||[]);setInvoiceItems(itemsR.data||[]);setViewTab('info');setViewPop(inv)}
 const openPay=(inv)=>{setPayF({_id:inv.id,amount:'',method:'cash',date:today,reference:'',bank:'',notes:'',max:inv.remaining_amount||0,inv_num:inv.invoice_number,client:inv.clients?.name_ar});setPayPop(inv)}
 
-// Save invoice
-const svcToCategory={visa_perm:'PERM_VISA',visa_temp:'TEMP_VISA',transfer:'TRANSFER',renew:'IQAMA_RENEW',ajeer:'AJEER',other:'OTHER'}
-const saveInv=async()=>{
-if(!form.total_amount){toast('أدخل المبلغ الكلي');return}
-// Handle new client
-let clientId=form.client_id
-if(form._workerIsClient){
-// Create client from worker data
-if(!form.worker_name){toast('أدخل بيانات العامل أولاً في خطوة التفاصيل');return}
-setSaving(true)
-try{const{data:nc,error:ce}=await sb.from('clients').insert({name_ar:form.worker_name,id_number:form.worker_iqama||null,phone:form.worker_phone||null,status:'active',created_by:user?.id,branch_id:user?.branch_id}).select('*').single()
-if(ce)throw ce;clientId=nc.id}catch(e){toast('خطأ إنشاء العميل: '+e.message?.slice(0,50));setSaving(false);return}
-}else if(form._clientMode==='new'){
-if(!form._newName||!form._newId||!form._newPhone){toast('أكمل بيانات العميل الجديد');return}
-setSaving(true)
-try{const{data:nc,error:ce}=await sb.from('clients').insert({name_ar:form._newName,name_en:form._newNameEn||null,id_number:form._newId,phone:form._newPhone,status:'active',created_by:user?.id,branch_id:user?.branch_id}).select('*').single()
-if(ce)throw ce;clientId=nc.id;toast('تم إنشاء العميل')}catch(e){toast('خطأ إنشاء العميل: '+e.message?.slice(0,50));setSaving(false);return}
-}
-if(!clientId){toast('اختر العميل');setSaving(false);return}
-setSaving(true)
-try{
-const net=(Number(form.total_amount)||0)-(Number(form.discount_amount)||0)+(Number(form.vat_amount)||0)
-const paidNow=Number(form.paid_now)||0
-const rem=Math.max(0,net-paidNow)
-const st=rem<=0?'paid':paidNow>0?'partial':'unpaid'
-const p={client_id:clientId,broker_id:form.broker_id||null,total_amount:Number(form.total_amount),discount_amount:Number(form.discount_amount)||0,vat_amount:Number(form.vat_amount)||0,net_amount:net,paid_amount:paidNow,remaining_amount:rem,status:st,issue_date:form.issue_date||null,payment_method:form.pay_method||'cash',service_category:svcToCategory[form.service]||'OTHER',payment_terms_type:form.pay_system||'full',notes:form.notes||null}
-if(popup==='add'){p.created_by=user?.id;p.branch_id=user?.branch_id||null
-const{error,data:newInv}=await sb.from('invoices').insert(p).select('*').single()
-if(error){toast('خطأ: '+error.message);setSaving(false);return}
-// Save initial payment if paid_now > 0
-if(paidNow>0){await sb.from('invoice_payments').insert({invoice_id:newInv.id,amount:paidNow,payment_method:form.pay_method||'cash',payment_date:form.issue_date||new Date().toISOString().slice(0,10),notes:'دفعة أولية عند إصدار الفاتورة',created_by:user?.id})}
-// Save installments if installment system
-if(form.pay_system==='installment'&&form.installments?.length>0){const instData=form.installments.map((inst,i)=>({invoice_id:newInv.id,installment_order:i+1,amount:Number(inst.amount)||0,notes:inst.condition==='initial'?'دفعة أولية':inst.condition==='after_delegate'?'بعد التوكيل':inst.condition==='on_iqama'?'عند إصدار/تجديد الإقامة':inst.condition==='on_completion'?'عند الإنجاز':'دفعة أخيرة',status:i===0&&paidNow>=Number(inst.amount)?'paid':'pending',paid_date:i===0&&paidNow>=Number(inst.amount)?form.issue_date:null,created_by:user?.id}));await sb.from('invoice_installments').insert(instData)}
-toast('تم إصدار الفاتورة بنجاح ✓')
-// WhatsApp
-if(clientId){const{data:cl}=await sb.from('clients').select('name_ar,phone').eq('id',clientId).single()
-if(cl?.phone){const ph=cl.phone.replace(/\D/g,'').replace(/^0/,'966');if(confirm(T('إرسال واتساب للعميل بالفاتورة الجديدة؟','Send WhatsApp?'))){const msg=encodeURIComponent('السلام عليكم '+cl.name_ar+'\n\n✓ تم إصدار فاتورة جديدة\nرقم: '+(newInv?.invoice_number||'')+'\nالمبلغ: '+num(net)+' ريال'+(paidNow>0?'\nالمستلم: '+num(paidNow)+' ريال\nالمتبقي: '+num(rem)+' ريال':'')+'\n\nجسر للأعمال');window.open('https://wa.me/'+ph+'?text='+msg,'_blank');sb.from('whatsapp_log').insert({phone:ph,client_id:form.client_id,event_type:'invoice_created',message_ar:'فاتورة جديدة '+(newInv?.invoice_number||''),entity_id:newInv?.id,sent_by:user?.id}).then(()=>{})}}}
-}else{
-p.updated_by=user?.id;delete p.paid_amount;delete p.remaining_amount;delete p.status
-const{error}=await sb.from('invoices').update(p).eq('id',form._id);if(error){toast('خطأ: '+error.message);setSaving(false);return}toast('تم تعديل الفاتورة')}
-setPopup(null);load()
-}catch(e){toast('خطأ: '+(e.message||'').slice(0,80))}
-setSaving(false)}
 
 // Delete invoice with reason
 const delInv=async()=>{
@@ -336,10 +290,6 @@ return<div style={{display:'flex',alignItems:'center',gap:6}}>
 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
 </button>
 </div>})()}
-<button onClick={openAdd} style={{height:32,padding:'0 12px',borderRadius:8,background:'rgba(212,160,23,.1)',border:'1px solid rgba(212,160,23,.3)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,marginInlineStart:10}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-{T('إصدار فاتورة','New Invoice')}
-</button>
 </div>
 </div>
 {/* Scoped styles for inputs to avoid global gold focus ring */}
@@ -577,223 +527,6 @@ onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.07)';e.cu
 </div>})}
 </div>}
 
-{/* ═══ ADD/EDIT INVOICE — 6-STEP WIZARD ═══ */}
-{popup&&<div onClick={()=>setPopup(null)} style={overlayS}>
-<div onClick={e=>e.stopPropagation()} style={{...popupS,width:700,maxHeight:'92vh'}}>
-<div style={{background:'var(--bg)',flexShrink:0}}>
-<div style={{padding:'14px 22px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<div style={{padding:'4px 12px',borderRadius:6,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.12)',display:'flex',alignItems:'center',gap:6}}><div style={{width:3,height:14,borderRadius:2,background:C.gold}}/><span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.65)'}}>مكتب</span></div>
-<div><div style={{fontSize:16,fontWeight:800,color:'var(--tx)'}}>{popup==='add'?'إصدار فاتورة':'تعديل الفاتورة'}</div>
-<div style={{fontSize:9,color:'var(--tx4)'}}>يرجى تعبئة البيانات بعناية ودقة</div></div>
-</div>
-<button onClick={()=>setPopup(null)} style={closeS}>✕</button>
-</div>
-<div style={{display:'flex',padding:'8px 22px 14px',gap:0}}>
-{[['الخدمة',1],['العميل',2],['التفاصيل',3],['الدفع',4],['إضافي',5],['مراجعة',6]].map(([l,n])=>{const isA=step===n,isD=step>n;return<div key={n} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4,cursor:'pointer',opacity:isA?1:isD?.7:.35}} onClick={()=>n<=step&&setStep(n)}><div style={{width:22,height:22,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,background:isA||isD?C.gold:'rgba(255,255,255,.1)',color:isA||isD?C.dk:'rgba(255,255,255,.42)',transition:'.3s',boxShadow:isA?'0 0 0 4px rgba(212,160,23,.15)':'none'}}>{isD?<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>:n}</div><span style={{fontSize:9,fontWeight:isA?700:500,color:isA?C.gold:'rgba(255,255,255,.42)'}}>{l}</span></div>})}
-</div>
-</div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}>
-{step===2&&<div>
-<div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:4,display:'flex',alignItems:'center',gap:6}}>
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>العميل</div>
-<div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>يرجى تحديد بيانات العميل</div>
-
-{/* Worker = Client toggle (for ajeer/transfer/renew) */}
-{(form.service==='ajeer'||form.service==='transfer'||form.service==='renew')&&<div style={{padding:'12px 14px',borderRadius:10,background:'rgba(52,131,180,.04)',border:'1px solid rgba(52,131,180,.1)',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
-<div onClick={()=>setForm(p=>({...p,_workerIsClient:!p._workerIsClient,_clientMode:!p._workerIsClient?'worker':'existing'}))} style={{width:40,height:22,borderRadius:11,background:form._workerIsClient?C.blue:'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',flexShrink:0}}>
-<div style={{width:18,height:18,borderRadius:'50%',background:'#fff',position:'absolute',top:2,transition:'.2s',...(form._workerIsClient?{left:20}:{left:2})}}/></div>
-<div><div style={{fontSize:12,fontWeight:700,color:form._workerIsClient?C.blue:'var(--tx3)'}}>العامل هو نفسه العميل</div>
-<div style={{fontSize:9,color:'var(--tx5)'}}>بيانات العامل ستُستخدم كبيانات العميل تلقائياً</div></div>
-</div>}
-
-{/* Worker is client → skip client selection */}
-{form._workerIsClient&&<div style={{padding:'14px',borderRadius:10,background:'rgba(39,160,70,.03)',border:'1px solid rgba(39,160,70,.1)'}}>
-<div style={{fontSize:12,fontWeight:700,color:C.ok,marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>سيتم استخدام بيانات العامل كعميل</div>
-<div style={{fontSize:10,color:'var(--tx4)',lineHeight:1.8}}>عند إدخال بيانات العامل في الخطوة التالية سيتم إنشاء/ربط سجل عميل تلقائياً بنفس البيانات</div>
-</div>}
-
-{/* Normal client selection */}
-{!form._workerIsClient&&<>
-{/* Client mode toggle */}
-<div style={{display:'flex',gap:8,marginBottom:16}}>{[['existing','عميل حالي','🔄'],['new','عميل جديد','➕']].map(([k,l,ico])=>
-<div key={k} onClick={()=>setForm(p=>({...p,_clientMode:k,client_id:k==='new'?'':p.client_id}))} style={{flex:1,padding:'12px',borderRadius:10,border:'1.5px solid '+((form._clientMode||'existing')===k?'rgba(212,160,23,.4)':'rgba(255,255,255,.1)'),background:(form._clientMode||'existing')===k?'rgba(212,160,23,.12)':'rgba(255,255,255,.04)',cursor:'pointer',textAlign:'center'}}>
-<div style={{fontSize:12,fontWeight:700,color:(form._clientMode||'existing')===k?C.gold:'rgba(255,255,255,.5)'}}>{ico} {l}</div></div>)}</div>
-{/* Search */}
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>يرجى البحث واختيار العميل</div>
-<div style={{position:'relative',marginBottom:12}}>
-<input value={form._clientQ||''} onChange={e=>setForm(p=>({...p,_clientQ:e.target.value}))} placeholder="ابحث بالاسم أو رقم الهوية أو الجوال ..." style={{...fieldS,textAlign:'right',paddingLeft:40}}/>
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2" style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)'}}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-</div>
-
-{/* Results */}
-<div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:280,overflowY:'auto',scrollbarWidth:'thin'}}>
-{clients.filter(c=>{const q=(form._clientQ||'').toLowerCase();if(!q)return true;return (c.name_ar||'').includes(q)||(c.name_en||'').toLowerCase().includes(q)||(c.id_number||'').includes(q)||(c.phone||'').includes(q)}).map(c=>{
-const sel=form.client_id===c.id
-return<div key={c.id} onClick={()=>setForm(p=>({...p,client_id:c.id}))} style={{padding:'14px 16px',borderRadius:12,border:'1.5px solid '+(sel?'rgba(212,160,23,.4)':'rgba(255,255,255,.08)'),background:sel?'rgba(212,160,23,.06)':'rgba(255,255,255,.02)',cursor:'pointer',transition:'.15s'}}>
-<div style={{display:'flex',alignItems:'center',gap:12}}>
-<div style={{width:42,height:42,borderRadius:12,background:sel?'rgba(212,160,23,.15)':'rgba(255,255,255,.05)',border:'1px solid '+(sel?'rgba(212,160,23,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:sel?C.gold:'var(--tx4)',flexShrink:0}}>{(c.name_ar||'?')[0]}</div>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{c.name_ar}</span>
-{c.is_vip&&<span style={{fontSize:8,padding:'1px 5px',borderRadius:4,background:'rgba(212,160,23,.15)',color:C.gold,fontWeight:700}}>VIP</span>}
-</div>
-{c.name_en&&<div style={{fontSize:10,color:'var(--tx4)',marginBottom:2}}>{c.name_en}</div>}
-<div style={{display:'flex',gap:12,fontSize:10,color:'var(--tx5)'}}>
-{c.id_number&&<span style={{direction:'ltr'}}>🪪 {c.id_number}</span>}
-{c.phone&&<span style={{direction:'ltr'}}>📱 {c.phone}</span>}
-</div>
-</div>
-{sel&&<div style={{width:28,height:28,borderRadius:'50%',background:C.ok+'20',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="3"><path d="M5 12l5 5L19 7"/></svg></div>}
-</div></div>})}
-{clients.filter(c=>{const q=(form._clientQ||'').toLowerCase();if(!q)return true;return (c.name_ar||'').includes(q)||(c.name_en||'').toLowerCase().includes(q)||(c.id_number||'').includes(q)||(c.phone||'').includes(q)}).length===0&&<div style={{textAlign:'center',padding:20,color:'var(--tx6)',fontSize:11}}>لا توجد نتائج</div>}
-</div>
-
-{/* Selected client info */}
-{form.client_id&&<div style={{marginTop:12,padding:'12px 14px',background:'rgba(39,160,70,.03)',borderRadius:10,border:'1px solid rgba(39,160,70,.1)',display:'flex',alignItems:'center',gap:8}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-<span style={{fontSize:11,fontWeight:700,color:C.ok}}>تم اختيار: {clients.find(c=>c.id===form.client_id)?.name_ar}</span>
-<button onClick={()=>setForm(p=>({...p,client_id:''}))} style={{marginRight:'auto',fontSize:9,color:C.red,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.1)',borderRadius:5,padding:'3px 8px',cursor:'pointer',fontFamily:F}}>تغيير</button>
-</div>}
-</>}
-
-{!form._workerIsClient&&form._clientMode==='new'&&<div style={{padding:'14px',borderRadius:10,border:'1px solid rgba(52,131,180,.12)',background:'rgba(52,131,180,.03)'}}>
-<div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:10}}>بيانات العميل الجديد</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div><div style={lblS}>الاسم بالعربي <span style={{color:C.red}}>*</span></div><input value={form._newName||''} onChange={e=>setForm(p=>({...p,_newName:e.target.value}))} placeholder="الاسم الثلاثي" style={fieldS}/></div>
-<div><div style={lblS}>الاسم بالإنجليزي</div><input value={form._newNameEn||''} onChange={e=>setForm(p=>({...p,_newNameEn:e.target.value}))} placeholder="Full Name" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-<div><div style={lblS}>رقم الهوية <span style={{color:C.red}}>*</span></div><input value={form._newId||''} onChange={e=>setForm(p=>({...p,_newId:e.target.value}))} placeholder="10 أرقام" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-<div><div style={lblS}>الجوال <span style={{color:C.red}}>*</span></div><input value={form._newPhone||''} onChange={e=>setForm(p=>({...p,_newPhone:e.target.value}))} placeholder="05XXXXXXXX" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-</div>
-</div>}
-</div>}
-{step===1&&<div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:4}}>الخدمة أو الطلب</div><div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>يرجى اختيار الخدمة/الطلب</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:16}}>{[['تأشيرة عمل','visa_perm','🪪'],['نقل كفالة','transfer','🔄'],['تجديد إقامة','renew','🔃'],['عقد أجير','ajeer','📋'],['خدمات أخرى','other','📦']].map(([l,k,ico])=><div key={k} onClick={()=>setForm(p=>({...p,service:k,transfer_calc_id:''}))} style={{padding:'14px 12px',borderRadius:12,border:'1.5px solid '+(form.service===k?'rgba(212,160,23,.4)':'rgba(255,255,255,.1)'),background:form.service===k?'rgba(212,160,23,.12)':'rgba(255,255,255,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'.2s'}}><span style={{fontSize:16}}>{ico}</span><span style={{fontSize:12,fontWeight:700,color:form.service===k?C.gold:'rgba(255,255,255,.55)'}}>{l}</span></div>)}</div>
-{/* Transfer: search حسبة التنازل */}
-{form.service==='transfer'&&<div style={{borderTop:'1px solid rgba(255,255,255,.06)',paddingTop:14}}>
-<div style={{fontSize:13,fontWeight:700,color:'var(--tx2)',marginBottom:4,display:'flex',alignItems:'center',gap:6}}>🔄 {T('نقل الكفالة','Transfer')}</div>
-<div style={{fontSize:10,color:'var(--tx4)',marginBottom:10}}>يرجى البحث واختيار حسبة التنازل المناسبة</div>
-<input value={form._tcQ||''} onChange={e=>setForm(p=>({...p,_tcQ:e.target.value}))} placeholder="ابحث برقم أو اسم..." style={{...fieldS,textAlign:'right',marginBottom:10}}/>
-{(()=>{const tcs=(window._transferCalcs||[]).filter(t=>!form._tcQ||(t.workers?.name_ar||'').includes(form._tcQ)||(t.workers?.iqama_number||'').includes(form._tcQ));return tcs.length>0?<div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:200,overflowY:'auto'}}>{tcs.map(t=><div key={t.id} onClick={()=>setForm(p=>({...p,transfer_calc_id:t.id,total_amount:String(t.client_charge||t.total_cost||0),worker_name:t.workers?.name_ar||'',worker_iqama:t.workers?.iqama_number||''}))} style={{padding:'12px 14px',borderRadius:10,border:'1.5px solid '+(form.transfer_calc_id===t.id?'rgba(212,160,23,.4)':'rgba(255,255,255,.08)'),background:form.transfer_calc_id===t.id?'rgba(212,160,23,.06)':'rgba(255,255,255,.02)',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
-<div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:'var(--tx2)'}}>{t.workers?.name_ar||'عامل'}</div>
-<div style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{t.workers?.iqama_number||''}</div></div>
-<div style={{fontSize:14,fontWeight:800,color:C.gold}}>{num(t.client_charge||t.total_cost||0)}</div>
-{form.transfer_calc_id===t.id&&<span style={{fontSize:14,color:C.ok}}>✓</span>}
-</div>)}</div>:<div style={{textAlign:'center',padding:20,color:'var(--tx6)',fontSize:11}}>لا توجد حسبات تنازل</div>})()}
-</div>}
-{/* Visa: number of visas */}
-{form.service==='visa_perm'&&<div style={{borderTop:'1px solid rgba(255,255,255,.06)',paddingTop:14}}>
-<div style={{fontSize:13,fontWeight:700,color:'var(--tx2)',marginBottom:8}}>🪪 التأشيرة</div>
-<div style={{fontSize:11,color:'var(--tx3)',marginBottom:6}}>عدد التأشيرات المطلوبة</div>
-<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:12}}>{[['1','تأشيرة واحدة'],['2','تأشيرتان'],['3','ثلاث تأشيرات'],['4','أربع تأشيرات']].map(([k,l])=><div key={k} onClick={()=>setForm(p=>({...p,visa_count:k}))} style={{padding:'10px 8px',borderRadius:10,border:'1.5px solid '+(form.visa_count===k?'rgba(212,160,23,.4)':'rgba(255,255,255,.1)'),background:form.visa_count===k?'rgba(212,160,23,.1)':'rgba(255,255,255,.04)',cursor:'pointer',textAlign:'center'}}><span style={{fontSize:11,fontWeight:700,color:form.visa_count===k?C.gold:'rgba(255,255,255,.5)',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><span style={{width:18,height:18,borderRadius:'50%',background:form.visa_count===k?C.gold:'rgba(255,255,255,.12)',color:form.visa_count===k?'#171717':'rgba(255,255,255,.4)',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800}}>{k}</span>{l}</span></div>)}</div>
-</div>}
-</div>}
-{step===3&&<div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:4}}>التفاصيل</div><div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>تفاصيل الخدمة المختارة</div>
-{/* Worker details (common) */}
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8,display:'flex',alignItems:'center',gap:6}}>👤 بيانات العامل</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-<div><div style={lblS}>اسم العامل</div><input value={form.worker_name||''} onChange={e=>setForm(p=>({...p,worker_name:e.target.value}))} placeholder="الاسم الثنائي" style={fieldS}/></div>
-<div><div style={lblS}>رقم الإقامة</div><input value={form.worker_iqama||''} onChange={e=>setForm(p=>({...p,worker_iqama:e.target.value}))} placeholder="أدخل الرقم" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-</div>
-{/* Transfer/Renew: iqama expiry + company */}
-{(form.service==='transfer'||form.service==='renew')&&<>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-<div><div style={lblS}>تاريخ انتهاء الإقامة</div><input value={form.iqama_expiry||''} onChange={e=>setForm(p=>({...p,iqama_expiry:e.target.value}))} type="date" style={{...fieldS,direction:'ltr'}}/></div>
-<div><div style={lblS}>الرقم الموحد للشركة</div><input value={form.company_unn||''} onChange={e=>setForm(p=>({...p,company_unn:e.target.value}))} placeholder="الرقم الموحد" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-</div>
-{form.service==='renew'&&<div style={{marginBottom:14}}><div style={lblS}>مدة تجديد الإقامة</div><select value={form.renewal_duration||''} onChange={e=>setForm(p=>({...p,renewal_duration:e.target.value}))} style={{...fieldS,textAlign:'right'}}><option value="">اختر</option><option value="3">3 أشهر</option><option value="6">6 أشهر</option><option value="12">سنة</option><option value="24">سنتين</option></select></div>}
-</>}
-{/* Ajeer: company + duration + city */}
-{form.service==='ajeer'&&<>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8,display:'flex',alignItems:'center',gap:6}}>📋 بيانات عقد أجير</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-<div><div style={lblS}>اسم المنشأة</div><input value={form.ajeer_facility||''} onChange={e=>setForm(p=>({...p,ajeer_facility:e.target.value}))} placeholder="اسم المنشأة بالعربية" style={fieldS}/></div>
-<div><div style={lblS}>الرقم الموحد</div><input value={form.company_unn||''} onChange={e=>setForm(p=>({...p,company_unn:e.target.value}))} placeholder="الرقم الموحد" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-<div><div style={lblS}>المدة</div><select value={form.ajeer_duration||''} onChange={e=>setForm(p=>({...p,ajeer_duration:e.target.value}))} style={{...fieldS,textAlign:'right'}}><option value="">اختر</option><option value="3">3 أشهر</option><option value="6">6 أشهر</option><option value="12">سنة</option></select></div>
-<div><div style={lblS}>المدينة</div><input value={form.ajeer_city||''} onChange={e=>setForm(p=>({...p,ajeer_city:e.target.value}))} placeholder="المدينة" style={fieldS}/></div>
-</div></>}
-{/* Other services: description */}
-{form.service==='other'&&<>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8,display:'flex',alignItems:'center',gap:6}}>📦 بيانات الخدمة</div>
-<div style={{marginBottom:14}}><div style={lblS}>وصف الخدمة</div><textarea value={form.service_desc||''} onChange={e=>setForm(p=>({...p,service_desc:e.target.value}))} rows={3} placeholder="الجهة الحكومية أو الخاصة - وصف مختصر للخدمة - المدة الزمنية..." style={{...fieldS,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/></div>
-</>}
-{/* Visa: nationality, occupation, gender */}
-{(form.service==='visa_perm')&&<>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:14}}>
-<div><div style={lblS}>الجنسية</div><select value={form.nationality||''} onChange={e=>setForm(p=>({...p,nationality:e.target.value}))} style={{...fieldS,textAlign:'right'}}><option value="">اختر</option><option>بنغلاديشي</option><option>هندي</option><option>باكستاني</option><option>فلبيني</option><option>إثيوبي</option><option>نيبالي</option><option>مصري</option><option>يمني</option><option>سوداني</option><option>أخرى</option></select></div>
-<div><div style={lblS}>المهنة</div><select value={form.occupation||''} onChange={e=>setForm(p=>({...p,occupation:e.target.value}))} style={{...fieldS,textAlign:'right'}}><option value="">اختر</option><option>عامل</option><option>سائق خاص</option><option>سائق شاحنة</option><option>سائق النقل العام</option><option>عامل منزلي</option><option>طباخ</option><option>مزارع</option><option>فني</option><option>تحميل وتنزيل</option><option>أخرى</option></select></div>
-<div><div style={lblS}>الجنس</div><select value={form.gender||''} onChange={e=>setForm(p=>({...p,gender:e.target.value}))} style={{...fieldS,textAlign:'right'}}><option value="">اختر</option><option>ذكر</option><option>أنثى</option></select></div>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div><div style={lblS}>السفارة</div><input value={form.embassy||''} onChange={e=>setForm(p=>({...p,embassy:e.target.value}))} placeholder="مثل: الخرطوم، جاكرتا" style={fieldS}/></div>
-<div><div style={lblS}>نوع التأشيرة</div><select value={form.visa_type||''} onChange={e=>setForm(p=>({...p,visa_type:e.target.value}))} style={{...fieldS,textAlign:'right'}}><option value="permanent">دائمة</option><option value="temporary_3">مؤقتة - 3 أشهر</option><option value="temporary_6">مؤقتة - 6 أشهر</option></select></div>
-</div>
-</>}
-{/* Common: company UNN for visa/other */}
-{(form.service==='visa_perm'||form.service==='other')&&<div style={{marginTop:12}}><div style={lblS}>الرقم الموحد للشركة</div><input value={form.company_unn||''} onChange={e=>setForm(p=>({...p,company_unn:e.target.value}))} placeholder="الرقم الموحد" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>}
-</div>}
-{step===4&&<div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:4}}>بيانات الفاتورة</div><div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>تفاصيل عملية الدفع والأقساط</div>
-{/* Payment system toggle */}
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>نظام الدفع</div>
-<div style={{display:'flex',gap:8,marginBottom:16}}>{[['full','الدفع كاملاً','💰'],['installment','الدفع بالتقسيط','📋']].map(([k,l,ico])=><div key={k} onClick={()=>setForm(p=>({...p,pay_system:k,installments_count:k==='full'?'1':p.installments_count||'2'}))} style={{flex:1,padding:'14px',borderRadius:12,border:'1.5px solid '+(form.pay_system===k?'rgba(212,160,23,.4)':'rgba(255,255,255,.1)'),background:form.pay_system===k?'rgba(212,160,23,.12)':'rgba(255,255,255,.04)',cursor:'pointer',textAlign:'center'}}><div style={{fontSize:14,marginBottom:4}}>{ico}</div><div style={{fontSize:12,fontWeight:700,color:form.pay_system===k?C.gold:'rgba(255,255,255,.5)'}}>{l}</div></div>)}</div>
-{/* Installment count */}
-{form.pay_system==='installment'&&<><div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>عدد الأقساط</div>
-<div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>{[['2','قسطان'],['3','ثلاثة أقساط'],['4','أربعة أقساط'],['5','خمسة أقساط'],['6','ستة أقساط']].map(([k,l])=><div key={k} onClick={()=>{setForm(p=>{const inst=[...Array(Number(k))].map((_,i)=>({amount:'',condition:i===0?'initial':i===1?'after_delegate':'on_iqama',date:''}));return{...p,installments_count:k,installments:inst}})}} style={{padding:'10px 16px',borderRadius:10,border:'1.5px solid '+(form.installments_count===k?'rgba(212,160,23,.4)':'rgba(255,255,255,.1)'),background:form.installments_count===k?'rgba(212,160,23,.1)':'rgba(255,255,255,.04)',cursor:'pointer'}}><div style={{fontSize:11,fontWeight:700,color:form.installments_count===k?C.gold:'rgba(255,255,255,.5)',display:'flex',alignItems:'center',gap:4}}><span style={{width:20,height:20,borderRadius:'50%',background:form.installments_count===k?C.gold:'rgba(255,255,255,.15)',color:form.installments_count===k?'#171717':'rgba(255,255,255,.4)',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800}}>{k}</span>{l}</div></div>)}</div></>}
-{/* Total amount */}
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>القيمة الإجمالية</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}}>
-<div><div style={lblS}>المبلغ الإجمالي <span style={{color:C.red}}>*</span></div><input value={form.total_amount} onChange={e=>setForm(p=>({...p,total_amount:e.target.value}))} type="number" placeholder="0" style={{...fieldS,direction:'ltr',textAlign:'left',fontSize:16,fontWeight:800}}/></div>
-<div><div style={lblS}>الخصم</div><input value={form.discount_amount} onChange={e=>setForm(p=>({...p,discount_amount:e.target.value}))} type="number" placeholder="0" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-<div><div style={lblS}>ضريبة ق.م</div><input value={form.vat_amount} onChange={e=>setForm(p=>({...p,vat_amount:e.target.value}))} type="number" placeholder="0" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-</div>
-{/* Installment details */}
-{form.pay_system==='installment'&&form.installments&&<><div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>تفاصيل الأقساط</div>
-{form.installments.map((inst,idx)=><div key={idx} style={{padding:'14px 16px',borderRadius:12,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.02)',marginBottom:10}}>
-<div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:10,display:'flex',alignItems:'center',gap:6}}><span style={{width:22,height:22,borderRadius:'50%',background:C.gold,color:'#171717',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800}}>{idx+1}</span>{T('القسط ','Inst ')}{idx===0?T('الأول','1st'):idx===1?T('الثاني','2nd'):idx===2?T('الثالث','3rd'):(idx+1)}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div><div style={{fontSize:9,color:'var(--tx4)',marginBottom:3}}>المبلغ</div><input value={inst.amount} onChange={e=>{const a=[...form.installments];a[idx]={...a[idx],amount:e.target.value};setForm(p=>({...p,installments:a}))}} type="number" placeholder="0" style={{...fieldS,direction:'ltr',textAlign:'left',height:38}}/></div>
-<div><div style={{fontSize:9,color:'var(--tx4)',marginBottom:3}}>الاستحقاق</div><select value={inst.condition} onChange={e=>{const a=[...form.installments];a[idx]={...a[idx],condition:e.target.value};setForm(p=>({...p,installments:a}))}} style={{...fieldS,textAlign:'right',height:38}}><option value="initial">دفعة أولية</option><option value="after_delegate">بعد التوكيل</option><option value="on_iqama">عند إصدار/تجديد الإقامة</option><option value="on_completion">عند الإنجاز</option><option value="final">دفعة أخيرة</option></select></div>
-</div></div>)}
-<div style={{textAlign:'center',padding:'10px',fontSize:12}}><span style={{fontWeight:700,color:'var(--tx3)'}}>مجموع الأقساط: </span><span style={{fontWeight:800,color:C.gold}}>{num(form.installments.reduce((s,i)=>s+Number(i.amount||0),0))} SAR</span>
-{Number(form.total_amount)>0&&<span style={{color:Number(form.total_amount)==form.installments.reduce((s,i)=>s+Number(i.amount||0),0)?C.ok:C.red,marginRight:8,fontSize:11}}> {Number(form.total_amount)==form.installments.reduce((s,i)=>s+Number(i.amount||0),0)?'✓ مطابق':'✗ غير مطابق لمبلغ الفاتورة '+num(form.total_amount)}</span>}</div></>}
-{/* Payment method & received */}
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8,marginTop:8}}>تفاصيل عملية الاستلام</div>
-<div style={{display:'flex',gap:8,marginBottom:12}}>{[['cash','نقداً','💵'],['bank_transfer','حوالة بنكية','🏦']].map(([k,l,ico])=><div key={k} onClick={()=>setForm(p=>({...p,pay_method:k}))} style={{flex:1,padding:'12px 14px',borderRadius:10,border:'1.5px solid '+(form.pay_method===k?'rgba(212,160,23,.3)':'rgba(255,255,255,.1)'),background:form.pay_method===k?'rgba(212,160,23,.1)':'transparent',cursor:'pointer',textAlign:'center',fontSize:12,fontWeight:600,color:form.pay_method===k?C.gold:'rgba(255,255,255,.48)'}}>{ico} {l}</div>)}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div><div style={lblS}>المبلغ المستلم الآن</div><input value={form.paid_now||''} onChange={e=>setForm(p=>({...p,paid_now:e.target.value}))} type="number" placeholder="0" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-<div><div style={lblS}>تاريخ الإصدار</div><input value={form.issue_date} onChange={e=>setForm(p=>({...p,issue_date:e.target.value}))} type="date" style={{...fieldS,direction:'ltr'}}/></div>
-</div>
-<div style={{padding:'14px 16px',background:'rgba(39,160,70,.03)',borderRadius:12,border:'1px solid rgba(39,160,70,.08)',marginTop:12}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:11,color:'var(--tx4)'}}>الإجمالي</span><span style={{fontSize:16,fontWeight:800,color:'var(--tx)',direction:'ltr'}}>{num((Number(form.total_amount)||0)-(Number(form.discount_amount)||0)+(Number(form.vat_amount)||0))} ر.س</span></div><div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:10,color:'var(--tx4)'}}>المستلم</span><span style={{fontSize:12,fontWeight:700,color:'rgba(39,174,96,.7)',direction:'ltr'}}>{num(Number(form.paid_now)||0)} ر.س</span></div><div style={{height:1,background:'rgba(255,255,255,.07)',margin:'6px 0'}}/><div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontSize:11,fontWeight:600,color:'var(--tx3)'}}>المتبقي على العميل</span><span style={{fontSize:14,fontWeight:800,color:C.gold,direction:'ltr'}}>{num(Math.max(0,(Number(form.total_amount)||0)-(Number(form.discount_amount)||0)+(Number(form.vat_amount)||0)-(Number(form.paid_now)||0)))} ر.س</span></div></div></div>}
-{step===5&&<div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:4}}>إضافي</div><div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>الوسيط والملاحظات</div><div style={{marginBottom:12}}><div style={lblS}>الوسيط / المندوب</div><select value={form.broker_id} onChange={e=>setForm(p=>({...p,broker_id:e.target.value}))} style={{...fieldS,textAlign:'right'}}><option value="">ابحث باسم أو رقم جوال الوسيط...</option>{brokersList.map(b=><option key={b.id} value={b.id}>{b.name_ar}</option>)}</select></div><div style={{marginBottom:12}}><div style={lblS}>ملاحظات الفاتورة</div><div style={{fontSize:8,color:'var(--tx5)',marginBottom:4}}>ملاحظات تظهر في الفاتورة</div><textarea value={form.notes||''} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} placeholder="أي ملاحظات أو شروط تريد إضافتها..." style={{...fieldS,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/></div><div><div style={lblS}>ملاحظات داخلية <span style={{fontSize:8,color:'var(--tx5)'}}>(لا تظهر للعميل)</span></div><textarea value={form.internal_notes||''} onChange={e=>setForm(p=>({...p,internal_notes:e.target.value}))} rows={2} placeholder="ملاحظات خاصة بالمكتب فقط..." style={{...fieldS,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/></div></div>}
-{step===6&&<div><div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:4}}>مراجعة الفاتورة</div><div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>تأكد من صحة البيانات قبل الإصدار</div>
-{[['العميل',clients.find(c=>c.id===form.client_id)?.name_ar||'—'],
-['الخدمة',{visa_perm:'تأشيرة عمل',transfer:'نقل كفالة',renew:'تجديد إقامة',ajeer:'عقد أجير',other:'خدمات أخرى'}[form.service]||form.service||'—'],
-...(form.worker_name?[['العامل',form.worker_name+(form.worker_iqama?' — '+form.worker_iqama:'')]]:[]),
-['الوسيط',brokersList.find(b=>b.id===form.broker_id)?.name_ar||'بدون'],
-['نظام الدفع',form.pay_system==='installment'?'تقسيط ('+form.installments_count+' أقساط)':'دفع كامل'],
-['المبلغ الكلي',num(form.total_amount)+' ر.س'],
-...(Number(form.discount_amount)>0?[['الخصم',num(form.discount_amount)+' ر.س']]:[]),
-['الصافي',num((Number(form.total_amount)||0)-(Number(form.discount_amount)||0)+(Number(form.vat_amount)||0))+' ر.س'],
-['المستلم الآن',num(form.paid_now||0)+' ر.س'],
-['المتبقي',num(Math.max(0,(Number(form.total_amount)||0)-(Number(form.discount_amount)||0)+(Number(form.vat_amount)||0)-(Number(form.paid_now)||0)))+' ر.س'],
-['طريقة الدفع',form.pay_method==='cash'?'نقداً':'حوالة بنكية'],
-['تاريخ الإصدار',form.issue_date||'—']].map(([k,v],i)=><div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--bd)'}}><span style={{fontSize:11,color:'var(--tx4)'}}>{k}</span><span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.82)'}}>{v}</span></div>)}
-{form.pay_system==='installment'&&form.installments?.length>0&&<div style={{marginTop:12,padding:'12px 14px',borderRadius:10,background:'rgba(212,160,23,.04)',border:'1px solid rgba(212,160,23,.08)'}}>
-<div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:8}}>جدول الأقساط</div>
-{form.installments.map((inst,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:11}}>
-<span style={{color:'var(--tx4)'}}>القسط {i+1}: {inst.condition==='initial'?'دفعة أولية':inst.condition==='after_delegate'?'بعد التوكيل':inst.condition==='on_iqama'?'عند الإقامة':'عند الإنجاز'}</span>
-<span style={{fontWeight:700,color:C.gold}}>{num(inst.amount)} ر.س</span></div>)}
-</div>}
-{form.notes&&<div style={{marginTop:10,padding:'8px 12px',background:'rgba(255,255,255,.05)',borderRadius:8,fontSize:10,color:'var(--tx4)'}}>{form.notes}</div>}
-</div>}
-</div>
-<div style={{padding:'14px 22px',borderTop:'1px solid rgba(255,255,255,.07)',display:'flex',justifyContent:'space-between',flexShrink:0}}>
-{step<6?<button onClick={()=>setStep(s=>Math.min(6,s+1))} style={{...goldBtnS,minWidth:140,gap:8}}><span>التالي</span><span style={{fontSize:14}}>←</span></button>:<button onClick={saveInv} disabled={saving} style={{...goldBtnS,minWidth:160,opacity:saving?.7:1}}>{saving?'جاري الإصدار...':popup==='add'?'إصدار الفاتورة ✓':'حفظ التعديلات'}</button>}
-{step>1?<button onClick={()=>setStep(s=>Math.max(1,s-1))} style={{...ghostBtnS,display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14}}>→</span><span>السابق</span></button>:<button onClick={()=>setPopup(null)} style={ghostBtnS}>إلغاء</button>}
-</div>
-</div></div>}
 
 {/* ═══ PAYMENT POPUP ═══ */}
 {payPop&&<div onClick={()=>setPayPop(null)} style={overlayS}>
@@ -935,7 +668,6 @@ return<div key={ii} style={{display:'flex',gap:12,padding:'12px 14px',background
 </div>}
 </div></div>
 <div style={{padding:'14px 22px',borderTop:'1px solid rgba(255,255,255,.07)',display:'flex',gap:8,justifyContent:'center'}}>
-<button onClick={()=>{setViewPop(null);openEdit(v)}} style={{...goldBtnS,flex:1}}>✎ تعديل</button>
 {v.status!=='paid'&&<button onClick={()=>{setViewPop(null);openPay(v)}} style={{...goldBtnS,flex:1,background:C.ok}}>+ تسجيل دفعة</button>}
 <button onClick={()=>printInvoice(v)} style={{...goldBtnS,flex:1,background:'rgba(155,89,182,.12)',border:'1px solid rgba(155,89,182,.2)',color:'#9b59b6'}}>🖨️ طباعة</button>
 <button onClick={()=>{setViewPop(null);setDelPop(v)}} style={{...goldBtnS,flex:1,background:'rgba(192,57,43,.1)',border:'1px solid rgba(192,57,43,.25)',color:C.red}}>🗑 حذف</button>

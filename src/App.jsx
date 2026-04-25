@@ -479,7 +479,7 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 </div>
 </div><Css/></div>)}
 
-function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState('home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),2500)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[profilePerf,setProfilePerf]=useState(null);const[profileAtt,setProfileAtt]=useState([]);const[profileTasks,setProfileTasks]=useState([]);const[profileSalary,setProfileSalary]=useState([]);const[profileLoans,setProfileLoans]=useState([]);const[profileLogins,setProfileLogins]=useState([]);const[stats,setStats]=useState(null);const[notifs,setNotifs]=useState([]);const[myNotifs,setMyNotifs]=useState([]);const[showNotifs,setShowNotifs]=useState(false);const[notifTab,setNotifTab]=useState('my');const[showAiChat,setShowAiChat]=useState(false);const[showUserMenu,setShowUserMenu]=useState(false);const[showTopDrop,setShowTopDrop]=useState(false);const[theme,setTheme]=useState(()=>localStorage.getItem('jisr_theme')||'dark');useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('jisr_theme',theme);const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',theme==='dark'?'#171717':'#faf8f3');document.body.style.background=theme==='dark'?'#171717':'#faf8f3'},[theme]);const toggleTheme=()=>setTheme(t=>t==='dark'?'light':'dark');const[dashBranch,setDashBranch]=useState(null);const[dashBranches,setDashBranches]=useState([]);const[sTabInfo,setSTabInfo]=useState({tab:'general',svcSubTab:'services'});const[searchQ,setSearchQ]=useState('');const[searchResults,setSearchResults]=useState([]);const[searchOpen,setSearchOpen]=useState(false);const[searchLoading,setSearchLoading]=useState(false);const[activityLog,setActivityLog]=useState([]);const[activityLoading,setActivityLoading]=useState(false);const[sideOpen,setSideOpen]=useState(false);const[taskCount,setTaskCount]=useState(0);const[approvalCount,setApprovalCount]=useState(0);const[todayAppointments,setTodayAppointments]=useState([]);const[lastWeeklyUpdate,setLastWeeklyUpdate]=useState(null);const[expanded,setExpanded]=useState({tasks_section:true,facilities_workforce:true,finance:true,data:false,reports:false,admin:false});const[showServiceRequest,setShowServiceRequest]=useState(false);const[navExpanded,setNavExpanded]=useState({});
+function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState('home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),2500)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[emailConfirmStep,setEmailConfirmStep]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[profilePerf,setProfilePerf]=useState(null);const[profileAtt,setProfileAtt]=useState([]);const[profileTasks,setProfileTasks]=useState([]);const[profileSalary,setProfileSalary]=useState([]);const[profileLoans,setProfileLoans]=useState([]);const[profileLogins,setProfileLogins]=useState([]);const[stats,setStats]=useState(null);const[notifs,setNotifs]=useState([]);const[myNotifs,setMyNotifs]=useState([]);const[showNotifs,setShowNotifs]=useState(false);const[notifTab,setNotifTab]=useState('my');const[showAiChat,setShowAiChat]=useState(false);const[showUserMenu,setShowUserMenu]=useState(false);useEffect(()=>{document.documentElement.setAttribute('data-theme','dark');localStorage.setItem('jisr_theme','dark');const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content','#171717');document.body.style.background='#171717'},[]);const[dashBranch,setDashBranch]=useState(null);const[dashBranches,setDashBranches]=useState([]);const[sTabInfo,setSTabInfo]=useState({tab:'general',svcSubTab:'services'});const[activityLog,setActivityLog]=useState([]);const[activityLoading,setActivityLoading]=useState(false);const[sideOpen,setSideOpen]=useState(false);const[taskCount,setTaskCount]=useState(0);const[approvalCount,setApprovalCount]=useState(0);const[todayAppointments,setTodayAppointments]=useState([]);const[lastWeeklyUpdate,setLastWeeklyUpdate]=useState(null);const[expanded,setExpanded]=useState({tasks_section:true,facilities_workforce:true,finance:true,data:false,reports:false,admin:false});const[showServiceRequest,setShowServiceRequest]=useState(false);const[navExpanded,setNavExpanded]=useState({});
 const[showKafalaCalc,setShowKafalaCalc]=useState(false);
 const[visibility,setVisibility]=useState(()=>getVisibility());
 const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visibility',JSON.stringify(cfg))};
@@ -505,8 +505,7 @@ const setPage=(id)=>{const mapped=hubDefaults[id]||id;if(mapped===pg)setNavReset
 try{const target=pageHashes[mapped]||'';if(window.location.hash!==target){window.history.replaceState(null,'',target||window.location.pathname);window.dispatchEvent(new HashChangeEvent('hashchange'))}}catch{}};
 const loadStats=useCallback(()=>{const brId=dashBranch||null;const today=new Date().toISOString().slice(0,10);Promise.all([sb.rpc('get_branch_stats',{p_branch_id:brId}),sb.from('notifications_view').select('*'),sb.from('employee_notifications').select('*').eq('user_id',user?.id).order('created_at',{ascending:false}).limit(50),sb.from('branches').select('id,name_ar').is('deleted_at',null).order('name_ar'),sb.from('system_settings').select('setting_value').eq('setting_key','last_weekly_update').single(),sb.from('tasks').select('id',{count:'exact',head:true}).is('deleted_at',null).in('status',['pending','in_progress','overdue']),sb.from('approval_requests').select('id',{count:'exact',head:true}).eq('status','pending'),sb.from('appointments').select('*').is('deleted_at',null).eq('date',today).in('status',['scheduled','confirmed'])]).then(([statsR,notifsR,myNotifsR,branchesR,weeklyR,tasksR,approvalsR,apptsR])=>{if(statsR.data)setStats(statsR.data);setNotifs(notifsR.data||[]);setMyNotifs(myNotifsR.data||[]);setDashBranches(branchesR.data||[]);if(weeklyR.data?.setting_value)setLastWeeklyUpdate(new Date(weeklyR.data.setting_value));setTaskCount(tasksR.count||0);setApprovalCount(approvalsR.count||0);setTodayAppointments(apptsR.data||[])})},[sb,dashBranch]);useEffect(()=>{loadStats()},[loadStats]);
 useEffect(()=>{if(!sb)return;const ch=sb.channel('jisr-realtime-sync').on('postgres_changes',{event:'*',schema:'public',table:'invoices'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'clients'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'workers'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'facilities'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'appointments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'smart_alerts'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'attendance'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'activity_log'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'daily_stats'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'invoice_payments'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'escalations'},()=>loadStats()).subscribe();return()=>{sb.removeChannel(ch)}},[sb,loadStats]);
-useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+k':()=>{const el=document.querySelector('.topbar-search-box input');if(el)el.focus()},'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+K بحث سريع | Ctrl+N إضافة جديد','Ctrl+K Quick Search | Ctrl+N New'))},'escape':()=>{setSideOpen(false);setShowNotifs(false);setShowAiChat(false)}});return cleanup},[]);
-const doSearch=useCallback(async(q)=>{if(!q||q.length<2){setSearchResults([]);return}setSearchLoading(true);try{const[fac,wrk,cli,inv]=await Promise.all([sb.from('facilities').select('id,name_ar,unified_national_number,cr_number').is('deleted_at',null).or(`name_ar.ilike.%${q}%,unified_national_number.ilike.%${q}%,cr_number.ilike.%${q}%`).limit(5),sb.from('workers').select('id,name_ar,iqama_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,iqama_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('clients').select('id,name_ar,id_number,phone').is('deleted_at',null).or(`name_ar.ilike.%${q}%,id_number.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),sb.from('invoices').select('id,invoice_number,total_amount,status').is('deleted_at',null).or(`invoice_number.ilike.%${q}%`).limit(5)]);const r=[];(fac.data||[]).forEach(d=>r.push({type:'facility',icon:'facility',label:d.name_ar,sub:d.cr_number||d.unified_national_number||'',pg:'facilities',id:d.id}));(wrk.data||[]).forEach(d=>r.push({type:'worker',icon:'worker',label:d.name_ar,sub:d.iqama_number||d.phone||'',pg:'workers',id:d.id}));(cli.data||[]).forEach(d=>r.push({type:'client',icon:'client',label:d.name_ar,sub:d.id_number||d.phone||'',pg:'clients',id:d.id}));(inv.data||[]).forEach(d=>r.push({type:'invoice',icon:'invoice',label:d.invoice_number,sub:Number(d.total_amount||0).toLocaleString()+' ر.س',pg:'invoices',id:d.id}));setSearchResults(r)}catch(e){setSearchResults([])}setSearchLoading(false)},[sb]);useEffect(()=>{const t=setTimeout(()=>doSearch(searchQ),300);return()=>clearTimeout(t)},[searchQ,doSearch]);
+useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+N إضافة جديد','Ctrl+N New'))},'escape':()=>{setSideOpen(false);setShowNotifs(false);setShowAiChat(false)}});return cleanup},[]);
 const loadActivityLog=useCallback(async()=>{setActivityLoading(true);try{const{data}=await sb.from('activity_log').select('*,users:user_id(name_ar,name_en)').order('created_at',{ascending:false}).limit(100);setActivityLog(data||[])}catch(e){setActivityLog([])}setActivityLoading(false)},[sb]);
 const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);const nav=[
 {id:'home',l:T('الرئيسية','Dashboard'),i:'home'},
@@ -949,31 +948,11 @@ return<div key={n.id}>
 {/* ═══ MAIN AREA ═══ */}
 <div style={{flex:1,display:'flex',flexDirection:'column',background:'var(--sf)',minWidth:0}}>
 {/* ═══ TOPBAR ═══ */}
-<header className='dash-header' style={{height:48,background:'#141414',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 20px',borderBottom:'1px solid rgba(255,255,255,.06)',flexShrink:0,boxShadow:'0 4px 20px rgba(0,0,0,.18)'}}>
-<div className='mob-hamburger' onClick={()=>setSideOpen(!sideOpen)} style={{display:'none',width:36,height:36,borderRadius:8,background:sideOpen?'rgba(212,160,23,.12)':'rgba(255,255,255,.04)',border:'1px solid '+(sideOpen?'rgba(212,160,23,.2)':'rgba(255,255,255,.08)'),alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={sideOpen?C.gold:'rgba(255,255,255,.5)'} strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="16" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
-{/* المنطقة اليمنى: البريدكرمب + البحث */}
+<header className='dash-header' style={{height:48,background:'var(--sb)',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 20px',borderBottom:'1px solid rgba(212,160,23,.12)',flexShrink:0,boxShadow:'0 2px 12px rgba(0,0,0,.12)'}}>
+<div className='mob-hamburger' onClick={()=>setSideOpen(!sideOpen)} style={{display:'none',width:36,height:36,borderRadius:10,background:sideOpen?'rgba(212,160,23,.14)':'rgba(212,160,23,.04)',border:'1px solid '+(sideOpen?'rgba(212,160,23,.25)':'rgba(212,160,23,.12)'),alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,transition:'.18s'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={sideOpen?C.gold:'rgba(255,255,255,.55)'} strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="16" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+{/* المنطقة اليمنى: البريدكرمب */}
 <div style={{display:'flex',alignItems:'center',gap:10}}>
-<span className='breadcrumb-area' style={{fontSize:13,fontWeight:700,color:'var(--tx3)'}}>{pgTitle}</span>
-<div style={{width:1,height:16,background:'rgba(255,255,255,.08)'}}/>
-<div className='topbar-search-wrap' style={{position:'relative'}}>
-<div className='topbar-search-box' style={{height:32,padding:'0 10px',borderRadius:7,background:searchOpen?'rgba(212,160,23,.08)':'rgba(255,255,255,.04)',border:'1px solid '+(searchOpen?'rgba(212,160,23,.2)':'var(--bd)'),display:'flex',alignItems:'center',gap:6,width:200,transition:'.2s'}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={searchOpen?'rgba(212,160,23,.5)':'rgba(255,255,255,.25)'} strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={searchQ} onChange={e=>{setSearchQ(e.target.value);setSearchOpen(true)}} onFocus={()=>searchQ.length>=2&&setSearchOpen(true)} placeholder={lang==='ar'?'بحث ...':'Search ...'} style={{background:'none',border:'none',outline:'none',color:'var(--tx2)',fontFamily:'inherit',fontSize:11,width:'100%'}}/>
-{searchQ&&<button onClick={()=>{setSearchQ('');setSearchResults([]);setSearchOpen(false)}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--tx5)',fontSize:14,padding:0,display:'flex'}}>×</button>}
-</div>
-{searchOpen&&searchResults.length>0&&<><div onClick={()=>setSearchOpen(false)} style={{position:'fixed',inset:0,zIndex:98}}/>
-<div style={{position:'absolute',top:'calc(100% + 6px)',[lang==='ar'?'right':'left']:0,width:'min(360px,calc(100vw - 16px))',maxHeight:'min(400px,70vh)',background:'var(--sf)',border:'1px solid rgba(212,160,23,.15)',borderRadius:12,boxShadow:'0 12px 36px rgba(0,0,0,.5)',zIndex:99,overflowY:'auto',scrollbarWidth:'none'}}>
-{searchResults.map((r,i)=>{const typeMap={facility:{l:lang==='ar'?'منشأة':'Facility',c:C.gold},worker:{l:lang==='ar'?'عامل':'Worker',c:C.blue},client:{l:lang==='ar'?'عميل':'Client',c:C.ok},invoice:{l:lang==='ar'?'فاتورة':'Invoice',c:'#e67e22'}};const t=typeMap[r.type]||{l:r.type,c:'#999'};return<div key={i} onClick={()=>{setPage(r.pg);setSearchOpen(false);setSearchQ('')}} style={{padding:'10px 16px',borderBottom:'1px solid var(--bd2)',display:'flex',alignItems:'center',gap:10,cursor:'pointer',transition:'.15s'}}>
-<div style={{width:28,height:28,borderRadius:7,background:t.c+'12',border:'1px solid '+t.c+'20',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{width:14,height:14,display:'flex',alignItems:'center',justifyContent:'center'}}>{DT(t.c)[r.icon]}</span></div>
-<div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:700,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.label}</div>{r.sub&&<div style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{r.sub}</div>}</div>
-<span style={{fontSize:9,fontWeight:600,padding:'2px 8px',borderRadius:5,background:t.c+'12',color:t.c,flexShrink:0}}>{t.l}</span>
-</div>})}
-</div></>}
-{searchOpen&&searchQ.length>=2&&searchResults.length===0&&!searchLoading&&<><div onClick={()=>setSearchOpen(false)} style={{position:'fixed',inset:0,zIndex:98}}/>
-<div style={{position:'absolute',top:'calc(100% + 6px)',[lang==='ar'?'right':'left']:0,width:'min(300px,calc(100vw - 16px))',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:12,boxShadow:'0 12px 36px rgba(0,0,0,.5)',zIndex:99,padding:'20px',textAlign:'center'}}>
-<div style={{fontSize:12,color:'var(--tx4)'}}>{lang==='ar'?'لا توجد نتائج':'No results found'}</div>
-</div></>}
-</div>
+<span className='breadcrumb-area' style={{fontSize:13,fontWeight:700,color:C.gold,fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:'.2px'}}>{pgTitle}</span>
 </div>
 {/* المنطقة الوسطى: التاريخ + التحديث */}
 <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -991,13 +970,13 @@ return<div key={n.id}>
 </div>
 {/* الإشعارات */}
 <div style={{position:'relative'}}>
-<div onClick={()=>setShowNotifs(!showNotifs)} style={{width:34,height:34,borderRadius:8,background:showNotifs?'rgba(212,160,23,.12)':'rgba(255,255,255,.04)',border:'1px solid '+(showNotifs?'rgba(212,160,23,.2)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',position:'relative'}}>
-<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={showNotifs?C.gold:'rgba(255,255,255,.35)'} strokeWidth="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+<div onClick={()=>setShowNotifs(!showNotifs)} style={{width:34,height:34,borderRadius:10,background:showNotifs?'rgba(212,160,23,.14)':'rgba(212,160,23,.04)',border:'1px solid '+(showNotifs?'rgba(212,160,23,.25)':'rgba(212,160,23,.12)'),display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',position:'relative',transition:'.18s'}}>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={showNotifs?C.gold:'rgba(255,255,255,.55)'} strokeWidth="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
 {myNotifs.filter(n=>!n.is_read).length>0&&<div style={{position:'absolute',top:2,left:2,width:14,height:14,borderRadius:'50%',background:C.red,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:800,color:'#fff'}}>{myNotifs.filter(n=>!n.is_read).length}</div>}
 {myNotifs.filter(n=>!n.is_read).length===0&&notifs.length>0&&<div style={{position:'absolute',top:2,left:2,minWidth:14,height:14,borderRadius:7,background:'#e67e22',border:'1.5px solid '+C.dk,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:800,color:'#fff',padding:'0 3px'}}>{notifs.length}</div>}
 </div>
-{showNotifs&&<><div onClick={()=>setShowNotifs(false)} style={{position:'fixed',inset:0,zIndex:98}}/><div style={{position:'absolute',top:'calc(100% + 8px)',[lang==='ar'?'right':'left']:0,width:'min(380px,calc(100vw - 16px))',maxHeight:'min(460px,70vh)',background:'var(--sf)',border:'1px solid rgba(212,160,23,.15)',borderRadius:14,boxShadow:'0 16px 48px rgba(0,0,0,.6)',zIndex:99,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-<div style={{padding:'12px 18px',borderBottom:'1px solid var(--bd)'}}>
+{showNotifs&&<><div onClick={()=>setShowNotifs(false)} style={{position:'fixed',inset:0,zIndex:98}}/><div style={{position:'absolute',top:'calc(100% + 8px)',[lang==='ar'?'left':'right']:0,width:'min(380px,calc(100vw - 16px))',maxHeight:'min(460px,70vh)',background:'#1a1a1a',border:'1px solid rgba(212,160,23,.08)',borderRadius:18,boxShadow:'0 24px 60px rgba(0,0,0,.5)',zIndex:99,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+<div style={{padding:'14px 18px',borderBottom:'1px solid rgba(212,160,23,.08)'}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{T('الإشعارات','Notifications')}</div>
 {myNotifs.filter(n=>!n.is_read).length>0&&<button onClick={async()=>{await sb.from('employee_notifications').update({is_read:true}).eq('user_id',user?.id).eq('is_read',false);setMyNotifs(p=>p.map(n=>({...n,is_read:true})))}} style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.12)',borderRadius:5,padding:'2px 8px',cursor:'pointer',fontFamily:"'Cairo',sans-serif"}}>{T('قراءة الكل','Read all')}</button>}</div>
 <div style={{display:'flex',gap:4}}>{[['my',T('إشعاراتي','My'),myNotifs.filter(n=>!n.is_read).length,'#3483b4'],['system',T('تنبيهات','Alerts'),notifs.length,'#e67e22']].map(([k,l,n,c])=><div key={k} onClick={()=>setNotifTab(k)} style={{flex:1,padding:'6px 0',textAlign:'center',borderRadius:6,fontSize:11,fontWeight:notifTab===k?700:500,color:notifTab===k?c:'rgba(255,255,255,.4)',background:notifTab===k?c+'12':'transparent',border:notifTab===k?'1px solid '+c+'25':'1px solid rgba(255,255,255,.05)',cursor:'pointer'}}>{l} {n>0&&<span style={{fontSize:9,fontWeight:700,background:c+'25',padding:'1px 5px',borderRadius:4,marginRight:2}}>{n}</span>}</div>)}</div></div>
@@ -1020,39 +999,36 @@ return<div key={i} style={{padding:'10px 18px',borderBottom:'1px solid var(--bd2
 </div></div></>}
 </div>
 {/* مساعد جسر الذكي */}
-<div onClick={()=>setShowAiChat(!showAiChat)} title={lang==='ar'?'مساعد جسر الذكي':'Jisr AI'} style={{width:32,height:32,borderRadius:7,background:showAiChat?'rgba(212,160,23,.15)':'rgba(255,255,255,.04)',border:'1px solid '+(showAiChat?'rgba(212,160,23,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'.2s'}}>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={showAiChat?C.gold:'rgba(255,255,255,.35)'} strokeWidth="1.8"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><path d="M12 3v4M8 7h8"/><circle cx="12" cy="3" r="1"/></svg>
+<div onClick={()=>setShowAiChat(!showAiChat)} title={lang==='ar'?'مساعد جسر الذكي':'Jisr AI'} style={{width:34,height:34,borderRadius:10,background:showAiChat?'rgba(212,160,23,.14)':'rgba(212,160,23,.04)',border:'1px solid '+(showAiChat?'rgba(212,160,23,.25)':'rgba(212,160,23,.12)'),display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'.18s'}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showAiChat?C.gold:'rgba(255,255,255,.55)'} strokeWidth="1.8"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><path d="M12 3v4M8 7h8"/><circle cx="12" cy="3" r="1"/></svg>
 </div>
-{/* الملف الشخصي + Dropdown */}
-<div style={{position:'relative'}}>
-<div onClick={()=>setShowTopDrop(!showTopDrop)} style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',height:32,padding:'0 10px',borderRadius:7,border:'1px solid rgba(255,255,255,.08)',background:showTopDrop?'rgba(255,255,255,.08)':'rgba(255,255,255,.04)',transition:'.15s'}} onMouseEnter={e=>{if(!showTopDrop)e.currentTarget.style.background='rgba(255,255,255,.07)'}} onMouseLeave={e=>{if(!showTopDrop)e.currentTarget.style.background='rgba(255,255,255,.04)'}}>
-<div style={{fontSize:10,fontWeight:700,color:C.gold,lineHeight:1.2}}>{user?.name_ar||''}</div>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{transform:showTopDrop?'rotate(180deg)':'none',transition:'.2s',flexShrink:0}}><polyline points="6 9 12 15 18 9" stroke={C.gold} strokeWidth="2.5" fill="none"/></svg>
+{/* الملف الشخصي — كرت الاسم يفتح بيانات المستخدم مباشرة */}
+<div onClick={()=>{setShowProfile(true);setProfileTab('info');setProfileErr({});setProfileData({phone:user.phone||'',email:user.email||'',name_ar:user.name_ar||'',name_en:user.name_en||'',id_number:user.id_number||'',nationality:'',_origEmail:user.email||''});
+// Fetch canonical identity data from persons + countries (the source of truth).
+// Falls back to whatever is already on user. Backfills users table when persons has data the user record is missing.
+(async()=>{
+let pid=user.person_id;
+let person=null;
+if(pid){const{data}=await sb.from('persons').select('id,id_number,nationality_id,name_ar,name_en').eq('id',pid).maybeSingle();person=data||null}
+if(!person&&user.id_number){const{data}=await sb.from('persons').select('id,id_number,nationality_id,name_ar,name_en').eq('id_number',user.id_number).maybeSingle();person=data||null;if(person)pid=person.id}
+let countryRow=null;const natId=person?.nationality_id||user.nationality_id;
+if(natId){const{data}=await sb.from('countries').select('id,nationality_ar,nationality_en,code').eq('id',natId).maybeSingle();countryRow=data||null}
+const idNum=person?.id_number||user.id_number||'';
+const natLabel=countryRow?(lang==='en'?countryRow.nationality_en||countryRow.nationality_ar:countryRow.nationality_ar)||'':'';
+setProfileData(p=>({...p,id_number:idNum,nationality:natLabel,nationality_code:countryRow?.code||''}));
+// Backfill: if users row is missing data that persons has, sync it once so future loads are instant.
+const patch={};
+if(person?.id&&!user.person_id)patch.person_id=person.id;
+if(idNum&&!user.id_number)patch.id_number=idNum;
+if(natId&&!user.nationality_id)patch.nationality_id=natId;
+if(Object.keys(patch).length){await sb.from('users').update(patch).eq('id',user.id);Object.assign(user,patch)}
+})();}} title={lang==='ar'?'الملف الشخصي':'Profile'} style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',height:34,padding:'0 14px',borderRadius:10,border:'1px solid rgba(212,160,23,.12)',background:'rgba(212,160,23,.04)',transition:'.18s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.1)';e.currentTarget.style.borderColor='rgba(212,160,23,.25)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.04)';e.currentTarget.style.borderColor='rgba(212,160,23,.12)'}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gold,lineHeight:1.2,fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif"}}>{user?.name_ar||''}</div>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
 </div>
-{showTopDrop&&<><div onClick={()=>setShowTopDrop(false)} style={{position:'fixed',inset:0,zIndex:998}}/>
-<div style={{position:'absolute',top:'calc(100% + 6px)',[lang==='ar'?'left':'right']:0,width:200,background:'#252525',border:'1px solid rgba(255,255,255,.12)',borderRadius:12,boxShadow:'0 12px 36px rgba(0,0,0,.6)',zIndex:999,overflow:'hidden'}}>
-<div onClick={()=>{setShowTopDrop(false);setShowProfile(true);setProfileTab('info');setProfileErr({});setProfileData({phone:user.phone||'',email:user.email||'',id_type:user.id_type||'',nationality:user.nationality||'',name_ar:user.name_ar||'',name_en:user.name_en||'',id_number:user.id_number||'',_origEmail:user.email||''});sb.from('bank_accounts').select('*').eq('user_id',user.id).maybeSingle().then(({data})=>setProfileBank(data||{bank_name:'',iban:'',account_number:''}));sb.from('lookup_categories').select('id,category_key').eq('category_key','bank_name').single().then(({data:ll})=>{if(ll)sb.from('lookup_items').select('value_ar,value_en').eq('category_id',ll.id).eq('is_active',true).order('sort_order').then(({data})=>setProfileBanks(data||[]))});sb.from('v_employee_performance_detailed').select('*').eq('user_id',user.id).maybeSingle().then(({data})=>setProfilePerf(data||null));sb.from('attendance').select('*').eq('user_id',user.id).order('date',{ascending:false}).limit(60).then(({data})=>setProfileAtt(data||[]));sb.from('task_assignees').select('*,tasks(*)').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50).then(({data})=>setProfileTasks(data||[]));sb.from('salary_records').select('*').eq('user_id',user.id).order('month',{ascending:false}).then(({data})=>setProfileSalary(data||[]));sb.from('employee_loans').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).then(({data})=>setProfileLoans(data||[]));sb.from('login_log').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(30).then(({data})=>setProfileLogins(data||[]))}} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 16px',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-<span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{lang==='ar'?'الملف الشخصي':'Profile'}</span>
-</div>
-<div style={{height:1,background:'rgba(255,255,255,.06)'}}/>
-<div onClick={()=>{toggleTheme()}} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-{theme==='dark'?<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="1.8"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>}
-<span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,.6)',flex:1}}>{lang==='ar'?'المظهر':'Theme'}</span>
-<span style={{fontSize:10,fontWeight:500,color:'rgba(255,255,255,.25)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:6}}>{theme==='dark'?(lang==='ar'?'داكن':'Dark'):(lang==='ar'?'فاتح':'Light')}</span>
-</div>
-<div style={{height:1,background:'rgba(255,255,255,.06)'}}/>
-<div onClick={()=>{switchLang();setShowTopDrop(false)}} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-<span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,.6)',flex:1}}>{lang==='ar'?'اللغة':'Language'}</span>
-<span style={{fontSize:10,fontWeight:500,color:'rgba(255,255,255,.25)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:6}}>{lang==='ar'?'العربية':'English'}</span>
-</div>
-<div style={{height:1,background:'rgba(255,255,255,.06)'}}/>
-<div onClick={()=>{setShowTopDrop(false);onLogout()}} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 16px',cursor:'pointer',transition:'.15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(192,57,43,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(192,57,43,.5)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-<span style={{fontSize:12,fontWeight:600,color:'rgba(192,57,43,.6)'}}>{lang==='ar'?'تسجيل الخروج':'Sign Out'}</span>
-</div>
-</div></>}
+{/* زر الخروج — كرت أيقونة مثل الإشعارات */}
+<div onClick={onLogout} title={lang==='ar'?'تسجيل الخروج':'Sign Out'} style={{width:34,height:34,borderRadius:10,background:'rgba(192,57,43,.05)',border:'1px solid rgba(192,57,43,.18)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'.18s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.14)';e.currentTarget.style.borderColor='rgba(192,57,43,.32)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.05)';e.currentTarget.style.borderColor='rgba(192,57,43,.18)'}}>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(192,57,43,.75)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
 </div>
 </div>
 </header>
@@ -1108,77 +1084,131 @@ return<div><div>
 </div>
 </div>}
 {toastMsg&&(()=>{const isErr=toastMsg.includes('خطأ');const isDel=toastMsg.includes('حذف');const clr=isErr?'#e5867a':isDel?'#e5867a':'#6fc28a';const bg=isErr?'rgba(32,18,18,.92)':isDel?'rgba(32,18,18,.92)':'rgba(18,32,22,.92)';const bdr=isErr?'rgba(192,57,43,.35)':isDel?'rgba(192,57,43,.35)':'rgba(55,140,85,.45)';return<div style={{position:'fixed',top:20,left:'50%',transform:'translateX(-50%)',zIndex:9999,background:bg,color:clr,fontFamily:"'Cairo',sans-serif",fontSize:12.5,fontWeight:600,padding:'11px 18px',borderRadius:10,boxShadow:'0 8px 24px rgba(0,0,0,.45), 0 0 0 1px '+bdr,backdropFilter:'blur(10px)',display:'flex',alignItems:'center',gap:10,animation:'toastSlide .35s cubic-bezier(.2,.85,.3,1.05)',maxWidth:'calc(100vw - 32px)'}}>{isErr?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2.4" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>:isDel?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}<span>{toastMsg}</span><style>{`@keyframes toastSlide{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}`}</style></div>})()}
-{/* ═══ PROFILE SIDE PANEL ═══ */}
-{showProfile&&profileData&&<><div onClick={()=>setShowProfile(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(4px)',zIndex:9997}}/>
-<div style={{position:'fixed',top:0,[lang==='ar'?'left':'right']:0,width:'min(480px,94vw)',height:'100vh',background:'var(--sf)',zIndex:9998,display:'flex',flexDirection:'column',fontFamily:F,direction:lang==='ar'?'rtl':'ltr',boxShadow:'-8px 0 40px rgba(0,0,0,.5)',borderRight:lang==='ar'?'none':'1px solid rgba(212,160,23,.12)',borderLeft:lang==='ar'?'1px solid rgba(212,160,23,.12)':'none',animation:'slideIn .25s ease'}}>
-{/* Header */}
-<div style={{padding:'20px 22px 14px',borderBottom:'1px solid rgba(212,160,23,.12)',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
-<div style={{width:50,height:50,borderRadius:'50%',background:'linear-gradient(135deg,rgba(212,160,23,.15),rgba(212,160,23,.05))',border:'2px solid rgba(212,160,23,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:800,color:C.gold,flexShrink:0}}>{user?.name_ar?.[0]||'م'}</div>
-<div style={{flex:1}}><div style={{fontSize:15,fontWeight:800,color:'var(--tx)'}}>{user?.name_ar}</div><div style={{fontSize:10,color:'rgba(212,160,23,.5)',marginTop:2}}>{user?.roles?.name_ar||(lang==='ar'?'المدير العام':'General Manager')}</div>
-{user?.branch_id&&<div style={{fontSize:9,color:'var(--tx5)',marginTop:1}}>{dashBranches.find(b=>b.id===user.branch_id)?.name_ar||''}</div>}
-</div>
-<button onClick={()=>setShowProfile(false)} style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg></button>
-</div>
-{/* Content */}
-<div className='dash-content' style={{flex:1,overflowY:'auto',padding:'16px 20px 20px'}}>
-{/* ── TAB: البيانات الأساسية ── */}
-{profileTab==='info'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{lang==='ar'?'الاسم بالعربي':'Name (Arabic)'} 🔒</div><input value={profileData.name_ar} readOnly style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.06)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx4)',background:'rgba(255,255,255,.02)',outline:'none',textAlign:'center',cursor:'not-allowed'}}/></div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{lang==='ar'?'الاسم بالإنجليزي':'Name (English)'} 🔒</div><input value={profileData.name_en} readOnly style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.06)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx4)',background:'rgba(255,255,255,.02)',outline:'none',textAlign:'center',direction:'ltr',cursor:'not-allowed'}}/></div>
-</div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{lang==='ar'?'رقم الهوية':'ID Number'} 🔒</div><input value={profileData.id_number} readOnly style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.06)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx4)',background:'rgba(255,255,255,.02)',outline:'none',textAlign:'center',cursor:'not-allowed'}}/></div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx3)',marginBottom:4}}>{lang==='ar'?'رقم الجوال':'Phone'}</div>
-<div style={{display:'flex',direction:'ltr',border:profileErr.phone?'1.5px solid rgba(192,57,43,.5)':'1.5px solid rgba(255,255,255,.1)',borderRadius:8,overflow:'hidden',background:'rgba(255,255,255,.04)'}}>
-<div style={{height:38,padding:'0 10px',background:'rgba(255,255,255,.06)',borderRight:'1px solid rgba(255,255,255,.08)',display:'flex',alignItems:'center',fontSize:11,fontWeight:700,color:'var(--tx3)',flexShrink:0}}>+966</div>
-<input value={profileData.phone?.replace('+966','')} onChange={e=>{const v=e.target.value.replace(/\D/g,'').slice(0,9);setProfileData(p=>({...p,phone:'+966'+v}))}} style={{width:'100%',height:38,padding:'0 12px',border:'none',background:'transparent',fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',textAlign:'left'}}/>
-</div>{profileErr.phone&&<div style={{fontSize:10,color:'rgba(192,57,43,.7)',marginTop:2}}>{profileErr.phone}</div>}</div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx3)',marginBottom:4}}>{lang==='ar'?'الجنسية':'Nationality'}</div><input value={profileData.nationality} onChange={e=>setProfileData(p=>({...p,nationality:e.target.value}))} style={{width:'100%',height:38,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none',textAlign:'center'}}/></div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx3)',marginBottom:4}}>{lang==='ar'?'البريد الإلكتروني':'Email'}</div><input value={profileData.email} onChange={e=>setProfileData(p=>({...p,email:e.target.value}))} style={{width:'100%',height:38,padding:'0 12px',border:profileErr.email?'1.5px solid rgba(192,57,43,.5)':'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.04)',outline:'none',textAlign:'center',direction:'ltr'}}/>{profileErr.email&&<div style={{fontSize:10,color:'rgba(192,57,43,.7)',marginTop:2}}>{profileErr.email}</div>}
-{profileData.email!==profileData._origEmail&&profileData.email&&<div style={{fontSize:9,color:'rgba(212,160,23,.5)',marginTop:3}}>{lang==='ar'?'سيتم إرسال رابط تأكيد للبريد الجديد':'A confirmation link will be sent to the new email'}</div>}</div>
-<div><div style={{fontSize:10,fontWeight:600,color:'var(--tx3)',marginBottom:4}}>{lang==='ar'?'اللغة الافتراضية':'Default Language'}</div>
-<div style={{display:'flex',gap:8}}>
-<div onClick={()=>{setLang('ar');sb.from('users').update({preferred_lang:'ar'}).eq('id',user.id)}} style={{flex:1,height:38,borderRadius:8,border:lang==='ar'?'1.5px solid rgba(212,160,23,.4)':'1.5px solid rgba(255,255,255,.1)',background:lang==='ar'?'rgba(212,160,23,.08)':'rgba(255,255,255,.04)',display:'flex',alignItems:'center',justifyContent:'center',gap:6,cursor:'pointer',transition:'.2s'}}>
-<img src="https://flagcdn.com/w40/sa.png" width="18" height="13" style={{borderRadius:2,objectFit:'cover'}} alt=""/>
-<span style={{fontSize:11,fontWeight:lang==='ar'?700:500,color:lang==='ar'?C.gold:'rgba(255,255,255,.5)'}}>العربية</span>
-</div>
-<div onClick={()=>{setLang('en');sb.from('users').update({preferred_lang:'en'}).eq('id',user.id)}} style={{flex:1,height:38,borderRadius:8,border:lang==='en'?'1.5px solid rgba(212,160,23,.4)':'1.5px solid rgba(255,255,255,.1)',background:lang==='en'?'rgba(212,160,23,.08)':'rgba(255,255,255,.04)',display:'flex',alignItems:'center',justifyContent:'center',gap:6,cursor:'pointer',transition:'.2s'}}>
-<img src="https://flagcdn.com/w40/gb.png" width="18" height="13" style={{borderRadius:2,objectFit:'cover'}} alt=""/>
-<span style={{fontSize:11,fontWeight:lang==='en'?700:500,color:lang==='en'?C.gold:'rgba(255,255,255,.5)'}}>English</span>
-</div>
-</div>
-</div>
-</div>}
-</div>
-{/* Footer - Save (only for info tab) */}
-{profileTab==='info'&&<div style={{padding:'12px 20px 16px',borderTop:'1px solid rgba(212,160,23,.12)',display:'flex',gap:10,flexDirection:'row-reverse',flexShrink:0}}>
-<button disabled={profileBusy} onClick={async()=>{
-const ar=lang==='ar';const err={};
+{/* ═══ PROFILE MODAL — مستوحى من تصميم حسبة التنازل ═══ */}
+{showProfile&&profileData&&(()=>{
+const ar=lang==='ar';
+const T2=(arT,enT)=>ar?arT:enT;
+const fieldset={position:'relative',borderRadius:11,border:'1.5px solid rgba(212,160,23,.32)',padding:'16px 14px 12px'};
+const legendS={position:'absolute',top:-9,[ar?'right':'14px']:'auto',[ar?'right':'left']:14,background:'#1a1a1a',padding:'0 10px',fontSize:11,fontWeight:800,color:C.gold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6};
+const inpEdit={width:'100%',height:38,padding:'0 12px',border:'1px solid rgba(255,255,255,.05)',borderRadius:8,fontFamily:F,fontSize:12.5,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(0,0,0,.18)',textAlign:'center',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',transition:'.18s'};
+const inpLock={...inpEdit,background:'rgba(255,255,255,.02)',color:'rgba(255,255,255,.55)',border:'1px solid rgba(255,255,255,.04)',cursor:'not-allowed'};
+const lblS={fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.6)',marginBottom:5,display:'flex',alignItems:'center',gap:5};
+const lockIco=<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>;
+const emailChanged=profileData.email!==profileData._origEmail&&profileData.email;
+const doSave=async()=>{
+const err={};
 const ph=profileData.phone?.replace('+966','');
-if(!ph||ph.length!==9)err.phone=ar?'رقم الجوال يجب أن يتكون من 9 أرقام':'Phone must be 9 digits';
-if(!profileData.email)err.email=ar?'الرجاء إدخال البريد الإلكتروني':'Please enter email';
-else if(!/\S+@\S+\.\S+/.test(profileData.email))err.email=ar?'يرجى إدخال بريد إلكتروني صحيح':'Please enter a valid email';
-if(profileBank){
-if(profileBank.iban&&!profileBank.bank_name)err.bank_name=ar?'الرجاء اختيار البنك':'Please select bank';
-if(profileBank.iban&&!profileBank.iban.startsWith('SA'))err.iban=ar?'رقم الآيبان يجب أن يبدأ بـ SA':'IBAN must start with SA';
-}
+if(!ph||ph.length!==9)err.phone=T2('رقم الجوال يجب أن يتكون من 9 أرقام','Phone must be 9 digits');
+if(!profileData.email)err.email=T2('الرجاء إدخال البريد الإلكتروني','Please enter email');
+else if(!/\S+@\S+\.\S+/.test(profileData.email))err.email=T2('يرجى إدخال بريد إلكتروني صحيح','Please enter a valid email');
 setProfileErr(err);if(Object.keys(err).length>0)return;
 setProfileBusy(true);try{
-const{error}=await sb.from('users').update({phone:profileData.phone,nationality:profileData.nationality,email:profileData.email,updated_at:new Date().toISOString()}).eq('id',user.id);
+const{error}=await sb.from('users').update({phone:profileData.phone,email:profileData.email,updated_at:new Date().toISOString()}).eq('id',user.id);
 if(error)throw error;
-if(profileData.email!==profileData._origEmail){
-await sb.auth.updateUser({email:profileData.email});
-tt(ar?'تم إرسال رابط تأكيد للبريد الجديد':'Confirmation link sent to new email');
-}
-if(profileBank){if(profileBank.id){await sb.from('bank_accounts').update({bank_name:profileBank.bank_name,iban:profileBank.iban,account_number:profileBank.account_number}).eq('id',profileBank.id)}
-else if(profileBank.bank_name||profileBank.iban){await sb.from('bank_accounts').insert({user_id:user.id,bank_name:profileBank.bank_name,iban:profileBank.iban,account_number:profileBank.account_number,is_active:true})}}
-user.phone=profileData.phone;user.nationality=profileData.nationality;user.email=profileData.email;
-tt(ar?'تم تحديث البيانات بنجاح':'Profile updated successfully');setShowProfile(false);
-}catch(e){tt('خطأ: '+e.message)}setProfileBusy(false)}} style={{...goldS,width:'auto',padding:'0 28px',height:38,fontSize:12,opacity:profileBusy?.7:1}}>{profileBusy?'...':lang==='ar'?'حفظ التعديلات':'Save Changes'}</button>
-<button onClick={()=>setShowProfile(false)} style={{height:38,padding:'0 20px',borderRadius:11,background:'transparent',border:'1.5px solid rgba(255,255,255,.12)',color:'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>{lang==='ar'?'إلغاء':'Cancel'}</button>
+if(emailChanged){await sb.auth.updateUser({email:profileData.email});tt(T2('تم إرسال رابط تأكيد للبريد الجديد','Confirmation link sent to new email'))}
+user.phone=profileData.phone;user.email=profileData.email;
+tt(T2('تم تحديث البيانات بنجاح','Profile updated successfully'));setShowProfile(false);setEmailConfirmStep(false);
+}catch(e){tt('خطأ: '+e.message)}setProfileBusy(false)};
+const onSave=()=>{
+const err={};
+const ph=profileData.phone?.replace('+966','');
+if(!ph||ph.length!==9)err.phone=T2('رقم الجوال يجب أن يتكون من 9 أرقام','Phone must be 9 digits');
+if(!profileData.email)err.email=T2('الرجاء إدخال البريد الإلكتروني','Please enter email');
+else if(!/\S+@\S+\.\S+/.test(profileData.email))err.email=T2('يرجى إدخال بريد إلكتروني صحيح','Please enter a valid email');
+setProfileErr(err);if(Object.keys(err).length>0)return;
+if(emailChanged){setEmailConfirmStep(true)}else{doSave()}};
+return<div onClick={()=>{setShowProfile(false);setEmailConfirmStep(false)}} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9997,padding:16}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:18,width:600,maxWidth:'95vw',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid rgba(212,160,23,.08)',fontFamily:F,direction:ar?'rtl':'ltr',position:'relative'}}>
+<style>{`.pf-save-btn{height:38px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.pf-save-btn .pf-nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.pf-save-btn:hover .pf-nav-ico{background:#D4A017;color:#000;transform:translateX(${ar?'4px':'-4px'})}.pf-save-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
+{/* Header */}
+<div style={{padding:'14px 18px 12px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:14,fontWeight:800,color:'rgba(255,255,255,.92)',fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif",lineHeight:1.2}}>{user?.name_ar||''}</div>
+<div style={{fontSize:10,color:C.gold,marginTop:6,fontWeight:600,display:'flex',alignItems:'center',gap:5}}><span style={{color:'rgba(212,160,23,.55)',fontSize:9}}>•</span><span>{user?.roles?.name_ar||T2('المدير العام','General Manager')}</span>{user?.branch_id&&dashBranches.find(b=>b.id===user.branch_id)?<><span style={{color:'rgba(255,255,255,.25)',fontWeight:500}}>•</span><span style={{color:'rgba(255,255,255,.5)',fontWeight:500}}>{dashBranches.find(b=>b.id===user.branch_id)?.name_ar}</span></>:null}</div>
+</div>
+<button onClick={()=>{setShowProfile(false);setEmailConfirmStep(false)}} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg></button>
+</div>
+{/* Body */}
+<div style={{padding:'4px 18px 14px',display:'flex',flexDirection:'column',gap:14}}>
+{/* القسم الأول: الهوية الرسمية (محمية) */}
+<div style={fieldset}>
+<div style={legendS}>{lockIco}<span>{T2('الهوية الرسمية','Verified Identity')}</span></div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+<div><div style={lblS}>{T2('الاسم بالعربي','Name (Arabic)')}</div><input value={profileData.name_ar||''} readOnly style={inpLock}/></div>
+<div><div style={lblS}>{T2('الاسم بالإنجليزي','Name (English)')}</div><input value={profileData.name_en||''} readOnly style={{...inpLock,direction:'ltr'}}/></div>
+<div><div style={lblS}>{T2('رقم الهوية','ID Number')}</div><input value={profileData.id_number||''} readOnly style={{...inpLock,direction:'ltr',letterSpacing:'.5px'}}/></div>
+<div><div style={lblS}>{T2('الجنسية','Nationality')}</div>
+<div style={{position:'relative'}}>
+<input value={profileData.nationality||T2('غير محدد','—')} readOnly style={{...inpLock,paddingLeft:profileData.nationality_code?38:12,paddingRight:12}}/>
+{profileData.nationality_code&&<img src={`https://flagcdn.com/w40/${profileData.nationality_code.toLowerCase()}.png`} alt="" style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',width:20,height:14,borderRadius:2,objectFit:'cover',boxShadow:'0 1px 2px rgba(0,0,0,.3)',pointerEvents:'none'}}/>}
+</div></div>
+</div>
+</div>
+
+{/* القسم الثاني: التواصل والتفضيلات (قابلة للتعديل) */}
+<div style={fieldset}>
+<div style={legendS}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span>{T2('بيانات قابلة للتعديل','Editable Information')}</span></div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+<div><div style={lblS}>{T2('رقم الجوال','Phone')}</div>
+<div style={{display:'flex',direction:'ltr',border:profileErr.phone?'1px solid rgba(192,57,43,.5)':'1px solid transparent',borderRadius:9,overflow:'hidden',background:'rgba(0,0,0,.18)',height:38,boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',transition:'border-color .2s'}}>
+<div style={{height:'100%',padding:'0 10px',background:'rgba(255,255,255,.04)',display:'flex',alignItems:'center',fontSize:12,fontWeight:700,color:C.gold,flexShrink:0,fontFamily:F}}>+966</div>
+<input placeholder="5X XXX XXXX" maxLength={9} value={(profileData.phone||'').replace('+966','')} onChange={e=>{const v=e.target.value.replace(/\D/g,'').slice(0,9);setProfileData(p=>({...p,phone:'+966'+v}))}} style={{width:'100%',height:'100%',padding:'0 12px',border:'none',background:'transparent',fontFamily:F,fontSize:12.5,fontWeight:600,color:'var(--tx)',outline:'none',textAlign:'left'}}/>
+</div>
+{profileErr.phone&&<div style={{fontSize:9.5,color:'rgba(192,57,43,.85)',marginTop:3}}>{profileErr.phone}</div>}
+</div>
+<div><div style={lblS}>{T2('البريد الإلكتروني','Email')}</div>
+<input value={profileData.email||''} onChange={e=>setProfileData(p=>({...p,email:e.target.value}))} style={{...inpEdit,direction:'ltr',border:profileErr.email?'1px solid rgba(192,57,43,.5)':emailChanged?'1px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.05)'}}/>
+{profileErr.email?<div style={{fontSize:9.5,color:'rgba(192,57,43,.85)',marginTop:3}}>{profileErr.email}</div>:emailChanged?<div style={{fontSize:9.5,color:C.gold,marginTop:3,display:'flex',alignItems:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>{T2('سيُطلب تأكيدك قبل الحفظ','Confirmation required')}</div>:null}
+</div>
+</div>
+<div><div style={lblS}>{T2('اللغة الافتراضية','Default Language')}</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+<button type="button" onClick={()=>{setLang('ar');sb.from('users').update({preferred_lang:'ar'}).eq('id',user.id)}} style={{height:38,borderRadius:8,border:lang==='ar'?'1px solid rgba(212,160,23,.5)':'1px solid rgba(255,255,255,.06)',background:lang==='ar'?'rgba(212,160,23,.12)':'rgba(255,255,255,.03)',display:'flex',alignItems:'center',justifyContent:'center',gap:8,cursor:'pointer',transition:'.18s',fontFamily:F}}>
+<img src="https://flagcdn.com/w40/sa.png" width="20" height="14" style={{borderRadius:3,objectFit:'cover'}} alt=""/>
+<span style={{fontSize:11.5,fontWeight:lang==='ar'?700:600,color:lang==='ar'?C.gold:'rgba(255,255,255,.55)'}}>العربية</span>
+</button>
+<button type="button" onClick={()=>{setLang('en');sb.from('users').update({preferred_lang:'en'}).eq('id',user.id)}} style={{height:38,borderRadius:8,border:lang==='en'?'1px solid rgba(212,160,23,.5)':'1px solid rgba(255,255,255,.06)',background:lang==='en'?'rgba(212,160,23,.12)':'rgba(255,255,255,.03)',display:'flex',alignItems:'center',justifyContent:'center',gap:8,cursor:'pointer',transition:'.18s',fontFamily:F}}>
+<img src="https://flagcdn.com/w40/gb.png" width="20" height="14" style={{borderRadius:3,objectFit:'cover'}} alt=""/>
+<span style={{fontSize:11.5,fontWeight:lang==='en'?700:600,color:lang==='en'?C.gold:'rgba(255,255,255,.55)'}}>English</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+{/* Footer */}
+<div style={{padding:'4px 18px 12px',display:'flex',justifyContent:ar?'flex-end':'flex-start',flexShrink:0}}>
+<button disabled={profileBusy} onClick={onSave} className="pf-save-btn">
+<span>{profileBusy?T2('جارٍ الحفظ...','Saving...'):T2('حفظ التعديلات','Save Changes')}</span>
+<span className="pf-nav-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+</button>
+</div>
+
+{/* Email confirmation overlay (in-modal) */}
+{emailConfirmStep&&<div onClick={()=>setEmailConfirmStep(false)} style={{position:'absolute',inset:0,background:'rgba(10,10,10,.85)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:10,padding:20,borderRadius:18}}>
+<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:14,width:'min(420px,100%)',padding:'22px 22px 18px',border:'1px solid rgba(212,160,23,.25)',boxShadow:'0 16px 40px rgba(0,0,0,.6)'}}>
+<div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
+<div style={{width:44,height:44,borderRadius:12,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+</div>
+<div style={{flex:1}}>
+<div style={{fontSize:14,fontWeight:800,color:'rgba(255,255,255,.92)',marginBottom:4}}>{T2('تأكيد تغيير البريد الإلكتروني','Confirm Email Change')}</div>
+<div style={{fontSize:11,color:'rgba(255,255,255,.55)',lineHeight:1.6}}>{T2('سيتم إرسال رابط تأكيد إلى البريد الجديد. يجب فتح الرابط لإكمال التغيير.','A confirmation link will be sent to the new email. You must open the link to complete the change.')}</div>
+</div>
+</div>
+<div style={{background:'rgba(0,0,0,.2)',borderRadius:9,padding:'10px 12px',marginBottom:16,border:'1px solid rgba(255,255,255,.05)'}}>
+<div style={{display:'flex',justifyContent:'space-between',gap:10,fontSize:11,marginBottom:6}}><span style={{color:'rgba(255,255,255,.4)'}}>{T2('من','From')}</span><span style={{color:'rgba(255,255,255,.7)',fontWeight:600,direction:'ltr'}}>{profileData._origEmail}</span></div>
+<div style={{height:1,background:'rgba(212,160,23,.15)',margin:'4px 0'}}/>
+<div style={{display:'flex',justifyContent:'space-between',gap:10,fontSize:11}}><span style={{color:'rgba(255,255,255,.4)'}}>{T2('إلى','To')}</span><span style={{color:C.gold,fontWeight:700,direction:'ltr'}}>{profileData.email}</span></div>
+</div>
+<div style={{display:'flex',gap:8,flexDirection:ar?'row-reverse':'row'}}>
+<button disabled={profileBusy} onClick={doSave} style={{flex:1,height:40,borderRadius:10,border:'none',background:C.gold,color:'#171717',fontFamily:F,fontSize:12,fontWeight:800,cursor:'pointer',opacity:profileBusy?.7:1}}>{profileBusy?T2('جارٍ الإرسال...','Sending...'):T2('تأكيد وإرسال الرابط','Confirm & Send Link')}</button>
+<button onClick={()=>setEmailConfirmStep(false)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',color:'rgba(255,255,255,.6)',fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer'}}>{T2('تراجع','Back')}</button>
+</div>
+</div>
 </div>}
 </div>
-</>}
+</div>})()}
 {/* ═══ AI CHAT POPUP ═══ */}
 {showAiChat&&<><div onClick={()=>setShowAiChat(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(4px)',zIndex:9997,display:'flex',alignItems:'center',justifyContent:'center'}}/>
 <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:'min(520px,96vw)',height:'min(640px,96vh)',background:'var(--sf)',borderRadius:'min(16px,2vw)',boxShadow:'0 20px 60px rgba(0,0,0,.6)',border:'1px solid rgba(212,160,23,.2)',zIndex:9998,display:'flex',flexDirection:'column',overflow:'hidden',direction:lang==='ar'?'rtl':'ltr',fontFamily:"'Cairo',sans-serif"}}>
