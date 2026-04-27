@@ -37,7 +37,8 @@ setInvs(inv.data||[]);setBranches(br.data||[]);setAging(ag.data||[]);setLoading(
 useEffect(()=>{load()
 sb.from('clients').select('id,name_ar,name_en,phone,id_number').is('deleted_at',null).order('name_ar').then(({data})=>setClients(data||[]))
 sb.from('brokers').select('id,name_ar').is('deleted_at',null).order('name_ar').then(({data})=>setBrokers(data||[]))
-sb.from('worker_transfers').select('id,total_cost,client_charge,profit,status,workers:worker_id(name_ar,iqama_number),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}).then(({data})=>{window._transferCalcs=data||[]})
+// _transferCalcs is set but never read — leaving the legacy global empty for any external consumers.
+window._transferCalcs=[]
 },[load,sb])
 
 // Load payments for a specific invoice

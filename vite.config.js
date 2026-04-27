@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -46,17 +46,23 @@ const netlifyFunctionsDevPlugin = () => ({
   },
 })
 
-export default defineConfig({
-  plugins: [react(), netlifyFunctionsDevPlugin()],
-  build: {
-    outDir: 'dist',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-charts': ['recharts'],
-          'vendor-supabase': ['@supabase/supabase-js']
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  for (const k of ['ANTHROPIC_API_KEY']) {
+    if (env[k] && !process.env[k]) process.env[k] = env[k]
+  }
+  return {
+    plugins: [react(), netlifyFunctionsDevPlugin()],
+    build: {
+      outDir: 'dist',
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-charts': ['recharts'],
+            'vendor-supabase': ['@supabase/supabase-js']
+          }
         }
       }
     }

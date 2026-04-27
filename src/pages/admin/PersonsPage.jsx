@@ -7,6 +7,7 @@ import {
   Trash2, X
 } from 'lucide-react'
 import * as personsService from '../../services/personsService.js'
+import { listForwardersByPerson } from '../../services/smsForwarderService.js'
 import PersonFormModal from '../../components/persons/PersonFormModal.jsx'
 import OfficialStampBadge from '../../components/ui/OfficialStampBadge.jsx'
 import RolePageRouter from './roles/RolePageRouter.jsx'
@@ -207,7 +208,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
             transition: '.15s' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-          شخص <Plus size={13} strokeWidth={2.5} />
+          إضافة شخص <Plus size={13} strokeWidth={2.5} />
         </button>
 
         <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>الأشخاص</div>
@@ -502,10 +503,9 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                     <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', whiteSpace: 'nowrap', letterSpacing: '.15px' }}>
                       {r.name_ar}
                     </span>
-                    {nationality?.code && (
+                    {nationality?.flag_url && (
                       <img
-                        src={`https://flagcdn.com/w40/${nationality.code.toLowerCase()}.png`}
-                        srcSet={`https://flagcdn.com/w80/${nationality.code.toLowerCase()}.png 2x`}
+                        src={nationality.flag_url}
                         width={20}
                         height={15}
                         alt={nationality.nationality_ar || nationality.name_ar || ''}
@@ -606,19 +606,22 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
   const [person, setPerson] = useState(null)
   const [owned, setOwned] = useState([])
   const [managed, setManaged] = useState([])
+  const [forwarders, setForwarders] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [pg, o, m] = await Promise.all([
+      const [pg, o, m, fwds] = await Promise.all([
         personsService.getPerson(personId),
         personsService.listOwnedFacilities(personId),
         personsService.listManagedFacilities(personId),
+        listForwardersByPerson(personId, { includeDeleted: true }),
       ])
       setProfile(pg.profile); setPerson(pg.person)
       setOwned(o); setManaged(m)
+      setForwarders(fwds || [])
     } catch (e) {
       toast?.('خطأ: ' + (e.message || ''))
     } finally {
@@ -627,6 +630,11 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
   }, [personId, toast])
 
   useEffect(() => { load() }, [load])
+
+  // Forwarder badge state — counts active vs deleted to drive row UI.
+  const fwdActive = forwarders.filter(f => !f.deleted_at && f.is_active).length
+  const fwdHasAny = forwarders.length > 0
+  const fwdAllDeleted = fwdHasAny && forwarders.every(f => f.deleted_at)
 
   const nationality = useMemo(() => {
     if (!person?.nationality_id || !countries) return null
@@ -677,24 +685,24 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
       `}</style>
 
       {/* Header row — matches Transfer Calc spacing */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, textAlign: 'center' }}>
         <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
           {profile.name_ar}
         </div>
-        <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, textAlign: 'right', letterSpacing: '.3px' }}>
+        <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, letterSpacing: '.3px' }}>
           <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{profile.name_en || '—'}</span>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 14 }}>
-          <button onClick={onBack} title="رجوع"
-            style={{ height: 34, padding: '0 12px', borderRadius: 8,
+          <button onClick={onBack} title="رجوع لقائمة الأشخاص"
+            style={{ height: 34, padding: '0 14px', borderRadius: 8,
               background: '#141414', border: '1px solid rgba(255,255,255,.06)',
               color: 'var(--tx2)', cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
               fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = C.gold }}
             onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
-            <ArrowRight size={13} /> رجوع
+            <ArrowRight size={13} /> رجوع لقائمة الأشخاص
           </button>
         </div>
       </div>
@@ -704,7 +712,7 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="prs-card">
             <div className="prs-card-title">
-              <Shield size={15} color={C.gold} />
+              <Shield size={20} color={C.gold} />
               البيانات الشخصية
               <button onClick={() => setShowForm(true)} title="تعديل"
                 style={{ marginInlineStart: 'auto', width: 26, height: 26, borderRadius: 7,
@@ -720,10 +728,9 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
             <KV icon={CreditCard} label="رقم الهوية" value={person?.id_number || '—'} dir="ltr" copy={person?.id_number} toast={toast} />
             <KV icon={Flag} label="الجنسية" dir="ltr" value={nationality ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'rtl' }}>
-                {nationality.code && (
+                {nationality.flag_url && (
                   <img
-                    src={`https://flagcdn.com/w40/${nationality.code.toLowerCase()}.png`}
-                    srcSet={`https://flagcdn.com/w80/${nationality.code.toLowerCase()}.png 2x`}
+                    src={nationality.flag_url}
                     width={20}
                     height={15}
                     alt=""
@@ -742,7 +749,7 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="prs-card">
-            <div className="prs-card-title"><UserCheck size={15} color={C.gold} /> ملفات النظام والمكتب (داخلي)</div>
+            <div className="prs-card-title"><UserCheck size={20} color={C.gold} /> ملفات النظام والمكتب (داخلي)</div>
             <ProfileRow Icon={UserCheck} label="ملف المستخدم" linked={!!profile.user_id} color={C.gold} toast={toast}
               onOpen={() => openRole('user')} />
             <ProfileRow Icon={UserCheck} label="ملف العميل" linked={!!profile.client_id} color="#5ca0e6" toast={toast}
@@ -753,13 +760,19 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
               assigned={(profile.role_flags || []).includes('tracker')} color="#06b6d4" toast={toast}
               onOpen={() => openRole('tracker')}
               linkLabel="تعيين" assignedLabel="معيّن" />
-            <ProfileRow Icon={Phone} label="ملف SMS Forwarder" linked={!!profile.sms_forwarder_id} color="#f39c12" toast={toast}
-              count={Number(profile.sms_messages_count || 0) || null} unit="رسالة"
+            <ProfileRow Icon={Phone}
+              label="ملف SMS Forwarder"
+              linked={fwdActive > 0}
+              color="#f39c12"
+              toast={toast}
+              count={fwdActive || null}
+              unit={fwdActive ? 'حساب' : null}
+              linkLabel="فتح"
               onOpen={() => openRole('sms_forwarder')} />
           </div>
 
           <div className="prs-card">
-            <div className="prs-card-title"><Briefcase size={15} color="#e5867a" /> ملفات السجل التجاري</div>
+            <div className="prs-card-title"><Briefcase size={20} color="#e5867a" /> ملفات السجل التجاري</div>
             {(() => {
               const flags = profile.role_flags || []
               return (
@@ -786,7 +799,7 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
           </div>
 
           <div className="prs-card">
-            <div className="prs-card-title"><HardHat size={15} color="#c0c0c0" /> ملفات القوى العاملة</div>
+            <div className="prs-card-title"><HardHat size={20} color="#c0c0c0" /> ملفات القوى العاملة</div>
             <ProfileRow Icon={HardHat} label="ملف العامل" linked={!!profile.worker_id} color="#c0c0c0" toast={toast}
               onOpen={() => openRole('worker')} />
             <ProfileRow Icon={UserCheck} label="ملف السعودة" linked={Number(profile.saudization_weeks_count || 0) > 0} color="#3483b4" toast={toast}
@@ -988,6 +1001,7 @@ export default function PersonsPage({ toast, user }) {
   const [view, setView] = useState('list')
   const [detailId, setDetailId] = useState(null)
   const [roleKey, setRoleKey] = useState(null)
+  const [forwarderId, setForwarderId] = useState(null)
   const [countries, setCountries] = useState([])
   const [branches, setBranches] = useState([])
   const [idTypes, setIdTypes] = useState([])
@@ -1003,11 +1017,14 @@ export default function PersonsPage({ toast, user }) {
   useEffect(() => {
     const parseHash = () => {
       const h = window.location.hash.replace(/^#/, '')
+      // /admin/persons/{id}/role/{key}/{forwarderId}? — forwarderId optional, sms_forwarder only
+      const mRoleSub = h.match(/^\/?admin\/persons\/([a-f0-9-]{36})\/role\/([a-z_]+)\/([a-f0-9-]{36})/i)
+      if (mRoleSub) { setDetailId(mRoleSub[1]); setRoleKey(mRoleSub[2]); setForwarderId(mRoleSub[3]); setView('role'); return }
       const mRole = h.match(/^\/?admin\/persons\/([a-f0-9-]{36})\/role\/([a-z_]+)/i)
-      if (mRole) { setDetailId(mRole[1]); setRoleKey(mRole[2]); setView('role'); return }
+      if (mRole) { setDetailId(mRole[1]); setRoleKey(mRole[2]); setForwarderId(null); setView('role'); return }
       const m = h.match(/^\/?admin\/persons\/([a-f0-9-]{36})/i)
-      if (m) { setDetailId(m[1]); setRoleKey(null); setView('detail') }
-      else if (/^\/?admin\/persons/i.test(h)) { setDetailId(null); setRoleKey(null); setView('list') }
+      if (m) { setDetailId(m[1]); setRoleKey(null); setForwarderId(null); setView('detail') }
+      else if (/^\/?admin\/persons/i.test(h)) { setDetailId(null); setRoleKey(null); setForwarderId(null); setView('list') }
     }
     parseHash()
     window.addEventListener('hashchange', parseHash)
@@ -1015,29 +1032,32 @@ export default function PersonsPage({ toast, user }) {
   }, [])
 
   const openDetail = (id) => {
-    setDetailId(id); setRoleKey(null); setView('detail')
+    setDetailId(id); setRoleKey(null); setForwarderId(null); setView('detail')
     try { window.history.replaceState(null, '', '#/admin/persons/' + id) } catch {}
   }
-  const openRole = (id, key) => {
-    setDetailId(id); setRoleKey(key); setView('role')
-    try { window.history.replaceState(null, '', `#/admin/persons/${id}/role/${key}`) } catch {}
+  const openRole = (id, key, fwdId = null) => {
+    setDetailId(id); setRoleKey(key); setForwarderId(fwdId); setView('role')
+    const path = fwdId
+      ? `#/admin/persons/${id}/role/${key}/${fwdId}`
+      : `#/admin/persons/${id}/role/${key}`
+    try { window.history.replaceState(null, '', path) } catch {}
   }
   const goBackToDetail = () => {
-    setRoleKey(null); setView('detail')
+    setRoleKey(null); setForwarderId(null); setView('detail')
     try { window.history.replaceState(null, '', '#/admin/persons/' + detailId) } catch {}
   }
   const goBack = () => {
-    setView('list'); setDetailId(null); setRoleKey(null)
+    setView('list'); setDetailId(null); setRoleKey(null); setForwarderId(null)
     try { window.history.replaceState(null, '', '#/admin/persons') } catch {}
   }
 
   return (
     <div style={{ width: '100%', minHeight: '100%' }}>
       {view === 'role' && detailId && roleKey ? (
-        <RolePageRouter roleKey={roleKey} personId={detailId} onBack={goBackToDetail}
+        <RolePageRouter roleKey={roleKey} personId={detailId} forwarderId={forwarderId} onBack={goBackToDetail}
           toast={toast} countries={countries} branches={branches} idTypes={idTypes} genders={genders} user={user} />
       ) : view === 'detail' && detailId ? (
-        <PersonDetail personId={detailId} onBack={goBack} onOpenRole={(key) => openRole(detailId, key)}
+        <PersonDetail personId={detailId} onBack={goBack} onOpenRole={(key, fwdId) => openRole(detailId, key, fwdId)}
           toast={toast} countries={countries} branches={branches} idTypes={idTypes} genders={genders} />
       ) : (
         <PersonsList toast={toast} countries={countries} branches={branches}

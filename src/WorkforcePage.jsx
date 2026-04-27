@@ -47,7 +47,8 @@ Promise.all([
 sb.from('work_permits').select('*').is('deleted_at',null).order('wp_expiry_date',{ascending:false}),
 sb.from('iqama_cards').select('*').is('deleted_at',null).order('iqama_expiry_date',{ascending:false}),
 sb.from('worker_insurance').select('*').is('deleted_at',null).order('end_date',{ascending:false}),
-sb.from('worker_transfers').select('*,workers:worker_id(name_ar),facilities:facility_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}),
+// transfer_calculation is keyed by iqama_number, not worker_id — workforce-side transfer history is no longer joined here.
+Promise.resolve({data:[]}),
 Promise.resolve({data:[]}),
 sb.from('worker_passports').select('*').order('expiry_date',{ascending:false}),
 sb.from('worker_licenses').select('*').order('expiry_date',{ascending:false}),

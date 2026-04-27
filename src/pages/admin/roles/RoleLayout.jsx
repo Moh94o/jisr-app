@@ -5,7 +5,7 @@ const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
 
 // Header that matches PersonsPage detail header spacing + back button style.
-export default function RoleLayout({ title, subtitle, color = C.gold, onBack, actions, children }) {
+export default function RoleLayout({ title, subtitle, color = C.gold, onBack, actions, children, backLabel = 'رجوع لملف الشخص' }) {
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
@@ -22,29 +22,32 @@ export default function RoleLayout({ title, subtitle, color = C.gold, onBack, ac
         .prs-kv-v { font-size: 12.5px; color: var(--tx); font-weight: 600; word-break: break-word }
       `}</style>
 
-      {/* Header row — matches Persons detail spacing */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
-          {title}
-        </div>
-        {subtitle && (
-          <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, letterSpacing: '.3px' }}>
-            {subtitle}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 14 }}>
-          <button onClick={onBack} title="رجوع"
-            style={{ height: 34, padding: '0 12px', borderRadius: 8,
+      {/* Header — flex 3-col: back | centered title+subtitle | actions */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <button onClick={onBack} title={backLabel}
+            style={{ flexShrink: 0, height: 40, padding: '0 14px', borderRadius: 8,
               background: '#141414', border: '1px solid rgba(255,255,255,.06)',
               color: 'var(--tx2)', cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
               fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = C.gold }}
             onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
-            <ArrowRight size={13} /> رجوع
+            <ArrowRight size={13} /> {backLabel}
           </button>
-          {actions && <div style={{ display: 'flex', gap: 8 }}>{actions}</div>}
+          <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
+              {title}
+            </div>
+            {subtitle && (
+              <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 4, letterSpacing: '.3px' }}>
+                {subtitle}
+              </div>
+            )}
+          </div>
+          <div style={{ flexShrink: 0, display: 'flex', gap: 8 }}>
+            {actions || <div style={{ width: 0 }} />}
+          </div>
         </div>
       </div>
 

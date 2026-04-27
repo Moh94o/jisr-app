@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { User, FileText, Calculator, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send } from 'lucide-react'
+import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
-import { getKafalaPricingConfig } from '../ServiceAdminPage.jsx'
+import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', bg: '#171717', sf: '#1e1e1e', bd: 'rgba(255,255,255,.06)' }
@@ -78,10 +78,10 @@ const NATIONALITIES = ['يمني', 'مصري', 'باكستاني', 'هندي', '
 const OCCUPATIONS = ['عامل بناء', 'نجار', 'حداد', 'كهربائي', 'سباك', 'دهان', 'مشغل معدات', 'سائق', 'مقاول', 'فني تكييف', 'حارس أمن', 'عامل نظافة', 'بائع', 'موظف إداري', 'أخرى']
 
 // ═══ Shared UI Components — matches register modal style ═══
-const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', textAlign: 'center', transition: '.2s' }
+const sF = { width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#2e2e2e,#262626)', boxSizing: 'border-box', textAlign: 'center', transition: 'border-color .2s' }
 const sFRO = { ...sF, border: '1px solid rgba(255,255,255,.05)', cursor: 'not-allowed' }
 
-const Lbl = ({ children, req }) => <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red }}> *</span>}</div>
+const Lbl = ({ children, req }) => <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red, marginRight: 2 }}>*</span>}</div>
 
 const CAPTCHA_TTL = 30
 const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
@@ -115,7 +115,7 @@ const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth={stroke} />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={displayColor} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset .25s linear' }} />
       </svg>
-      <span style={{ position: 'absolute', fontSize: 13, fontWeight: 800, color: displayColor, fontFamily: F, lineHeight: 1 }}>{remaining}</span>
+      <span style={{ position: 'absolute', fontSize: 14, fontWeight: 500, color: displayColor, fontFamily: F, lineHeight: 1 }}>{remaining}</span>
     </div>
   )
 }
@@ -135,7 +135,7 @@ const DateInp = ({ value, onChange }) => {
       </button>
       {open && (
         <input type="date" value={value || ''} onChange={e => { onChange(e.target.value); setOpen(false) }} autoFocus
-          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: 42 }}
+          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: 40 }}
           onBlur={() => setOpen(false)} />
       )}
     </div>
@@ -145,8 +145,8 @@ const DateInp = ({ value, onChange }) => {
 // Custom dark-themed calendar popup to match modal design
 const MONTH_NAMES_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
 const MONTH_NAMES_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const DAY_ABBR_AR = ['أحد','اثن','ثلا','أرب','خمي','جمع','سبت']
-const DAY_ABBR_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const DAY_ABBR_AR = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
+const DAY_ABBR_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const pad2 = n => String(n).padStart(2, '0')
 const fmtDate = (y, m, d) => `${y}-${pad2(m+1)}-${pad2(d)}`
 
@@ -170,13 +170,13 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
   const top = flipUp ? Math.max(8, anchor.top - POPUP_H - 6) : anchor.bottom + 6
   const left = Math.max(8, Math.min(window.innerWidth - POPUP_W - 8, anchor.left + anchor.width/2 - POPUP_W/2))
   return (
-    <div style={{ position: 'fixed', top, left, width: POPUP_W, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
+    <div style={{ position: 'fixed', top, left, width: POPUP_W, background: 'linear-gradient(180deg,#2e2e2e,#262626)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, direction: 'ltr' }}>
         <button type="button" onClick={prevMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tx)' }}>{(lang === 'en' ? MONTH_NAMES_EN : MONTH_NAMES_AR)[cur.m]} {cur.y}</div>
+        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--tx)' }}>{(lang === 'en' ? MONTH_NAMES_EN : MONTH_NAMES_AR)[cur.m]} {cur.y}</div>
         <button type="button" onClick={nextMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.4)', marginBottom: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.4)', marginBottom: 4 }}>
         {(lang === 'en' ? DAY_ABBR_EN : DAY_ABBR_AR).map(d => <div key={d} style={{ textAlign: 'center', padding: '4px 0' }}>{d}</div>)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
@@ -189,15 +189,15 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
             <button key={i} type="button" onClick={() => { onPick(s); onClose() }}
               onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
               onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = isTd ? 'rgba(212,160,23,.04)' : 'transparent' }}
-              style={{ height: 30, borderRadius: 6, border: isTd && !isSel ? `1px solid ${C.gold}55` : '1px solid transparent', background: isSel ? C.gold : (isTd ? 'rgba(212,160,23,.04)' : 'transparent'), color: isSel ? '#000' : (isTd ? C.gold : 'rgba(255,255,255,.8)'), fontFamily: F, fontSize: 12, fontWeight: isSel || isTd ? 800 : 500, cursor: 'pointer', transition: '.15s', padding: 0 }}>
+              style={{ height: 30, borderRadius: 6, border: isTd && !isSel ? `1px solid ${C.gold}55` : '1px solid transparent', background: isSel ? C.gold : (isTd ? 'rgba(212,160,23,.04)' : 'transparent'), color: isSel ? '#000' : (isTd ? C.gold : 'rgba(255,255,255,.8)'), fontFamily: F, fontSize: 10, fontWeight: isSel || isTd ? 800 : 500, cursor: 'pointer', transition: '.15s', padding: 0 }}>
               {d}
             </button>
           )
         })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-        <button type="button" onClick={() => { const t = new Date(); onPick(fmtDate(t.getFullYear(), t.getMonth(), t.getDate())); onClose() }} style={{ fontSize: 11, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 800, padding: '4px 8px' }}>{lang === 'en' ? 'Today' : 'اليوم'}</button>
-        <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 700, padding: '4px 8px' }}>{lang === 'en' ? 'Clear' : 'مسح'}</button>
+        <button type="button" onClick={() => { const t = new Date(); onPick(fmtDate(t.getFullYear(), t.getMonth(), t.getDate())); onClose() }} style={{ fontSize: 12, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Today' : 'اليوم'}</button>
+        <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Clear' : 'مسح'}</button>
       </div>
     </div>
   )
@@ -285,36 +285,36 @@ const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
   }, [open])
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
-        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: value ? 700 : 500 }}>{value || placeholder || '...'}</span>
+      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>{value || placeholder || '...'}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#0f0f0f', border: '1px solid rgba(212,160,23,.25)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
-          <div style={{ padding: 10, borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0, position: 'relative' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', [isAr ? 'right' : 'left']: 22, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder={isAr ? 'ابحث بالاسم...' : 'Search by name...'} autoFocus style={{ width: '100%', height: 34, padding: '0 34px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 8, background: 'rgba(0,0,0,.25)', fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+        <div ref={popRef} className="occ-sel-pop" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'linear-gradient(180deg,#2e2e2e,#262626)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
+          <div style={{ padding: 10, flexShrink: 0, position: 'relative' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="occ-sel-icon" style={{ position: 'absolute', top: '50%', left: 22, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder={isAr ? 'ابحث بالاسم...' : 'Search by name...'} autoFocus className="occ-sel-search" style={{ width: '100%', height: 34, padding: '0 34px', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8, background: '#141414', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
           </div>
-          <style>{`.occ-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}.occ-sel-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
+          <style>{`.occ-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}.occ-sel-scroll::-webkit-scrollbar{display:none;width:0;height:0}.occ-sel-search,.occ-sel-search:focus,.occ-sel-search:hover{border-color:rgba(255,255,255,.06)!important;box-shadow:none!important;outline:none!important}.occ-sel-search::placeholder{font-size:12px;color:rgba(255,255,255,.4)}.occ-sel-icon,.occ-sel-icon *{stroke:rgba(255,255,255,.45)!important;color:rgba(255,255,255,.45)!important}`}</style>
           <div className="occ-sel-scroll" style={{ flex: 1, overflowY: 'auto' }}>
-            {filtered.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 12, color: 'var(--tx5)' }}>{isAr ? 'لا توجد نتائج' : 'No results'}</div>}
+            {filtered.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 14, color: 'var(--tx5)' }}>{isAr ? 'لا توجد نتائج' : 'No results'}</div>}
             {filtered.slice(0, 200).map(o => {
               const selLabel = isAr && o.name_ar ? o.name_ar : (o.name_en || o.name_ar)
               const isSel = value === selLabel
               return (
                 <div key={o.id} onClick={() => { onChange(selLabel, o); setOpen(false); setQ('') }}
-                  style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.03)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
+                  style={{ padding: '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid rgba(255,255,255,.08)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
                   onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <span style={{ fontSize: 13, fontWeight: isSel ? 800 : 700, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: isAr ? 'right' : 'left', width: '100%' }}>{o.name_ar}</span>
-                    {o.name_en && <span style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', textAlign: isAr ? 'right' : 'left', width: '100%', unicodeBidi: 'plaintext' }}>{o.name_en}</span>}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.name_ar}</span>
+                    {o.name_en && <span style={{ fontSize: 14, fontWeight: 400, color: 'rgba(255,255,255,.5)', textAlign: 'center', width: '100%', unicodeBidi: 'plaintext' }}>{o.name_en}</span>}
                   </div>
-                  {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>}
+                  {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </div>
               )
             })}
-            {filtered.length > 200 && <div style={{ padding: 10, textAlign: 'center', fontSize: 10, color: 'var(--tx5)' }}>{isAr ? `… و ${filtered.length - 200} نتيجة أخرى. ضيّق البحث.` : `… and ${filtered.length - 200} more. Narrow your search.`}</div>}
+            {filtered.length > 200 && <div style={{ padding: 10, textAlign: 'center', fontSize: 14, color: 'var(--tx5)' }}>{isAr ? `… و ${filtered.length - 200} نتيجة أخرى. ضيّق البحث.` : `… and ${filtered.length - 200} more. Narrow your search.`}</div>}
           </div>
         </div>,
         document.body
@@ -325,46 +325,48 @@ const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
 
 const Sel = ({ value, onChange, options, placeholder }) => {
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 380 })
   const btnRef = useRef(null)
-  const [q, setQ] = useState('')
-  const filtered = q ? options.filter(o => String(o).toLowerCase().includes(q.toLowerCase())) : options
+  const popRef = useRef(null)
   const toggle = () => {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      setPos({ top: r.bottom + 4, left: r.left, width: r.width })
+      const maxH = options.length * 42 + 4
+      setPos({ top: r.bottom + 6, left: r.left, width: r.width, maxH })
     }
-    setQ('')
     setOpen(o => !o)
   }
   useEffect(() => {
     if (!open) return
-    const onDoc = e => { if (btnRef.current && !btnRef.current.contains(e.target)) setOpen(false) }
-    setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
+    const onDoc = e => { if (popRef.current && !popRef.current.contains(e.target) && btnRef.current && !btnRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px 0 32px', position: 'relative' }}>
-        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value || placeholder || '...'}</span>
+      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>{value || placeholder || '...'}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
-        <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 9, maxHeight: 220, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 12px 40px rgba(0,0,0,.65)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
-          {options.length > 6 && (
-            <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0, position: 'relative' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', right: 18, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input value={q} onChange={e => setQ(e.target.value)} placeholder="..." autoFocus
-                style={{ width: '100%', height: 32, padding: '0 32px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 7, background: 'rgba(0,0,0,.18)', fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', textAlign: 'center' }} />
-            </div>
-          )}
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filtered.map(o => (
-              <div key={o} onClick={() => { onChange(o); setOpen(false); setQ('') }} style={{ padding: '10px 14px', fontSize: 13, fontWeight: value===o?700:500, color: value===o?C.gold:'rgba(255,255,255,.75)', background: value===o?'rgba(212,160,23,.08)':'transparent', cursor: 'pointer', textAlign: 'center' }}
-                onMouseEnter={e => { if (value!==o) e.currentTarget.style.background='rgba(255,255,255,.03)' }}
-                onMouseLeave={e => { if (value!==o) e.currentTarget.style.background='transparent' }}>{o}</div>
-            ))}
-            {filtered.length === 0 && <div style={{ padding: 14, textAlign: 'center', fontSize: 11, color: 'var(--tx5)' }}>—</div>}
+        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'linear-gradient(180deg,#2e2e2e,#262626)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
+          <style>{`.sel-pop-scroll{scrollbar-width:none;-ms-overflow-style:none}.sel-pop-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
+          <div className="sel-pop-scroll" style={{ flex: 1, overflowY: 'auto' }}>
+            {options.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 14, color: 'var(--tx5)' }}>—</div>}
+            {options.map(o => {
+              const isSel = value === o
+              return (
+                <div key={o} onClick={() => { onChange(o); setOpen(false) }}
+                  style={{ padding: '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid rgba(255,255,255,.08)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
+                  onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o}</span>
+                  </div>
+                  {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+              )
+            })}
           </div>
         </div>,
         document.body
@@ -380,16 +382,16 @@ const ToggleGroup = ({ options, value, onChange, disabled, height = 36 }) => (
       const clr = o.c || C.gold
       return (
         <button key={String(o.v)} type="button" disabled={disabled} onClick={() => !disabled && onChange(o.v)} style={{
-          flex: 1, borderRadius: 9, border: `1.5px solid ${sel ? clr : 'rgba(255,255,255,.08)'}`,
+          flex: 1, borderRadius: 8, border: `1.5px solid ${sel ? clr : 'rgba(255,255,255,.08)'}`,
           background: sel ? clr + '15' : 'rgba(0,0,0,.18)',
           color: sel ? clr : 'var(--tx4)',
-          fontFamily: F, fontSize: 12, fontWeight: sel ? 700 : 600,
+          fontFamily: F, fontSize: 14, fontWeight: sel ? 700 : 600,
           cursor: disabled ? 'not-allowed' : 'pointer', transition: '.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
           boxShadow: sel ? 'none' : 'inset 0 1px 2px rgba(0,0,0,.2)',
           opacity: disabled && !sel ? 0.4 : 1
         }}>
           <span>{o.l}</span>
-          {o.sub && <span style={{ fontSize: 9, opacity: .6 }}>{o.sub}</span>}
+          {o.sub && <span style={{ fontSize: 14, opacity: .6 }}>{o.sub}</span>}
         </button>
       )
     })}
@@ -404,11 +406,11 @@ const YesNo = ({ value, onChange, lang, disabled, height }) => (
 )
 
 const KCard = ({ Icon, label, hint, children, span }) => (
-  <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '16px 12px 6px', position: 'relative', marginTop: 9, transition: '.2s' }}>
-    <div style={{ position: 'absolute', top: -9, right: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      {Icon && <Icon size={12} strokeWidth={2.2} />}
+  <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '12px 14px 10px', position: 'relative', transition: '.2s' }}>
+    <div style={{ position: 'absolute', top: -10, right: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      {Icon && <Icon size={11} strokeWidth={2.2} />}
       <span>{label}</span>
-      {hint && <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.4)', marginInlineStart: 4 }}>· {hint}</span>}
+      {hint && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.4)', marginInlineStart: 4 }}>· {hint}</span>}
     </div>
     <div>{children}</div>
   </div>
@@ -421,18 +423,18 @@ const RenewalPill = ({ selected, onClick, children, flex }) => (
       height: 36,
       borderRadius: 10,
       border: `1.5px solid ${selected ? C.gold : 'rgba(255,255,255,.08)'}`,
-      background: selected ? 'linear-gradient(180deg, rgba(212,160,23,.22), rgba(212,160,23,.08))' : 'rgba(0,0,0,.22)',
+      background: selected ? 'rgba(212,160,23,.08)' : 'rgba(0,0,0,.22)',
       color: selected ? C.gold : 'rgba(255,255,255,.55)',
       fontFamily: F,
-      fontSize: 13,
-      fontWeight: 800,
+      fontSize: 14,
+      fontWeight: 500,
       cursor: 'pointer',
       transition: '.18s',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 4,
-      boxShadow: selected ? 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 8px rgba(212,160,23,.12)' : 'inset 0 1px 2px rgba(0,0,0,.25)'
+      boxShadow: selected ? 'inset 0 0 0 1px rgba(212,160,23,.15)' : 'inset 0 1px 2px rgba(0,0,0,.25)'
     }}
     onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = 'rgba(255,255,255,.8)' } }}
     onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.color = 'rgba(255,255,255,.55)' } }}>
@@ -475,15 +477,20 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const [calendarType, setCalendarType] = useState('gregorian') // 'gregorian' | 'hijri'
   const [nationalities, setNationalities] = useState(NATIONALITIES)
   const [occupations, setOccupations] = useState([])
+  const [residentStatuses, setResidentStatuses] = useState([])
   useEffect(() => {
     const sbx = getSupabase()
     if (!sbx) return
     ;(async () => {
       const { data: arch } = await sbx.from('lookup_items').select('id,lookup_categories!inner(category_key)').eq('code', 'archived').eq('lookup_categories.category_key', 'occupation_category').maybeSingle()
-      let q = sbx.from('occupations').select('id,name_ar,name_en,code').is('deleted_at', null).eq('is_active', true).order('sort_order', { nullsFirst: false }).order('name_ar').limit(5000)
+      let q = sbx.from('occupations').select('id,name_ar,name_en,code').eq('is_active', true).order('sort_order', { nullsFirst: false }).order('name_ar').limit(5000)
       if (arch?.id) q = q.neq('category_id', arch.id)
       const { data } = await q
       if (data) setOccupations(data)
+    })()
+    ;(async () => {
+      const { data } = await sbx.from('lookup_items').select('id,code,value_ar,value_en,sort_order,lookup_categories!inner(category_key)').eq('lookup_categories.category_key', 'resident_status').eq('is_active', true).order('sort_order', { nullsFirst: false })
+      if (data) setResidentStatuses(data)
     })()
   }, [])
 
@@ -507,7 +514,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     captchaInput: '',
     result: null,
     error: null,
+    attempts: 0,
   })
+  const HRSD_MAX_ATTEMPTS = 3
 
   // ═══ Muqeem session (stored in localStorage) ═══
   const [muqeemSession, setMuqeemSession] = useState(() => {
@@ -518,8 +527,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const [muqeemData, setMuqeemData] = useState(null)
   // Tiny inline indicator next to the iqama input so the employee sees something is happening.
   const [muqeemFetchStatus, setMuqeemFetchStatus] = useState('idle') // idle | loading | ok | error | unavailable
-  // Language selector for the printable quote — opens after the user clicks "إصدار التسعيرة".
-  const [printLangModal, setPrintLangModal] = useState(false)
   // Success modal shown after "إصدار" — carries the saved quote info + copy/navigate actions.
   const [issuedQuote, setIssuedQuote] = useState(null) // { quoteNo, workerName, iqNo, total }
 
@@ -535,15 +542,16 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     if (!sb) return
     let cancelled = false
     async function pull() {
-      const { data } = await sb.from('muqeem_sessions').select('*').eq('id', 'default').maybeSingle()
-      if (cancelled || !data || !data.auth_bearer) return
+      const { data } = await sb.rpc('get_muqeem_session')
+      const row = Array.isArray(data) ? data[0] : data
+      if (cancelled || !row || !row.auth_bearer) return
       const remote = {
-        cookies: data.cookies || '',
-        authBearer: data.auth_bearer,
-        xsrfToken: data.xsrf_token || null,
-        xDomain: data.x_domain || null,
-        jwtExp: data.jwt_exp || null,
-        moiNumber: data.moi_number || null,
+        cookies: row.cookies || '',
+        authBearer: row.auth_bearer,
+        xsrfToken: row.xsrf_token || null,
+        xDomain: row.x_domain || null,
+        jwtExp: row.jwt_exp || null,
+        moiNumber: row.moi_number || null,
       }
       const now = Math.floor(Date.now() / 1000)
       if (!remote.jwtExp || remote.jwtExp <= now) return
@@ -881,17 +889,28 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   function applyMuqeemToForm(m) {
     const STATUS_MAP = { 'صالح': 'صالح', 'هروب': 'هروب', 'خروج نهائي': 'خروج نهائي', 'منقطع عن العمل': 'منقطع عن العمل' }
+    // Normalize Arabic text for fuzzy matching: collapse hamza/alef variants, taa marbuta, alef maqsura, kashida and whitespace.
+    const arNorm = (s) => String(s || '').replace(/[إأآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/[ؤئ]/g, 'ء').replace(/\u0640/g, '').replace(/[\u064B-\u065F\u0670]/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+    let localMatch = null
+    let exactLocalMatch = false
+    if (m.occupationAr && Array.isArray(occupations) && occupations.length) {
+      const rn = arNorm(m.occupationAr)
+      const exact = occupations.find(o => arNorm(o.name_ar) === rn)
+      if (exact) { localMatch = exact; exactLocalMatch = true }
+      else { localMatch = occupations.find(o => { const on = arNorm(o.name_ar); return on.includes(rn) || rn.includes(on) }) }
+    }
     setF(p => ({
       ...p,
       iqamaExpiry: m.iqamaExpiryGregorian || p.iqamaExpiry,
-      occupation: m.occupationAr || p.occupation,
+      occupation: localMatch?.name_ar || m.occupationAr || p.occupation,
+      occupationId: localMatch?.id || p.occupationId,
       legalStatus: STATUS_MAP[m.statusAr] || p.legalStatus,
       transferCount: m.sponsorChanges != null ? String(Math.max(0, m.sponsorChanges)) : p.transferCount,
     }))
     setMuqeemData(m)
-    // Ask Claude to map Muqeem's free-text occupation to the closest row in our occupations table.
-    // Store both the canonical name AND the id so downstream logic (e.g. free-change list) can match by id.
-    if (m.occupationAr && Array.isArray(occupations) && occupations.length) {
+    // Refine with Claude only when local match was inexact — exact match is already authoritative,
+    // and re-running Claude can drift the value across opens.
+    if (!exactLocalMatch && m.occupationAr && Array.isArray(occupations) && occupations.length) {
       const raw = m.occupationAr
       fetch('/.netlify/functions/match-occupation', {
         method: 'POST',
@@ -901,7 +920,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           const match = data && data.match
-          if (match && match.name_ar) setF(p => (p.occupation === raw ? { ...p, occupation: match.name_ar, occupationId: match.id } : p))
+          if (match && match.name_ar) setF(p => ({ ...p, occupation: match.name_ar, occupationId: match.id }))
         })
         .catch(() => {})
     }
@@ -1059,12 +1078,16 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         captcha: insCheck.captchaInput,
         session: insCheck.sessionToken,
       })
-      if (r.status === 'invalid_captcha') {
+      if (r.status === 'invalid_captcha' || r.status === 'unknown') {
         const nextAttempts = (insCheck.attempts || 0) + 1
         if (nextAttempts >= INS_MAX_ATTEMPTS) {
+          // After 3 CHI failures: mark CHI as auto-skipped (not_insured) and chain to HRSD captcha
           setF(p => ({ ...p, insuranceWaived: false, insuranceExpiry: '' }))
-          setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'not_insured', autoSkipped: true }, error: null, attempts: 0 })
-          setErrors({}); setTab(1)
+          let muqeemData = null
+          const mq = await queryMuqeem(f.iqama)
+          if (mq.ok) { muqeemData = mq.result; applyMuqeemToForm(mq.result) }
+          setInsCheck({ phase: 'await_hrsd', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'not_insured', autoSkipped: true, waived: false, daysLeft: null, muqeem: muqeemData, muqeemError: mq.ok ? null : (mq.code || mq.error) }, error: null, attempts: 0 })
+          startHrsdCheck()
           return
         }
         const fresh = await callInsFn({ action: 'init' })
@@ -1091,17 +1114,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         }))
         return
       }
-      const sb = getSupabase()
-      if (sb && (r.status === 'insured' || r.status === 'not_insured')) {
-        await sb.from('insurance_check_cache').upsert({
-          iqama_number: f.iqama,
-          is_active: r.status === 'insured',
-          company_name: r.company || null,
-          expiry_date: r.expiryDate || null,
-          raw_response: r,
-          checked_at: new Date().toISOString(),
-        })
-      }
+      // Cache write moved to the Netlify function (which uses service role and is the only side
+      // that has actually verified the captcha). The client write was silently failing under RLS.
       let meta
       if (r.status === 'insured') {
         meta = applyInsuranceToCalc(r.expiryDate)
@@ -1163,7 +1177,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   async function startHrsdCheck() {
     if (!/^[12]\d{9}$/.test((f.iqama || '').trim())) return
-    setHrsdCheck(c => ({ ...c, phase: 'loading', error: null, result: null }))
+    setHrsdCheck(c => ({ ...c, phase: 'loading', error: null, result: null, attempts: 0 }))
     try {
       const r = await callHrsdFn({ action: 'init' })
       setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
@@ -1177,9 +1191,23 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     setHrsdCheck(c => ({ ...c, phase: 'verifying', error: null }))
     try {
       const r = await callHrsdFn({ action: 'verify', iqama: f.iqama, captcha: hrsdCheck.captchaInput, session: hrsdCheck.sessionToken })
-      if (r.status === 'invalid_captcha') {
+      if (r.status === 'invalid_captcha' || r.status === 'unknown') {
+        const nextAttempts = (hrsdCheck.attempts || 0) + 1
+        if (nextAttempts >= HRSD_MAX_ATTEMPTS) {
+          setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 })
+          setInsCheck(c => c.phase === 'await_hrsd' ? { ...c, phase: 'result' } : c)
+          return
+        }
         const fresh = await callHrsdFn({ action: 'init' })
-        setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: 'رمز التحقق غير صحيح — جرّب مرة ثانية' }))
+        setHrsdCheck(c => ({
+          ...c,
+          phase: 'captcha',
+          sessionToken: fresh.session,
+          captchaImage: fresh.captchaImage,
+          captchaInput: '',
+          error: `رمز التحقق غير صحيح — المحاولة ${nextAttempts + 1} من ${HRSD_MAX_ATTEMPTS}`,
+          attempts: nextAttempts,
+        }))
         return
       }
       if (r.code === 'SESSION_EXPIRED') {
@@ -1200,7 +1228,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   }
 
   function closeHrsdCheck() {
-    setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null })
+    setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
     // If the CHI modal was waiting for HRSD, show its result now so the user still sees the outcome.
     setInsCheck(c => c.phase === 'await_hrsd' ? { ...c, phase: 'result' } : c)
   }
@@ -1215,407 +1243,19 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     }
   }
 
-  // ═══ Print quote in selected language ═══
-  // Opens a new browser window with a print-ready HTML document (worker data + cost breakdown +
-  // warnings), then triggers the browser's print dialog. The worker name and iqama number stay
-  // untranslated because they are official identifiers from HRSD / Labor Office.
-  function openQuotePrint(langCode) {
-    const t = QUOTE_TEXTS[langCode] || QUOTE_TEXTS.ar
-    const langMeta = QUOTE_LANGS.find(l => l.code === langCode) || QUOTE_LANGS[0]
-    const dir = langMeta.dir
-    const workerName = hrsdCheck.result?.name || f.name || '—'
-    const iqNo = f.iqama || '—'
-    const mobile = f.phone ? '+966' + f.phone : '—'
-    const renewalMos = parseInt(f.renewalMonths) || 0
-    const officeMos = iqamaRemainderParts.months + renewalMos
-    const officeDays = iqamaRemainderParts.days
-    const fmtMonths = (m, d) => {
-      const parts = []
-      if (m > 0) parts.push(`${m} ${t.months}`)
-      if (d > 0) parts.push(`${d} ${t.days}`)
-      return parts.join(' ' + t.and + ' ') || '—'
-    }
-    const expectedExpiry = (() => {
-      if (!f.iqamaExpiry) return null
-      const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return null
-      const today = new Date(); today.setHours(0,0,0,0)
-      // Case 1: no renewal → end = current expiry
-      if (!f.renewIqama) return f.iqamaExpiry
-      const threshold = parseInt(cfg.thresholdCase2) || 30
-      const daysSinceExpiry = Math.floor((today - exp) / 86400000)
-      // Case 2: expired ≥ threshold — use case-2 processing days from today
-      // Case 3: still valid or recently expired — use current expiry
-      const start = daysSinceExpiry >= threshold
-        ? (() => { const d = new Date(today); d.setDate(d.getDate() + (parseInt(cfg.procDaysCase2) || 7)); return d })()
-        : new Date(exp)
-      start.setMonth(start.getMonth() + renewalMos)
-      return start.toISOString().slice(0, 10)
-    })()
-    const rows = [
-      [t.transferFee, transferFee, ''],
-      !f.transferOnly && renewalMos > 0 ? [t.iqamaRenewal, iqamaRenewalFee, fmtMonths(renewalMos, 0)] : null,
-      !f.transferOnly ? [t.workPermit, workPermitFee, fmtMonths(renewalMos, 0)] : null,
-      profChangeFee > 0 ? [t.changeProf, profChangeFee, ''] : null,
-      !f.transferOnly ? [t.medical, medicalFee, ''] : null,
-      [t.office, officeFee, fmtMonths(officeMos, officeDays)],
-      ...f.extras.map(ex => [ex.name, Number(ex.amount), '']),
-    ].filter(Boolean)
-    const subtotal = rows.reduce((s, [, v]) => s + (Number(v) || 0), 0)
-    const absher = f.absherBalance_on ? (parseFloat(f.absherBalance) || 0) : 0
-    const total = Math.max(0, subtotal - absher)
-    const warnings = []
-    if (iqamaExpired) warnings.push({ level: 'danger', text: t.warnExpired.replace('{d}', expiredDays) })
-    else if (f.iqamaExpiry) {
-      const daysLeft = Math.ceil((new Date(f.iqamaExpiry) - new Date()) / 86400000)
-      if (daysLeft <= 30 && daysLeft >= 0) warnings.push({ level: 'warn', text: t.warnExpiringSoon.replace('{d}', daysLeft) })
-      else warnings.push({ level: 'ok', text: t.warnValid })
-    }
-    const quoteNo = 'Q-' + Date.now().toString(36).toUpperCase()
-    const now = new Date()
-    const dateStr = now.toISOString().slice(0, 10)
-    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
-    const refDisplay = `JSR · ${now.getFullYear()} · ${String(Date.now()).slice(-4)}`
-    const nmFmt = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]))
-    // ── Extra variables for the new single-page Arabic layout ──
-    const currentOcc = f.occupation || muqeemData?.occupationAr || '—'
-    const newOcc = f.newOccupation || ''
-    const iqamaValidFlag = !iqamaExpired && !!f.iqamaExpiry
-    const iqamaStatusText = iqamaValidFlag ? 'سارية' : (f.iqamaExpiry ? 'منتهية' : '—')
-    const insured = insCheck.result?.status === 'insured'
-    const medStatusText = insured ? 'نشط' : 'غير نشط'
-    const expiryHijri = muqeemData?.iqamaExpiryHijri || gregorianToHijri(f.iqamaExpiry).replace(' هـ','') || '—'
-    // Expected duration in calendar (months + days) — mirrors tab-3 behaviour
-    const durParts = (() => {
-      if (!expectedExpiry) return null
-      const end = new Date(expectedExpiry); if (isNaN(end)) return null
-      const today = new Date(); today.setHours(0,0,0,0)
-      end.setHours(0,0,0,0)
-      if (end < today) return null
-      let m = (end.getFullYear() - today.getFullYear()) * 12 + (end.getMonth() - today.getMonth())
-      let d = end.getDate() - today.getDate()
-      if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
-      return { m: Math.max(0, m), d: Math.max(0, d) }
-    })()
-    const serviceType = (() => {
-      const parts = ['نقل كفالة']
-      if (!f.transferOnly && f.renewIqama) parts.push('تجديد الإقامة')
-      if (f.changeProfession) parts.push('تغيير المهنة')
-      return parts.join(' + ')
-    })()
-    const submitter = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '—'
-    const approver = '—'
-    const officeDiscountOptional = 0 // reserved for the approval workflow — 0 at submission time
-    const initialTotal = Math.max(0, subtotal - absher)
-    const grandTotal = Math.max(0, initialTotal - officeDiscountOptional)
-    // Arabic-Indic digits helper for the month suffix (e.g. "12 شهر" → "١٢ شهر")
-    const toArDigits = s => String(s).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[+d])
-    const monthsSfx = renewalMos ? `${toArDigits(renewalMos)} شهر` : ''
-    const html = `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8"/>
-<title>تسعيرة نقل كفالة — ${esc(quoteNo)}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-:root{--gold:#b8954a;--gold-line:#c9a855;--gold-faint:#e8d9a6;--ink:#0f1424;--ink-soft:#2a2f44;--mute:#7c8393;--mute-light:#b8bcc8;--paper:#ffffff;--cream:#fafaf7;--line:#e8e6e0;--hairline:rgba(184,149,74,.35)}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-body{font-family:'Cairo',sans-serif;background:#d8d4c8;background-image:radial-gradient(circle at 50% 0%,rgba(184,149,74,.08) 0%,transparent 40%);padding:30px 20px;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;color:var(--ink)}
-.toolbar{position:fixed;top:16px;left:16px;display:flex;gap:8px;z-index:100}
-.tool-btn{background:var(--ink);color:#fff;border:none;padding:10px 18px;border-radius:3px;font-family:'Cairo',sans-serif;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);letter-spacing:.3px}
-.tool-btn:hover{background:#000}
-.paper{width:210mm;min-height:297mm;background:var(--paper);position:relative;box-shadow:0 30px 80px rgba(0,0,0,.15);padding:22mm 20mm 18mm;display:flex;flex-direction:column}
-.paper::before{content:"";position:absolute;top:10mm;right:10mm;bottom:10mm;left:10mm;border:1px solid var(--hairline);pointer-events:none}
-.paper::after{content:"";position:absolute;top:11mm;right:11mm;bottom:11mm;left:11mm;border:.5px solid rgba(184,149,74,.15);pointer-events:none}
-.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:22px;border-bottom:.5px solid var(--hairline);position:relative}
-.hdr::after{content:"";position:absolute;bottom:-.5px;right:0;width:90px;height:2px;background:var(--gold)}
-.brand{display:flex;align-items:flex-start;gap:14px}
-.brand-mark{width:44px;height:44px;border:1.5px solid var(--gold);display:flex;align-items:center;justify-content:center;color:var(--gold);font-family:'Cairo',sans-serif;font-weight:700;font-size:26px;line-height:1;position:relative;background:var(--paper)}
-.brand-mark::after{content:"";position:absolute;inset:3px;border:.5px solid rgba(184,149,74,.4)}
-.brand-text{padding-top:2px}
-.brand-name{font-family:'Cairo',sans-serif;font-size:20px;font-weight:700;color:var(--ink);line-height:1;letter-spacing:-.2px}
-.brand-tag{font-family:'Cairo',sans-serif;font-size:10px;color:var(--mute);margin-top:6px;font-weight:400;letter-spacing:.1px}
-.brand-line{width:40px;height:1px;background:var(--gold);margin-top:6px}
-.ref{text-align:start}
-.ref-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mute);letter-spacing:2px;font-weight:400;text-transform:uppercase;margin-bottom:4px}
-.ref-num{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--ink);font-weight:500;letter-spacing:.5px;line-height:1}
-.ref-date{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mute);margin-top:8px;letter-spacing:.5px;font-weight:400}
-.doc-title-block{text-align:center;padding:32px 0 28px}
-.doc-title{font-family:'Cairo',sans-serif;font-size:30px;font-weight:300;color:var(--ink);line-height:1;letter-spacing:.5px}
-.doc-divider{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px}
-.doc-divider-line{width:60px;height:1px;background:var(--gold)}
-.doc-divider-dot{width:5px;height:5px;border:1px solid var(--gold);background:var(--paper);transform:rotate(45deg)}
-.section{margin-top:20px}
-.section-head{display:flex;align-items:baseline;gap:12px;margin-bottom:10px;padding-bottom:6px;border-bottom:.5px solid var(--line);position:relative}
-.section-head::after{content:"";position:absolute;bottom:-.5px;right:0;width:32px;height:1.5px;background:var(--gold)}
-.section-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold);letter-spacing:3px;font-weight:500}
-.section-title{font-family:'Cairo',sans-serif;font-size:14px;color:var(--ink);font-weight:700;letter-spacing:.2px}
-.fields{display:grid;grid-template-columns:1fr 1fr;gap:0 40px}
-.field-row{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:14px;padding:7px 0;border-bottom:.5px dotted var(--line);min-height:30px}
-.field-row.full{grid-column:1 / -1}
-.field-row:last-child{border-bottom:none}
-.field-label{font-family:'Cairo',sans-serif;font-size:11px;color:var(--mute);font-weight:500;white-space:nowrap;letter-spacing:.1px}
-.field-value{font-family:'Cairo',sans-serif;font-size:12.5px;color:var(--ink);font-weight:600;text-align:start;letter-spacing:.1px}
-.field-value.mono{font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:.3px;font-size:12.5px}
-.field-value .sub-en{font-family:'Cairo',sans-serif;font-size:10px;color:var(--mute-light);font-weight:500;margin-inline-start:8px;letter-spacing:.2px}
-.status{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px}
-.status::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--mute)}
-.status.on::before{background:#2d7a3e}
-.status.off::before{background:#a03030}
-.status.on{color:#2d7a3e}
-.status.off{color:#a03030}
-.profession-change{margin-top:14px;padding:14px 18px;background:var(--cream);border-inline-start:3px solid var(--gold);position:relative}
-.profession-change::before{content:"";position:absolute;top:0;right:0;width:30px;height:1px;background:var(--gold)}
-.pc-label{font-family:'Cairo',sans-serif;font-size:10px;color:var(--gold);letter-spacing:1.5px;font-weight:600;margin-bottom:6px;text-transform:uppercase}
-.pc-transition{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.pc-old{font-family:'Cairo',sans-serif;font-size:13px;color:var(--mute);text-decoration:line-through;text-decoration-color:rgba(0,0,0,.3);font-weight:500}
-.pc-arrow{color:var(--gold);font-size:16px;font-weight:300}
-.pc-new{font-family:'Cairo',sans-serif;font-size:15px;color:var(--ink);font-weight:700;letter-spacing:.2px}
-.duration-card{margin-top:14px;display:grid;grid-template-columns:1fr auto;align-items:center;padding:14px 18px;border:.5px solid var(--hairline);background:var(--cream);position:relative;overflow:hidden}
-.duration-card::before{content:"";position:absolute;top:0;right:0;bottom:0;width:3px;background:var(--gold)}
-.dur-label{font-family:'Cairo',sans-serif;font-size:10px;color:var(--gold);letter-spacing:1.5px;font-weight:600;margin-bottom:4px;text-transform:uppercase}
-.dur-value{font-family:'Cairo',sans-serif;font-size:19px;font-weight:600;color:var(--ink);line-height:1}
-.dur-expiry{text-align:end;border-inline-start:1px solid var(--hairline);padding-inline-start:18px}
-.exp-label{font-family:'Cairo',sans-serif;font-size:10px;color:var(--mute);letter-spacing:.5px;margin-bottom:3px;font-weight:500}
-.exp-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;color:var(--ink-soft);letter-spacing:.5px}
-.statement{margin-top:8px}
-.stmt-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:9px 0 7px;border-top:1.5px solid var(--ink);border-bottom:.5px solid var(--line)}
-.stmt-head-num,.stmt-head-desc,.stmt-head-amt{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--mute);letter-spacing:2.5px;font-weight:500;text-transform:uppercase}
-.stmt-head-num{min-width:32px}
-.stmt-row{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:14px;padding:9px 0;border-bottom:.5px dotted var(--line);font-family:'Cairo',sans-serif;font-size:12.5px}
-.stmt-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold);font-weight:500;min-width:32px;letter-spacing:.3px}
-.stmt-desc{color:var(--ink);font-weight:500}
-.stmt-desc .sub{color:var(--mute);font-weight:400;margin-inline-start:6px;font-size:11px}
-.stmt-amt{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:13px;color:var(--ink);letter-spacing:.3px;white-space:nowrap;text-align:end;min-width:110px}
-.stmt-amt.empty{color:var(--mute-light);font-weight:300}
-.totals{margin-top:4px;padding-top:12px;border-top:1.5px solid var(--ink)}
-.total-row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:14px;padding:5px 0;font-family:'Cairo',sans-serif}
-.total-label{font-size:12.5px;color:var(--ink-soft);font-weight:500}
-.total-amt{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:13px;color:var(--ink);letter-spacing:.3px;white-space:nowrap;min-width:110px;text-align:end}
-.total-row.discount .total-label{color:#2d7a3e}
-.total-row.discount .total-label::before{content:"( − )";color:#2d7a3e;font-family:'JetBrains Mono',monospace;font-size:10px;margin-inline-end:8px;letter-spacing:1px}
-.total-row.discount .total-amt{color:#2d7a3e}
-.total-row.subtotal{padding:8px 0;border-top:.5px solid var(--hairline);border-bottom:.5px solid var(--hairline);margin:4px 0}
-.total-row.subtotal .total-label{font-weight:700;color:var(--ink);font-size:13px}
-.total-row.subtotal .total-amt{font-weight:700;color:var(--ink);font-size:14px}
-.total-row.grand{margin-top:10px;padding:14px 0 6px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);position:relative}
-.total-row.grand::before{content:"";position:absolute;top:-2px;right:0;width:80px;height:2px;background:var(--gold)}
-.total-row.grand .total-label{font-family:'Cairo',sans-serif;font-weight:700;font-size:15px;color:var(--ink);letter-spacing:.2px}
-.total-row.grand .total-amt{font-family:'Playfair Display',serif;font-weight:500;font-size:30px;color:var(--ink);letter-spacing:-.3px;display:flex;align-items:baseline;gap:8px;min-width:auto;line-height:1}
-.total-row.grand .total-amt .curr{font-family:'Cairo',sans-serif;font-size:13px;color:var(--gold);font-weight:600;letter-spacing:.5px}
-.signatures{margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:30px;padding-top:16px;border-top:.5px solid var(--hairline);position:relative}
-.signatures::before{content:"";position:absolute;top:-.5px;right:0;width:60px;height:1.5px;background:var(--gold)}
-.sig{display:flex;flex-direction:column;gap:3px}
-.sig-title{font-family:'Cairo',sans-serif;font-size:10px;color:var(--gold);letter-spacing:1.5px;font-weight:600;text-transform:uppercase;margin-bottom:4px}
-.sig-name{font-family:'Cairo',sans-serif;font-size:14px;color:var(--ink);font-weight:700;letter-spacing:.2px}
-.sig-role{font-family:'Cairo',sans-serif;font-size:11px;color:var(--mute);font-weight:500;margin-top:2px}
-.sig-line{margin-top:16px;width:100%;height:.5px;background:var(--ink);opacity:.3}
-.sig-hint{font-family:'Cairo',sans-serif;font-size:9.5px;color:var(--mute-light);margin-top:5px;letter-spacing:.2px;font-weight:400}
-.footer{margin-top:auto;padding-top:16px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
-.footer-contact{display:flex;gap:18px;flex-wrap:wrap;font-family:'Cairo',sans-serif;font-size:10px;color:var(--mute);font-weight:500;letter-spacing:.2px}
-.footer-contact .fc-item{display:inline-flex;align-items:center;gap:5px}
-.footer-contact .fc-item::before{content:"";width:3px;height:3px;background:var(--gold);border-radius:50%;display:inline-block}
-.footer-validity{font-family:'Cairo',sans-serif;font-size:10px;color:var(--gold);font-weight:600;letter-spacing:.3px;padding-inline-start:12px;border-inline-start:1px solid var(--hairline)}
-@media print{
-  body{background:#fff;padding:0}
-  .toolbar{display:none!important}
-  .paper{box-shadow:none;width:210mm;min-height:auto;height:auto;padding:18mm 18mm 14mm}
-  .section,.duration-card,.profession-change,.statement,.totals,.signatures,.hdr{page-break-inside:avoid}
-  @page{size:A4;margin:0}
-}
-@media (max-width:600px){
-  body{padding:10px 0;background:#fff}
-  .paper{padding:15mm 12mm}
-  .toolbar{position:static;padding:10px;background:#f0f0f0}
-  .fields{grid-template-columns:1fr}
-}
-</style>
-</head>
-<body>
-<div class="toolbar"><button class="tool-btn" onclick="confirmPrint()">طباعة الوثيقة</button></div>
-<div class="paper">
-  <header class="hdr">
-    <div class="brand">
-      <div class="brand-mark">ح</div>
-      <div class="brand-text">
-        <div class="brand-name">مكاتب حسين</div>
-        <div class="brand-line"></div>
-        <div class="brand-tag">بواسطة جسر للأعمال والخدمات الحكومية والعمالية</div>
-      </div>
-    </div>
-    <div class="ref">
-      <div class="ref-label">المرجع</div>
-      <div class="ref-num">${esc(refDisplay)}</div>
-      <div class="ref-date">${esc(dateStr)}&nbsp;&nbsp;·&nbsp;&nbsp;${esc(timeStr)}</div>
-    </div>
-  </header>
-  <div class="doc-title-block">
-    <div class="doc-title">تَسْعِيرَة نَقْل كَفَالَة</div>
-    <div class="doc-divider">
-      <div class="doc-divider-line"></div>
-      <div class="doc-divider-dot"></div>
-      <div class="doc-divider-line"></div>
-    </div>
-  </div>
-  <section class="section">
-    <div class="section-head"><div class="section-num">I</div><div class="section-title">بيانات العامل</div></div>
-    <div class="fields">
-      <div class="field-row"><div class="field-label">الاسم الكامل</div><div class="field-value mono">${esc(workerName)}</div></div>
-      <div class="field-row"><div class="field-label">رقم الإقامة</div><div class="field-value mono">${esc(iqNo)}</div></div>
-      <div class="field-row"><div class="field-label">رقم الجوال</div><div class="field-value mono">${esc(mobile)}</div></div>
-      <div class="field-row"><div class="field-label">المهنة الحالية</div><div class="field-value">${esc(currentOcc)}</div></div>
-      <div class="field-row"><div class="field-label">حالة الإقامة</div><div class="field-value"><span class="status ${iqamaValidFlag?'on':'off'}">${esc(iqamaStatusText)}</span></div></div>
-      <div class="field-row"><div class="field-label">التأمين الطبي</div><div class="field-value"><span class="status ${insured?'on':'off'}">${esc(medStatusText)}</span></div></div>
-      <div class="field-row full"><div class="field-label">انتهاء الإقامة</div><div class="field-value mono">${esc(f.iqamaExpiry || '—')}<span class="sub-en">ميلادي</span>&nbsp;&nbsp;·&nbsp;&nbsp;${esc(expiryHijri)}<span class="sub-en">هجري</span></div></div>
-    </div>
-  </section>
-  <section class="section">
-    <div class="section-head"><div class="section-num">II</div><div class="section-title">تفاصيل الخدمة</div></div>
-    <div class="fields">
-      <div class="field-row full"><div class="field-label">نوع الخدمة</div><div class="field-value">${esc(serviceType)}</div></div>
-      <div class="field-row"><div class="field-label">تغيير المهنة</div><div class="field-value"><span class="status ${f.changeProfession?'on':'off'}">${f.changeProfession?'نعم':'لا'}</span></div></div>
-      <div class="field-row"><div class="field-label">عدد الأشهر</div><div class="field-value mono">${renewalMos || '—'}</div></div>
-    </div>
-    ${f.changeProfession && newOcc ? `
-    <div class="profession-change">
-      <div class="pc-label">المهنة الجديدة</div>
-      <div class="pc-transition">
-        <span class="pc-old">${esc(currentOcc)}</span>
-        <span class="pc-arrow">←</span>
-        <span class="pc-new">${esc(newOcc)}</span>
-      </div>
-    </div>` : ''}
-    ${durParts ? `
-    <div class="duration-card">
-      <div>
-        <div class="dur-label">المدة المتوقعة في الإقامة</div>
-        <div class="dur-value">${durParts.m} شهر و ${durParts.d} يوم</div>
-      </div>
-      <div class="dur-expiry">
-        <div class="exp-label">تنتهي في</div>
-        <div class="exp-val">${esc(expectedExpiry || '—')}</div>
-      </div>
-    </div>` : ''}
-  </section>
-  <section class="section">
-    <div class="section-head"><div class="section-num">III</div><div class="section-title">ملخص التكاليف</div></div>
-    <div class="statement">
-      <div class="stmt-head">
-        <div class="stmt-head-num">رقم</div>
-        <div class="stmt-head-desc">البند</div>
-        <div class="stmt-head-amt">المبلغ · ريال</div>
-      </div>
-      ${rows.map(([label, value, sfx], i) => `
-      <div class="stmt-row">
-        <div class="stmt-num">${String(i+1).padStart(2,'0')}</div>
-        <div class="stmt-desc">${esc(label)}${sfx ? ` <span class="sub">${esc(toArDigits(sfx.replace(/[0-9]/g, d => d)))}</span>` : ''}</div>
-        <div class="stmt-amt ${Number(value) > 0 ? '' : 'empty'}">${Number(value) > 0 ? nmFmt(value) : '—'}</div>
-      </div>`).join('')}
-    </div>
-    <div class="totals">
-      <div class="total-row"><div class="total-label">مجموع الرسوم</div><div class="total-amt">${nmFmt(subtotal)}</div></div>
-      ${absher > 0 ? `<div class="total-row discount"><div class="total-label">خصم رصيد أبشر</div><div class="total-amt">${nmFmt(absher)}</div></div>` : ''}
-      <div class="total-row subtotal"><div class="total-label">الإجمالي الابتدائي</div><div class="total-amt">${nmFmt(initialTotal)}</div></div>
-      ${officeDiscountOptional > 0 ? `<div class="total-row discount"><div class="total-label">خصم المكتب <span style="font-size:10.5px;color:var(--mute);font-weight:400">(اختياري)</span></div><div class="total-amt">${nmFmt(officeDiscountOptional)}</div></div>` : ''}
-      <div class="total-row grand">
-        <div class="total-label">الإجمالي الكلي</div>
-        <div class="total-amt">${Number(grandTotal).toLocaleString('en-US',{maximumFractionDigits:0})}<span class="curr">ريال سعودي</span></div>
-      </div>
-    </div>
-  </section>
-  <section class="signatures">
-    <div class="sig">
-      <div class="sig-title">رافع الطلب</div>
-      <div class="sig-name">${esc(submitter)}</div>
-      <div class="sig-role">موظف خدمات</div>
-      <div class="sig-line"></div>
-      <div class="sig-hint">التوقيع والتاريخ</div>
-    </div>
-    <div class="sig">
-      <div class="sig-title">مصدِّق الطلب</div>
-      <div class="sig-name">${esc(approver)}</div>
-      <div class="sig-role">مدير المكتب</div>
-      <div class="sig-line"></div>
-      <div class="sig-hint">التوقيع والختم</div>
-    </div>
-  </section>
-  <footer class="footer">
-    <div class="footer-contact">
-      <span class="fc-item">الدمام · الخبر · الجبيل</span>
-      <span class="fc-item">+966 XXX XXX XXX</span>
-      <span class="fc-item">info@jisr.sa</span>
-    </div>
-    <div class="footer-validity">صالحة لمدة ٧ أيام من تاريخ الإصدار</div>
-  </footer>
-</div>
-<script>
-function confirmPrint(){
-  if(window.confirm('تأكد من تفعيل "Background graphics" في إعدادات الطباعة للحصول على أفضل نتيجة.\\n\\nهل تريد المتابعة؟'))window.print()
-}
-</script>
-</body>
-</html>`
-    // Persist the quote in worker_transfers so it shows up in Finance → Transfer Calc with status 'priced'.
-    // worker_id is left null (we only have an iqama, not a Jisr worker record); details are kept in notes.
-    if (sb) {
-      const notesJson = JSON.stringify({
-        quote_no: quoteNo,
-        worker_name: workerName,
-        iqama_number: iqNo,
-        phone: mobile,
-        iqama_expiry: f.iqamaExpiry || null,
-        expected_expiry: expectedExpiry,
-        duration_months: Math.max(0, officeMos - renewalMos),
-        duration_days: officeDays,
-        renewal_months: renewalMos,
-        transfer_only: !!f.transferOnly,
-        change_profession: !!f.changeProfession,
-        new_occupation: f.newOccupation || null,
-        prof_change_fee: profChangeFee,
-        office_fee: officeFee,
-        transfer_fee: transferFee,
-        absher_discount: absher,
-        extras: f.extras,
-        print_language: langCode,
-        warnings: warnings.map(w => w.text),
-        // Approval-side metadata — hidden from the user. The reviewer UI can't discount office fees below this floor.
-        office_discount_floor: Number(officeDiscountFloor.toFixed(2)),
-        expected_iqama_days: expectedIqamaDays,
-      })
-      // NOTE: total_cost and profit are GENERATED columns (summed from the individual cost fields)
-      // — do NOT set them directly or Postgres rejects the insert.
-      sb.from('worker_transfers').insert({
-        transfer_type: f.transferOnly ? 'transfer_only' : 'sponsorship',
-        status: 'priced',
-        priced_at: new Date().toISOString(),
-        priced_by: user?.id || null,
-        transfer_fee: transferFee,
-        iqama_cost: iqamaRenewalFee,
-        work_permit_cost: workPermitFee,
-        insurance_cost: medicalFee,
-        other_costs: officeFee + profChangeFee + f.extras.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0),
-        other_costs_desc: [profChangeFee > 0 ? 'تغيير المهنة' : null, 'رسوم المكتب', ...(f.extras.map(e => e.name))].filter(Boolean).join(' + '),
-        government_fees: 0,
-        client_charge: total,
-        new_employer_name: workerName,
-        notes: notesJson,
-        created_by: user?.id || null,
-      }).then(({ error }) => {
-        if (error) toast && toast('تعذّر حفظ التسعيرة: ' + (error.message || '').slice(0, 80))
-      })
-    }
-    const w = window.open('', '_blank', 'width=900,height=1000')
-    if (!w) { toast && toast('تعذّر فتح نافذة الطباعة — فعّل النوافذ المنبثقة.'); return }
-    w.document.write(html)
-    w.document.close()
-    setPrintLangModal(false)
-    toast && toast(T('تم إصدار التسعيرة','Quote issued'))
-  }
 
   // Issue the quote without printing — save to DB and show the success modal with copy + navigate actions.
+  const [issuing, setIssuing] = useState(false)
   async function issueQuote() {
+    if (issuing) return
+    setIssuing(true)
+    try {
+      await issueQuoteImpl()
+    } finally {
+      setIssuing(false)
+    }
+  }
+  async function issueQuoteImpl() {
     const sb = getSupabase()
     const workerName = hrsdCheck.result?.name || f.name || '—'
     const iqNo = f.iqama || '—'
@@ -1659,50 +1299,68 @@ function confirmPrint(){
     }
     if (insCheck.result?.status === 'not_insured') warnings.push({ level: 'warn', text: T('التأمين الصحي غير نشط — احتُسبت الرسوم حسب الفئة العمرية.','Health insurance not active — fee calculated by age bracket.') })
     if (f.changeProfession && !f.newOccupation) warnings.push({ level: 'warn', text: T('لم يتم تحديد المهنة الجديدة.','New occupation not specified.') })
-    const quoteNo = 'Q-' + Date.now().toString(36).toUpperCase()
-    if (sb) {
-      const notesJson = JSON.stringify({
-        quote_no: quoteNo,
-        worker_name: workerName,
-        iqama_number: iqNo,
-        phone: mobile,
-        iqama_expiry: f.iqamaExpiry || null,
-        expected_expiry: expectedExpiry,
-        duration_months: Math.max(0, officeMos - renewalMos),
-        duration_days: officeDays,
-        renewal_months: renewalMos,
-        transfer_only: !!f.transferOnly,
-        change_profession: !!f.changeProfession,
-        new_occupation: f.newOccupation || null,
-        prof_change_fee: profChangeFee,
-        office_fee: officeFee,
-        transfer_fee: transferFee,
-        absher_discount: absher,
-        extras: f.extras,
-        office_discount_floor: Number(officeDiscountFloor.toFixed(2)),
-        expected_iqama_days: expectedIqamaDays,
-      })
-      const { error } = await sb.from('worker_transfers').insert({
-        transfer_type: f.transferOnly ? 'transfer_only' : 'sponsorship',
-        status: 'priced',
-        priced_at: new Date().toISOString(),
-        priced_by: user?.id || null,
-        transfer_fee: transferFee,
-        iqama_cost: iqamaRenewalFee,
-        work_permit_cost: workPermitFee,
-        insurance_cost: medicalFee,
-        other_costs: officeFee + profChangeFee + f.extras.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0),
-        other_costs_desc: [profChangeFee > 0 ? 'تغيير المهنة' : null, 'رسوم المكتب', ...(f.extras.map(e => e.name))].filter(Boolean).join(' + '),
-        government_fees: 0,
-        client_charge: total,
-        new_employer_name: workerName,
-        notes: notesJson,
-        created_by: user?.id || null,
-      })
-      if (error) { toast && toast('تعذّر حفظ التسعيرة: ' + (error.message || '').slice(0, 80)); return }
+    if (!sb) { toast && toast(T('قاعدة البيانات غير متاحة','Database unavailable')); return }
+    const phoneRaw = (f.phone || '').replace(/^\+?966/, '').trim()
+    const payload = {
+      iqama_number: iqNo,
+      worker_name: workerName,
+      phone: phoneRaw,
+      dob: f.dob || null,
+      nationality: f.nationality || null,
+      gender: f.gender || null,
+      muqeem_fetched_at: muqeemData ? new Date().toISOString() : null,
+      iqama_expiry_gregorian: muqeemData?.iqamaExpiryGregorian || f.iqamaExpiry || null,
+      iqama_expiry_hijri: muqeemData?.iqamaExpiryHijri || null,
+      iqama_expired: muqeemData?.iqamaExpired ?? null,
+      occupation_id: f.occupationId || null,
+      occupation_name_ar: f.occupation || muqeemData?.occupationAr || null,
+      resident_status_code: null,
+      resident_status_ar: muqeemData?.statusAr || f.legalStatus || null,
+      sponsor_changes: typeof muqeemData?.sponsorChanges === 'number' ? muqeemData.sponsorChanges : null,
+      hrsd_worker_status: hrsdCheck.result?.workerStatus || null,
+      hrsd_verified_at: hrsdCheck.result?.status === 'found' ? new Date().toISOString() : null,
+      insurance_status: insCheck.result?.status || null,
+      insurance_expiry: insCheck.result?.expiryDate || null,
+      insurance_company: insCheck.result?.company || null,
+      insurance_waived: !!f.insuranceWaived,
+      chi_verified_at: insCheck.result ? new Date().toISOString() : null,
+      transfer_only: !!f.transferOnly,
+      renew_iqama: !!f.renewIqama,
+      renewal_months: renewalMos,
+      change_profession: !!f.changeProfession,
+      new_occupation_id: f.newOccupationId || null,
+      new_occupation_name_ar: f.newOccupation || null,
+      add_late_fine: !!f.renewalAdd500,
+      transfer_fee: transferFee,
+      iqama_renewal_fee: iqamaRenewalFee,
+      work_permit_fee: workPermitFee,
+      prof_change_fee: profChangeFee,
+      medical_fee: medicalFee,
+      office_fee: officeFee,
+      late_fine_amount: f.renewalAdd500 ? (parseFloat(cfg.iqamaFine1) || 500) : 0,
+      absher_discount: absher,
+      manual_discount: 0,
+      extras: f.extras || [],
+      expected_expiry_date: expectedExpiry,
+      duration_months: Math.max(0, officeMos - renewalMos),
+      duration_days: officeDays,
+      warnings,
     }
-    setIssuedQuote({ quoteNo, workerName, iqNo, total, warnings })
-    toast && toast(T('تم إصدار التسعيرة','Quote issued'))
+    const { data: { session } } = await sb.auth.getSession()
+    if (!session) { toast && toast(T('انتهت الجلسة — أعد تسجيل الدخول','Session expired — please sign in again')); return }
+    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL || sb.supabaseUrl}/functions/v1/issue-quotation`
+    const res = await fetch(fnUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.ok) {
+      const msg = data?.detail || data?.error || `HTTP ${res.status}`
+      toast && toast('تعذّر حفظ التسعيرة: ' + String(msg).slice(0, 100))
+      return
+    }
+    setIssuedQuote({ quoteNo: data.row.quote_no, workerName, iqNo, total: Number(data.row.total_amount), warnings })
   }
 
   function skipInsAndAdvance() {
@@ -1722,7 +1380,7 @@ function confirmPrint(){
     if (i > tab + 1) return
     tryNextTab()
   }
-  const Err = ({ k }) => tried[tab] && errors[k] ? <div style={{ fontSize: 10, color: C.red, marginTop: 4 }}>{errors[k]}</div> : null
+  const Err = ({ k }) => tried[tab] && errors[k] ? <div style={{ fontSize: 14, color: C.red, marginTop: 4 }}>{errors[k]}</div> : null
 
   const tabComplete = [
     !!f.iqama,
@@ -1743,107 +1401,39 @@ function confirmPrint(){
 
   const headerSubtitle = screen === 'home' ? T('حساب تكاليف نقل خدمات العمال والرسوم الحكومية','Calculate worker transfer costs and government fees') : (workerMode === 'existing' ? T('عامل مسجّل','Registered Worker') : T('عامل جديد','New Worker')) + (f.name ? ` — ${f.name}` : '')
 
-  const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }
-  // Compact fixed modal height — tight enough that each step fits without a scrollbar.
-  const modalBox = { background: '#1a1a1a', borderRadius: 18, width: 720, maxWidth: '95vw', height: 'min(620px, 95vh)', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(212,160,23,.08)' }
-  const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px 18px', flexShrink: 0, fontFamily: F, direction: 'rtl' }
-
-  if (screen === 'home') return (
-    <div onClick={() => onClose && onClose()} style={modalOverlay}><div onClick={e => e.stopPropagation()} style={modalBox}>
-    <div style={{ ...headerBar, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
-      <div><div style={{ fontSize: 18, fontWeight: 800, color: 'rgba(255,255,255,.9)' }}>{T('حسبة التنازل','Transfer Calculator')}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>{headerSubtitle}</div></div>
-      <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
-    </div>
-    <div dir={lang === 'en' ? 'ltr' : 'rtl'} style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', flex: 1, display: 'flex', flexDirection: 'column', gap: 14, padding: '22px 24px', overflowY: 'auto' }}>
-
-      {/* ═══ Fieldset: اختيار نوع العامل ═══ */}
-      <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 14px 14px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <User size={12} strokeWidth={2.2} />
-          <span>{T('نوع العامل','Worker Type')}</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          {[
-            { mode: 'existing', title: T('عامل مسجّل مسبقاً','Existing Worker'), desc: T('البحث برقم الإقامة في قاعدة البيانات','Search by Iqama in database'), Icon: Search },
-            { mode: 'new', title: T('عامل جديد','New Worker'), desc: T('تسجيل بيانات عامل جديد يدوياً','Register a new worker manually'), Icon: Plus }
-          ].map(({ mode, title, desc, Icon }) => {
-            const sel = workerMode === mode
-            return (
-              <button key={mode} type="button"
-                onClick={() => { if (mode === 'new') { setWorkerMode('new'); setScreen('form'); setTab(0) } else { setWorkerMode('existing') } }}
-                onMouseEnter={e => { if (!sel) { e.currentTarget.style.background = 'rgba(212,160,23,.07)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.2)' } }}
-                onMouseLeave={e => { if (!sel) { e.currentTarget.style.background = 'rgba(255,255,255,.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)' } }}
-                style={{ textAlign: lang === 'en' ? 'left' : 'right', padding: '12px 14px', borderRadius: 12, border: `1px solid ${sel ? 'rgba(212,160,23,.5)' : 'rgba(255,255,255,.06)'}`, background: sel ? 'rgba(212,160,23,.12)' : 'rgba(255,255,255,.03)', color: 'var(--tx)', fontFamily: F, cursor: 'pointer', transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(212,160,23,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, flexShrink: 0 }}>
-                  <Icon size={20} strokeWidth={1.5} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.85)', marginBottom: 2, lineHeight: 1.3 }}>{title}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.45)' }}>{desc}</div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* ═══ Fieldset: البحث (when existing mode) ═══ */}
-      {workerMode === 'existing' && (
-        <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 14px 14px', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <Search size={12} strokeWidth={2.2} />
-            <span>{T('البحث عن العامل','Search for Worker')}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)' }}>{T('رقم الإقامة','Iqama Number')} <span style={{ color: C.red }}>*</span></div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input value={searchIqama} onChange={e => setSearchIqama(e.target.value.replace(/\D/g,''))} placeholder="7XXXXXXXXX" maxLength={10}
-                style={{ flex: 1, height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.18)', textAlign: 'center', boxSizing: 'border-box', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', direction: 'ltr', letterSpacing: '.5px' }} />
-              <button type="button" onClick={() => { if (searchIqama.length >= 10) { set('iqama', searchIqama); setScreen('form'); setTab(0) } else { toast && toast(T('ادخل رقم إقامة صحيح','Enter a valid Iqama number')) } }}
-                style={{ height: 42, padding: '0 18px', borderRadius: 9, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.12)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                <Search size={14} /> {T('بحث','Search')}
-              </button>
-            </div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-              <Info size={11} /> {T('سيتم ربط البحث بقاعدة البيانات لاحقاً','Database search will be connected later')}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-    </div></div>
-  )
+  const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }
+  const modalBox = { background: '#141414', borderRadius: 16, width: 640, maxWidth: '95vw', height: 'auto', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', zIndex: 60 }
+  const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px', flexShrink: 0, fontFamily: F, direction: 'rtl' }
 
   // ═══════════════════════════════════════
   // SCREEN 2: FORM WITH TABS
   // ═══════════════════════════════════════
   return (
-    <div onClick={() => onClose && onClose()} style={modalOverlay}><div onClick={e => e.stopPropagation()} style={modalBox}>
+    <div onClick={() => onClose && onClose()} style={modalOverlay}><div onClick={e => e.stopPropagation()} style={{ ...modalBox, height: 720, overflow: 'hidden' }}>
     <div dir={lang === 'en' ? 'ltr' : 'rtl'} style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header — title on right (RTL), X on left */}
-      <div style={{ ...headerBar, justifyContent: 'space-between', direction: lang === 'en' ? 'ltr' : 'rtl' }}>
-        <div style={{ textAlign: lang === 'en' ? 'left' : 'right', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>
-            <Calculator size={16} strokeWidth={2} />
+      {/* Header — Premium Arabic admin */}
+      <div style={{ padding: '20px 24px 0', flexShrink: 0, display: 'flex', flexDirection: 'column', direction: lang === 'en' ? 'ltr' : 'rtl' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+            <Tag size={22} strokeWidth={1.8} color={C.gold} style={{ flexShrink: 0 }} />
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', fontFamily: F, lineHeight: 1.2 }}>{T('تسعيرة تنازل','Transfer Calculator')}</div>
           </div>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,.95)', fontFamily: F }}>{T('حسبة التنازل','Transfer Calculator')}</div>
-          </div>
+          <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: F }} aria-label={T('إغلاق','Close')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
-        <button onClick={() => onClose && onClose()} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
-      </div>
-
-      {/* ═══ Progress Bar — thin gold segments like ServiceRequestPage ═══ */}
-      <div style={{ padding: '0 22px 8px', flexShrink: 0, display: 'flex', gap: 6 }}>
-        {tabs.map((_, i) => (
-          <div key={i} onClick={() => tryGoTab(i)} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= tab ? C.gold : 'rgba(255,255,255,.08)', transition: '.25s', cursor: i <= tab ? 'pointer' : 'default' }} />
-        ))}
+        <div style={{ fontSize: 12, fontWeight: 400, color: 'var(--tx4)', fontFamily: F, marginTop: 8 }}>{T(`الخطوة ${tab + 1} من ${tabs.length}`,`Step ${tab + 1} of ${tabs.length}`)}</div>
+        <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
+          {Array.from({ length: tabs.length }, (_, i) => (
+            <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= tab ? 'linear-gradient(90deg, #D4A017, #F0C040)' : 'rgba(255,255,255,0.06)', transition: '.35s' }} />
+          ))}
+        </div>
       </div>
 
 
       {/* ═══ Scrollable Content ═══ */}
-      <style>{`.kc-scroll::-webkit-scrollbar{width:0;display:none}.kc-scroll{scrollbar-width:none;-ms-overflow-style:none}.kc-scroll input:focus,.kc-scroll select:focus,.kc-scroll textarea:focus,.kc-scroll input:not(:placeholder-shown):not([type=checkbox]):not([type=radio]){border-color:rgba(255,255,255,.08)!important}`}</style>
-      <div className="kc-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'visible', padding: '8px 16px 12px' }}>
+      <style>{`.kc-scroll::-webkit-scrollbar{width:0;display:none}.kc-scroll{scrollbar-width:none;-ms-overflow-style:none}.kc-scroll input:focus,.kc-scroll select:focus,.kc-scroll textarea:focus,.kc-scroll .kc-phone-wrap:focus-within,.kc-captcha-input:focus{border-color:rgba(255,255,255,.16)!important;box-shadow:none!important}`}</style>
+      <div className="kc-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '20px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* ═══════════════════════════════════════ */}
       {/* TAB 0: بيانات العامل — matches ServiceRequest kafala step 3 page 1 */}
@@ -1859,37 +1449,53 @@ function confirmPrint(){
           const setPart=(which,val)=>{const p=[y,m,d];if(which==='y')p[0]=val;if(which==='m')p[1]=val;if(which==='d')p[2]=val;onChange(p[0]&&p[1]&&p[2]?`${p[0]}-${p[1]}-${p[2]}`:`${p[0]}-${p[1]}-${p[2]}`)}
           return <div>
             <Lbl req={req}>{label}</Lbl>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,direction:'ltr'}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,direction:'ltr'}}>
               <Sel value={y} onChange={v=>setPart('y',v)} options={years} placeholder={T('السنة','Year')}/>
               <Sel value={m} onChange={v=>setPart('m',v)} options={months} placeholder={T('الشهر','Month')}/>
               <Sel value={d} onChange={v=>setPart('d',v)} options={daysFor(y,m)} placeholder={T('اليوم','Day')}/>
             </div>
           </div>
         }
-        return <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 14px 14px', position: 'relative', marginTop: 10 }}>
-          <div style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        return <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: '#141414', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <User size={12} strokeWidth={2.2} />
             <span>{T('بيانات العامل','Worker Data')}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 16 }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
                 <Lbl req>{T('رقم الإقامة','Iqama Number')}</Lbl>
-                {muqeemFetchStatus !== 'idle' && (
-                  <span style={{
-                    fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 6, marginBottom: 4,
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    ...(muqeemFetchStatus === 'loading' ? { background: 'rgba(52,131,180,.12)', color: C.blue } :
-                       muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046' } :
+                {muqeemFetchStatus !== 'idle' && (() => {
+                  const isClickable = muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error'
+                  const retry = async () => {
+                    const iq = (f.iqama || '').trim()
+                    if (!/^[12]\d{9}$/.test(iq)) return
+                    setMuqeemFetchStatus('loading')
+                    const r = await queryMuqeem(iq)
+                    if (r.ok) { applyMuqeemToForm(r.result); setMuqeemFetchStatus('ok') }
+                    else if (r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID') setMuqeemFetchStatus('unavailable')
+                    else setMuqeemFetchStatus('error')
+                  }
+                  const onBadgeClick = () => {
+                    if (muqeemFetchStatus === 'unavailable') retry()
+                    else if (muqeemFetchStatus === 'error') window.open('https://muqeem.sa/#/login', '_blank', 'noopener,noreferrer')
+                  }
+                  return (
+                  <span onClick={isClickable ? onBadgeClick : undefined} title={muqeemFetchStatus === 'unavailable' ? T('إعادة المحاولة','Retry') : muqeemFetchStatus === 'error' ? T('فتح موقع مقيم لجلب البيانات يدويا','Open Muqeem to fetch data manually') : undefined} style={{
+                    fontSize: 10, fontWeight: 400, padding: '2px 8px', borderRadius: 6, marginBottom: 4,
+                    display: 'inline-flex', alignItems: 'center', gap: 6, cursor: isClickable ? 'pointer' : 'default', transition: '.15s',
+                    ...(muqeemFetchStatus === 'loading' ? { background: 'rgba(244,123,32,.12)', color: '#F47B20' } :
+                       muqeemFetchStatus === 'ok' ? { background: 'rgba(244,123,32,.12)', color: '#F47B20' } :
                        muqeemFetchStatus === 'unavailable' ? { background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.4)' } :
                        { background: 'rgba(192,57,43,.1)', color: C.red })
                   }}>
                     {muqeemFetchStatus === 'loading' && <><span style={{ width: 8, height: 8, border: '1.5px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite' }} /> {T('جاري جلب البيانات…','Fetching data…')}</>}
                     {muqeemFetchStatus === 'ok' && <>{T('تمت المزامنة مع مقيم','Synced with Muqeem')}<span style={{ marginInlineStart: 6 }}>✓</span></>}
-                    {muqeemFetchStatus === 'unavailable' && <>• {T('خدمة مقيم غير متاحة','Muqeem service unavailable')}</>}
-                    {muqeemFetchStatus === 'error' && <>{T('فشل المزامنة مع مقيم','Muqeem sync failed')}<span style={{ marginInlineStart: 6 }}>!</span></>}
+                    {muqeemFetchStatus === 'unavailable' && <>{T('خدمة مقيم غير متاحة — اضغط لإعادة المحاولة','Muqeem unavailable — click to retry')} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></>}
+                    {muqeemFetchStatus === 'error' && <>{T('جلب البيانات يدويا','Fetch data manually')} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></>}
                   </span>
-                )}
+                  )
+                })()}
                 <style>{`@keyframes mq-spin{to{transform:rotate(360deg)}}`}</style>
               </div>
               <Inp value={f.iqama} onChange={v => {
@@ -1912,54 +1518,57 @@ function confirmPrint(){
                   setMuqeemData(null)
                   setMuqeemFetchStatus('idle')
                   setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
-                  setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null })
+                  setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
                 }
               }} placeholder="2XXXXXXXXX" dir="ltr" maxLength={10}/>
             </div>
             <div>
               <DateField value={f.dob} onChange={v=>set('dob',v)} label={T('تاريخ الميلاد','Date of Birth')} req lang={lang}/>
             </div>
+            {(() => {
+              const ph = (f.phone || '').trim()
+              let phErr = null
+              if (ph.length === 9) {
+                if (!/^5[013-9]\d{7}$/.test(ph)) phErr = T('بادئة جوال غير صحيحة (يجب أن يبدأ بـ 50, 51, 53–59)','Invalid mobile prefix (must start with 50, 51, 53–59)')
+                else if (/^(.)\1{8}$/.test(ph)) phErr = T('رقم غير صحيح','Invalid number')
+                else if ('012345678'.includes(ph) || '987654321'.includes(ph) || '0123456789'.includes(ph) || '9876543210'.includes(ph)) phErr = T('رقم غير صحيح','Invalid number')
+              } else if (ph.length > 0 && ph.length < 9) {
+                phErr = T(`أدخل ${9 - ph.length} ${9 - ph.length === 1 ? 'رقم' : 'أرقام'} إضافية`,`Enter ${9 - ph.length} more ${9 - ph.length === 1 ? 'digit' : 'digits'}`)
+              }
+              const isErr = !!phErr && ph.length === 9
+              return (
             <div>
               <Lbl req>{T('رقم الجوال','Mobile Number')}</Lbl>
-              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: '1px solid rgba(255,255,255,.08)', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42, transition: 'border-color .2s' }}>
-                <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', borderRight: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: C.gold, flexShrink: 0 }}>+966</div>
+              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: `1px solid ${isErr ? 'rgba(192,57,43,.5)' : 'rgba(255,255,255,.08)'}`, borderRadius: 8, overflow: 'hidden', background: 'linear-gradient(180deg,#2e2e2e,#262626)', height: 40, transition: 'border-color .2s' }}>
+                <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>+966</div>
                 <input value={f.phone || ''} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
-                  style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
+                  style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
               </div>
-              <style>{`.kc-phone-wrap:focus-within{border-color:rgba(255,255,255,.18)!important}.kc-phone-wrap input{border-width:0!important}`}</style>
+              <style>{`.kc-phone-wrap:focus-within{border-color:${isErr ? 'rgba(192,57,43,.6)' : 'rgba(255,255,255,.18)'}!important}.kc-phone-wrap input{border-width:0!important}`}</style>
             </div>
+              )
+            })()}
             {/* Muqeem OK → show fetched values as read-only. Failed/unavailable → manual inputs.
                 Transfer count is not asked here — it's inferred from the transfer fee selection in the pricing tab. */}
             {muqeemFetchStatus === 'ok' && <>
               <div>
-                <Lbl>{T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')}</Lbl>
-                {(() => {
-                  const g = muqeemData?.iqamaExpiryGregorian
-                  const m = g && /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(g.trim())
-                  const txt = m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : (g || '—')
-                  return <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: g ? 'var(--tx)' : 'var(--tx5)' }}>{txt}</div>
-                })()}
-              </div>
-              <div>
-                <Lbl>{T('تاريخ انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')}</Lbl>
-                {(() => {
-                  const h = muqeemData?.iqamaExpiryHijri
-                  const m = h && /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(h.trim())
-                  const txt = m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : (h || '—')
-                  return <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: h ? 'var(--tx)' : 'var(--tx5)' }}>{txt}</div>
-                })()}
-              </div>
-              <div>
-                <Lbl>{T('حالة الإقامة','Iqama Status')}</Lbl>
-                {(()=>{const exp=muqeemData?.iqamaExpired;const isExpired=exp===true;const isValid=exp===false;return<div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isExpired ? '#e06157' : isValid ? '#34c759' : 'var(--tx5)', fontWeight: 700 }}>{isExpired ? T('منتهية','Expired') : isValid ? T('سارية','Valid') : '—'}</div>})()}
+                <Lbl>{T('حالة المقيم','Resident Status')}</Lbl>
+                <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: muqeemData?.statusAr ? 'var(--tx)' : 'var(--tx5)' }}>{muqeemData?.statusAr || '—'}</div>
               </div>
               <div>
                 <Lbl>{T('المهنة','Occupation')}</Lbl>
                 <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: (f.occupation || muqeemData?.occupationAr) ? 'var(--tx)' : 'var(--tx5)' }}>{f.occupation || muqeemData?.occupationAr || '—'}</div>
               </div>
               <div>
-                <Lbl>{T('حالة المقيم','Resident Status')}</Lbl>
-                <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: muqeemData?.statusAr ? 'var(--tx)' : 'var(--tx5)' }}>{muqeemData?.statusAr || '—'}</div>
+                <Lbl>{T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')}</Lbl>
+                {(() => {
+                  const g = muqeemData?.iqamaExpiryGregorian
+                  const m = g && /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(g.trim())
+                  const txt = m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : (g || '—')
+                  const exp = muqeemData?.iqamaExpired
+                  const dateColor = exp === true ? '#e06157' : exp === false ? '#34c759' : g ? 'var(--tx)' : 'var(--tx5)'
+                  return <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: dateColor, fontWeight: exp === true || exp === false ? 700 : 600 }}>{txt}</div>
+                })()}
               </div>
               <div>
                 <Lbl>{T('عدد مرات نقل الخدمات','Service Transfer Count')}</Lbl>
@@ -1968,15 +1577,15 @@ function confirmPrint(){
             </>}
             {(muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error') && <>
               <div>
-                <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
+                <Lbl req>{T('حالة المقيم','Resident Status')}</Lbl>
+                <Sel value={f.legalStatus} onChange={v=>set('legalStatus',v)} options={residentStatuses.length ? residentStatuses.map(s=>lang==='en'?s.value_en||s.value_ar:s.value_ar) : WORKER_STATUSES} placeholder={T('اختر…','Select…')}/>
               </div>
               <div>
                 <Lbl req>{T('المهنة','Occupation')}</Lbl>
                 <OccSelect value={f.occupation || ''} onChange={(v,item)=>setF(p=>({...p,occupation:v,occupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')}/>
               </div>
               <div>
-                <Lbl req>{T('حالة المقيم','Resident Status')}</Lbl>
-                <Sel value={f.legalStatus} onChange={v=>set('legalStatus',v)} options={WORKER_STATUSES} placeholder={T('اختر…','Select…')}/>
+                <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
               </div>
               <div>
                 <Lbl req>{T('عدد مرات نقل الخدمات السابقة','Previous Service Transfers')}</Lbl>
@@ -1993,18 +1602,18 @@ function confirmPrint(){
       {tab === 1 && (()=>{
         // Match review-tab visual: subtle blue panel, key-value rows, no colored boxes per field.
         const Row = ({ label, value, color }) => (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12.5, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-            <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{label}</span>
-            <span style={{ fontWeight: 700, color: color || 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value || '—'}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 14, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+            <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 500 }}>{label}</span>
+            <span style={{ fontWeight: 500, color: color || 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value || '—'}</span>
           </div>
         )
         const Group = ({ title, Icon, children }) => (
-          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 14px 14px', position: 'relative', marginTop: 12 }}>
-            <div style={{ position: 'absolute', top: -9, right: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -10, right: 14, background: '#141414', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {Icon && <Icon size={12} strokeWidth={2.2} />}
               <span>{title}</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 24, rowGap: 0 }}>{children}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 0 }}>{children}</div>
           </div>
         )
 
@@ -2021,28 +1630,26 @@ function confirmPrint(){
         const greenBg = 'rgba(39,160,70,.06)'; const greenBorder = 'rgba(39,160,70,.3)'; const GREEN = '#27a046'
         const redBg = 'rgba(192,57,43,.06)'; const redBorder = 'rgba(192,57,43,.3)'
 
-        return (<div>
+        return (<div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Group title={T('هوية العامل','Worker Identity')} Icon={User}>
             <Row label={T('الإسم','Name')} value={hrsdCheck.result?.name || f.name} />
             <Row label={T('رقم الإقامة','Iqama Number')} value={f.iqama} />
             <Row label={T('حالة العامل','Worker Status')} value={hrsdCheck.result?.workerStatus} />
-            <Row label={T('المهنة','Occupation')} value={muqeemData?.occupationAr} />
+            <Row label={T('حالة المقيم','Resident Status')} value={muqeemData?.statusAr} />
+            <Row label={T('المهنة','Occupation')} value={f.occupation || muqeemData?.occupationAr} />
             <Row label={T('عدد مرات نقل الخدمات','Service Transfer Count')} value={typeof muqeemData?.sponsorChanges === 'number' ? String(muqeemData.sponsorChanges) : null} />
           </Group>
 
           {(() => {
             const hijriRaw = muqeemData?.iqamaExpiryHijri
             const hijriFormatted = hijriRaw
-              ? (lang === 'en'
-                  ? hijriRaw + ' H'
-                  : (/^\d{4}-\d{2}-\d{2}$/.test(hijriRaw) ? hijriRaw.split('-').reverse().join('-') : hijriRaw))
+              ? (lang === 'en' ? hijriRaw + ' H' : hijriRaw)
               : null
+            const dateColor = iqamaExpiredFlag === true ? C.red : iqamaExpiredFlag === false ? GREEN : null
             return (
               <Group title={T('الإقامة','Iqama')} Icon={Building2}>
-                <Row label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData?.iqamaExpiryGregorian || f.iqamaExpiry} />
-                <Row label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={hijriFormatted} />
-                <Row label={T('حالة الإقامة','Iqama Status')} value={iqamaExpiredFlag === null ? null : iqamaExpiredFlag ? T('منتهية','Expired') : T('سارية','Valid')} color={iqamaExpiredFlag ? C.red : iqamaExpiredFlag === false ? GREEN : null} />
-                <Row label={T('حالة المقيم','Resident Status')} value={muqeemData?.statusAr} />
+                <Row label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData?.iqamaExpiryGregorian || f.iqamaExpiry} color={dateColor} />
+                <Row label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={hijriFormatted} color={dateColor} />
               </Group>
             )
           })()}
@@ -2063,7 +1670,7 @@ function confirmPrint(){
             return (
               <Group title={T('التأمين الصحي','Health Insurance')} Icon={Shield}>
                 <Row label={T('حالة التأمين','Insurance Status')} value={insuredOk ? T('نشط','Active') : T('غير نشط','Inactive')} color={insuredOk ? GREEN : C.red} />
-                <Row label={T('انتهاء التأمين','Insurance Expiry')} value={insuredOk ? insExpiry : null} color={insuredOk ? GREEN : null} />
+                {insuredOk && <Row label={T('انتهاء التأمين','Insurance Expiry')} value={insExpiry} color={GREEN} />}
                 <Row label={T('العمر','Age')} value={ageStr} />
               </Group>
             )
@@ -2080,14 +1687,14 @@ function confirmPrint(){
           const c = clr || C.gold
           return <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: on ? c : 'var(--tx4)', fontFamily: F, transition: '.2s' }}>{label}</label>
+              <label style={{ fontSize: 14, fontWeight: 500, color: on ? c : 'var(--tx4)', fontFamily: F, transition: '.2s' }}>{label}</label>
               <button type="button" onClick={() => set(stateKey + '_on', !on)} style={{ width: 28, height: 16, borderRadius: 999, border: 'none', background: on ? c : 'rgba(255,255,255,.15)', cursor: 'pointer', position: 'relative', transition: '.2s', padding: 0, flexShrink: 0 }}>
                 <span style={{ position: 'absolute', width: 12, height: 12, borderRadius: '50%', background: '#fff', top: 2, right: on ? 2 : 14, transition: '.2s' }} />
               </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', background: on ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.02)', border: `1px solid ${on ? c + '4d' : 'rgba(255,255,255,.05)'}`, borderRadius: 9, boxShadow: on ? 'inset 0 1px 2px rgba(0,0,0,.2)' : 'none', height: 36, opacity: on ? 1 : .5, transition: '.2s' }}>
-              <input type="text" inputMode="decimal" disabled={!on} value={f[stateKey] || ''} onChange={e => set(stateKey, e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 10px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 12.5, fontWeight: 700, color: on ? 'var(--tx)' : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center' }} />
-              <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 700, padding: '0 8px 0 4px', fontFamily: F, flexShrink: 0 }}>{T('ريال','SAR')}</span>
+            <div style={{ display: 'flex', alignItems: 'center', background: on ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.02)', border: `1px solid ${on ? c + '4d' : 'rgba(255,255,255,.05)'}`, borderRadius: 8, boxShadow: on ? 'inset 0 1px 2px rgba(0,0,0,.2)' : 'none', height: 36, opacity: on ? 1 : .5, transition: '.2s' }}>
+              <input type="text" inputMode="decimal" disabled={!on} value={f[stateKey] || ''} onChange={e => set(stateKey, e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 10px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: on ? 'var(--tx)' : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center' }} />
+              <span style={{ fontSize: 14, color: 'var(--tx5)', fontWeight: 500, padding: '0 8px 0 4px', fontFamily: F, flexShrink: 0 }}>{T('ريال','SAR')}</span>
             </div>
           </div>
         }
@@ -2097,8 +1704,8 @@ function confirmPrint(){
         const total = Math.max(0, subtotal - discount - absher)
         // Card-based: each option is a tile with icon + label + control. Cleaner visual hierarchy.
         const Card = KCard
-        return <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:0}}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        return <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 10px' }}>
             {/* فترة التجديد — «نقل فقط» يختفي إذا المتبقي في الإقامة أقل من الحد الأدنى أو منتهية */}
             {(() => {
               const transferOnlyAllowed = (() => {
@@ -2126,8 +1733,8 @@ function confirmPrint(){
                       const sel = !f.transferOnly && f.renewalMonths === m
                       return (
                         <RenewalPill key={m} selected={sel} onClick={() => { set('renewalMonths', m); set('renewIqama', true); set('transferOnly', false) }}>
-                          <span style={{ fontSize: 15 }}>{m}</span>
-                          <span style={{ fontSize: 10, fontWeight: 600, opacity: .75 }}>{T('شهر','mo')}</span>
+                          <span style={{ fontSize: 14 }}>{m}</span>
+                          <span style={{ fontSize: 14, fontWeight: 500, opacity: .75 }}>{T('شهر','mo')}</span>
                         </RenewalPill>
                       )
                     })}
@@ -2169,18 +1776,18 @@ function confirmPrint(){
               <div style={{ display: 'flex', gap: 6 }}>
                 <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38 }} />
                 <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, direction: 'ltr', textAlign: 'center' }} />
-                <button onClick={addExtra} disabled={!extraName || !extraAmount} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 9, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
+                <button onClick={addExtra} disabled={!extraName || !extraAmount} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
               </div>
               {f.extras.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, direction: 'rtl' }}>
+                <div className="kc-scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, direction: 'rtl', maxHeight: 110, overflowY: 'auto' }}>
                   {f.extras.map((ex, i) => (
-                    <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.25)', direction: 'rtl' }}>
-                      <span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 700, fontSize: 12.5 }}>{ex.name}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, direction: 'ltr', color: C.gold, fontWeight: 800, fontSize: 13 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700 }}>{T('ريال','SAR')}</span>
+                    <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 9px', borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.25)', direction: 'rtl' }}>
+                      <span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500, fontSize: 12 }}>{ex.name}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, direction: 'ltr', color: C.gold, fontWeight: 500, fontSize: 12 }}>
+                        <span style={{ fontSize: 12, fontWeight: 500 }}>{T('ريال','SAR')}</span>
                         <span>{Number(ex.amount).toLocaleString('en-US')}</span>
                       </span>
-                      <button onClick={() => removeExtra(i)} title={T('حذف','Remove')} style={{ width: 22, height: 22, borderRadius: 6, color: C.red, cursor: 'pointer', background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}><X size={12} strokeWidth={2.5} /></button>
+                      <button onClick={() => removeExtra(i)} title={T('حذف','Remove')} style={{ width: 18, height: 18, borderRadius: 5, color: C.red, cursor: 'pointer', background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}><X size={10} strokeWidth={2} /></button>
                     </div>
                   ))}
                 </div>
@@ -2194,9 +1801,9 @@ function confirmPrint(){
               <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(212,160,23,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>
                 <Calculator size={15} strokeWidth={2.2} />
               </div>
-              <span style={{ fontSize: 15, fontWeight: 800, color: C.gold }}>{T('الإجمالي المتوقع','Expected Total')}</span>
+              <span style={{ fontSize: 14, fontWeight: 500, color: C.gold }}>{T('الإجمالي المتوقع','Expected Total')}</span>
             </div>
-            <span style={{ fontSize: 23, fontWeight: 900, color: C.gold, lineHeight: 1 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(total.toFixed(2))}</span> <span style={{ fontSize: 13, fontWeight: 700 }}>{T('ريال','SAR')}</span></span>
+            <span style={{ fontSize: 14, fontWeight: 500, color: C.gold, lineHeight: 1 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(total.toFixed(2))}</span> <span style={{ fontSize: 14, fontWeight: 500 }}>{T('ريال','SAR')}</span></span>
           </div>
         </div>
       })()}
@@ -2207,7 +1814,7 @@ function confirmPrint(){
       {tab === 3 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Worker summary */}
-          <div style={{ padding: '7px 12px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.1)' }}>
+          <div style={{ padding: '12px 14px 8px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.25)', position: 'relative' }}>
             {(() => {
               const renewalMonthsNum = f.renewIqama ? (parseInt(f.renewalMonths) || 0) : 0
               const threshold = parseInt(cfg.thresholdCase2) || 30
@@ -2250,17 +1857,17 @@ function confirmPrint(){
                 return { months, days, sign }
               })()
               const cell = (l, v, vColor, vSize) => (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5 }}>
-                  <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>{l}</span>
-                  <span style={{ fontWeight: 700, color: vColor || 'rgba(255,255,255,.92)', fontSize: vSize || 'inherit' }}>{v}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{l}</span>
+                  <span style={{ fontWeight: 500, color: vColor || 'rgba(255,255,255,.92)', fontSize: vSize || 'inherit' }}>{v}</span>
                 </div>
               )
               return (
                 <>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: C.blue, marginBottom: 7, display: 'flex', alignItems: 'center', gap: 6 }}><User size={15} /> {T('بيانات العامل','Worker Data')}</div>
+                  <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: '#141414', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.blue, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}><User size={12} strokeWidth={2.2} /><span>{T('بيانات العامل','Worker Data')}</span></div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, rowGap: 2 }}>
                     {cell(T('اسم العامل','Worker Name'), hrsdCheck.result?.name || f.name || '—')}
-                    {cell(T('رقم الجوال','Mobile Number'), f.phone ? (<span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>+966{f.phone}</span>) : '—')}
+                    {cell(T('رقم الجوال','Mobile Number'), f.phone ? (<span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>0{f.phone}</span>) : '—')}
                     {cell(T('رقم الإقامة','Iqama Number'), f.iqama || '—')}
                     {f.changeProfession && cell(T('المهنة الجديدة','New Occupation'), f.newOccupation || '—', f.newOccupation ? C.gold : null)}
                     {cell(T('انتهاء الإقامة الحالي','Current Iqama Expiry'), f.iqamaExpiry || '—')}
@@ -2274,8 +1881,8 @@ function confirmPrint(){
 
 
           {/* Cost summary */}
-          <div style={{ padding: '10px 14px', borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.1)' }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: C.ok, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Calculator size={15} /> {T('ملخص التكاليف','Cost Summary')}</div>
+          <div style={{ padding: '14px 14px 10px', borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.25)', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: '#141414', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.ok, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Calculator size={12} strokeWidth={2.2} /><span>{T('ملخص التكاليف','Cost Summary')}</span></div>
             {(() => {
               // Human-readable month/day suffix so each row hints the duration driving the amount.
               const renewalMos = parseInt(f.renewalMonths) || 0
@@ -2306,48 +1913,51 @@ function confirmPrint(){
                       const showRenewalFineToggle = k === 'iqamaRenewal' && (iqamaExpired || iqamaInGracePeriod)
                       return (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.04)', fontSize: 12, gap: 8 }}>
-                        <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           {l}
                           {showRenewalFineToggle && (
-                            <button type="button" onClick={() => set('renewalAdd500', !f.renewalAdd500)} title={f.renewalAdd500 ? T(`إزالة إضافة ${cfg.iqamaFine1 || 500} ريال`,`Remove +${cfg.iqamaFine1 || 500} SAR`) : T(`إضافة ${cfg.iqamaFine1 || 500} ريال (غرامة)`,`Add ${cfg.iqamaFine1 || 500} SAR fine`)} style={{ width: 22, height: 22, borderRadius: '50%', border: `1.5px ${f.renewalAdd500 ? 'solid' : 'dashed'} ${f.renewalAdd500 ? C.gold : 'rgba(212,160,23,.5)'}`, background: f.renewalAdd500 ? 'rgba(212,160,23,.15)' : 'transparent', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0, fontWeight: 900 }}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <button type="button" onClick={() => set('renewalAdd500', !f.renewalAdd500)} title={f.renewalAdd500 ? T(`إزالة إضافة ${cfg.iqamaFine1 || 500} ريال`,`Remove +${cfg.iqamaFine1 || 500} SAR`) : T(`إضافة ${cfg.iqamaFine1 || 500} ريال (غرامة)`,`Add ${cfg.iqamaFine1 || 500} SAR fine`)} style={{ width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(212,160,23,.15)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0, fontWeight: 500, transition: '.15s' }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                {!f.renewalAdd500 && <line x1="12" y1="5" x2="12" y2="19"/>}
+                              </svg>
                             </button>
                           )}
                         </span>
                         {transferEditable ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <input type="text" inputMode="decimal" value={f.transferFeeInput || ''} onChange={e => set('transferFeeInput', e.target.value.replace(/[^0-9.]/g, ''))} style={{ width: 90, height: 26, padding: '0 8px', border: '1px solid rgba(212,160,23,.3)', borderRadius: 6, background: 'rgba(0,0,0,.25)', fontFamily: F, fontSize: 12, fontWeight: 800, color: C.gold, outline: 'none', direction: 'ltr', textAlign: 'center' }} />
-                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{T('ريال','SAR')}</span>
+                            <input type="text" inputMode="decimal" value={f.transferFeeInput || ''} onChange={e => set('transferFeeInput', e.target.value.replace(/[^0-9.]/g, ''))} style={{ width: 90, height: 26, padding: '0 8px', border: '1px solid rgba(212,160,23,.3)', borderRadius: 6, background: 'rgba(0,0,0,.25)', fontFamily: F, fontSize: 14, fontWeight: 500, color: C.gold, outline: 'none', direction: 'ltr', textAlign: 'center' }} />
+                            <span style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', fontWeight: 500 }}>{T('ريال','SAR')}</span>
                           </span>
                         ) : (
-                          <span style={{ fontWeight: 700, color: 'rgba(255,255,255,.92)' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(v)}</span> {T('ريال','SAR')}</span>
+                          <span style={{ fontWeight: 500, color: 'rgba(255,255,255,.92)' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(v)}</span> {T('ريال','SAR')}</span>
                         )}
                       </div>
                       )
                     })}
                   </div>
                   {/* Subtotal */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0 2px', fontSize: 12 }}>
-                    <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{T('إجمالي الرسوم','Subtotal')}</span>
-                    <span style={{ fontWeight: 800, color: 'var(--tx)', fontSize: 13 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(subtotal)}</span> {T('ريال','SAR')}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0 2px', fontSize: 14 }}>
+                    <span style={{ color: 'var(--tx2)', fontWeight: 500 }}>{T('إجمالي الرسوم','Subtotal')}</span>
+                    <span style={{ fontWeight: 500, color: 'var(--tx)', fontSize: 14 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(subtotal)}</span> {T('ريال','SAR')}</span>
                   </div>
                   {/* Absher discount — aligned with subtotal row style */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 14 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button type="button" onClick={() => set('absherBalance_on', !absherOn)} style={{ width: 14, height: 14, borderRadius: 4, border: `1.5px solid ${absherOn ? absherClr : 'rgba(255,255,255,.25)'}`, background: absherOn ? absherClr : 'transparent', cursor: 'pointer', transition: '.2s', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                        {absherOn && <Check size={10} strokeWidth={3.5} />}
+                      <button type="button" onClick={() => set('absherBalance_on', !absherOn)} style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${absherOn ? absherClr : 'rgba(255,255,255,.45)'}`, background: absherOn ? absherClr : 'rgba(255,255,255,.05)', cursor: 'pointer', transition: '.2s', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                        {absherOn && <Check size={11} strokeWidth={3.5} />}
                       </button>
-                      <span style={{ color: absherOn ? absherClr : 'var(--tx2)', fontWeight: 700, transition: '.2s' }}>{T('رصيد أبشر (خصم)','Absher Balance (discount)')}</span>
+                      <span style={{ color: absherOn ? absherClr : 'rgba(255,255,255,.55)', fontWeight: 500, fontSize: 12, transition: '.2s' }}>{T('رصيد أبشر (خصم)','Absher Balance (discount)')}</span>
                     </div>
-                    <span style={{ fontWeight: 800, color: absherOn ? absherClr : 'var(--tx5)', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: absherOn ? 1 : .55, transition: '.2s' }}>
-                      <input type="text" inputMode="decimal" disabled={!absherOn} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ width: 88, height: 26, padding: '0 8px', borderRadius: 7, border: `1px solid ${absherOn ? absherClr + '55' : 'rgba(255,255,255,.08)'}`, background: absherOn ? absherClr + '0d' : 'rgba(255,255,255,.02)', fontFamily: F, fontSize: 13, fontWeight: 800, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center', transition: '.2s' }} />
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>{T('ريال','SAR')}</span>
+                    <span style={{ fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: absherOn ? 1 : .55, transition: '.2s' }}>
+                      <input type="text" inputMode="decimal" disabled={!absherOn} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ width: 88, height: 26, padding: '0 8px', borderRadius: 7, border: `1px solid ${absherOn ? absherClr + '55' : 'rgba(255,255,255,.08)'}`, background: absherOn ? absherClr + '0d' : 'rgba(255,255,255,.02)', fontFamily: F, fontSize: 14, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center', transition: '.2s' }} />
+                      <span style={{ fontSize: 14, fontWeight: 500 }}>{T('ريال','SAR')}</span>
                     </span>
                   </div>
                   {/* Grand total */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0 0', marginTop: 2, borderTop: '1px dashed rgba(212,160,23,.25)' }}>
-                    <span style={{ color: C.gold, fontWeight: 800, fontSize: 13 }}>{T('الإجمالي','Grand Total')}</span>
-                    <span style={{ fontWeight: 900, color: C.gold, fontSize: 16 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(total)}</span> {T('ريال','SAR')}</span>
+                    <span style={{ color: C.gold, fontWeight: 600, fontSize: 14 }}>{T('الإجمالي','Grand Total')}</span>
+                    <span style={{ fontWeight: 600, color: C.gold, fontSize: 14 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(total)}</span> {T('ريال','SAR')}</span>
                   </div>
                 </div>
               )
@@ -2360,71 +1970,107 @@ function confirmPrint(){
       </div>{/* end scrollable */}
 
       {/* ═══ Footer Navigation — register-modal style ═══ */}
-      <style>{`.kc-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.kc-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.kc-nav-btn:hover .nav-ico{background:#D4A017;color:#000}.kc-nav-btn.dir-fwd:hover .nav-ico{transform:translateX(-4px)}.kc-nav-btn.dir-back:hover .nav-ico{transform:translateX(4px)}.kc-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 20px 12px', flexShrink: 0 }}>
-        {tab > 0 ? (
-          <button onClick={() => {
-            // Going back from the pricing step → clear the current worker's data so the user can start fresh.
-            if (tab === 2) {
-              setF(makeInitialForm())
-              setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
-              setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null })
-              setMuqeemData(null)
-              setMuqeemFetchStatus('idle')
-              setTab(0)
-              return
-            }
-            setTab(tab - 1)
-          }} className="kc-nav-btn dir-fwd">
-            <span className="nav-ico">{lang === 'en' ? <ChevronLeft size={14} strokeWidth={2.5} /> : <ChevronRight size={14} strokeWidth={2.5} />}</span>
+      <style>{`.kc-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.kc-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.kc-nav-btn:hover:not(:disabled) .nav-ico{background:#D4A017;color:#000}.kc-nav-btn.dir-fwd:hover:not(:disabled) .nav-ico{transform:translateX(-4px)}.kc-nav-btn.dir-back:hover:not(:disabled) .nav-ico{transform:translateX(4px)}[dir=rtl] .kc-nav-btn.dir-fwd:hover:not(:disabled) .nav-ico{transform:translateX(4px)}[dir=rtl] .kc-nav-btn.dir-back:hover:not(:disabled) .nav-ico{transform:translateX(-4px)}.kc-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
+      {(() => {
+        const tabErrors = (() => {
+          if (tab !== 0) return []
+          const errs = []
+          const iqama = (f.iqama || '').trim()
+          const phone = (f.phone || '').trim()
+          if (!iqama) errs.push(T('أدخل رقم الإقامة','Enter the Iqama number'))
+          else if (!/^[12]\d{9}$/.test(iqama)) errs.push(T('رقم الإقامة يجب أن يكون 10 أرقام ويبدأ بـ 1 أو 2','Iqama must be 10 digits starting with 1 or 2'))
+          if (!f.dob) errs.push(T('أدخل تاريخ الميلاد','Enter the date of birth'))
+          if (!phone) errs.push(T('أدخل رقم الجوال','Enter the mobile number'))
+          else if (phone.length !== 9) errs.push(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'))
+          else if (!/^5[013-9]\d{7}$/.test(phone)) errs.push(T('بادئة الجوال غير صحيحة (50, 51, 53–59)','Invalid mobile prefix (50, 51, 53–59)'))
+          else if (/^(.)\1{8}$/.test(phone) || '012345678'.includes(phone) || '987654321'.includes(phone)) errs.push(T('رقم الجوال غير صحيح','Invalid mobile number'))
+          if (muqeemFetchStatus !== 'ok') {
+            if (!f.iqamaExpiry) errs.push(T('أدخل تاريخ انتهاء الإقامة','Enter the Iqama expiry date'))
+            if (!f.occupation) errs.push(T('اختر المهنة','Select occupation'))
+            if (!f.legalStatus) errs.push(T('اختر حالة المقيم','Select resident status'))
+          }
+          return errs
+        })()
+        const hasErrors = tab === 0 && tabErrors.length > 0
+        const showErr = hasErrors && tried[tab]
+        const onNextClick = () => {
+          if (hasErrors) { setTried(t => { const n = [...t]; n[tab] = true; return n }); return }
+          tryNextTab()
+        }
+        return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '4px 24px 16px', flexShrink: 0 }}>
+        <div style={{ justifySelf: 'start' }}>
+        {tab === 1 ? (
+          <button onClick={() => { setTab(0) }} className="kc-nav-btn dir-fwd">
+            <span className="nav-ico">{lang === 'en' ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}</span>
             <span>{T('السابق','Previous')}</span>
           </button>
-        ) : <span />}
+        ) : tab > 1 ? (
+          <button onClick={() => {
+            setTab(tab - 1)
+          }} className="kc-nav-btn dir-fwd">
+            <span className="nav-ico">{lang === 'en' ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}</span>
+            <span>{T('السابق','Previous')}</span>
+          </button>
+        ) : null}
+        </div>
+        <div style={{ justifySelf: 'center', textAlign: 'center', minHeight: 16 }}>
+          {showErr && tabErrors[0] && (
+            <span style={{ fontSize: 12, fontWeight: 400, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {tabErrors[0]}
+            </span>
+          )}
+        </div>
+        <div style={{ justifySelf: 'end' }}>
         {tab < 3 ? (
-          <button onClick={tryNextTab} className="kc-nav-btn dir-back">
+          <button onClick={onNextClick} className="kc-nav-btn dir-back">
             <span>{T('التالي','Next')}</span>
-            <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2.5} /> : <ChevronLeft size={14} strokeWidth={2.5} />}</span>
+            <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2} /> : <ChevronLeft size={14} strokeWidth={2} />}</span>
           </button>
         ) : (
-          <button onClick={issueQuote} className="kc-nav-btn dir-back">
-            <span>{T('إصدار','Issue')}</span>
-            <span className="nav-ico"><Send size={14} strokeWidth={2.5} /></span>
+          <button onClick={issueQuote} disabled={issuing} className="kc-nav-btn dir-back">
+            <span>{issuing ? T('جاري الإصدار…','Issuing…') : T('إصدار','Issue')}</span>
+            <span className="nav-ico">{issuing ? <span style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'kc-spin 0.7s linear infinite' }} /> : <Send size={14} strokeWidth={2} />}</span>
           </button>
         )}
+        </div>
       </div>
+        )
+      })()}
 
       {/* ═══ CHI Insurance Check Overlay ═══ */}
       {insCheck.phase !== 'idle' && insCheck.phase !== 'await_hrsd' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(212,160,23,.18)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
-            <button onClick={closeInsCheck} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: insCheck.phase === 'result' ? '1px solid rgba(212,160,23,.18)' : '1px solid rgba(30,78,132,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
 
-            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', marginBottom: 16, [lang === 'en' ? 'paddingRight' : 'paddingLeft']: 36 }}>
-              <div style={{ fontSize: insCheck.phase === 'result' ? 19 : 15, fontWeight: 800, color: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start', marginTop: insCheck.phase === 'result' ? -4 : 0 }}>
-                {insCheck.phase === 'result' ? <Database size={22} style={{ color: C.gold }} /> : <Shield size={16} style={{ color: C.gold }} />}
+            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+              <div style={{ fontSize: 20, fontWeight: 600, color: 'rgba(255,255,255,.94)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
+                {insCheck.phase === 'result' ? <Database size={22} style={{ color: C.gold }} /> : <Shield size={20} style={{ color: '#5b8fc7' }} />}
                 <span>{insCheck.phase === 'result' ? T('استرجاع البيانات','Data Retrieval') : T('الضمان الصحي','Health Insurance')}</span>
               </div>
             </div>
 
             {insCheck.phase === 'loading' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid rgba(212,160,23,.15)`, borderTopColor: C.gold, borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بمنصّة CHI…','Connecting to CHI platform…')}</div>
+                <div style={{ width: 36, height: 36, border: `3px solid rgba(30,78,132,.18)`, borderTopColor: '#5b8fc7', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بمنصّة CHI…','Connecting to CHI platform…')}</div>
                 <style>{`@keyframes kc-spin{to{transform:rotate(360deg)}}`}</style>
               </div>
             )}
 
             {insCheck.phase === 'captcha' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
-                <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', borderRadius: 10, padding: 10, border: '1px solid rgba(255,255,255,.06)', minHeight: 76 }}>
-                  {insCheck.captchaImage ? <img src={insCheck.captchaImage} alt="captcha" style={{ height: 56 }} /> : <span style={{ fontSize: 11, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  {insCheck.captchaImage && <CaptchaCountdown captchaKey={insCheck.captchaImage} onExpire={refreshInsCaptcha} color={C.gold} />}
-                  <button type="button" onClick={refreshInsCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ height: 26, padding: '0 10px', borderRadius: 6, border: '1px dashed rgba(212,160,23,.35)', background: 'transparent', color: C.gold, fontFamily: F, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
-                    <span>{T('رمز جديد','New')}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
+                  {insCheck.captchaImage
+                    ? <CaptchaCountdown captchaKey={insCheck.captchaImage} onExpire={refreshInsCaptcha} color="#5b8fc7" />
+                    : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
+                  {insCheck.captchaImage
+                    ? <img src={insCheck.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, filter: 'invert(1) contrast(1.3) brightness(0.92) saturate(0)', imageRendering: 'auto' }} />
+                    : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
+                  <button type="button" onClick={refreshInsCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(30,78,132,.12)', color: '#5b8fc7', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }} onMouseEnter={e => e.currentTarget.style.background='rgba(30,78,132,.22)'} onMouseLeave={e => e.currentTarget.style.background='rgba(30,78,132,.12)'}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
                   </button>
                 </div>
                 <input
@@ -2434,21 +2080,22 @@ function confirmPrint(){
                   placeholder="______"
                   autoFocus
                   maxLength={6}
-                  style={{ height: 46, padding: '0 14px', border: '1px solid rgba(212,160,23,.25)', borderRadius: 9, fontFamily: F, fontSize: 18, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.25)', textAlign: 'center', letterSpacing: '6px', direction: 'ltr' }}
+                  className="kc-captcha-input"
+                  style={{ height: 40, width: 220, alignSelf: 'center', padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 16, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#2e2e2e,#262626)', textAlign: 'center', letterSpacing: '4px', direction: 'ltr', transition: 'border-color .2s' }}
                 />
-                {insCheck.error && <div style={{ fontSize: 11, color: C.red, textAlign: 'right' }}>{insCheck.error}</div>}
+                {insCheck.error && <div style={{ fontSize: 13, color: C.red, textAlign: lang === 'en' ? 'left' : 'right' }}>{insCheck.error}</div>}
                 <button
                   onClick={submitInsCaptcha}
-                  disabled={!insCheck.captchaInput || insCheck.captchaInput.length < 3}
-                  style={{ height: 44, borderRadius: 10, border: 'none', background: C.gold, color: '#000', fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', opacity: (!insCheck.captchaInput || insCheck.captchaInput.length < 3) ? 0.5 : 1 }}
+                  disabled={!insCheck.captchaInput || insCheck.captchaInput.length < 6}
+                  style={{ height: 46, borderRadius: 12, border: 'none', background: '#5b8fc7', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 600, cursor: (!insCheck.captchaInput || insCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!insCheck.captchaInput || insCheck.captchaInput.length < 6) ? 0.45 : 1, transition: 'opacity .15s' }}
                 >{T('تحقق','Verify')}</button>
               </div>
             )}
 
             {insCheck.phase === 'verifying' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid rgba(212,160,23,.15)`, borderTopColor: C.gold, borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)' }}>{T('جاري التحقق…','Verifying…')}</div>
+                <div style={{ width: 36, height: 36, border: `3px solid rgba(30,78,132,.18)`, borderTopColor: '#5b8fc7', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري التحقق…','Verifying…')}</div>
                 <style>{`@keyframes kc-spin{to{transform:rotate(360deg)}}`}</style>
               </div>
             )}
@@ -2464,87 +2111,89 @@ function confirmPrint(){
               const allOk = chiOk && muqeemOk && hrsdOk
               const anyOk = chiOk || muqeemOk || hrsdOk
               const color = allOk ? '#27a046' : anyOk ? '#d4a017' : C.red
-              const icon = allOk ? <CheckCircle2 size={32} /> : anyOk ? <AlertCircle size={32} /> : <X size={32} />
+              const icon = allOk ? <Check size={32} strokeWidth={2.5} /> : anyOk ? <AlertCircle size={32} /> : <X size={32} />
               const title = allOk ? T('تم التحقق بنجاح','Verification Successful') : anyOk ? T('التحقق','Verification') : T('تعذّر التحقق','Verification Failed')
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
                     <div style={{ width: 62, height: 62, borderRadius: '50%', background: `${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>{icon}</div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color }}>{title}</div>
-                    {r.cached && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)' }}>• {T('من الكاش (آخر 24 ساعة)','cached (last 24 hours)')}</div>}
+                    <div style={{ fontSize: 14, fontWeight: 500, color }}>{title}</div>
+                    {r.cached && <div style={{ fontSize: 14, color: 'rgba(255,255,255,.3)' }}>• {T('من الكاش (آخر 24 ساعة)','cached (last 24 hours)')}</div>}
                   </div>
 
 
-                  {notIns && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {r.detail && (
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.2)', borderRadius: 8, padding: '10px 12px', textAlign: lang === 'en' ? 'left' : 'right', lineHeight: 1.7 }}>
-                          {r.detail}
-                        </div>
-                      )}
-                      <div style={{ background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.25)', borderRadius: 10, padding: '10px 14px', fontSize: 11.5, color: C.gold, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                        <AlertCircle size={14} />
-                        <span>{T('سيتم احتساب رسوم التأمين الطبي حسب الفئة العمرية','Medical insurance fee will be calculated by age bracket')}</span>
-                      </div>
-                    </div>
-                  )}
 
                   {unknown && (r.debug?.panelText || r.debug?.bodyText) && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {r.debug?.panelText && (
                         <>
-                          <div style={{ fontSize: 10, color: '#d4a017', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('محتوى نتيجة CHI:','CHI result content:')}</div>
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.3)', padding: 10, borderRadius: 8, maxHeight: 120, overflowY: 'auto', textAlign: 'right', direction: 'rtl', lineHeight: 1.6 }}>
+                          <div style={{ fontSize: 14, color: '#d4a017', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('محتوى نتيجة CHI:','CHI result content:')}</div>
+                          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.7)', background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.3)', padding: 10, borderRadius: 8, maxHeight: 120, overflowY: 'auto', textAlign: 'right', direction: 'rtl', lineHeight: 1.6 }}>
                             {r.debug.panelText}
                           </div>
                         </>
                       )}
-                      {/* Retry button — compact icon + two words, let the user request a fresh captcha. */}
-                      <button onClick={refreshInsCaptcha} title={T('رمز جديد','New captcha')} style={{ alignSelf: 'flex-end', height: 26, padding: '0 10px', borderRadius: 6, border: '1px dashed rgba(212,160,23,.45)', background: 'transparent', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
-                        <span>{T('رمز جديد','New code')}</span>
+                      {/* Retry button — icon-only, requests a fresh captcha. */}
+                      <button onClick={refreshInsCaptcha} title={T('رمز جديد','New captcha')} style={{ alignSelf: 'flex-end', width: 28, height: 28, padding: 0, border: 'none', background: 'transparent', color: '#5b8fc7', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
                       </button>
                     </div>
                   )}
 
-                  {/* ─── Source success summary — hidden while CHI is in unknown/retry state so the user focuses on the retry UI ─── */}
-                  {!unknown && r.muqeem && (
-                    <div style={{ background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.25)', borderRadius: 10, padding: '8px 12px', fontSize: 11.5, color: '#27a046', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                      <CheckCircle2 size={14} />
-                      <span>{T('تم استرجاع البيانات من مقيم بنجاح','Muqeem data retrieved successfully')}</span>
+                  {/* ─── Source retrieval status — hidden while CHI is in unknown/retry state so the user focuses on the retry UI ─── */}
+                  {!unknown && (r.muqeem ? (
+                    <div style={{ background: 'rgba(244,123,32,.08)', border: '1px solid rgba(244,123,32,.3)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#F47B20', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                      <CheckCircle2 size={16} />
+                      <span>{T('استرجاع البيانات من مقيم','Muqeem data retrieved')}</span>
                     </div>
-                  )}
-                  {!unknown && chiOk && (() => {
-                    const statusSuffix = insured
-                      ? (r.waived ? T('ساري','Active') : T('ساري (على وشك الانتهاء)','Active (about to expire)'))
-                      : T('غير نشط','Inactive')
-                    const statusColor = insured
-                      ? (r.waived ? C.blue : C.gold)
-                      : C.red
+                  ) : (
+                    <div style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: C.red, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                      <AlertCircle size={16} />
+                      <span>{T('فشل استرجاع البيانات من مقيم','Failed to retrieve Muqeem data')}</span>
+                    </div>
+                  ))}
+                  {!unknown && (chiOk ? (() => {
+                    const expiringSoon = (() => {
+                      if (!insured || !r.expiryDate) return false
+                      const exp = new Date(r.expiryDate); if (isNaN(exp.getTime())) return false
+                      const days = Math.floor((exp.getTime() - Date.now()) / 86400000)
+                      return days <= 30
+                    })()
+                    const statusLabel = insured ? T('ساري','Active') : T('غير نشط','Inactive')
+                    const statusColor = !insured ? C.red : expiringSoon ? '#d4a017' : '#27a046'
+                    const showWarn = expiringSoon
                     return (
-                      <div style={{ background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.25)', borderRadius: 10, padding: '8px 12px', fontSize: 11.5, color: '#27a046', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                        <CheckCircle2 size={14} />
-                        <span style={{ flex: 1 }}>{T('تم استرجاع البيانات من الضمان الصحي بنجاح','Health Insurance data retrieved successfully')}</span>
-                        <span style={{ color: statusColor, fontWeight: 800, fontSize: 11, whiteSpace: 'nowrap' }}>{statusSuffix}</span>
+                      <div style={{ background: 'rgba(30,78,132,.12)', border: '1px solid rgba(30,78,132,.4)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#5b8fc7', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                      <CheckCircle2 size={16} />
+                      <span style={{ flex: 1 }}>{T('استرجاع البيانات من الضمان الصحي','Health Insurance data retrieved')}</span>
+                        <span style={{ color: statusColor, fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          {showWarn && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+                          {statusLabel}
+                        </span>
                       </div>
                     )
-                  })()}
-                  {!unknown && hrsdOk && (
-                    <div style={{ background: 'rgba(39,160,70,.06)', border: '1px solid rgba(39,160,70,.25)', borderRadius: 10, padding: '8px 12px', fontSize: 11.5, color: '#27a046', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                      <CheckCircle2 size={14} />
-                      <span>{T('تم استرجاع البيانات من وزارة العمل بنجاح','Ministry of Labor data retrieved successfully')}</span>
+                  })() : (
+                    <div style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: C.red, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                      <AlertCircle size={16} />
+                      <span>{T('فشل استرجاع البيانات من الضمان الصحي','Failed to retrieve Health Insurance data')}</span>
                     </div>
-                  )}
+                  ))}
+                  {!unknown && (hrsdCheck.result || hrsdCheck.phase === 'error') && (hrsdOk ? (
+                    <div style={{ background: 'rgba(11,109,61,.12)', border: '1px solid rgba(11,109,61,.4)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#3bb27a', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                      <CheckCircle2 size={16} />
+                      <span>{T('استرجاع البيانات من وزارة العمل','Ministry of Labor data retrieved')}</span>
+                    </div>
+                  ) : (
+                    <div style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: C.red, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                      <AlertCircle size={16} />
+                      <span>{T('فشل استرجاع البيانات من وزارة العمل','Failed to retrieve Ministry of Labor data')}</span>
+                    </div>
+                  ))}
 
-                  {/* Continue button shown only when both checks complete (HRSD captcha auto-opens after CHI) */}
-                  {hrsdCheck.phase === 'result' && (
-                    <button onClick={skipInsAndAdvance} style={{ height: 44, borderRadius: 10, border: 'none', background: C.gold, color: '#000', fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-                      {insured ? T('متابعة للخطوة التالية','Continue to next step') : T('متابعة على أي حال','Continue anyway')}
-                    </button>
-                  )}
-                  {hrsdCheck.phase === 'idle' && hrsdCheck.result === null && (
-                    <button onClick={skipInsAndAdvance} style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: 'transparent', color: 'rgba(255,255,255,.4)', fontFamily: F, fontSize: 11, cursor: 'pointer' }}>
-                      {T('تخطّي وزارة العمل والمتابعة','Skip Ministry of Labor and continue')}
+                  {/* Continue button — show whenever HRSD has finalized (result, skipped, or never started) */}
+                  {(hrsdCheck.phase === 'result' || hrsdCheck.result || hrsdCheck.phase === 'idle') && (
+                    <button onClick={skipInsAndAdvance} style={{ height: 44, borderRadius: 10, border: 'none', background: C.gold, color: '#000', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                      {T('متابعة','Continue')}
                     </button>
                   )}
                 </div>
@@ -2555,36 +2204,13 @@ function confirmPrint(){
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
                   <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red }}><AlertCircle size={28} /></div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.red, textAlign: 'center' }}>{T('تعذّر التحقق من التأمين','Insurance verification failed')}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{insCheck.error}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: C.red, textAlign: 'center' }}>{T('تعذّر التحقق من التأمين','Insurance verification failed')}</div>
+                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{insCheck.error}</div>
                 </div>
-                <button onClick={startInsuranceCheck} style={{ height: 42, borderRadius: 10, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.1)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
-                <button onClick={skipInsAndAdvance} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 11, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>
+                <button onClick={startInsuranceCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(30,78,132,.4)', background: 'rgba(30,78,132,.12)', color: '#5b8fc7', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
+                <button onClick={skipInsAndAdvance} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ═══ Print Language Selector ═══ */}
-      {printLangModal && (
-        <div onClick={() => setPrintLangModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2200, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(212,160,23,.25)', padding: 20, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
-            <button onClick={() => setPrintLangModal(false)} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
-            <div style={{ textAlign: 'center', marginBottom: 16, paddingTop: 6 }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,.92)' }}>{T('اختر لغة الطباعة','Select Print Language')}</div>
-              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.4)', marginTop: 4 }}>{T('سيُفتح ملف التسعيرة في نافذة جديدة جاهزاً للطباعة','The quote will open in a new window ready to print')}</div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {QUOTE_LANGS.map(L => (
-                <button key={L.code} onClick={() => openQuotePrint(L.code)} style={{ height: 52, borderRadius: 10, border: '1.5px solid rgba(212,160,23,.25)', background: 'rgba(212,160,23,.05)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: '.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.14)'; e.currentTarget.style.borderColor = C.gold }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.05)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' }}>
-                  <span style={{ fontSize: 20 }}>{L.flag}</span>
-                  <span>{L.label}</span>
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       )}
@@ -2598,15 +2224,15 @@ function confirmPrint(){
           </button>
         )
         const row = (label, value, withCopy, amountSplit) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
-            <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>{label}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: amountSplit ? 'rgba(212,160,23,.08)' : 'rgba(255,255,255,.03)', border: `1px solid ${amountSplit ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.06)'}` }}>
+            <span style={{ flex: 1, fontSize: 14, color: amountSplit ? C.gold : 'rgba(255,255,255,.5)', fontWeight: amountSplit ? 800 : 600 }}>{label}</span>
             {amountSplit ? (
-              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, direction: 'ltr', fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,.92)' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, opacity: .75 }}>{amountSplit.unit}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, direction: 'ltr', fontSize: 14, fontWeight: 500, color: C.gold }}>
+                <span style={{ fontSize: 14, fontWeight: 500, opacity: .85 }}>{amountSplit.unit}</span>
                 <span>{amountSplit.num}</span>
               </span>
             ) : (
-              <span style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value}</span>
+              <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value}</span>
             )}
             {withCopy && <CopyBtn text={String(value)} />}
           </div>
@@ -2614,17 +2240,16 @@ function confirmPrint(){
         return (
           <div onClick={() => setIssuedQuote(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2300, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
             <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(39,160,70,.3)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
-              <button onClick={() => setIssuedQuote(null)} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 14px' }}>
                 <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(39,160,70,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#27a046' }}><CheckCircle2 size={30} /></div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: 'rgba(255,255,255,.95)', textAlign: 'center' }}>{T('تم إصدار التسعيرة','Quote Issued')}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار تسعيرة للعامل ${issuedQuote.workerName} بنجاح`, `Quote successfully issued for ${issuedQuote.workerName}`)}</div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.95)', textAlign: 'center' }}>{T('تم إصدار التسعيرة','Quote Issued')}</div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار تسعيرة للعامل ${issuedQuote.workerName} بنجاح`, `Quote successfully issued for ${issuedQuote.workerName}`)}</div>
                 {issuedQuote.warnings && issuedQuote.warnings.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 }}>
                     {issuedQuote.warnings.map((w, i) => {
                       const clr = w.level === 'danger' ? { bg: 'rgba(192,57,43,.08)', bd: 'rgba(192,57,43,.3)', tx: '#e67265' } : { bg: 'rgba(212,160,23,.08)', bd: 'rgba(212,160,23,.3)', tx: C.gold }
                       return (
-                        <div key={i} style={{ background: clr.bg, border: `1px solid ${clr.bd}`, borderRadius: 8, padding: '7px 11px', fontSize: 11, color: clr.tx, fontWeight: 600, lineHeight: 1.55, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                        <div key={i} style={{ background: clr.bg, border: `1px solid ${clr.bd}`, borderRadius: 8, padding: '7px 11px', fontSize: 14, color: clr.tx, fontWeight: 500, lineHeight: 1.55, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
                           <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 2 }} />
                           <span>{w.text}</span>
                         </div>
@@ -2641,7 +2266,7 @@ function confirmPrint(){
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
                 <button onClick={() => { setIssuedQuote(null); if (typeof onGoToTransferCalc === 'function') onGoToTransferCalc(issuedQuote.quoteNo); else onClose && onClose() }} className="kc-nav-btn dir-back">
                   <span>{T('الذهاب إلى التسعيرة','Go to Quote')}</span>
-                  <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2.5} /> : <ChevronLeft size={14} strokeWidth={2.5} />}</span>
+                  <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2} /> : <ChevronLeft size={14} strokeWidth={2} />}</span>
                 </button>
               </div>
             </div>
@@ -2652,34 +2277,35 @@ function confirmPrint(){
       {/* ═══ HRSD (Ministry of Labor) CAPTCHA Overlay ═══ */}
       {hrsdCheck.phase !== 'idle' && hrsdCheck.phase !== 'result' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(155,89,182,.3)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(11,109,61,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
             <button onClick={closeHrsdCheck} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
 
-            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', marginBottom: 16, [lang === 'en' ? 'paddingRight' : 'paddingLeft']: 36 }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start' }}>
-                <Briefcase size={16} style={{ color: '#9b59b6' }} />
+            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,.06)', [lang === 'en' ? 'paddingRight' : 'paddingLeft']: 36 }}>
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.94)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
+                <Briefcase size={22} style={{ color: '#3bb27a' }} />
                 <span>{T('وزارة العمل','Ministry of Labor')}</span>
               </div>
             </div>
 
             {hrsdCheck.phase === 'loading' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid rgba(155,89,182,.15)`, borderTopColor: '#9b59b6', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بوزارة العمل…','Connecting to Ministry of Labor…')}</div>
+                <div style={{ width: 36, height: 36, border: `3px solid rgba(11,109,61,.18)`, borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بوزارة العمل…','Connecting to Ministry of Labor…')}</div>
               </div>
             )}
 
             {hrsdCheck.phase === 'captcha' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
-                <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', borderRadius: 10, padding: 10, border: '1px solid rgba(255,255,255,.06)', minHeight: 76 }}>
-                  {hrsdCheck.captchaImage ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 56 }} /> : <span style={{ fontSize: 11, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  {hrsdCheck.captchaImage && <CaptchaCountdown captchaKey={hrsdCheck.captchaImage} onExpire={refreshHrsdCaptcha} color="#9b59b6" />}
-                  <button type="button" onClick={refreshHrsdCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ height: 26, padding: '0 10px', borderRadius: 6, border: '1px dashed rgba(155,89,182,.4)', background: 'transparent', color: '#9b59b6', fontFamily: F, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
-                    <span>{T('رمز جديد','New')}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
+                  {hrsdCheck.captchaImage
+                    ? <CaptchaCountdown captchaKey={hrsdCheck.captchaImage} onExpire={refreshHrsdCaptcha} color="#3bb27a" />
+                    : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
+                  {hrsdCheck.captchaImage
+                    ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, filter: 'invert(1) contrast(1.3) brightness(0.92) saturate(0)', imageRendering: 'auto' }} />
+                    : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
+                  <button type="button" onClick={refreshHrsdCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(11,109,61,.12)', color: '#3bb27a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }} onMouseEnter={e => e.currentTarget.style.background='rgba(11,109,61,.22)'} onMouseLeave={e => e.currentTarget.style.background='rgba(11,109,61,.12)'}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
                   </button>
                 </div>
                 <input
@@ -2688,17 +2314,18 @@ function confirmPrint(){
                   onKeyDown={e => { if (e.key === 'Enter') submitHrsdCaptcha() }}
                   placeholder="______"
                   autoFocus maxLength={6}
-                  style={{ height: 46, padding: '0 14px', border: '1px solid rgba(155,89,182,.35)', borderRadius: 9, fontFamily: F, fontSize: 18, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.25)', textAlign: 'center', letterSpacing: '6px', direction: 'ltr' }}
+                  className="kc-captcha-input"
+                  style={{ height: 40, width: 220, alignSelf: 'center', padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 16, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#2e2e2e,#262626)', textAlign: 'center', letterSpacing: '4px', direction: 'ltr', transition: 'border-color .2s' }}
                 />
-                {hrsdCheck.error && <div style={{ fontSize: 11, color: C.red, textAlign: lang === 'en' ? 'left' : 'right' }}>{hrsdCheck.error}</div>}
-                <button onClick={submitHrsdCaptcha} disabled={!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 3} style={{ height: 44, borderRadius: 10, border: 'none', background: '#9b59b6', color: '#fff', fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', opacity: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 3) ? 0.5 : 1 }}>{T('تحقق','Verify')}</button>
+                {hrsdCheck.error && <div style={{ fontSize: 13, color: C.red, textAlign: lang === 'en' ? 'left' : 'right' }}>{hrsdCheck.error}</div>}
+                <button onClick={submitHrsdCaptcha} disabled={!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6} style={{ height: 46, borderRadius: 12, border: 'none', background: '#3bb27a', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 600, cursor: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 0.45 : 1, transition: 'opacity .15s' }}>{T('تحقق','Verify')}</button>
               </div>
             )}
 
             {hrsdCheck.phase === 'verifying' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid rgba(155,89,182,.15)`, borderTopColor: '#9b59b6', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)' }}>{T('جاري التحقق…','Verifying…')}</div>
+                <div style={{ width: 36, height: 36, border: `3px solid rgba(11,109,61,.18)`, borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري التحقق…','Verifying…')}</div>
               </div>
             )}
 
@@ -2706,11 +2333,11 @@ function confirmPrint(){
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
                   <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red }}><AlertCircle size={28} /></div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.red, textAlign: 'center' }}>{T('تعذّر الاستعلام','Inquiry failed')}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{hrsdCheck.error}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: C.red, textAlign: 'center' }}>{T('تعذّر الاستعلام','Inquiry failed')}</div>
+                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{hrsdCheck.error}</div>
                 </div>
-                <button onClick={startHrsdCheck} style={{ height: 42, borderRadius: 10, border: '1px solid rgba(155,89,182,.3)', background: 'rgba(155,89,182,.1)', color: '#9b59b6', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
-                <button onClick={closeHrsdCheck} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 11, cursor: 'pointer' }}>{T('إلغاء','Cancel')}</button>
+                <button onClick={startHrsdCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(11,109,61,.4)', background: 'rgba(11,109,61,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
+                <button onClick={closeHrsdCheck} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('إلغاء','Cancel')}</button>
               </div>
             )}
           </div>

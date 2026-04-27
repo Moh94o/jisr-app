@@ -182,7 +182,15 @@ export default function UserPermissionsCard({ userId, viewerId, toast }) {
         : Promise.resolve(false),
     ]).then(([data, can]) => {
       if (cancelled) return
-      setRows(data)
+      // Dedupe by module to prevent duplicate React keys when the view returns multiple rows for one module.
+      const deduped = []
+      const seen = new Set()
+      for (const r of (data || [])) {
+        if (seen.has(r.module)) continue
+        seen.add(r.module)
+        deduped.push(r)
+      }
+      setRows(deduped)
       setCanManage(!!can)
     }).catch(e => toast?.(e.message || 'خطأ في تحميل الصلاحيات'))
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -262,15 +270,41 @@ export default function UserPermissionsCard({ userId, viewerId, toast }) {
           </div>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 10,
-        }}>
-          {rows.map(r => (
-            <ModuleCard key={r.module} row={r} defaultOpen={false}
-              canToggle={canManage} savingIds={savingIds} onToggle={handleToggle} />
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Group modules by sidebar section so the layout matches the app's nav. */}
+          {Object.entries(rows.reduce((acc, r) => {
+            const k = r.section_key || 'other'
+            if (!acc[k]) acc[k] = { key: k, label_ar: r.section_label_ar || 'أخرى', label_en: r.section_label_en || 'Other', order: r.section_order ?? 99, modules: [] }
+            acc[k].modules.push(r)
+            return acc
+          }, {})).sort(([,a],[,b]) => a.order - b.order).map(([k, sec]) => {
+            const grantedSec = sec.modules.reduce((s, m) => s + Number(m.granted_count || 0), 0)
+            const totalSec = sec.modules.reduce((s, m) => s + Number(m.total_count || 0), 0)
+            return (
+              <div key={k}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10,
+                  paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,.06)',
+                }}>
+                  <span style={{ width: 4, height: 16, borderRadius: 3, background: GOLD }}/>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px' }}>{sec.label_ar}</span>
+                  <span style={{ marginInlineStart: 'auto', padding: '2px 8px', borderRadius: 6, background: `${GOLD}10`, border: `1px solid ${GOLD}22`, fontSize: 10, fontWeight: 800, color: GOLD_SOFT, direction: 'ltr' }}>
+                    {grantedSec} / {totalSec}
+                  </span>
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: 10,
+                }}>
+                  {sec.modules.map(r => (
+                    <ModuleCard key={r.module} row={r} defaultOpen={false}
+                      canToggle={canManage} savingIds={savingIds} onToggle={handleToggle} />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

@@ -74,14 +74,15 @@ Reply format:
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-opus-4-7',
         max_tokens: 100,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
     if (!res.ok) {
+      const errBody = await res.text().catch(() => '')
       const fb = localFallback(raw, occupations)
-      return json({ match: fb, source: 'fallback_api_error', status: res.status })
+      return json({ match: fb, source: 'fallback_api_error', status: res.status, error: errBody.slice(0, 300) })
     }
     const data = await res.json()
     const text = (data.content || []).map(c => c.text || '').join('').trim()
@@ -96,9 +97,11 @@ Reply format:
       return json({ match: fb, source: 'fallback_json_error' })
     }
     if (!parsed.id || parsed.id === 'null') return json({ match: null, source: 'claude_no_match', confidence: parsed.confidence })
+    const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0
+    if (conf < 0.5) return json({ match: null, source: 'claude_low_confidence', confidence: conf })
     const matched = occupations.find(o => o.id === parsed.id)
     if (!matched) return json({ match: null, source: 'claude_unknown_id' })
-    return json({ match: matched, source: 'claude', confidence: parsed.confidence })
+    return json({ match: matched, source: 'claude', confidence: conf })
   } catch (e) {
     const fb = localFallback(raw, occupations)
     return json({ match: fb, source: 'fallback_exception', error: String(e.message || e).slice(0, 200) })

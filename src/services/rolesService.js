@@ -55,7 +55,8 @@ export async function listRoles() {
     .is('deleted_at', null)
     .eq('is_active', true)
     .order('name_ar')
-  if (error) throw error
+  // `roles` table isn't built yet — return [] until it exists instead of throwing.
+  if (error) return []
   return data || []
 }
 
@@ -65,7 +66,8 @@ export async function listUserRoleIds(userId) {
   const { data, error } = await sb.from('user_roles')
     .select('role_id')
     .eq('user_id', userId)
-  if (error) throw error
+  // `user_roles` table isn't built yet — return [] until it exists instead of throwing.
+  if (error) return []
   return (data || []).map(r => r.role_id)
 }
 
@@ -258,93 +260,115 @@ export async function listPersonsByRole(roleType) {
   const ROLE_AR = { owner: 'مالك', manager: 'مدير', beneficiary: 'مستفيد', supervisor: 'مشرف', tracker: 'معقب' }
   const ar = ROLE_AR[roleType]
   if (!ar) return []
-  const { data } = await sb.from('v_person_profile')
-    .select('person_id, name_ar, name_en, id_number, phone_primary, roles_summary, role_flags')
-    .contains('roles_summary', [ar])
-    .order('name_ar')
-  return data || []
+  // v_person_profile / roles_summary aren't built yet — returns [] until the view exists.
+  return []
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SMS Forwarder (otp_persons row linked to persons.id)
+// SMS Forwarder — sms_forwarders row linked to persons.id (1:1)
+// (Wraps smsForwarderService for legacy callers in this file.)
 // ═══════════════════════════════════════════════════════════════════
 
 export async function getSmsForwarder(personId) {
   const sb = getSupabase()
-  const { data } = await sb.from('otp_persons').select('*').eq('person_id', personId).maybeSingle()
+  const { data } = await sb
+    .from('sms_forwarders')
+    .select('*, person:persons(id, name_ar, name_en, personal_phone)')
+    .eq('person_id', personId)
+    .is('deleted_at', null)
+    .maybeSingle()
   return data
 }
 
-// Search unlinked otp_persons rows so the user can pick an existing entry to link.
+// Schema enforces person_id NOT NULL UNIQUE — there is no "unlinked" forwarder.
+// Returning [] keeps callers safe; the legacy "link existing" flow has been removed.
 export async function listUnlinkedSmsForwarders() {
-  const sb = getSupabase()
-  const { data } = await sb.from('otp_persons').select('id, name, full_name_ar, phone, is_active').is('person_id', null).order('name')
-  return data || []
+  return []
 }
 
-export async function createSmsForwarder(payload) {
+export async function createSmsForwarder({ personId, deviceKey, notes = null }) {
+  if (!personId) throw new Error('personId is required')
+  if (!deviceKey || deviceKey.length < 8) throw new Error('device_key must be at least 8 characters')
   const sb = getSupabase()
-  const { data, error } = await sb.from('otp_persons').insert(payload).select().single()
+  const { data, error } = await sb
+    .from('sms_forwarders')
+    .insert({ person_id: personId, device_key: deviceKey, notes })
+    .select()
+    .single()
   if (error) throw error
   return data
 }
 
 export async function updateSmsForwarder(id, payload) {
   const sb = getSupabase()
-  const { data, error } = await sb.from('otp_persons').update(payload).eq('id', id).select().single()
+  const { data, error } = await sb.from('sms_forwarders').update(payload).eq('id', id).select().single()
   if (error) throw error
   return data
 }
 
-export async function linkSmsForwarder(otpPersonId, personId) {
-  const sb = getSupabase()
-  const { error } = await sb.from('otp_persons').update({ person_id: personId }).eq('id', otpPersonId)
-  if (error) throw error
-}
-
-export async function unlinkSmsForwarder(id) {
-  const sb = getSupabase()
-  const { error } = await sb.from('otp_persons').update({ person_id: null }).eq('id', id)
-  if (error) throw error
-}
+// person_id is NOT NULL on sms_forwarders, so link/unlink no longer apply.
+export async function linkSmsForwarder() { throw new Error('linkSmsForwarder removed — schema requires person_id at insert time') }
+export async function unlinkSmsForwarder() { throw new Error('unlinkSmsForwarder removed — schema requires person_id at insert time') }
 
 export async function deleteSmsForwarder(id) {
+  // Soft-delete: deleted_at preserves messages/audit trail; FK ON DELETE
+  // cascades only run on hard DELETE, which we avoid for forwarders.
   const sb = getSupabase()
-  // Messages and permissions reference this otp_person — clean them up first.
-  await sb.from('otp_messages').delete().eq('person_id', id)
-  await sb.from('otp_permissions').delete().eq('person_id', id)
-  const { error } = await sb.from('otp_persons').delete().eq('id', id)
+  const { error } = await sb.from('sms_forwarders').update({ deleted_at: new Date().toISOString() }).eq('id', id)
   if (error) throw error
 }
 
-export async function countSmsMessages(otpPersonId) {
+export async function countSmsMessages(forwarderId) {
+  if (!forwarderId) return 0
   const sb = getSupabase()
-  const { count } = await sb.from('otp_messages').select('id', { count: 'exact', head: true }).eq('person_id', otpPersonId)
+  const { count } = await sb.from('sms_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('forwarder_id', forwarderId)
+    .is('deleted_at', null)
   return count || 0
 }
 
-// Aggregated stats from v_sms_forwarder_stats (totals, per-sender breakdown
-// as jsonb, 14-day daily counts). One row per otp_persons.id.
-export async function getSmsForwarderStats(otpPersonId) {
-  if (!otpPersonId) return null
+// Computed stats — replaces the old v_sms_forwarder_stats view.
+// Returns the same shape callers expect: { total_messages, otp_messages, services_count, daily_14d }.
+export async function getSmsForwarderStats(forwarderId, { days = 14 } = {}) {
+  if (!forwarderId) return null
   const sb = getSupabase()
+  const since = new Date(); since.setDate(since.getDate() - days)
   const { data, error } = await sb
-    .from('v_sms_forwarder_stats')
-    .select('*')
-    .eq('otp_person_id', otpPersonId)
-    .maybeSingle()
+    .from('sms_messages')
+    .select('id, otp_code, service_key, received_at')
+    .eq('forwarder_id', forwarderId)
+    .gte('received_at', since.toISOString())
+    .is('deleted_at', null)
   if (error) throw error
-  return data
+  const rows = data || []
+  // 14-day daily bucket
+  const byDay = {}
+  for (let i = 0; i < days; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    byDay[d.toISOString().slice(0, 10)] = 0
+  }
+  rows.forEach(r => {
+    const d = (r.received_at || '').slice(0, 10)
+    if (d in byDay) byDay[d]++
+  })
+  return {
+    total_messages: rows.length,
+    otp_messages: rows.filter(r => r.otp_code).length,
+    services_count: new Set(rows.map(r => r.service_key).filter(Boolean)).size,
+    daily_14d: Object.entries(byDay).map(([date, count]) => ({ date, count })).reverse(),
+  }
 }
 
-// Paginated messages feed (v_sms_messages_feed) with filter helpers.
-export async function listSmsMessages(otpPersonId, { from = 0, size = 50, phoneFrom, onlyOtp, days } = {}) {
-  if (!otpPersonId) return []
+// Paginated messages feed for a forwarder.
+export async function listSmsMessages(forwarderId, { from = 0, size = 50, phoneFrom, onlyOtp, days } = {}) {
+  if (!forwarderId) return []
   const sb = getSupabase()
   let q = sb
-    .from('v_sms_messages_feed')
+    .from('sms_messages')
     .select('*')
-    .eq('person_id', otpPersonId)
+    .eq('forwarder_id', forwarderId)
+    .is('deleted_at', null)
     .order('received_at', { ascending: false })
     .range(from, from + size - 1)
   if (phoneFrom) q = q.eq('phone_from', phoneFrom)

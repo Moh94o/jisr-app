@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import * as personsService from '../../../services/personsService.js'
 import UserRolePage from './UserRolePage.jsx'
 import ClientRolePage from './ClientRolePage.jsx'
@@ -15,10 +15,13 @@ import SmsForwarderRolePage from './SmsForwarderRolePage.jsx'
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = '#D4A017'
 
-export default function RolePageRouter({ roleKey, personId, onBack, toast, countries, branches, idTypes, genders, user }) {
+export default function RolePageRouter({ roleKey, personId, forwarderId, onBack, toast, countries, branches, idTypes, genders, user }) {
   const [person, setPerson] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  const toastRef = useRef(toast)
+  useEffect(() => { toastRef.current = toast }, [toast])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -26,9 +29,9 @@ export default function RolePageRouter({ roleKey, personId, onBack, toast, count
       const { profile, person } = await personsService.getPerson(personId)
       setProfile(profile); setPerson(person)
     } catch (e) {
-      toast?.('خطأ: ' + (e.message || ''))
+      toastRef.current?.('خطأ: ' + (e.message || ''))
     } finally { setLoading(false) }
-  }, [personId, toast])
+  }, [personId])
 
   useEffect(() => { load() }, [load])
 
@@ -46,7 +49,7 @@ export default function RolePageRouter({ roleKey, personId, onBack, toast, count
 
   if (!person || !profile) return null
 
-  const shared = { person, profile, onBack, toast, countries, branches, idTypes, genders, user, reload: load }
+  const shared = { person, profile, forwarderId, onBack, toast, countries, branches, idTypes, genders, user, reload: load }
 
   switch (roleKey) {
     case 'user':        return <UserRolePage {...shared} />

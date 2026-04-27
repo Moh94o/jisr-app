@@ -90,13 +90,13 @@
       /* Gold focus ring on search boxes (placeholder starting with "ابحث")
          — applied while focused and while they hold user input. The :has()
          rule pulls the preceding search icon into the gold state too. */
-      input[placeholder^="ابحث"]:focus,
-      input[placeholder^="ابحث"]:not(:placeholder-shown) {
+      input[placeholder^="ابحث"]:focus:not(.occ-sel-search),
+      input[placeholder^="ابحث"]:not(:placeholder-shown):not(.occ-sel-search) {
         border: 1px solid rgba(212,160,23,.55) !important;
         box-shadow: 0 0 0 1px rgba(212,160,23,.18), inset 0 1px 2px rgba(0,0,0,.2) !important;
       }
-      div:has(> input[placeholder^="ابحث"]:focus) > svg,
-      div:has(> input[placeholder^="ابحث"]:not(:placeholder-shown)) > svg {
+      div:has(> input[placeholder^="ابحث"]:focus:not(.occ-sel-search)) > svg,
+      div:has(> input[placeholder^="ابحث"]:not(:placeholder-shown):not(.occ-sel-search)) > svg {
         stroke: #D4A017 !important;
         color: #D4A017 !important;
       }

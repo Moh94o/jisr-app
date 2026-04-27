@@ -12,7 +12,8 @@ export async function listUserPermissionsSummary(userId) {
     .from('v_user_permissions_summary')
     .select('*')
     .eq('user_id', userId)
-  if (error) throw error
+  // View not built yet — fall back to empty list instead of throwing.
+  if (error) return []
   return data || []
 }
 
@@ -77,6 +78,7 @@ export async function listUserActivity(userId, { from = 0, size = 50, action, en
     q = q.gte('created_at', cutoff)
   }
   const { data, error } = await q
-  if (error) throw error
+  // View not built yet — fall back to empty list instead of throwing.
+  if (error) return []
   return data || []
 }

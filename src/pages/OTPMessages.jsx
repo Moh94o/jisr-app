@@ -230,8 +230,18 @@ export default function OTPMessages({ sb, toast, user, lang }) {
     setMsgCategories(next); localStorage.setItem('jisr_msg_categories', JSON.stringify(next))
   }
   const updateMsgClassifications = async (msgId, cats) => {
-    await sb.from('otp_messages').update({ user_classifications: cats }).eq('id', msgId)
-    setMessages(prev => prev.map(x => x.id === msgId ? { ...x, user_classifications: cats } : x))
+    // New schema: classifications live in sms_message_classifications. Diff old vs new and apply.
+    const prev = messages.find(x => x.id === msgId)?.user_classifications || []
+    const toAdd = cats.filter(c => !prev.includes(c))
+    const toRemove = prev.filter(c => !cats.includes(c))
+    if (toAdd.length) {
+      await sb.from('sms_message_classifications').insert(toAdd.map(c => ({ message_id: msgId, classification: c })))
+    }
+    if (toRemove.length) {
+      await sb.from('sms_message_classifications')
+        .delete().eq('message_id', msgId).in('classification', toRemove)
+    }
+    setMessages(p => p.map(x => x.id === msgId ? { ...x, user_classifications: cats } : x))
   }
   const [hiddenDefaultCats, setHiddenDefaultCats] = useState(() => {
     try { return JSON.parse(localStorage.getItem('jisr_hidden_default_cats') || '[]') } catch { return [] }
@@ -365,29 +375,106 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
 
+  // ─── Compat layer ────────────────────────────────────────────────
+  // The new schema splits old otp_persons into sms_forwarders + persons,
+  // and moves viewed_by/user_classifications/copy log into separate tables.
+  // We re-shape rows here so the existing UI keeps working with minimal churn.
+  const reshapeForwarder = (row) => ({
+    ...row,
+    // person fields — mirrored from joined persons row so old code can read them
+    full_name_ar: row.person?.name_ar || '',
+    name: row.person?.name_ar || '',
+    name_en: row.person?.name_en || '',
+    phone: (row.person?.personal_phone || '').replace(/^\+966/, ''),
+    // schema-only fields the old UI references but no longer apply — keep safe defaults
+    default_senders: ['*'],
+    disabled_senders: [],
+  })
+  const reshapeMessage = (row, classifMap, viewersMap) => ({
+    ...row,
+    // Old UI keys filters/tabs on m.person_id — in the new schema we use the
+    // forwarder_id as the equivalent grouping key (one forwarder per person).
+    person_id: row.forwarder_id,
+    user_classifications: classifMap.get(row.id) || [],
+    viewed_by: (viewersMap.get(row.id) || []).join(', '),
+    view_count: (viewersMap.get(row.id) || []).length,
+    copy_count: row.copied_at ? 1 : 0,            // best-effort; full count via copy log
+  })
+
   const load = useCallback(async () => {
     setLoading(true)
-    const [p, m, perm] = await Promise.all([
-      sb.from('otp_persons').select('*').order('created_at'),
-      sb.from('otp_messages').select('*').order('created_at', { ascending: false }).limit(200),
-      sb.from('otp_permissions').select('*')
+    const [fwd, msg, perm] = await Promise.all([
+      sb.from('sms_forwarders')
+        .select('*, person:persons(id, name_ar, name_en, personal_phone)')
+        .is('deleted_at', null)
+        .order('created_at'),
+      sb.from('sms_messages')
+        .select('*, forwarder:sms_forwarders!inner(person_id)')
+        .is('deleted_at', null)
+        .order('received_at', { ascending: false })
+        .limit(200),
+      sb.from('sms_forwarder_permissions').select('*'),
     ])
-    setPersons(p.data || []); setMessages(m.data || []); setPermissions(perm.data || []); setLoading(false)
-    sb.from('users').select('id,name_ar').is('deleted_at',null).eq('is_active',true).order('name_ar').then(({data})=>setSysUsers(data||[]))
+    const forwarderRows = (fwd.data || []).map(reshapeForwarder)
+
+    // Pull classifications + view rows for the loaded messages (avoid N+1).
+    const msgIds = (msg.data || []).map(m => m.id)
+    const [classifRes, viewsRes, sysUsersRes] = await Promise.all([
+      msgIds.length
+        ? sb.from('sms_message_classifications').select('message_id, classification').in('message_id', msgIds)
+        : Promise.resolve({ data: [] }),
+      msgIds.length
+        ? sb.from('sms_message_views').select('message_id, user_id').in('message_id', msgIds)
+        : Promise.resolve({ data: [] }),
+      sb.from('users').select('id, name_ar, person:persons(name_ar)').is('deleted_at', null).eq('is_active', true),
+    ])
+    const classifMap = new Map()
+    ;(classifRes.data || []).forEach(r => {
+      if (!classifMap.has(r.message_id)) classifMap.set(r.message_id, [])
+      classifMap.get(r.message_id).push(r.classification)
+    })
+    const userNameById = new Map()
+    ;(sysUsersRes.data || []).forEach(u => userNameById.set(u.id, u.person?.name_ar || u.name_ar || ''))
+    const viewersMap = new Map()
+    ;(viewsRes.data || []).forEach(r => {
+      if (!viewersMap.has(r.message_id)) viewersMap.set(r.message_id, [])
+      const name = userNameById.get(r.user_id)
+      if (name) viewersMap.get(r.message_id).push(name)
+    })
+
+    const messageRows = (msg.data || []).map(m => {
+      m._person_id = m.forwarder?.person_id || null
+      return reshapeMessage(m, classifMap, viewersMap)
+    })
+
+    setPersons(forwarderRows)
+    setMessages(messageRows)
+    setPermissions(perm.data || [])
+    setSysUsers((sysUsersRes.data || []).map(u => ({ id: u.id, name_ar: u.person?.name_ar || u.name_ar })))
+    setLoading(false)
   }, [sb])
 
   useEffect(() => { load() }, [load])
 
-  // Auto-refresh
+  // Auto-refresh: light-weight poll for new sms_messages.
   useEffect(() => {
     const prevIds = new Set(messages.map(m => m.id))
     const interval = setInterval(() => {
-      sb.from('otp_messages').select('*').order('created_at', { ascending: false }).limit(200).then(({ data }) => {
-        if (data && data.length > messages.length) {
-          data.forEach(m => { if (!prevIds.has(m.id)) { /* new message — no toast */ } })
-          setMessages(data)
-        }
-      })
+      sb.from('sms_messages')
+        .select('*, forwarder:sms_forwarders!inner(person_id)')
+        .is('deleted_at', null)
+        .order('received_at', { ascending: false })
+        .limit(200)
+        .then(({ data }) => {
+          if (data && data.length > messages.length) {
+            data.forEach(m => { if (!prevIds.has(m.id)) { /* new message — no toast */ } })
+            // Map without classifications/views — UI shows empty until next full load.
+            setMessages(data.map(m => {
+              m._person_id = m.forwarder?.person_id || null
+              return reshapeMessage(m, new Map(), new Map())
+            }))
+          }
+        })
     }, 10000)
     return () => clearInterval(interval)
   }, [sb, messages.length])
@@ -434,32 +521,45 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   const copyCode = async (code, msg) => {
     navigator.clipboard.writeText(code); toast && toast(T('تم نسخ الرمز', 'Copied'))
+    if (!msg?.id) return
+    // Snapshot last copy on the message itself, then append to immutable audit log.
+    await sb.from('sms_messages')
+      .update({ copied_at: new Date().toISOString(), copied_by: user?.id || null })
+      .eq('id', msg.id)
+    await sb.from('sms_copy_log').insert({
+      message_id: msg.id,
+      user_id: user?.id || null,
+      copy_type: 'otp',
+    })
     const copyName = user?.name_ar || 'مستخدم'
-    // Count copies for this message
-    const currentCount = parseInt(msg?.copy_count || 0) + 1
-    const copyInfo = copyName + (currentCount > 1 ? ` (${currentCount})` : '')
-    if (msg?.id) await sb.from('otp_messages').update({ copied_by: copyInfo, copy_count: currentCount }).eq('id', msg.id)
-    setMessages(prev => prev.map(x => x.id === msg?.id ? { ...x, copied_by: copyInfo, copy_count: currentCount } : x))
-    sb.from('otp_copy_log').insert({ message_id: msg?.id || null, user_id: user?.id || null, user_name: copyName, otp_code: code, person_name: msg?.person_name || null, sender: msg?.phone_from || null })
+    setMessages(prev => prev.map(x => x.id === msg.id
+      ? { ...x, copied_by: user?.id || null, copied_at: new Date().toISOString(), _copied_by_name: copyName }
+      : x))
   }
 
   const toggleRawMsg = async (msg) => {
     const opening = showRawMsg !== msg.id
     setShowRawMsg(opening ? msg.id : null)
-    if (!opening || !msg?.id) return
+    if (!opening || !msg?.id || !user?.id) return
+    // UPSERT a view receipt — the table has UNIQUE(message_id, user_id).
+    await sb.from('sms_message_views').upsert(
+      { message_id: msg.id, user_id: user.id },
+      { onConflict: 'message_id,user_id', ignoreDuplicates: true }
+    )
     const viewerName = user?.name_ar || 'مستخدم'
-    const existing = (msg.viewed_by || '').split(/[,،]+/).map(s => s.trim()).filter(Boolean)
-    if (existing.includes(viewerName)) return
-    const nextList = [...existing, viewerName]
-    const nextViewedBy = nextList.join('، ')
-    const nextCount = parseInt(msg?.view_count || 0) + 1
-    await sb.from('otp_messages').update({ viewed_by: nextViewedBy, view_count: nextCount }).eq('id', msg.id)
-    setMessages(prev => prev.map(x => x.id === msg.id ? { ...x, viewed_by: nextViewedBy, view_count: nextCount } : x))
+    setMessages(prev => prev.map(x => {
+      if (x.id !== msg.id) return x
+      const existing = (x.viewed_by || '').split(/[,،]+/).map(s => s.trim()).filter(Boolean)
+      if (existing.includes(viewerName)) return x
+      const nextList = [...existing, viewerName]
+      return { ...x, viewed_by: nextList.join('، '), view_count: nextList.length }
+    }))
   }
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return
-    await sb.from('otp_messages').delete().eq('id', deleteConfirm)
+    // Soft-delete via deleted_at — schema preserves the audit row.
+    await sb.from('sms_messages').update({ deleted_at: new Date().toISOString() }).eq('id', deleteConfirm)
     setMessages(prev => prev.filter(m => m.id !== deleteConfirm))
     setDeleteConfirm(null)
     toast && toast(T('تم الحذف', 'Deleted'))
@@ -467,39 +567,16 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
   const clearExpired = async () => {
     const ids = messages.filter(m => isExp(m)).map(m => m.id)
-    for (const id of ids) await sb.from('otp_messages').delete().eq('id', id)
+    if (!ids.length) return
+    await sb.from('sms_messages').update({ deleted_at: new Date().toISOString() }).in('id', ids)
     setMessages(prev => prev.filter(m => !ids.includes(m.id)))
     toast && toast(`تم مسح ${ids.length}`)
   }
 
-  const addPerson = async () => {
-    const err = {}
-    const fullAr = (addForm.full_name_ar || '').trim()
-    const shortAr = (addForm.name || '').trim()
-    const shortEn = (addForm.name_en || '').trim()
-    const phone = (addForm.phone || '').replace(/\D/g, '').slice(0, 9)
-    if (!fullAr) err.full_name_ar = 'الرجاء إدخال الاسم الرسمي'
-    else if (!/^[\u0600-\u06FF\s]+$/.test(fullAr)) err.full_name_ar = 'يجب أن يحتوي على حروف عربية فقط'
-    if (!shortAr) err.name = 'الرجاء إدخال الاسم المختصر بالعربي'
-    else if (!/^[\u0600-\u06FF\s]+$/.test(shortAr)) err.name = 'يجب أن يحتوي على حروف عربية فقط'
-    if (!shortEn) err.name_en = 'الرجاء إدخال الاسم المختصر بالإنجليزي'
-    else if (!/^[a-zA-Z\s]+$/.test(shortEn)) err.name_en = 'يجب أن يحتوي على حروف إنجليزية فقط'
-    if (!phone) err.phone = 'الرجاء إدخال رقم الجوال'
-    else if (!/^5\d{8}$/.test(phone)) err.phone = 'رقم الجوال يجب أن يبدأ بـ 5 ويتكون من 9 أرقام'
-    setAddErr(err); if (Object.keys(err).length > 0) return
-    setSaving(true)
-    const senders = ['*']
-    const { data: created, error } = await sb.from('otp_persons').insert({
-      full_name_ar: fullAr,
-      name: shortAr,
-      name_en: shortEn,
-      phone: phone,
-      default_senders: senders
-    }).select('*').single()
-    if (error) toast && toast('خطأ: ' + error.message)
-    else { await sb.from('otp_permissions').insert({ person_id: created.id, allowed_senders: senders }); setAddDone(true); load() }
-    setSaving(false)
-  }
+  // Legacy add-person modal was removed — forwarders are now created from
+  // PersonsPage (a person → "ملف SMS Forwarder" → إنشاء حساب جديد).
+  // These stubs keep references resolving without re-introducing the legacy flow.
+  const addPerson = async () => {}
   const closeAdd = () => { setShowAdd(false); setAddErr({}); setAddDone(false); setAddForm({ full_name_ar: '', name: '', name_en: '', phone: '' }) }
 
   // Filter
@@ -547,19 +624,158 @@ export default function OTPMessages({ sb, toast, user, lang }) {
     {v:'other',l:'أخرى',n:otherMsgs.length}
   ]
 
+  // KPI computation (matches PersonsPage.roleCounts pattern: bucketed by category)
+  const kpiOtpCount = messages.filter(m => m.otp_code).length
+  const kpiGovCount = messages.filter(m => detectMsgCat(m) === 'gov' || detectMsgCat(m) === 'facility' || detectMsgCat(m) === 'worker').length
+  const kpiBankCount = messages.filter(m => detectMsgCat(m) === 'bank').length
+  const kpiTransferCount = messages.filter(m => /حوالة|transfer|تحويل/i.test(m.message_body || '')).length
+  const kpiCopiedCount = messages.filter(m => m.copied_by).length
+  const kpiActivePersons = persons.filter(p => p.is_active).length
+
+  // Last 7 days bucketed series (otp / gov / bank) — same shape as PersonsPage trend chart
+  const _now = new Date()
+  const _periodSeries = (() => {
+    const buckets = 7
+    const bucketMs = 86400000
+    const result = Array.from({ length: buckets }, () => ({ otp: 0, gov: 0, bank: 0, total: 0 }))
+    messages.forEach(m => {
+      if (!m.created_at) return
+      const d = new Date(m.created_at)
+      const age = Math.floor((_now - d) / bucketMs)
+      if (age < 0 || age >= buckets) return
+      const idx = buckets - 1 - age
+      result[idx].total += 1
+      if (m.otp_code) result[idx].otp += 1
+      const cat = detectMsgCat(m)
+      if (cat === 'gov' || cat === 'facility' || cat === 'worker') result[idx].gov += 1
+      if (cat === 'bank') result[idx].bank += 1
+    })
+    return result
+  })()
+
+  const _glassCard = { background: '#141414', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '10px 12px', position: 'relative', overflow: 'hidden', transition: '.2s' }
+  const _innerBox = { background: '#1a1a1a', border: '1px solid rgba(255,255,255,.04)' }
+
   return (
-    <div style={{ fontFamily: F, direction: lang==='en'?'ltr':'rtl', paddingTop: 20 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--tx)' }}>{T('الرسائل النصية', 'SMS Messages')}</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginTop: 6 }}>{T('استقبال وعرض رموز التحقق والإشعارات من المنصات المختلفة', 'Receive and view verification codes and notifications from various platforms')}</div>
+    <div style={{ fontFamily: F, direction: lang==='en'?'ltr':'rtl', paddingTop: 0 }}>
+      {/* ═══ Header (matches PersonsPage exactly) ═══ */}
+      <div style={{ marginBottom: 14, position: 'relative' }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>SMS Forwarder</div>
+        <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 8 }}>
+          {T('استقبال وعرض رموز التحقق والإشعارات من المنصات المختلفة', 'Receive and view verification codes and notifications from various platforms')}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {can('add_person') && <button onClick={() => setShowAdd(true)} style={{ height: 42, padding: '0 20px', borderRadius: 11, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.1)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'border-color .15s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.55)' }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)' }}>
-            {T('إضافة', 'Add')}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-          </button>}
+      </div>
+
+      {/* ═══ KPI Cards (matches PersonsPage exactly) ═══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 22 }}>
+        {/* Wide: stat boxes + trend chart */}
+        <div style={_glassCard}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            {[
+              { l: T('رموز تحقق', 'OTPs'), v: kpiOtpCount, c: C.gold },
+              { l: T('بنكية', 'Bank'), v: kpiBankCount, c: C.blue },
+              { l: T('حكومية', 'Gov'), v: kpiGovCount, c: '#d9a15a' }
+            ].map(s => (
+              <div key={s.l} style={{ padding: '7px 12px', borderRadius: 10, ..._innerBox,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.c, boxShadow: `0 0 5px ${s.c}` }} />
+                  <div style={{ fontSize: 18, fontWeight: 900, color: s.c, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{s.v}</div>
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{s.l}</div>
+              </div>
+            ))}
+            <div style={{ minWidth: 0, padding: '0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('حوالات', 'Transfers')}</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#c0c0c0', direction: 'ltr' }}>{kpiTransferCount}</span>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('منسوخ', 'Copied')}</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#e5867a', direction: 'ltr' }}>{kpiCopiedCount}</span>
+            </div>
+          </div>
+
+          {/* Trend chart — last 7 days */}
+          {(() => {
+            const n = _periodSeries.length
+            if (n < 2) return null
+            const W = 560, H = 88, padL = 22, padR = 12, padT = 12, padB = 12
+            const cw = W - padL - padR, ch = H - padT - padB
+            const mx = Math.max(1, ..._periodSeries.flatMap(p => [p.otp, p.gov, p.bank]))
+            const niceMx = Math.max(2, Math.ceil(mx / 2) * 2)
+            const xAt = i => (padL + (i / (n - 1)) * cw).toFixed(1)
+            const yAt = v => (padT + ch - (v / niceMx) * ch).toFixed(1)
+            const smooth = (pts) => {
+              if (pts.length < 2) return ''
+              let d = 'M' + pts[0][0] + ',' + pts[0][1]
+              for (let i = 0; i < pts.length - 1; i++) {
+                const [x0, y0] = pts[Math.max(0, i - 1)], [x1, y1] = pts[i]
+                const [x2, y2] = pts[i + 1], [x3, y3] = pts[Math.min(pts.length - 1, i + 2)]
+                const t = .22
+                const c1x = x1 + (x2 - x0) * t, c1y = y1 + (y2 - y0) * t
+                const c2x = x2 - (x3 - x1) * t, c2y = y2 - (y3 - y1) * t
+                d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + x2 + ',' + y2
+              }
+              return d
+            }
+            const ptsOf = (k) => _periodSeries.map((p, i) => [Number(xAt(i)), Number(yAt(p[k]))])
+            const lineP = (k) => smooth(ptsOf(k))
+            const areaP = (k) => {
+              const p = ptsOf(k); if (p.length < 2) return ''
+              return smooth(p) + ' L' + p[p.length - 1][0] + ',' + (padT + ch) + ' L' + p[0][0] + ',' + (padT + ch) + ' Z'
+            }
+            const yTicks = [0, niceMx / 2, niceMx]
+            return (
+              <div style={{ padding: '6px 10px' }}>
+                <svg width="100%" viewBox={`0 0 ${W} ${H - padB + 14}`} preserveAspectRatio="none" style={{ display: 'block', height: 90 }}>
+                  <defs>
+                    <linearGradient id="otpa" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={C.gold} stopOpacity=".4" />
+                      <stop offset="100%" stopColor={C.gold} stopOpacity="0" /></linearGradient>
+                    <linearGradient id="otpb" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#d9a15a" stopOpacity=".35" />
+                      <stop offset="100%" stopColor="#d9a15a" stopOpacity="0" /></linearGradient>
+                    <linearGradient id="otpc" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={C.blue} stopOpacity=".35" />
+                      <stop offset="100%" stopColor={C.blue} stopOpacity="0" /></linearGradient>
+                  </defs>
+                  {yTicks.map((t, i) => (
+                    <g key={i}>
+                      <line x1={padL} x2={W - padR} y1={yAt(t)} y2={yAt(t)} stroke="rgba(255,255,255,.05)" strokeWidth="1" />
+                      <text x={padL - 6} y={Number(yAt(t)) + 3} fontSize="9" fill="rgba(255,255,255,.3)" textAnchor="end" fontFamily={F}>{t}</text>
+                    </g>
+                  ))}
+                  <path d={areaP('otp')} fill="url(#otpa)" />
+                  <path d={lineP('otp')} fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={areaP('gov')} fill="url(#otpb)" />
+                  <path d={lineP('gov')} fill="none" stroke="#d9a15a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={areaP('bank')} fill="url(#otpc)" />
+                  <path d={lineP('bank')} fill="none" stroke={C.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  {['otp', 'gov', 'bank'].map(k => {
+                    const c = k === 'otp' ? C.gold : k === 'gov' ? '#d9a15a' : C.blue
+                    const last = ptsOf(k)[n - 1]
+                    return <circle key={k} cx={last[0]} cy={last[1]} r="4" fill="#1a1a1a" stroke={c} strokeWidth="2" />
+                  })}
+                </svg>
+              </div>
+            )
+          })()}
+        </div>
+
+        {/* Narrow: total messages hero */}
+        <div style={{ ..._glassCard, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', letterSpacing: '.1px' }}>{T('إجمالي الرسائل', 'Total Messages')}</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
+            <span style={{ fontSize: 56, fontWeight: 900, color: C.gold, letterSpacing: '-1.4px', lineHeight: 1,
+              textShadow: `0 0 22px ${C.gold}33`, direction: 'ltr' }}>{messages.length}</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: C.gold, opacity: .75 }}>{T('رسالة', 'msg')}</span>
+          </div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.3px' }}>
+            {kpiActivePersons} {T('نشط', 'active')} · {persons.length - kpiActivePersons} {T('معطّل', 'inactive')}
+          </div>
         </div>
       </div>
 
@@ -569,7 +785,12 @@ export default function OTPMessages({ sb, toast, user, lang }) {
 
           {/* Horizontal Tabs */}
           {(()=>{
-            const tabs = [{ id: 'all', name: T('الكل', 'All') }, ...persons.map(p => ({ id: p.id, name: (lang==='en' && p.name_en) ? p.name_en : p.name, inactive: !p.is_active }))]
+            // Tab name resolves to forwarder.short_name_(ar|en) — falls back to label/name when missing.
+            const resolveTabName = (p) => {
+              if (lang === 'en') return p.short_name_en || p.short_name_ar || p.name_en || p.name || 'Account'
+              return p.short_name_ar || p.name || p.full_name_ar || 'حساب'
+            }
+            const tabs = [{ id: 'all', name: T('الكل', 'All') }, ...persons.map(p => ({ id: p.id, name: resolveTabName(p), inactive: !p.is_active }))]
             return <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.15)', marginBottom: 18, justifyContent: 'space-between', alignItems: 'stretch', gap: 8 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
                 {tabs.map(t => {
@@ -1014,17 +1235,18 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                           <button key={u.id} onClick={async () => {
                             const next = !allowed
                             setPermEdit(prev => ({ ...prev, [u.id]: next }))
-                            const ex = permissions.find(pm => pm.user_id === u.id && pm.person_id === m.person_id)
+                            // m.person_id was reshaped to forwarder_id — that's what permissions key on now.
+                            const ex = permissions.find(pm => pm.user_id === u.id && pm.forwarder_id === m.person_id)
                             if (next) {
                               if (!ex) {
-                                const { data } = await sb.from('otp_permissions').insert({ user_id: u.id, person_id: m.person_id, can_view_all: true, is_active: true }).select().single()
-                                if (data) setPermissions(prev => [...prev, data])
-                              } else if (!ex.is_active) {
-                                await sb.from('otp_permissions').update({ is_active: true }).eq('id', ex.id)
-                                setPermissions(prev => prev.map(p => p.id === ex.id ? { ...p, is_active: true } : p))
+                                const { data } = await sb.from('sms_forwarder_permissions').upsert({
+                                  forwarder_id: m.person_id, user_id: u.id,
+                                  permission_level: 'pro', sender_filter_mode: 'all', sender_list: [],
+                                }, { onConflict: 'forwarder_id,user_id' }).select().single()
+                                if (data) setPermissions(prev => [...prev.filter(p => p.id !== data.id), data])
                               }
                             } else if (ex) {
-                              await sb.from('otp_permissions').delete().eq('id', ex.id)
+                              await sb.from('sms_forwarder_permissions').delete().eq('id', ex.id)
                               setPermissions(prev => prev.filter(p => p.id !== ex.id))
                             }
                           }} style={{ fontSize: 9.5, fontWeight: 700, padding: '3px 9px', borderRadius: 5, cursor: 'pointer', fontFamily: F, transition: '.15s', border: '1px solid ' + (allowed ? 'rgba(39,160,70,.4)' : 'rgba(192,57,43,.35)'), background: allowed ? 'rgba(39,160,70,.1)' : 'rgba(192,57,43,.08)', color: allowed ? C.ok : C.red }}>{u.name_ar}</button>
@@ -1437,12 +1659,8 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 removeMsgCategory(svcName, key)
                 // Also clean up any messages that had this classification
                 setMessages(prev => prev.map(x => (x.user_classifications || []).includes(key) ? { ...x, user_classifications: x.user_classifications.filter(c => c !== key) } : x))
-                sb.from('otp_messages').select('id,user_classifications').contains('user_classifications', [key]).then(({ data }) => {
-                  if (data && data.length) data.forEach(row => {
-                    const cleaned = (row.user_classifications || []).filter(c => c !== key)
-                    sb.from('otp_messages').update({ user_classifications: cleaned }).eq('id', row.id)
-                  })
-                })
+                // New schema: classifications live in their own table — single delete clears everywhere.
+                sb.from('sms_message_classifications').delete().eq('classification', key)
                 setMsgCatDeleteConfirm(null)
               }} style={{ flex: 1, height: 40, borderRadius: 9, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 800 }}>حذف</button>
             </div>
@@ -1522,9 +1740,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               <button onClick={() => setDeletePersonConfirm(null)} style={{ flex: 1, height: 42, borderRadius: 10, border: '1.5px solid rgba(255,255,255,.1)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>إلغاء</button>
               <button onClick={async () => {
                 const id = deletePersonConfirm.id
-                await sb.from('otp_messages').delete().eq('person_id', id)
-                await sb.from('otp_permissions').delete().eq('person_id', id)
-                await sb.from('otp_persons').delete().eq('id', id)
+                // Soft-delete the forwarder; messages/permissions cascade via FK ON DELETE,
+                // but since we're soft-deleting here we leave them intact for audit.
+                await sb.from('sms_forwarders').update({ deleted_at: new Date().toISOString() }).eq('id', id)
                 setDeletePersonConfirm(null); setPersonSettingsId(null); setSelPerson('all'); load(); toast && toast('تم الحذف')
               }} style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.15)', color: C.red, fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>حذف</button>
             </div>
@@ -1574,9 +1792,16 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 <div style={{ position: 'absolute', top: -8, right: 12, background: '#1a1a1a', padding: '0 6px', fontSize: 10, fontWeight: 800, color: C.gold }}>البيانات الشخصية</div>
                 <span onClick={async () => {
                   if (editingInfo) {
-                    const payload = { full_name_ar: (editInfo.full_name_ar || '').trim() || null, name: (editInfo.name || '').trim() || p.name, name_en: (editInfo.name_en || '').trim() || null, phone: (editInfo.phone || '').replace(/\D/g, '').slice(0, 9) || null }
-                    const { error } = await sb.from('otp_persons').update(payload).eq('id', p.id)
-                    if (error) { toast && toast('خطأ: ' + error.message); return }
+                    // Names live on persons; phone too. Forwarder row has no own name.
+                    const personPatch = {
+                      name_ar: (editInfo.full_name_ar || editInfo.name || '').trim() || null,
+                      name_en: (editInfo.name_en || '').trim() || null,
+                      personal_phone: editInfo.phone ? '+966' + (editInfo.phone || '').replace(/\D/g, '').slice(0, 9) : null,
+                    }
+                    if (p.person_id) {
+                      const { error } = await sb.from('persons').update(personPatch).eq('id', p.person_id)
+                      if (error) { toast && toast('خطأ: ' + error.message); return }
+                    }
                     toast && toast('تم الحفظ'); setEditingInfo(false); load()
                   } else {
                     setEditInfo({ full_name_ar: p.full_name_ar || '', name: p.name || '', name_en: p.name_en || '', phone: p.phone || '' })
@@ -1647,12 +1872,11 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 <div style={{ position: 'absolute', top: -8, right: 12, background: '#1a1a1a', padding: '0 6px', fontSize: 10, fontWeight: 800, color: C.gold }}>الجهات</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {SENDERS.filter(s => s.k !== '*').map(s => {
-                    const disabled = (p.disabled_senders || []).includes(s.k)
-                    return <button key={s.k} onClick={async () => {
-                      const current = p.disabled_senders || []
-                      const next = disabled ? current.filter(x => x !== s.k) : [...current, s.k]
-                      await sb.from('otp_persons').update({ disabled_senders: next }).eq('id', p.id)
-                      load()
+                    // disabled_senders is no longer stored on the forwarder. Treat all as enabled
+                    // until per-user sender filters are wired through sms_forwarder_permissions.sender_list.
+                    const disabled = false
+                    return <button key={s.k} onClick={() => {
+                      toast && toast(T('سيتم ربط فلتر الجهات بصلاحيات الموظفين قريباً', 'Sender filter coming soon — managed via permissions'))
                     }} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700, color: disabled ? '#e67e22' : C.ok, background: disabled ? 'rgba(230,126,34,.08)' : 'rgba(39,160,70,.08)', border: '1px solid ' + (disabled ? 'rgba(230,126,34,.15)' : 'rgba(39,160,70,.15)'), cursor: 'pointer', fontFamily: F, textDecoration: disabled ? 'line-through' : 'none' }}>{s.l}</button>
                   })}
                 </div>
@@ -1663,18 +1887,21 @@ export default function OTPMessages({ sb, toast, user, lang }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {sysUsers.length === 0 && <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textAlign: 'center', padding: 8 }}>لا يوجد موظفون</div>}
                   {sysUsers.map(u => {
-                    const userPerm = permissions.find(pm => pm.user_id === u.id && pm.person_id === p.id)
-                    const hasAccess = userPerm?.is_active && (userPerm?.can_view_all || (userPerm?.allowed_senders || []).length > 0)
+                    // permissions key on forwarder_id now (not person_id). p.id IS the forwarder id.
+                    const userPerm = permissions.find(pm => pm.user_id === u.id && pm.forwarder_id === p.id)
+                    const hasAccess = !!userPerm
                     return <div key={u.id} style={{ padding: '6px 10px', borderRadius: 7, background: hasAccess ? 'rgba(39,160,70,.04)' : 'rgba(0,0,0,.12)', border: '1px solid ' + (hasAccess ? 'rgba(39,160,70,.1)' : 'rgba(255,255,255,.05)'), display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: hasAccess ? 'var(--tx)' : 'rgba(255,255,255,.5)' }}>{u.name_ar}</span>
                       <div style={{ display: 'flex', gap: 3 }}>
                         <button onClick={async () => {
-                          if (userPerm) { await sb.from('otp_permissions').update({ can_view_all: !userPerm.can_view_all, is_active: true, allowed_senders: [] }).eq('id', userPerm.id) }
-                          else { await sb.from('otp_permissions').insert({ user_id: u.id, person_id: p.id, can_view_all: true, is_active: true }) }
+                          await sb.from('sms_forwarder_permissions').upsert({
+                            forwarder_id: p.id, user_id: u.id,
+                            permission_level: 'pro', sender_filter_mode: 'all', sender_list: [],
+                          }, { onConflict: 'forwarder_id,user_id' })
                           load()
-                        }} style={{ fontSize: 9, padding: '3px 9px', borderRadius: 5, border: '1px solid ' + (userPerm?.can_view_all ? 'rgba(39,160,70,.2)' : 'rgba(255,255,255,.08)'), background: userPerm?.can_view_all ? 'rgba(39,160,70,.08)' : 'transparent', color: userPerm?.can_view_all ? C.ok : 'rgba(255,255,255,.5)', cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>الكل</button>
+                        }} style={{ fontSize: 9, padding: '3px 9px', borderRadius: 5, border: '1px solid ' + (hasAccess ? 'rgba(39,160,70,.2)' : 'rgba(255,255,255,.08)'), background: hasAccess ? 'rgba(39,160,70,.08)' : 'transparent', color: hasAccess ? C.ok : 'rgba(255,255,255,.5)', cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>الكل</button>
                         <button onClick={async () => {
-                          if (userPerm) { await sb.from('otp_permissions').delete().eq('id', userPerm.id) }
+                          if (userPerm) { await sb.from('sms_forwarder_permissions').delete().eq('id', userPerm.id) }
                           load()
                         }} style={{ fontSize: 9, padding: '3px 9px', borderRadius: 5, border: '1px solid rgba(192,57,43,.12)', background: !hasAccess ? 'rgba(192,57,43,.06)' : 'transparent', color: !hasAccess ? C.red : 'rgba(255,255,255,.5)', cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>منع</button>
                       </div>
@@ -1685,77 +1912,13 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             </div>
             {personSettingsType === 'account' && <div style={{ flexShrink: 0, padding: '8px 18px 12px', display: 'flex', gap: 8 }}>
               <button onClick={() => setDeletePersonConfirm({ id: p.id, name: p.name })} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(192,57,43,.25)', background: 'rgba(192,57,43,.08)', color: C.red, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>حذف الحساب</button>
-              <button onClick={async () => { await sb.from('otp_persons').update({ is_active: !p.is_active }).eq('id', p.id); load() }} style={{ flex: 1, height: 36, borderRadius: 8, border: '1px solid ' + (p.is_active ? 'rgba(230,126,34,.25)' : 'rgba(39,160,70,.25)'), background: p.is_active ? 'rgba(230,126,34,.08)' : 'rgba(39,160,70,.08)', color: p.is_active ? '#e67e22' : C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{p.is_active ? 'تعطيل الحساب' : 'تفعيل الحساب'}</button>
+              <button onClick={async () => { await sb.from('sms_forwarders').update({ is_active: !p.is_active }).eq('id', p.id); load() }} style={{ flex: 1, height: 36, borderRadius: 8, border: '1px solid ' + (p.is_active ? 'rgba(230,126,34,.25)' : 'rgba(39,160,70,.25)'), background: p.is_active ? 'rgba(230,126,34,.08)' : 'rgba(39,160,70,.08)', color: p.is_active ? '#e67e22' : C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{p.is_active ? 'تعطيل الحساب' : 'تفعيل الحساب'}</button>
             </div>}
           </div>
         </div>
       })()}
 
 
-      {/* Add Person Modal — Register-style design */}
-      {showAdd && (() => {
-        const inpS = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.1)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.18)', outline: 'none', textAlign: 'center', boxSizing: 'border-box', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }
-        const lblS = { fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5 }
-        const errClr = 'rgba(192,57,43,.5)'
-        return <div onClick={closeAdd} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1a1a', borderRadius: 18, width: 'min(560px,92vw)', height: 'min(420px,92vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(212,160,23,.08)', direction: 'rtl', fontFamily: F }}>
-            <style>{`input.add-person-input:not(:focus):not(:placeholder-shown):not([type=checkbox]):not([type=radio]){border-color:rgba(255,255,255,.1)!important}input.add-person-input.add-person-input-err:not(:focus):not(:placeholder-shown):not([type=checkbox]):not([type=radio]){border-color:rgba(192,57,43,.5)!important}.add-person-phone-inner,.add-person-phone-inner:focus,.add-person-phone-inner:not(:placeholder-shown):not([type=checkbox]):not([type=radio]){border:none!important;box-shadow:none!important}.add-person-phone-wrap:focus-within{border-color:rgba(212,160,23,.55)!important}.add-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.add-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${C.gold}}.add-nav-btn:hover:not(:disabled) .nav-ico{background:${C.gold};color:#000}.add-nav-btn:disabled{opacity:.5;cursor:not-allowed}.add-nav-btn:disabled:hover .nav-ico{background:rgba(212,160,23,.1);color:${C.gold}}`}</style>
-            {addDone && <div style={{ padding: '20px 22px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(39,160,70,.08)', border: '2px solid rgba(39,160,70,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(39,160,70,.5)" strokeWidth="1.5"/><path d="M8 12l3 3 5-6" stroke="rgba(39,160,70,.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--tx)', marginBottom: 10 }}>تم إضافة الشخص بنجاح</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', lineHeight: 1.8, marginBottom: 22, maxWidth: 380 }}>الرجاء الذهاب إلى الإعدادات لربط الرقم بالبرنامج</div>
-              <button onClick={closeAdd} style={{ height: 44, padding: '0 28px', background: C.gold, border: 'none', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 800, color: '#141414', cursor: 'pointer' }}>تم</button>
-            </div>}
-            {!addDone && <div style={{ padding: '16px 22px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: C.gold }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" fill="rgba(212,160,23,.12)"/><path d="M4 21v-1a6 6 0 0116 0v1" stroke="currentColor" strokeWidth="1.5"/><path d="M20 8v3m0 0v3m0-3h3m-3 0h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                <span style={{ fontSize: 16, fontWeight: 800 }}>إضافة شخص</span>
-              </div>
-              <button onClick={closeAdd} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-            </div>}
-            {!addDone && <div style={{ padding: '16px 22px', flex: 1, overflowY: 'auto', scrollbarWidth: 'none', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ border: '1.5px solid rgba(212,160,23,.35)', borderRadius: 12, padding: '18px 16px 16px', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: -9, right: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold }}>بيانات الشخص</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
-                  <div>
-                    <div style={lblS}>اسم الشخص الرسمي بالعربي <span style={{ color: '#e74c3c' }}>*</span></div>
-                    <input className={'add-person-input' + (addErr.full_name_ar ? ' add-person-input-err' : '')} value={addForm.full_name_ar} onChange={e => { const v = e.target.value.replace(/[^\u0600-\u06FF\s]/g, ''); setAddForm(p => ({ ...p, full_name_ar: v })) }} style={inpS} placeholder="محمد عبدالله العمري" />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <div>
-                      <div style={lblS}>الإسم المختصر بالعربي <span style={{ color: '#e74c3c' }}>*</span></div>
-                      <input className={'add-person-input' + (addErr.name ? ' add-person-input-err' : '')} value={addForm.name} onChange={e => { const v = e.target.value.replace(/[^\u0600-\u06FF\s]/g, ''); setAddForm(p => ({ ...p, name: v })) }} style={inpS} placeholder="محمد" />
-                    </div>
-                    <div>
-                      <div style={lblS}>الاسم المختصر بالإنجليزي <span style={{ color: '#e74c3c' }}>*</span></div>
-                      <input className={'add-person-input' + (addErr.name_en ? ' add-person-input-err' : '')} value={addForm.name_en} onChange={e => { const v = e.target.value.replace(/[^a-zA-Z\s]/g, ''); setAddForm(p => ({ ...p, name_en: v })) }} style={{ ...inpS, direction: 'ltr' }} placeholder="Mohammed" />
-                    </div>
-                  </div>
-                  <div>
-                    <div style={lblS}>رقم الجوال <span style={{ color: '#e74c3c' }}>*</span></div>
-                    <div className="add-person-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: addErr.phone ? '1px solid ' + errClr : '1px solid rgba(255,255,255,.1)', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', transition: 'border-color .18s' }}>
-                      <div style={{ height: 42, padding: '0 10px', background: 'rgba(255,255,255,.04)', borderRight: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: C.gold, flexShrink: 0 }}>+966</div>
-                      <input className="add-person-phone-inner" value={addForm.phone} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 9); setAddForm(p => ({ ...p, phone: v })) }} style={{ width: '100%', height: 42, padding: '0 12px', background: 'transparent', fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} placeholder="5X XXX XXXX" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>}
-            {!addDone && <div style={{ flexShrink: 0, padding: '12px 22px 16px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', position: 'relative' }}>
-              {(() => { const firstErr = Object.values(addErr)[0]; return firstErr ? <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'rgba(192,57,43,.85)', fontWeight: 600, maxWidth: '60%', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{firstErr}</span>
-              </div> : null })()}
-              <button onClick={addPerson} disabled={saving} className="add-nav-btn">
-                <span>{saving ? '...' : 'إضافة'}</span>
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
-              </button>
-            </div>}
-          </div>
-        </div>
-      })()}
     </div>
   )
 }

@@ -84,18 +84,20 @@ async function fetchCredentials() {
 }
 
 async function pushSession(session) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/muqeem_sessions?on_conflict=id`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/upsert_muqeem_session`, {
     method: 'POST',
     headers: {
       'apikey': SUPABASE_ANON_KEY,
       'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       'Content-Type': 'application/json',
-      'Prefer': 'resolution=merge-duplicates,return=minimal',
     },
     body: JSON.stringify({
-      id: 'default',
-      ...session,
-      updated_at: new Date().toISOString(),
+      p_auth_bearer: session.auth_bearer,
+      p_xsrf_token:  session.xsrf_token,
+      p_x_domain:    session.x_domain,
+      p_cookies:     session.cookies,
+      p_jwt_exp:     session.jwt_exp,
+      p_moi_number:  session.moi_number,
     }),
   })
   if (!res.ok) throw new Error(`Supabase upsert failed ${res.status}: ${(await res.text()).slice(0, 200)}`)
@@ -165,13 +167,27 @@ async function loginOnce() {
     })
 
     log('→ Waiting for OTP input')
-    await page.waitForFunction(() => {
-      return [...document.querySelectorAll('input')].some(i => {
-        if (!i.offsetParent || i.type === 'hidden' || i.type === 'password') return false
-        const meta = `${i.placeholder||''} ${i.id||''} ${i.name||''}`.toLowerCase()
-        return /otp|verify|code|رمز|التحقق/.test(meta) || (i.maxLength >= 4 && i.maxLength <= 8)
-      })
-    }, { timeout: 30000 })
+    try {
+      await page.waitForFunction(() => {
+        return [...document.querySelectorAll('input')].some(i => {
+          if (!i.offsetParent || i.type === 'hidden' || i.type === 'password') return false
+          const meta = `${i.placeholder||''} ${i.id||''} ${i.name||''}`.toLowerCase()
+          return /otp|verify|code|رمز|التحقق/.test(meta) || (i.maxLength >= 4 && i.maxLength <= 8)
+        })
+      }, { timeout: 30000 })
+    } catch (e) {
+      const pageText = await page.evaluate(() => document.body.innerText || '').catch(() => '')
+      const compact = pageText.replace(/\s+/g, ' ').slice(0, 400)
+      // Stop hammering the endpoint if Muqeem reports the account is temporarily locked.
+      // The lock self-clears after ~15 min; further attempts can extend it.
+      if (/قفل|locked|blocked/i.test(compact)) {
+        const err = new Error('ACCOUNT_LOCKED: ' + compact.slice(0, 200))
+        err.code = 'ACCOUNT_LOCKED'
+        throw err
+      }
+      log(`  page text: ${compact}`)
+      throw e
+    }
 
     log('→ Polling Supabase for OTP (90s window)')
     let otp = null
@@ -241,12 +257,21 @@ async function loginOnce() {
 }
 
 // ─── main loop ─────────────────────────────────────────────
+let cooldownUntil = 0
 async function tick() {
+  if (Date.now() < cooldownUntil) {
+    const waitMin = Math.ceil((cooldownUntil - Date.now()) / 60_000)
+    log(`⏸ Skipping tick — account cooldown active (${waitMin} min remaining)`)
+    return
+  }
   try {
     await loginOnce()
   } catch (e) {
     log(`✗ Login failed: ${e.message}`)
-    if (e.stack) log(e.stack.split('\n').slice(0, 5).join('\n'))
+    if (e.code === 'ACCOUNT_LOCKED') {
+      cooldownUntil = Date.now() + 17 * 60_000
+      log(`  ⏸ Cooling down for 17 min to let Muqeem unlock the account`)
+    } else if (e.stack) log(e.stack.split('\n').slice(0, 5).join('\n'))
   }
 }
 

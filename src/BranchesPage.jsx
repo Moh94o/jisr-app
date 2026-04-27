@@ -27,20 +27,35 @@ const formatRelative = (iso) => {
    they match the Kafala Calculator input look we standardized on.
    ═══════════════════════════════════════════════════════════════ */
 
-function WF({ k, l, r, d, w, opts, ph, tp, form, setForm }) {
+function WF({ k, l, r, d, w, opts, ph, tp, form, setForm, missing }) {
   const val = form[k] || ''
   const onChange = e => setForm(p => ({ ...p, [k]: e.target.value }))
   return (
-    <div style={{ gridColumn: w === true ? '1/-1' : undefined }}>
-      <Lbl req={r}>{l}</Lbl>
+    <div style={{ gridColumn: w === true ? '1/-1' : undefined, position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Lbl req={r}>{l}</Lbl>
+        {missing && <MissingBadge />}
+      </div>
       {opts
         ? <select value={val} onChange={onChange} style={sF}>
             <option value="">—</option>
             {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
           </select>
         : <input type={tp || 'text'} placeholder={ph || ''} value={val} onChange={onChange}
-            style={{ ...sF, direction: d ? 'ltr' : 'rtl', textAlign: 'center' }} />}
+            style={{ ...sF, direction: d ? 'ltr' : 'rtl', textAlign: 'center', borderColor: missing ? 'rgba(192,57,43,.35)' : undefined }} />}
     </div>
+  )
+}
+
+function MissingBadge() {
+  return (
+    <span title="هذا الحقل غير موجود في قاعدة البيانات بعد — لن يُحفظ"
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 14, height: 14, borderRadius: '50%',
+        background: 'rgba(192,57,43,.18)', border: '1px solid rgba(192,57,43,.5)',
+        color: '#e87265', fontSize: 9, fontWeight: 900, lineHeight: 1, cursor: 'help',
+      }}>×</span>
   )
 }
 
@@ -201,15 +216,19 @@ export default function BranchesPage({ sb, toast, user, lang }) {
     const citiesData = ct.data || []
     const usersData = u.data || []
     const districtsData = di.data || []
-    const branchesData = (br.data || []).map(b => ({
-      ...b,
-      branch_id: b.id,
-      region_name: regionsData.find(r => r.id === b.region_id)?.name_ar || '',
-      city_name: citiesData.find(c => c.id === b.city_id)?.name_ar || '',
-      district_name: districtsData.find(d => d.id === b.district_id)?.name_ar || '',
-      manager_user_name: usersData.find(x => x.id === b.manager_user_id)?.name_ar || '',
-      workers_count: usersData.filter(x => x.branch_id === b.id).length,
-    }))
+    const branchesData = (br.data || []).map(b => {
+      const region_id = citiesData.find(c => c.id === b.city_id)?.region_id || null
+      return {
+        ...b,
+        region_id,
+        branch_id: b.id,
+        region_name: regionsData.find(r => r.id === region_id)?.name_ar || '',
+        city_name: citiesData.find(c => c.id === b.city_id)?.name_ar || '',
+        district_name: districtsData.find(d => d.id === b.district_id)?.name_ar || '',
+        manager_user_name: usersData.find(x => x.id === b.manager_user_id)?.name_ar || '',
+        workers_count: usersData.filter(x => x.branch_id === b.id).length,
+      }
+    })
     const dashMap = {}
     ;(dash.data || []).forEach(d => { dashMap[d.branch_id] = d })
     setBranches(branchesData); setUsers(usersData); setBanks(ba.data || [])
@@ -228,7 +247,9 @@ export default function BranchesPage({ sb, toast, user, lang }) {
     setSaving(true)
     try {
       const d = { ...form }; const id = d._id; delete d._id
-      ;['region_name','city_name','district_name','manager_user_name','workers_count','branch_id'].forEach(k => delete d[k])
+      // Drop derived/UI-only fields and any column that's not yet in the branches table.
+      ;['region_name','city_name','district_name','manager_user_name','workers_count','branch_id',
+        'region_id','building_number','street','street_en'].forEach(k => delete d[k])
       Object.keys(d).forEach(k => { if (d[k] === '') d[k] = null })
       if (id) { d.updated_by = user?.id; const { error } = await sb.from('branches').update(d).eq('id', id); if (error) throw error }
       else { d.created_by = user?.id; const { error } = await sb.from('branches').insert(d); if (error) throw error }
@@ -247,22 +268,22 @@ export default function BranchesPage({ sb, toast, user, lang }) {
   const updateCode = (cityId) => {
     const city = cities.find(c => c.id === cityId)
     if (city?.code) {
-      const existing = branches.filter(b => b.code?.startsWith(city.code)).length
+      const existing = branches.filter(b => b.branch_code?.startsWith(city.code)).length
       const num = String(existing + 1).padStart(2, '0')
-      setForm(p => ({ ...p, city_id: cityId, code: city.code + '-' + num, district_id: '' }))
+      setForm(p => ({ ...p, city_id: cityId, branch_code: city.code + '-' + num, district_id: '' }))
     } else {
       setForm(p => ({ ...p, city_id: cityId, district_id: '' }))
     }
   }
 
   const openAdd = () => {
-    setForm({ code: '', region_id: '', city_id: '', district_id: '', phone: '', manager_user_id: '',
+    setForm({ branch_code: '', region_id: '', city_id: '', district_id: '', phone: '', manager_user_id: '',
       building_number: '', street: '', street_en: '', postal_code: '', is_active: true })
     setPop(true)
   }
   const openEdit = (r) => {
     setForm({
-      _id: r.id, code: r.code || '', region_id: r.region_id || '', city_id: r.city_id || '',
+      _id: r.id, branch_code: r.branch_code || '', region_id: r.region_id || '', city_id: r.city_id || '',
       district_id: r.district_id || '', phone: r.phone || '', manager_user_id: r.manager_user_id || '',
       building_number: r.building_number || '', street: r.street || '', street_en: r.street_en || '',
       postal_code: r.postal_code || '', is_active: r.is_active !== false,
@@ -298,7 +319,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
     const q = searchQ.trim().toLowerCase()
     return branches.filter(b => {
       if (q) {
-        const match = (b.code || '').toLowerCase().includes(q)
+        const match = (b.branch_code || '').toLowerCase().includes(q)
           || (b.city_name || '').toLowerCase().includes(q)
           || (b.region_name || '').toLowerCase().includes(q)
           || (b.district_name || '').toLowerCase().includes(q)
@@ -589,7 +610,7 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
             fontSize: 20, fontWeight: 700, color: GOLD,
             fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '.3px',
           }}>
-            {branch.code || '—'}
+            {branch.branch_code || '—'}
           </span>
           <span style={{
             fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
@@ -599,7 +620,7 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
           </span>
         </div>
 
-        {(branch.city_name || branch.region_name) && (
+        {(branch.city_name || branch.region_name || branch.district_name) && (
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             fontSize: 14, color: 'rgba(255,255,255,.6)', fontWeight: 500,
@@ -607,13 +628,14 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
           }}>
             <MapPin size={14} color="rgba(255,255,255,.5)" />
             <span>
-              {branch.city_name}
-              {branch.region_name && (
-                <>
-                  <span style={{ color: 'rgba(255,255,255,.4)', margin: '0 6px' }}>•</span>
-                  {branch.region_name}
-                </>
-              )}
+              {[branch.region_name, branch.city_name, branch.district_name].filter(Boolean).map((p, i, arr) => (
+                <React.Fragment key={i}>
+                  {p}
+                  {i < arr.length - 1 && (
+                    <span style={{ color: 'rgba(255,255,255,.4)', margin: '0 6px' }}>•</span>
+                  )}
+                </React.Fragment>
+              ))}
             </span>
           </div>
         )}
@@ -739,15 +761,15 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
   return (
     <div dir="rtl" style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       {/* Header row — identity first, then back + edit buttons underneath */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, textAlign: 'center' }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ marginBottom: 4 }}>
             <span style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.95)',
               fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '.3px' }}>
-              {branch.code || '—'}
+              {branch.branch_code || '—'}
             </span>
           </div>
-          <div style={{ fontSize: 13, color: 'var(--tx5)', fontWeight: 600, display: 'flex', gap: 5, alignItems: 'center' }}>
+          <div style={{ fontSize: 13, color: 'var(--tx5)', fontWeight: 600, display: 'inline-flex', gap: 5, alignItems: 'center' }}>
             <MapPin size={12} /> {[branch.city_name, branch.region_name].filter(Boolean).join(' · ') || '—'}
           </div>
         </div>
@@ -799,13 +821,19 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
           {/* Basic info card */}
           <InfoCard title="بيانات المكتب" Icon={Home}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
-              <KV icon={Hash} label="الكود" value={branch.code} dir="ltr" color={GOLD} />
+              <KV icon={Hash} label="الكود" value={branch.branch_code} dir="ltr" color={GOLD} />
               <KV icon={Phone} label="الجوال" value={branch.phone} dir="ltr" color={C.blue} />
               <KV icon={MapPin} label="المنطقة" value={branch.region_name} color={GOLD} />
               <KV icon={MapPin} label="المدينة" value={branch.city_name} color={GOLD} />
               <KV icon={MapPin} label="الحي" value={branch.district_name} color={GOLD} />
-              <KV icon={Home} label="الشارع" value={branch.street} color={GOLD} />
-              <KV icon={Hash} label="رقم المبنى" value={branch.building_number} dir="ltr" color={GOLD} />
+              <div style={{ position: 'relative' }}>
+                <KV icon={Home} label="الشارع" value={branch.street} color={GOLD} />
+                <span style={{ position: 'absolute', top: 4, insetInlineEnd: 4 }}><MissingBadge /></span>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <KV icon={Hash} label="رقم المبنى" value={branch.building_number} dir="ltr" color={GOLD} />
+                <span style={{ position: 'absolute', top: 4, insetInlineEnd: 4 }}><MissingBadge /></span>
+              </div>
               <KV icon={Hash} label="الرمز البريدي" value={branch.postal_code} dir="ltr" color={GOLD} />
             </div>
           </InfoCard>
@@ -1110,7 +1138,7 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
               <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,.95)', marginBottom: 6 }}>
                 {isEdit ? 'تم التعديل' : 'تمت الإضافة'}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx5)' }}>{form.code}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx5)' }}>{form.branch_code}</div>
             </div>
           </div>
         </div>
@@ -1144,8 +1172,8 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
           <div>
             <Lbl req>كود المكتب</Lbl>
             {codeEditing ? (
-              <input value={form.code || ''} autoFocus
-                onChange={e => setForm(p => ({ ...p, code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '') }))}
+              <input value={form.branch_code || ''} autoFocus
+                onChange={e => setForm(p => ({ ...p, branch_code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '') }))}
                 onBlur={() => setCodeEditing(false)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setCodeEditing(false) } }}
                 placeholder="RYD-01" dir="ltr"
@@ -1161,10 +1189,10 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
                 <span style={{
                   fontSize: 13, fontFamily: "'JetBrains Mono','Cairo',sans-serif",
                   fontWeight: 700, direction: 'ltr', flex: 1, textAlign: 'center',
-                  color: form.code ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)',
+                  color: form.branch_code ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
-                  {form.code || '— الكود —'}
+                  {form.branch_code || '— الكود —'}
                 </span>
                 <button type="button" onClick={() => setCodeEditing(true)} title="تعديل"
                   style={{
@@ -1178,10 +1206,10 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
               </div>
             )}
           </div>
-          <WF k="street" l="الشارع بالعربي" ph="شارع حائل" form={form} setForm={setForm} />
-          <WF k="street_en" l="الشارع بالإنجليزي" d ph="Hail Street" form={form} setForm={setForm} />
+          <WF k="street" l="الشارع بالعربي" ph="شارع حائل" form={form} setForm={setForm} missing />
+          <WF k="street_en" l="الشارع بالإنجليزي" d ph="Hail Street" form={form} setForm={setForm} missing />
           <WF k="postal_code" l="الرمز البريدي" d ph="32416" form={form} setForm={setForm} />
-          <WF k="building_number" l="رقم المبنى" d ph="4521" form={form} setForm={setForm} />
+          <WF k="building_number" l="رقم المبنى" d ph="4521" form={form} setForm={setForm} missing />
           <CustomSel k="manager_user_id" l="مدير الفرع"
             opts={branchManagers.map(u => ({ v: u.id, l: u.name_ar }))} ph="اختر مدير الفرع..."
             form={form} setForm={setForm} />

@@ -387,13 +387,7 @@ const[occCatFilter,setOccCatFilter]=useState('active')
 const[natCatFilter,setNatCatFilter]=useState('all')
 const[open,setOpen]=useState({})
 const[delTarget,setDelTarget]=useState(null)
-const[subSvcs,setSubSvcs]=useState([])
-const[subSteps,setSubSteps]=useState([])
-const[tplts,setTplts]=useState([])
-const[tplLinks,setTplLinks]=useState([])
-const[instPlans,setInstPlans]=useState([])
-const[msList,setMsList]=useState([])
-const[svcSubTab,setSvcSubTab]=useState('services');const[stepFieldCounts,setStepFieldCounts]=useState({});const[txnCounts,setTxnCounts]=useState({});const[svcCatFilter,setSvcCatFilter]=useState('all')
+const[svcSubTab,setSvcSubTab]=useState('services')
 const[muqeemCreds,setMuqeemCreds]=useState({username:'',password:'',updated_at:null})
 const[muqeemInputs,setMuqeemInputs]=useState({username:'',password:''})
 const[muqeemShowPw,setMuqeemShowPw]=useState(false)
@@ -410,30 +404,21 @@ useEffect(()=>{onTabChange&&onTabChange({tab,svcSubTab})},[tab,svcSubTab,onTabCh
 
 const loadAll=useCallback(async()=>{
 setLoading(true)
-const[s,rg,ct,ll,li,dc,sv,ss,tp,tl,di,oc,nat,emb]=await Promise.all([
+const[s,rg,ct,ll,li,dc,di,oc,nat,emb]=await Promise.all([
 sb.from('system_settings').select('*').order('category').order('setting_key'),
 sb.from('regions').select('*').order('sort_order').order('name_ar'),
 sb.from('cities').select('*').order('sort_order').order('name_ar'),
 sb.from('lookup_categories').select('*').order('sort_order').order('name_ar'),
 sb.from('lookup_items').select('*').order('sort_order'),
 sb.from('documents').select('*').is('deleted_at',null).order('created_at',{ascending:false}).limit(200),
-sb.from('sub_services').select('*').order('sort_order').order('name_ar'),
-sb.from('sub_service_steps').select('*').order('step_order'),
-sb.from('transaction_templates').select('*').order('sort_order').order('name_ar'),
-sb.from('template_sub_services').select('*').order('step_order'),
 sb.from('districts').select('*').order('sort_order').order('name_ar'),
 (async()=>{let all=[];for(let from=0;;from+=1000){const{data}=await sb.from('occupations').select('*').order('sort_order',{nullsFirst:false}).order('name_ar').range(from,from+999);if(!data||!data.length)break;all=all.concat(data);if(data.length<1000)break}return{data:all}})(),
 (async()=>{let all=[];for(let from=0;;from+=1000){const{data}=await sb.from('nationalities').select('*').order('sort_order',{nullsFirst:false}).order('name_ar').range(from,from+999);if(!data||!data.length)break;all=all.concat(data);if(data.length<1000)break}return{data:all}})(),
 (async()=>{let all=[];for(let from=0;;from+=1000){const{data}=await sb.from('embassies').select('*').order('name_ar').range(from,from+999);if(!data||!data.length)break;all=all.concat(data);if(data.length<1000)break}return{data:all}})()
 ])
 setSData(s.data||[]);setSLoading(false);setRegions(rg.data||[]);setCities(ct.data||[]);setDistrictsList(di.data||[])
-setLLists(ll.data||[]);setLItems(li.data||[]);setDocs(dc.data||[]);setSubSvcs(sv.data||[]);setSubSteps(ss.data||[]);setTplts(tp.data||[]);setTplLinks(tl.data||[])
+setLLists(ll.data||[]);setLItems(li.data||[]);setDocs(dc.data||[])
 setOccupationsList(oc.data||[]);setNatList(nat.data||[]);setEmbList(emb.data||[])
-// Load step_fields counts per step and txn counts per service
-sb.from('step_fields').select('step_id').then(({data:sfData})=>{const counts={};(sfData||[]).forEach(f=>{counts[f.step_id]=(counts[f.step_id]||0)+1});setStepFieldCounts(counts)})
-sb.from('transactions').select('service_id').is('deleted_at',null).then(({data:txData})=>{const counts={};(txData||[]).forEach(t=>{if(t.service_id)counts[t.service_id]=(counts[t.service_id]||0)+1});setTxnCounts(counts)})
-sb.from('service_installment_plans').select('*').order('installment_order').then(({data})=>setInstPlans(data||[]))
-sb.from('service_type_milestones').select('*').eq('is_active',true).order('sort_order').then(({data})=>setMsList(data||[]))
 sb.from('muqeem_credentials').select('username,password,updated_at').eq('id','default').maybeSingle().then(({data})=>{const d=data||{username:'',password:'',updated_at:null};setMuqeemCreds(d);setMuqeemInputs({username:d.username||'',password:d.password||''})})
 sb.from('sbc_credentials').select('username,password,updated_at').eq('id','default').maybeSingle().then(({data})=>{const d=data||{username:'',password:'',updated_at:null};setSbcCreds(d);setSbcInputs({username:d.username||'',password:d.password||''})})
 setLoading(false)
@@ -491,7 +476,6 @@ const childRow={display:'flex',alignItems:'center',gap:10,padding:'9px 16px 9px 
 const tabGroups=[
 {id:'general_group',l:'الإعدادات العامة',le:'General Settings',tabs:[
 {id:'general',l:'إعدادات البرنامج',le:'Program Settings'},
-{id:'services',l:'الخدمات والمعاملات',le:'Services & Transactions'},
 {id:'documents',l:'الوثائق',le:'Documents'},
 ]},
 {id:'fields_group',l:'الحقول',le:'Fields',tabs:[
@@ -514,11 +498,6 @@ li:[{k:'value_ar',l:isAr?'القيمة بالعربي':'Value (Arabic)',r:1},{k:
 bnk:[{k:'value_ar',l:isAr?'اسم البنك بالعربي':'Bank Name (Arabic)',r:1},{k:'value_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'type_id',l:isAr?'نوع البنك':'Bank Type',opts:lItems.filter(i=>{const bl=lLists.find(l=>l.category_key==='bank_type');return bl&&i.category_id===bl.id}).map(i=>({v:i.id,l:i.value_ar}))},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1}],
 di:[{k:'name_ar',l:isAr?'اسم الحي بالعربي':'District (Arabic)',r:1},{k:'name_en',l:isAr?'اسم الحي بالإنجليزي':'District (English)',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1}],
 doc:[{k:'title',l:isAr?'العنوان':'Title',r:1},{k:'document_type',l:isAr?'النوع':'Type'},{k:'entity_type',l:isAr?'نوع الكيان':'Entity Type'},{k:'description',l:isAr?'الوصف':'Description',w:1}],
-sv:[{k:'name_ar',l:isAr?'اسم الخدمة بالعربي':'Service (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'category',l:isAr?'التصنيف':'Category'},{k:'service_scope',l:isAr?'النوع':'Scope',opts:[{v:'client',l:isAr?'خارجي (عميل)':'Client'},{v:'internal',l:isAr?'داخلي':'Internal'},{v:'office',l:isAr?'مكتب':'Office'}]},{k:'default_price',l:isAr?'السعر الافتراضي':'Default Price',d:1},{k:'gov_fee',l:isAr?'الرسوم الحكومية':'Gov. Fee',d:1},{k:'is_free',l:isAr?'مجانية':'Free',opts:[{v:'true',l:isAr?'نعم (مجاني)':'Yes (Free)'},{v:'false',l:isAr?'لا (بفلوس)':'No (Paid)'}]},{k:'vat_included',l:isAr?'شامل الضريبة':'VAT Included',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'show_in_request_popup',l:isAr?'تظهر في رفع طلب':'Show in Request',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'requires_client',l:isAr?'يتطلب عميل':'Requires Client',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'requires_worker',l:isAr?'يتطلب عامل':'Requires Worker',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'requires_facility',l:isAr?'يتطلب منشأة':'Requires Facility',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشطة':'Active'},{v:'false',l:isAr?'معطّلة':'Inactive'}]},{k:'pricing_notes',l:isAr?'ملاحظات التسعير':'Pricing Notes'},{k:'description_ar',l:isAr?'وصف الخدمة':'Description',w:1},{k:'notes',l:isAr?'ملاحظات':'Notes',w:1}],
-ss:[{k:'name_ar',l:isAr?'اسم الخطوة':'Step (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'step_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'is_required',l:isAr?'مطلوبة':'Required',opts:[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}]},{k:'sadad_requirement',l:isAr?'متطلب سداد':'SADAD',opts:[{v:'none',l:isAr?'بدون':'None'},{v:'required_blocking',l:isAr?'مطلوب (حظر)':'Blocking'},{v:'required_before_complete',l:isAr?'قبل الإنهاء':'Before Complete'}]},{k:'default_sadad_amount',l:isAr?'مبلغ سداد':'Amount',d:1},{k:'description',l:isAr?'الوصف':'Description',w:1}],
-tp:[{k:'name_ar',l:isAr?'اسم القالب بالعربي':'Template (Arabic)',r:1},{k:'name_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'transaction_type',l:isAr?'نوع المعاملة':'Type',opts:[{v:'recruitment',l:isAr?'استقدام':'Recruitment'},{v:'transfer',l:isAr?'نقل خدمات':'Transfer'},{v:'exit',l:isAr?'خروج':'Exit'},{v:'renewal',l:isAr?'تجديد':'Renewal'},{v:'other',l:isAr?'أخرى':'Other'}]},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]},{k:'notes',l:isAr?'ملاحظات':'Notes',w:1}],
-tl:[{k:'sub_service_id',l:isAr?'الخدمة الفرعية':'Sub Service',r:1,opts:subSvcs.map(s=>({v:s.id,l:isAr?s.name_ar:s.name_en||s.name_ar}))},{k:'step_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'step_group',l:isAr?'مجموعة تبديل':'Swap Group',d:1},{k:'is_conditional',l:isAr?'شرطية؟':'Conditional?',opts:[{v:'false',l:isAr?'لا':'No'},{v:'true',l:isAr?'نعم':'Yes'}]},{k:'condition_note',l:isAr?'وصف الشرط':'Condition Note',w:1}],
-ip:[{k:'service_id',l:isAr?'الخدمة':'Service',r:1,opts:subSvcs.map(s=>({v:s.id,l:isAr?s.name_ar:s.name_en||s.name_ar}))},{k:'label_ar',l:isAr?'اسم القسط':'Label (AR)',r:1},{k:'label_en',l:isAr?'بالإنجليزي':'Label (EN)',d:1},{k:'installment_order',l:isAr?'الترتيب':'Order',r:1,d:1},{k:'percentage',l:isAr?'النسبة %':'Percentage',d:1},{k:'fixed_amount',l:isAr?'مبلغ ثابت':'Fixed Amount',d:1},{k:'due_type',l:isAr?'نوع الاستحقاق':'Due Type',r:1,opts:[{v:'on_request',l:isAr?'عند رفع الطلب':'On Request'},{v:'after_days',l:isAr?'بعد عدد أيام':'After Days'},{v:'on_milestone',l:isAr?'عند إنجاز مرحلة':'On Milestone'},{v:'on_completion',l:isAr?'عند اكتمال المعاملة':'On Completion'}]},{k:'due_days',l:isAr?'عدد الأيام':'Days',d:1},{k:'milestone_id',l:isAr?'المرحلة':'Milestone',opts:[{v:'',l:'—'},...msList.map(m=>({v:m.id,l:m.name_ar}))]},{k:'is_active',l:isAr?'الحالة':'Status',opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]}],
 occ:[{k:'name_ar',l:isAr?'الاسم بالعربي':'Name (Arabic)',r:1},{k:'name_en',l:isAr?'الاسم بالإنجليزي':'Name (English)',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',btn:1,opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]}]
 }
 const popTitles={
@@ -531,11 +510,6 @@ li:form._id?(isAr?'تعديل عنصر':'Edit Item'):(isAr?'إضافة عنصر'
 bnk:form._id?(isAr?'تعديل بنك':'Edit Bank'):(isAr?'إضافة بنك':'Add Bank'),
 di:form._id?(isAr?'تعديل حي':'Edit District'):(isAr?'إضافة حي':'Add District'),
 doc:form._id?(isAr?'تعديل وثيقة':'Edit Document'):(isAr?'إضافة وثيقة':'Add Document'),
-sv:form._id?(isAr?'تعديل خدمة فرعية':'Edit Sub Service'):(isAr?'إضافة خدمة فرعية':'Add Sub Service'),
-ss:form._id?(isAr?'تعديل خطوة':'Edit Step'):(isAr?'إضافة خطوة':'Add Step'),
-tp:form._id?(isAr?'تعديل قالب':'Edit Template'):(isAr?'إضافة قالب معاملة':'Add Template'),
-tl:form._id?(isAr?'تعديل ربط':'Edit Link'):(isAr?'ربط خدمة فرعية بقالب':'Link Sub Service'),
-ip:form._id?(isAr?'تعديل قسط':'Edit Installment'):(isAr?'إضافة قسط جديد':'Add Installment'),
 occ:form._id?(isAr?'تعديل مهنة':'Edit Occupation'):(isAr?'إضافة مهنة':'Add Occupation')
 }
 
@@ -1082,248 +1056,6 @@ docs.map((d,i)=><tr key={d.id} style={{borderBottom:'1px solid var(--bd2)'}}>
 <EditBtn onClick={()=>{setForm({_table:'documents',_id:d.id,title:d.title||'',document_type:d.document_type||'',entity_type:d.entity_type||'',description:d.description||''});setPop('doc')}}/>
 <DelBtn onClick={()=>askDel('documents',d.id,d.title)}/>
 </div></td></tr>)}</tbody></table></div></>}
-
-{/* SERVICES */}
-{tab==='services'&&<>
-{/* Sub-tabs: side list */}
-<div style={{display:'flex',gap:0}}>
-<div style={{width:80,flexShrink:0,borderLeft:isAr?'1px solid rgba(255,255,255,.05)':'none',borderRight:!isAr?'1px solid rgba(255,255,255,.05)':'none',paddingTop:2}}>
-{[{id:'services',l:'الخدمات',le:'Services'},{id:'installments',l:'الأقساط',le:'Installments'},{id:'templates',l:'المعاملات',le:'Transactions'}].map(st=><div key={st.id} onClick={()=>setSvcSubTab(st.id)} style={{padding:'6px 8px',fontSize:10,fontWeight:svcSubTab===st.id?700:500,color:svcSubTab===st.id?C.gold:'rgba(255,255,255,.3)',cursor:'pointer',borderRight:isAr&&svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',borderLeft:!isAr&&svcSubTab===st.id?'2px solid '+C.gold:'2px solid transparent',transition:'.1s'}}>{isAr?st.l:st.le}</div>)}
-</div>
-<div style={{flex:1,paddingRight:isAr?8:0,paddingLeft:!isAr?8:0}}>
-
-{/* ═══ SERVICES — GROUPED BY CATEGORY ═══ */}
-{svcSubTab==='services'&&(()=>{
-const categories=[...new Set(subSvcs.map(s=>s.category||'أخرى'))].sort();const catCounts={};categories.forEach(c=>{catCounts[c]=subSvcs.filter(s=>(s.category||'أخرى')===c).length})
-const filteredSvcs=svcCatFilter==='all'?subSvcs:subSvcs.filter(s=>(s.category||'أخرى')===svcCatFilter)
-const readyCount=subSvcs.filter(sv=>{const steps=subSteps.filter(s=>s.sub_service_id===sv.id);return steps.length>0&&steps.some(st=>stepFieldCounts[st.id]>0)}).length
-const noStepCount=subSvcs.filter(sv=>subSteps.filter(s=>s.sub_service_id===sv.id).length===0).length
-return<>
-{/* Stats summary */}
-<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
-{[[isAr?'إجمالي الخدمات':'Total',subSvcs.length,C.gold],[isAr?'جاهزة (فيها حقول)':'Ready',readyCount,C.ok],[isAr?'بدون خطوات':'No Steps',noStepCount,C.red],[isAr?'خارجية / داخلية':'Ext/Int',subSvcs.filter(s=>s.service_scope==='client').length+' / '+subSvcs.filter(s=>s.service_scope!=='client').length,C.blue]].map(([l,v,c],i)=>
-<div key={i} style={{padding:'10px 12px',borderRadius:10,background:c+'08',border:'1px solid '+c+'15'}}>
-<div style={{fontSize:9,color:c,opacity:.7}}>{l}</div>
-<div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div>
-</div>)}
-</div>
-
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap',gap:8}}>
-<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-<div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'الخدمات الفرعية':'Sub Services'}<MetaText t={filteredSvcs.length+' '+(isAr?'خدمة':'services')}/></div>
-{/* Category filter chips */}
-<div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
-<span onClick={()=>setSvcCatFilter('all')} style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontWeight:svcCatFilter==='all'?700:500,color:svcCatFilter==='all'?C.gold:'rgba(255,255,255,.35)',background:svcCatFilter==='all'?'rgba(212,160,23,.08)':'rgba(255,255,255,.04)',border:svcCatFilter==='all'?'1px solid rgba(212,160,23,.15)':'1px solid rgba(255,255,255,.06)'}}>{isAr?'الكل':'All'}</span>
-{categories.map(c=><span key={c} onClick={()=>setSvcCatFilter(c)} style={{fontSize:9,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontWeight:svcCatFilter===c?700:500,color:svcCatFilter===c?C.gold:'rgba(255,255,255,.35)',background:svcCatFilter===c?'rgba(212,160,23,.08)':'rgba(255,255,255,.04)',border:svcCatFilter===c?'1px solid rgba(212,160,23,.15)':'1px solid rgba(255,255,255,.06)'}}>{c} ({catCounts[c]})</span>)}
-</div>
-</div>
-<button onClick={()=>{setForm({_table:'sub_services',name_ar:'',name_en:'',service_scope:'client',sort_order:'',notes:''});setPop('sv')}} style={bS}>{isAr?'خدمة فرعية':'Sub Service'} +</button>
-</div>
-
-{/* Grouped services */}
-{svcCatFilter==='all'?categories.map(cat=>{const catSvcs=subSvcs.filter(s=>(s.category||'أخرى')===cat);if(catSvcs.length===0)return null;const catOpen=open['cat_'+cat]!==false
-return<div key={cat} style={{marginBottom:12}}>
-{/* Category header */}
-<div onClick={()=>setOpen(p=>({...p,['cat_'+cat]:!catOpen}))} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,background:'rgba(212,160,23,.04)',border:'1px solid rgba(212,160,23,.08)',cursor:'pointer',marginBottom:catOpen?6:0}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{transform:catOpen?'rotate(90deg)':'',transition:'.2s'}}><polyline points="9 6 15 12 9 18" stroke={C.gold} strokeWidth="2.5"/></svg>
-<span style={{fontSize:12,fontWeight:700,color:C.gold}}>{cat}</span>
-<span style={{fontSize:10,color:'rgba(212,160,23,.5)'}}>{catSvcs.length} {isAr?'خدمة':'svc'}</span>
-<div style={{flex:1}}/>
-<span style={{fontSize:9,color:C.ok}}>{catSvcs.filter(sv=>{const steps=subSteps.filter(s=>s.sub_service_id===sv.id);return steps.length>0&&steps.some(st=>stepFieldCounts[st.id]>0)}).length} {isAr?'جاهزة':'ready'}</span>
-</div>
-{catOpen&&<div style={cardS}>{catSvcs.map(sv=>{const svSt=subSteps.filter(s=>s.sub_service_id===sv.id);const io=open['sv_'+sv.id];const hasFields=svSt.some(st=>stepFieldCounts[st.id]>0);const txnCount=txnCounts[sv.id]||0
-return<div key={sv.id}>
-<div style={parentRow} onClick={()=>toggle('sv_'+sv.id)}>
-<ArrowIcon isOpen={io}/>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'wrap'}}>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
-<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{sv.name_en||''}</span>
-<span style={{fontSize:9,color:sv.service_scope==='client'?C.gold:C.blue,background:sv.service_scope==='client'?'rgba(212,160,23,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{sv.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
-{/* Readiness indicator */}
-{svSt.length>0&&hasFields&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.08)',padding:'2px 6px',borderRadius:6}}>✓ {isAr?'جاهزة':'Ready'}</span>}
-{svSt.length>0&&!hasFields&&<span style={{fontSize:8,color:'#e67e22',background:'rgba(230,126,34,.08)',padding:'2px 6px',borderRadius:6}}>⚠ {isAr?'بدون حقول':'No Fields'}</span>}
-{svSt.length===0&&<span style={{fontSize:8,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 6px',borderRadius:6}}>✗ {isAr?'بدون خطوات':'No Steps'}</span>}
-</div>
-<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-<span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{svSt.length} {isAr?'خطوة':'steps'}</span>
-{sv.expected_sla_days&&<span style={{fontSize:9,color:'rgba(255,255,255,.3)'}}>SLA: {sv.expected_sla_days}{isAr?'ي':'d'}</span>}
-{sv.default_price>0&&<span style={{fontSize:9,color:C.ok}}>{sv.default_price} {isAr?'ر.س':'SAR'}</span>}
-{sv.platform_code&&<span style={{fontSize:8,color:C.blue,background:'rgba(52,131,180,.06)',padding:'1px 5px',borderRadius:4}}>{sv.platform_code}</span>}
-{txnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.06)',padding:'2px 6px',borderRadius:6}}>{txnCount} {isAr?'معاملة':'txn'}</span>}
-</div>
-</div>
-<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
-<button onClick={()=>{setForm({_table:'sub_service_steps',step_name_ar:'',step_name_en:'',step_order:'',sadad_requirement:'none',default_sadad_amount:'',sub_service_id:sv.id});setPop('ss')}} style={{height:28,padding:'0 10px',borderRadius:8,border:'1px solid rgba(52,131,180,.25)',background:'rgba(52,131,180,.1)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{isAr?'خطوة':'Step'}</button>
-<EditBtn onClick={()=>{setForm({_table:'sub_services',_id:sv.id,name_ar:sv.name_ar||'',name_en:sv.name_en||'',service_scope:sv.service_scope||'client',sort_order:sv.sort_order||'',notes:sv.notes||''});setPop('sv')}}/>
-<DelBtn onClick={()=>askDel('sub_services',sv.id,sv.name_ar)}/>
-</div></div>
-{io&&<div style={{background:'rgba(255,255,255,.015)'}}>
-{svSt.length===0?<div style={{...childRow,color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد خطوات':'No steps'}</div>:
-svSt.map(st=>{const fCount=stepFieldCounts[st.id]||0;return<div key={st.id} style={childRow}>
-<span style={{fontSize:11,fontWeight:700,color:C.gold,width:20,textAlign:'center',flexShrink:0}}>{st.step_order}</span>
-<div style={{flex:1,display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{st.step_name_ar}</span>
-<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{st.step_name_en||''}</span>
-{fCount>0&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.06)',padding:'1px 5px',borderRadius:4}}>{fCount} {isAr?'حقل':'fields'}</span>}
-{fCount===0&&<span style={{fontSize:8,color:'rgba(255,255,255,.2)'}}>—</span>}
-</div>
-{st.sadad_requirement!=='none'&&<span style={{fontSize:9,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 7px',borderRadius:6}}>{st.sadad_requirement==='required_blocking'?(isAr?'سداد (حظر)':'Blocking'):st.sadad_requirement==='required_one_step_grace'?(isAr?'سداد (مهلة)':'Grace'):(isAr?'سداد قبل الإنهاء':'Before Complete')}{st.default_sadad_amount?' · '+st.default_sadad_amount:''}</span>}
-<div style={{display:'flex',gap:4}}>
-<EditBtn onClick={()=>{setForm({_table:'sub_service_steps',_id:st.id,sub_service_id:st.sub_service_id||'',step_name_ar:st.step_name_ar||'',step_name_en:st.step_name_en||'',step_order:st.step_order||'',sadad_requirement:st.sadad_requirement||'none',default_sadad_amount:st.default_sadad_amount||''});setPop('ss')}}/>
-<DelBtn onClick={()=>askDel('sub_service_steps',st.id,st.step_name_ar)}/>
-</div></div>})}
-</div>}
-</div>})}</div>}
-</div>})
-/* Single category filter view */
-:<div style={cardS}>{filteredSvcs.map(sv=>{const svSt=subSteps.filter(s=>s.sub_service_id===sv.id);const io=open['sv_'+sv.id];const hasFields=svSt.some(st=>stepFieldCounts[st.id]>0);const txnCount=txnCounts[sv.id]||0
-return<div key={sv.id}>
-<div style={parentRow} onClick={()=>toggle('sv_'+sv.id)}>
-<ArrowIcon isOpen={io}/>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'wrap'}}>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
-<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{sv.name_en||''}</span>
-<span style={{fontSize:9,color:sv.service_scope==='client'?C.gold:C.blue,background:sv.service_scope==='client'?'rgba(212,160,23,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{sv.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
-{svSt.length>0&&hasFields&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.08)',padding:'2px 6px',borderRadius:6}}>✓ {isAr?'جاهزة':'Ready'}</span>}
-{svSt.length>0&&!hasFields&&<span style={{fontSize:8,color:'#e67e22',background:'rgba(230,126,34,.08)',padding:'2px 6px',borderRadius:6}}>⚠ {isAr?'بدون حقول':'No Fields'}</span>}
-{svSt.length===0&&<span style={{fontSize:8,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 6px',borderRadius:6}}>✗ {isAr?'بدون خطوات':'No Steps'}</span>}
-</div>
-<div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-<span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{svSt.length} {isAr?'خطوة':'steps'}</span>
-{sv.expected_sla_days&&<span style={{fontSize:9,color:'rgba(255,255,255,.3)'}}>SLA: {sv.expected_sla_days}{isAr?'ي':'d'}</span>}
-{sv.default_price>0&&<span style={{fontSize:9,color:C.ok}}>{sv.default_price} {isAr?'ر.س':'SAR'}</span>}
-{sv.platform_code&&<span style={{fontSize:8,color:C.blue,background:'rgba(52,131,180,.06)',padding:'1px 5px',borderRadius:4}}>{sv.platform_code}</span>}
-{txnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.06)',padding:'2px 6px',borderRadius:6}}>{txnCount} {isAr?'معاملة':'txn'}</span>}
-</div>
-</div>
-<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
-<button onClick={()=>{setForm({_table:'sub_service_steps',step_name_ar:'',step_name_en:'',step_order:'',sadad_requirement:'none',default_sadad_amount:'',sub_service_id:sv.id});setPop('ss')}} style={{height:28,padding:'0 10px',borderRadius:8,border:'1px solid rgba(52,131,180,.25)',background:'rgba(52,131,180,.1)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{isAr?'خطوة':'Step'}</button>
-<EditBtn onClick={()=>{setForm({_table:'sub_services',_id:sv.id,name_ar:sv.name_ar||'',name_en:sv.name_en||'',service_scope:sv.service_scope||'client',sort_order:sv.sort_order||'',notes:sv.notes||''});setPop('sv')}}/>
-<DelBtn onClick={()=>askDel('sub_services',sv.id,sv.name_ar)}/>
-</div></div>
-{io&&<div style={{background:'rgba(255,255,255,.015)'}}>
-{svSt.length===0?<div style={{...childRow,color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد خطوات':'No steps'}</div>:
-svSt.map(st=>{const fCount=stepFieldCounts[st.id]||0;return<div key={st.id} style={childRow}>
-<span style={{fontSize:11,fontWeight:700,color:C.gold,width:20,textAlign:'center',flexShrink:0}}>{st.step_order}</span>
-<div style={{flex:1,display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{st.step_name_ar}</span>
-<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{st.step_name_en||''}</span>
-{fCount>0&&<span style={{fontSize:8,color:C.ok,background:'rgba(39,160,70,.06)',padding:'1px 5px',borderRadius:4}}>{fCount} {isAr?'حقل':'fields'}</span>}
-</div>
-{st.sadad_requirement!=='none'&&<span style={{fontSize:9,color:C.red,background:'rgba(192,57,43,.08)',padding:'2px 7px',borderRadius:6}}>{st.sadad_requirement==='required_blocking'?(isAr?'سداد (حظر)':'Blocking'):st.sadad_requirement==='required_one_step_grace'?(isAr?'سداد (مهلة)':'Grace'):(isAr?'سداد قبل الإنهاء':'Before Complete')}{st.default_sadad_amount?' · '+st.default_sadad_amount:''}</span>}
-<div style={{display:'flex',gap:4}}>
-<EditBtn onClick={()=>{setForm({_table:'sub_service_steps',_id:st.id,sub_service_id:st.sub_service_id||'',step_name_ar:st.step_name_ar||'',step_name_en:st.step_name_en||'',step_order:st.step_order||'',sadad_requirement:st.sadad_requirement||'none',default_sadad_amount:st.default_sadad_amount||''});setPop('ss')}}/>
-<DelBtn onClick={()=>askDel('sub_service_steps',st.id,st.step_name_ar)}/>
-</div></div>})}
-</div>}
-</div>})}</div>}
-</>})()}
-
-{/* ═══ TRANSACTION TEMPLATES — WITH STATS ═══ */}
-{svcSubTab==='templates'&&<>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'قوالب المعاملات':'Transaction Templates'}<MetaText t={tplts.length+' '+(isAr?'قالب':'templates')}/></div>
-<div style={{display:'flex',gap:6}}>
-<button onClick={()=>{setForm({_table:'transaction_templates',name_ar:'',name_en:'',service_scope:'client',sort_order:'',notes:''});setPop('tp')}} style={bS}>{isAr?'قالب':'Template'} +</button>
-</div></div>
-<div style={cardS}>{tplts.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد قوالب':'No templates'}</div>:
-tplts.map(tp=>{const tpLinks=tplLinks.filter(l=>l.template_id===tp.id).sort((a,b)=>a.step_order-b.step_order);const io=open['tp_'+tp.id]
-// Count transactions using this template's service_category
-const tplTxnCount=Object.values(txnCounts).reduce((s,v)=>s+v,0)>0?tpLinks.reduce((s,lk)=>s+(txnCounts[lk.sub_service_id]||0),0):0
-return<div key={tp.id}>
-<div style={parentRow} onClick={()=>toggle('tp_'+tp.id)}>
-<ArrowIcon isOpen={io}/>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{tp.name_ar}</span>
-<span style={{fontSize:11,color:'var(--tx5)',direction:'ltr'}}>{tp.name_en||''}</span>
-<span style={{fontSize:9,color:tp.service_scope==='client'?C.gold:C.blue,background:tp.service_scope==='client'?'rgba(212,160,23,.08)':'rgba(52,131,180,.08)',padding:'2px 6px',borderRadius:6}}>{tp.service_scope==='client'?(isAr?'خارجي':'External'):(isAr?'داخلي':'Internal')}</span>
-</div>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{fontSize:10,color:'var(--tx5)',background:'rgba(255,255,255,.06)',padding:'2px 8px',borderRadius:8}}>{tpLinks.length} {isAr?'خدمة فرعية':'sub services'}</span>
-{tplTxnCount>0&&<span style={{fontSize:9,color:C.gold,background:'rgba(212,160,23,.06)',padding:'2px 6px',borderRadius:6}}>{tplTxnCount} {isAr?'معاملة':'txn'}</span>}
-</div>
-</div>
-<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
-<button onClick={()=>{setForm({_table:'template_sub_services',sub_service_id:'',step_order:'',step_group:'',is_conditional:'false',condition_note:'',template_id:tp.id});setPop('tl')}} style={{height:28,padding:'0 10px',borderRadius:8,border:'1px solid rgba(52,131,180,.25)',background:'rgba(52,131,180,.1)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{isAr?'ربط خدمة':'Link'}</button>
-<EditBtn onClick={()=>{setForm({_table:'transaction_templates',_id:tp.id,name_ar:tp.name_ar||'',name_en:tp.name_en||'',service_scope:tp.service_scope||'client',sort_order:tp.sort_order||'',notes:tp.notes||''});setPop('tp')}}/>
-<DelBtn onClick={()=>askDel('transaction_templates',tp.id,tp.name_ar)}/>
-</div></div>
-{io&&<div style={{background:'rgba(255,255,255,.015)'}}>
-{tpLinks.length===0?<div style={{...childRow,color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد خدمات مربوطة':'No linked services'}</div>:
-tpLinks.map(lk=>{const sv=subSvcs.find(s=>s.id===lk.sub_service_id);return<div key={lk.id} style={childRow}>
-<span style={{fontSize:11,fontWeight:700,color:C.gold,width:20,textAlign:'center',flexShrink:0}}>{lk.step_order}</span>
-<div style={{flex:1,display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.7)'}}>{sv?sv.name_ar:'—'}</span>
-<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{sv?sv.name_en:''}</span>
-</div>
-{lk.is_conditional&&<span style={{fontSize:9,color:'rgba(212,160,23,.7)',background:'rgba(212,160,23,.08)',padding:'2px 7px',borderRadius:6}}>{isAr?'شرطي':'Conditional'}{lk.condition_note?' · '+lk.condition_note.slice(0,30):''}</span>}
-{lk.step_group&&<span style={{fontSize:9,color:C.blue,background:'rgba(52,131,180,.08)',padding:'2px 7px',borderRadius:6}}>{isAr?'مجموعة':'Group'} {lk.step_group}</span>}
-<div style={{display:'flex',gap:4}}>
-<EditBtn onClick={()=>{setForm({_table:'template_sub_services',_id:lk.id,template_id:lk.template_id||'',sub_service_id:lk.sub_service_id||'',step_order:lk.step_order||'',step_group:lk.step_group||'',is_conditional:String(lk.is_conditional||false),condition_note:lk.condition_note||''});setPop('tl')}}/>
-<DelBtn onClick={()=>askDel('template_sub_services',lk.id,sv?.name_ar)}/>
-</div></div>})}
-</div>}
-</div>})}</div></>}
-
-{/* ═══ INSTALLMENT PLANS — PER SERVICE ═══ */}
-{svcSubTab==='installments'&&<>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{isAr?'خطط الأقساط لكل خدمة':'Installment Plans per Service'}</div>
-<button onClick={()=>{setForm({_table:'service_installment_plans',service_id:'',label_ar:'',label_en:'',installment_order:'1',percentage:'',fixed_amount:'',due_type:'on_request',due_days:'',is_active:'true'});setPop('ip')}} style={bS}>+ {isAr?'إضافة قسط':'Add Plan'}</button>
-</div>
-<div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>{isAr?'حدد لكل خدمة كم قسط ومتى يحل كل قسط (عند الطلب، بعد أيام، عند إنجاز مرحلة، عند الاكتمال)':'Define installment count and due conditions per service'}</div>
-
-{/* Group by service */}
-{(()=>{
-const svcsWithPlans=[...new Set(instPlans.map(p=>p.service_id))]
-const svcsAll=subSvcs.filter(s=>Number(s.default_price||0)>0||svcsWithPlans.includes(s.id))
-return<div style={cardS}>
-{svcsAll.length===0&&<div style={{padding:20,textAlign:'center',fontSize:11,color:'var(--tx5)'}}>{isAr?'لا توجد خدمات مدفوعة':'No paid services'}</div>}
-{svcsAll.map(sv=>{
-const plans=instPlans.filter(p=>p.service_id===sv.id).sort((a,b)=>(a.installment_order||0)-(b.installment_order||0))
-const isOpen=open['ip_'+sv.id]
-return<div key={sv.id}>
-<div onClick={()=>toggle('ip_'+sv.id)} style={{...parentRow,justifyContent:'space-between'}}>
-<div style={{display:'flex',alignItems:'center',gap:8,flex:1}}>
-<ArrowIcon isOpen={isOpen}/>
-<span style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{sv.name_ar}</span>
-<span style={{fontSize:9,color:C.gold,fontWeight:600}}>{sv.default_price?sv.default_price+' ر.س':''}</span>
-</div>
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-{plans.length>0?<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(39,160,70,.08)',color:C.ok,fontWeight:600}}>{plans.length} {isAr?'قسط':'inst'}</span>
-:<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:'rgba(255,255,255,.05)',color:'var(--tx5)',fontWeight:500}}>{isAr?'دفع كامل':'Full pay'}</span>}
-<button onClick={e=>{e.stopPropagation();setForm({_table:'service_installment_plans',service_id:sv.id,label_ar:'',label_en:'',installment_order:String(plans.length+1),percentage:'',fixed_amount:'',due_type:'on_request',due_days:'',is_active:'true'});setPop('ip')}} style={{width:24,height:24,borderRadius:6,border:'1px solid rgba(212,160,23,.15)',background:'rgba(212,160,23,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:C.gold,fontFamily:F}}>+</button>
-</div>
-</div>
-{isOpen&&plans.length>0&&<div>
-{plans.map((pl,idx)=>{
-const dueLabel=pl.due_type==='on_request'?(isAr?'عند رفع الطلب':'On request'):pl.due_type==='after_days'?(isAr?'بعد '+pl.due_days+' يوم':'After '+pl.due_days+' days'):pl.due_type==='on_milestone'?(msList.find(m=>m.id===pl.milestone_id)?.name_ar||(isAr?'مرحلة':'Milestone')):(isAr?'عند الاكتمال':'On completion')
-return<div key={pl.id} style={childRow}>
-<div style={{width:20,height:20,borderRadius:'50%',background:C.gold,color:C.dk,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:800,flexShrink:0}}>{pl.installment_order||idx+1}</div>
-<div style={{flex:1}}>
-<span style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{pl.label_ar}</span>
-<div style={{display:'flex',gap:10,marginTop:2,fontSize:9,color:'var(--tx5)'}}>
-{pl.percentage>0&&<span>{pl.percentage}%</span>}
-{pl.fixed_amount>0&&<span>{pl.fixed_amount} ر.س</span>}
-<span style={{color:C.blue}}>{dueLabel}</span>
-</div>
-</div>
-<BadgeStatus v={pl.is_active} isAr={isAr}/>
-<EditBtn onClick={()=>{setForm({_table:'service_installment_plans',_id:pl.id,service_id:pl.service_id,label_ar:pl.label_ar||'',label_en:pl.label_en||'',installment_order:pl.installment_order||'',percentage:pl.percentage||'',fixed_amount:pl.fixed_amount||'',due_type:pl.due_type||'on_request',due_days:pl.due_days||'',milestone_id:pl.milestone_id||'',is_active:String(pl.is_active!==false)});setPop('ip')}}/>
-<DelBtn onClick={()=>askDel('service_installment_plans',pl.id,pl.label_ar)}/>
-</div>})}
-</div>}
-{isOpen&&plans.length===0&&<div style={{padding:'12px 42px',fontSize:10,color:'var(--tx5)'}}>{isAr?'لم يتم تعريف أقساط — سيكون الدفع كاملاً':'No installments defined — full payment'}</div>}
-</div>})}
-</div>})()}
-</>}
-
-</div></div>
-</>}
-
 
 {/* FORM POPUP */}
 {pop==='occ'&&<OccupationFormPopup user={user} occupationsList={occupationsList} lLists={lLists} lItems={lItems} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}

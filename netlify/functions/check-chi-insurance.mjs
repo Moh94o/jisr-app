@@ -260,7 +260,27 @@ export const handler = async (event) => {
       } finally { clearTimeout(timer) }
 
       const html = await res.text()
-      return json(parseResult(html))
+      const result = parseResult(html)
+      // Persist verified result to Supabase cache (service role) so future lookups are fast.
+      if (result.status === 'insured' || result.status === 'not_insured') {
+        try {
+          const SB_URL = process.env.SUPABASE_URL
+          const SB_SRK = process.env.SUPABASE_SERVICE_ROLE_KEY
+          if (SB_URL && SB_SRK) {
+            const { createClient } = await import('@supabase/supabase-js')
+            const sb = createClient(SB_URL, SB_SRK)
+            await sb.from('insurance_check_cache').upsert({
+              iqama_number: iqama,
+              is_active: result.status === 'insured',
+              company_name: result.company || null,
+              expiry_date: result.expiryDate || null,
+              raw_response: result,
+              checked_at: new Date().toISOString(),
+            })
+          }
+        } catch { /* cache write is best-effort */ }
+      }
+      return json(result)
     }
 
     return json({ error: 'Unknown action. Use "init" or "verify".' }, 400)

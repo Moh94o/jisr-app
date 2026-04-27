@@ -237,7 +237,7 @@ function Header({ T, lang, focusedSource, runs, changes, onSync, onBack }) {
     const accent = SOURCE_ACCENT[focusedSource.id] || C.gold
 
     return (
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, textAlign: 'center' }}>
         <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>{title}</div>
         <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 8, lineHeight: 1.7 }}>
           {description}
