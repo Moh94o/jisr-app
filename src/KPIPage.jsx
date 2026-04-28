@@ -2,8 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { dk: '#171717', gold: '#D4A017', gl: '#dcc06e', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
+const C = { dk: '#171717', md: '#222222', fm: '#1e1e1e', gold: '#D4A017', gl: '#dcc06e', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
 const num = v => Number(v || 0).toLocaleString('en-US')
+
+const GLASS = {
+  background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+  backdropFilter: 'blur(20px) saturate(160%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+  border: '1px solid rgba(255,255,255,.08)',
+  borderRadius: 16,
+  boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
+}
 
 export default function KPIPage({ sb, toast, user, lang }) {
   const isAr = lang !== 'en'
@@ -133,11 +142,13 @@ export default function KPIPage({ sb, toast, user, lang }) {
   })()
 
   const fS = {
-    width: '100%', height: 42, padding: '0 14px',
-    border: '1.5px solid rgba(255,255,255,.12)', borderRadius: 10,
-    fontFamily: F, fontSize: 14, fontWeight: 600,
-    color: 'var(--tx)', outline: 'none', background: 'rgba(255,255,255,.06)',
-    textAlign: 'right', direction: 'ltr'
+    width: '100%', height: 40, padding: '0 14px',
+    background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+    border: '1px solid rgba(255,255,255,.06)', borderRadius: 11,
+    fontFamily: F, fontSize: 14, fontWeight: 500,
+    color: 'var(--tx)', outline: 'none',
+    boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+    transition: '.2s', textAlign: 'right', direction: 'ltr'
   }
 
   const monthLabel = (() => {
@@ -145,46 +156,47 @@ export default function KPIPage({ sb, toast, user, lang }) {
     return d.toLocaleDateString(isAr ? 'ar-SA' : 'en', { month: 'long', year: 'numeric' })
   })()
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx5)' }}>...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx5)', fontFamily: F }}>...</div>
 
   return <div>
     {/* Header */}
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-      <div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--tx)' }}>{T('لوحة الأهداف', 'KPI Dashboard')}</div>
-        <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 4 }}>{T('متابعة الأداء مقابل الأهداف الشهرية', 'Track performance against monthly targets')}</div>
+    <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('لوحة الأهداف', 'KPI Dashboard')}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('متابعة الأداء مقابل الأهداف الشهرية', 'Track performance against monthly targets')}</div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-          style={{ height: 36, padding: '0 12px', borderRadius: 8, border: '1px solid var(--bd)', background: 'var(--bg)', color: 'var(--tx)', fontFamily: 'inherit', fontSize: 12, direction: 'ltr' }} />
+          style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s', direction: 'ltr' }} />
         <select value={branchFilter || ''} onChange={e => setBranchFilter(e.target.value || null)}
-          style={{ height: 36, padding: '0 12px', borderRadius: 8, border: '1px solid var(--bd)', background: 'var(--bg)', color: 'var(--tx)', fontFamily: 'inherit', fontSize: 12 }}>
+          style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
           <option value="">{T('كل المكاتب', 'All Branches')}</option>
           {branches.map(b => <option key={b.id} value={b.id}>{b.name_ar}</option>)}
         </select>
         <button onClick={refreshActuals}
-          style={{ height: 36, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(39,160,70,.2)', background: 'rgba(39,160,70,.08)', color: C.ok, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+          style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(39,160,70,.35)', background: 'linear-gradient(180deg,rgba(39,160,70,.18) 0%,rgba(39,160,70,.08) 100%)', color: C.ok, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(39,160,70,.15), inset 0 1px 0 rgba(39,160,70,.18)', transition: '.2s' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6M1 20v-6h6" /><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" /></svg>
           {T('تحديث', 'Refresh')}
         </button>
         <button onClick={openEditor}
-          style={{ height: 36, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(212,160,23,.2)', background: 'rgba(212,160,23,.1)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+          style={{ height: 40, padding: '0 18px', borderRadius: 11, border: '1px solid rgba(212,160,23,.45)', background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)', transition: '.2s' }}>
           + {T('تحديد الأهداف', 'Set Targets')}
         </button>
       </div>
     </div>
 
     {/* شهر الأهداف */}
-    <div style={{ fontSize: 14, fontWeight: 700, color: C.gold, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-      {monthLabel}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.gold, border: '2px solid rgba(212,160,23,.25)', flexShrink: 0 }} />
+      <div style={{ fontSize: 13, fontWeight: 600, color: C.gold }}>{monthLabel}</div>
+      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.07)' }} />
     </div>
 
     {/* KPI Cards */}
     {targets.length === 0 ? (
-      <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--tx5)' }}>
+      <div style={{ ...GLASS, textAlign: 'center', padding: '60px 20px', color: 'var(--tx5)', fontFamily: F }}>
         <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>◎</div>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{T('لم يتم تحديد أهداف لهذا الشهر', 'No targets set for this month')}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--tx2)' }}>{T('لم يتم تحديد أهداف لهذا الشهر', 'No targets set for this month')}</div>
         <div style={{ fontSize: 12, color: 'var(--tx5)' }}>{T('اضغط "تحديد الأهداف" لإضافة أهدافك', 'Click "Set Targets" to add your goals')}</div>
       </div>
     ) : (
@@ -197,54 +209,64 @@ export default function KPIPage({ sb, toast, user, lang }) {
           const prev = Number(t.previous_value || 0)
           const change = prev > 0 ? Math.round(((Number(t.actual_value) - prev) / prev) * 100) : null
 
-          return <div key={m.key} style={{
-            padding: '18px 20px', borderRadius: 14,
-            background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd)',
-            position: 'relative', overflow: 'hidden'
-          }}>
+          return <div key={m.key}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px ' + m.color + '33, inset 0 1px 0 rgba(255,255,255,.08)' }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }}
+            style={{
+              ...GLASS,
+              padding: '16px 18px',
+              position: 'relative', overflow: 'hidden',
+              fontFamily: F,
+              transition: '.25s'
+            }}>
             {/* Glow bar at top */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${m.color}40, ${m.color}, ${m.color}40, transparent)` }} />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 18, opacity: 0.5 }}>{m.icon}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)' }}>{m.l}</span>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, boxShadow: '0 0 5px ' + m.color }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{m.l}</span>
               </div>
               {change !== null && (
                 <span style={{
-                  fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                  fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
                   color: change >= 0 ? C.ok : C.red,
-                  background: (change >= 0 ? C.ok : C.red) + '12'
+                  background: (change >= 0 ? C.ok : C.red) + '15',
+                  display: 'inline-flex', alignItems: 'center', gap: 5
                 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: change >= 0 ? C.ok : C.red }} />
                   {change > 0 ? '↑' : change < 0 ? '↓' : '='}{Math.abs(change)}%
                 </span>
               )}
             </div>
 
-            {/* الأرقام */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--tx)', lineHeight: 1 }}>
-                {m.unit === 'currency' ? num(t.actual_value) : Number(t.actual_value || 0).toLocaleString()}
-              </span>
-              <span style={{ fontSize: 12, color: 'var(--tx5)' }}>
-                / {m.unit === 'currency' ? num(t.target_value) : Number(t.target_value || 0).toLocaleString()}
-              </span>
-              {m.unit === 'currency' && <span style={{ fontSize: 10, color: 'var(--tx5)' }}>{T('ر.س', 'SAR')}</span>}
+            {/* الأرقام - inner stat pill */}
+            <div style={{ padding: '7px 12px', borderRadius: 10, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: clr, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
+                  {m.unit === 'currency' ? num(t.actual_value) : Number(t.actual_value || 0).toLocaleString()}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--tx5)', direction: 'ltr' }}>
+                  / {m.unit === 'currency' ? num(t.target_value) : Number(t.target_value || 0).toLocaleString()}
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600 }}>{m.unit === 'currency' ? T('ر.س', 'SAR') : ''}</div>
             </div>
 
             {/* Progress bar */}
-            <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}>
+            <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'rgba(0,0,0,.32)', overflow: 'hidden', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.4)' }}>
               <div style={{
                 position: 'absolute', top: 0, left: isAr ? 'auto' : 0, right: isAr ? 0 : 'auto',
                 height: '100%', width: Math.min(100, p) + '%', borderRadius: 4,
                 background: `linear-gradient(90deg, ${clr}60, ${clr})`,
+                boxShadow: '0 0 8px ' + clr + '55',
                 transition: 'width .6s ease'
               }} />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: clr }}>{p}%</span>
-              <span style={{ fontSize: 10, color: 'var(--tx5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: clr, direction: 'ltr' }}>{p}%</span>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx5)' }}>
                 {m.invert
                   ? (p <= 100 ? T('ضمن الحد', 'Within limit') : T('تجاوز الحد', 'Over limit'))
                   : (p >= 100 ? T('تم الهدف ✓', 'Target met ✓') : T('متبقي ', 'Remaining ') + (m.unit === 'currency' ? num(t.target_value - t.actual_value) + T(' ر.س', ' SAR') : (t.target_value - t.actual_value)))}
@@ -257,8 +279,9 @@ export default function KPIPage({ sb, toast, user, lang }) {
 
     {/* الرسم البياني — الإيرادات مقابل الهدف */}
     {chartData.length > 1 && (
-      <div style={{ padding: '18px 20px', borderRadius: 14, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd)', marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx3)', marginBottom: 16 }}>
+      <div style={{ ...GLASS, padding: '16px 18px', marginBottom: 14, fontFamily: F }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: '0 0 5px ' + C.gold }} />
           {T('اتجاه الإيرادات مقابل الأهداف', 'Revenue vs Targets Trend')}
         </div>
         <ResponsiveContainer width="100%" height={220}>
@@ -286,23 +309,26 @@ export default function KPIPage({ sb, toast, user, lang }) {
       }).length
       const total = targets.length
       const overallPct = Math.round(targets.reduce((s, t) => s + pct(t.actual_value, t.target_value), 0) / total)
+      const oc = pctColor(overallPct, false)
 
-      return <div style={{
-        padding: '16px 20px', borderRadius: 14,
-        background: overallPct >= 80 ? 'rgba(39,160,70,.06)' : overallPct >= 50 ? 'rgba(230,126,34,.06)' : 'rgba(192,57,43,.06)',
-        border: '1px solid ' + (overallPct >= 80 ? 'rgba(39,160,70,.12)' : overallPct >= 50 ? 'rgba(230,126,34,.12)' : 'rgba(192,57,43,.12)')
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>
-              {T('الأداء العام', 'Overall Performance')}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 4 }}>
-              {achieved} {T('من', 'of')} {total} {T('أهداف محققة', 'targets achieved')}
+      return <div style={{ ...GLASS, padding: '18px 22px', fontFamily: F }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: oc, boxShadow: '0 0 5px ' + oc }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>
+                {T('الأداء العام', 'Overall Performance')}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 4 }}>
+                {achieved} {T('من', 'of')} {total} {T('أهداف محققة', 'targets achieved')}
+              </div>
             </div>
           </div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: pctColor(overallPct, false) }}>
-            {overallPct}%
+          <div style={{ padding: '7px 14px', borderRadius: 10, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: oc, boxShadow: '0 0 5px ' + oc }} />
+            <div style={{ fontSize: 20, fontWeight: 700, color: oc, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
+              {overallPct}%
+            </div>
           </div>
         </div>
       </div>
@@ -310,21 +336,22 @@ export default function KPIPage({ sb, toast, user, lang }) {
 
     {/* Edit Modal */}
     {editPop && <div onClick={() => setEditPop(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--sf)', borderRadius: 16, width: 'min(520px,96vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--bd)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ ...GLASS, width: 'min(520px,96vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: F }}>
         <div style={{ height: 3, background: `linear-gradient(90deg, transparent, ${C.gold} 30%, ${C.gl} 50%, ${C.gold} 70%, transparent)` }} />
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)' }}>{T('تحديد الأهداف', 'Set Targets')}</div>
-            <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 2 }}>{monthLabel}</div>
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>{T('تحديد الأهداف', 'Set Targets')}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 4 }}>{monthLabel}</div>
           </div>
-          <button onClick={() => setEditPop(false)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={() => setEditPop(false)} style={{ width: 30, height: 30, borderRadius: 10, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F, fontSize: 14, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>✕</button>
         </div>
         <div style={{ padding: '18px 22px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {METRICS.map(m => (
             <div key={m.key}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: m.color, marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>{m.icon}</span> {m.l}
-                {m.unit === 'currency' && <span style={{ fontSize: 9, color: 'var(--tx5)' }}>(ر.س)</span>}
+              <div style={{ fontSize: 12, fontWeight: 600, color: m.color, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, boxShadow: '0 0 5px ' + m.color }} />
+                {m.l}
+                {m.unit === 'currency' && <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--tx5)' }}>(ر.س)</span>}
               </div>
               <input
                 type="number" value={editForm[m.key] || ''}
@@ -335,13 +362,13 @@ export default function KPIPage({ sb, toast, user, lang }) {
             </div>
           ))}
         </div>
-        <div style={{ padding: '14px 22px', borderTop: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', flexDirection: 'row-reverse' }}>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', flexDirection: 'row-reverse', gap: 10 }}>
           <button onClick={saveTargets} disabled={saving}
-            style={{ height: 40, padding: '0 24px', borderRadius: 8, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.12)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? .6 : 1 }}>
+            style={{ height: 40, padding: '0 24px', borderRadius: 11, border: '1px solid rgba(212,160,23,.45)', background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)', transition: '.2s', opacity: saving ? .6 : 1 }}>
             {saving ? '...' : T('حفظ الأهداف', 'Save Targets')}
           </button>
           <button onClick={() => setEditPop(false)}
-            style={{ height: 40, padding: '0 16px', background: 'transparent', color: 'var(--tx4)', border: '1.5px solid rgba(255,255,255,.1)', borderRadius: 10, fontFamily: F, fontSize: 12, cursor: 'pointer' }}>
+            style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
             {T('إلغاء', 'Cancel')}
           </button>
         </div>

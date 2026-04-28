@@ -78,7 +78,7 @@ const NATIONALITIES = ['يمني', 'مصري', 'باكستاني', 'هندي', '
 const OCCUPATIONS = ['عامل بناء', 'نجار', 'حداد', 'كهربائي', 'سباك', 'دهان', 'مشغل معدات', 'سائق', 'مقاول', 'فني تكييف', 'حارس أمن', 'عامل نظافة', 'بائع', 'موظف إداري', 'أخرى']
 
 // ═══ Shared UI Components — matches register modal style ═══
-const sF = { width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#2e2e2e,#262626)', boxSizing: 'border-box', textAlign: 'center', transition: 'border-color .2s' }
+const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxSizing: 'border-box', textAlign: 'center', transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
 const sFRO = { ...sF, border: '1px solid rgba(255,255,255,.05)', cursor: 'not-allowed' }
 
 const Lbl = ({ children, req }) => <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red, marginRight: 2 }}>*</span>}</div>
@@ -170,7 +170,7 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
   const top = flipUp ? Math.max(8, anchor.top - POPUP_H - 6) : anchor.bottom + 6
   const left = Math.max(8, Math.min(window.innerWidth - POPUP_W - 8, anchor.left + anchor.width/2 - POPUP_W/2))
   return (
-    <div style={{ position: 'fixed', top, left, width: POPUP_W, background: 'linear-gradient(180deg,#2e2e2e,#262626)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
+    <div style={{ position: 'fixed', top, left, width: POPUP_W, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, direction: 'ltr' }}>
         <button type="button" onClick={prevMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
         <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--tx)' }}>{(lang === 'en' ? MONTH_NAMES_EN : MONTH_NAMES_AR)[cur.m]} {cur.y}</div>
@@ -204,7 +204,7 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
 }
 
 // Single-input date field: type YYYY-MM-DD or click calendar icon for custom picker
-const DateField = ({ value, onChange, label, req, lang }) => {
+export const DateField = ({ value, onChange, label, req, lang }) => {
   const wrapRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
@@ -240,7 +240,7 @@ const DateField = ({ value, onChange, label, req, lang }) => {
   }
   return (
     <div>
-      <Lbl req={req}>{label}</Lbl>
+      {label && <Lbl req={req}>{label}</Lbl>}
       <div ref={wrapRef} style={{ position: 'relative', width: '100%' }}>
         <input type="text" value={text} onChange={e => handleType(e.target.value)} placeholder="yyyy-mm-dd"
           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
@@ -290,10 +290,10 @@ const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={popRef} className="occ-sel-pop" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'linear-gradient(180deg,#2e2e2e,#262626)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
+        <div ref={popRef} className="occ-sel-pop" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
           <div style={{ padding: 10, flexShrink: 0, position: 'relative' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="occ-sel-icon" style={{ position: 'absolute', top: '50%', left: 22, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder={isAr ? 'ابحث بالاسم...' : 'Search by name...'} autoFocus className="occ-sel-search" style={{ width: '100%', height: 34, padding: '0 34px', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8, background: '#141414', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder={isAr ? 'ابحث بالاسم...' : 'Search by name...'} autoFocus className="occ-sel-search" style={{ width: '100%', height: 34, padding: '0 34px', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8, background: 'var(--modal-bg)', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
           </div>
           <style>{`.occ-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}.occ-sel-scroll::-webkit-scrollbar{display:none;width:0;height:0}.occ-sel-search,.occ-sel-search:focus,.occ-sel-search:hover{border-color:rgba(255,255,255,.06)!important;box-shadow:none!important;outline:none!important}.occ-sel-search::placeholder{font-size:12px;color:rgba(255,255,255,.4)}.occ-sel-icon,.occ-sel-icon *{stroke:rgba(255,255,255,.45)!important;color:rgba(255,255,255,.45)!important}`}</style>
           <div className="occ-sel-scroll" style={{ flex: 1, overflowY: 'auto' }}>
@@ -323,7 +323,9 @@ const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
   )
 }
 
-const Sel = ({ value, onChange, options, placeholder }) => {
+export const Sel = ({ value, onChange, options, placeholder }) => {
+  const opts = options.map(o => typeof o === 'string' ? { v: o, l: o } : o)
+  const selectedLabel = (opts.find(o => o.v === value) || {}).l || ''
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 380 })
   const btnRef = useRef(null)
@@ -331,7 +333,7 @@ const Sel = ({ value, onChange, options, placeholder }) => {
   const toggle = () => {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      const maxH = options.length * 42 + 4
+      const maxH = opts.length * 42 + 4
       setPos({ top: r.bottom + 6, left: r.left, width: r.width, maxH })
     }
     setOpen(o => !o)
@@ -345,23 +347,23 @@ const Sel = ({ value, onChange, options, placeholder }) => {
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
-        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>{value || placeholder || '...'}</span>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>{selectedLabel || placeholder || '...'}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'linear-gradient(180deg,#2e2e2e,#262626)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
+        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
           <style>{`.sel-pop-scroll{scrollbar-width:none;-ms-overflow-style:none}.sel-pop-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
           <div className="sel-pop-scroll" style={{ flex: 1, overflowY: 'auto' }}>
-            {options.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 14, color: 'var(--tx5)' }}>—</div>}
-            {options.map(o => {
-              const isSel = value === o
+            {opts.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 14, color: 'var(--tx5)' }}>—</div>}
+            {opts.map(o => {
+              const isSel = value === o.v
               return (
-                <div key={o} onClick={() => { onChange(o); setOpen(false) }}
+                <div key={o.v} onClick={() => { onChange(o.v); setOpen(false) }}
                   style={{ padding: '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid rgba(255,255,255,.08)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
                   onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o}</span>
+                    <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.l}</span>
                   </div>
                   {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </div>
@@ -382,12 +384,12 @@ const ToggleGroup = ({ options, value, onChange, disabled, height = 36 }) => (
       const clr = o.c || C.gold
       return (
         <button key={String(o.v)} type="button" disabled={disabled} onClick={() => !disabled && onChange(o.v)} style={{
-          flex: 1, borderRadius: 8, border: `1.5px solid ${sel ? clr : 'rgba(255,255,255,.08)'}`,
-          background: sel ? clr + '15' : 'rgba(0,0,0,.18)',
-          color: sel ? clr : 'var(--tx4)',
-          fontFamily: F, fontSize: 14, fontWeight: sel ? 700 : 600,
-          cursor: disabled ? 'not-allowed' : 'pointer', transition: '.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-          boxShadow: sel ? 'none' : 'inset 0 1px 2px rgba(0,0,0,.2)',
+          flex: 1, borderRadius: 9, border: `1.5px solid ${sel ? clr : 'rgba(255,255,255,.07)'}`,
+          background: sel ? `linear-gradient(180deg, ${clr}22 0%, ${clr}0a 100%)` : 'linear-gradient(180deg,#2C2C2C 0%,#222 100%)',
+          color: sel ? clr : 'var(--tx3)',
+          fontFamily: F, fontSize: 14, fontWeight: sel ? 700 : 500,
+          cursor: disabled ? 'not-allowed' : 'pointer', transition: '.18s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+          boxShadow: sel ? `inset 0 1px 0 ${clr}26` : '0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)',
           opacity: disabled && !sel ? 0.4 : 1
         }}>
           <span>{o.l}</span>
@@ -407,7 +409,7 @@ const YesNo = ({ value, onChange, lang, disabled, height }) => (
 
 const KCard = ({ Icon, label, hint, children, span }) => (
   <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '12px 14px 10px', position: 'relative', transition: '.2s' }}>
-    <div style={{ position: 'absolute', top: -10, right: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       {Icon && <Icon size={11} strokeWidth={2.2} />}
       <span>{label}</span>
       {hint && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.4)', marginInlineStart: 4 }}>· {hint}</span>}
@@ -422,22 +424,22 @@ const RenewalPill = ({ selected, onClick, children, flex }) => (
       flex: flex || 1,
       height: 36,
       borderRadius: 10,
-      border: `1.5px solid ${selected ? C.gold : 'rgba(255,255,255,.08)'}`,
-      background: selected ? 'rgba(212,160,23,.08)' : 'rgba(0,0,0,.22)',
-      color: selected ? C.gold : 'rgba(255,255,255,.55)',
+      border: `1.5px solid ${selected ? C.gold : 'rgba(255,255,255,.07)'}`,
+      background: selected ? 'linear-gradient(180deg, rgba(212,160,23,.18) 0%, rgba(212,160,23,.06) 100%)' : 'linear-gradient(180deg,#2C2C2C 0%,#222 100%)',
+      color: selected ? C.gold : 'rgba(255,255,255,.65)',
       fontFamily: F,
       fontSize: 14,
-      fontWeight: 500,
+      fontWeight: selected ? 700 : 500,
       cursor: 'pointer',
       transition: '.18s',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 4,
-      boxShadow: selected ? 'inset 0 0 0 1px rgba(212,160,23,.15)' : 'inset 0 1px 2px rgba(0,0,0,.25)'
+      boxShadow: selected ? 'inset 0 1px 0 rgba(212,160,23,.22)' : '0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)'
     }}
-    onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = 'rgba(255,255,255,.8)' } }}
-    onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.color = 'rgba(255,255,255,.55)' } }}>
+    onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)'; e.currentTarget.style.color = 'rgba(255,255,255,.85)' } }}
+    onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'rgba(255,255,255,.65)' } }}>
     {children}
   </button>
 )
@@ -1357,7 +1359,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     const data = await res.json().catch(() => ({}))
     if (!res.ok || !data.ok) {
       const msg = data?.detail || data?.error || `HTTP ${res.status}`
-      toast && toast('تعذّر حفظ التسعيرة: ' + String(msg).slice(0, 100))
+      toast && toast(T('تعذّر حفظ التسعيرة: ', 'Failed to save quote: ') + String(msg).slice(0, 100))
       return
     }
     setIssuedQuote({ quoteNo: data.row.quote_no, workerName, iqNo, total: Number(data.row.total_amount), warnings })
@@ -1402,7 +1404,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const headerSubtitle = screen === 'home' ? T('حساب تكاليف نقل خدمات العمال والرسوم الحكومية','Calculate worker transfer costs and government fees') : (workerMode === 'existing' ? T('عامل مسجّل','Registered Worker') : T('عامل جديد','New Worker')) + (f.name ? ` — ${f.name}` : '')
 
   const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }
-  const modalBox = { background: '#141414', borderRadius: 16, width: 640, maxWidth: '95vw', height: 'auto', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', zIndex: 60 }
+  const modalBox = { background: 'var(--modal-bg)', borderRadius: 16, width: 640, maxWidth: '95vw', height: 'auto', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', zIndex: 60 }
   const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px', flexShrink: 0, fontFamily: F, direction: 'rtl' }
 
   // ═══════════════════════════════════════
@@ -1418,12 +1420,11 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             <Tag size={22} strokeWidth={1.8} color={C.gold} style={{ flexShrink: 0 }} />
             <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', fontFamily: F, lineHeight: 1.2 }}>{T('تسعيرة تنازل','Transfer Calculator')}</div>
           </div>
-          <button onClick={() => onClose && onClose()} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: F }} aria-label={T('إغلاق','Close')}>
+          <button onClick={() => onClose && onClose()} onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)';e.currentTarget.style.borderColor='rgba(192,57,43,.4)';e.currentTarget.style.color='#e5867a'}} onMouseLeave={e=>{e.currentTarget.style.background='linear-gradient(180deg,#323232 0%,#262626 100%)';e.currentTarget.style.borderColor='rgba(255,255,255,.07)';e.currentTarget.style.color='var(--tx3)'}} style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: F, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }} aria-label={T('إغلاق','Close')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
-        <div style={{ fontSize: 12, fontWeight: 400, color: 'var(--tx4)', fontFamily: F, marginTop: 8 }}>{T(`الخطوة ${tab + 1} من ${tabs.length}`,`Step ${tab + 1} of ${tabs.length}`)}</div>
-        <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
           {Array.from({ length: tabs.length }, (_, i) => (
             <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= tab ? 'linear-gradient(90deg, #D4A017, #F0C040)' : 'rgba(255,255,255,0.06)', transition: '.35s' }} />
           ))}
@@ -1433,7 +1434,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
       {/* ═══ Scrollable Content ═══ */}
       <style>{`.kc-scroll::-webkit-scrollbar{width:0;display:none}.kc-scroll{scrollbar-width:none;-ms-overflow-style:none}.kc-scroll input:focus,.kc-scroll select:focus,.kc-scroll textarea:focus,.kc-scroll .kc-phone-wrap:focus-within,.kc-captcha-input:focus{border-color:rgba(255,255,255,.16)!important;box-shadow:none!important}`}</style>
-      <div className="kc-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '20px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="kc-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* ═══════════════════════════════════════ */}
       {/* TAB 0: بيانات العامل — matches ServiceRequest kafala step 3 page 1 */}
@@ -1457,7 +1458,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           </div>
         }
         return <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: '#141414', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <User size={12} strokeWidth={2.2} />
             <span>{T('بيانات العامل','Worker Data')}</span>
           </div>
@@ -1539,7 +1540,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               return (
             <div>
               <Lbl req>{T('رقم الجوال','Mobile Number')}</Lbl>
-              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: `1px solid ${isErr ? 'rgba(192,57,43,.5)' : 'rgba(255,255,255,.08)'}`, borderRadius: 8, overflow: 'hidden', background: 'linear-gradient(180deg,#2e2e2e,#262626)', height: 40, transition: 'border-color .2s' }}>
+              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: `1px solid ${isErr ? 'rgba(192,57,43,.5)' : 'rgba(255,255,255,.08)'}`, borderRadius: 8, overflow: 'hidden', background: 'var(--modal-input-bg)', height: 40, transition: 'border-color .2s' }}>
                 <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>+966</div>
                 <input value={f.phone || ''} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
                   style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
@@ -1609,7 +1610,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         )
         const Group = ({ title, Icon, children }) => (
           <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -10, right: 14, background: '#141414', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {Icon && <Icon size={12} strokeWidth={2.2} />}
               <span>{title}</span>
             </div>
@@ -1774,8 +1775,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             {/* رسوم إضافية */}
             <Card Icon={Plus} label={T('رسوم إضافية','Additional Fees')} hint={f.extras.length ? (lang === 'en' ? `${f.extras.length} items added` : `${f.extras.length} بنود مضافة`) : T('اختياري','Optional')} span={2}>
               <div style={{ display: 'flex', gap: 6 }}>
-                <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38 }} />
-                <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, direction: 'ltr', textAlign: 'center' }} />
+                <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38, fontSize: 12 }} />
+                <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, fontSize: 12, direction: 'ltr', textAlign: 'center' }} />
                 <button onClick={addExtra} disabled={!extraName || !extraAmount} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
               </div>
               {f.extras.length > 0 && (
@@ -1864,7 +1865,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               )
               return (
                 <>
-                  <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: '#141414', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.blue, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}><User size={12} strokeWidth={2.2} /><span>{T('بيانات العامل','Worker Data')}</span></div>
+                  <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.blue, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}><User size={12} strokeWidth={2.2} /><span>{T('بيانات العامل','Worker Data')}</span></div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, rowGap: 2 }}>
                     {cell(T('اسم العامل','Worker Name'), hrsdCheck.result?.name || f.name || '—')}
                     {cell(T('رقم الجوال','Mobile Number'), f.phone ? (<span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>0{f.phone}</span>) : '—')}
@@ -1882,7 +1883,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
           {/* Cost summary */}
           <div style={{ padding: '14px 14px 10px', borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.25)', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: '#141414', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.ok, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Calculator size={12} strokeWidth={2.2} /><span>{T('ملخص التكاليف','Cost Summary')}</span></div>
+            <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.ok, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Calculator size={12} strokeWidth={2.2} /><span>{T('ملخص التكاليف','Cost Summary')}</span></div>
             {(() => {
               // Human-readable month/day suffix so each row hints the duration driving the amount.
               const renewalMos = parseInt(f.renewalMonths) || 0
@@ -2042,7 +2043,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       {/* ═══ CHI Insurance Check Overlay ═══ */}
       {insCheck.phase !== 'idle' && insCheck.phase !== 'await_hrsd' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: insCheck.phase === 'result' ? '1px solid rgba(212,160,23,.18)' : '1px solid rgba(30,78,132,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: insCheck.phase === 'result' ? '1px solid rgba(255,255,255,.06)' : '1px solid rgba(30,78,132,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
 
             <div style={{ textAlign: lang === 'en' ? 'left' : 'right', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
               <div style={{ fontSize: 20, fontWeight: 600, color: 'rgba(255,255,255,.94)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
@@ -2060,14 +2061,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             )}
 
             {insCheck.phase === 'captcha' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
                   {insCheck.captchaImage
                     ? <CaptchaCountdown captchaKey={insCheck.captchaImage} onExpire={refreshInsCaptcha} color="#5b8fc7" />
                     : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
                   {insCheck.captchaImage
-                    ? <img src={insCheck.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, filter: 'invert(1) contrast(1.3) brightness(0.92) saturate(0)', imageRendering: 'auto' }} />
+                    ? <img src={insCheck.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, filter: 'invert(1) saturate(0) contrast(1.1)', mixBlendMode: 'lighten', imageRendering: 'auto' }} />
                     : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
                   <button type="button" onClick={refreshInsCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(30,78,132,.12)', color: '#5b8fc7', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }} onMouseEnter={e => e.currentTarget.style.background='rgba(30,78,132,.22)'} onMouseLeave={e => e.currentTarget.style.background='rgba(30,78,132,.12)'}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
@@ -2081,13 +2082,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   autoFocus
                   maxLength={6}
                   className="kc-captcha-input"
-                  style={{ height: 40, width: 220, alignSelf: 'center', padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 16, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#2e2e2e,#262626)', textAlign: 'center', letterSpacing: '4px', direction: 'ltr', transition: 'border-color .2s' }}
+                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg)', textAlign: 'center', letterSpacing: '10px', direction: 'ltr', transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.05)' }}
                 />
-                {insCheck.error && <div style={{ fontSize: 13, color: C.red, textAlign: lang === 'en' ? 'left' : 'right' }}>{insCheck.error}</div>}
+                {insCheck.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{insCheck.error}</div>}
                 <button
                   onClick={submitInsCaptcha}
                   disabled={!insCheck.captchaInput || insCheck.captchaInput.length < 6}
-                  style={{ height: 46, borderRadius: 12, border: 'none', background: '#5b8fc7', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 600, cursor: (!insCheck.captchaInput || insCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!insCheck.captchaInput || insCheck.captchaInput.length < 6) ? 0.45 : 1, transition: 'opacity .15s' }}
+                  style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(91,143,199,.55)', background: 'linear-gradient(180deg,#6a9fd6 0%,#4a7aac 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 700, letterSpacing: '.3px', cursor: (!insCheck.captchaInput || insCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!insCheck.captchaInput || insCheck.captchaInput.length < 6) ? 0.45 : 1, transition: '.18s', boxShadow: '0 4px 14px rgba(91,143,199,.32), inset 0 1px 0 rgba(255,255,255,.18)' }}
                 >{T('تحقق','Verify')}</button>
               </div>
             )}
@@ -2217,7 +2218,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
       {/* ═══ Quote Issued Success Modal ═══ */}
       {issuedQuote && (() => {
-        const copy = (text) => { try { navigator.clipboard.writeText(text); toast && toast(T('تم النسخ','Copied')) } catch { toast && toast('تعذّر النسخ') } }
+        const copy = (text) => { try { navigator.clipboard.writeText(text); toast && toast(T('تم النسخ','Copied')) } catch { toast && toast(T('تعذّر النسخ','Copy failed')) } }
         const CopyBtn = ({ text }) => (
           <button onClick={() => copy(text)} title={T('نسخ','Copy')} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -2225,14 +2226,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         )
         const row = (label, value, withCopy, amountSplit) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: amountSplit ? 'rgba(212,160,23,.08)' : 'rgba(255,255,255,.03)', border: `1px solid ${amountSplit ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.06)'}` }}>
-            <span style={{ flex: 1, fontSize: 14, color: amountSplit ? C.gold : 'rgba(255,255,255,.5)', fontWeight: amountSplit ? 800 : 600 }}>{label}</span>
+            <span style={{ flex: 1, fontSize: 14, color: amountSplit ? C.gold : 'rgba(255,255,255,.5)', fontWeight: 600 }}>{label}</span>
             {amountSplit ? (
-              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, direction: 'ltr', fontSize: 14, fontWeight: 500, color: C.gold }}>
-                <span style={{ fontSize: 14, fontWeight: 500, opacity: .85 }}>{amountSplit.unit}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, direction: 'ltr', fontSize: 14, fontWeight: 600, color: C.gold }}>
+                <span style={{ fontSize: 14, fontWeight: 600, opacity: .85 }}>{amountSplit.unit}</span>
                 <span>{amountSplit.num}</span>
               </span>
             ) : (
-              <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value}</span>
             )}
             {withCopy && <CopyBtn text={String(value)} />}
           </div>
@@ -2241,9 +2242,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           <div onClick={() => setIssuedQuote(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2300, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
             <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(39,160,70,.3)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 14px' }}>
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(39,160,70,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#27a046' }}><CheckCircle2 size={30} /></div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.95)', textAlign: 'center' }}>{T('تم إصدار التسعيرة','Quote Issued')}</div>
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار تسعيرة للعامل ${issuedQuote.workerName} بنجاح`, `Quote successfully issued for ${issuedQuote.workerName}`)}</div>
+                <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'rgba(39,160,70,.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#27a046' }}><Check size={32} strokeWidth={2.5} /></div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: '#27a046', textAlign: 'center' }}>{T('تم إصدار التسعيرة','Quote Issued')}</div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار تسعيرة تنازل لـ ${issuedQuote.workerName} بنجاح`, `Transfer quote successfully issued for ${issuedQuote.workerName}`)}</div>
                 {issuedQuote.warnings && issuedQuote.warnings.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 }}>
                     {issuedQuote.warnings.map((w, i) => {
@@ -2265,7 +2266,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
                 <button onClick={() => { setIssuedQuote(null); if (typeof onGoToTransferCalc === 'function') onGoToTransferCalc(issuedQuote.quoteNo); else onClose && onClose() }} className="kc-nav-btn dir-back">
-                  <span>{T('الذهاب إلى التسعيرة','Go to Quote')}</span>
+                  <span>{T('التسعيرة','Quote')}</span>
                   <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2} /> : <ChevronLeft size={14} strokeWidth={2} />}</span>
                 </button>
               </div>
@@ -2295,14 +2296,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             )}
 
             {hrsdCheck.phase === 'captcha' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
                   {hrsdCheck.captchaImage
                     ? <CaptchaCountdown captchaKey={hrsdCheck.captchaImage} onExpire={refreshHrsdCaptcha} color="#3bb27a" />
                     : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
                   {hrsdCheck.captchaImage
-                    ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, filter: 'invert(1) contrast(1.3) brightness(0.92) saturate(0)', imageRendering: 'auto' }} />
+                    ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, filter: 'invert(1) saturate(0) contrast(1.1)', mixBlendMode: 'lighten', imageRendering: 'auto' }} />
                     : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
                   <button type="button" onClick={refreshHrsdCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(11,109,61,.12)', color: '#3bb27a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }} onMouseEnter={e => e.currentTarget.style.background='rgba(11,109,61,.22)'} onMouseLeave={e => e.currentTarget.style.background='rgba(11,109,61,.12)'}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
@@ -2315,10 +2316,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   placeholder="______"
                   autoFocus maxLength={6}
                   className="kc-captcha-input"
-                  style={{ height: 40, width: 220, alignSelf: 'center', padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 16, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#2e2e2e,#262626)', textAlign: 'center', letterSpacing: '4px', direction: 'ltr', transition: 'border-color .2s' }}
+                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg)', textAlign: 'center', letterSpacing: '10px', direction: 'ltr', transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.05)' }}
                 />
-                {hrsdCheck.error && <div style={{ fontSize: 13, color: C.red, textAlign: lang === 'en' ? 'left' : 'right' }}>{hrsdCheck.error}</div>}
-                <button onClick={submitHrsdCaptcha} disabled={!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6} style={{ height: 46, borderRadius: 12, border: 'none', background: '#3bb27a', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 600, cursor: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 0.45 : 1, transition: 'opacity .15s' }}>{T('تحقق','Verify')}</button>
+                {hrsdCheck.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{hrsdCheck.error}</div>}
+                <button onClick={submitHrsdCaptcha} disabled={!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 700, letterSpacing: '.3px', cursor: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 0.45 : 1, transition: '.18s', boxShadow: '0 4px 14px rgba(59,178,122,.32), inset 0 1px 0 rgba(255,255,255,.18)' }}>{T('تحقق','Verify')}</button>
               </div>
             )}
 

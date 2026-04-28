@@ -1,14 +1,16 @@
 import React,{useState,useEffect,useCallback} from 'react'
-const F="'Cairo',sans-serif"
-const C={dk:'#171717',fm:'#1e1e1e',gold:'#c9a84c',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
+const F="'Cairo','Tajawal',sans-serif"
+const C={dk:'#171717',fm:'#1e1e1e',gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const num=v=>Number(v||0).toLocaleString('en-US')
 const roleClrs={'المدير العام':'#e8c547','مدير فرع':'#85B7EB','محاسب':'#AFA9EC','موظف استقبال':'#5DCAA5'}
 const daysSince=iso=>{if(!iso)return 0;return Math.floor((Date.now()-new Date(iso).getTime())/86400000)}
 
-const fS={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center'}
-const bS={height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.12)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5}
-const lblS={fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:5}
-const IB=({l,v,copy,toast})=><div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast&&toast('تم النسخ')}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:'var(--tx5)'}}>⎘</button>}</div></div>
+const GLASS={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
+const fS={width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.07)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:500,color:'var(--tx)',outline:'none',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',textAlign:'center',boxSizing:'border-box'}
+const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}
+const sBS={height:40,padding:'0 14px',borderRadius:11,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:10,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
+const lblS={fontSize:12,fontWeight:500,color:'var(--tx3)',paddingInlineStart:2,marginBottom:7}
+const IB=({l,v,copy,toast,isAr})=><div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast&&toast(isAr===false?'Copied':'تم النسخ')}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:'var(--tx5)'}}>⎘</button>}</div></div>
 
 const BadgeStatus=({v})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'rgba(192,57,43,.1)',color:v?C.ok:C.red}}>{v?'نشط':'معطّل'}</span>
 
@@ -146,19 +148,19 @@ if(d.is_system!==undefined&&d.is_system!==null)d.is_system=d.is_system==='true'
 if(d.is_primary!==undefined&&d.is_primary!==null)d.is_primary=d.is_primary==='true'
 if(t==='branches'&&d.mobile)d.mobile='+966'+d.mobile.replace(/^\+966/,'')
 if(t==='branches'&&d.code){const c=cities.find(x=>x.id===d.city_id);const prefix=c?(c.code||c.name_ar?.slice(0,3)):'';d.code=prefix+'-'+d.code.replace(/^.*-/,'')}
-if(id){d.updated_by=user?.id;const{error}=await sb.from(t).update(d).eq('id',id);if(error)throw error;toast('تم التعديل')}
-else{d.created_by=user?.id;const{error}=await sb.from(t).insert(d);if(error)throw error;toast('تمت الإضافة')}
-setPop(null);loadAll()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
+if(id){d.updated_by=user?.id;const{error}=await sb.from(t).update(d).eq('id',id);if(error)throw error;toast(isAr?'تم التعديل':'Updated')}
+else{d.created_by=user?.id;const{error}=await sb.from(t).insert(d);if(error)throw error;toast(isAr?'تمت الإضافة':'Added')}
+setPop(null);loadAll()}catch(e){toast((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setSaving(false)}
 
 const confirmDel=async()=>{if(!delTarget)return;const{table,id}=delTarget
 await sb.from(table).update({deleted_at:new Date().toISOString(),deleted_by:user?.id}).eq('id',id)
-toast('تم الحذف');setDelTarget(null);loadAll()}
+toast(isAr?'تم الحذف':'Deleted');setDelTarget(null);loadAll()}
 
 const savePerms=async()=>{if(!permPop)return;setPermSaving(true);try{
 await sb.from('role_permissions').delete().eq('role_id',permPop)
 if(selPerms.length>0){const ins=selPerms.map(pid=>({role_id:permPop,permission_id:pid}));const{error}=await sb.from('role_permissions').insert(ins);if(error)throw error}
-toast('تم حفظ الصلاحيات');setPermPop(null);loadAll()
-}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setPermSaving(false)}
+toast(isAr?'تم حفظ الصلاحيات':'Permissions saved');setPermPop(null);loadAll()
+}catch(e){toast((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setPermSaving(false)}
 
 const getRef=(id,list,ak='name_ar')=>{const r=list.find(x=>x.id===id);return r?r[ak]:'—'}
 
@@ -192,10 +194,12 @@ const openEdit=(b)=>{setForm({_table:'branches',_id:b.id,name_ar:b.name_ar||'',n
 const permModules=[...new Set(perms.map(p=>p.module))]
 
 return<div>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-<div>
-{!defaultTab&&<><div style={{fontSize:20,fontWeight:700,color:'rgba(255,255,255,.93)'}}>الإدارة</div>
-<div style={{fontSize:12,color:'var(--tx4)',marginTop:6}}>إدارة المكاتب والموظفين والأدوار والصلاحيات</div></>}
+<div style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+<div style={{flex:1,minWidth:0}}>
+{!defaultTab&&<>
+<div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>الإدارة</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>إدارة المكاتب والموظفين والأدوار والصلاحيات</div>
+</>}
 </div>
 {tab!=='users'&&<button onClick={()=>{
 if(tab==='branches')openAdd()
@@ -205,23 +209,22 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 </div>
 
 
-<div style={{display:'flex',gap:0}}>
-{!defaultTab&&<div style={{width:90,flexShrink:0,borderLeft:'1px solid rgba(255,255,255,.05)',paddingTop:2}}>
-{[...tabs].map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setFilterStatus('all');setFilterRegion('all')}} style={{padding:'6px 8px',fontSize:10,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.3)',cursor:'pointer',borderRight:tab===t.id?'2px solid '+C.gold:'2px solid transparent',transition:'.1s'}}>{t.l}</div>)}
+{!defaultTab&&<div style={{display:'flex',gap:0,borderBottom:'1px solid rgba(255,255,255,.07)',marginBottom:18,overflowX:'auto',scrollbarWidth:'none'}}>
+{[...tabs].map(t=>{const sel=tab===t.id;return<div key={t.id} onClick={()=>{setTab(t.id);setQ('');setFilterStatus('all');setFilterRegion('all')}} style={{padding:'10px 22px 9px',cursor:'pointer',color:sel?C.gold:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:sel?600:500,borderBottom:sel?'2px solid '+C.gold:'2px solid transparent',marginBottom:-1,transition:'.2s',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{t.l}</div>})}
 </div>}
-<div style={{flex:1,...(!defaultTab?{paddingRight:8}:{})}}>
+<div style={{display:'flex',gap:0}}>
+<div style={{flex:1,minWidth:0}}>
 
 {/* ═══════════════ BRANCHES TAB ═══════════════ */}
 {tab==='branches'&&<>
 {/* Search + Filters */}
-<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+<div style={{display:'flex',gap:10,marginBottom:18,flexWrap:'wrap'}}>
 <div style={{flex:1,minWidth:200,position:'relative'}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، الكود، الجوال، البريد..." style={{...fS,textAlign:'right',paddingRight:38}}/>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، الكود، الجوال، البريد..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
 </div>
-{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>
-<div key={k} onClick={()=>setFilterStatus(k)} style={{height:42,padding:'0 14px',borderRadius:10,border:'1.5px solid '+(filterStatus===k?'rgba(201,168,76,.3)':'rgba(255,255,255,.1)'),background:filterStatus===k?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',color:filterStatus===k?C.gold:'rgba(255,255,255,.35)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{l}</div>)}
-{regions.length>0&&<select value={filterRegion} onChange={e=>setFilterRegion(e.target.value)} style={{...fS,width:160,cursor:'pointer',fontSize:11}}>
+{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(212,160,23,.45)':'rgba(255,255,255,.06)'),background:sel?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:sel?C.gold:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
+{regions.length>0&&<select value={filterRegion} onChange={e=>setFilterRegion(e.target.value)} style={{...sBS,width:160,cursor:'pointer'}}>
 <option value="all">كل المناطق</option>
 {regions.map(r=><option key={r.id} value={r.id}>{r.name_ar}</option>)}
 </select>}
@@ -230,9 +233,9 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 {/* Branch Cards */}
 {loading?<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>جاري التحميل...</div>:
 filteredBranches.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)',fontSize:13}}>لا توجد مكاتب</div>:
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12}}>
-{filteredBranches.map(b=>{const bUsers=users.filter(u=>u.branch_id===b.id);const reg=regions.find(r=>r.id===b.region_id);const cit=cities.find(c=>c.id===b.city_id)
-return<div key={b.id} onClick={()=>{setViewTab('info');setViewPop(b)}} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'.15s'}}>
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
+{filteredBranches.map(b=>{const bUsers=users.filter(u=>u.branch_id===b.id);const reg=regions.find(r=>r.id===b.region_id);const cit=cities.find(c=>c.id===b.city_id);const accent=b.color||C.gold
+return<div key={b.id} onClick={()=>{setViewTab('info');setViewPop(b)}} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+accent+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}} style={{...GLASS,overflow:'hidden',cursor:'pointer',transition:'.2s'}}>
 <div style={{height:3,background:b.color||C.gold}}/>
 <div style={{padding:'14px 16px 12px'}}>
 {/* Header: icon + names + code + status */}
@@ -281,7 +284,7 @@ return<div key={b.id} onClick={()=>{setViewTab('info');setViewPop(b)}} style={{b
 </div>
 <div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
 <button title="تعديل" onClick={()=>openEdit(b)} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
-<button title={b.is_active?'تعطيل المكتب':'تفعيل المكتب'} onClick={async()=>{await sb.from('branches').update({is_active:!b.is_active}).eq('id',b.id);toast(b.is_active?'تم تعطيل المكتب':'تم تفعيل المكتب');loadAll()}} style={{width:28,height:28,borderRadius:7,border:'1px solid '+(b.is_active?'rgba(192,57,43,.15)':'rgba(39,160,70,.15)'),background:b.is_active?'rgba(192,57,43,.06)':'rgba(39,160,70,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{b.is_active?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}</button>
+<button title={isAr?(b.is_active?'تعطيل المكتب':'تفعيل المكتب'):(b.is_active?'Disable branch':'Enable branch')} onClick={async()=>{await sb.from('branches').update({is_active:!b.is_active}).eq('id',b.id);toast(isAr?(b.is_active?'تم تعطيل المكتب':'تم تفعيل المكتب'):(b.is_active?'Branch disabled':'Branch enabled'));loadAll()}} style={{width:28,height:28,borderRadius:7,border:'1px solid '+(b.is_active?'rgba(192,57,43,.15)':'rgba(39,160,70,.15)'),background:b.is_active?'rgba(192,57,43,.06)':'rgba(39,160,70,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{b.is_active?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}</button>
 </div>
 </div>
 </div>})}
@@ -294,19 +297,17 @@ if(filterStatus==='active'&&!a.is_active)return false;if(filterStatus==='inactiv
 if(filterRegion!=='all'&&a.account_type!==filterRegion)return false
 if(!q)return true;const s=q.toLowerCase();return(a.bank_name||'').includes(s)||(a.account_name||'').includes(s)||(a.iban||'').includes(s)||(a.account_number||'').includes(s)
 });return<>
-<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+<div style={{display:'flex',gap:10,marginBottom:18,flexWrap:'wrap'}}>
 <div style={{flex:1,minWidth:200,position:'relative'}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالبنك، الآيبان، رقم الحساب..." style={{...fS,textAlign:'right',paddingRight:38}}/>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالبنك، الآيبان، رقم الحساب..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
 </div>
-{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>
-<div key={k} onClick={()=>setFilterStatus(k)} style={{height:42,padding:'0 14px',borderRadius:10,border:'1.5px solid '+(filterStatus===k?'rgba(201,168,76,.3)':'rgba(255,255,255,.1)'),background:filterStatus===k?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',color:filterStatus===k?C.gold:'rgba(255,255,255,.35)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{l}</div>)}
-{[['all','الكل','rgba(255,255,255,.35)'],['deposit','إيداع',C.gold],['sadad','سداد',C.blue],['international','خارجي',C.ok]].map(([k,l,c])=>
-<div key={k} onClick={()=>setFilterRegion(k)} style={{height:42,padding:'0 12px',borderRadius:10,border:'1.5px solid '+(filterRegion===k?c+'40':'rgba(255,255,255,.1)'),background:filterRegion===k?c+'12':'rgba(255,255,255,.04)',color:filterRegion===k?c:'rgba(255,255,255,.35)',fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{l}</div>)}
+{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(212,160,23,.45)':'rgba(255,255,255,.06)'),background:sel?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:sel?C.gold:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
+{[['all','الكل',C.gold],['deposit','إيداع',C.gold],['sadad','سداد',C.blue],['international','خارجي',C.ok]].map(([k,l,c])=>{const sel=filterRegion===k;return<div key={k} onClick={()=>setFilterRegion(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?c+'66':'rgba(255,255,255,.06)'),background:sel?'linear-gradient(180deg,'+c+'33 0%,'+c+'14 100%)':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:sel?c:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px '+c+'2a, inset 0 1px 0 '+c+'22':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
 </div>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12}}>
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
 {filtBA.map(a=>{const br=branches.find(b=>b.id===a.branch_id);const typeMap={deposit:{l:'إيداع',c:C.gold},sadad:{l:'سداد',c:C.blue},international:{l:'حوالات خارجية',c:C.ok}};const tp=typeMap[a.account_type]||typeMap.deposit
-return<div key={a.id} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden'}}>
+return<div key={a.id} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+tp.c+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}} style={{...GLASS,overflow:'hidden',transition:'.2s'}}>
 <div style={{height:3,background:tp.c}}/>
 <div style={{padding:'14px 16px'}}>
 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
@@ -346,7 +347,7 @@ return<div key={a.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 <BadgeStatus v={a.is_active}/>
 <div style={{display:'flex',gap:3}}>
 <button onClick={()=>{setForm({_table:'bank_accounts',_id:a.id,bank_name:a.bank_name||'',account_name:a.account_name||'',account_number:a.account_number||'',iban:a.iban||'',swift_code:a.swift_code||'',account_type:a.account_type||'deposit',branch_id:a.branch_id||'',is_primary:String(a.is_primary===true),is_active:String(a.is_active!==false),notes:a.notes||''});setPop('edit_bank')}} style={{width:26,height:26,borderRadius:6,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
-<button onClick={async()=>{await sb.from('bank_accounts').update({is_active:!a.is_active}).eq('id',a.id);toast(a.is_active?'تم تعطيل الحساب':'تم تفعيل الحساب');loadAll()}} style={{width:26,height:26,borderRadius:6,border:'1px solid '+(a.is_active?'rgba(192,57,43,.15)':'rgba(39,160,70,.15)'),background:a.is_active?'rgba(192,57,43,.04)':'rgba(39,160,70,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{a.is_active?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}</button>
+<button onClick={async()=>{await sb.from('bank_accounts').update({is_active:!a.is_active}).eq('id',a.id);toast(isAr?(a.is_active?'تم تعطيل الحساب':'تم تفعيل الحساب'):(a.is_active?'Account disabled':'Account enabled'));loadAll()}} style={{width:26,height:26,borderRadius:6,border:'1px solid '+(a.is_active?'rgba(192,57,43,.15)':'rgba(39,160,70,.15)'),background:a.is_active?'rgba(192,57,43,.04)':'rgba(39,160,70,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{a.is_active?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}</button>
 </div>
 </div>
 </div></div>})}
@@ -377,67 +378,66 @@ const relTime=iso=>{if(!iso)return'—';const d=new Date(iso);const diff=(Date.n
 const ago=iso=>{if(!iso)return'—';const d=new Date(iso);const diff=(Date.now()-d.getTime())/1000;if(diff<86400)return'اليوم';if(diff<172800)return'أمس';if(diff<604800)return'قبل '+Math.floor(diff/86400)+' أيام';return''};
 return <div>
 <div style={{position:'absolute',top:4,left:0,zIndex:5}}>
-<button onClick={()=>{setForm({_table:'roles',name_ar:'',name_en:'',code:'',description:'',color:'#3483b4',is_active:'true',level:2});setSelPerms([]);setRoleScope('own_branch');setRoleLevel(2);setRoleAssignable(true);setRoleEscalation(false);setRolePermSearch('');setRoleOpenMods({});setRoleWizStep(1);setRoleActiveMod('');setPop('add_role_full')}} style={{height:40,padding:'0 20px',borderRadius:10,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.2)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+<button onClick={()=>{setForm({_table:'roles',name_ar:'',name_en:'',code:'',description:'',color:'#3483b4',is_active:'true',level:2});setSelPerms([]);setRoleScope('own_branch');setRoleLevel(2);setRoleAssignable(true);setRoleEscalation(false);setRolePermSearch('');setRoleOpenMods({});setRoleWizStep(1);setRoleActiveMod('');setPop('add_role_full')}} style={bS}>
 إضافة دور وصلاحيات
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 </div>
-<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
-<div style={{padding:'14px 18px',borderRadius:14,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div style={{width:36,height:36,borderRadius:10,background:'rgba(39,160,70,.1)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2"><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg></div>
+<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:18}}>
+<div style={{...GLASS,padding:'16px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+<div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(39,160,70,.18) 0%,rgba(39,160,70,.06) 100%)',border:'1px solid rgba(39,160,70,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2"><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
-<div style={{fontSize:11,color:'var(--tx4)'}}>إجمالي الموظفين</div>
-<div style={{fontSize:26,fontWeight:900,color:'var(--tx)',lineHeight:1.1,marginTop:2}}>{users.length}</div>
-<div style={{fontSize:9,marginTop:4,display:'flex',gap:8}}>
+<div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>إجمالي الموظفين</div>
+<div style={{fontSize:24,fontWeight:700,color:'rgba(255,255,255,.93)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{users.length}</div>
+<div style={{fontSize:10,marginTop:6,display:'flex',gap:8}}>
 <span style={{color:C.ok}}>● {activeUsers.length} نشط</span>
 <span style={{color:C.red}}>● {disabled.length} معطل</span>
 <span style={{color:'#b8722a'}}>● {pending.length} بانتظار</span>
 </div>
 </div>
 </div>
-<div style={{padding:'14px 18px',borderRadius:14,background:pending.length>0?'rgba(184,114,42,.04)':'rgba(255,255,255,.02)',border:'1px solid '+(pending.length>0?'rgba(184,114,42,.2)':'var(--bd)'),display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div style={{width:36,height:36,borderRadius:10,background:'rgba(184,114,42,.1)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b8722a" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+<div style={{...GLASS,padding:'16px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,...(pending.length>0?{boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), 0 0 0 1px rgba(184,114,42,.22), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}:{})}}>
+<div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(184,114,42,.18) 0%,rgba(184,114,42,.06) 100%)',border:'1px solid rgba(184,114,42,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b8722a" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
-<div style={{fontSize:11,color:'var(--tx4)'}}>بانتظار الموافقة</div>
-<div style={{fontSize:26,fontWeight:900,color:'var(--tx)',lineHeight:1.1,marginTop:2}}>{pending.length}</div>
-<div style={{fontSize:9,marginTop:4,color:pending.length>0?'#b8722a':'var(--tx5)'}}>{pending.length>0?'يحتاج مراجعة منك →':'لا يوجد طلبات'}</div>
+<div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>بانتظار الموافقة</div>
+<div style={{fontSize:24,fontWeight:700,color:'rgba(255,255,255,.93)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{pending.length}</div>
+<div style={{fontSize:10,marginTop:6,color:pending.length>0?'#b8722a':'var(--tx5)'}}>{pending.length>0?'يحتاج مراجعة منك →':'لا يوجد طلبات'}</div>
 </div>
 </div>
-<div style={{padding:'14px 18px',borderRadius:14,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div style={{width:36,height:36,borderRadius:10,background:'rgba(52,131,180,.1)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+<div style={{...GLASS,padding:'16px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+<div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(52,131,180,.18) 0%,rgba(52,131,180,.06) 100%)',border:'1px solid rgba(52,131,180,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
-<div style={{fontSize:11,color:'var(--tx4)'}}>الأدوار المعيّنة</div>
-<div style={{fontSize:26,fontWeight:900,color:'var(--tx)',lineHeight:1.1,marginTop:2}}>{Object.keys(roleCounts).length}</div>
-<div style={{fontSize:9,marginTop:4,color:'var(--tx5)'}}>{gmCount>0?gmCount+' مدير عام · ':''}{otherRoles} أدوار أخرى</div>
+<div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>الأدوار المعيّنة</div>
+<div style={{fontSize:24,fontWeight:700,color:'rgba(255,255,255,.93)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{Object.keys(roleCounts).length}</div>
+<div style={{fontSize:10,marginTop:6,color:'var(--tx5)'}}>{gmCount>0?gmCount+' مدير عام · ':''}{otherRoles} أدوار أخرى</div>
 </div>
 </div>
-<div style={{padding:'14px 18px',borderRadius:14,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div style={{width:36,height:36,borderRadius:10,background:'rgba(39,160,70,.1)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg></div>
+<div style={{...GLASS,padding:'16px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+<div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(39,160,70,.18) 0%,rgba(39,160,70,.06) 100%)',border:'1px solid rgba(39,160,70,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg></div>
 <div style={{textAlign:'left',flex:1,minWidth:0}}>
-<div style={{fontSize:11,color:'var(--tx4)'}}>توزيع الفروع</div>
-<div style={{fontSize:26,fontWeight:900,color:'var(--tx)',lineHeight:1.1,marginTop:2}}>{usedBranches.length}</div>
-<div style={{fontSize:9,marginTop:4,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{usedBranches.join(' · ')||'—'}</div>
+<div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>توزيع الفروع</div>
+<div style={{fontSize:24,fontWeight:700,color:'rgba(255,255,255,.93)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{usedBranches.length}</div>
+<div style={{fontSize:10,marginTop:6,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{usedBranches.join(' · ')||'—'}</div>
 </div>
 </div>
 </div>
-{pending.length>0?<div style={{padding:'14px 18px',borderRadius:12,background:'rgba(201,168,76,.06)',border:'1px solid rgba(201,168,76,.2)',display:'flex',alignItems:'center',gap:14,marginBottom:16}}>
-<div style={{width:40,height:40,borderRadius:10,background:'rgba(201,168,76,.12)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+{pending.length>0?<div style={{...GLASS,padding:'16px 18px',display:'flex',alignItems:'center',gap:14,marginBottom:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), 0 0 0 1px rgba(212,160,23,.22), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
+<div style={{width:40,height:40,borderRadius:11,background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.06) 100%)',border:'1px solid rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 <div style={{flex:1}}>
-<div style={{fontSize:13,fontWeight:800,color:'var(--tx)',marginBottom:3}}>طلب تسجيل جديد بحاجة للمراجعة</div>
-<div style={{fontSize:10,color:'var(--tx4)',lineHeight:1.6}}>{pending[0].name_ar} سجّل حساب جديد بتاريخ {new Date(pending[0].created_at).toLocaleDateString('ar-SA',{day:'numeric',month:'long',year:'numeric'})}. قم بتعيين دور وتفعيل الحساب للسماح بالدخول.</div>
+<div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:4}}>طلب تسجيل جديد بحاجة للمراجعة</div>
+<div style={{fontSize:11,color:'var(--tx4)',lineHeight:1.6}}>{pending[0].name_ar} سجّل حساب جديد بتاريخ {new Date(pending[0].created_at).toLocaleDateString('ar-SA',{day:'numeric',month:'long',year:'numeric'})}. قم بتعيين دور وتفعيل الحساب للسماح بالدخول.</div>
 </div>
-<button onClick={()=>{setReviewUser(pending[0]);setSelRoles([]);setActivateNow(true);setRoleSearch('');setForm({branch_id:pending[0].branch_id||'',notes:''});setPop('review_pending')}} style={{height:36,padding:'0 16px',borderRadius:9,border:'none',background:C.gold,color:'#000',fontFamily:F,fontSize:11,fontWeight:800,cursor:'pointer',flexShrink:0}}>مراجعة الطلب</button>
+<button onClick={()=>{setReviewUser(pending[0]);setSelRoles([]);setActivateNow(true);setRoleSearch('');setForm({branch_id:pending[0].branch_id||'',notes:''});setPop('review_pending')}} style={{...bS,flexShrink:0}}>مراجعة الطلب</button>
 </div>:null}
-<div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
+<div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
 <div style={{flex:1,minWidth:260,position:'relative'}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، البريد، الجوال، أو رقم الهوية..." style={{...fS,textAlign:'right',paddingRight:38}}/>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، البريد، الجوال، أو رقم الهوية..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
 </div>
-{[['all','الكل',users.length,C.gold],['active','نشط',activeUsers.length,C.ok],['pending','بانتظار',pending.length,'#b8722a'],['inactive','معطل',disabled.length,C.red]].map(([k,l,n,c])=>
-<div key={k} onClick={()=>setFilterStatus(k)} style={{padding:'7px 14px',borderRadius:9,fontSize:11,fontWeight:filterStatus===k?800:600,color:filterStatus===k?c:'rgba(255,255,255,.5)',background:filterStatus===k?c+'12':'rgba(255,255,255,.03)',border:'1px solid '+(filterStatus===k?c+'30':'rgba(255,255,255,.06)'),cursor:'pointer',whiteSpace:'nowrap',fontFamily:F,display:'flex',alignItems:'center',gap:6}}><span>{l}</span><span style={{fontSize:10,padding:'1px 6px',borderRadius:10,background:filterStatus===k?c+'20':'rgba(255,255,255,.06)',color:filterStatus===k?c:'var(--tx4)'}}>{n}</span></div>)}
+{[['all','الكل',users.length,C.gold],['active','نشط',activeUsers.length,C.ok],['pending','بانتظار',pending.length,'#b8722a'],['inactive','معطل',disabled.length,C.red]].map(([k,l,n,c])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,fontSize:12,fontWeight:sel?600:500,color:sel?c:'rgba(255,255,255,.78)',background:sel?'linear-gradient(180deg,'+c+'33 0%,'+c+'14 100%)':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid '+(sel?c+'66':'rgba(255,255,255,.06)'),cursor:'pointer',whiteSpace:'nowrap',fontFamily:F,display:'flex',alignItems:'center',gap:8,boxShadow:sel?'0 2px 8px '+c+'2a, inset 0 1px 0 '+c+'22':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}><span>{l}</span><span style={{fontSize:10,padding:'1px 6px',borderRadius:10,background:sel?c+'33':'rgba(255,255,255,.06)',color:sel?c:'var(--tx4)',fontWeight:600}}>{n}</span></div>})}
 </div>
-{filtUsers.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد موظفين</div>:<div style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,overflow:'hidden'}}>
-<div style={{display:'grid',gridTemplateColumns:'28px 2.2fr 1.4fr 1fr 1fr 1.1fr 1.1fr 100px',gap:10,padding:'12px 18px',background:'rgba(255,255,255,.02)',borderBottom:'1px solid var(--bd)',fontSize:10,fontWeight:700,color:'var(--tx4)',alignItems:'center'}}>
+{filtUsers.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد موظفين</div>:<div style={{...GLASS,overflow:'hidden'}}>
+<div style={{display:'grid',gridTemplateColumns:'28px 2.2fr 1.4fr 1fr 1fr 1.1fr 1.1fr 100px',gap:10,padding:'14px 18px',background:'linear-gradient(180deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,.01) 100%)',borderBottom:'1px solid rgba(255,255,255,.06)',fontSize:11,fontWeight:600,color:'var(--tx3)',alignItems:'center'}}>
 <div><input type="checkbox" style={{cursor:'pointer'}}/></div>
 <div>الموظف</div><div>الأدوار</div><div>الفرع</div><div>الحالة</div><div>آخر دخول</div><div>تاريخ الإضافة</div><div></div>
 </div>
@@ -475,10 +475,10 @@ return <div>
 {tab==='roles'&&(()=>{const filtRoles=roles.filter(r=>{
 if(!q)return true;const s=q.toLowerCase();return(r.name_ar||'').includes(s)||(r.name_en||'').toLowerCase().includes(s)||(r.description||'').includes(s)
 });const activeRoles=filtRoles.filter(r=>r.is_active);return<>
-<div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:14,paddingBottom:6,borderBottom:'1px solid rgba(201,168,76,.12)'}}>أدوار نشطة ({activeRoles.length})</div>
+<div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:14,paddingBottom:8,borderBottom:'1px solid rgba(255,255,255,.06)'}}>أدوار نشطة ({activeRoles.length})</div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(380px,1fr))',gap:14}}>
 {filtRoles.map(r=>{const rp=rolePerms.filter(p=>p.role_id===r.id);const rUsers=users.filter(u=>u.role_id===r.id);const rc=r.color||C.gold
-return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden'}}>
+return<div key={r.id} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+rc+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}} style={{...GLASS,overflow:'hidden',transition:'.2s'}}>
 <div style={{padding:'14px 16px'}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
 <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -504,7 +504,7 @@ return<div key={r.id} style={{background:'var(--bg)',border:'1px solid var(--bd)
 </>})()}
 
 {/* ═══ UI CONTROLS TAB ═══ */}
-{tab==='ui_controls'&&<UiControlsTab sb={sb} users={users} toast={toast} nav={nav} hubTabs={hubTabs} visibility={visibility} onVisibilityChange={onVisibilityChange}/>}
+{tab==='ui_controls'&&<UiControlsTab sb={sb} users={users} toast={toast} lang={lang} nav={nav} hubTabs={hubTabs} visibility={visibility} onVisibilityChange={onVisibilityChange}/>}
 
 {/* ═══ PERFORMANCE TAB (Enhanced) ═══ */}
 {tab==='performance'&&(()=>{const MAX_SCORE=150;const scoreColor=s=>s>=80?C.ok:s>=50?C.gold:s>=20?'#e67e22':C.red;const medals=['🥇','🥈','🥉'];const filtered=perfData.filter(e=>!perfBranch||e.branch_id===perfBranch).filter(e=>!roleFilter||roleFilter==='all'||e.role_id===roleFilter).sort((a,b)=>(Number(b[perfSort])||0)-(Number(a[perfSort])||0))
@@ -517,49 +517,49 @@ const overdueUsers=perfData.filter(e=>Number(e.tasks_overdue||0)>0).length
 const scoreDiff=avgScore-avgScorePrev
 return<>
 {/* Enhanced Stat cards */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:12,marginBottom:20}}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:14,marginBottom:18}}>
 {/* Employees */}
-<div style={{padding:'16px 18px',borderRadius:14,background:'linear-gradient(135deg,rgba(39,160,70,.08),rgba(39,160,70,.02))',border:'1px solid rgba(39,160,70,.15)',textAlign:'center'}}>
-<div style={{fontSize:11,fontWeight:600,color:C.ok,marginBottom:8}}>الموظفين</div>
-<div style={{fontSize:28,fontWeight:900,color:C.ok,lineHeight:1}}>{filtered.length}</div>
-<div style={{fontSize:9,color:'var(--tx5)',marginTop:6}}>{perfData.length} إجمالي</div>
+<div style={{...GLASS,padding:'16px 18px',textAlign:'center'}}>
+<div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginBottom:8}}>الموظفين</div>
+<div style={{fontSize:24,fontWeight:700,color:C.ok,lineHeight:1.1,letterSpacing:'-.3px'}}>{filtered.length}</div>
+<div style={{fontSize:10,color:'var(--tx5)',marginTop:6}}>{perfData.length} إجمالي</div>
 </div>
 {/* Avg Score with comparison */}
-<div style={{padding:'16px 18px',borderRadius:14,background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)',textAlign:'center'}}>
-<div style={{fontSize:11,fontWeight:600,color:C.gold,marginBottom:8}}>متوسط النقاط</div>
-<div style={{fontSize:28,fontWeight:900,color:C.gold,lineHeight:1}}>{avgScore}<span style={{fontSize:12,fontWeight:500,opacity:.5}}>/{MAX_SCORE}</span></div>
-{scoreDiff!==0&&<div style={{fontSize:10,fontWeight:700,color:scoreDiff>0?C.ok:C.red,marginTop:6}}>{scoreDiff>0?'▲':'▼'} {Math.abs(scoreDiff)} عن الشهر السابق</div>}
+<div style={{...GLASS,padding:'16px 18px',textAlign:'center'}}>
+<div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginBottom:8}}>متوسط النقاط</div>
+<div style={{fontSize:24,fontWeight:700,color:C.gold,lineHeight:1.1,letterSpacing:'-.3px'}}>{avgScore}<span style={{fontSize:12,fontWeight:500,opacity:.5}}>/{MAX_SCORE}</span></div>
+{scoreDiff!==0&&<div style={{fontSize:10,fontWeight:600,color:scoreDiff>0?C.ok:C.red,marginTop:6}}>{scoreDiff>0?'▲':'▼'} {Math.abs(scoreDiff)} عن الشهر السابق</div>}
 </div>
 {/* Total Transactions */}
-<div style={{padding:'16px 18px',borderRadius:14,background:'rgba(52,131,180,.04)',border:'1px solid rgba(52,131,180,.1)',textAlign:'center'}}>
-<div style={{fontSize:11,fontWeight:600,color:C.blue,marginBottom:8}}>المعاملات المنجزة</div>
-<div style={{fontSize:28,fontWeight:900,color:C.blue,lineHeight:1}}>{totalTxn}</div>
-<div style={{fontSize:9,color:'var(--tx5)',marginTop:6}}>نسبة الإنجاز: {totalTxnAll>0?Math.round(totalTxn/totalTxnAll*100):0}%</div>
+<div style={{...GLASS,padding:'16px 18px',textAlign:'center'}}>
+<div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginBottom:8}}>المعاملات المنجزة</div>
+<div style={{fontSize:24,fontWeight:700,color:C.blue,lineHeight:1.1,letterSpacing:'-.3px'}}>{totalTxn}</div>
+<div style={{fontSize:10,color:'var(--tx5)',marginTop:6}}>نسبة الإنجاز: {totalTxnAll>0?Math.round(totalTxn/totalTxnAll*100):0}%</div>
 </div>
 {/* Overdue */}
-<div style={{padding:'16px 18px',borderRadius:14,background:totalOverdue>0?'rgba(192,57,43,.06)':'rgba(255,255,255,.02)',border:'1px solid '+(totalOverdue>0?'rgba(192,57,43,.12)':'rgba(255,255,255,.04)'),textAlign:'center'}}>
-<div style={{fontSize:11,fontWeight:600,color:totalOverdue>0?C.red:'var(--tx4)',marginBottom:8}}>المتأخرات</div>
-<div style={{fontSize:28,fontWeight:900,color:totalOverdue>0?C.red:'var(--tx5)',lineHeight:1}}>{totalOverdue}</div>
-<div style={{fontSize:9,color:totalOverdue>0?C.red:'var(--tx5)',marginTop:6,opacity:.7}}>{overdueUsers} موظف عنده متأخرات</div>
+<div style={{...GLASS,padding:'16px 18px',textAlign:'center'}}>
+<div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginBottom:8}}>المتأخرات</div>
+<div style={{fontSize:24,fontWeight:700,color:totalOverdue>0?C.red:'var(--tx5)',lineHeight:1.1,letterSpacing:'-.3px'}}>{totalOverdue}</div>
+<div style={{fontSize:10,color:totalOverdue>0?C.red:'var(--tx5)',marginTop:6,opacity:.85}}>{overdueUsers} موظف عنده متأخرات</div>
 </div>
 </div>
 {/* Filters */}
-<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-<select value={perfBranch||''} onChange={e=>setPerfBranch(e.target.value||null)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
+<div style={{display:'flex',gap:10,marginBottom:18,flexWrap:'wrap',alignItems:'center'}}>
+<select value={perfBranch||''} onChange={e=>setPerfBranch(e.target.value||null)} style={sBS}>
 <option value="">كل المكاتب</option>{branches.map(b=><option key={b.id} value={b.id}>{b.name_ar}</option>)}
 </select>
-<select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
+<select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)} style={sBS}>
 <option value="all">كل الأدوار</option>{roles.map(r=><option key={r.id} value={r.id}>{r.name_ar}</option>)}
 </select>
-<select value={perfSort} onChange={e=>setPerfSort(e.target.value)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
+<select value={perfSort} onChange={e=>setPerfSort(e.target.value)} style={sBS}>
 <option value="performance_score">النقاط</option><option value="txn_completed">المعاملات</option><option value="amount_collected">التحصيل</option><option value="tasks_done">المهام</option>
 </select>
-<span style={{fontSize:10,color:'var(--tx5)'}}>{filtered.length} موظف</span>
+<span style={{fontSize:11,color:'var(--tx5)'}}>{filtered.length} موظف</span>
 </div>
 {/* Enhanced Leaderboard */}
-<div style={{display:'flex',flexDirection:'column',gap:10}}>
-{filtered.map((e,i)=>{const sc=Number(e.performance_score)||0;const scPrev=Number(e.performance_score_prev||sc);const pct=Math.round(sc/MAX_SCORE*100);const diff=sc-scPrev;const hasOverdue=Number(e.tasks_overdue||0)>0;const isWeak=sc<50;const borderClr=hasOverdue&&Number(e.tasks_overdue)>10?'rgba(192,57,43,.2)':isWeak?'rgba(230,126,34,.15)':'var(--bd)'
-return<div key={e.user_id} style={{borderRadius:14,background:'var(--bg)',border:'1px solid '+borderClr,overflow:'hidden'}}>
+<div style={{display:'flex',flexDirection:'column',gap:12}}>
+{filtered.map((e,i)=>{const sc=Number(e.performance_score)||0;const scPrev=Number(e.performance_score_prev||sc);const pct=Math.round(sc/MAX_SCORE*100);const diff=sc-scPrev;const hasOverdue=Number(e.tasks_overdue||0)>0;const isWeak=sc<50;const accent=hasOverdue&&Number(e.tasks_overdue)>10?C.red:isWeak?'#e67e22':C.gold
+return<div key={e.user_id} onMouseEnter={ev=>{ev.currentTarget.style.transform='translateY(-3px)';ev.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+accent+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={ev=>{ev.currentTarget.style.transform='translateY(0)';ev.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}} style={{...GLASS,overflow:'hidden',transition:'.2s'}}>
 {/* Header */}
 <div style={{padding:'14px 18px',display:'flex',alignItems:'center',gap:14}}>
 <div style={{width:38,height:38,borderRadius:'50%',background:i<3?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)',border:'1.5px solid '+(i<3?'rgba(201,168,76,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?16:13,fontWeight:800,color:i<3?C.gold:'var(--tx4)',flexShrink:0}}>
@@ -611,22 +611,22 @@ const dayNameAr={'sun':'الأحد','mon':'الاثنين','tue':'الثلاثا
 const isHoliday=dayOfWeek==='fri'||dayOfWeek==='sat'
 return<>
 {/* Holiday alert */}
-{isHoliday&&brAtt.length===0&&<div style={{padding:'12px 18px',borderRadius:12,background:'rgba(201,168,76,.06)',border:'1px solid rgba(201,168,76,.12)',marginBottom:16,display:'flex',alignItems:'center',gap:8}}>
+{isHoliday&&brAtt.length===0&&<div style={{...GLASS,padding:'14px 18px',marginBottom:16,display:'flex',alignItems:'center',gap:8,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), 0 0 0 1px rgba(212,160,23,.22), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-<span style={{fontSize:12,fontWeight:600,color:C.gold}}>يوم إجازة — {dayNameAr[dayOfWeek]||dayOfWeek}</span>
+<span style={{fontSize:13,fontWeight:600,color:C.gold}}>يوم إجازة — {dayNameAr[dayOfWeek]||dayOfWeek}</span>
 </div>}
 {/* Dynamic Stat cards */}
-<div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,marginBottom:20}}>
-{[['الحاضرين',brAtt.length,C.ok],['في الوقت',dayOnTime,C.ok],['متأخر',dayLate,dayLate>0?'#e67e22':'var(--tx5)'],['غائب',absent.length,absent.length>0?C.red:'var(--tx5)'],['متوسط الساعات',dayAvgHrs,C.blue]].map(([l,v,c],i)=><div key={i} style={{padding:12,borderRadius:10,background:c==='var(--tx5)'?'rgba(255,255,255,.02)':c+'06',border:'1px solid '+(c==='var(--tx5)'?'rgba(255,255,255,.04)':c+'12'),textAlign:'center'}}><div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div><div style={{fontSize:8,color:c,opacity:.7,marginTop:4}}>{l}</div></div>)}
+<div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:18}}>
+{[['الحاضرين',brAtt.length,C.ok],['في الوقت',dayOnTime,C.ok],['متأخر',dayLate,dayLate>0?'#e67e22':'var(--tx5)'],['غائب',absent.length,absent.length>0?C.red:'var(--tx5)'],['متوسط الساعات',dayAvgHrs,C.blue]].map(([l,v,c],i)=><div key={i} style={{...GLASS,padding:14,textAlign:'center'}}><div style={{fontSize:22,fontWeight:700,color:c,letterSpacing:'-.3px',lineHeight:1.1}}>{v}</div><div style={{fontSize:11,color:'var(--tx4)',marginTop:6,fontWeight:500}}>{l}</div></div>)}
 </div>
 {/* Filters */}
-<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-<input type="date" value={attDate} onChange={e=>setAttDate(e.target.value)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12,direction:'ltr'}}/>
-<select value={attBranch||''} onChange={e=>setAttBranch(e.target.value||null)} style={{height:36,padding:'0 12px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bg)',color:'var(--tx)',fontFamily:F,fontSize:12}}>
+<div style={{display:'flex',gap:10,marginBottom:18,flexWrap:'wrap',alignItems:'center'}}>
+<input type="date" value={attDate} onChange={e=>setAttDate(e.target.value)} style={{...sBS,direction:'ltr'}}/>
+<select value={attBranch||''} onChange={e=>setAttBranch(e.target.value||null)} style={sBS}>
 <option value="">كل المكاتب</option>{branches.map(b=><option key={b.id} value={b.id}>{b.name_ar}</option>)}
 </select>
-<span style={{fontSize:10,color:'var(--tx5)'}}>|</span>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)'}}>{dayNameAr[dayOfWeek]||''} · {brAtt.length} حاضر · {absent.length} غائب</span>
+<span style={{fontSize:11,color:'var(--tx5)'}}>|</span>
+<span style={{fontSize:12,fontWeight:500,color:'var(--tx4)'}}>{dayNameAr[dayOfWeek]||''} · {brAtt.length} حاضر · {absent.length} غائب</span>
 </div>
 {/* Attendance Cards */}
 {brAtt.length===0&&!isHoliday?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد سجل حضور لهذا اليوم</div>:
@@ -753,9 +753,9 @@ return<div onClick={()=>setViewUser(null)} style={{position:'fixed',inset:0,back
 {/* ═══ VIEW BRANCH POPUP ═══ */}
 {viewPop&&(()=>{const bUsers=users.filter(u=>u.branch_id===viewPop.id);const bAccs=bankAccs.filter(a=>a.branch_id===viewPop.id);const typeMap={deposit:{l:'إيداع',c:C.gold},sadad:{l:'سداد',c:C.blue},international:{l:'حوالات خارجية',c:C.ok}}
 return<div onClick={()=>{setViewPop(null);setViewTab('info')}} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:600,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid var(--bd)'}}>
+<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:600,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
 <div style={{height:3,background:viewPop.color||C.gold,flexShrink:0}}/>
-<div style={{background:'var(--bg)',padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
 <div style={{display:'flex',alignItems:'center',gap:10}}>
 <div style={{width:40,height:40,borderRadius:10,background:(viewPop.color||C.gold)+'18',border:'1.5px solid '+(viewPop.color||C.gold)+'30',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:16,fontWeight:800,color:viewPop.color||C.gold}}>{viewPop.name_ar?.[0]}</span></div>
 <div><div style={{fontSize:17,fontWeight:700,color:'var(--tx)'}}>{viewPop.name_ar}</div>{viewPop.name_en&&<div style={{fontSize:11,color:'var(--tx5)',direction:'ltr',marginTop:2}}>{viewPop.name_en}</div>}</div>
@@ -830,12 +830,12 @@ const getCityCode=()=>{const c=cities.find(x=>x.id===form.city_id);return c?(c.c
 const net=(Number(String(form.opening_balance||0).replace(/,/g,''))||0)
 const reviewRows=[['الاسم بالعربي',form.name_ar],['الاسم بالإنجليزي',form.name_en],['المنطقة',getRef(form.region_id,regions)],['المدينة',getRef(form.city_id,cities)],['الكود',getCityCode()+'-'+form.code],['اللون',form.color],['العنوان',form.address],['الجوال',form.mobile?'+966 '+fmtMobile(form.mobile):null],['البريد',form.email],['الحالة',form.is_active==='true'?'نشط':'معطّل'],['مدير المكتب',getRef(form.manager_id,users)],['أيام الدوام',form.work_days],['بداية الدوام',form.work_from],['نهاية الدوام',form.work_to],['الرصيد الافتتاحي',form.opening_balance],['الحد النقدي اليومي',form.daily_cash_limit],['رابط الموقع',form.google_maps_url?'محدد':null],['ملاحظات',form.notes]]
 return<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:580,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid var(--bd)'}}>
+<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:580,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
 <div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)',flexShrink:0}}/>
-<div style={{background:'var(--bg)',padding:'16px 22px'}}>
+<div style={{padding:'16px 22px',borderBottom:'1px solid rgba(255,255,255,.06)'}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={{fontSize:15,fontWeight:700,color:'var(--tx)'}}>{pop==='add'?'إضافة مكتب':'تعديل مكتب'}</div>
-<button onClick={()=>setPop(null)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+<div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{pop==='add'?'إضافة مكتب':'تعديل مكتب'}</div>
+<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
 </div>
 {/* Stepper */}
 <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:0}}>
@@ -891,18 +891,18 @@ k==='الحالة'?<span style={{fontSize:12,fontWeight:600,color:v==='نشط'?C
 </div>}
 </div>
 <div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',gap:10,flexDirection:'row-reverse',flexShrink:0}}>
-{step===1&&<button onClick={()=>{if(!form.name_ar){toast('الاسم مطلوب');return};if(!form.code){toast('الكود مطلوب');return};setStep(2)}} style={{...bS,height:42,minWidth:130,gap:6}}>التالي <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>}
+{step===1&&<button onClick={()=>{if(!form.name_ar){toast(isAr?'الاسم مطلوب':'Name is required');return};if(!form.code){toast(isAr?'الكود مطلوب':'Code is required');return};setStep(2)}} style={{...bS,height:42,minWidth:130,gap:6}}>التالي <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>}
 {step===2&&<><button onClick={()=>setStep(3)} style={{...bS,height:42,minWidth:130,gap:6}}>مراجعة <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button><button onClick={()=>setStep(1)} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>رجوع</button></>}
 {step===3&&<><button onClick={saveForm} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':(pop==='add'?'إضافة المكتب':'حفظ التعديلات')}</button><button onClick={()=>setStep(2)} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>رجوع</button></>}
 </div></div></div>})()}
 
 {/* ═══ EDIT USER POPUP ═══ */}
 {pop==='edit_user'&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:520,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid var(--bd)'}}>
+<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:520,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
 <div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)',flexShrink:0}}/>
-<div style={{background:'var(--bg)',padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-<div style={{fontSize:15,fontWeight:700,color:'var(--tx)'}}>تعديل موظف</div>
-<button onClick={()=>setPop(null)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>تعديل موظف</div>
+<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
 </div>
 <div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 {[['name_ar','الاسم بالعربي',1],['name_en','الاسم بالإنجليزي'],['email','البريد'],['phone','الجوال'],['id_number','رقم الهوية'],['nationality','الجنسية']].map(([k,l,r])=>
@@ -919,11 +919,11 @@ k==='الحالة'?<span style={{fontSize:12,fontWeight:600,color:v==='نشط'?C
 
 {/* ═══ ADD/EDIT ROLE POPUP ═══ */}
 {(pop==='add_role'||pop==='edit_role')&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:480,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid var(--bd)'}}>
+<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:480,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
 <div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)',flexShrink:0}}/>
-<div style={{background:'var(--bg)',padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-<div style={{fontSize:15,fontWeight:700,color:'var(--tx)'}}>{pop==='add_role'?'إضافة دور':'تعديل دور'}</div>
-<button onClick={()=>setPop(null)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{pop==='add_role'?'إضافة دور':'تعديل دور'}</div>
+<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
 </div>
 <div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 <div><div style={lblS}>الاسم بالعربي <span style={{color:C.red}}>*</span></div><input value={form.name_ar||''} onChange={e=>setForm(p=>({...p,name_ar:e.target.value}))} style={fS}/></div>
@@ -939,11 +939,11 @@ k==='الحالة'?<span style={{fontSize:12,fontWeight:600,color:v==='نشط'?C
 
 {/* ═══ PERMISSIONS POPUP ═══ */}
 {permPop&&<div onClick={()=>setPermPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:580,maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid var(--bd)'}}>
+<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:580,maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
 <div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.blue+' 30%,#5ba3d4 50%,'+C.blue+' 70%,transparent)',flexShrink:0}}/>
-<div style={{background:'var(--bg)',padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-<div><div style={{fontSize:15,fontWeight:700,color:'var(--tx)'}}>إدارة الصلاحيات</div><div style={{fontSize:10,color:'var(--tx4)',marginTop:2}}>{roles.find(r=>r.id===permPop)?.name_ar||''} — {selPerms.length} صلاحية مختارة</div></div>
-<button onClick={()=>setPermPop(null)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+<div><div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>إدارة الصلاحيات</div><div style={{fontSize:11,color:'var(--tx4)',marginTop:4}}>{roles.find(r=>r.id===permPop)?.name_ar||''} — {selPerms.length} صلاحية مختارة</div></div>
+<button onClick={()=>setPermPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
 </div>
 <div style={{flex:1,overflowY:'auto',padding:'12px 22px'}}>
 {permModules.map(mod=>{const modPerms=perms.filter(p=>p.module===mod);const allChecked=modPerms.every(p=>selPerms.includes(p.id))
@@ -971,11 +971,11 @@ return<div key={mod} style={{marginBottom:12}}>
 
 {/* ═══ ADD/EDIT BANK ACCOUNT POPUP ═══ */}
 {(pop==='add_bank'||pop==='edit_bank')&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:520,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid var(--bd)'}}>
+<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:520,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
 <div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.blue+' 30%,#5ba3d4 50%,'+C.blue+' 70%,transparent)',flexShrink:0}}/>
-<div style={{background:'var(--bg)',padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-<div style={{fontSize:15,fontWeight:700,color:'var(--tx)'}}>{pop==='add_bank'?'إضافة حساب بنكي':'تعديل حساب بنكي'}</div>
-<button onClick={()=>setPop(null)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{pop==='add_bank'?'إضافة حساب بنكي':'تعديل حساب بنكي'}</div>
+<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
 </div>
 <div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 <div><div style={lblS}>اسم البنك <span style={{color:C.red}}>*</span></div><input value={form.bank_name||''} onChange={e=>setForm(p=>({...p,bank_name:e.target.value}))} style={fS}/></div>
@@ -1008,10 +1008,10 @@ if(activateNow){updates.is_active=true;updates.activated_at=new Date().toISOStri
 await sb.from('users').update(updates).eq('id',ru.id);
 await sb.from('user_roles').delete().eq('user_id',ru.id);
 if(selRoles.length>0){await sb.from('user_roles').insert(selRoles.map(rid=>({user_id:ru.id,role_id:rid,assigned_by:user?.id||null})))}
-toast(activateNow?'تمت الموافقة والتفعيل':'تم حفظ التعديلات');
+toast(isAr?(activateNow?'تمت الموافقة والتفعيل':'تم حفظ التعديلات'):(activateNow?'Approved and activated':'Changes saved'));
 setPop(null);setReviewUser(null);setSelRoles([]);
 loadAll();
-}catch(e){toast('خطأ: '+(e.message||''))}
+}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
 return <div onClick={()=>{setPop(null);setReviewUser(null)}} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.78)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
@@ -1118,10 +1118,10 @@ try{
 await sb.from('users').update({branch_id:editBranch||null}).eq('id',ru.id);
 await sb.from('user_roles').delete().eq('user_id',ru.id);
 if(selRoles.length>0){await sb.from('user_roles').insert(selRoles.map(rid=>({user_id:ru.id,role_id:rid,assigned_by:user?.id||null})))}
-toast('تم حفظ التعديلات');
+toast(isAr?'تم حفظ التعديلات':'Changes saved');
 setPop(null);setReviewUser(null);
 loadAll();
-}catch(e){toast('خطأ: '+(e.message||''))}
+}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
 return <div onClick={()=>{setPop(null);setReviewUser(null)}} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
@@ -1238,8 +1238,8 @@ const submit=async()=>{
 if(saving||!canSubmit)return;setSaving(true);
 try{
 await sb.from('users').update({is_active:false,deactivated_at:new Date().toISOString(),deactivated_by:user?.id||null,deactivation_reason:reasons.find(r=>r[0]===deactReason)?.[1]||null,notes:deactNotes||null}).eq('id',ru.id);
-toast('تم تعطيل الحساب');setPop(null);setReviewUser(null);loadAll();
-}catch(e){toast('خطأ: '+(e.message||''))}
+toast(isAr?'تم تعطيل الحساب':'Account disabled');setPop(null);setReviewUser(null);loadAll();
+}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
 return <div onClick={()=>setPop('edit_active')} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.82)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100,padding:16}}>
@@ -1319,8 +1319,8 @@ const submit=async()=>{
 if(saving)return;setSaving(true);
 try{
 await sb.from('users').update({is_active:true,activated_at:new Date().toISOString(),activated_by:user?.id||null,deactivated_at:null,deactivation_reason:null}).eq('id',ru.id);
-toast('تم تفعيل الحساب');setPop(null);setReviewUser(null);loadAll();
-}catch(e){toast('خطأ: '+(e.message||''))}
+toast(isAr?'تم تفعيل الحساب':'Account enabled');setPop(null);setReviewUser(null);loadAll();
+}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
 return <div onClick={()=>{setPop(null);setReviewUser(null)}} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.82)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100,padding:16}}>
@@ -1414,8 +1414,8 @@ try{
 const{data:newR,error}=await sb.from('roles').insert({name_ar:form.name_ar,name_en:form.name_en||null,description:form.description||null,color:form.color||C.gold,is_active:true,is_system:false}).select('id').single();
 if(error)throw error;
 if(selPerms.length>0){await sb.from('role_permissions').insert(selPerms.map(pid=>({role_id:newR.id,permission_id:pid})))}
-toast('تم إنشاء الدور');setPop(null);loadAll();
-}catch(e){toast('خطأ: '+(e.message||''))}
+toast(isAr?'تم إنشاء الدور':'Role created');setPop(null);loadAll();
+}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
 const fldLbl={fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5};
@@ -1566,7 +1566,7 @@ return <div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,backgrou
 {/* Footer navigation */}
 <div style={{flexShrink:0,padding:'12px 22px 16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 {roleWizStep>1?<button onClick={()=>setRoleWizStep(roleWizStep-1)} className="role-nav-btn"><span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span><span>رجوع</span></button>:<span/>}
-{roleWizStep<3?<button onClick={()=>{if(roleWizStep===1&&!canNext1){toast('الرجاء إكمال الحقول المطلوبة');return}setRoleWizStep(roleWizStep+1)}} disabled={roleWizStep===1&&!canNext1} className="role-nav-btn"><span>التالي</span><span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span></button>:<button onClick={submit} disabled={saving||!canSubmit} className="role-nav-btn"><span>{saving?'جاري...':'إنشاء الدور'}</span><span className="nav-ico">{saving?<div style={{width:14,height:14,border:'2px solid rgba(212,160,23,.3)',borderTopColor:C.gold,borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}</span></button>}
+{roleWizStep<3?<button onClick={()=>{if(roleWizStep===1&&!canNext1){toast(isAr?'الرجاء إكمال الحقول المطلوبة':'Please complete required fields');return}setRoleWizStep(roleWizStep+1)}} disabled={roleWizStep===1&&!canNext1} className="role-nav-btn"><span>التالي</span><span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span></button>:<button onClick={submit} disabled={saving||!canSubmit} className="role-nav-btn"><span>{saving?'جاري...':'إنشاء الدور'}</span><span className="nav-ico">{saving?<div style={{width:14,height:14,border:'2px solid rgba(212,160,23,.3)',borderTopColor:C.gold,borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}</span></button>}
 </div>
 
 </div>
@@ -1577,7 +1577,8 @@ return <div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,backgrou
 {delTarget&&<DeletePopup itemName={delTarget.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}
 </div>}
 
-function UiControlsTab({sb,users,toast,nav,hubTabs,visibility,onVisibilityChange}){
+function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityChange}){
+  const isAr=lang!=='en'
   const F="'Cairo',sans-serif"
   const C={gold:'#D4A017',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
   // Sections grouped by feature area — add new sections here as you gate more features
@@ -1602,14 +1603,14 @@ function UiControlsTab({sb,users,toast,nav,hubTabs,visibility,onVisibilityChange
   const[perms,setPerms]=React.useState({})
   const[loading,setLoading]=React.useState(true)
   React.useEffect(()=>{sb.from('ui_controls').select('*').then(({data})=>{if(data)setPerms(Object.fromEntries(data.map(r=>[r.control_key,r])));setLoading(false)})},[sb])
-  const updateMode=async(key,mode)=>{const current=perms[key]||{control_key:key,allowed_user_ids:[]};const next={...current,mode,updated_at:new Date().toISOString()};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode,allowed_user_ids:current.allowed_user_ids||[]});toast&&toast('تم الحفظ')}
+  const updateMode=async(key,mode)=>{const current=perms[key]||{control_key:key,allowed_user_ids:[]};const next={...current,mode,updated_at:new Date().toISOString()};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode,allowed_user_ids:current.allowed_user_ids||[]});toast&&toast(isAr?'تم الحفظ':'Saved')}
   const toggleUser=async(key,userId)=>{const current=perms[key]||{control_key:key,mode:'custom',allowed_user_ids:[]};const arr=current.allowed_user_ids||[];const nextArr=arr.includes(userId)?arr.filter(u=>u!==userId):[...arr,userId];const next={...current,allowed_user_ids:nextArr};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode:current.mode||'custom',allowed_user_ids:nextArr})}
   if(loading)return<div style={{padding:40,textAlign:'center',color:'var(--tx5)',fontFamily:F}}>جاري التحميل...</div>
   // Sidebar visibility toggles (localStorage-based, applies to all users)
   const LOCKED_NAV=['admin_hub','admin_visibility']
   const visGet=(id)=>(visibility||{})[id]!==false
-  const visToggle=(id)=>{if(LOCKED_NAV.includes(id))return;const next={...(visibility||{}),[id]:!visGet(id)};onVisibilityChange&&onVisibilityChange(next);toast&&toast(next[id]?'تم الإظهار':'تم الإخفاء')}
-  const showAllNav=()=>{onVisibilityChange&&onVisibilityChange({});toast&&toast('تم إظهار كل التبويبات')}
+  const visToggle=(id)=>{if(LOCKED_NAV.includes(id))return;const next={...(visibility||{}),[id]:!visGet(id)};onVisibilityChange&&onVisibilityChange(next);toast&&toast(isAr?(next[id]?'تم الإظهار':'تم الإخفاء'):(next[id]?'Shown':'Hidden'))}
+  const showAllNav=()=>{onVisibilityChange&&onVisibilityChange({});toast&&toast(isAr?'تم إظهار كل التبويبات':'All tabs shown')}
   const NavToggle=({id,label})=>{const on=visGet(id);const locked=LOCKED_NAV.includes(id)
     return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'8px 12px',borderRadius:8,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.05)',opacity:locked?.6:1}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}>

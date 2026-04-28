@@ -26,7 +26,10 @@ export function setKafalaPricingConfig(partial){
 }
 
 const F=`'Cairo','Tajawal',sans-serif`
-const C={gold:'#D4A017',bentoGold:'#D4A017',red:'#c0392b',ok:'#27a046'}
+const C={gold:'#D4A017',bentoGold:'#D4A017',red:'#c0392b',ok:'#27a046',blue:'#3483b4'}
+const GLASS_CARD={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
+const INNER_PILL={background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}
+const FORM_INPUT={height:42,padding:'0 14px',borderRadius:10,border:'1px solid rgba(255,255,255,.07)',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',color:'var(--tx)',fontFamily:F,fontSize:13,fontWeight:500,outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',width:'100%',boxSizing:'border-box'}
 
 // ─── Date picker (same visual pattern as Kafala Calculator's DateField) ───
 const MONTH_NAMES_AR=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
@@ -276,6 +279,7 @@ writeStore(sch.store,raw)
 }
 
 export default function ServiceAdminPage({toast,lang}){
+const isAr=lang!=='en';const T=(a,e)=>isAr?a:e
 const [overrides,setOverrides]=useState(getServiceOverrides())
 const [expanded,setExpanded]=useState(null)// svc id being edited
 const [priceState,setPriceState]=useState({})
@@ -305,7 +309,7 @@ return{billable,active}
 }
 const update=(id,key,val)=>{
 setOverrides(p=>({...p,[id]:{...(p[id]||{}),[key]:val}}))
-toast('تم حفظ الإعدادات')
+toast(T('تم حفظ الإعدادات','Settings saved'))
 }
 const openPrice=(id)=>{
 if(expanded===id){setExpanded(null);return}
@@ -324,14 +328,14 @@ Object.entries(priceState).forEach(([k,v])=>{
 })
 setPricing(id,normalized)
 setExpanded(null)
-toast('تم حفظ التسعير')
+toast(T('تم حفظ التسعير','Pricing saved'))
 }
 
 const mainSvcs=ALL_SERVICES.filter(s=>s.group==='main')
 const otherSvcs=ALL_SERVICES.filter(s=>s.group==='other')
 
-const inpS={width:'100%',height:38,padding:'0 12px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:700,color:'var(--tx)',outline:'none',background:'rgba(0,0,0,.18)',textAlign:'center',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',direction:'ltr'}
-const lbl={fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,display:'block',textAlign:'right'}
+const inpS={width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.07)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',textAlign:'center',boxSizing:'border-box',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',direction:'ltr',transition:'.18s'}
+const lbl={fontSize:12,fontWeight:500,color:'var(--tx3)',paddingInlineStart:2,marginBottom:7,display:'block',textAlign:'right'}
 
 const clampField=(f,val)=>{
   if(val===''||val==null)return ''
@@ -370,7 +374,7 @@ const resetSection=(fields)=>{
   const next={...priceState}
   fields.forEach(f=>{next[f.k]=String(f.d)})
   setPriceState(next)
-  toast('تمت استعادة القيم الافتراضية للقسم')
+  toast(T('تمت استعادة القيم الافتراضية للقسم','Section defaults restored'))
 }
 // Save only the fields of a specific section (merge into stored config).
 // extraKeys allows saving non-field state like the profession-change free list (arrays/objects).
@@ -383,19 +387,19 @@ const saveSection=(svcId,fields,label,extraKeys=[])=>{
   })
   extraKeys.forEach(k=>{if(priceState[k]!==undefined)vals[k]=priceState[k]})
   setPricing(svcId,vals)
-  toast(`تم حفظ ${label||'القسم'}`)
+  toast(isAr?`تم حفظ ${label||'القسم'}`:`Saved ${label||'section'}`)
 }
 // Save medical brackets only.
 const saveMedicalBrackets=(svcId)=>{
   const b=Array.isArray(priceState.medicalBrackets)?priceState.medicalBrackets:[]
   setPricing(svcId,{medicalBrackets:b})
-  toast('تم حفظ الفئات العمرية')
+  toast(T('تم حفظ الفئات العمرية','Age brackets saved'))
 }
 const SectionHead=({title,badge,isCollapsed,onToggle})=>(
   <div onClick={onToggle} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 8px',marginBottom:2,cursor:'pointer',userSelect:'none'}}>
-    <span style={{fontSize:isCollapsed?11:14,fontWeight:800,color:C.gold,display:'inline-flex',alignItems:'center',gap:6,transition:'font-size .15s'}}>
+    <span style={{fontSize:isCollapsed?12:13,fontWeight:600,color:C.gold,display:'inline-flex',alignItems:'center',gap:8,transition:'font-size .15s',letterSpacing:'-.2px'}}>
       <span>{title}</span>
-      {badge&&<span style={{fontSize:8.5,fontWeight:700,color:'rgba(212,160,23,.55)',padding:'1px 6px',borderRadius:4,border:'1px dashed rgba(212,160,23,.3)'}}>{badge}</span>}
+      {badge&&<span style={{fontSize:10,fontWeight:600,color:C.gold,padding:'2px 8px',borderRadius:5,background:'rgba(212,160,23,.10)',border:'1px solid rgba(212,160,23,.25)'}}>{badge}</span>}
     </span>
     {isCollapsed
       ? <ChevronDown size={14} style={{color:C.gold}}/>
@@ -882,11 +886,11 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
       {sch.fields.map(renderField)}
     </div>
 }
-<div style={{display:'flex',gap:8,justifyContent:'space-between',alignItems:'center',paddingTop:10,borderTop:'1px solid rgba(255,255,255,.05)',marginTop:8}}>
-<span style={{fontSize:10,color:'rgba(255,255,255,.4)',fontWeight:600}}>{isKafala?'كل قسم له زر حفظ مستقل — اضغط "حفظ" عند كل قسم لحفظ تعديلاته':''}</span>
+<div style={{display:'flex',gap:10,justifyContent:'space-between',alignItems:'center',paddingTop:14,borderTop:'1px solid rgba(255,255,255,.06)',marginTop:8,flexWrap:'wrap'}}>
+<span style={{fontSize:11,color:'var(--tx5)',fontWeight:500}}>{isKafala?'كل قسم له زر حفظ مستقل — اضغط "حفظ" عند كل قسم لحفظ تعديلاته':''}</span>
 <div style={{display:'flex',gap:8}}>
-<button type="button" onClick={()=>setExpanded(null)} style={{height:38,padding:'0 22px',borderRadius:9,border:'1px solid rgba(255,255,255,.1)',background:'rgba(255,255,255,.03)',color:'rgba(255,255,255,.75)',fontFamily:F,fontSize:12.5,fontWeight:700,cursor:'pointer',transition:'.18s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,.08)';e.currentTarget.style.color='#fff'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.color='rgba(255,255,255,.75)'}}>إغلاق</button>
-{!isKafala&&<button type="button" onClick={()=>savePrice(s.id)} style={{height:38,padding:'0 22px',borderRadius:9,border:`1px solid ${C.gold}`,background:'transparent',color:C.gold,fontFamily:F,fontSize:12.5,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,transition:'.18s'}} onMouseEnter={e=>{e.currentTarget.style.background=C.gold;e.currentTarget.style.color='#000'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color=C.gold}}>
+<button type="button" onClick={()=>setExpanded(null)} style={{height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>إغلاق</button>
+{!isKafala&&<button type="button" onClick={()=>savePrice(s.id)} style={{height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}}>
 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 <span>حفظ التسعير</span>
 </button>}
@@ -900,69 +904,132 @@ const st=getState(s.id)
 const I=s.Icon
 const isOpen=expanded===s.id
 const hasPrice=!!PRICING_SCHEMA[s.id]
-return<div key={s.id} style={{borderRadius:12,border:`1px solid ${!st.active?'rgba(192,57,43,.25)':'rgba(255,255,255,.06)'}`,background:!st.active?'rgba(192,57,43,.04)':'rgba(255,255,255,.015)',display:'flex',flexDirection:'column',opacity:!st.active?.85:1,transition:'.2s',overflow:'hidden'}}>
-<div style={{padding:'14px 16px',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:48,height:48,borderRadius:10,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.05)',display:'flex',alignItems:'center',justifyContent:'center',color:C.bentoGold,flexShrink:0}}>
-<I size={22} strokeWidth={1.6}/>
+const accent=!st.active?C.red:(!st.billable?C.ok:C.gold)
+const baseShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'
+return<div key={s.id} style={{...GLASS_CARD,display:'flex',flexDirection:'column',opacity:!st.active?.92:1,overflow:'hidden',transition:'.25s cubic-bezier(.4,0,.2,1)'}}
+onMouseEnter={e=>{if(isOpen)return;e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+accent+'33, inset 0 1px 0 rgba(255,255,255,.08)'}}
+onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=baseShadow}}>
+<div style={{padding:'18px 22px',display:'flex',alignItems:'center',gap:14}}>
+<div style={{width:44,height:44,borderRadius:11,background:'linear-gradient(180deg,rgba(212,160,23,.14),rgba(212,160,23,.06))',border:'1px solid rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold,flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,.05)'}}>
+<I size={20} strokeWidth={1.8}/>
 </div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)',fontFamily:F}}>{s.name_ar}</span>
-{!st.billable&&<span style={{fontSize:10,fontWeight:700,color:C.ok,background:'rgba(39,160,70,.12)',border:'1px solid rgba(39,160,70,.3)',padding:'2px 7px',borderRadius:5,fontFamily:F}}>مجانية</span>}
-{!st.active&&<span style={{fontSize:10,fontWeight:700,color:C.red,background:'rgba(192,57,43,.12)',border:'1px solid rgba(192,57,43,.3)',padding:'2px 7px',borderRadius:5,fontFamily:F}}>معطّلة</span>}
+<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4,flexWrap:'wrap'}}>
+<span style={{fontSize:14,fontWeight:600,color:'rgba(255,255,255,.92)',fontFamily:F}}>{s.name_ar}</span>
+{!st.billable&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.ok+'15',color:C.ok,display:'inline-flex',alignItems:'center',gap:5}}><span style={{width:5,height:5,borderRadius:'50%',background:C.ok}}/>مجانية</span>}
+{!st.active&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red,display:'inline-flex',alignItems:'center',gap:5}}><span style={{width:5,height:5,borderRadius:'50%',background:C.red}}/>معطّلة</span>}
 </div>
-<div style={{fontSize:10.5,color:'var(--tx5)',fontFamily:F,direction:'ltr'}}>{s.id}</div>
+<div style={{fontSize:11,color:'var(--tx5)',fontFamily:F,direction:'ltr',fontWeight:500}}>{s.id}</div>
 </div>
 {/* Edit price button */}
 {hasPrice&&st.billable&&<button type="button" onClick={()=>openPrice(s.id)} title={isOpen?'طيّ التفاصيل':'عرض التفاصيل'}
-style={{width:36,height:36,borderRadius:8,border:`1px solid ${isOpen?'rgba(212,160,23,.45)':'rgba(255,255,255,.08)'}`,background:isOpen?'rgba(212,160,23,.1)':'rgba(255,255,255,.03)',color:C.gold,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'.2s'}}>
-{isOpen?<ChevronUp size={17} strokeWidth={2.4}/>:<ChevronDown size={17} strokeWidth={2.4}/>}
+style={{height:40,padding:'0 14px',borderRadius:11,border:isOpen?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.06)',background:isOpen?'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:isOpen?C.gold:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:8,boxShadow:isOpen?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',flexShrink:0}}>
+<span>{isOpen?'إخفاء التسعير':'عرض التسعير'}</span>
+{isOpen?<ChevronUp size={14} strokeWidth={2.2}/>:<ChevronDown size={14} strokeWidth={2.2}/>}
 </button>}
 {/* Billable toggle */}
-<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
 <button type="button" onClick={()=>update(s.id,'billable',!st.billable)} title={st.billable?'اضغط لجعلها مجانية':'اضغط لجعلها مفوترة'}
-style={{width:46,height:24,borderRadius:999,border:'none',background:st.billable?C.bentoGold:'rgba(39,160,70,.7)',cursor:'pointer',position:'relative',transition:'.2s',padding:0}}>
+style={{width:46,height:24,borderRadius:999,border:'none',background:st.billable?C.gold:'rgba(39,160,70,.7)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
 <span style={{position:'absolute',width:18,height:18,borderRadius:'50%',background:'#fff',top:3,right:st.billable?3:25,transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center'}}>
-{st.billable?<DollarSign size={10} color={C.bentoGold} strokeWidth={3}/>:<Gift size={10} color={C.ok} strokeWidth={3}/>}
+{st.billable?<DollarSign size={10} color={C.gold} strokeWidth={3}/>:<Gift size={10} color={C.ok} strokeWidth={3}/>}
 </span>
 </button>
-<span style={{fontSize:9.5,fontWeight:700,color:st.billable?C.bentoGold:C.ok,fontFamily:F}}>{st.billable?'مفوترة':'مجانية'}</span>
+<span style={{fontSize:10,fontWeight:600,color:st.billable?C.gold:C.ok,fontFamily:F}}>{st.billable?'مفوترة':'مجانية'}</span>
 </div>
 {/* Active toggle */}
-<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
 <button type="button" onClick={()=>update(s.id,'active',!st.active)} title={st.active?'اضغط للتعطيل':'اضغط للتفعيل'}
-style={{width:46,height:24,borderRadius:999,border:'none',background:st.active?C.ok:'rgba(192,57,43,.7)',cursor:'pointer',position:'relative',transition:'.2s',padding:0}}>
+style={{width:46,height:24,borderRadius:999,border:'none',background:st.active?C.ok:'rgba(192,57,43,.7)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
 <span style={{position:'absolute',width:18,height:18,borderRadius:'50%',background:'#fff',top:3,right:st.active?3:25,transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center'}}>
 {st.active?<Power size={10} color={C.ok} strokeWidth={3}/>:<PowerOff size={10} color={C.red} strokeWidth={3}/>}
 </span>
 </button>
-<span style={{fontSize:9.5,fontWeight:700,color:st.active?C.ok:C.red,fontFamily:F}}>{st.active?'فعّالة':'معطّلة'}</span>
+<span style={{fontSize:10,fontWeight:600,color:st.active?C.ok:C.red,fontFamily:F}}>{st.active?'فعّالة':'معطّلة'}</span>
 </div>
 </div>
 {/* Expandable price editor */}
-{isOpen&&<div style={{padding:'26px 16px 14px',borderTop:'1px dashed rgba(212,160,23,.2)',background:'rgba(0,0,0,.12)'}}>
+{isOpen&&<div style={{padding:'24px 22px 18px',borderTop:'1px solid rgba(255,255,255,.06)',background:'rgba(0,0,0,.18)'}}>
 {renderPriceEditor(s)}
 </div>}
 </div>
 }
 
-const legend={position:'absolute',top:-9,right:14,background:'var(--bg,#111)',padding:'0 8px',fontSize:12,fontWeight:800,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
-const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative',display:'flex',flexDirection:'column',gap:10}
+const sectionCard={...GLASS_CARD,padding:'16px 18px',display:'flex',flexDirection:'column',gap:12}
+const sectionHead={display:'flex',alignItems:'center',gap:8,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,.06)'}
+const sectionTitle={fontSize:13,fontWeight:600,color:'rgba(255,255,255,.88)',display:'inline-flex',alignItems:'center',gap:8}
+const sectionIconBox={width:28,height:28,borderRadius:8,background:'linear-gradient(180deg,rgba(212,160,23,.14),rgba(212,160,23,.06))',border:'1px solid rgba(212,160,23,.25)',display:'inline-flex',alignItems:'center',justifyContent:'center',color:C.gold}
 
-return<div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:16,direction:'rtl',fontFamily:F}}>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<div style={{fontSize:18,fontWeight:800,color:'var(--tx)'}}>إدارة الخدمات</div>
-<div style={{fontSize:11,color:'var(--tx5)'}}>— تحكّم في حالة الخدمات ومجانيتها وتسعيرها</div>
+// KPI counts
+const totalCount=ALL_SERVICES.length
+const activeCount=ALL_SERVICES.filter(s=>{const st=getState(s.id);return st.active}).length
+const billableCount=ALL_SERVICES.filter(s=>{const st=getState(s.id);return st.billable&&st.active}).length
+const freeCount=ALL_SERVICES.filter(s=>{const st=getState(s.id);return !st.billable&&st.active}).length
+const disabledCount=totalCount-activeCount
+
+const [searchQ,setSearchQ]=useState('')
+const filterSvcs=(list)=>{
+  const q=searchQ.trim().toLowerCase()
+  if(!q)return list
+  return list.filter(s=>(s.name_ar||'').toLowerCase().includes(q)||(s.id||'').toLowerCase().includes(q))
+}
+const filteredMain=filterSvcs(mainSvcs)
+const filteredOther=filterSvcs(otherSvcs)
+
+return<div style={{padding:'24px 28px',display:'flex',flexDirection:'column',gap:14,direction:'rtl',fontFamily:F}}>
+{/* Page header */}
+<div style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>إدارة الخدمات</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>تحكّم في حالة الخدمات (مفعّلة / معطّلة)، فوترتها (مفوترة / مجانية)، وضبط التسعير الثابت لكل خدمة</div>
+</div>
 </div>
 
-<div style={fieldset}>
-<div style={legend}><Sparkles size={12} strokeWidth={2.2}/><span>الخدمات الرئيسية</span></div>
-<div style={{display:'flex',flexDirection:'column',gap:8}}>{mainSvcs.map(renderCard)}</div>
+{/* KPI strip */}
+<div style={{...GLASS_CARD,padding:'10px 12px',marginBottom:14}}>
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:8}}>
+{[
+{l:'إجمالي الخدمات',v:totalCount,c:C.gold},
+{l:'فعّالة',v:activeCount,c:C.ok},
+{l:'مفوترة',v:billableCount,c:C.gold},
+{l:'مجانية',v:freeCount,c:C.blue},
+{l:'معطّلة',v:disabledCount,c:C.red},
+].map(s=>(
+<div key={s.l} style={{padding:'7px 12px',borderRadius:10,...INNER_PILL,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<span style={{width:6,height:6,borderRadius:'50%',background:s.c,boxShadow:'0 0 5px '+s.c}}/>
+<div style={{fontSize:20,fontWeight:700,color:s.c,letterSpacing:'-.3px',direction:'ltr',lineHeight:1}}>{s.v}</div>
+</div>
+<div style={{fontSize:12,color:'var(--tx2)',fontWeight:600}}>{s.l}</div>
+</div>
+))}
+</div>
 </div>
 
-<div style={fieldset}>
-<div style={legend}><FileStack size={12} strokeWidth={2.2}/><span>الخدمات الأخرى</span></div>
-<div style={{display:'flex',flexDirection:'column',gap:8}}>{otherSvcs.map(renderCard)}</div>
+{/* Search bar */}
+<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,flexWrap:'wrap'}}>
+<div style={{flex:1,minWidth:240,position:'relative'}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,.4)'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="ابحث باسم الخدمة أو معرّفها..." style={{width:'100%',height:40,padding:'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',direction:'rtl',boxSizing:'border-box',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}/>
+</div>
+</div>
+
+{/* Main services */}
+<div style={sectionCard}>
+<div style={sectionHead}>
+<span style={sectionIconBox}><Sparkles size={14} strokeWidth={2.2}/></span>
+<div style={sectionTitle}><span>الخدمات الرئيسية</span><span style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>· {filteredMain.length} من {mainSvcs.length}</span></div>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:10}}>{filteredMain.length?filteredMain.map(renderCard):<div style={{textAlign:'center',padding:24,color:'var(--tx5)',fontSize:12}}>لا توجد نتائج</div>}</div>
+</div>
+
+{/* Other services */}
+<div style={sectionCard}>
+<div style={sectionHead}>
+<span style={sectionIconBox}><FileStack size={14} strokeWidth={2.2}/></span>
+<div style={sectionTitle}><span>الخدمات الأخرى</span><span style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>· {filteredOther.length} من {otherSvcs.length}</span></div>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:10}}>{filteredOther.length?filteredOther.map(renderCard):<div style={{textAlign:'center',padding:24,color:'var(--tx5)',fontSize:12}}>لا توجد نتائج</div>}</div>
 </div>
 
 <div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'10px 0'}}>

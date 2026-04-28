@@ -1,10 +1,14 @@
 import React,{useState,useEffect,useCallback} from 'react'
-const F="'Cairo',sans-serif"
+const F="'Cairo','Tajawal',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
+const GLASS_CARD={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
+const PILL_BG='linear-gradient(180deg,#2A2A2A 0%,#222 100%)'
+const PILL_SHADOW='inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'
+const FORM_INPUT={height:42,padding:'0 14px',borderRadius:10,border:'1px solid rgba(255,255,255,.07)',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',color:'var(--tx)',fontFamily:F,fontSize:13,fontWeight:500,outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',width:'100%',boxSizing:'border-box'}
 
 // ═══ Components OUTSIDE main function (prevents re-creation) ═══
 const fS={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center'}
-const bS={height:36,padding:'0 16px',borderRadius:8,border:'1px solid rgba(212,160,23,.2)',background:'rgba(212,160,23,.12)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5}
+const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}
 
 const ArrowIcon=({isOpen})=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.2s',transform:isOpen?'rotate(90deg)':'none',opacity:.7,flexShrink:0}}><polyline points="9 18 15 12 9 6"/></svg>
 
@@ -213,7 +217,7 @@ for(const u of updates){await sb.from(tbl).update({sort_order:u.sort_order}).eq(
 }
 setSavedFlash(true)
 setTimeout(()=>{setSavedFlash(false);onSaved&&onSaved();onClose()},1400)
-}catch(e){const msg=(e.message||'').toLowerCase();const dup=msg.includes('duplicate')||msg.includes('unique')||e.code==='23505';const errMsg=e.message||'';const badOccCat=e.code==='23514'&&errMsg.includes('Invalid category_id for occupation');const badNatCat=e.code==='23514'&&errMsg.includes('Invalid category_id for nationality');toast&&toast(badOccCat?(isAr?'فئة المهنة غير صالحة':'Invalid occupation category'):badNatCat?(isAr?'فئة الجنسية غير صالحة':'Invalid nationality category'):dup?(isAr?'الرمز مستخدم مسبقاً':'Code already exists'):('خطأ: '+errMsg.slice(0,80)))}
+}catch(e){const msg=(e.message||'').toLowerCase();const dup=msg.includes('duplicate')||msg.includes('unique')||e.code==='23505';const errMsg=e.message||'';const badOccCat=e.code==='23514'&&errMsg.includes('Invalid category_id for occupation');const badNatCat=e.code==='23514'&&errMsg.includes('Invalid category_id for nationality');toast&&toast(badOccCat?(isAr?'فئة المهنة غير صالحة':'Invalid occupation category'):badNatCat?(isAr?'فئة الجنسية غير صالحة':'Invalid nationality category'):dup?(isAr?'الرمز مستخدم مسبقاً':'Code already exists'):((isAr?'خطأ: ':'Error: ')+errMsg.slice(0,80)))}
 setLocalSaving(false)
 }
 const isSaving=localSaving||saving
@@ -425,10 +429,10 @@ setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
 
-const saveSetting=async(key,val)=>{const{error}=await sb.from('system_settings').update({setting_value:val,updated_at:new Date().toISOString()}).eq('setting_key',key);if(error)toast('خطأ');else toast(isAr?'تم الحفظ':'Saved')}
-const saveMuqeemCreds=async()=>{const u=(muqeemInputs.username||'').trim();const p=(muqeemInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setMuqeemSaving(true);const{error}=await sb.from('muqeem_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setMuqeemSaving(false);if(error){toast('خطأ: '+error.message?.slice(0,80));return}setMuqeemCreds({username:u,password:p,updated_at:new Date().toISOString()});setMuqeemEditing(false);setMuqeemShowPw(false);toast(isAr?'تم حفظ بيانات دخول مقيم':'Muqeem credentials saved')}
+const saveSetting=async(key,val)=>{const{error}=await sb.from('system_settings').update({setting_value:val,updated_at:new Date().toISOString()}).eq('setting_key',key);if(error)toast(isAr?'خطأ':'Error');else toast(isAr?'تم الحفظ':'Saved')}
+const saveMuqeemCreds=async()=>{const u=(muqeemInputs.username||'').trim();const p=(muqeemInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setMuqeemSaving(true);const{error}=await sb.from('muqeem_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setMuqeemSaving(false);if(error){toast((isAr?'خطأ: ':'Error: ')+error.message?.slice(0,80));return}setMuqeemCreds({username:u,password:p,updated_at:new Date().toISOString()});setMuqeemEditing(false);setMuqeemShowPw(false);toast(isAr?'تم حفظ بيانات دخول مقيم':'Muqeem credentials saved')}
 const cancelMuqeemEdit=()=>{setMuqeemInputs({username:muqeemCreds.username||'',password:muqeemCreds.password||''});setMuqeemEditing(false);setMuqeemShowPw(false)}
-const saveSbcCreds=async()=>{const u=(sbcInputs.username||'').trim();const p=(sbcInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setSbcSaving(true);const{error}=await sb.from('sbc_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setSbcSaving(false);if(error){toast('خطأ: '+error.message?.slice(0,80));return}setSbcCreds({username:u,password:p,updated_at:new Date().toISOString()});setSbcEditing(false);setSbcShowPw(false);toast(isAr?'تم حفظ بيانات دخول المركز السعودي':'SBC credentials saved')}
+const saveSbcCreds=async()=>{const u=(sbcInputs.username||'').trim();const p=(sbcInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setSbcSaving(true);const{error}=await sb.from('sbc_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setSbcSaving(false);if(error){toast((isAr?'خطأ: ':'Error: ')+error.message?.slice(0,80));return}setSbcCreds({username:u,password:p,updated_at:new Date().toISOString()});setSbcEditing(false);setSbcShowPw(false);toast(isAr?'تم حفظ بيانات دخول المركز السعودي':'SBC credentials saved')}
 const cancelSbcEdit=()=>{setSbcInputs({username:sbcCreds.username||'',password:sbcCreds.password||''});setSbcEditing(false);setSbcShowPw(false)}
 const saveForm=async()=>{setSaving(true);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
 if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
@@ -436,7 +440,7 @@ if(d.is_system!==undefined&&d.is_system!==null)d.is_system=d.is_system==='true'
 if(d.is_conditional!==undefined&&d.is_conditional!==null)d.is_conditional=d.is_conditional==='true'
 if(id){const{error}=await sb.from(t).update(d).eq('id',id);if(error)throw error;toast(isAr?'تم التعديل':'Updated')}
 else{if(['documents'].includes(t))d.created_by=user?.id;const{error}=await sb.from(t).insert(d);if(error)throw error;toast(isAr?'تمت الإضافة':'Added')}
-setPop(null);loadAll()}catch(e){toast('خطأ: '+e.message?.slice(0,80))}setSaving(false)}
+setPop(null);loadAll()}catch(e){toast((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setSaving(false)}
 const confirmDel=async()=>{if(!delTarget)return;const{table,id,cascade}=delTarget
 try{let err=null
 if(table==='documents'){const{error}=await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id);err=error}
@@ -468,8 +472,8 @@ setDelTarget({table,id,name,childCount,cascade:childCount>0})
 
 const getRef=(val,list,ak='name_ar',ek='name_en')=>{if(!val)return'—';const r=list.find(x=>x.id===val);return r?(isAr?r[ak]:r[ek]||r[ak]):'—'}
 
-const secS={display:'flex',alignItems:'center',gap:8,padding:'10px 0',fontSize:13,fontWeight:700,color:'rgba(255,255,255,.6)'}
-const cardS={background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:14,overflow:'hidden'}
+const secS={display:'flex',alignItems:'center',gap:8,padding:'10px 0',fontSize:13,fontWeight:600,color:'var(--tx2)'}
+const cardS={...GLASS_CARD,overflow:'hidden'}
 const parentRow={display:'flex',alignItems:'center',gap:10,padding:'12px 16px',cursor:'pointer',borderBottom:'1px solid var(--bd2)',transition:'.1s'}
 const childRow={display:'flex',alignItems:'center',gap:10,padding:'9px 16px 9px 42px',borderBottom:'1px solid rgba(255,255,255,.02)',background:'rgba(255,255,255,.015)'}
 
@@ -537,25 +541,27 @@ return<div>
 .jisr-key-copy.flash{color:${C.gold}!important}
 @media(max-width:640px){.jisr-meta-cluster{display:none!important}}
 `}</style>
-<div style={{marginBottom:20}}>
-<div style={{fontSize:24,fontWeight:800,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{mainTab==='fields_group'?(isAr?'الحقول':'Fields'):(isAr?'الإعدادات والتصنيفات':'Settings & Categories')}</div>
-<div style={{fontSize:12,color:'var(--tx4)',marginTop:8}}>{mainTab==='fields_group'?(isAr?'إدارة الخانات والمهن والجنسيات والمناطق':'Manage categories, occupations, nationalities & regions'):(isAr?'إدارة البيانات الأساسية والتصنيفات':'Manage core data & categories')}</div>
+<div style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>{mainTab==='fields_group'?(isAr?'الحقول':'Fields'):(isAr?'الإعدادات والتصنيفات':'Settings & Categories')}</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>{mainTab==='fields_group'?(isAr?'إدارة الخانات والمهن والجنسيات والمناطق':'Manage categories, occupations, nationalities & regions'):(isAr?'إدارة البيانات الأساسية والتصنيفات':'Manage core data & categories')}</div>
+</div>
 </div>
 
-{!defaultMainTab&&<div style={{display:'flex',gap:6,marginBottom:0,overflowX:'auto',scrollbarWidth:'none'}}>
-{tabGroups.map(g=><div key={g.id} onClick={()=>{setMainTab(g.id);setTab(g.tabs[0].id);setQ('');setListFilter('')}} style={{padding:'10px 18px',fontSize:13,fontWeight:mainTab===g.id?800:600,color:mainTab===g.id?C.gold:'rgba(255,255,255,.55)',background:mainTab===g.id?'rgba(212,160,23,.08)':'transparent',border:'1px solid '+(mainTab===g.id?'rgba(212,160,23,.3)':'rgba(255,255,255,.06)'),borderBottom:'none',borderRadius:'8px 8px 0 0',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap',flexShrink:0}}>{isAr?g.l:g.le}</div>)}
+{!defaultMainTab&&<div style={{display:'flex',gap:0,borderBottom:'1px solid rgba(255,255,255,.07)',marginBottom:14,overflowX:'auto',scrollbarWidth:'none'}}>
+{tabGroups.map(g=>{const sel=mainTab===g.id;return<div key={g.id} onClick={()=>{setMainTab(g.id);setTab(g.tabs[0].id);setQ('');setListFilter('')}} style={{padding:'10px 22px 9px',cursor:'pointer',color:sel?C.gold:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:sel?600:500,borderBottom:sel?'2px solid '+C.gold:'2px solid transparent',marginBottom:-1,transition:'.2s',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{isAr?g.l:g.le}</div>})}
 </div>}
-<div style={{display:'flex',gap:0,marginBottom:20,borderTop:defaultMainTab?'none':'1px solid var(--bd)',borderBottom:'1px solid var(--bd)',overflowX:'auto',scrollbarWidth:'none',background:defaultMainTab?'transparent':'rgba(255,255,255,.015)'}}>
-{currentGroup.tabs.map(t=><div key={t.id} onClick={()=>{setTab(t.id);setQ('');setListFilter('')}} style={{padding:'10px 16px',fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?C.gold:'rgba(255,255,255,.42)',borderBottom:tab===t.id?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap',flexShrink:0}}>{isAr?t.l:t.le}</div>)}
+<div style={{display:'flex',gap:0,borderBottom:'1px solid rgba(255,255,255,.07)',marginBottom:18,overflowX:'auto',scrollbarWidth:'none'}}>
+{currentGroup.tabs.map(t=>{const sel=tab===t.id;return<div key={t.id} onClick={()=>{setTab(t.id);setQ('');setListFilter('')}} style={{padding:'10px 22px 9px',cursor:'pointer',color:sel?C.gold:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:sel?600:500,borderBottom:sel?'2px solid '+C.gold:'2px solid transparent',marginBottom:-1,transition:'.2s',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{isAr?t.l:t.le}</div>})}
 </div>
 
 {tab==='general'&&<>
 {/* ── Muqeem bot credentials — read by the DigitalOcean bot every cycle ── */}
 <style>{`.muq-edit-btn{border-color:rgba(212,160,23,.45);color:rgba(212,160,23,.75);background:var(--bg);transition:.15s}.muq-edit-btn:hover{border-color:${C.gold};color:${C.gold}}.muq-save-btn{border-color:rgba(39,160,70,.5);color:rgba(39,160,70,.85);background:var(--bg);transition:.15s}.muq-save-btn:hover{border-color:${C.ok};color:${C.ok}}.muq-cancel-btn{border-color:rgba(192,57,43,.45);color:rgba(192,57,43,.8);background:var(--bg);transition:.15s}.muq-cancel-btn:hover{border-color:${C.red};color:${C.red}}.muq-in[data-editing] input:not([type=checkbox]):not([type=radio]):not([type=hidden]){border:1.5px solid rgba(255,255,255,.08)!important;box-shadow:none!important}.muq-in[data-editing] input:focus:not([type=checkbox]):not([type=radio]):not([type=hidden]){border-color:rgba(255,255,255,.22)!important}`}</style>
-<div style={{marginBottom:26,marginTop:14}}>
-<div style={{...secS,marginBottom:4}}><span style={{width:6,height:6,borderRadius:'50%',background:'#F28C28'}}/>{isAr?'بيانات دخول مقيم (البوت)':'Muqeem Bot Credentials'}</div>
+<div style={{marginBottom:14,marginTop:14}}>
+<div style={{...secS,marginBottom:4}}><span style={{width:6,height:6,borderRadius:'50%',background:'#F28C28',boxShadow:'0 0 5px #F28C28'}}/>{isAr?'بيانات دخول مقيم (البوت)':'Muqeem Bot Credentials'}</div>
 {muqeemCreds.updated_at&&<div style={{fontSize:10,color:'var(--tx5)',fontWeight:500,textAlign:isAr?'right':'left',marginBottom:8,paddingRight:16,paddingLeft:16}}>{isAr?'آخر تحديث: ':'Last updated: '}{new Date(muqeemCreds.updated_at).toLocaleString('en-GB')}</div>}
-<div className="muq-in" data-editing={muqeemEditing?'true':'false'} style={{position:'relative',padding:'26px 10px 10px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid '+(muqeemEditing?'rgba(212,160,23,.35)':'rgba(255,255,255,.1)'),display:'flex',flexDirection:'column',gap:8}}>
+<div className="muq-in" data-editing={muqeemEditing?'true':'false'} style={{position:'relative',padding:'26px 10px 10px',...GLASS_CARD,border:'1px solid '+(muqeemEditing?'rgba(212,160,23,.35)':'rgba(255,255,255,.08)'),display:'flex',flexDirection:'column',gap:8}}>
 {muqeemEditing
 ?<div style={{position:'absolute',top:-12,left:12,zIndex:2,display:'inline-flex',alignItems:'center',gap:6}}>
 <button onClick={saveMuqeemCreds} disabled={muqeemSaving||!muqeemInputs.username||!muqeemInputs.password} title={isAr?'حفظ التعديلات':'Save changes'} className="muq-save-btn" style={{height:24,padding:'0 12px',border:'1px solid',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,opacity:(muqeemSaving||!muqeemInputs.username||!muqeemInputs.password)?0.5:1}}>
@@ -572,21 +578,21 @@ return<div>
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
 </button>}
 <div style={{display:'flex',flexDirection:'column',gap:8,pointerEvents:muqeemEditing?'auto':'none',filter:muqeemEditing?'none':'saturate(.75)'}}>
-<div style={{padding:'10px 14px',fontSize:11,color:'var(--tx5)',lineHeight:1.7,background:'rgba(242,140,40,.04)',border:'1px solid rgba(255,255,255,.04)',borderRadius:8}}>{isAr?'يستخدمها البوت على DigitalOcean لتسجيل الدخول إلى مقيم كل 10 دقائق. أي تغيير هنا يتم تطبيقه في الدورة التالية للبوت تلقائياً.':'Used by the DigitalOcean bot to log into Muqeem every 10 minutes. Changes here are picked up on the bot\'s next cycle automatically.'}</div>
-<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:8,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{padding:'10px 14px',fontSize:11,color:'var(--tx4)',lineHeight:1.7,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',borderRadius:10,boxShadow:PILL_SHADOW}}>{isAr?'يستخدمها البوت على DigitalOcean لتسجيل الدخول إلى مقيم كل 10 دقائق. أي تغيير هنا يتم تطبيقه في الدورة التالية للبوت تلقائياً.':'Used by the DigitalOcean bot to log into Muqeem every 10 minutes. Changes here are picked up on the bot\'s next cycle automatically.'}</div>
+<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:10,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',boxShadow:PILL_SHADOW}}>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?'اسم المستخدم':'Username'}</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx2)',marginBottom:2}}>{isAr?'اسم المستخدم':'Username'}</div>
 <div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>MUQEEM_USERNAME</div>
 </div>
-<input value={muqeemInputs.username} onChange={e=>setMuqeemInputs(p=>({...p,username:e.target.value}))} readOnly={!muqeemEditing} autoComplete="off" style={{width:260,height:36,padding:'0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center'}}/>
+<input value={muqeemInputs.username} onChange={e=>setMuqeemInputs(p=>({...p,username:e.target.value}))} readOnly={!muqeemEditing} autoComplete="off" style={{...FORM_INPUT,width:260,direction:'ltr',textAlign:'center'}}/>
 </div>
-<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:8,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:10,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',boxShadow:PILL_SHADOW}}>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?'كلمة المرور':'Password'}</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx2)',marginBottom:2}}>{isAr?'كلمة المرور':'Password'}</div>
 <div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>MUQEEM_PASSWORD</div>
 </div>
 <div style={{position:'relative',width:260}}>
-<input type={muqeemShowPw?'text':'password'} value={muqeemInputs.password} onChange={e=>setMuqeemInputs(p=>({...p,password:e.target.value}))} readOnly={!muqeemEditing} autoComplete="new-password" style={{width:'100%',height:36,padding:'0 38px 0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center',boxSizing:'border-box'}}/>
+<input type={muqeemShowPw?'text':'password'} value={muqeemInputs.password} onChange={e=>setMuqeemInputs(p=>({...p,password:e.target.value}))} readOnly={!muqeemEditing} autoComplete="new-password" style={{...FORM_INPUT,width:'100%',padding:'0 38px 0 14px',direction:'ltr',textAlign:'center'}}/>
 <button type="button" onClick={()=>setMuqeemShowPw(s=>!s)} style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',width:24,height:24,borderRadius:6,border:'none',background:'transparent',color:'var(--tx5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}} title={muqeemShowPw?(isAr?'إخفاء':'Hide'):(isAr?'إظهار':'Show')}>
 {muqeemShowPw?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
 </button>
@@ -597,10 +603,10 @@ return<div>
 </div>
 
 {/* ── SBC (Saudi Business Center) bot credentials — same pattern as Muqeem ── */}
-<div style={{marginBottom:26}}>
-<div style={{...secS,marginBottom:4}}><span style={{width:6,height:6,borderRadius:'50%',background:'#D4A017'}}/>{isAr?'بيانات دخول المركز السعودي للأعمال (البوت)':'SBC Bot Credentials'}</div>
+<div style={{marginBottom:14}}>
+<div style={{...secS,marginBottom:4}}><span style={{width:6,height:6,borderRadius:'50%',background:'#D4A017',boxShadow:'0 0 5px #D4A017'}}/>{isAr?'بيانات دخول المركز السعودي للأعمال (البوت)':'SBC Bot Credentials'}</div>
 {sbcCreds.updated_at&&<div style={{fontSize:10,color:'var(--tx5)',fontWeight:500,textAlign:isAr?'right':'left',marginBottom:8,paddingRight:16,paddingLeft:16}}>{isAr?'آخر تحديث: ':'Last updated: '}{new Date(sbcCreds.updated_at).toLocaleString('en-GB')}</div>}
-<div className="muq-in" data-editing={sbcEditing?'true':'false'} style={{position:'relative',padding:'26px 10px 10px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid '+(sbcEditing?'rgba(212,160,23,.35)':'rgba(255,255,255,.1)'),display:'flex',flexDirection:'column',gap:8}}>
+<div className="muq-in" data-editing={sbcEditing?'true':'false'} style={{position:'relative',padding:'26px 10px 10px',...GLASS_CARD,border:'1px solid '+(sbcEditing?'rgba(212,160,23,.35)':'rgba(255,255,255,.08)'),display:'flex',flexDirection:'column',gap:8}}>
 {sbcEditing
 ?<div style={{position:'absolute',top:-12,left:12,zIndex:2,display:'inline-flex',alignItems:'center',gap:6}}>
 <button onClick={saveSbcCreds} disabled={sbcSaving||!sbcInputs.username||!sbcInputs.password} title={isAr?'حفظ التعديلات':'Save changes'} className="muq-save-btn" style={{height:24,padding:'0 12px',border:'1px solid',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,opacity:(sbcSaving||!sbcInputs.username||!sbcInputs.password)?0.5:1}}>
@@ -617,21 +623,21 @@ return<div>
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
 </button>}
 <div style={{display:'flex',flexDirection:'column',gap:8,pointerEvents:sbcEditing?'auto':'none',filter:sbcEditing?'none':'saturate(.75)'}}>
-<div style={{padding:'10px 14px',fontSize:11,color:'var(--tx5)',lineHeight:1.7,background:'rgba(212,160,23,.04)',border:'1px solid rgba(255,255,255,.04)',borderRadius:8}}>{isAr?'يستخدمها البوت للدخول إلى نفاذ ثم بوابة تيسير (المركز السعودي للأعمال). رمز التحقق يصل إلى قاعدة البيانات تلقائياً.':'Used by the bot to log into Nafath then Tayseer (SBC). The OTP arrives in the database automatically.'}</div>
-<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:8,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{padding:'10px 14px',fontSize:11,color:'var(--tx4)',lineHeight:1.7,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',borderRadius:10,boxShadow:PILL_SHADOW}}>{isAr?'يستخدمها البوت للدخول إلى نفاذ ثم بوابة تيسير (المركز السعودي للأعمال). رمز التحقق يصل إلى قاعدة البيانات تلقائياً.':'Used by the bot to log into Nafath then Tayseer (SBC). The OTP arrives in the database automatically.'}</div>
+<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:10,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',boxShadow:PILL_SHADOW}}>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?'اسم المستخدم (هوية نفاذ)':'Username (Nafath ID)'}</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx2)',marginBottom:2}}>{isAr?'اسم المستخدم (هوية نفاذ)':'Username (Nafath ID)'}</div>
 <div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>SBC_USERNAME</div>
 </div>
-<input value={sbcInputs.username} onChange={e=>setSbcInputs(p=>({...p,username:e.target.value}))} readOnly={!sbcEditing} autoComplete="off" style={{width:260,height:36,padding:'0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center'}}/>
+<input value={sbcInputs.username} onChange={e=>setSbcInputs(p=>({...p,username:e.target.value}))} readOnly={!sbcEditing} autoComplete="off" style={{...FORM_INPUT,width:260,direction:'ltr',textAlign:'center'}}/>
 </div>
-<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:8,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:10,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',boxShadow:PILL_SHADOW}}>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?'كلمة المرور':'Password'}</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx2)',marginBottom:2}}>{isAr?'كلمة المرور':'Password'}</div>
 <div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>SBC_PASSWORD</div>
 </div>
 <div style={{position:'relative',width:260}}>
-<input type={sbcShowPw?'text':'password'} value={sbcInputs.password} onChange={e=>setSbcInputs(p=>({...p,password:e.target.value}))} readOnly={!sbcEditing} autoComplete="new-password" style={{width:'100%',height:36,padding:'0 38px 0 12px',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:'ltr',textAlign:'center',boxSizing:'border-box'}}/>
+<input type={sbcShowPw?'text':'password'} value={sbcInputs.password} onChange={e=>setSbcInputs(p=>({...p,password:e.target.value}))} readOnly={!sbcEditing} autoComplete="new-password" style={{...FORM_INPUT,width:'100%',padding:'0 38px 0 14px',direction:'ltr',textAlign:'center'}}/>
 <button type="button" onClick={()=>setSbcShowPw(s=>!s)} style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',width:24,height:24,borderRadius:6,border:'none',background:'transparent',color:'var(--tx5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}} title={sbcShowPw?(isAr?'إخفاء':'Hide'):(isAr?'إظهار':'Show')}>
 {sbcShowPw?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
 </button>
@@ -648,23 +654,23 @@ return<div>
 {k:'defaults',l:'القيم الافتراضية',le:'Defaults'},
 {k:'reminders',l:'التنبيهات (أيام قبل الانتهاء)',le:'Reminders'},
 {k:'system',l:'النظام والأمان',le:'System & Security'}
-].map(cat=>{const items=sData.filter(s=>s.category===cat.k);if(!items.length)return null;return<div key={cat.k} style={{marginBottom:20}}>
-<div style={{...secS,marginBottom:8}}><span style={{width:6,height:6,borderRadius:'50%',background:cat.k==='reminders'?C.red:cat.k==='system'?C.blue:C.gold}}/>{isAr?cat.l:cat.le}<span style={{fontSize:10,color:'var(--tx5)'}}>{items.length}</span></div>
-<div style={cardS}>{items.map((s,i)=><div key={s.id} style={{display:'flex',alignItems:'center',padding:'12px 18px',borderBottom:i<items.length-1?'1px solid rgba(255,255,255,.04)':'none',gap:14}}>
+].map(cat=>{const items=sData.filter(s=>s.category===cat.k);if(!items.length)return null;const dotColor=cat.k==='reminders'?C.red:cat.k==='system'?C.blue:C.gold;return<div key={cat.k} style={{marginBottom:14}}>
+<div style={{...secS,marginBottom:12}}><span style={{width:6,height:6,borderRadius:'50%',background:dotColor,boxShadow:'0 0 5px '+dotColor}}/>{isAr?cat.l:cat.le}<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600}}>{items.length}</span></div>
+<div style={cardS}>{items.map((s,i)=><div key={s.id} style={{display:'flex',alignItems:'center',padding:'14px 22px',borderBottom:i<items.length-1?'1px solid rgba(255,255,255,.05)':'none',gap:14}}>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:13,fontWeight:600,color:'var(--tx)',marginBottom:2}}>{isAr?s.label_ar:s.label_en||s.setting_key}</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx2)',marginBottom:2}}>{isAr?s.label_ar:s.label_en||s.setting_key}</div>
 <div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr'}}>{s.setting_key}</div>
 </div>
 {s.input_type==='boolean'?
-<div style={{display:'flex',gap:4}}>
-{[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}].map(o=>{const on=s.setting_value===o.v;return<button key={o.v} onClick={()=>{saveSetting(s.setting_key,o.v);setSData(p=>p.map(x=>x.id===s.id?{...x,setting_value:o.v}:x))}} style={{height:32,padding:'0 14px',borderRadius:8,border:on?'1.5px solid rgba(212,160,23,.4)':'1.5px solid rgba(255,255,255,.1)',background:on?'rgba(212,160,23,.15)':'transparent',color:on?C.gold:'var(--tx5)',fontFamily:F,fontSize:11,fontWeight:on?700:500,cursor:'pointer'}}>{o.l}</button>})}
+<div style={{display:'flex',gap:6,padding:4,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',borderRadius:10,boxShadow:PILL_SHADOW}}>
+{[{v:'true',l:isAr?'نعم':'Yes'},{v:'false',l:isAr?'لا':'No'}].map(o=>{const on=s.setting_value===o.v;return<button key={o.v} onClick={()=>{saveSetting(s.setting_key,o.v);setSData(p=>p.map(x=>x.id===s.id?{...x,setting_value:o.v}:x))}} style={{height:30,padding:'0 14px',borderRadius:8,border:on?'1.5px solid rgba(212,160,23,.45)':'1.5px solid transparent',background:on?'linear-gradient(180deg,rgba(212,160,23,.18) 0%,rgba(212,160,23,.06) 100%)':'transparent',color:on?C.gold:'var(--tx3)',fontFamily:F,fontSize:12,fontWeight:on?700:500,cursor:'pointer',transition:'.18s'}}>{o.l}</button>})}
 </div>
 :s.input_type==='textarea'?
-<textarea defaultValue={s.setting_value||''} onBlur={e=>saveSetting(s.setting_key,e.target.value)} rows={2} style={{width:260,padding:'8px 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',resize:'vertical',direction:s.setting_key.includes('_ar')||s.setting_key.includes('label')?'rtl':'ltr'}}/>
+<textarea defaultValue={s.setting_value||''} onBlur={e=>saveSetting(s.setting_key,e.target.value)} rows={2} style={{...FORM_INPUT,width:260,height:'auto',padding:'10px 14px',resize:'vertical',direction:s.setting_key.includes('_ar')||s.setting_key.includes('label')?'rtl':'ltr'}}/>
 :s.input_type==='number'?
-<input type="number" defaultValue={s.setting_value||''} onBlur={e=>saveSetting(s.setting_key,e.target.value)} style={{width:120,height:36,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:13,fontWeight:700,color:C.gold,background:'rgba(255,255,255,.05)',outline:'none',textAlign:'center',direction:'ltr'}}/>
+<input type="number" defaultValue={s.setting_value||''} onBlur={e=>saveSetting(s.setting_key,e.target.value)} style={{...FORM_INPUT,width:120,fontWeight:700,color:C.gold,textAlign:'center',direction:'ltr'}}/>
 :
-<input defaultValue={s.setting_value||''} onBlur={e=>saveSetting(s.setting_key,e.target.value)} style={{width:260,height:36,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:8,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(255,255,255,.05)',outline:'none',direction:s.setting_key.includes('_ar')?'rtl':'ltr',textAlign:s.setting_key.includes('_ar')?'right':'left'}}/>
+<input defaultValue={s.setting_value||''} onBlur={e=>saveSetting(s.setting_key,e.target.value)} style={{...FORM_INPUT,width:260,direction:s.setting_key.includes('_ar')?'rtl':'ltr',textAlign:s.setting_key.includes('_ar')?'right':'left'}}/>
 }
 </div>)}</div>
 </div>})}</>}
@@ -694,13 +700,13 @@ const onDrop=async(e,dropIdx)=>{
 }
 return<>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
-<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold}}/><span style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{isAr?'المناطق والمدن والأحياء':'Regions, Cities & Districts'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{(q?filtered.length:regions.length)} {isAr?'منطقة':'regions'} · {cities.length} {isAr?'مدينة':'cities'} · {districtsList.length} {isAr?'حي':'districts'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><span style={{fontSize:15,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{isAr?'المناطق والمدن والأحياء':'Regions, Cities & Districts'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{(q?filtered.length:regions.length)} {isAr?'منطقة':'regions'} · {cities.length} {isAr?'مدينة':'cities'} · {districtsList.length} {isAr?'حي':'districts'}</span></div>
 <div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 280px',minWidth:0,justifyContent:'flex-end'}}>
 <div style={{position:'relative',flex:'1 1 200px',minWidth:160,maxWidth:460}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?12:'auto',left:isAr?'auto':12,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:36,padding:isAr?'0 34px 0 12px':'0 12px 0 34px',borderRadius:8,border:'1px solid rgba(255,255,255,.12)',background:'rgba(0,0,0,.25)',color:'var(--tx)',fontFamily:F,fontSize:12,outline:'none',minWidth:0,boxSizing:'border-box'}}/>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?14:'auto',left:isAr?'auto':14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<button onClick={()=>{const maxOrder=regions.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'regions',name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',is_system:'false'});setPop('r')}} style={{...bS,height:36,flexShrink:0}}>{isAr?'منطقة':'Region'} +</button>
+<button onClick={()=>{const maxOrder=regions.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'regions',name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',is_system:'false'});setPop('r')}} style={{...bS,flexShrink:0}}>{isAr?'منطقة':'Region'} +</button>
 </div></div>
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد مناطق':'No regions'}</div>:<>
 {filtered.map((r,idx)=>{const rActive=r.is_active!==false;const toggleRegion=async()=>{const next=!rActive;setRegions(p=>p.map(o=>o.id===r.id?{...o,is_active:next}:o));const{error}=await sb.from('regions').update({is_active:next}).eq('id',r.id);if(error){setRegions(p=>p.map(o=>o.id===r.id?{...o,is_active:rActive}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const rcAll=cities.filter(c=>c.region_id===r.id);const regSelfMatch=q&&((r.name_ar||'').includes(q)||(r.name_en||'').toLowerCase().includes(qLower)||(r.code||'').includes(q));const rc=q&&!regSelfMatch?rcAll.filter(c=>(c.name_ar||'').includes(q)||(c.name_en||'').toLowerCase().includes(qLower)||(c.code||'').includes(q)||cityMatchDist.has(c.id)):rcAll;const citiesKey='r_'+r.id;const citiesOpen=!!open[citiesKey]||(q&&regMatchChild.has(r.id));const addCity=()=>{const maxOrder=rcAll.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'cities',region_id:r.id,name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',is_system:'false'});setPop('c')};return<div key={r.id} style={{borderBottom:'1px solid rgba(255,255,255,.05)'}}>
@@ -817,14 +823,14 @@ for(const row of rowsToPersist){await sb.from('occupations').update({sort_order:
 }
 return<>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
-<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold}}/><span style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{isAr?'المهن':'Occupations'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{isAr?'عرض':'showing'} {filtered.length} {isAr?'من':'of'} {occupationsList.length}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><span style={{fontSize:15,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{isAr?'المهن':'Occupations'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{isAr?'عرض':'showing'} {filtered.length} {isAr?'من':'of'} {occupationsList.length}</span></div>
 <div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 280px',minWidth:0,justifyContent:'flex-end',flexWrap:'wrap'}}>
-<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{(()=>{const chips=[{v:'active',l:isAr?'الكل':'All'},...occItems.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en):(i.value_en||i.value_ar),code:i.code}))];const palette={domestic:{c:'#a78bfa',bg:'rgba(167,139,250,.12)',bd:'rgba(167,139,250,.45)'},archived:{c:'#9ca3af',bg:'rgba(156,163,175,.12)',bd:'rgba(156,163,175,.4)'},establishment:{c:'#7fb3d5',bg:'rgba(52,131,180,.12)',bd:'rgba(52,131,180,.4)'}};return chips.map(c=>{const on=occCatFilter===c.v;const pal=palette[c.code]||{c:C.gold,bg:'rgba(212,160,23,.12)',bd:'rgba(212,160,23,.35)'};const bg=on?pal.bg:'transparent';const bd=on?pal.bd:'rgba(255,255,255,.08)';return<button key={c.v} type="button" onClick={()=>setOccCatFilter(c.v)} style={{height:26,padding:'0 10px',borderRadius:6,border:'1px solid '+bd,background:bg,color:on?pal.c:'rgba(255,255,255,.55)',fontFamily:F,fontSize:10,fontWeight:on?700:600,cursor:'pointer',transition:'.15s',whiteSpace:'nowrap'}}>{c.l}</button>})})()}</div>
+<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{(()=>{const chips=[{v:'active',l:isAr?'الكل':'All'},...occItems.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en):(i.value_en||i.value_ar),code:i.code}))];const palette={domestic:{c:'#a78bfa',bg:'rgba(167,139,250,.12)',bd:'rgba(167,139,250,.45)'},archived:{c:'#9ca3af',bg:'rgba(156,163,175,.12)',bd:'rgba(156,163,175,.4)'},establishment:{c:'#7fb3d5',bg:'rgba(52,131,180,.12)',bd:'rgba(52,131,180,.4)'}};return chips.map(c=>{const on=occCatFilter===c.v;const pal=palette[c.code]||{c:C.gold,bg:'rgba(212,160,23,.18)',bd:'rgba(212,160,23,.45)'};const bg=on?'linear-gradient(180deg,'+pal.bg+' 0%,rgba(0,0,0,.05) 100%)':'transparent';const bd=on?pal.bd:'rgba(255,255,255,.06)';return<button key={c.v} type="button" onClick={()=>setOccCatFilter(c.v)} style={{height:30,padding:'0 12px',borderRadius:9,border:'1.5px solid '+bd,background:bg,color:on?pal.c:'var(--tx3)',fontFamily:F,fontSize:11,fontWeight:on?700:500,cursor:'pointer',transition:'.18s',whiteSpace:'nowrap',boxShadow:on?'inset 0 1px 0 rgba(255,255,255,.06)':'none'}}>{c.l}</button>})})()}</div>
 <div style={{position:'relative',flex:'1 1 200px',minWidth:160,maxWidth:460}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?12:'auto',left:isAr?'auto':12,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:36,padding:isAr?'0 34px 0 12px':'0 12px 0 34px',borderRadius:8,border:'1px solid rgba(255,255,255,.12)',background:'rgba(0,0,0,.25)',color:'var(--tx)',fontFamily:F,fontSize:12,outline:'none',minWidth:0,boxSizing:'border-box'}}/>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?14:'auto',left:isAr?'auto':14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<button onClick={()=>{const maxOrder=occupationsList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);const occCat=lLists.find(l=>l.category_key==='occupation_category');const establishment=occCat?lItems.find(i=>i.category_id===occCat.id&&i.code==='establishment'):null;setForm({_table:'occupations',name_ar:'',name_en:'',code:'',qiwa_id:'',category_id:establishment?.id||'',is_active:'true',is_system:'false',sort_order:String(maxOrder+1)});setPop('occ')}} style={{...bS,height:36,flexShrink:0}}>{isAr?'مهنة':'Occupation'} +</button>
+<button onClick={()=>{const maxOrder=occupationsList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);const occCat=lLists.find(l=>l.category_key==='occupation_category');const establishment=occCat?lItems.find(i=>i.category_id===occCat.id&&i.code==='establishment'):null;setForm({_table:'occupations',name_ar:'',name_en:'',code:'',qiwa_id:'',category_id:establishment?.id||'',is_active:'true',is_system:'false',sort_order:String(maxOrder+1)});setPop('occ')}} style={{...bS,flexShrink:0}}>{isAr?'مهنة':'Occupation'} +</button>
 </div></div>
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد مهن':'No occupations'}</div>:<>
 {shown.map((it,idx)=>{const active=it.is_active!==false;const toggleActive=async()=>{const next=!active;setOccupationsList(p=>p.map(o=>o.id===it.id?{...o,is_active:next}:o));const{error}=await sb.from('occupations').update({is_active:next}).eq('id',it.id);if(error){setOccupationsList(p=>p.map(o=>o.id===it.id?{...o,is_active:active}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};return<div key={it.id} className="jisr-list-row" draggable={!q} onDragStart={e=>onDragStart(e,idx)} onDragOver={onDragOver} onDrop={e=>onDrop(e,idx)} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:'1px solid rgba(255,255,255,.05)',cursor:q?'default':'grab',opacity:active?1:0.55,flexWrap:'wrap'}}>
@@ -879,14 +885,14 @@ for(const row of rowsToPersist){await sb.from('nationalities').update({sort_orde
 }
 return<>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
-<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold}}/><span style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{isAr?'الجنسيات والسفارات':'Nationalities & Embassies'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{filtered.length} {isAr?'من':'of'} {natList.length} {isAr?'جنسية':'nationalities'} · {embList.length} {isAr?'سفارة':'embassies'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><span style={{fontSize:15,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{isAr?'الجنسيات والسفارات':'Nationalities & Embassies'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{filtered.length} {isAr?'من':'of'} {natList.length} {isAr?'جنسية':'nationalities'} · {embList.length} {isAr?'سفارة':'embassies'}</span></div>
 <div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 280px',minWidth:0,justifyContent:'flex-end',flexWrap:'wrap'}}>
-<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{(()=>{const chips=[{v:'all',l:isAr?'الكل':'All'},...natItems.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en):(i.value_en||i.value_ar),code:i.code}))];const palette={gulf:{c:'#a3c98f',bg:'rgba(163,201,143,.12)',bd:'rgba(163,201,143,.45)'},arab:{c:'#7fb3d5',bg:'rgba(127,179,213,.12)',bd:'rgba(127,179,213,.45)'},foreign:{c:'#9ca3af',bg:'rgba(156,163,175,.12)',bd:'rgba(156,163,175,.4)'}};return chips.map(c=>{const on=natCatFilter===c.v;const pal=palette[c.code]||{c:C.gold,bg:'rgba(212,160,23,.12)',bd:'rgba(212,160,23,.35)'};const bg=on?pal.bg:'transparent';const bd=on?pal.bd:'rgba(255,255,255,.08)';return<button key={c.v} type="button" onClick={()=>setNatCatFilter(c.v)} style={{height:26,padding:'0 10px',borderRadius:6,border:'1px solid '+bd,background:bg,color:on?pal.c:'rgba(255,255,255,.55)',fontFamily:F,fontSize:10,fontWeight:on?700:600,cursor:'pointer',transition:'.15s',whiteSpace:'nowrap'}}>{c.l}</button>})})()}</div>
+<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{(()=>{const chips=[{v:'all',l:isAr?'الكل':'All'},...natItems.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en):(i.value_en||i.value_ar),code:i.code}))];const palette={gulf:{c:'#a3c98f',bg:'rgba(163,201,143,.12)',bd:'rgba(163,201,143,.45)'},arab:{c:'#7fb3d5',bg:'rgba(127,179,213,.12)',bd:'rgba(127,179,213,.45)'},foreign:{c:'#9ca3af',bg:'rgba(156,163,175,.12)',bd:'rgba(156,163,175,.4)'}};return chips.map(c=>{const on=natCatFilter===c.v;const pal=palette[c.code]||{c:C.gold,bg:'rgba(212,160,23,.18)',bd:'rgba(212,160,23,.45)'};const bg=on?'linear-gradient(180deg,'+pal.bg+' 0%,rgba(0,0,0,.05) 100%)':'transparent';const bd=on?pal.bd:'rgba(255,255,255,.06)';return<button key={c.v} type="button" onClick={()=>setNatCatFilter(c.v)} style={{height:30,padding:'0 12px',borderRadius:9,border:'1.5px solid '+bd,background:bg,color:on?pal.c:'var(--tx3)',fontFamily:F,fontSize:11,fontWeight:on?700:500,cursor:'pointer',transition:'.18s',whiteSpace:'nowrap',boxShadow:on?'inset 0 1px 0 rgba(255,255,255,.06)':'none'}}>{c.l}</button>})})()}</div>
 <div style={{position:'relative',flex:'1 1 200px',minWidth:160,maxWidth:460}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?12:'auto',left:isAr?'auto':12,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:36,padding:isAr?'0 34px 0 12px':'0 12px 0 34px',borderRadius:8,border:'1px solid rgba(255,255,255,.12)',background:'rgba(0,0,0,.25)',color:'var(--tx)',fontFamily:F,fontSize:12,outline:'none',minWidth:0,boxSizing:'border-box'}}/>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?14:'auto',left:isAr?'auto':14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<button onClick={()=>{const maxOrder=natList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'nationalities',name_ar:'',name_en:'',code:'',qiwa_id:'',country_name_ar:'',country_name_en:'',flag_url:'',category_id:foreignNatItem?.id||'',is_active:'true',is_system:'false',sort_order:String(maxOrder+1)});setPop('nat')}} style={{...bS,height:36,flexShrink:0}}>{isAr?'جنسية':'Nationality'} +</button>
+<button onClick={()=>{const maxOrder=natList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'nationalities',name_ar:'',name_en:'',code:'',qiwa_id:'',country_name_ar:'',country_name_en:'',flag_url:'',category_id:foreignNatItem?.id||'',is_active:'true',is_system:'false',sort_order:String(maxOrder+1)});setPop('nat')}} style={{...bS,flexShrink:0}}>{isAr?'جنسية':'Nationality'} +</button>
 </div></div>
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد جنسيات':'No nationalities'}</div>:<>
 {shown.map((it,idx)=>{const active=it.is_active!==false;const toggleActive=async()=>{const next=!active;setNatList(p=>p.map(o=>o.id===it.id?{...o,is_active:next}:o));const{error}=await sb.from('nationalities').update({is_active:next}).eq('id',it.id);if(error){setNatList(p=>p.map(o=>o.id===it.id?{...o,is_active:active}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const embs=embList.filter(e=>e.nationality_id===it.id);const embKey='nat_'+it.id;const embOpen=!!open[embKey]||(q&&natMatchEmb.has(it.id));const addEmbassy=()=>{setForm({_table:'embassies',nationality_id:it.id,name_ar:'',name_en:'',code:'',qiwa_id:'',is_active:'true',is_system:'false',sort_order:''});setPop('emb')};return<div key={it.id} style={{borderBottom:'1px solid rgba(255,255,255,.05)'}}>
@@ -962,13 +968,13 @@ const onItemDragOver=(e)=>{e.preventDefault();e.stopPropagation();e.dataTransfer
 const onItemDrop=async(e,dropIdx,catId,catItems)=>{e.preventDefault();e.stopPropagation();if(q)return;let data;try{data=JSON.parse(e.dataTransfer.getData('text/plain'))}catch{return}if(!data||data.kind!=='item'||data.catId!==catId)return;const fromIdx=data.fromIdx;if(fromIdx===dropIdx)return;const next=[...catItems];const[moved]=next.splice(fromIdx,1);next.splice(dropIdx,0,moved);const updatedIds=new Set(next.map(x=>x.id));setLItems(prev=>{const others=prev.filter(x=>!updatedIds.has(x.id));const updatedInCat=next.map((o,i)=>({...o,sort_order:i+1}));return[...others,...updatedInCat]});for(let i=0;i<next.length;i++){await sb.from('lookup_items').update({sort_order:i+1}).eq('id',next[i].id)}}
 return<>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
-<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold}}/><span style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{isAr?'الخانات والعناصر':'Categories & Items'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{(q?filtered.length:lLists.length)} {isAr?'خانة':'categories'} · {lItems.length} {isAr?'عنصر':'items'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><span style={{fontSize:15,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{isAr?'الخانات والعناصر':'Categories & Items'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{(q?filtered.length:lLists.length)} {isAr?'خانة':'categories'} · {lItems.length} {isAr?'عنصر':'items'}</span></div>
 <div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 280px',minWidth:0,justifyContent:'flex-end'}}>
 <div style={{position:'relative',flex:'1 1 200px',minWidth:160,maxWidth:460}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?12:'auto',left:isAr?'auto':12,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو المفتاح...':'Search AR/EN/key...'} style={{width:'100%',height:36,padding:isAr?'0 34px 0 12px':'0 12px 0 34px',borderRadius:8,border:'1px solid rgba(255,255,255,.12)',background:'rgba(0,0,0,.25)',color:'var(--tx)',fontFamily:F,fontSize:12,outline:'none',minWidth:0,boxSizing:'border-box'}}/>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?14:'auto',left:isAr?'auto':14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو المفتاح...':'Search AR/EN/key...'} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<button onClick={()=>{setForm({_table:'lookup_categories',code:'',name_ar:'',name_en:'',is_system:'false',is_active:'true'});setPop('ll')}} style={{...bS,height:36,flexShrink:0}}>{isAr?'خانة':'Category'} +</button>
+<button onClick={()=>{setForm({_table:'lookup_categories',code:'',name_ar:'',name_en:'',is_system:'false',is_active:'true'});setPop('ll')}} style={{...bS,flexShrink:0}}>{isAr?'خانة':'Category'} +</button>
 </div></div>
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد خانات':'No categories'}</div>:<>
 {filtered.map((ll,idx)=>{const cActive=ll.is_active!==false;const toggleCat=async()=>{const next=!cActive;setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:next}:o));const{error}=await sb.from('lookup_categories').update({is_active:next}).eq('id',ll.id);if(error){setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:cActive}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const li2=lItems.filter(i=>i.category_id===ll.id);const itemsKey='ll_'+ll.id;const itemsOpen=!!open[itemsKey]||(q&&catMatchChild.has(ll.id));const isBnk=ll.category_key==='bank_name';const addItem=()=>{setForm({_table:'lookup_items',category_id:ll.id,name_ar:'',name_en:'',code:'',is_active:'true',is_system:'false',...(isBnk?{type_id:''}:{})});setPop(isBnk?'bnk':'li')};return<div key={ll.id} style={{borderBottom:'1px solid rgba(255,255,255,.05)'}}>
@@ -1033,25 +1039,25 @@ li2.map((it,iIdx)=>{const iActive=it.is_active!==false;const toggleItem=async()=
 
 {/* DOCUMENTS */}
 {tab==='documents'&&<>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={secS}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{isAr?'الوثائق':'Documents'}<MetaText t={'— '+docs.length}/></div>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
+<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><span style={{fontSize:15,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{isAr?'الوثائق':'Documents'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{docs.length} {isAr?'وثيقة':'documents'}</span></div>
 <button onClick={()=>{setForm({_table:'documents',title:'',document_type:'',entity_type:'',description:''});setPop('doc')}} style={bS}>{isAr?'وثيقة':'Document'} +</button>
 </div>
 <div style={cardS}>
 <table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
-<thead><tr style={{background:'rgba(255,255,255,.04)',borderBottom:'1px solid rgba(255,255,255,.08)'}}>
-<th style={{padding:'12px 16px',textAlign:'right',fontSize:11,fontWeight:600,color:'var(--tx4)',width:36}}>#</th>
-<th style={{padding:'12px 16px',textAlign:'right',fontSize:11,fontWeight:600,color:'var(--tx4)'}}>العنوان</th>
-<th style={{padding:'12px 16px',textAlign:'right',fontSize:11,fontWeight:600,color:'var(--tx4)'}}>النوع</th>
-<th style={{padding:'12px 16px',textAlign:'right',fontSize:11,fontWeight:600,color:'var(--tx4)'}}>الكيان</th>
-<th style={{padding:'12px',textAlign:'center',width:80}}></th>
+<thead><tr style={{background:'rgba(0,0,0,.18)',borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+<th style={{padding:'14px 22px',textAlign:'right',fontSize:12,fontWeight:600,color:'var(--tx3)',width:36}}>#</th>
+<th style={{padding:'14px 22px',textAlign:'right',fontSize:12,fontWeight:600,color:'var(--tx3)'}}>العنوان</th>
+<th style={{padding:'14px 22px',textAlign:'right',fontSize:12,fontWeight:600,color:'var(--tx3)'}}>النوع</th>
+<th style={{padding:'14px 22px',textAlign:'right',fontSize:12,fontWeight:600,color:'var(--tx3)'}}>الكيان</th>
+<th style={{padding:'14px 12px',textAlign:'center',width:80}}></th>
 </tr></thead>
 <tbody>{docs.length===0?<tr><td colSpan={5} style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد وثائق':'No documents'}</td></tr>:
-docs.map((d,i)=><tr key={d.id} style={{borderBottom:'1px solid var(--bd2)'}}>
-<td style={{padding:'12px 16px',fontSize:11,color:'var(--tx5)'}}>{i+1}</td>
-<td style={{padding:'12px 16px',fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{d.title||'—'}</td>
-<td style={{padding:'12px 16px',fontSize:12,color:'rgba(255,255,255,.6)'}}>{d.document_type||'—'}</td>
-<td style={{padding:'12px 16px',fontSize:12,color:'rgba(255,255,255,.6)'}}>{d.entity_type||'—'}</td>
+docs.map((d,i)=><tr key={d.id} style={{borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+<td style={{padding:'14px 22px',fontSize:11,color:'var(--tx5)'}}>{i+1}</td>
+<td style={{padding:'14px 22px',fontSize:13,fontWeight:500,color:'var(--tx2)'}}>{d.title||'—'}</td>
+<td style={{padding:'14px 22px',fontSize:12,color:'var(--tx3)'}}>{d.document_type||'—'}</td>
+<td style={{padding:'14px 22px',fontSize:12,color:'var(--tx3)'}}>{d.entity_type||'—'}</td>
 <td style={{padding:'8px',textAlign:'center'}}><div style={{display:'flex',gap:4,justifyContent:'center'}}>
 <EditBtn onClick={()=>{setForm({_table:'documents',_id:d.id,title:d.title||'',document_type:d.document_type||'',entity_type:d.entity_type||'',description:d.description||''});setPop('doc')}}/>
 <DelBtn onClick={()=>askDel('documents',d.id,d.title)}/>

@@ -13,7 +13,24 @@ import OfficialStampBadge from '../../components/ui/OfficialStampBadge.jsx'
 import RolePageRouter from './roles/RolePageRouter.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
+const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
+
+const GLASS_CARD = {
+  background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+  backdropFilter: 'blur(20px) saturate(160%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+  border: '1px solid rgba(255,255,255,.08)',
+  borderRadius: 16,
+  boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
+}
+
+const INNER_PILL = {
+  padding: '7px 12px', borderRadius: 10,
+  background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+  border: '1px solid rgba(255,255,255,.06)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+}
 
 const ROLE_STYLES = {
   'مستخدم':  { bg: 'rgba(212,160,23,.15)', fg: '#d9bf5e', bd: 'rgba(212,160,23,.3)', plain: C.gold },
@@ -27,29 +44,44 @@ const ROLE_STYLES = {
   'سعودة':   { bg: 'rgba(52,131,180,.15)', fg: '#6bb6e6', bd: 'rgba(52,131,180,.3)', plain: '#3483b4' },
 }
 
+const SYNC_SOURCES = [
+  { id: 'sbc',      label: 'المركز السعودي للأعمال', color: '#9b59b6', Icon: Building2  },
+  { id: 'qiwa',     label: 'قوى',                    color: '#3b82f6', Icon: Briefcase  },
+  { id: 'muqeem',   label: 'مقيم',                   color: '#f59e0b', Icon: CreditCard },
+  { id: 'gosi',     label: 'التأمينات الاجتماعية',   color: '#22c55e', Icon: Shield     },
+  { id: 'chambers', label: 'الغرف التجارية',         color: '#06b6d4', Icon: Building2  },
+  { id: 'ajeer',    label: 'أجير',                   color: '#eab308', Icon: Users      },
+  { id: 'mudad',    label: 'مدد',                    color: '#0ea5e9', Icon: Calendar   },
+  { id: 'zatca',    label: 'هيئة الزكاة والدخل',     color: '#7dd3fc', Icon: Flag       },
+]
+
 const RoleChip = ({ role, small }) => {
   const s = ROLE_STYLES[role] || { bg: 'rgba(255,255,255,.06)', fg: 'var(--tx3)', bd: 'rgba(255,255,255,.1)' }
   return (
     <span style={{
-      fontSize: small ? 9 : 10, fontWeight: 700, color: s.fg,
+      fontSize: small ? 9 : 10, fontWeight: 600, color: s.fg,
       background: s.bg, border: `1px solid ${s.bd}`,
-      padding: small ? '2px 7px' : '3px 9px', borderRadius: 6, whiteSpace: 'nowrap', lineHeight: 1.3
-    }}>{role}</span>
+      padding: small ? '2px 7px' : '4px 10px', borderRadius: 6, whiteSpace: 'nowrap', lineHeight: 1.3,
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.plain || s.fg }} />
+      {role}
+    </span>
   )
 }
 
 const StatusBadge = ({ status }) => {
   const active = status === 'active'
+  const c = active ? '#6dcc89' : 'var(--tx4)'
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
-      fontSize: 10, fontWeight: 800,
-      color: active ? '#6dcc89' : 'var(--tx4)',
-      background: active ? 'rgba(39,160,70,.12)' : 'rgba(255,255,255,.05)',
-      border: `1px solid ${active ? 'rgba(39,160,70,.3)' : 'rgba(255,255,255,.1)'}`,
-      padding: '3px 10px', borderRadius: 6
+      fontSize: 10, fontWeight: 600,
+      color: c,
+      background: active ? 'rgba(39,160,70,.15)' : 'rgba(255,255,255,.05)',
+      padding: '4px 10px', borderRadius: 6,
     }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: active ? '#6dcc89' : 'var(--tx4)' }} />
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: c }} />
       {active ? 'نشط' : 'مؤرشف'}
     </span>
   )
@@ -163,8 +195,12 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
   })()
 
   const hasAdvFilters = Object.values(advFilter).some(Boolean)
-  const glassCard = { background: '#141414', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '10px 12px', position: 'relative', overflow: 'hidden', transition: '.2s' }
-  const innerBox = { background: '#1a1a1a', border: '1px solid rgba(255,255,255,.04)' }
+  const glassCard = { ...GLASS_CARD, padding: '10px 12px', position: 'relative', overflow: 'hidden', transition: '.2s' }
+  const innerBox = {
+    background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+    border: '1px solid rgba(255,255,255,.06)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
@@ -173,15 +209,18 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
         input.px-noring.px-noring.px-noring.px-noring:not(:placeholder-shown),
         select.px-noring.px-noring.px-noring.px-noring,
         textarea.px-noring.px-noring.px-noring.px-noring{
-          border-color:rgba(255,255,255,.08)!important; box-shadow:none!important;
+          border-color:rgba(255,255,255,.07)!important;
+          box-shadow:0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)!important;
         }
         select.px-noring.px-noring.px-noring.px-noring{
-          background-color:#141414!important; border-color:rgba(255,255,255,.06)!important;
+          background-image:linear-gradient(180deg,#323232 0%,#262626 100%)!important;
+          border-color:rgba(255,255,255,.07)!important;
         }
         input.px-noring.px-noring.px-noring.px-noring:focus,
         select.px-noring.px-noring.px-noring.px-noring:focus,
         textarea.px-noring.px-noring.px-noring.px-noring:focus{
-          border-color:rgba(255,255,255,.08)!important; box-shadow:none!important;
+          border-color:rgba(212,160,23,.35)!important;
+          box-shadow:0 2px 8px rgba(212,160,23,.14), inset 0 1px 0 rgba(255,255,255,.06)!important;
         }
         /* Re-enable the app-wide gold search-box focus ring: this selector
            beats the .px-noring x4 specificity above. */
@@ -196,55 +235,54 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
       `}</style>
 
       {/* ═══ Header ═══ */}
-      <div style={{ marginBottom: 14, position: 'relative' }}>
-        {/* Add button (top-left) — outlined gold, no fill */}
-        <button onClick={openAdd}
-          style={{ position: 'absolute', top: -2, left: 0, zIndex: 2,
-            height: 34, padding: '0 14px', borderRadius: 8,
-            background: 'transparent',
-            border: `1px solid ${C.gold}`, color: C.gold,
-            fontFamily: F, fontSize: 11, fontWeight: 800,
-            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
-            transition: '.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-          إضافة شخص <Plus size={13} strokeWidth={2.5} />
-        </button>
-
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>الأشخاص</div>
-        <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 8 }}>
-          إدارة هويات الأشخاص والأدوار المرتبطة بهم — موظفون، عملاء، وسطاء، ملاك ومدراء منشآت
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>الأشخاص</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
+            إدارة هويات الأشخاص والأدوار المرتبطة بهم — موظفون، عملاء، وسطاء، ملاك ومدراء منشآت
+          </div>
         </div>
+        <button onClick={openAdd}
+          style={{ height: 40, padding: '0 18px', borderRadius: 11,
+            border: '1px solid rgba(212,160,23,.45)',
+            background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',
+            color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600,
+            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
+            boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',
+            transition: '.2s', flexShrink: 0 }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(212,160,23,.28), inset 0 1px 0 rgba(212,160,23,.22)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)' }}>
+          <Plus size={14} strokeWidth={2.2} /> إضافة شخص
+        </button>
       </div>
 
       {/* ═══ KPI Cards ═══ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 14 }}>
 
         {/* Wide: role counts + active ratio + trend chart */}
         <div style={glassCard}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px rgba(212,160,23,.22), inset 0 1px 0 rgba(255,255,255,.08)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = GLASS_CARD.boxShadow }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 8, marginBottom: 8, alignItems: 'center' }}>
             {[
               { l: 'مستخدمون', v: roleCounts['مستخدم'], c: C.gold },
               { l: 'عملاء', v: roleCounts['عميل'], c: C.blue },
               { l: 'وسطاء', v: roleCounts['وسيط'], c: '#d9a15a' }
             ].map(s => (
-              <div key={s.l} style={{ padding: '7px 12px', borderRadius: 10, ...innerBox,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div key={s.l} style={INNER_PILL}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.c, boxShadow: `0 0 5px ${s.c}` }} />
-                  <div style={{ fontSize: 18, fontWeight: 900, color: s.c, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{s.v}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: s.c, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{s.v}</div>
                 </div>
-                <div style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{s.l}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600 }}>{s.l}</div>
               </div>
             ))}
             <div style={{ minWidth: 0, padding: '0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>عمّال</span>
-              <span style={{ fontSize: 13, fontWeight: 900, color: '#c0c0c0', direction: 'ltr' }}>{roleCounts['عامل'] || 0}</span>
+              <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 500, whiteSpace: 'nowrap' }}>عمّال</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#c0c0c0', direction: 'ltr' }}>{roleCounts['عامل'] || 0}</span>
               <span style={{ flex: 1 }} />
-              <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>ملّاك</span>
-              <span style={{ fontSize: 13, fontWeight: 900, color: '#e5867a', direction: 'ltr' }}>{roleCounts['مالك'] || 0}</span>
+              <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 500, whiteSpace: 'nowrap' }}>ملّاك</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#e5867a', direction: 'ltr' }}>{roleCounts['مالك'] || 0}</span>
             </div>
           </div>
 
@@ -307,7 +345,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                   {['employee', 'broker', 'client'].map(k => {
                     const c = k === 'employee' ? C.gold : k === 'broker' ? '#d9a15a' : C.blue
                     const last = ptsOf(k)[n - 1]
-                    return <circle key={k} cx={last[0]} cy={last[1]} r="4" fill="#1a1a1a" stroke={c} strokeWidth="2" />
+                    return <circle key={k} cx={last[0]} cy={last[1]} r="4" fill="#2A2A2A" stroke={c} strokeWidth="2" />
                   })}
                 </svg>
               </div>
@@ -317,15 +355,15 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
 
         {/* Narrow: total persons hero number */}
         <div style={{ ...glassCard, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', letterSpacing: '.1px' }}>إجمالي الأشخاص</span>
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px rgba(212,160,23,.22), inset 0 1px 0 rgba(255,255,255,.08)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = GLASS_CARD.boxShadow }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', letterSpacing: '.1px' }}>إجمالي الأشخاص</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
-            <span style={{ fontSize: 56, fontWeight: 900, color: C.gold, letterSpacing: '-1.4px', lineHeight: 1,
+            <span style={{ fontSize: 52, fontWeight: 700, color: C.gold, letterSpacing: '-1.2px', lineHeight: 1,
               textShadow: `0 0 22px ${C.gold}33`, direction: 'ltr' }}>{rows.length}</span>
-            <span style={{ fontSize: 16, fontWeight: 800, color: C.gold, opacity: .75 }}>شخص</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: C.gold, opacity: .75 }}>شخص</span>
           </div>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.3px' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.3px' }}>
             {totalRoles} دور · {protectedCount} محمي
           </div>
         </div>
@@ -340,18 +378,27 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
           </svg>
           <input className="px-noring" value={searchQ} onChange={e => setSearchQ(e.target.value)}
             placeholder="ابحث باسم الشخص أو رقم الهوية أو رقم الجوال..."
-            style={{ width: '100%', height: 38, padding: '0 36px 0 14px',
-              background: '#141414', border: '1px solid rgba(255,255,255,.06)',
-              borderRadius: 10, fontFamily: F, fontSize: 12, fontWeight: 600,
-              color: 'var(--tx)', outline: 'none', direction: 'rtl', boxSizing: 'border-box' }} />
+            style={{ width: '100%', height: 40, padding: '0 36px 0 14px',
+              background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+              border: '1px solid rgba(255,255,255,.06)',
+              borderRadius: 11, fontFamily: F, fontSize: 14, fontWeight: 400,
+              color: 'var(--tx)', outline: 'none', direction: 'rtl', boxSizing: 'border-box',
+              boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+              transition: '.2s' }} />
         </div>
         <button onClick={() => setAdvOpen(o => !o)}
-          style={{ height: 38, padding: '0 14px', borderRadius: 10,
+          style={{ height: 40, padding: '0 14px', borderRadius: 11,
             border: `1px solid ${advOpen || hasAdvFilters ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.06)'}`,
-            background: advOpen || hasAdvFilters ? 'rgba(212,160,23,.1)' : '#141414',
-            color: advOpen || hasAdvFilters ? C.gold : 'rgba(255,255,255,.7)',
-            fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            background: advOpen || hasAdvFilters
+              ? 'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))'
+              : 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+            color: advOpen || hasAdvFilters ? C.gold : 'rgba(255,255,255,.78)',
+            fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+            boxShadow: advOpen || hasAdvFilters
+              ? '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)'
+              : '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+            transition: '.2s' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
             <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
@@ -360,7 +407,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
             <line x1="17" y1="16" x2="23" y2="16"/></svg>
           بحث متقدم
           {Object.values(advFilter).filter(Boolean).length > 0 && (
-            <span style={{ background: C.gold, color: '#000', fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 999 }}>
+            <span style={{ background: C.gold, color: '#000', fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999 }}>
               {Object.values(advFilter).filter(Boolean).length}
             </span>
           )}
@@ -368,16 +415,18 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
       </div>
 
       {advOpen && (() => {
-        const inS = { width: '100%', height: 36, padding: '0 10px',
-          border: '1px solid rgba(255,255,255,.08)', borderRadius: 8,
-          background: 'rgba(0,0,0,.2)', color: 'var(--tx)',
-          fontFamily: F, fontSize: 12, outline: 'none' }
+        const inS = { width: '100%', height: 42, padding: '0 14px',
+          border: '1px solid rgba(255,255,255,.07)', borderRadius: 10,
+          background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
+          color: 'var(--tx)', boxSizing: 'border-box',
+          fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none',
+          boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+          transition: '.18s' }
         const dateS = { ...inS, colorScheme: 'dark', direction: 'ltr', textAlign: 'center' }
         const selS = { ...inS, colorScheme: 'dark', cursor: 'pointer' }
-        const lblS = { fontSize: 10.5, color: 'var(--tx5)', fontWeight: 700, marginBottom: 4 }
+        const lblS = { fontSize: 11, color: 'var(--tx3)', fontWeight: 600, marginBottom: 6, letterSpacing: '.3px' }
         return (
-          <div style={{ marginBottom: 14, padding: '14px 16px', background: 'var(--bg)',
-            border: '1px solid rgba(212,160,23,.18)', borderRadius: 12 }}>
+          <div style={{ ...GLASS_CARD, marginBottom: 14, padding: '16px 18px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12 }}>
               <div><div style={lblS}>من تاريخ</div>
                 <input className="px-noring" type="date" value={advFilter.from}
@@ -401,9 +450,12 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                 </select></div>
               <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                 <button onClick={() => setAdvFilter({ from: '', to: '', role: '', nationality: '' })}
-                  style={{ width: '100%', height: 36, borderRadius: 8,
-                    border: '1px solid rgba(192,57,43,.25)', background: 'rgba(192,57,43,.06)',
-                    color: C.red, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                  style={{ width: '100%', height: 42, borderRadius: 10,
+                    border: '1px solid rgba(192,57,43,.35)',
+                    background: 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)',
+                    color: '#e68a80', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(192,57,43,.14), inset 0 1px 0 rgba(192,57,43,.18)',
+                    transition: '.2s' }}>
                   مسح الفلاتر
                 </button>
               </div>
@@ -418,15 +470,15 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
           <div style={{ display: 'inline-block', width: 30, height: 30,
             border: '3px solid rgba(212,160,23,.15)', borderTopColor: C.gold,
             borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-          <div style={{ marginTop: 14, fontSize: 12, fontWeight: 700 }}>جاري التحميل...</div>
+          <div style={{ marginTop: 14, fontSize: 13, fontWeight: 500 }}>جاري التحميل...</div>
           <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
       ) : filteredData.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx6)' }}>
+        <div style={{ ...GLASS_CARD, textAlign: 'center', padding: 48, color: 'var(--tx4)', fontSize: 13, fontWeight: 500 }}>
           {rows.length === 0 ? 'لا يوجد أشخاص بعد' : 'لا توجد نتائج مطابقة'}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {sortedFiltered.map(r => {
             const roles = r.roles_summary || []
             const primaryRole = roles[0]
@@ -455,23 +507,20 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
 
             return (
               <div key={r.person_id} onClick={() => onOpenDetail(r.person_id)}
-                style={{ background: 'linear-gradient(180deg,rgba(0,0,0,.3) 0%,rgba(0,0,0,.2) 100%)',
-                  borderRadius: 16, overflow: 'visible',
-                  transition: '.25s cubic-bezier(.4,0,.2,1)',
-                  border: '1px solid rgba(255,255,255,.07)',
+                style={{ ...GLASS_CARD,
+                  overflow: 'visible',
+                  transition: '.2s',
                   position: 'relative', cursor: 'pointer',
                   padding: '18px 22px',
                   display: 'grid', gridTemplateColumns: '1fr auto',
                   gap: 22, alignItems: 'center' }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = primaryColor + '55'
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = `0 10px 30px rgba(0,0,0,.3), 0 0 0 1px ${primaryColor}25`
+                  e.currentTarget.style.transform = 'translateY(-3px)'
+                  e.currentTarget.style.boxShadow = `0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px ${primaryColor}33, inset 0 1px 0 rgba(255,255,255,.08)`
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'
                   e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
+                  e.currentTarget.style.boxShadow = GLASS_CARD.boxShadow
                 }}>
 
                 {/* Quick actions (top-left) + protected shield */}
@@ -480,16 +529,19 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                   {r.is_system ? (
                     <span title="شخص محمي"
                       style={{ width: 26, height: 26, borderRadius: '50%',
-                        background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)',
+                        background: 'rgba(212,160,23,.10)', border: '1px solid rgba(212,160,23,.35)',
                         color: C.gold,
+                        boxShadow: 'inset 0 1px 0 rgba(212,160,23,.15)',
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
                       <Shield size={12} />
                     </span>
                   ) : (
                     <button title="حذف" onClick={() => onDelete(r)}
                       style={{ width: 26, height: 26, borderRadius: '50%',
-                        background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.25)',
+                        background: 'linear-gradient(180deg,rgba(192,57,43,.18),rgba(192,57,43,.08))',
+                        border: '1px solid rgba(192,57,43,.35)',
                         color: '#e68a80', cursor: 'pointer',
+                        boxShadow: 'inset 0 1px 0 rgba(192,57,43,.15)',
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
                       <Archive size={12} />
                     </button>
@@ -500,7 +552,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                 <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {/* Arabic name + flag (after name) + copy */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', whiteSpace: 'nowrap', letterSpacing: '.15px' }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx)', whiteSpace: 'nowrap', letterSpacing: '.15px' }}>
                       {r.name_ar}
                     </span>
                     {nationality?.flag_url && (
@@ -519,7 +571,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                   {/* English name + copy */}
                   {r.name_en && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ direction: 'ltr', color: 'var(--tx2)', fontWeight: 600, fontSize: 13, letterSpacing: '.2px' }}>
+                      <span style={{ direction: 'ltr', color: 'var(--tx2)', fontWeight: 500, fontSize: 13, letterSpacing: '.2px' }}>
                         {r.name_en}
                       </span>
                       <CopyBtn val={r.name_en} />
@@ -529,7 +581,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                   {/* Role tags — plain text with dot separators */}
                   {roles.length > 0 && (
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
-                      fontSize: 11, color: 'rgba(255,255,255,.8)', fontWeight: 600, letterSpacing: '.2px' }}>
+                      fontSize: 12, color: 'rgba(255,255,255,.8)', fontWeight: 500, letterSpacing: '.2px' }}>
                       {roles.map((role, i) => {
                         const rc = (ROLE_STYLES[role] || {}).plain || 'rgba(255,255,255,.8)'
                         return (
@@ -549,7 +601,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                   {r.id_number && (
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
                       <CreditCard size={12} color={C.gold} opacity={.7} />
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700,
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 600,
                         color: C.gold, letterSpacing: '.4px' }}>{r.id_number}</span>
                       <CopyBtn val={r.id_number} />
                     </div>
@@ -557,7 +609,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                   {r.phone_primary && (
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
                       <Phone size={12} color="var(--tx5)" opacity={.7} />
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700,
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 600,
                         color: 'var(--tx2)', letterSpacing: '.3px' }}>{r.phone_primary}</span>
                       <CopyBtn val={r.phone_primary} />
                     </div>
@@ -565,7 +617,7 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
                   {r.email && (
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
                       <Mail size={12} color="var(--tx5)" opacity={.7} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', letterSpacing: '.2px' }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx2)', letterSpacing: '.2px' }}>
                         {r.email}
                       </span>
                       <CopyBtn val={r.email} />
@@ -591,10 +643,12 @@ function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetai
 }
 
 const iconBtnS = {
-  width: 30, height: 30, borderRadius: 7,
-  border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)',
+  width: 30, height: 30, borderRadius: 8,
+  border: '1px solid rgba(255,255,255,.06)',
+  background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
   color: 'var(--tx3)', cursor: 'pointer',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.15s'
+  boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.2s'
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -647,7 +701,7 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
         <div style={{ display: 'inline-block', width: 30, height: 30,
           border: `3px solid rgba(212,160,23,.15)`, borderTopColor: C.gold,
           borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        <div style={{ marginTop: 14, fontSize: 12, fontWeight: 700 }}>جاري التحميل...</div>
+        <div style={{ marginTop: 14, fontSize: 13, fontWeight: 500 }}>جاري التحميل...</div>
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     )
@@ -657,9 +711,14 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
     return (
       <div style={{ padding: 60, textAlign: 'center', fontFamily: F }}>
         <AlertCircle size={38} color={C.gold} style={{ marginBottom: 12 }} />
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>لم يتم العثور على الشخص</div>
-        <button onClick={onBack} style={{ marginTop: 16, padding: '8px 18px', borderRadius: 8,
-          background: C.gold, color: '#0a0a0a', border: 'none', fontWeight: 800, cursor: 'pointer' }}>رجوع</button>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>لم يتم العثور على الشخص</div>
+        <button onClick={onBack}
+          style={{ marginTop: 16, height: 40, padding: '0 18px', borderRadius: 11,
+            border: '1px solid rgba(212,160,23,.45)',
+            background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',
+            color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',
+            transition: '.2s' }}>رجوع</button>
       </div>
     )
   }
@@ -671,40 +730,52 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
-        .prs-card { background: #141414; border: 1px solid rgba(255,255,255,.06); border-radius: 14px;
-          padding: 16px; transition: .2s; }
-        .prs-card-title { font-size: 15px; font-weight: 800; color: var(--tx); margin-bottom: 12px;
+        .prs-card {
+          background: linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%);
+          backdrop-filter: blur(20px) saturate(160%);
+          -webkit-backdrop-filter: blur(20px) saturate(160%);
+          border: 1px solid rgba(255,255,255,.08);
+          border-radius: 16px;
+          box-shadow: 0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2);
+          padding: 18px; transition: .2s;
+        }
+        .prs-card-title { font-size: 14px; font-weight: 600; color: var(--tx); margin-bottom: 14px;
           display: flex; align-items: center; gap: 8px; padding-bottom: 10px;
-          border-bottom: 1px solid rgba(255,255,255,.05) }
-        .prs-kv { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0 }
-        .prs-kv-ico { width: 26px; height: 26px; border-radius: 7px; background: rgba(212,160,23,.08);
-          border: 1px solid rgba(212,160,23,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0 }
+          border-bottom: 1px solid rgba(255,255,255,.06); letter-spacing: -.2px }
+        .prs-kv { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0 }
+        .prs-kv-ico { width: 26px; height: 26px; border-radius: 8px;
+          background: linear-gradient(180deg,rgba(212,160,23,.18) 0%,rgba(212,160,23,.08) 100%);
+          border: 1px solid rgba(212,160,23,.25);
+          box-shadow: inset 0 1px 0 rgba(212,160,23,.18);
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0 }
         .prs-kv-text { flex: 1; min-width: 0 }
-        .prs-kv-l { font-size: 10px; color: var(--tx2); font-weight: 700; margin-bottom: 3px; letter-spacing: .2px }
-        .prs-kv-v { font-size: 12.5px; color: var(--tx); font-weight: 600; word-break: break-word }
+        .prs-kv-l { font-size: 11px; color: var(--tx3); font-weight: 600; margin-bottom: 3px; letter-spacing: .3px }
+        .prs-kv-v { font-size: 13px; color: var(--tx); font-weight: 500; word-break: break-word }
       `}</style>
 
       {/* Header row — matches Transfer Calc spacing */}
-      <div style={{ marginBottom: 20, textAlign: 'center' }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
-          {profile.name_ar}
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
+            {profile.name_ar}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
+            <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{profile.name_en || '—'}</span>
+          </div>
         </div>
-        <div style={{ fontSize: 15, color: 'var(--tx2)', fontWeight: 600, marginTop: 8, letterSpacing: '.3px' }}>
-          <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{profile.name_en || '—'}</span>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 14 }}>
-          <button onClick={onBack} title="رجوع لقائمة الأشخاص"
-            style={{ height: 34, padding: '0 14px', borderRadius: 8,
-              background: '#141414', border: '1px solid rgba(255,255,255,.06)',
-              color: 'var(--tx2)', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = C.gold }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
-            <ArrowRight size={13} /> رجوع لقائمة الأشخاص
-          </button>
-        </div>
+        <button onClick={onBack} title="رجوع لقائمة الأشخاص"
+          style={{ height: 40, padding: '0 14px', borderRadius: 11,
+            background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+            border: '1px solid rgba(255,255,255,.06)',
+            color: 'rgba(255,255,255,.78)', cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            fontFamily: F, fontSize: 12, fontWeight: 500, flexShrink: 0,
+            boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+            transition: '.2s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)'; e.currentTarget.style.color = C.gold; e.currentTarget.style.boxShadow = '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'rgba(255,255,255,.78)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
+          <ArrowRight size={13} /> رجوع لقائمة الأشخاص
+        </button>
       </div>
 
       {/* 3-column grid of cards */}
@@ -715,13 +786,15 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
               <Shield size={20} color={C.gold} />
               البيانات الشخصية
               <button onClick={() => setShowForm(true)} title="تعديل"
-                style={{ marginInlineStart: 'auto', width: 26, height: 26, borderRadius: 7,
-                  background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.25)',
+                style={{ marginInlineStart: 'auto', width: 28, height: 28, borderRadius: 8,
+                  background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',
+                  border: '1px solid rgba(212,160,23,.45)',
                   color: C.gold, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                  transition: '.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.16)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.08)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' }}>
+                  boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',
+                  transition: '.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
                 <Edit2 size={12} strokeWidth={2.2} />
               </button>
             </div>
@@ -807,6 +880,50 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
               onOpen={() => openRole('saudization')} />
           </div>
 
+          <div className="prs-card">
+            <div className="prs-card-title"><Shield size={20} color={C.gold} /> مصادر مزامنة البيانات</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+              {SYNC_SOURCES.map(s => {
+                const Icon = s.Icon
+                const goToSync = () => window.dispatchEvent(new CustomEvent('app-navigate-sync', { detail: { sourceId: s.id, personId } }))
+                return (
+                  <div key={s.id} onClick={goToSync}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 12px', borderRadius: 10,
+                      border: `1px dashed ${s.color}40`,
+                      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04)',
+                      cursor: 'pointer', transition: '.2s'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = s.color + '70'; e.currentTarget.style.background = `linear-gradient(180deg,${s.color}14 0%,${s.color}06 100%)` }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = s.color + '40'; e.currentTarget.style.background = 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8,
+                      background: `linear-gradient(180deg,${s.color}22 0%,${s.color}0e 100%)`,
+                      border: `1px solid ${s.color}40`,
+                      boxShadow: `inset 0 1px 0 ${s.color}22`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      color: s.color }}>
+                      <Icon size={14} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: s.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</div>
+                      <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--tx5)', marginTop: 2 }}>غير مرتبط</div>
+                    </div>
+                    <button type="button" onClick={e => { e.stopPropagation(); goToSync() }}
+                      style={{ height: 28, minWidth: 60, padding: '0 12px', borderRadius: 7,
+                        border: `1px dashed ${s.color}55`, background: 'transparent',
+                        color: s.color, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: '.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = s.color + '15'; e.currentTarget.style.borderStyle = 'solid' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderStyle = 'dashed' }}>
+                      ربط
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
           {person?.notes && (
             <div className="prs-card">
               <div className="prs-card-title">ملاحظات</div>
@@ -833,45 +950,54 @@ const DeleteConfirmModal = ({ target, saving, onCancel, onConfirm }) => {
       style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
       <div onClick={e => e.stopPropagation()} dir="rtl"
-        style={{ background: '#1a1a1a', borderRadius: 16, width: 420, maxWidth: '95vw',
-          padding: '28px 26px', border: '1px solid rgba(192,57,43,.2)',
-          boxShadow: '0 24px 60px rgba(0,0,0,.5)', fontFamily: F }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        style={{ ...GLASS_CARD, width: 420, maxWidth: '95vw', padding: '28px 26px', fontFamily: F,
+          boxShadow: '0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12,
-            background: 'rgba(192,57,43,.1)', border: '1px solid rgba(192,57,43,.3)',
+            background: 'linear-gradient(180deg,rgba(192,57,43,.22) 0%,rgba(192,57,43,.08) 100%)',
+            border: '1px solid rgba(192,57,43,.35)',
+            boxShadow: 'inset 0 1px 0 rgba(192,57,43,.18)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e68a80', flexShrink: 0 }}>
             <Trash2 size={20} strokeWidth={2} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'rgba(255,255,255,.95)', marginBottom: 2 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(255,255,255,.95)', marginBottom: 4, letterSpacing: '-.2px' }}>
               حذف الشخص
             </div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx5)' }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx5)' }}>
               هذا الإجراء يرسل السجل إلى الأرشيف
             </div>
           </div>
         </div>
         <div style={{ padding: '14px 16px', borderRadius: 10,
-          background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)',
+          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+          border: '1px solid rgba(255,255,255,.06)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05)',
           fontSize: 13, color: 'var(--tx2)', lineHeight: 1.7, marginBottom: 20 }}>
-          هل أنت متأكد من حذف <span style={{ color: C.gold, fontWeight: 800 }}>"{target.name_ar}"</span>؟
+          هل أنت متأكد من حذف <span style={{ color: C.gold, fontWeight: 700 }}>"{target.name_ar}"</span>؟
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-start' }}>
           <button onClick={onConfirm} disabled={saving}
-            style={{ height: 38, padding: '0 18px', borderRadius: 9,
-              background: '#c0392b', border: '1px solid #c0392b',
-              color: '#fff', fontFamily: F, fontSize: 12, fontWeight: 800,
+            style={{ height: 40, padding: '0 18px', borderRadius: 11,
+              background: 'linear-gradient(180deg,rgba(192,57,43,.92) 0%,rgba(192,57,43,.7) 100%)',
+              border: '1px solid rgba(192,57,43,.6)',
+              color: '#fff', fontFamily: F, fontSize: 12, fontWeight: 600,
               cursor: saving ? 'wait' : 'pointer', opacity: saving ? .7 : 1,
-              display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}>
-            <Trash2 size={13} strokeWidth={2.5} />
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              boxShadow: '0 2px 8px rgba(192,57,43,.32), inset 0 1px 0 rgba(255,255,255,.18)',
+              transition: '.2s' }}>
+            <Trash2 size={13} strokeWidth={2.4} />
             {saving ? 'جاري الحذف...' : 'حذف'}
           </button>
           <button onClick={onCancel} disabled={saving}
-            style={{ height: 38, padding: '0 18px', borderRadius: 9,
-              background: 'transparent', border: '1px solid rgba(255,255,255,.15)',
-              color: 'var(--tx2)', fontFamily: F, fontSize: 12, fontWeight: 700,
+            style={{ height: 40, padding: '0 18px', borderRadius: 11,
+              background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+              border: '1px solid rgba(255,255,255,.06)',
+              color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500,
               cursor: saving ? 'wait' : 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}>
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+              transition: '.2s' }}>
             إلغاء
           </button>
         </div>
@@ -905,23 +1031,29 @@ const KV = ({ icon: Icon, label, value, dir, copy, toast }) => (
 )
 
 const FacilityTile = ({ title, subtitle, badge, color }) => (
-  <div style={{ padding: '10px 12px', borderRadius: 9,
-    background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.04)',
+  <div style={{ padding: '10px 12px', borderRadius: 10,
+    background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+    border: '1px solid rgba(255,255,255,.06)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04)',
     display: 'flex', alignItems: 'center', gap: 10 }}>
-    <div style={{ width: 30, height: 30, borderRadius: 8, background: color + '1a',
-      border: `1px solid ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+    <div style={{ width: 30, height: 30, borderRadius: 8,
+      background: `linear-gradient(180deg,${color}22 0%,${color}0e 100%)`,
+      border: `1px solid ${color}40`,
+      boxShadow: `inset 0 1px 0 ${color}22`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       <Building2 size={14} color={color} />
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)',
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {title || '—'}
       </div>
-      <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 2 }}>{subtitle}</div>
+      <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 2, fontWeight: 500 }}>{subtitle}</div>
     </div>
     {badge && (
-      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 5,
-        background: color + '22', color: color, border: `1px solid ${color}44`, flexShrink: 0 }}>
+      <span style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+        background: color + '15', color: color, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+        <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
         {badge}
       </span>
     )}
@@ -929,15 +1061,16 @@ const FacilityTile = ({ title, subtitle, badge, color }) => (
 )
 
 const EmptyCard = ({ text }) => (
-  <div style={{ padding: '18px 12px', textAlign: 'center', fontSize: 11, color: 'var(--tx5)',
-    background: 'rgba(255,255,255,.02)', borderRadius: 9, border: '1px dashed rgba(255,255,255,.06)' }}>
+  <div style={{ padding: '18px 12px', textAlign: 'center', fontSize: 12, color: 'var(--tx5)', fontWeight: 500,
+    background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+    borderRadius: 10, border: '1px dashed rgba(255,255,255,.10)' }}>
     {text}
   </div>
 )
 
 const RoleGroupLabel = ({ text }) => (
   <div style={{
-    fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '.4px',
+    fontSize: 11, fontWeight: 600, color: C.gold, letterSpacing: '.4px',
     marginTop: 14, marginBottom: 4, paddingBottom: 6,
     borderBottom: '1px dashed rgba(212,160,23,.2)',
     textTransform: 'none'
@@ -962,23 +1095,28 @@ const ProfileRow = ({ Icon, label, linked, assigned, color, toast, count, unit, 
     <div style={{ display: 'flex', alignItems: 'center', gap: 10,
       padding: '10px 12px', marginBottom: 6, borderRadius: 10,
       border: `1px dashed ${active ? color + '40' : 'rgba(255,255,255,.10)'}`,
-      background: 'rgba(255,255,255,.015)' }}>
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: color + '15',
-        border: `1px solid ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04)' }}>
+      <div style={{ width: 28, height: 28, borderRadius: 8,
+        background: `linear-gradient(180deg,${color}22 0%,${color}0e 100%)`,
+        border: `1px solid ${color}40`,
+        boxShadow: `inset 0 1px 0 ${color}22`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <Icon size={12} color={color} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)' }}>{label}</div>
-        <div style={{ fontSize: 10, fontWeight: 600, color: active ? color : 'var(--tx5)', marginTop: 2 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>{label}</div>
+        <div style={{ fontSize: 10, fontWeight: 500, color: active ? color : 'var(--tx5)', marginTop: 2 }}>
           {statusText}
         </div>
       </div>
       <button type="button" onClick={onOpen || (() => toast?.(active ? 'فتح الملف قريباً' : 'الربط قريباً'))}
-        style={{ height: 28, minWidth: 64, padding: '0 16px', borderRadius: 7,
+        style={{ height: 30, minWidth: 64, padding: '0 16px', borderRadius: 8,
           border: `1px ${btnBorderStyle} ${active ? color + '55' : 'rgba(255,255,255,.25)'}`,
-          background: active ? color + '18' : 'transparent',
-          color: active ? color : 'rgba(255,255,255,.6)', fontFamily: F, fontSize: 11, fontWeight: 800, cursor: 'pointer',
-          transition: '.15s' }}
+          background: active ? `linear-gradient(180deg,${color}22 0%,${color}10 100%)` : 'transparent',
+          color: active ? color : 'rgba(255,255,255,.6)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+          boxShadow: active ? `inset 0 1px 0 ${color}22` : 'none',
+          transition: '.2s' }}
         onMouseEnter={e => {
           if (!active) {
             e.currentTarget.style.color = '#fff'

@@ -61,8 +61,14 @@ const SOURCE_GRADIENT = {
   chambers: 'linear-gradient(135deg, rgba(236,72,153,.12), rgba(236,72,153,.02))',
 }
 const SOURCE_ACCENT = {
-  sbc: C.gold, qiwa: C.ok, gosi: C.blue, muqeem: C.purple,
-  mudad: '#e67e22', zatca: C.red, ajeer: '#06b6d4', chambers: '#ec4899',
+  sbc: '#9b59b6',      // المركز السعودي للأعمال — بنفسجي
+  qiwa: '#3b82f6',     // قوى — أزرق
+  muqeem: '#f59e0b',   // مقيم — برتقالي
+  gosi: '#22c55e',     // التأمينات — أخضر
+  chambers: '#06b6d4', // الغرف التجارية — أزرق مختلف (تركوازي)
+  ajeer: '#eab308',    // أجير — أصفر
+  mudad: '#0ea5e9',    // مدد — سماوي
+  zatca: '#7dd3fc',    // هيئة الزكاة والدخل — سماوي فاتح
 }
 
 // Source-specific header meta — badge label and fallback description when
@@ -90,6 +96,15 @@ export default function SyncHub({ sb, toast, user, lang }) {
   const [syncModal, setSyncModal] = useState(null)        // { sourceId, personId }
   const [refreshTick, setRefreshTick] = useState(0)
 
+  useEffect(() => {
+    const handler = (e) => {
+      const sid = e.detail?.sourceId
+      if (sid) setFocused(sid)
+    }
+    window.addEventListener('sync-focus-source', handler)
+    return () => window.removeEventListener('sync-focus-source', handler)
+  }, [])
+
   const load = useCallback(async () => {
     if (!sb) return
     const [pr, src, rn, ch] = await Promise.all([
@@ -99,7 +114,19 @@ export default function SyncHub({ sb, toast, user, lang }) {
       sb.from('sync_changes').select('*').order('detected_at', { ascending: false }).limit(200),
     ])
     setPersons(pr.data || [])
-    setSources(src.data || [])
+    const fallbackSources = [
+      { id: 'sbc', name_ar: 'المركز السعودي للأعمال', name_en: 'Saudi Business Center', sort_order: 1 },
+      { id: 'qiwa', name_ar: 'قوى', name_en: 'Qiwa', sort_order: 2 },
+      { id: 'muqeem', name_ar: 'مقيم', name_en: 'Muqeem', sort_order: 3 },
+      { id: 'gosi', name_ar: 'التأمينات الاجتماعية', name_en: 'GOSI', sort_order: 4 },
+      { id: 'chambers', name_ar: 'الغرف التجارية', name_en: 'Chambers', sort_order: 5 },
+      { id: 'ajeer', name_ar: 'أجير', name_en: 'Ajeer', sort_order: 6 },
+      { id: 'mudad', name_ar: 'مدد', name_en: 'Mudad', sort_order: 7 },
+      { id: 'zatca', name_ar: 'هيئة الزكاة والدخل', name_en: 'ZATCA', sort_order: 8 },
+    ]
+    const dbSources = src.data || []
+    const merged = fallbackSources.map(fb => dbSources.find(d => d.id === fb.id) || fb)
+    setSources(merged)
     setRuns(rn.data || [])
     setChanges(ch.data || [])
   }, [sb])
@@ -156,21 +183,16 @@ export default function SyncHub({ sb, toast, user, lang }) {
         onBack={() => setFocused(null)} />
 
       {!focused && (
-        <>
-          <KpiRow T={T} lang={lang} sources={sources}
-            getSourceStats={getSourceStats}
-            changes={filteredChanges} />
-          <SourceGrid
-            sources={sources}
-            stats={sources.reduce((acc, s) => { acc[s.id] = getSourceStats(s.id); return acc }, {})}
-            onOpen={setFocused}
-            onSync={onOpenSync}
-            T={T}
-            lang={lang}
-            activePerson={activePerson}
-            personName={personName}
-          />
-        </>
+        <SourceGrid
+          sources={sources}
+          stats={sources.reduce((acc, s) => { acc[s.id] = getSourceStats(s.id); return acc }, {})}
+          onOpen={setFocused}
+          onSync={onOpenSync}
+          T={T}
+          lang={lang}
+          activePerson={activePerson}
+          personName={personName}
+        />
       )}
 
       {focused === 'sbc' && (
@@ -197,7 +219,11 @@ export default function SyncHub({ sb, toast, user, lang }) {
         />
       )}
 
-      {focused && focused !== 'sbc' && focused !== 'qiwa' && (
+      {focused === 'gosi' && (
+        <GosiPanel T={T} />
+      )}
+
+      {focused && focused !== 'sbc' && focused !== 'qiwa' && focused !== 'gosi' && (
         <ComingSoonPanel sourceId={focused} sourceName={sourceName(focused)} onBack={() => setFocused(null)} T={T} />
       )}
 
@@ -280,11 +306,11 @@ function Header({ T, lang, focusedSource, runs, changes, onSync, onBack }) {
 
   // ── Hub overview — matches Persons page layout ──
   return (
-    <div style={{ marginBottom: 14, position: 'relative' }}>
-      <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
+    <div style={{ marginBottom: 32, position: 'relative' }}>
+      <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
         {T('مركز المزامنة', 'Sync Hub')}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 8, lineHeight: 1.7 }}>
+      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
         {T('نقطة واحدة لمتابعة جميع التحديثات من مصادر متنوعة', 'One point to track all updates from multiple sources.')}
       </div>
     </div>
@@ -295,8 +321,8 @@ function Header({ T, lang, focusedSource, runs, changes, onSync, onBack }) {
 // KPI Row — matches Persons page KPI card layout
 // ═══════════════════════════════════════════════════════════════
 function KpiRow({ T, lang, sources, getSourceStats, changes }) {
-  const glassCard = { background: '#141414', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '10px 12px', position: 'relative', overflow: 'hidden', transition: '.2s' }
-  const innerBox = { background: '#1a1a1a', border: '1px solid rgba(255,255,255,.04)' }
+  const glassCard = { background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 16, padding: '10px 12px', position: 'relative', overflow: 'hidden', transition: '.25s cubic-bezier(.4,0,.2,1)', boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }
+  const innerBox = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)' }
 
   const totalRecords = sources.reduce((s, src) => s + (getSourceStats(src.id).total || 0), 0)
   const activeSourceCount = sources.filter(s => (getSourceStats(s.id).runCount || 0) > 0).length
@@ -364,16 +390,16 @@ function KpiRow({ T, lang, sources, getSourceStats, changes }) {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.c, boxShadow: `0 0 5px ${s.c}` }} />
-                <div style={{ fontSize: 18, fontWeight: 900, color: s.c, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{s.v}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: s.c, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{s.v}</div>
               </div>
-              <div style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{s.l}</div>
+              <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600 }}>{s.l}</div>
             </div>
           ))}
           <div style={{ minWidth: 0, padding: '0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('آخر 7 أيام', 'Last 7d')}</span>
+            <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('آخر 7 أيام', 'Last 7d')}</span>
             <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 13, fontWeight: 900, color: C.gold, direction: 'ltr' }}>{totalChanges7}</span>
-            <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('تغيير', 'changes')}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.gold, direction: 'ltr' }}>{totalChanges7}</span>
+            <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('تغيير', 'changes')}</span>
           </div>
         </div>
 
@@ -417,13 +443,13 @@ function KpiRow({ T, lang, sources, getSourceStats, changes }) {
       <div style={{ ...glassCard, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
         onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', letterSpacing: '.1px' }}>{T('إجمالي السجلات', 'Total Records')}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)', letterSpacing: '.1px' }}>{T('إجمالي السجلات', 'Total Records')}</span>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
-          <span style={{ fontSize: 56, fontWeight: 900, color: C.gold, letterSpacing: '-1.4px', lineHeight: 1,
+          <span style={{ fontSize: 48, fontWeight: 700, color: C.gold, letterSpacing: '-1.2px', lineHeight: 1,
             textShadow: `0 0 22px ${C.gold}33`, direction: 'ltr' }}>{totalRecords.toLocaleString('en-US')}</span>
-          <span style={{ fontSize: 16, fontWeight: 800, color: C.gold, opacity: .75 }}>{T('سجل', 'records')}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: C.gold, opacity: .75 }}>{T('سجل', 'records')}</span>
         </div>
-        <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.3px' }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', letterSpacing: '.3px' }}>
           {activeSourceCount} {T('مصدر نشط', 'active')} · {sources.length} {T('مصدر', 'total')}
         </div>
       </div>
@@ -468,14 +494,14 @@ function PersonTabs({ persons, active, onChange, onManage, T }) {
 function SourceGrid({ sources, stats, onOpen, onSync, T, activePerson, personName, lang }) {
   const IMPLEMENTED = new Set(['sbc', 'qiwa'])
   const SOURCE_ICON = {
-    sbc: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>,
-    qiwa: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-    gosi: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-    muqeem: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>,
-    mudad: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-    zatca: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>,
-    ajeer: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
-    chambers: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
+    sbc: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>,
+    qiwa: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+    gosi: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+    muqeem: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>,
+    mudad: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+    zatca: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>,
+    ajeer: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+    chambers: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
   }
   const freshnessFor = (iso) => {
     if (!iso) return null
@@ -485,7 +511,7 @@ function SourceGrid({ sources, stats, onOpen, onSync, T, activePerson, personNam
     return { color: '#ef4444', label: T('متأخرة', 'Overdue') }
   }
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, marginBottom: 24 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
       {sources.map(s => {
         const st = stats[s.id] || { total: 0, lastRun: null, runCount: 0 }
         const accent = SOURCE_ACCENT[s.id] || C.gold
@@ -497,47 +523,43 @@ function SourceGrid({ sources, stats, onOpen, onSync, T, activePerson, personNam
         const removed = st.lastRun?.records_removed || 0
         const hasDiffs = !st.lastRun?.is_baseline && (added + modified + removed) > 0
         return (
-          <div key={s.id} style={{ padding: 18, borderRadius: 14,
-              background: `linear-gradient(135deg, ${accent}22 0%, ${accent}0a 45%, rgba(20,20,20,.85) 100%)`,
-              border: `1px solid ${accent}33`,
+          <div key={s.id} style={{ padding: 18, borderRadius: 16,
+              background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+              backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+              border: '1px solid rgba(255,255,255,.08)',
               transition: '.25s cubic-bezier(.4,0,.2,1)',
               cursor: 'pointer',
               position: 'relative', overflow: 'hidden',
-              boxShadow: `inset 1px 1px 0 ${accent}22, 0 4px 14px rgba(0,0,0,.25)`,
-              backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+              boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
               display: 'flex', flexDirection: 'column' }}
             onClick={() => onOpen(s.id)}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = accent + '66'
               e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = `inset 1px 1px 0 ${accent}33, 0 12px 32px rgba(0,0,0,.4), 0 0 0 1px ${accent}33`
+              e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,.4), 0 4px 10px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.2)'
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.borderColor = accent + '33'
               e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = `inset 1px 1px 0 ${accent}22, 0 4px 14px rgba(0,0,0,.25)`
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'
             }}>
-            {/* glassy shine */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${accent}55, transparent)`, pointerEvents: 'none' }} />
 
             {/* Header: icon + name + status */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${accent}20`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: 38, height: 38, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {SOURCE_ICON[s.id] || SOURCE_ICON.sbc}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name_ar}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: accent, letterSpacing: '.1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name_ar}</div>
                   {fresh && <span title={fresh.label} style={{ width: 7, height: 7, borderRadius: '50%', background: fresh.color, flexShrink: 0, boxShadow: `0 0 6px ${fresh.color}80` }} />}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--tx4)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description_ar || s.name_en}</div>
+                <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 3, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description_ar || s.name_en}</div>
               </div>
             </div>
 
             {/* Number */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: 34, fontWeight: 900, color: 'var(--tx)', fontFamily: 'ui-monospace, monospace', lineHeight: 1 }}>{Number(st.total).toLocaleString('en-US')}</span>
-              <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('سجل', 'records')}</span>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--tx)', letterSpacing: '-.5px', lineHeight: 1, direction: 'ltr' }}>{Number(st.total).toLocaleString('en-US')}</span>
+              <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600 }}>{T('سجل', 'records')}</span>
             </div>
 
             {/* Diff badges (only after a non-baseline sync with changes) */}
@@ -550,14 +572,14 @@ function SourceGrid({ sources, stats, onOpen, onSync, T, activePerson, personNam
             )}
 
             {/* Last sync line */}
-            <div style={{ fontSize: 10.5, color: 'var(--tx3)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx3)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               {st.lastRun ? `${T('آخر مزامنة', 'Last')}: ${fmtRelative(st.lastRun.started_at, lang)}` : T('لا توجد مزامنة بعد', 'Never synced')}
             </div>
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 6, marginTop: 'auto' }}>
-              <button onClick={e => { e.stopPropagation(); onOpen(s.id) }} style={{ flex: 1, padding: '8px 10px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: 'var(--tx2)', borderRadius: 8, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, fontFamily: F, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: '.15s' }}
+              <button onClick={e => { e.stopPropagation(); onOpen(s.id) }} style={{ flex: 1, padding: '8px 10px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: 'var(--tx2)', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: F, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: '.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.07)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -912,6 +934,79 @@ function QiwaDrilldown({ sb, toast, user, lang, activePerson, onBack, filteredCh
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GOSI Panel — three feature cards
+// ═══════════════════════════════════════════════════════════════
+function GosiPanel({ T }) {
+  const accent = SOURCE_ACCENT.gosi
+  const cards = [
+    {
+      key: 'facilities',
+      title: T('بيانات المنشآت', 'Facilities Data'),
+      desc: T('مزامنة سجلات المنشآت المسجّلة في التأمينات.', 'Sync facility records registered with GOSI.'),
+      icon: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="14" rx="2"/><path d="M7 8V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="12" y1="12" x2="12" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="16" x2="8" y2="16.01"/><line x1="12" y1="16" x2="12" y2="16.01"/><line x1="16" y1="16" x2="16" y2="16.01"/></svg>,
+    },
+    {
+      key: 'owners',
+      title: T('الملاك والمشرفين', 'Owners & Supervisors'),
+      desc: T('مزامنة الملاك والمشرفين المرتبطين بالمنشآت.', 'Sync owners and supervisors linked to facilities.'),
+      icon: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="9" r="2.5"/><path d="M21 21v-1.5a3 3 0 0 0-3-3"/></svg>,
+    },
+    {
+      key: 'link',
+      title: T('الربط', 'Linking'),
+      desc: T('ربط حساب التأمينات بالمنشآت في النظام.', 'Link GOSI account with facilities in the system.'),
+      icon: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>,
+    },
+  ]
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      {cards.map(c => (
+        <div key={c.key} style={{
+          padding: 18, borderRadius: 16,
+          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+          backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          border: '1px solid rgba(255,255,255,.08)',
+          transition: '.25s cubic-bezier(.4,0,.2,1)',
+          cursor: 'pointer',
+          position: 'relative', overflow: 'hidden',
+          boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
+          display: 'flex', flexDirection: 'column'
+        }}
+          onMouseEnter={e => {
+            e.currentTarget.style.transform = 'translateY(-2px)'
+            e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,.4), 0 4px 10px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.2)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = 'translateY(0)'
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'
+          }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 38, height: 38, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {c.icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: accent, letterSpacing: '.1px' }}>{c.title}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx3)', lineHeight: 1.6, marginBottom: 16 }}>{c.desc}</div>
+          <button style={{
+            marginTop: 'auto', padding: '8px 10px', border: '1px solid rgba(255,255,255,.1)',
+            background: 'rgba(255,255,255,.03)', color: 'var(--tx2)', borderRadius: 8, cursor: 'pointer',
+            fontSize: 12, fontWeight: 600, fontFamily: F,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: '.15s'
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.07)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            {T('فتح', 'Open')}
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

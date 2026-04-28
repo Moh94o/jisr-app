@@ -18,12 +18,13 @@ export default function OfficialStampBadge({
   date,
   color = '#c9a84c',
   rotate = -5,
+  variant = 'corners',
 }) {
   const formattedDate = date ? formatDate(date) : null;
 
   return (
     <span
-      className="official-stamp"
+      className={`official-stamp official-stamp--${variant}`}
       style={{
         '--stamp-color': color,
         transform: `rotate(${rotate}deg)`,

@@ -12,6 +12,22 @@ const GOLD = C.gold
 const GOLD_SOFT = '#e8c77a'
 const nm = v => Number(v || 0).toLocaleString('en-US')
 
+const BPill = ({ color, value, label }) => (
+  <div style={{
+    padding: '7px 12px', borderRadius: 10,
+    background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+    border: '1px solid rgba(255,255,255,.06)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+  }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: '0 0 5px ' + color }} />
+      <div style={{ fontSize: 18, fontWeight: 700, color, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{value}</div>
+    </div>
+    <div style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>{label}</div>
+  </div>
+)
+
 const formatRelative = (iso) => {
   if (!iso) return null
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -142,15 +158,17 @@ function PhoneField({ k, l, r, w, form, setForm }) {
       <Lbl req={r}>{l}</Lbl>
       <div style={{
         display: 'flex', direction: 'ltr',
-        border: '1px solid transparent', borderRadius: 9, overflow: 'hidden',
-        background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
-        height: 42, transition: 'border-color .2s',
+        border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, overflow: 'hidden',
+        background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
+        boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+        height: 42, transition: '.18s',
       }}>
         <div style={{
-          height: '100%', padding: '0 10px',
-          background: 'rgba(255,255,255,.04)',
+          height: '100%', padding: '0 12px',
+          background: 'rgba(212,160,23,.10)',
+          borderInlineEnd: '1px solid rgba(255,255,255,.06)',
           display: 'flex', alignItems: 'center',
-          fontSize: 12, fontWeight: 700, color: GOLD, flexShrink: 0,
+          fontSize: 12, fontWeight: 600, color: GOLD, flexShrink: 0,
         }}>+966</div>
         <input placeholder="5X XXX XXXX" maxLength={9} value={digits}
           onChange={e => {
@@ -160,7 +178,7 @@ function PhoneField({ k, l, r, w, form, setForm }) {
           style={{
             width: '100%', height: '100%', padding: '0 12px',
             border: 'none', background: 'transparent',
-            fontFamily: F, fontSize: 13, fontWeight: 600,
+            fontFamily: F, fontSize: 13, fontWeight: 500,
             color: 'var(--tx)', outline: 'none', textAlign: 'left',
           }} />
       </div>
@@ -341,11 +359,22 @@ export default function BranchesPage({ sb, toast, user, lang }) {
 
   const sharedStyle = (
     <style>{`
-      .brs-card { background: #141414; border: 1px solid rgba(255,255,255,.06); border-radius: 14px;
-        padding: 16px; transition: .2s; }
-      .brs-card-title { font-size: 13px; font-weight: 800; color: var(--tx); margin-bottom: 12px;
+      .brs-card {
+        background: linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%);
+        backdrop-filter: blur(20px) saturate(160%);
+        -webkit-backdrop-filter: blur(20px) saturate(160%);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 16px;
+        padding: 16px 18px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2);
+        transition: .2s;
+      }
+      .brs-card-title {
+        font-size: 13px; font-weight: 600; color: rgba(255,255,255,.93); margin-bottom: 12px;
         display: flex; align-items: center; gap: 8px; padding-bottom: 10px;
-        border-bottom: 1px solid rgba(255,255,255,.05) }
+        border-bottom: 1px solid rgba(255,255,255,.06);
+        letter-spacing: -.2px;
+      }
     `}</style>
   )
 
@@ -378,70 +407,99 @@ export default function BranchesPage({ sb, toast, user, lang }) {
       {sharedStyle}
 
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>
-              المكاتب
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--tx5)', fontWeight: 600, marginTop: 6 }}>
-              إدارة المكاتب والفروع
-            </div>
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
+            المكاتب
           </div>
-          <button onClick={openAdd}
-            style={{ height: 36, padding: '0 16px', borderRadius: 9,
-              border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD,
-              fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}14` }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-            إضافة مكتب <Plus size={14} strokeWidth={2.5} />
-          </button>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
+            إدارة المكاتب والفروع
+          </div>
         </div>
+        <button onClick={openAdd}
+          style={{ height: 40, padding: '0 18px', borderRadius: 11,
+            border: '1px solid rgba(212,160,23,.45)',
+            background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',
+            color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',
+            transition: '.2s' }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(212,160,23,.28), inset 0 1px 0 rgba(212,160,23,.22)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)' }}>
+          إضافة مكتب <Plus size={14} strokeWidth={2.5} />
+        </button>
       </div>
 
       {/* KPI + Hero row — matches UserRolePage rhythm */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 22 }}>
-        <div style={{ background: '#141414', border: '1px solid rgba(255,255,255,.06)',
-          borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
-            <KpiBox label="النشطة" value={`${topStats.active} / ${topStats.total}`} color={C.ok} />
-            <KpiBox label="الموظفون" value={topStats.totalStaff} color={C.blue} />
-            <KpiBox label="الرصيد" value={`${nm(Math.round(topStats.totalBalance))} ر.س`} color={GOLD} />
-            <KpiBox label="تنبيهات" value={topStats.lowAlerts}
-              color={topStats.lowAlerts ? '#c0392b' : '#999'} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 14 }}>
+        <div style={{
+          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          border: '1px solid rgba(255,255,255,.08)',
+          borderRadius: 16,
+          boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
+          padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+            <BPill color={C.ok} value={`${topStats.active} / ${topStats.total}`} label="النشطة" />
+            <BPill color={C.blue} value={topStats.totalStaff} label="الموظفون" />
+            <BPill color={GOLD} value={`${nm(Math.round(topStats.totalBalance))} ر.س`} label="الرصيد" />
+            <BPill color={topStats.lowAlerts ? C.red : '#999'} value={topStats.lowAlerts} label="تنبيهات" />
           </div>
           <BranchActivityChart days={topStats.days} color={GOLD} label="نشاط جميع المكاتب (آخر 14 يوم)" />
         </div>
-        <HeroStat label="المكاتب" value={topStats.total} unit="مكتب" color={GOLD}
-          footer={topStats.active === topStats.total && topStats.total > 0
-            ? 'جميع المكاتب نشطة'
-            : `${topStats.active} نشطة · ${topStats.total - topStats.active} معطّل`} />
+        <div style={{
+          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          border: '1px solid rgba(255,255,255,.08)',
+          borderRadius: 16,
+          boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
+          padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', letterSpacing: '.3px' }}>المكاتب</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr' }}>
+            <span style={{ fontSize: 32, fontWeight: 700, color: GOLD, letterSpacing: '-.5px', lineHeight: 1 }}>{topStats.total}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx4)' }}>مكتب</span>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.5 }}>
+            {topStats.active === topStats.total && topStats.total > 0
+              ? 'جميع المكاتب نشطة'
+              : `${topStats.active} نشطة · ${topStats.total - topStats.active} معطّل`}
+          </div>
+        </div>
       </div>
 
       {/* Search + advanced filters */}
       <div style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 260px', position: 'relative', minWidth: 200 }}>
           <Search size={15} color="rgba(255,255,255,.35)"
-            style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
           <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
             placeholder="ابحث بالكود، المدينة، المدير، الجوال…"
             style={{
-              width: '100%', height: 42, paddingRight: 40, paddingLeft: 14,
-              border: '1px solid rgba(255,255,255,.08)', borderRadius: 10,
-              fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)',
-              background: 'rgba(0,0,0,.18)', outline: 'none',
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', boxSizing: 'border-box',
+              width: '100%', height: 40, padding: '0 36px 0 14px',
+              background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+              border: '1px solid rgba(255,255,255,.06)', borderRadius: 11,
+              fontFamily: F, fontSize: 14, fontWeight: 400, color: 'var(--tx)',
+              outline: 'none',
+              boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+              transition: '.2s', boxSizing: 'border-box',
             }} />
         </div>
         <button onClick={() => setAdvOpen(v => !v)}
           style={{
-            height: 42, padding: '0 16px', borderRadius: 10,
-            border: `1px solid ${advOpen || hasFilters ? GOLD + '55' : 'rgba(255,255,255,.08)'}`,
-            background: advOpen || hasFilters ? `${GOLD}14` : 'rgba(0,0,0,.18)',
-            color: advOpen || hasFilters ? GOLD : 'var(--tx3)',
-            fontFamily: F, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+            height: 40, padding: '0 14px', borderRadius: 11,
+            border: `1px solid ${advOpen || hasFilters ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.06)'}`,
+            background: advOpen || hasFilters
+              ? 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)'
+              : 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+            color: advOpen || hasFilters ? GOLD : 'rgba(255,255,255,.78)',
+            fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
+            boxShadow: advOpen || hasFilters
+              ? '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)'
+              : '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+            transition: '.2s',
           }}>
           <SlidersHorizontal size={14} />
           بحث متقدم
@@ -451,11 +509,15 @@ export default function BranchesPage({ sb, toast, user, lang }) {
       </div>
       {advOpen && (
         <div style={{
-          marginBottom: 14, padding: '14px 16px',
-          background: `${GOLD}08`, border: `1px solid ${GOLD}22`,
-          borderRadius: 12,
+          marginBottom: 14, padding: '16px 18px',
+          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          border: '1px solid rgba(255,255,255,.08)',
+          borderRadius: 16,
+          boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
         }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10, marginBottom: 12 }}>
             <div>
               <Lbl>المنطقة</Lbl>
               <select value={filters.region_id}
@@ -477,31 +539,37 @@ export default function BranchesPage({ sb, toast, user, lang }) {
               <Lbl>الحالة</Lbl>
               <div style={{
                 display: 'flex', gap: 3, padding: 3, height: 42, boxSizing: 'border-box',
-                background: 'rgba(0,0,0,.18)', borderRadius: 9, border: '1px solid transparent',
+                background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', borderRadius: 10,
+                border: '1px solid rgba(255,255,255,.06)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',
               }}>
-                {[['', 'الكل', 'var(--tx3)'], ['true', 'نشط', C.ok], ['false', 'معطّل', '#c0392b']].map(([v, l, c]) => (
+                {[['', 'الكل', 'var(--tx3)'], ['true', 'نشط', C.ok], ['false', 'معطّل', C.red]].map(([v, l, c]) => (
                   <button key={v} onClick={() => setFilters(f => ({ ...f, is_active: v }))}
                     style={{
-                      flex: 1, borderRadius: 6, border: 'none',
+                      flex: 1, borderRadius: 7, border: 'none',
                       background: filters.is_active === v ? c + '22' : 'transparent',
                       color: filters.is_active === v ? c : 'var(--tx5)',
-                      fontFamily: F, fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                      fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      transition: '.18s',
                     }}>{l}</button>
                 ))}
               </div>
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.05)' }}>
-            <div style={{ fontSize: 11, color: 'var(--tx5)' }}>
-              <span style={{ fontWeight: 800, color: GOLD }}>{filteredBranches.length}</span> من أصل <span style={{ fontWeight: 800 }}>{branches.length}</span>
+            paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.05)' }}>
+            <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 500 }}>
+              <span style={{ fontWeight: 700, color: GOLD }}>{filteredBranches.length}</span> من أصل <span style={{ fontWeight: 700 }}>{branches.length}</span>
             </div>
             {(hasFilters || searchQ) && (
               <button onClick={resetFilters}
                 style={{
-                  height: 30, padding: '0 14px', borderRadius: 7,
-                  background: 'transparent', border: '1px solid rgba(255,255,255,.1)',
-                  color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  height: 32, padding: '0 14px', borderRadius: 8,
+                  background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+                  border: '1px solid rgba(255,255,255,.06)',
+                  color: 'var(--tx3)', fontFamily: F, fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+                  transition: '.18s',
                 }}>
                 إعادة تعيين
               </button>
@@ -512,20 +580,22 @@ export default function BranchesPage({ sb, toast, user, lang }) {
 
       {/* Branch grid */}
       {loading ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx5)' }}>جاري التحميل...</div>
+        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx5)', fontSize: 13, fontWeight: 500 }}>جاري التحميل...</div>
       ) : filteredBranches.length === 0 ? (
         <div style={{ padding: 60, textAlign: 'center',
-          background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.06)', borderRadius: 12 }}>
-          <Building2 size={36} color={GOLD} style={{ opacity: .5 }} />
-          <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>
+          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+          border: '1px solid rgba(255,255,255,.08)', borderRadius: 16,
+          boxShadow: '0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)' }}>
+          <Building2 size={36} color={GOLD} style={{ opacity: .55 }} />
+          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>
             {branches.length === 0 ? 'لا توجد مكاتب — أضِف أول مكتب' : 'لا توجد نتائج مطابقة'}
           </div>
         </div>
       ) : (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(max(320px, calc(50% - 6px)), 1fr))',
-          gap: 12,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(max(320px, calc(50% - 7px)), 1fr))',
+          gap: 14,
         }}>
           {filteredBranches.map(b => (
             <BranchCard key={b.id} branch={b} dashboard={dashboards[b.id]}
@@ -563,40 +633,44 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
       display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
     }}>
       <span style={{
-        fontSize: 16, fontWeight: 600,
-        color: 'rgba(255,255,255,.85)',
+        fontSize: 15, fontWeight: 700,
+        color: 'rgba(255,255,255,.88)',
         fontFamily: "'JetBrains Mono','Cairo',sans-serif",
-        direction: 'ltr', letterSpacing: '.2px',
+        direction: 'ltr', letterSpacing: '-.2px',
       }}>{value}</span>
-      <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>{label}</span>
-      <Icon size={14} color="rgba(255,255,255,.5)" strokeWidth={2} />
+      <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 500 }}>{label}</span>
+      <Icon size={13} color="rgba(255,255,255,.5)" strokeWidth={2} />
     </div>
   )
 
   return (
     <div onClick={onClick} style={{
-      background: 'rgba(20,20,20,.5)',
-      borderRadius: 12,
+      background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+      backdropFilter: 'blur(20px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+      borderRadius: 16,
       transition: '.2s',
-      border: '1px solid rgba(255,255,255,.05)',
+      border: '1px solid rgba(255,255,255,.08)',
+      boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
       position: 'relative', cursor: 'pointer',
-      padding: 20,
+      padding: '18px 22px',
       display: 'flex', gap: 16, alignItems: 'flex-start',
       minHeight: 140,
       opacity: isActive ? 1 : .65,
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}4d` }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px ' + GOLD + '33, inset 0 1px 0 rgba(255,255,255,.08)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }}>
 
       {alerts > 0 && (
         <div onClick={e => e.stopPropagation()}
-          style={{ position: 'absolute', top: 10, left: 10, zIndex: 2 }}>
+          style={{ position: 'absolute', top: 12, left: 12, zIndex: 2 }}>
           <span title={`${alerts} تنبيه رصيد منخفض`}
             style={{
               width: 24, height: 24, borderRadius: '50%',
-              background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.25)',
+              background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.35)',
               color: '#e68a80',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 8px rgba(192,57,43,.25)',
             }}>
             <AlertCircle size={11} />
           </span>
@@ -608,14 +682,17 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{
             fontSize: 20, fontWeight: 700, color: GOLD,
-            fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '.3px',
+            fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.3px',
+            direction: 'ltr', lineHeight: 1,
           }}>
             {branch.branch_code || '—'}
           </span>
           <span style={{
-            fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-            background: `${tone}1a`, color: tone, border: `1px solid ${tone}33`,
+            fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+            background: `${tone}15`, color: tone,
+            display: 'inline-flex', alignItems: 'center', gap: 5,
           }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: tone }} />
             {isActive ? 'نشط' : 'معطّل'}
           </span>
         </div>
@@ -623,16 +700,16 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
         {(branch.city_name || branch.region_name || branch.district_name) && (
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontSize: 14, color: 'rgba(255,255,255,.6)', fontWeight: 500,
-            marginTop: 8,
+            fontSize: 13, color: 'var(--tx2)', fontWeight: 500,
+            marginTop: 10,
           }}>
-            <MapPin size={14} color="rgba(255,255,255,.5)" />
+            <MapPin size={13} color="rgba(255,255,255,.5)" />
             <span>
               {[branch.region_name, branch.city_name, branch.district_name].filter(Boolean).map((p, i, arr) => (
                 <React.Fragment key={i}>
                   {p}
                   {i < arr.length - 1 && (
-                    <span style={{ color: 'rgba(255,255,255,.4)', margin: '0 6px' }}>•</span>
+                    <span style={{ color: 'rgba(255,255,255,.35)', margin: '0 6px' }}>•</span>
                   )}
                 </React.Fragment>
               ))}
@@ -642,19 +719,19 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
 
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
-          fontSize: 14, color: 'rgba(255,255,255,.6)', fontWeight: 500,
+          fontSize: 13, color: 'var(--tx2)', fontWeight: 500,
           marginTop: 6,
         }}>
-          <User size={14} color="rgba(255,255,255,.5)" />
+          <User size={13} color="rgba(255,255,255,.5)" />
           {branch.manager_user_name ? (
-            <span style={{ color: 'rgba(255,255,255,.8)' }}>{branch.manager_user_name}</span>
+            <span style={{ color: 'rgba(255,255,255,.78)' }}>{branch.manager_user_name}</span>
           ) : (
-            <span style={{ color: 'rgba(255,255,255,.4)' }}>لا يوجد مدير</span>
+            <span style={{ color: 'rgba(255,255,255,.35)' }}>لا يوجد مدير</span>
           )}
           {lastActivity && (
             <>
-              <span style={{ color: 'rgba(255,255,255,.4)' }}>•</span>
-              <span style={{ color: 'rgba(255,255,255,.5)' }}>{lastActivity}</span>
+              <span style={{ color: 'rgba(255,255,255,.35)' }}>•</span>
+              <span style={{ color: 'var(--tx4)' }}>{lastActivity}</span>
             </>
           )}
         </div>
@@ -662,7 +739,7 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
 
       {/* Left section — fixed-width stats column */}
       <div style={{
-        width: 128, flexShrink: 0,
+        width: 130, flexShrink: 0,
         display: 'flex', flexDirection: 'column', gap: 10,
         alignItems: 'stretch',
       }}>
@@ -698,15 +775,15 @@ function BranchActivityChart({ days, color, label }) {
   const max = Math.max(1, ...days.map(d => d.count))
   const total = days.reduce((s, d) => s + d.count, 0)
   return (
-    <div style={{ padding: '0 4px 10px' }}>
+    <div style={{ padding: '0 4px 8px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 20, padding: '0 4px' }}>
+        marginBottom: 18, padding: '0 4px' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-          fontSize: 11.5, fontWeight: 800, color: 'var(--tx)' }}>
+          fontSize: 11, fontWeight: 600, color: 'var(--tx3)', letterSpacing: '.3px' }}>
           <Activity size={13} color={color} /> {label}
         </span>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--tx4)' }}>
-          الإجمالي: <span style={{ color, fontWeight: 800 }}>{total}</span> عملية
+        <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>
+          الإجمالي: <span style={{ color, fontWeight: 700 }}>{total}</span> عملية
         </span>
       </div>
       <div style={{ position: 'relative', height: 130, padding: '4px 2px 10px', overflow: 'hidden' }}>
@@ -721,7 +798,7 @@ function BranchActivityChart({ days, color, label }) {
                     height: `${h}%`,
                     background: d.count > 0
                       ? `linear-gradient(180deg, ${color} 0%, ${color}88 100%)`
-                      : 'rgba(255,255,255,.04)',
+                      : 'rgba(255,255,255,.05)',
                     borderRadius: '4px 4px 2px 2px',
                     border: d.count > 0 ? `1px solid ${color}55` : '1px solid rgba(255,255,255,.04)',
                     boxShadow: d.count > 0 ? `0 0 8px ${color}33` : 'none',
@@ -761,37 +838,45 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
   return (
     <div dir="rtl" style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       {/* Header row — identity first, then back + edit buttons underneath */}
-      <div style={{ marginBottom: 20, textAlign: 'center' }}>
+      <div style={{ marginBottom: 24, textAlign: 'center' }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ marginBottom: 4 }}>
-            <span style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.95)',
-              fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '.3px' }}>
+          <div style={{ marginBottom: 8 }}>
+            <span style={{ fontSize: 24, fontWeight: 700, color: 'rgba(255,255,255,.93)',
+              fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.3px',
+              direction: 'ltr', display: 'inline-block' }}>
               {branch.branch_code || '—'}
             </span>
           </div>
-          <div style={{ fontSize: 13, color: 'var(--tx5)', fontWeight: 600, display: 'inline-flex', gap: 5, alignItems: 'center' }}>
-            <MapPin size={12} /> {[branch.city_name, branch.region_name].filter(Boolean).join(' · ') || '—'}
+          <div style={{ fontSize: 13, color: 'var(--tx4)', fontWeight: 500,
+            display: 'inline-flex', gap: 6, alignItems: 'center', lineHeight: 1.6 }}>
+            <MapPin size={13} /> {[branch.city_name, branch.region_name].filter(Boolean).join(' · ') || '—'}
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 16 }}>
           <button onClick={onBack} title="رجوع"
-            style={{ height: 34, padding: '0 12px', borderRadius: 8,
-              background: '#141414', border: '1px solid rgba(255,255,255,.06)',
-              color: 'var(--tx2)', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}14`; e.currentTarget.style.borderColor = `${GOLD}4d`; e.currentTarget.style.color = GOLD }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
+            style={{ height: 40, padding: '0 14px', borderRadius: 11,
+              border: '1px solid rgba(255,255,255,.06)',
+              background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
+              color: 'rgba(255,255,255,.78)', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              fontFamily: F, fontSize: 12, fontWeight: 500,
+              boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+              transition: '.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}4d`; e.currentTarget.style.color = GOLD }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'rgba(255,255,255,.78)' }}>
             <ArrowRight size={13} /> رجوع
           </button>
           <button onClick={onEdit}
-            style={{ height: 34, padding: '0 14px', borderRadius: 8,
-              border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD,
-              fontFamily: F, fontSize: 11, fontWeight: 800, cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}14` }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+            style={{ height: 40, padding: '0 18px', borderRadius: 11,
+              border: '1px solid rgba(212,160,23,.45)',
+              background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',
+              color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',
+              transition: '.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
             تعديل <Edit2 size={13} strokeWidth={2.5} />
           </button>
         </div>
@@ -802,20 +887,41 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
 
           {/* KPI row (replicates UserRolePage) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14 }}>
-            <div style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,.05)',
-              borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
-                <KpiBox label="الموظفون" value={users.length} color={C.blue} />
-                <KpiBox label="الحسابات" value={banks.length} color={GOLD} />
-                <KpiBox label="الرصيد" value={nm(Math.round(totalBalance))} color={C.ok} />
-                <KpiBox label="نشاط ٣٠ي" value={dashboard?.activity_30d ?? 0} color={C.gold} />
+            <div style={{
+              background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+              border: '1px solid rgba(255,255,255,.08)',
+              borderRadius: 16,
+              boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
+              padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+                <BPill color={C.blue} value={users.length} label="الموظفون" />
+                <BPill color={GOLD} value={banks.length} label="الحسابات" />
+                <BPill color={C.ok} value={nm(Math.round(totalBalance))} label="الرصيد" />
+                <BPill color={GOLD} value={dashboard?.activity_30d ?? 0} label="نشاط ٣٠ي" />
               </div>
               <BranchActivityChart days={days} color={GOLD} label="نشاط المكتب (آخر 14 يوم)" />
             </div>
-            <HeroStat label="الموظفون" value={users.length} unit="موظف" color={GOLD}
-              footer={activeStaff === users.length && users.length > 0
-                ? 'جميع الموظفين نشطين'
-                : (users.length === 0 ? 'لا يوجد موظفون' : `${activeStaff} نشط · ${users.length - activeStaff} معطّل`)} />
+            <div style={{
+              background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+              border: '1px solid rgba(255,255,255,.08)',
+              borderRadius: 16,
+              boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
+              padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', letterSpacing: '.3px' }}>الموظفون</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr' }}>
+                <span style={{ fontSize: 32, fontWeight: 700, color: GOLD, letterSpacing: '-.5px', lineHeight: 1 }}>{users.length}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx4)' }}>موظف</span>
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.5 }}>
+                {activeStaff === users.length && users.length > 0
+                  ? 'جميع الموظفين نشطين'
+                  : (users.length === 0 ? 'لا يوجد موظفون' : `${activeStaff} نشط · ${users.length - activeStaff} معطّل`)}
+              </div>
+            </div>
           </div>
 
           {/* Basic info card */}
@@ -843,21 +949,24 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
             {branch.manager_user_name ? (
               <div style={{
                 padding: '12px 14px', borderRadius: 10,
-                background: `${GOLD}08`, border: `1px solid ${GOLD}26`,
+                background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+                border: `1px solid ${GOLD}33`,
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(0,0,0,.2)',
                 display: 'flex', alignItems: 'center', gap: 12,
               }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: 10,
-                  background: `linear-gradient(135deg, ${GOLD}22, ${GOLD}08)`,
-                  border: `1.5px solid ${GOLD}44`,
+                  background: `linear-gradient(135deg, ${GOLD}28, ${GOLD}10)`,
+                  border: `1px solid ${GOLD}55`,
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, fontWeight: 900, color: GOLD,
+                  fontSize: 14, fontWeight: 700, color: GOLD,
+                  boxShadow: `0 0 10px ${GOLD}26`,
                 }}>
                   {(branch.manager_user_name || '?')[0]}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)' }}>{branch.manager_user_name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--tx5)', marginTop: 2 }}>المدير المسؤول</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{branch.manager_user_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 3, fontWeight: 500 }}>المدير المسؤول</div>
                 </div>
               </div>
             ) : (
@@ -873,26 +982,29 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 8 }}>
                 {users.map(u => {
                   const isManager = branch.manager_user_id === u.id
+                  const c = isManager ? GOLD : C.blue
                   return (
                     <div key={u.id} style={{
                       padding: '10px 12px', borderRadius: 10,
-                      background: 'rgba(255,255,255,.02)',
-                      border: '1px solid rgba(255,255,255,.05)',
+                      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+                      border: '1px solid rgba(255,255,255,.06)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 4px rgba(0,0,0,.18)',
                       display: 'flex', alignItems: 'center', gap: 10,
-                      borderInlineStart: `3px solid ${isManager ? GOLD : C.blue}`,
+                      borderInlineStart: `3px solid ${c}`,
                     }}>
                       <div style={{
                         width: 34, height: 34, borderRadius: 9,
-                        background: `${isManager ? GOLD : C.blue}14`,
-                        border: `1px solid ${isManager ? GOLD : C.blue}26`,
+                        background: `${c}18`,
+                        border: `1px solid ${c}33`,
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 13, fontWeight: 900, color: isManager ? GOLD : C.blue, flexShrink: 0,
+                        fontSize: 13, fontWeight: 700, color: c, flexShrink: 0,
+                        boxShadow: `0 0 6px ${c}26`,
                       }}>
                         {(u.name_ar || '?')[0]}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx)' }}>{u.name_ar}</div>
-                        <div style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600, marginTop: 2 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{u.name_ar}</div>
+                        <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500, marginTop: 3 }}>
                           {u.is_active ? 'نشط' : 'معطّل'}
                           {isManager && <span style={{ color: GOLD, marginInlineStart: 6 }}>· المدير</span>}
                         </div>
@@ -909,9 +1021,9 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
             rightSlot={banks.length > 0 ? (
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '3px 10px', borderRadius: 6,
-                background: `${C.ok}14`, border: `1px solid ${C.ok}33`,
-                fontSize: 10.5, fontWeight: 800, color: C.ok, direction: 'ltr',
+                padding: '4px 10px', borderRadius: 6,
+                background: `${C.ok}15`,
+                fontSize: 10, fontWeight: 600, color: C.ok, direction: 'ltr',
               }}>
                 <TrendingUp size={11} /> {nm(Math.round(totalBalance))} ر.س
               </span>
@@ -936,30 +1048,34 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
                   const c = isExpired ? '#c0392b' : expSoon ? '#e6a23c' : C.ok
                   return (
                     <div key={d.id} style={{
-                      padding: '10px 12px', borderRadius: 9,
-                      background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)',
+                      padding: '10px 12px', borderRadius: 10,
+                      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+                      border: '1px solid rgba(255,255,255,.06)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 4px rgba(0,0,0,.18)',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                         <div style={{
                           width: 30, height: 30, borderRadius: 8,
-                          background: `${c}14`, border: `1px solid ${c}26`,
+                          background: `${c}18`, border: `1px solid ${c}33`,
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         }}>
                           <FileText size={13} color={c} />
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>
                             {d.document_name || d.file_name}
                           </div>
-                          {d.notes && <div style={{ fontSize: 9.5, color: 'var(--tx5)', marginTop: 1 }}>{d.notes}</div>}
+                          {d.notes && <div style={{ fontSize: 10, color: 'var(--tx4)', marginTop: 2, fontWeight: 500 }}>{d.notes}</div>}
                         </div>
                       </div>
                       {d.expiry_date && (
                         <span style={{
-                          fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 5,
-                          background: `${c}14`, color: c, border: `1px solid ${c}33`, direction: 'ltr',
+                          fontSize: 10, fontWeight: 600, padding: '4px 9px', borderRadius: 6,
+                          background: `${c}15`, color: c, direction: 'ltr',
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
                         }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: c }} />
                           {isExpired ? 'منتهي' : expSoon ? 'ينتهي قريباً' : 'ساري'} · {d.expiry_date}
                         </span>
                       )}
@@ -979,17 +1095,19 @@ function BranchDetailPage({ branch, dashboard, users, banks, docs, onBack, onEdi
    ═══════════════════════════════════════════════════════════════ */
 
 const InfoCard = ({ title, Icon, badge, rightSlot, children }) => (
-  <div className="brs-card" style={{ padding: 16 }}>
+  <div className="brs-card">
     <div className="brs-card-title" style={{ justifyContent: 'space-between' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         {Icon && <Icon size={15} color={GOLD} />}
         {title}
         {badge != null && (
           <span style={{
-            marginInlineStart: 4, padding: '2px 8px', borderRadius: 6,
-            background: `${GOLD}14`, border: `1px solid ${GOLD}33`,
-            fontSize: 10.5, fontWeight: 800, color: GOLD_SOFT, direction: 'ltr',
+            marginInlineStart: 4, padding: '3px 9px', borderRadius: 6,
+            background: `${GOLD}15`,
+            fontSize: 10, fontWeight: 600, color: GOLD_SOFT, direction: 'ltr',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
           }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: GOLD }} />
             {badge}
           </span>
         )}
@@ -1003,11 +1121,13 @@ const InfoCard = ({ title, Icon, badge, rightSlot, children }) => (
 const EmptyLine = ({ text, Icon }) => (
   <div style={{
     padding: 24, textAlign: 'center',
-    background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.06)',
-    borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+    background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+    border: '1px solid rgba(255,255,255,.06)',
+    borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 4px rgba(0,0,0,.18)',
   }}>
-    {Icon && <Icon size={20} color={GOLD} style={{ opacity: .4 }} />}
-    <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx5)' }}>{text}</div>
+    {Icon && <Icon size={20} color={GOLD} style={{ opacity: .45 }} />}
+    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)' }}>{text}</div>
   </div>
 )
 
@@ -1021,37 +1141,43 @@ function BankRow({ account, toast }) {
   return (
     <div style={{
       padding: '12px 14px', borderRadius: 10,
-      background: 'rgba(255,255,255,.02)',
-      border: `1px solid ${lowBal ? 'rgba(230,162,60,.25)' : 'rgba(255,255,255,.05)'}`,
+      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+      border: `1px solid ${lowBal ? 'rgba(230,162,60,.3)' : 'rgba(255,255,255,.06)'}`,
       borderInlineStart: `3px solid ${c}`,
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(0,0,0,.2)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <CreditCard size={14} color={c} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tx)' }}>{account.bank_name}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{account.bank_name}</span>
           {account.is_primary && (
             <span style={{
-              fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 5,
-              background: `${GOLD}14`, color: GOLD, border: `1px solid ${GOLD}33`,
-            }}>رئيسي</span>
+              fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
+              background: `${GOLD}15`, color: GOLD,
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+            }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: GOLD }} />
+              رئيسي
+            </span>
           )}
           {account.account_purpose && (
             <span style={{
-              fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
-              background: 'rgba(255,255,255,.04)', color: 'var(--tx4)',
+              fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 6,
+              background: 'rgba(255,255,255,.05)', color: 'var(--tx4)',
             }}>{account.account_purpose}</span>
           )}
         </div>
-        <div style={{ direction: 'ltr', fontSize: 16, fontWeight: 900, color: c, fontFamily: "'JetBrains Mono','Cairo',sans-serif" }}>
+        <div style={{ direction: 'ltr', fontSize: 16, fontWeight: 700, color: c,
+          fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.3px' }}>
           {nm(account.current_balance || 0)}
-          <span style={{ fontSize: 10, fontWeight: 700, opacity: .6, marginInlineStart: 4 }}>ر.س</span>
+          <span style={{ fontSize: 10, fontWeight: 600, opacity: .65, marginInlineStart: 4 }}>ر.س</span>
         </div>
       </div>
       {lowBal && (
         <div style={{
-          fontSize: 10, fontWeight: 700, color: '#e6a23c',
-          background: 'rgba(230,162,60,.1)', padding: '4px 8px', borderRadius: 5,
-          marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
+          fontSize: 10, fontWeight: 600, color: '#e6a23c',
+          background: 'rgba(230,162,60,.12)', padding: '5px 10px', borderRadius: 6,
+          marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 5,
         }}>
           <AlertCircle size={10} /> الحد الأدنى: {nm(account.min_balance_alert)}
         </div>
@@ -1073,14 +1199,16 @@ function BankRow({ account, toast }) {
 
 const CopyRow = ({ label, value, onCopy }) => (
   <div onClick={onCopy} style={{
-    padding: '6px 9px', borderRadius: 7,
-    background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.04)',
-    cursor: 'pointer', transition: '.15s',
+    padding: '7px 10px', borderRadius: 8,
+    background: 'linear-gradient(180deg,#262626 0%,#1d1d1d 100%)',
+    border: '1px solid rgba(255,255,255,.05)',
+    cursor: 'pointer', transition: '.18s',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.03)',
   }}
-    onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}33` }}
-    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)' }}>
-    <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--tx5)', marginBottom: 2 }}>{label}</div>
-    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)', direction: 'ltr',
+    onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}40` }}
+    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
+    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 3, letterSpacing: '.2px' }}>{label}</div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.92)', direction: 'ltr',
       fontFamily: "'JetBrains Mono','Cairo',sans-serif", wordBreak: 'break-all' }}>
       {value}
     </div>
@@ -1109,9 +1237,13 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
       }}>
         <div onClick={e => e.stopPropagation()} style={{
-          background: '#1a1a1a', borderRadius: 18, width: 420, maxWidth: '95vw',
-          padding: '48px 32px', boxShadow: '0 24px 60px rgba(0,0,0,.5)',
-          border: `1px solid ${GOLD}18`,
+          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          borderRadius: 16, width: 420, maxWidth: '95vw',
+          padding: '48px 32px',
+          boxShadow: '0 24px 60px rgba(0,0,0,.55), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.08)',
+          border: `1px solid rgba(255,255,255,.08)`,
         }}>
           <style>{`
             @keyframes brsPop { 0% { transform: scale(0); opacity: 0 } 60% { transform: scale(1.15); opacity: 1 } 100% { transform: scale(1); opacity: 1 } }
@@ -1121,11 +1253,11 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
           <div dir="rtl" style={{ fontFamily: F, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
             <div style={{
               width: 84, height: 84, borderRadius: '50%',
-              background: 'radial-gradient(circle at center, #27a04622, #27a04608)',
-              border: '2px solid #27a04655',
+              background: 'radial-gradient(circle at center, #27a04628, #27a04608)',
+              border: '2px solid #27a04666',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               animation: 'brsPop .5s cubic-bezier(.4,1.4,.5,1) forwards',
-              boxShadow: '0 0 40px #27a04633',
+              boxShadow: '0 0 40px #27a04640',
             }}>
               <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#27a046"
                 strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -1135,10 +1267,10 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
               </svg>
             </div>
             <div style={{ animation: 'brsFade .4s .45s both', textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,.95)', marginBottom: 6 }}>
+              <div style={{ fontSize: 20, fontWeight: 600, color: 'rgba(255,255,255,.93)', marginBottom: 8, letterSpacing: '-.3px' }}>
                 {isEdit ? 'تم التعديل' : 'تمت الإضافة'}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx5)' }}>{form.branch_code}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)' }}>{form.branch_code}</div>
             </div>
           </div>
         </div>
@@ -1182,14 +1314,15 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
             ) : (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
-                background: 'rgba(0,0,0,.18)', borderRadius: 9,
-                border: '1px solid transparent', height: 42, boxSizing: 'border-box',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', overflow: 'hidden',
+                background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', borderRadius: 10,
+                border: '1px solid rgba(255,255,255,.07)', height: 42, boxSizing: 'border-box',
+                boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+                overflow: 'hidden',
               }}>
                 <span style={{
                   fontSize: 13, fontFamily: "'JetBrains Mono','Cairo',sans-serif",
-                  fontWeight: 700, direction: 'ltr', flex: 1, textAlign: 'center',
-                  color: form.branch_code ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)',
+                  fontWeight: 600, direction: 'ltr', flex: 1, textAlign: 'center',
+                  color: form.branch_code ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.3)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {form.branch_code || '— الكود —'}
@@ -1197,10 +1330,13 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
                 <button type="button" onClick={() => setCodeEditing(true)} title="تعديل"
                   style={{
                     width: 28, height: 26, borderRadius: 6,
-                    border: `1px dashed ${GOLD}73`, background: 'transparent',
-                    color: `${GOLD}d9`, cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0,
-                  }}>
+                    border: `1px dashed ${GOLD}80`, background: 'transparent',
+                    color: GOLD, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 0, flexShrink: 0, transition: '.18s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}15` }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                   <Edit2 size={12} strokeWidth={2.2} />
                 </button>
               </div>
@@ -1219,22 +1355,25 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
               <Lbl>الحالة</Lbl>
               <div style={{
                 display: 'flex', gap: 3, padding: 3, height: 42, boxSizing: 'border-box',
-                background: 'rgba(0,0,0,.18)', borderRadius: 9, border: '1px solid transparent',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
+                background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+                borderRadius: 10, border: '1px solid rgba(255,255,255,.06)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',
               }}>
                 <button type="button" onClick={() => setForm(p => ({ ...p, is_active: true }))}
                   style={{
-                    flex: 1, borderRadius: 6, border: 'none',
-                    background: form.is_active === true ? 'rgba(39,160,70,.15)' : 'transparent',
+                    flex: 1, borderRadius: 7, border: 'none',
+                    background: form.is_active === true ? 'rgba(39,160,70,.18)' : 'transparent',
                     color: form.is_active === true ? C.ok : 'var(--tx5)',
-                    fontFamily: F, fontSize: 12, fontWeight: form.is_active === true ? 800 : 600, cursor: 'pointer',
+                    fontFamily: F, fontSize: 12, fontWeight: form.is_active === true ? 700 : 500,
+                    cursor: 'pointer', transition: '.18s',
                   }}>نشط</button>
                 <button type="button" onClick={() => setForm(p => ({ ...p, is_active: false }))}
                   style={{
-                    flex: 1, borderRadius: 6, border: 'none',
-                    background: form.is_active === false ? 'rgba(192,57,43,.15)' : 'transparent',
-                    color: form.is_active === false ? '#c0392b' : 'var(--tx5)',
-                    fontFamily: F, fontSize: 12, fontWeight: form.is_active === false ? 800 : 600, cursor: 'pointer',
+                    flex: 1, borderRadius: 7, border: 'none',
+                    background: form.is_active === false ? 'rgba(192,57,43,.18)' : 'transparent',
+                    color: form.is_active === false ? C.red : 'var(--tx5)',
+                    fontFamily: F, fontSize: 12, fontWeight: form.is_active === false ? 700 : 500,
+                    cursor: 'pointer', transition: '.18s',
                   }}>معطّل</button>
               </div>
             </div>
