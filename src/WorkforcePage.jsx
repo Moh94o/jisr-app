@@ -1,406 +1,1109 @@
-import React,{useState,useEffect,useCallback} from 'react'
-const F="'Cairo','Tajawal',sans-serif"
-const C={dk:'#171717',md:'#222222',fm:'#1e1e1e',gold:'#D4A017',gl:'#dcc06e',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
-const GLASS={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
-const fS={width:'100%',height:40,padding:'0 14px',border:'1px solid rgba(255,255,255,.06)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:500,color:'var(--tx)',outline:'none',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',textAlign:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
-const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}
-const secBtn={height:40,padding:'0 14px',borderRadius:11,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
-const sMap={active:C.ok,absconded:C.red,final_exit:'#999',transferred:'#e67e22',suspended:'#e67e22',male:C.blue,female:'#9b59b6',completed:C.ok,pending:'#e67e22',cancelled:C.red,expired:'#999',recruitment:C.blue,transfer:'#9b59b6',approved:C.ok,rejected:C.red}
-const valAr={male:'ذكر',female:'أنثى',single:'أعزب',married:'متزوج',divorced:'مطلق',widowed:'أرمل',active:'نشط',absconded:'هارب',suspended:'معلّق',final_exit:'خروج نهائي',transferred:'منقول',citizen:'مواطن',resident:'مقيم',basic:'أساسي',skilled:'ماهر',highly_skilled:'عالي المهارة',completed:'مكتمل',pending:'قيد الانتظار',cancelled:'ملغى',expired:'منتهي',registered:'مسجّل',not_registered:'غير مسجّل',true:'نعم',false:'لا',recruitment:'استقدام',transfer:'نقل كفالة',approved:'مقبول',rejected:'مرفوض',professional:'محترف',unskilled:'غير ماهر',semi_skilled:'شبه ماهر',laborer:'عامل',technician:'فني',engineer:'مهندس'}
-const natFlags={'أردني':'🇯🇴','أفغاني':'🇦🇫','أوغندي':'🇺🇬','إثيوبي':'🇪🇹','إندونيسي':'🇮🇩','باكستاني':'🇵🇰','بنغلاديشي':'🇧🇩','تركي':'🇹🇷','تونسي':'🇹🇳','سريلانكي':'🇱🇰','سعودي':'🇸🇦','سعودية':'🇸🇦','سوداني':'🇸🇩','سوري':'🇸🇾','فلبيني':'🇵🇭','كيني':'🇰🇪','مصري':'🇪🇬','مغربي':'🇲🇦','ميانمار':'🇲🇲','نيبالي':'🇳🇵','هندي':'🇮🇳','يمني':'🇾🇪'}
-const natCodes={'أردني':'JO','أفغاني':'AF','أوغندي':'UG','إثيوبي':'ET','إندونيسي':'ID','باكستاني':'PK','بنغلاديشي':'BD','تركي':'TR','تونسي':'TN','سريلانكي':'LK','سعودي':'SA','سعودية':'SA','سوداني':'SD','سوري':'SY','فلبيني':'PH','كيني':'KE','مصري':'EG','مغربي':'MA','ميانمار':'MM','نيبالي':'NP','هندي':'IN','يمني':'YE'}
-const nm=v=>Number(v||0).toLocaleString('en-US')
-const Badge=({v})=>{const cl=sMap[v]||'#888';const lbl=valAr[v]||v;return<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:cl+'15',color:cl,display:'inline-flex',alignItems:'center',gap:5,fontFamily:F}}><span style={{width:5,height:5,borderRadius:'50%',background:cl}}/>{lbl||'\u2014'}</span>}
-const EditBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(212,160,23,.15)',background:'rgba(212,160,23,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
-const DelBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.1)',background:'rgba(192,57,43,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
-const IB=({l,v,copy,isSt,toast})=>{const dv=valAr[v]||v;return<div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:10,padding:'10px 12px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:13,fontWeight:600,color:isSt?(sMap[v]||'rgba(255,255,255,.85)'):'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit',fontFamily:F}}>{isSt?<Badge v={v}/>:(dv||'\u2014')}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast&&toast(T('تم النسخ','Copied'))}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}</div></div>}
-const FI=({f,form,setForm,isAr})=>{const v=form[f.k]||'';const set=val=>setForm(p=>({...p,[f.k]:val}));return<div style={{gridColumn:f.w?'1/-1':undefined}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx3)',marginBottom:6,fontFamily:F}}>{f.l}{f.r&&<span style={{color:C.red}}> *</span>}</div>{f.opts?<select value={v} onChange={e=>set(e.target.value)} style={fS}><option value="">— اختر —</option>{f.opts.map(o=>typeof o==='object'?<option key={o.v} value={o.v}>{o.l}</option>:<option key={o} value={o}>{o}</option>)}</select>:f.t==='date'?<input type="date" value={v} onChange={e=>set(e.target.value)} style={{...fS,direction:'ltr'}}/>:f.w?<textarea value={v} onChange={e=>set(e.target.value)} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/>:<input value={v} onChange={e=>set(e.target.value)} style={{...fS,direction:f.d?'ltr':'rtl'}}/>}</div>}
-const FormPopup=({title,fields,form,setForm,onSave,onClose,saving,isAr})=><div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16,fontFamily:F}}><div onClick={e=>e.stopPropagation()} style={{...GLASS,width:560,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden'}}><div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,'+C.gl+' 50%,'+C.gold+' 70%,transparent)'}}/><div style={{padding:'18px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(255,255,255,.07)'}}><div style={{fontSize:15,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.2px'}}>{title}</div><button onClick={onClose} style={{width:28,height:28,borderRadius:8,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{'\u2715'}</button></div><div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>{fields.map(f=><FI key={f.k} f={f} form={form} setForm={setForm} isAr={isAr}/>)}</div></div><div style={{padding:'14px 22px',borderTop:'1px solid rgba(255,255,255,.07)',display:'flex',justifyContent:'space-between',flexDirection:'row-reverse'}}><button onClick={onSave} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':form._id?'حفظ':'إضافة'}</button><button onClick={onClose} style={{...secBtn,height:42,padding:'0 18px'}}>إلغاء</button></div></div></div>
-const SectionHdr=({t})=><div style={{fontSize:12,fontWeight:600,color:C.gold,marginBottom:12,paddingBottom:8,borderBottom:'1px solid rgba(212,160,23,.18)',letterSpacing:'.3px',fontFamily:F}}>{t}</div>
-const selS={height:36,padding:'0 12px',borderRadius:10,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'rgba(255,255,255,.78)',fontFamily:F,fontSize:11,fontWeight:500,outline:'none',cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import { DateField, Sel } from './pages/KafalaCalculator.jsx'
 
-export default function WorkforcePage({sb,toast,user,lang,onTabChange}){
-const isAr=lang!=='en';const T=(a,e)=>isAr?a:e
-const[workers,setWorkers]=useState([]);const[facilities,setFacilities]=useState([]);const[brokers,setBrokers]=useState([])
-const[permits,setPermits]=useState([]);const[iqamas,setIqamas]=useState([]);const[insurance,setInsurance]=useState([])
-const[transfers,setTransfers]=useState([]);const[newIqamas,setNewIqamas]=useState([]);const[passports,setPassports]=useState([]);const[licenses,setLicenses]=useState([]);const[dependents,setDependents]=useState([]);const[contracts,setContracts]=useState([]);const[salaryHistory,setSalaryHistory]=useState([])
-const[visas,setVisas]=useState([]);const[vehicles,setVehicles]=useState([]);const[timeline,setTimeline]=useState([]);const[transferReqs,setTransferReqs]=useState([]);const[gosiSubs,setGosiSubs]=useState([]);const[attFiles,setAttFiles]=useState([])
-const[loading,setLoading]=useState(false);const[q,setQ]=useState('');const[statusFilter,setStatusFilter]=useState('all')
-const[nationalityFilter,setNationalityFilter]=useState('all');const[facilityFilter,setFacilityFilter]=useState('all');const[joiningFilter,setJoiningFilter]=useState('all');const[alertFilter,setAlertFilter]=useState(null)
-const[sortBy,setSortBy]=useState('created_at');const[page,setPage]=useState(0)
-const[viewRow,setViewRow]=useState(null);const[viewTab,setViewTab]=useState('basic')
-const[pop,setPop]=useState(null);const[form,setForm]=useState({});const[saving,setSaving]=useState(false)
-const[completionMap,setCompletionMap]=useState({})
-const[occMap,setOccMap]=useState({})
-const[branches,setBranches]=useState([])
-const[showAdv,setShowAdv]=useState(false)
-const PER_PAGE=9
-useEffect(()=>{onTabChange&&onTabChange({tab:'workers'})},[])
-const load=useCallback(async()=>{setLoading(true);
-// Phase 1: Essential data first (workers list + lookups) — show UI immediately
-const[w,f,b,br]=await Promise.all([
-sb.from('workers').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
-sb.from('facilities').select('id,name_ar,unified_national_number').is('deleted_at',null),
-sb.from('brokers').select('id,name_ar').is('deleted_at',null),
-sb.from('branches').select('id,name_ar').is('deleted_at',null)
-]);setWorkers(w.data||[]);setFacilities(f.data||[]);setBrokers(b.data||[]);setBranches(br.data||[]);setLoading(false);
-// Phase 2: Detail data in background — no blocking
-Promise.all([
-sb.from('work_permits').select('*').is('deleted_at',null).order('wp_expiry_date',{ascending:false}),
-sb.from('iqama_cards').select('*').is('deleted_at',null).order('iqama_expiry_date',{ascending:false}),
-sb.from('worker_insurance').select('*').is('deleted_at',null).order('end_date',{ascending:false}),
-// transfer_calculation is keyed by iqama_number, not worker_id — workforce-side transfer history is no longer joined here.
-Promise.resolve({data:[]}),
-Promise.resolve({data:[]}),
-sb.from('worker_passports').select('*').order('expiry_date',{ascending:false}),
-sb.from('worker_licenses').select('*').order('expiry_date',{ascending:false}),
-sb.from('worker_dependents').select('*').order('created_at',{ascending:false}),
-sb.from('contracts').select('*').order('start_date',{ascending:false}),
-sb.from('worker_salary_history').select('*').order('change_date',{ascending:false}),
-sb.from('worker_visas').select('*').order('created_at',{ascending:false}),
-sb.from('worker_vehicles').select('*').order('created_at',{ascending:false}),
-sb.from('worker_timeline').select('*').order('event_date',{ascending:false}),
-sb.from('transfer_requests').select('*').order('created_at',{ascending:false}),
-sb.from('gosi_subscriptions').select('*').order('created_at',{ascending:false}),
-sb.from('attachments').select('*').is('deleted_at',null).order('created_at',{ascending:false})
-]).then(([wp,iq,ins,tr,niq,pp,lic,dep,ctr,sh,vi,vh,tl,treq,gs,att])=>{setPermits(wp.data||[]);setIqamas(iq.data||[]);setInsurance(ins.data||[]);setTransfers(tr.data||[]);setNewIqamas(niq.data||[]);setPassports(pp.data||[]);setLicenses(lic.data||[]);setDependents(dep.data||[]);setContracts(ctr.data||[]);setSalaryHistory(sh.data||[]);setVisas(vi.data||[]);setVehicles(vh.data||[]);setTimeline(tl.data||[]);setTransferReqs(treq.data||[]);setGosiSubs(gs.data||[]);setAttFiles(att.data||[])})},[sb])
-useEffect(()=>{load()},[load])
-// v_worker_completeness removed — completionMap stays empty (feature disabled)
-useEffect(()=>{if(!sb||!workers.length)return;const ids=[...new Set(workers.map(w=>w.occupation_id).filter(Boolean))];if(!ids.length)return;sb.from('lookup_items').select('id,value_ar').in('id',ids).then(({data})=>{if(data){const m={};data.forEach(r=>m[r.id]=r.value_ar);setOccMap(m)}})},[sb,workers])
-const saveG=async(table,fd)=>{setSaving(true);try{const d={...fd};const id=d._id;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;if(d[k]==='true')d[k]=true;if(d[k]==='false')d[k]=false});if(id){d.updated_by=user?.id;const{error}=await sb.from(table).update(d).eq('id',id);if(error)throw error;toast(T('تم التعديل','Updated'))}else{d.created_by=user?.id;const{error}=await sb.from(table).insert(d);if(error)throw error;toast(T('تمت الإضافة','Added'))};setPop(null);load()}catch(e){toast(T('خطأ: ','Error: ')+e.message?.slice(0,80))}setSaving(false)}
-const del=async(t,id)=>{if(!confirm(T('حذف؟','Delete?')))return;await sb.from(t).update({deleted_at:new Date().toISOString()}).eq('id',id);toast(T('تم الحذف','Deleted'));load()}
+const F = "'Cairo','Tajawal',sans-serif"
+const C = {
+  gold: '#D4A017', goldSoft: '#e8c77a',
+  blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
+  ok: '#2ecc71', warn: '#eab308', red: '#e87265',
+}
+const PAGE = 24
 
-/* ═══ COMPUTED STATS ═══ */
-const now=new Date()
-const activeW=workers.filter(r=>r.worker_status==='active').length
-const abscondedW=workers.filter(r=>r.worker_status==='absconded').length
-const suspendedW=workers.filter(r=>r.worker_status==='suspended').length
-const exitW=workers.filter(r=>r.worker_status==='final_exit').length
-const recruitW=workers.filter(r=>r.joining_method==='recruitment').length
-const transferW=workers.filter(r=>r.joining_method==='transfer').length
-const expiredIqama=workers.filter(r=>r.iqama_expiry_date&&new Date(r.iqama_expiry_date)<now).length
-const iqama30=workers.filter(r=>{if(!r.iqama_expiry_date)return false;const d=Math.ceil((new Date(r.iqama_expiry_date)-now)/86400000);return d>=0&&d<=30}).length
-const iqama90=workers.filter(r=>{if(!r.iqama_expiry_date)return false;const d=Math.ceil((new Date(r.iqama_expiry_date)-now)/86400000);return d>30&&d<=90}).length
-const incompleteFile=Object.values(completionMap).filter(c=>c.completion_pct<80).length
+const num = (v) => Number(v || 0).toLocaleString('en-US')
 
-/* ═══ NATIONALITIES LIST ═══ */
-const natList=[...new Set(workers.map(w=>w.nationality).filter(Boolean))].sort()
+/* ─── Theme maps ─── */
+const STATUS_THEME = {
+  active:      { c: C.ok,     label_ar: 'نشط',          label_en: 'Active' },
+  absconded:   { c: C.red,    label_ar: 'هارب',         label_en: 'Absconded' },
+  final_exit:  { c: C.gray,   label_ar: 'خروج نهائي',   label_en: 'Final Exit' },
+  transferred: { c: C.orange, label_ar: 'منقول',        label_en: 'Transferred' },
+  suspended:   { c: C.warn,   label_ar: 'معلّق',        label_en: 'Suspended' },
+}
+const JOIN_THEME = {
+  recruitment: { c: C.blue,   label_ar: 'استقدام',     label_en: 'Recruitment' },
+  transfer:    { c: C.purple, label_ar: 'نقل كفالة',   label_en: 'Transfer' },
+}
+const VAL_AR = {
+  male:'ذكر', female:'أنثى', single:'أعزب', married:'متزوج', divorced:'مطلق', widowed:'أرمل',
+  citizen:'مواطن', resident:'مقيم', basic:'أساسي', skilled:'ماهر', highly_skilled:'عالي المهارة',
+  registered:'مسجّل', not_registered:'غير مسجّل', true:'نعم', false:'لا',
+  active:'نشط', absconded:'هارب', suspended:'معلّق', final_exit:'خروج نهائي', transferred:'منقول',
+  recruitment:'استقدام', transfer:'نقل كفالة',
+}
+const NAT_CODES = {
+  'أردني':'JO','أفغاني':'AF','أوغندي':'UG','إثيوبي':'ET','إندونيسي':'ID','باكستاني':'PK','بنغلاديشي':'BD',
+  'تركي':'TR','تونسي':'TN','سريلانكي':'LK','سعودي':'SA','سعودية':'SA','سوداني':'SD','سوري':'SY',
+  'فلبيني':'PH','كيني':'KE','مصري':'EG','مغربي':'MA','ميانمار':'MM','نيبالي':'NP','هندي':'IN','يمني':'YE',
+}
 
-/* ═══ FILTER LOGIC ═══ */
-let filtered=workers.filter(r=>{
-if(statusFilter!=='all'&&r.worker_status!==statusFilter)return false
-if(nationalityFilter!=='all'&&r.nationality!==nationalityFilter)return false
-if(facilityFilter!=='all'&&r.facility_id!==facilityFilter)return false
-if(joiningFilter!=='all'&&r.joining_method!==joiningFilter)return false
-if(alertFilter==='expired'&&!(r.iqama_expiry_date&&new Date(r.iqama_expiry_date)<now))return false
-if(alertFilter==='30d'){const d=r.iqama_expiry_date?Math.ceil((new Date(r.iqama_expiry_date)-now)/86400000):-1;if(!(d>=0&&d<=30))return false}
-if(alertFilter==='90d'){const d=r.iqama_expiry_date?Math.ceil((new Date(r.iqama_expiry_date)-now)/86400000):-1;if(!(d>30&&d<=90))return false}
-if(alertFilter==='incomplete'&&(completionMap[r.id]?.completion_pct||0)>=80)return false
-if(q){const s=q.toLowerCase();return(r.name_ar||'').includes(s)||(r.name_en||'').toLowerCase().includes(s)||(r.iqama_number||'').includes(s)||(r.worker_number||'').includes(s)||(r.phone||'').includes(s)}
-return true})
-if(sortBy==='name')filtered.sort((a,b)=>(a.name_ar||'').localeCompare(b.name_ar||''))
-else if(sortBy==='completion')filtered.sort((a,b)=>(completionMap[a.id]?.completion_pct||0)-(completionMap[b.id]?.completion_pct||0))
-const totalPages=Math.ceil(filtered.length/PER_PAGE),paged=filtered.slice(page*PER_PAGE,(page+1)*PER_PAGE)
+/* ─── Tiny bits ─── */
+const StatusBadge = ({ status, T }) => {
+  const t = STATUS_THEME[status] || { c: C.gray, label_ar: status || '—', label_en: status || '—' }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: t.c + '18', border: '1px solid ' + t.c + '38', color: t.c, fontSize: 10.5, fontWeight: 700 }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: t.c, boxShadow: '0 0 5px ' + t.c }} />
+      {T(t.label_ar, t.label_en)}
+    </span>
+  )
+}
 
-const wFields=[{k:'worker_number',l:T('رقم العامل','Worker No.'),d:1},{k:'name_ar',l:T('الاسم بالعربي','Name (AR)'),r:1},{k:'name_en',l:T('الاسم بالإنجليزي','Name (EN)'),d:1},{k:'gender',l:T('الجنس','Gender'),opts:['male','female']},{k:'nationality',l:T('الجنسية','Nationality')},{k:'phone',l:T('الجوال','Phone'),d:1},{k:'iqama_number',l:T('رقم الإقامة','Iqama No.'),d:1,r:1},{k:'border_number',l:T('رقم الحدود','Border No.'),d:1},{k:'passport_number',l:T('رقم الجواز','Passport'),d:1},{k:'passport_expiry',l:T('انتهاء الجواز','Passport Exp.'),t:'date'},{k:'facility_id',l:T('المنشأة','Facility'),opts:facilities.map(f=>({v:f.id,l:f.name_ar}))},{k:'broker_id',l:T('الوسيط','Broker'),opts:brokers.map(b=>({v:b.id,l:b.name_ar}))},{k:'birth_date_g',l:T('تاريخ الميلاد','Birth Date'),t:'date'},{k:'gosi_salary',l:T('راتب التأمينات','GOSI Salary'),d:1},{k:'qiwa_salary',l:T('راتب قوى','Qiwa Salary'),d:1},{k:'worker_status',l:T('الحالة','Status'),opts:[{v:'active',l:T('نشط','Active')},{v:'absconded',l:T('هارب','Absconded')},{v:'final_exit',l:T('خروج نهائي','Final Exit')},{v:'transferred',l:T('منقول','Transferred')},{v:'suspended',l:T('معلّق','Suspended')}],r:1},{k:'dependents_count',l:T('عدد المرافقين','Dependents'),d:1},{k:'identity_type',l:T('نوع الهوية','ID Type'),opts:[{v:'citizen',l:T('مواطن','Citizen')},{v:'resident',l:T('مقيم','Resident')}]},{k:'marital_status',l:T('الحالة الاجتماعية','Marital'),opts:[{v:'single',l:T('أعزب','Single')},{v:'married',l:T('متزوج','Married')},{v:'divorced',l:T('مطلق','Divorced')},{v:'widowed',l:T('أرمل','Widowed')}]},{k:'skill_classification',l:T('تصنيف المهارات','Skill'),opts:[{v:'basic',l:T('أساسي','Basic')},{v:'skilled',l:T('ماهر','Skilled')},{v:'highly_skilled',l:T('عالي المهارة','Highly Skilled')}]},{k:'joining_method',l:T('طريقة الانضمام','Joining'),opts:[{v:'recruitment',l:T('استقدام','Recruitment')},{v:'transfer',l:T('نقل كفالة','Transfer')}]},{k:'entry_port',l:T('منفذ الدخول','Entry Port')},{k:'iqama_expiry_date',l:T('انتهاء الإقامة','Iqama Exp.'),t:'date'},{k:'notes',l:T('ملاحظات','Notes'),w:1}]
-const openAdd=()=>{const init={};wFields.forEach(f=>init[f.k]='');init.worker_status='active';init.gender='male';setForm(init);setPop('worker')}
-const openEdit=r=>{const init={_id:r.id};wFields.forEach(f=>init[f.k]=r[f.k]??'');setForm(init);setPop('worker')}
-const fBtnS=a=>({padding:'6px 14px',borderRadius:8,fontSize:10,fontWeight:a?700:500,color:a?C.gold:'rgba(255,255,255,.4)',background:a?'rgba(212,160,23,.08)':'transparent',border:a?'1px solid rgba(212,160,23,.15)':'1px solid rgba(255,255,255,.06)',cursor:'pointer',whiteSpace:'nowrap'})
-const SB=<div style={{flex:1,minWidth:180,position:'relative'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.32)" strokeWidth="2" style={{position:'absolute',top:13,[isAr?'right':'left']:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input value={q} onChange={e=>{setQ(e.target.value);setPage(0)}} placeholder={T('بحث ...','Search ...')} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}/></div>
+const CopyBtn = ({ value, toast, T }) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); try { navigator.clipboard?.writeText(String(value)); toast?.(T('تم النسخ','Copied')) } catch {} }}
+    title={T('نسخ','Copy')}
+    style={{ width: 16, height: 16, padding: 0, borderRadius: 3, background: 'transparent', border: 'none', color: 'currentColor', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: .7, transition: '.18s' }}
+    onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
+    onMouseLeave={e => { e.currentTarget.style.opacity = '.7' }}
+  >
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+  </button>
+)
 
-/* ═══ VIEW DATA ═══ */
-const wP=viewRow?permits.filter(p=>p.worker_id===viewRow.id):[],wI=viewRow?iqamas.filter(i=>i.worker_id===viewRow.id):[],wIn=viewRow?insurance.filter(i=>i.worker_id===viewRow.id):[],wNI=viewRow?newIqamas.filter(i=>i.worker_id===viewRow.id):[],wPP=viewRow?passports.filter(p=>p.worker_id===viewRow.id):[],wLic=viewRow?licenses.filter(l=>l.worker_id===viewRow.id):[],wDep=viewRow?dependents.filter(d=>d.worker_id===viewRow.id):[],wCtr=viewRow?contracts.filter(c=>c.worker_id===viewRow.id):[],wSH=viewRow?salaryHistory.filter(s=>s.worker_id===viewRow.id):[]
-const wVis=viewRow?visas.filter(v=>v.worker_id===viewRow.id):[],wVeh=viewRow?vehicles.filter(v=>v.worker_id===viewRow.id):[],wTL=viewRow?timeline.filter(t=>t.worker_id===viewRow.id):[],wTReq=viewRow?transferReqs.filter(t=>t.worker_id===viewRow.id):[],wGosi=viewRow?gosiSubs.filter(g=>g.worker_id===viewRow.id):[],wAtt=viewRow?attFiles.filter(a=>a.entity_type==='worker'&&a.entity_id===viewRow.id):[],wTr=viewRow?transfers.filter(t=>t.worker_id===viewRow.id):[]
+const NatFlag = ({ nationality, size = 22 }) => {
+  const cc = NAT_CODES[nationality]
+  if (!cc) return null
+  return <img src={`https://flagcdn.com/w40/${cc.toLowerCase()}.png`} alt={nationality} title={nationality} style={{ width: size, height: Math.round(size * .72), objectFit: 'cover', borderRadius: 3, flexShrink: 0 }} onError={e => { e.target.style.display = 'none' }} />
+}
 
-return<div style={{fontFamily:F}}>
-{/* ═══ HEADER ═══ */}
-<div style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>{T('العمالة','Workforce')}</div>
-<div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>{T('إدارة بيانات العمّال والوثائق والعقود والتنقلات','Worker records, documents, contracts and transfers management')}</div>
-</div>
-<button onClick={openAdd} style={bS}>+ {T('عامل','Worker')}</button>
-</div>
+const cardChrome = {
+  borderRadius: 14,
+  background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+  border: '1px solid rgba(255,255,255,.05)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+  overflow: 'hidden',
+}
+const cardHeader = {
+  display: 'flex', alignItems: 'center', gap: 8,
+  padding: '12px 22px',
+  borderBottom: '1px solid rgba(255,255,255,.06)',
+}
+const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.2px' }
 
-{/* ═══ 3 GROUPED STAT CARDS ═══ */}
-<div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr',gap:14,marginBottom:14}}>
-{/* Card 1: Total */}
-<div style={{...GLASS,padding:'18px 22px',display:'flex',alignItems:'center',gap:18}}>
-<div>
-<div style={{fontSize:12,fontWeight:600,color:'var(--tx2)',letterSpacing:'.3px'}}>{T('إجمالي العمال','Total Workers')}</div>
-<div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',marginTop:4}}>{T('مسجل في النظام','Registered')}</div>
-</div>
-<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-<span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/>
-<div style={{fontSize:32,fontWeight:700,color:C.gold,letterSpacing:'-.5px',direction:'ltr',lineHeight:1}}>{nm(workers.length)}</div>
-</div>
-{expiredIqama>0&&<div style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:C.red}}/>
-<span style={{fontSize:10,fontWeight:600}}>{expiredIqama} {T('إقامة منتهية','expired')}</span>
-</div>}
-</div>
-</div>
-{/* Card 2: صحة الإقامات — health card */}
-{(()=>{const validIqama=workers.filter(r=>{if(!r.iqama_expiry_date)return false;const d=Math.ceil((new Date(r.iqama_expiry_date)-now)/86400000);return d>90}).length;const total=workers.length||1;const pctValid=Math.round(validIqama/total*100);const pct90=Math.round(iqama90/total*100);const pct30=Math.round(iqama30/total*100);const pctExp=Math.round(expiredIqama/total*100);return<div style={{...GLASS,padding:'18px 22px'}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-<div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',letterSpacing:'.3px'}}>{T('صحة الإقامات','Iqama Health')}</div>
-<div style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>{T('الأمن','Security')}</div>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8,marginBottom:14}}>
-{[[T('سارية','Valid'),validIqama,C.ok],[T('تنتهي 90 يوم','90 days'),iqama90,'#e67e22'],[T('تنتهي 30 يوم','30 days'),iqama30,C.gold],[T('منتهية','Expired'),expiredIqama,C.red]].map(([l,v,c],i)=><div key={i} style={{padding:'7px 12px',borderRadius:10,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{width:6,height:6,borderRadius:'50%',background:c,boxShadow:'0 0 5px '+c}}/>
-<div style={{fontSize:18,fontWeight:700,color:c,letterSpacing:'-.3px',direction:'ltr',lineHeight:1}}>{v}</div>
-</div>
-<div style={{fontSize:11,color:'var(--tx2)',fontWeight:600}}>{l}</div>
-</div>)}
-</div>
-{/* Progress bar */}
-<div style={{height:6,borderRadius:3,overflow:'hidden',display:'flex',background:'rgba(0,0,0,.3)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.4)'}}>
-<div style={{width:pctValid+'%',background:C.ok,transition:'width .3s'}}/>
-<div style={{width:pct90+'%',background:'#e67e22',transition:'width .3s'}}/>
-<div style={{width:pct30+'%',background:C.gold,transition:'width .3s'}}/>
-<div style={{width:pctExp+'%',background:C.red,transition:'width .3s'}}/>
-</div>
-</div>})()}
-{/* Card 3: Joining — percentages */}
-{(()=>{const total=workers.length||1;const pctR=Math.round(recruitW/total*100);const pctT=Math.round(transferW/total*100);return<div style={{...GLASS,padding:'18px 22px'}}>
-<div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',letterSpacing:'.3px',marginBottom:14}}>{T('طريقة الانضمام','Joining Method')}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
-{[[T('استقدام','Recruit'),pctR+'%',recruitW,C.blue],[T('نقل كفالة','Transfer'),pctT+'%',transferW,'#9b59b6']].map(([l,pct,v,c],i)=><div key={i} style={{padding:'7px 12px',borderRadius:10,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{width:6,height:6,borderRadius:'50%',background:c,boxShadow:'0 0 5px '+c}}/>
-<div style={{fontSize:20,fontWeight:700,color:c,letterSpacing:'-.3px',direction:'ltr',lineHeight:1}}>{pct}</div>
-</div>
-<div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2}}>
-<div style={{fontSize:11,color:'var(--tx2)',fontWeight:600}}>{l}</div>
-<div style={{fontSize:10,color:'var(--tx5)',fontWeight:500,direction:'ltr'}}>{v}</div>
-</div>
-</div>)}
-</div>
-<div style={{height:6,borderRadius:3,overflow:'hidden',display:'flex',background:'rgba(0,0,0,.3)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.4)'}}>
-<div style={{width:pctR+'%',background:C.blue,transition:'width .3s'}}/>
-<div style={{width:pctT+'%',background:'#9b59b6',transition:'width .3s'}}/>
-</div>
-</div>})()}
-</div>
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
 
+const btnGold = { height: 40, padding: '0 16px', borderRadius: 11, background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)', border: '1px solid rgba(212,160,23,.45)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 700, transition: '.2s', boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)' }
 
-{/* ═══ FILTERS ═══ */}
-{<div style={{marginBottom:14}}>
-<div style={{display:'flex',gap:10,marginBottom:10,alignItems:'center'}}>
-{SB}
-<button onClick={()=>setShowAdv(!showAdv)} style={{...secBtn,...(showAdv?{border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.18) 0%,rgba(212,160,23,.08) 100%)',color:C.gold}:{}),display:'inline-flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>{T('بحث متقدم','Advanced')}</button>
-<button style={{...secBtn,color:C.blue,border:'1px solid rgba(52,131,180,.3)',display:'inline-flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>{T('تصدير','Export')}</button>
-</div>
-{showAdv&&<div style={{...GLASS,marginBottom:14,padding:'14px 16px'}}>
-<div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10}}>
-{[[T('الحالة','Status'),'status','select',[{v:'active',l:T('نشط','Active')},{v:'absconded',l:T('هارب','Absconded')},{v:'suspended',l:T('معلّق','Suspended')},{v:'final_exit',l:T('خروج نهائي','Final Exit')}]],
-[T('الجنسية','Nationality'),'nationality','select',natList.map(n=>({v:n,l:n}))],
-[T('المنشأة','Facility'),'facility','select',facilities.map(f=>({v:f.id,l:f.name_ar}))],
-[T('طريقة الانضمام','Joining'),'joining','select',[{v:'recruitment',l:T('استقدام','Recruitment')},{v:'transfer',l:T('نقل كفالة','Transfer')}]],
-[T('الترتيب','Sort'),'sort','select',[{v:'created_at',l:T('الأحدث','Newest')},{v:'name',l:T('الاسم','Name')},{v:'completion',l:T('الأقل اكتمالاً','Least Complete')}]]
-].map(([label,key,type,opts],i)=><div key={i}>
-<div style={{fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:6,fontFamily:F}}>{label}</div>
-<select value={key==='status'?statusFilter:key==='nationality'?nationalityFilter:key==='facility'?facilityFilter:key==='joining'?joiningFilter:sortBy} onChange={e=>{const v=e.target.value;if(key==='status'){setStatusFilter(v);setPage(0)}else if(key==='nationality'){setNationalityFilter(v);setPage(0)}else if(key==='facility'){setFacilityFilter(v);setPage(0)}else if(key==='joining'){setJoiningFilter(v);setPage(0)}else{setSortBy(v)}}} style={selS}><option value={key==='sort'?'created_at':'all'}>{T('الكل','All')}</option>{opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}</select>
-</div>)}
-</div>
-<button onClick={()=>{setStatusFilter('all');setNationalityFilter('all');setFacilityFilter('all');setJoiningFilter('all');setSortBy('created_at');setPage(0)}} style={{...secBtn,marginTop:12,height:32,padding:'0 14px',fontSize:11}}>{T('مسح الفلاتر','Clear Filters')}</button>
-</div>}
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-<span style={{fontSize:12,fontWeight:600,color:'var(--tx2)',fontFamily:F}}>{filtered.length} {T('عامل','workers')}</span>
-{filtered.length!==workers.length&&<span style={{fontSize:11,color:'var(--tx5)',fontFamily:F}}>{T('من أصل','out of')} {workers.length}</span>}
-</div>
-</div>}
+/* ═══════════════════════════════════════════════════════════════ */
+export default function WorkforcePage({ sb, toast, user, lang, onTabChange }) {
+  const isAr = lang !== 'en'
+  const T = (a, e) => isAr ? a : e
 
-{/* ═══ WORKER CARDS GRID ═══ */}
-{loading?<div style={{textAlign:'center',padding:60,color:'var(--tx6)',fontFamily:F}}>...</div>:<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:14}}>{paged.map(r=>{const fac=facilities.find(f=>f.id===r.facility_id);const gC=r.gender==='female'?'#9b59b6':C.blue
-const wpCount=permits.filter(p=>p.worker_id===r.id).length
-const iqDays=r.iqama_expiry_date?Math.ceil((new Date(r.iqama_expiry_date)-now)/86400000):null
-const iqClr=iqDays===null?'#555':iqDays<0?C.red:iqDays<30?'#e67e22':iqDays<90?C.gold:C.ok
-const hasIns=insurance.some(i=>i.worker_id===r.id&&i.end_date&&new Date(i.end_date)>=now)
-const gosiOk=r.gosi_status==='active'||r.gosi_status==='registered'||hasIns
-const qiwaOk=r.qiwa_contract_status==='active'||r.qiwa_contract_status==='registered'
-const accentClr=r.worker_status==='absconded'?C.red:r.worker_status==='final_exit'?'#999':C.gold
-const cc=natCodes[r.nationality]||''
-return<div key={r.id} onClick={()=>{setViewRow(r);setViewTab('basic')}} style={{...GLASS,overflow:'hidden',cursor:'pointer',transition:'.2s',transform:'translateY(0)'}} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+accentClr+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
-{/* Header */}
-<div style={{padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
-{/* Avatar with small flag */}
-<div style={{width:44,height:44,borderRadius:12,background:'linear-gradient(180deg,'+gC+'22 0%,'+gC+'11 100%)',border:'1px solid '+gC+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:700,color:gC,flexShrink:0,position:'relative',boxShadow:'inset 0 1px 0 rgba(255,255,255,.06)'}}>
-{(r.name_ar||'ع')[0]}
-{cc&&<img src={'https://flagcdn.com/w40/'+cc.toLowerCase()+'.png'} alt="" style={{position:'absolute',bottom:-2,left:-2,width:16,height:12,borderRadius:2,objectFit:'cover',border:'1px solid rgba(0,0,0,.3)'}} onError={e=>e.target.style.display='none'}/>}
-</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><span style={{fontSize:14,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.2px'}}>{r.name_ar}</span><Badge v={r.worker_status}/></div>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6,flexWrap:'wrap'}}>
-{r.worker_number&&<span style={{fontSize:11,fontWeight:500,color:'var(--tx5)',direction:'ltr'}}>{r.worker_number}</span>}
-{r.worker_number&&r.nationality&&<span style={{color:'rgba(255,255,255,.15)'}}>·</span>}
-{r.nationality&&<span style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>{r.nationality}</span>}
-</div>
-{/* Tags */}
-<div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-{r.joining_method&&<span style={{fontSize:9,fontWeight:600,padding:'3px 8px',borderRadius:6,background:(r.joining_method==='recruitment'?C.blue:'#9b59b6')+'15',color:r.joining_method==='recruitment'?C.blue:'#9b59b6',display:'inline-flex',alignItems:'center',gap:4}}><span style={{width:4,height:4,borderRadius:'50%',background:r.joining_method==='recruitment'?C.blue:'#9b59b6'}}/>{valAr[r.joining_method]||r.joining_method}</span>}
-{occMap[r.occupation_id]&&<span style={{fontSize:9,fontWeight:600,padding:'3px 8px',borderRadius:6,background:C.gold+'15',color:C.gold}}>{occMap[r.occupation_id]}</span>}
-{(()=>{const br=branches.find(x=>x.id===r.branch_id);return br?<span style={{fontSize:9,fontWeight:600,padding:'3px 8px',borderRadius:6,background:C.ok+'15',color:C.ok}}>{br.name_ar}</span>:null})()}
-</div>
-</div>
-{/* 3-dot menu */}
-<div style={{position:'relative',flexShrink:0}} onClick={e=>e.stopPropagation()}>
-<div onClick={e=>{e.stopPropagation();const menu=e.currentTarget.nextSibling;menu.style.display=menu.style.display==='none'?'flex':'none'}} style={{width:28,height:28,borderRadius:8,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05)'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="1.5" fill="rgba(255,255,255,.45)"/><circle cx="12" cy="12" r="1.5" fill="rgba(255,255,255,.45)"/><circle cx="12" cy="19" r="1.5" fill="rgba(255,255,255,.45)"/></svg>
-</div>
-<div style={{display:'none',position:'absolute',top:'100%',left:0,zIndex:50,flexDirection:'column',background:'linear-gradient(180deg,#2E2E2E 0%,#252525 100%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,boxShadow:'0 12px 32px rgba(0,0,0,.55)',overflow:'hidden',minWidth:120,marginTop:6}}>
-<div onClick={()=>openEdit(r)} style={{padding:'9px 14px',fontSize:11,fontWeight:600,color:'rgba(255,255,255,.78)',cursor:'pointer',display:'flex',alignItems:'center',gap:7,fontFamily:F}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>{T('تعديل','Edit')}</div>
-<div onClick={()=>del('workers',r.id)} style={{padding:'9px 14px',fontSize:11,fontWeight:600,color:'rgba(192,57,43,.78)',cursor:'pointer',display:'flex',alignItems:'center',gap:7,fontFamily:F}} onMouseEnter={e=>e.currentTarget.style.background='rgba(192,57,43,.05)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>{T('حذف','Delete')}</div>
-</div>
-</div>
-</div>
-{/* 4 Indicators bar */}
-<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.06)',background:'rgba(0,0,0,.18)'}}>
-{[[iqDays===null?'—':iqDays<0?T('منتهية!','Expired!'):iqDays+' '+T('يوم','d'),T('الإقامة','Iqama'),iqClr],[wpCount>0?T('مشترك','Active'):'—',T('رخصة العمل','Permit'),wpCount>0?C.ok:'#555'],[gosiOk?T('ساري','Active'):'—',T('التأمينات','GOSI'),gosiOk?C.ok:'#555'],[qiwaOk?T('مشترك','Active'):'—',T('عقد قوى','Qiwa'),qiwaOk?C.ok:'#555']].map(([val,lbl,clr],i)=><div key={i} style={{flex:1,padding:'8px 6px',textAlign:'center',borderLeft:i>0?'1px solid rgba(255,255,255,.04)':'none'}}>
-<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,marginBottom:3}}><div style={{width:5,height:5,borderRadius:'50%',background:clr,boxShadow:'0 0 4px '+clr}}/><span style={{fontSize:9,color:'var(--tx4)',fontWeight:600}}>{lbl}</span></div>
-<div style={{fontSize:11,fontWeight:700,color:clr,letterSpacing:'-.2px'}}>{val}</div>
-</div>)}
-</div>
-{/* Footer: Iqama + Facility + Unified */}
-<div style={{borderTop:'1px solid rgba(255,255,255,.06)',background:'rgba(0,0,0,.12)',padding:'10px 14px'}}>
-<div style={{display:'flex',gap:10,alignItems:'center',marginBottom:6}}>
-<div style={{display:'flex',alignItems:'center',gap:6,flex:1}}>
-<span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',letterSpacing:'.3px'}}>{T('الإقامة','Iqama')}</span>
-<span style={{fontSize:12,fontWeight:600,color:'var(--tx2)',direction:'ltr',letterSpacing:'.4px'}}>{r.iqama_number||'—'}</span>
-{r.iqama_number&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(r.iqama_number);toast&&toast(T('تم النسخ','Copied'))}} style={{width:18,height:18,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>}
-</div>
-</div>
-<div style={{display:'flex',gap:6,alignItems:'center'}}>
-<span style={{fontSize:11,fontWeight:500,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{fac?.name_ar||'—'}</span>
-{fac?.unified_national_number&&<><span style={{fontSize:11,fontWeight:600,color:'var(--tx3)',direction:'ltr',letterSpacing:'.4px'}}>{fac.unified_national_number}</span>
-<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(fac.unified_national_number);toast&&toast(T('تم النسخ','Copied'))}} style={{width:18,height:18,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></>}
-</div>
-</div>
-{/* Special Status */}
-{r.worker_status==='absconded'&&<div style={{padding:'8px 14px',background:'rgba(192,57,43,.08)',borderTop:'1px solid rgba(192,57,43,.18)',display:'flex',alignItems:'center',gap:7}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-<span style={{fontSize:10,fontWeight:600,color:C.red}}>{T('بلاغ هروب — المنشأة:','Absconded — Facility:')} {fac?.name_ar||'—'}</span>
-</div>}
-{r.worker_status==='final_exit'&&<div style={{padding:'8px 14px',background:'rgba(153,153,153,.06)',borderTop:'1px solid rgba(153,153,153,.14)'}}>
-<span style={{fontSize:10,fontWeight:600,color:'#999'}}>{T('عائد بتاريخ','Exited on')} {r.exit_date||'—'} — {T('الملف مؤرشف','Archived')}</span>
-</div>}
-{r.outside_kingdom&&r.worker_status==='active'&&<div style={{padding:'8px 14px',background:'rgba(212,160,23,.06)',borderTop:'1px solid rgba(212,160,23,.18)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:10,fontWeight:600,color:C.gold}}>{T('خارج المملكة','Outside Kingdom')}</span>
-{r.visa_return_date&&<span style={{fontSize:10,fontWeight:700,color:C.gold,direction:'ltr'}}>{T('عودة:','Return:')} {r.visa_return_date}</span>}
-</div>}
-</div>})}</div>}
+  const [workers, setWorkers] = useState([])
+  const [facilities, setFacilities] = useState([])
+  const [brokers, setBrokers] = useState([])
+  const [branches, setBranches] = useState([])
+  const [permits, setPermits] = useState([])
+  const [iqamas, setIqamas] = useState([])
+  const [insurance, setInsurance] = useState([])
+  const [passports, setPassports] = useState([])
+  const [licenses, setLicenses] = useState([])
+  const [dependents, setDependents] = useState([])
+  const [contracts, setContracts] = useState([])
+  const [salaryHistory, setSalaryHistory] = useState([])
+  const [visas, setVisas] = useState([])
+  const [vehicles, setVehicles] = useState([])
+  const [timeline, setTimeline] = useState([])
+  const [transferReqs, setTransferReqs] = useState([])
+  const [gosiSubs, setGosiSubs] = useState([])
+  const [attFiles, setAttFiles] = useState([])
+  const [occMap, setOccMap] = useState({})
 
-{/* ═══ PAGINATION ═══ */}
-{totalPages>1&&(()=>{const btnS=(dis)=>({width:34,height:34,borderRadius:10,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:dis?'rgba(255,255,255,.18)':'var(--tx3)',cursor:dis?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontFamily:F,boxShadow:'0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'});return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:20}}>
-<div style={{flex:1}}/>
-<div style={{display:'flex',gap:6,alignItems:'center'}}>
-<button onClick={()=>setPage(0)} disabled={page===0} style={btnS(page===0)}>{'«'}</button>
-<button onClick={()=>setPage(Math.max(0,page-1))} disabled={page===0} style={btnS(page===0)}>{'‹'}</button>
-<span style={{width:34,height:34,borderRadius:10,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)'}}>{page+1}</span>
-<button onClick={()=>setPage(Math.min(totalPages-1,page+1))} disabled={page===totalPages-1} style={btnS(page===totalPages-1)}>{'›'}</button>
-<button onClick={()=>setPage(totalPages-1)} disabled={page===totalPages-1} style={btnS(page===totalPages-1)}>{'»'}</button>
-</div>
-<div style={{flex:1,display:'flex',justifyContent:'flex-end'}}><span style={{fontSize:11,color:'var(--tx5)',fontFamily:F,fontWeight:500}}>{T('عرض','Showing')} {page*PER_PAGE+1}-{Math.min((page+1)*PER_PAGE,filtered.length)} {T('من','of')} {filtered.length}</span></div>
-</div>})()}
+  const [loading, setLoading] = useState(false)
+  const [q, setQ] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [nationalityFilter, setNationalityFilter] = useState('')
+  const [facilityFilter, setFacilityFilter] = useState('')
+  const [joiningFilter, setJoiningFilter] = useState('')
+  const [iqamaFilter, setIqamaFilter] = useState('') // expired | 30d | 90d | valid
+  const [genderFilter, setGenderFilter] = useState('')
+  const [advOpen, setAdvOpen] = useState(false)
+  const [page, setPage] = useState(0)
+  const [detail, setDetail] = useState(null)
 
-{/* ═══ SIDE PANEL — 8 TABS ═══ */}
-{viewRow&&(()=>{const gC=viewRow.gender==='female'?'#9b59b6':C.blue;const fac=facilities.find(f=>f.id===viewRow.facility_id)
-const vt=[{id:'basic',l:T('البيانات الأساسية','Basic Info')},{id:'docs',l:T('الوثائق','Documents'),n:wNI.length+wPP.length+wVis.length+wLic.length},{id:'contract',l:T('العقد والراتب','Contract & Salary'),n:wCtr.length},{id:'permits',l:T('رخصة العمل والتأمينات','Permits & Insurance'),n:wP.length+wIn.length},{id:'moves',l:T('التنقلات','Transfers'),n:wTr.length+wTReq.length},{id:'family',l:T('المرافقون والمركبات','Family & Vehicles'),n:wDep.length+wVeh.length},{id:'timeline',l:T('السجل الزمني','Timeline'),n:wTL.length},{id:'notes',l:T('الملاحظات والمرفقات','Notes & Files'),n:(viewRow.notes?1:0)+wAtt.length}]
-return<div onClick={()=>setViewRow(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16,fontFamily:F}}>
-<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:'min(920px,95vw)',height:'min(650px,88vh)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-{/* Header */}
-<div style={{padding:'18px 24px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',borderBottom:'1px solid rgba(255,255,255,.07)',flexShrink:0}}>
-<div style={{display:'flex',gap:14,alignItems:'center'}}><div style={{width:48,height:48,borderRadius:14,background:'linear-gradient(180deg,'+gC+'22 0%,'+gC+'11 100%)',border:'1px solid '+gC+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:gC,boxShadow:'inset 0 1px 0 rgba(255,255,255,.06)'}}>{(viewRow.name_ar||'ع')[0]}</div><div><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}><div style={{fontSize:18,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.2px'}}>{viewRow.name_ar}</div><Badge v={viewRow.worker_status}/></div>{viewRow.name_en&&<div style={{fontSize:12,color:'var(--tx4)',direction:'ltr',fontWeight:500}}>{viewRow.name_en}</div>}{fac&&<div style={{fontSize:11,color:C.gold,marginTop:2,fontWeight:500}}>{fac.name_ar}</div>}</div></div>
-<div style={{display:'flex',gap:8}}><button onClick={()=>{setViewRow(null);openEdit(viewRow)}} style={{...bS,height:36,padding:'0 16px'}}>{T('تعديل','Edit')}</button><button onClick={()=>setViewRow(null)} style={{width:36,height:36,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05)'}}>{'\u2715'}</button></div></div>
-{/* Body */}
-<div style={{flex:1,display:'flex',overflow:'hidden'}}>
-{/* Sidebar tabs */}
-<div style={{width:200,background:'rgba(0,0,0,.18)',borderLeft:'1px solid rgba(255,255,255,.06)',padding:'14px 10px',overflowY:'auto',flexShrink:0,scrollbarWidth:'none'}}>{vt.map(t=><div key={t.id} onClick={()=>setViewTab(t.id)} style={{padding:'10px 12px',borderRadius:10,marginBottom:4,fontSize:12,fontWeight:viewTab===t.id?600:500,color:viewTab===t.id?C.gold:'var(--tx4)',background:viewTab===t.id?'linear-gradient(180deg,rgba(212,160,23,.16) 0%,rgba(212,160,23,.06) 100%)':'transparent',border:viewTab===t.id?'1px solid rgba(212,160,23,.3)':'1px solid transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'.2s',fontFamily:F,boxShadow:viewTab===t.id?'0 2px 8px rgba(212,160,23,.12), inset 0 1px 0 rgba(212,160,23,.16)':'none'}}><span>{t.l}</span>{t.n!==undefined&&<span style={{fontSize:10,fontWeight:700,color:viewTab===t.id?C.gold:'var(--tx5)',background:viewTab===t.id?'rgba(212,160,23,.18)':'rgba(255,255,255,.05)',padding:'2px 7px',borderRadius:5,minWidth:20,textAlign:'center'}}>{t.n}</span>}</div>)}</div>
-{/* Content */}
-<div style={{flex:1,overflowY:'auto',padding:'20px 24px',scrollbarWidth:'none'}}>
+  // Edit form modal
+  const [pop, setPop] = useState(null)
+  const [form, setForm] = useState({})
+  const [saving, setSaving] = useState(false)
 
-{/* TAB 1: البيانات الأساسية */}
-{viewTab==='basic'&&<div style={{display:'flex',flexDirection:'column',gap:18}}>
-<div><SectionHdr t="الهوية"/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><IB l="رقم العامل" v={viewRow.worker_number} copy toast={toast}/><IB l="رقم الإقامة" v={viewRow.iqama_number} copy toast={toast}/><IB l="رقم الحدود" v={viewRow.border_number} copy toast={toast}/><IB l="رقم الجواز" v={viewRow.passport_number} copy toast={toast}/><IB l="انتهاء الجواز" v={viewRow.passport_expiry}/><IB l="نوع الهوية" v={viewRow.identity_type}/><IB l="الجنسية" v={viewRow.nationality}/><IB l="تاريخ الميلاد" v={viewRow.birth_date_g}/><IB l="الجنس" v={viewRow.gender}/></div></div>
-<div><SectionHdr t="العمل"/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><IB l="المنشأة" v={fac?.name_ar}/><IB l="الحالة" v={viewRow.worker_status} isSt/><IB l="تاريخ الدخول" v={viewRow.entry_date_saudi}/><IB l="طريقة الانضمام" v={viewRow.joining_method}/><IB l="صاحب العمل السابق" v={viewRow.old_employer_name}/><IB l="تصنيف المهارات" v={viewRow.skill_classification}/><IB l="حالة التأمينات" v={viewRow.gosi_status}/><IB l="حالة عقد قوى" v={viewRow.qiwa_contract_status}/><IB l="انتهاء عقد قوى" v={viewRow.qiwa_contract_expiry_date}/></div></div>
-<div><SectionHdr t="التواصل"/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><IB l="الجوال" v={viewRow.phone} copy toast={toast}/></div></div>
-<div><SectionHdr t="الإقامة"/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><IB l="انتهاء الإقامة" v={viewRow.iqama_expiry_date}/><IB l="منفذ الدخول" v={viewRow.entry_port}/><IB l="الحالة الاجتماعية" v={viewRow.marital_status}/><IB l="عدد المرافقين" v={viewRow.dependents_count}/></div></div>
-{viewRow.notes&&<div><SectionHdr t="ملاحظات"/><IB l="ملاحظات" v={viewRow.notes}/></div>}
-</div>}
+  useEffect(() => { onTabChange && onTabChange({ tab: 'workers' }) }, [])
 
-{/* TAB 2: الوثائق */}
-{viewTab==='docs'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-{wNI.length>0&&<><SectionHdr t="الإقامات"/>{wNI.map(i=>{const isE=i.expiry_date&&new Date(i.expiry_date)<now;return<div key={i.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid '+(isE?'rgba(192,57,43,.25)':'rgba(255,255,255,.06)'),boxShadow:isE?'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(192,57,43,.08)':'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div style={{display:'flex',gap:8,alignItems:'center'}}>{i.version_number&&<span style={{fontSize:12,fontWeight:800,color:C.gold}}>v{i.version_number}</span>}{i.is_current&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.ok+'15',color:C.ok,display:'inline-flex',alignItems:'center',gap:5}}>الحالية</span>}{isE&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red,display:'inline-flex',alignItems:'center',gap:5}}>منتهية</span>}</div><Badge v={i.status}/></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}><IB l="الإصدار" v={i.issue_date}/><IB l="الانتهاء" v={i.expiry_date}/><IB l="مكان الإصدار" v={i.issue_place}/></div></div>})}</>}
-{wPP.length>0&&<><SectionHdr t="الجوازات"/>{wPP.map(p=>{const isE=p.expiry_date&&new Date(p.expiry_date)<now;return<div key={p.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid '+(isE?'rgba(192,57,43,.25)':'rgba(255,255,255,.06)'),boxShadow:isE?'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(192,57,43,.08)':'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:700,color:'var(--tx2)',direction:'ltr'}}>{p.passport_number||'—'}</span>{p.is_current?<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.ok+'15',color:C.ok,display:'inline-flex',alignItems:'center',gap:5}}>الحالي</span>:isE&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red,display:'inline-flex',alignItems:'center',gap:5}}>منتهي</span>}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}><IB l="الإصدار" v={p.issue_date}/><IB l="الانتهاء" v={p.expiry_date}/><IB l="مكان الإصدار" v={p.issue_place}/></div></div>})}</>}
-{wVis.length>0&&<><SectionHdr t="التأشيرات"/>{wVis.map(v=><div key={v.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:12,fontWeight:700,color:'var(--tx2)'}}>{v.visa_number||'—'}</span><Badge v={v.status}/></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}><IB l="النوع" v={v.visa_type}/><IB l="تاريخ الإصدار" v={v.issue_date}/><IB l="الخروج قبل" v={v.exit_before}/></div></div>)}</>}
-{wLic.length>0&&<><SectionHdr t="رخص السياقة"/>{wLic.map(l=>{const isE=l.expiry_date&&new Date(l.expiry_date)<now;return<div key={l.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid '+(isE?'rgba(192,57,43,.25)':'rgba(255,255,255,.06)'),boxShadow:isE?'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(192,57,43,.08)':'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:700,color:'var(--tx2)'}}>{l.license_type||'رخصة'}</span>{isE&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red,display:'inline-flex',alignItems:'center',gap:5}}>منتهية</span>}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}><IB l="الإصدار" v={l.issue_date}/><IB l="الانتهاء" v={l.expiry_date}/></div></div>})}</>}
-{wNI.length===0&&wPP.length===0&&wVis.length===0&&wLic.length===0&&<div style={{textAlign:'center',padding:40,color:'var(--tx5)',fontSize:13,fontWeight:500,fontFamily:F}}>لا توجد وثائق</div>}
-</div>}
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [w, f, b, br] = await Promise.all([
+      sb.from('workers').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+      sb.from('facilities').select('id,name_ar,unified_national_number').is('deleted_at', null),
+      sb.from('brokers').select('id,name_ar').is('deleted_at', null),
+      sb.from('branches').select('id,name_ar').is('deleted_at', null),
+    ])
+    setWorkers(w.data || []); setFacilities(f.data || []); setBrokers(b.data || []); setBranches(br.data || [])
+    setLoading(false)
 
-{/* TAB 3: العقد والراتب */}
-{viewTab==='contract'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}><div style={{...GLASS,padding:'20px',textAlign:'center'}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:10,letterSpacing:'.3px'}}>{T('راتب التأمينات','GOSI Salary')}</div><div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><div style={{fontSize:28,fontWeight:700,color:C.gold,letterSpacing:'-.5px',direction:'ltr',lineHeight:1}}>{viewRow.gosi_salary?nm(viewRow.gosi_salary):'—'}</div></div><div style={{fontSize:10,color:'var(--tx5)',marginTop:6,fontWeight:500}}>{T('ريال','SAR')}</div></div><div style={{...GLASS,padding:'20px',textAlign:'center'}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:10,letterSpacing:'.3px'}}>{T('راتب قوى','Qiwa Salary')}</div><div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><span style={{width:8,height:8,borderRadius:'50%',background:C.blue,boxShadow:'0 0 6px '+C.blue}}/><div style={{fontSize:28,fontWeight:700,color:C.blue,letterSpacing:'-.5px',direction:'ltr',lineHeight:1}}>{viewRow.qiwa_salary?nm(viewRow.qiwa_salary):'—'}</div></div><div style={{fontSize:10,color:'var(--tx5)',marginTop:6,fontWeight:500}}>{T('ريال','SAR')}</div></div></div>
-{wCtr.length>0&&<><SectionHdr t="العقود"/>{wCtr.map(c=><div key={c.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div style={{display:'flex',gap:8,alignItems:'center'}}><span style={{fontSize:12,fontWeight:700,color:C.gold}}>#{c.contract_number||'—'}</span><span style={{fontSize:10,color:'var(--tx4)'}}>{c.contract_type||'—'}</span></div><Badge v={c.status}/></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}><IB l="البداية" v={c.start_date}/><IB l="النهاية" v={c.end_date||'غير محدد'}/><IB l="المدة" v={c.duration_months?c.duration_months+' شهر':(c.duration_type||'—')}/></div></div>)}</>}
-{wSH.length>0&&<><SectionHdr t="تاريخ الرواتب"/>{wSH.map(s=>{const up=Number(s.new_salary)>Number(s.old_salary);return<div key={s.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div style={{display:'flex',gap:8,alignItems:'center'}}><span style={{fontSize:11,color:'var(--tx4)'}}>{s.change_date}</span>{s.source&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.blue+'15',color:C.blue,display:'inline-flex',alignItems:'center',gap:5}}>{s.source}</span>}</div><span style={{fontSize:12,fontWeight:700,color:up?C.ok:C.red}}>{up?'↑':'↓'} {nm(s.new_salary)}</span></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}><IB l="القديم" v={s.old_salary?nm(s.old_salary):null}/><IB l="الجديد" v={s.new_salary?nm(s.new_salary):null}/><IB l="السبب" v={s.reason}/></div></div>})}</>}
-</div>}
+    Promise.all([
+      sb.from('work_permits').select('*').is('deleted_at', null).order('wp_expiry_date', { ascending: false }),
+      sb.from('iqama_cards').select('*').is('deleted_at', null).order('iqama_expiry_date', { ascending: false }),
+      sb.from('worker_insurance').select('*').is('deleted_at', null).order('end_date', { ascending: false }),
+      sb.from('worker_passports').select('*').order('expiry_date', { ascending: false }),
+      sb.from('worker_licenses').select('*').order('expiry_date', { ascending: false }),
+      sb.from('worker_dependents').select('*').order('created_at', { ascending: false }),
+      sb.from('contracts').select('*').order('start_date', { ascending: false }),
+      sb.from('worker_salary_history').select('*').order('change_date', { ascending: false }),
+      sb.from('worker_visas').select('*').order('created_at', { ascending: false }),
+      sb.from('worker_vehicles').select('*').order('created_at', { ascending: false }),
+      sb.from('worker_timeline').select('*').order('event_date', { ascending: false }),
+      sb.from('transfer_requests').select('*').order('created_at', { ascending: false }),
+      sb.from('gosi_subscriptions').select('*').order('created_at', { ascending: false }),
+      sb.from('attachments').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+    ]).then(([wp, iq, ins, pp, lic, dep, ctr, sh, vi, vh, tl, treq, gs, att]) => {
+      setPermits(wp.data || []); setIqamas(iq.data || []); setInsurance(ins.data || [])
+      setPassports(pp.data || []); setLicenses(lic.data || []); setDependents(dep.data || [])
+      setContracts(ctr.data || []); setSalaryHistory(sh.data || []); setVisas(vi.data || [])
+      setVehicles(vh.data || []); setTimeline(tl.data || []); setTransferReqs(treq.data || [])
+      setGosiSubs(gs.data || []); setAttFiles(att.data || [])
+    })
+  }, [sb])
+  useEffect(() => { load() }, [load])
 
-{/* TAB 4: رخصة العمل والتأمينات */}
-{viewTab==='permits'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-{<><SectionHdr t="رخص العمل"/>{wP.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx5)',fontSize:13,fontWeight:500,fontFamily:F}}>لا توجد رخص</div>:wP.map(p=>{const isE=p.wp_expiry_date&&new Date(p.wp_expiry_date)<now;return<div key={p.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid '+(isE?'rgba(192,57,43,.25)':'rgba(255,255,255,.06)'),boxShadow:isE?'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(192,57,43,.08)':'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div style={{display:'flex',gap:8,alignItems:'center'}}>{p.wp_order&&<span style={{fontSize:12,fontWeight:800,color:C.gold}}>#{p.wp_order}</span>}{p.is_reduced&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.gold+'15',color:C.gold,display:'inline-flex',alignItems:'center',gap:5}}>مخفضة</span>}{isE&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red,display:'inline-flex',alignItems:'center',gap:5}}>منتهية</span>}</div>{p.duration_months&&<span style={{fontSize:10,color:C.blue}}>{p.duration_months} شهر</span>}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}><IB l="الإصدار" v={p.wp_issue_date}/><IB l="الانتهاء" v={p.wp_expiry_date}/></div></div>})}</>}
-{wGosi.length>0&&<><SectionHdr t="اشتراكات التأمينات"/>{wGosi.map(g=><div key={g.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}><IB l="بداية الاشتراك" v={g.subscription_start}/><IB l="الراتب الأساسي" v={g.base_salary?nm(g.base_salary):null}/><IB l="المبلغ الإجمالي" v={g.total_amount?nm(g.total_amount):null}/></div></div>)}</>}
-{<><SectionHdr t="التأمين الطبي"/>{wIn.length===0?<div style={{textAlign:'center',padding:30,color:'var(--tx5)',fontSize:13,fontWeight:500,fontFamily:F}}>لا يوجد تأمين</div>:wIn.map(i=>{const isE=i.end_date&&new Date(i.end_date)<now;return<div key={i.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid '+(isE?'rgba(192,57,43,.25)':'rgba(255,255,255,.06)'),boxShadow:isE?'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(192,57,43,.08)':'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:700,color:'var(--tx2)'}}>{i.insurance_company}</span>{isE&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red,display:'inline-flex',alignItems:'center',gap:5}}>منتهي</span>}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}><IB l="البداية" v={i.start_date}/><IB l="النهاية" v={i.end_date}/></div></div>})}</>}
-</div>}
+  useEffect(() => {
+    if (!sb || !workers.length) return
+    const ids = [...new Set(workers.map(w => w.occupation_id).filter(Boolean))]
+    if (!ids.length) return
+    sb.from('lookup_items').select('id,value_ar').in('id', ids).then(({ data }) => {
+      const m = {}; (data || []).forEach(r => m[r.id] = r.value_ar); setOccMap(m)
+    })
+  }, [sb, workers])
 
-{/* TAB 5: التنقلات */}
-{viewTab==='moves'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-{wTr.length>0&&<><SectionHdr t="عمليات النقل"/>{wTr.map(tr=>{const prClr=Number(tr.profit||0)>=0?C.ok:C.red;return<div key={tr.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div style={{display:'flex',gap:8,alignItems:'center'}}><Badge v={tr.status}/>{tr.transfer_date&&<span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{tr.transfer_date}</span>}{tr.new_employer_name&&<span style={{fontSize:10,color:'var(--tx4)'}}>→ {tr.new_employer_name}</span>}</div><span style={{fontSize:14,fontWeight:800,color:prClr}}>{Number(tr.profit||0).toLocaleString()}</span></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8}}><IB l="التكلفة" v={tr.total_cost?nm(tr.total_cost):null}/><IB l="رسوم النقل" v={tr.transfer_fee?nm(tr.transfer_fee):null}/><IB l="المحصّل" v={tr.client_charge?nm(tr.client_charge):null}/><IB l="الربح" v={tr.profit?nm(tr.profit):null}/></div></div>})}</>}
-{wTReq.length>0&&<><SectionHdr t="طلبات النقل"/>{wTReq.map(r=><div key={r.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:12,fontWeight:700,color:C.gold}}>#{r.request_number||'—'}</span><Badge v={r.status}/></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}><IB l="صاحب العمل السابق" v={r.previous_employer}/><IB l="تاريخ الطلب" v={r.request_date}/><IB l="تاريخ الموافقة" v={r.approval_date}/></div></div>)}</>}
-{wTr.length===0&&wTReq.length===0&&<div style={{textAlign:'center',padding:40,color:'var(--tx5)',fontSize:13,fontWeight:500,fontFamily:F}}>لا توجد تنقلات</div>}
-</div>}
+  const saveG = async (table, fd) => {
+    setSaving(true)
+    try {
+      const d = { ...fd }; const id = d._id; delete d._id
+      Object.keys(d).forEach(k => { if (d[k] === '') d[k] = null; if (d[k] === 'true') d[k] = true; if (d[k] === 'false') d[k] = false })
+      if (id) { d.updated_by = user?.id; const { error } = await sb.from(table).update(d).eq('id', id); if (error) throw error; toast?.(T('تم التعديل','Updated')) }
+      else { d.created_by = user?.id; const { error } = await sb.from(table).insert(d); if (error) throw error; toast?.(T('تمت الإضافة','Added')) }
+      setPop(null); load()
+    } catch (e) { toast?.(T('خطأ: ','Error: ') + (e.message || '').slice(0, 80), 'error') }
+    setSaving(false)
+  }
+  const del = async (t, id) => {
+    if (!confirm(T('حذف؟','Delete?'))) return
+    await sb.from(t).update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    toast?.(T('تم الحذف','Deleted'), 'delete'); load()
+  }
 
-{/* TAB 6: المرافقون والمركبات */}
-{viewTab==='family'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-{wDep.length>0&&<><SectionHdr t="التابعين"/>{wDep.map(d=><div key={d.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:700,color:'var(--tx2)'}}>{d.full_name||'—'}</span><span style={{fontSize:10,color:d.gender==='female'?'#9b59b6':C.blue,background:(d.gender==='female'?'rgba(155,89,182,.1)':'rgba(52,131,180,.1)'),padding:'2px 8px',borderRadius:4}}>{d.relation_type||'—'}</span></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}><IB l="تاريخ الميلاد" v={d.date_of_birth}/><IB l="رقم الهوية" v={d.identity_number} copy toast={toast}/></div></div>)}</>}
-{wVeh.length>0&&<><SectionHdr t="المركبات"/>{wVeh.map(v=><div key={v.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}><IB l="رقم اللوحة" v={v.plate_number} copy toast={toast}/><IB l="النوع" v={v.vehicle_type}/><IB l="الموديل" v={v.model}/><IB l="السنة" v={v.year}/><IB l="انتهاء الاستمارة" v={v.registration_expiry}/></div></div>)}</>}
-{wDep.length===0&&wVeh.length===0&&<div style={{textAlign:'center',padding:40,color:'var(--tx5)',fontSize:13,fontWeight:500,fontFamily:F}}>لا توجد بيانات</div>}
-</div>}
+  /* ─── Stats ─── */
+  const now = new Date()
+  const stats = useMemo(() => {
+    const total = workers.length
+    const active = workers.filter(r => r.worker_status === 'active').length
+    const absconded = workers.filter(r => r.worker_status === 'absconded').length
+    const finalExit = workers.filter(r => r.worker_status === 'final_exit').length
+    const suspended = workers.filter(r => r.worker_status === 'suspended').length
+    const recruit = workers.filter(r => r.joining_method === 'recruitment').length
+    const transfer = workers.filter(r => r.joining_method === 'transfer').length
+    const expired = workers.filter(r => r.iqama_expiry_date && new Date(r.iqama_expiry_date) < now).length
+    const exp30 = workers.filter(r => { if (!r.iqama_expiry_date) return false; const d = Math.ceil((new Date(r.iqama_expiry_date) - now) / 86400000); return d >= 0 && d <= 30 }).length
+    const exp90 = workers.filter(r => { if (!r.iqama_expiry_date) return false; const d = Math.ceil((new Date(r.iqama_expiry_date) - now) / 86400000); return d > 30 && d <= 90 }).length
+    const valid = workers.filter(r => { if (!r.iqama_expiry_date) return false; const d = Math.ceil((new Date(r.iqama_expiry_date) - now) / 86400000); return d > 90 }).length
+    return { total, active, absconded, finalExit, suspended, recruit, transfer, expired, exp30, exp90, valid }
+  }, [workers])
 
-{/* TAB 7: السجل الزمني */}
-{viewTab==='timeline'&&<div style={{display:'flex',flexDirection:'column',gap:0}}>
-{wTL.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx5)',fontSize:13,fontWeight:500,fontFamily:F}}>لا يوجد سجل زمني</div>:wTL.map((ev,i)=><div key={ev.id} style={{display:'flex',gap:14,paddingBottom:20}}>
-<div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,width:20}}>
-<div style={{width:12,height:12,borderRadius:'50%',background:i===0?C.gold:'rgba(255,255,255,.18)',border:i===0?'2px solid rgba(212,160,23,.25)':'none',boxShadow:i===0?'0 0 8px '+C.gold:'none',flexShrink:0}}/>
-{i<wTL.length-1&&<div style={{width:2,flex:1,background:'rgba(255,255,255,.06)',marginTop:4}}/>}
-</div>
-<div style={{flex:1,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)'}}>
-<div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:12,fontWeight:700,color:'var(--tx2)'}}>{ev.title||ev.event_type||'—'}</span><span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{ev.event_date}</span></div>
-{ev.description&&<div style={{fontSize:11,color:'var(--tx4)',marginBottom:6}}>{ev.description}</div>}
-{(ev.from_status||ev.to_status)&&<div style={{display:'flex',gap:6,alignItems:'center'}}>{ev.from_status&&<Badge v={ev.from_status}/>}{ev.to_status&&<><span style={{color:'var(--tx5)'}}>→</span><Badge v={ev.to_status}/></>}</div>}
-</div>
-</div>)}
-</div>}
+  const natList = useMemo(() => [...new Set(workers.map(w => w.nationality).filter(Boolean))].sort(), [workers])
 
-{/* TAB 8: الملاحظات والمرفقات */}
-{viewTab==='notes'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-{viewRow.notes&&<><SectionHdr t="ملاحظات"/><div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'14px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',fontSize:13,color:'var(--tx3)',lineHeight:1.8}}>{viewRow.notes}</div></>}
-{wAtt.length>0&&<><SectionHdr t="المرفقات"/>{wAtt.map(a=><div key={a.id} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:12,padding:'12px 16px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.18)',marginBottom:8,display:'flex',alignItems:'center',gap:12}}>
-<div style={{width:36,height:36,borderRadius:10,background:'linear-gradient(180deg,'+C.blue+'22 0%,'+C.blue+'10 100%)',border:'1px solid '+C.blue+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,.05)'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="1.8"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
-<div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.file_name||'مرفق'}</div><div style={{fontSize:10,color:'var(--tx5)',marginTop:3,fontWeight:500}}>{a.category||''}{a.file_size?' · '+Math.round(a.file_size/1024)+'KB':''}</div></div>
-</div>)}</>}
-{!viewRow.notes&&wAtt.length===0&&<div style={{textAlign:'center',padding:40,color:'var(--tx5)',fontSize:13,fontWeight:500,fontFamily:F}}>لا توجد ملاحظات أو مرفقات</div>}
-</div>}
+  /* ─── Filtered list ─── */
+  const filtered = useMemo(() => {
+    return workers.filter(r => {
+      if (statusFilter && r.worker_status !== statusFilter) return false
+      if (nationalityFilter && r.nationality !== nationalityFilter) return false
+      if (facilityFilter && r.facility_id !== facilityFilter) return false
+      if (joiningFilter && r.joining_method !== joiningFilter) return false
+      if (genderFilter && r.gender !== genderFilter) return false
+      if (iqamaFilter) {
+        const d = r.iqama_expiry_date ? Math.ceil((new Date(r.iqama_expiry_date) - now) / 86400000) : null
+        if (iqamaFilter === 'expired' && !(d != null && d < 0)) return false
+        if (iqamaFilter === '30d' && !(d != null && d >= 0 && d <= 30)) return false
+        if (iqamaFilter === '90d' && !(d != null && d > 30 && d <= 90)) return false
+        if (iqamaFilter === 'valid' && !(d != null && d > 90)) return false
+      }
+      if (q.trim()) {
+        const s = q.toLowerCase()
+        if (!((r.name_ar || '').includes(s) || (r.name_en || '').toLowerCase().includes(s) || (r.iqama_number || '').includes(s) || (r.worker_number || '').includes(s) || (r.phone || '').includes(s) || (r.passport_number || '').toLowerCase().includes(s) || (r.border_number || '').includes(s))) return false
+      }
+      return true
+    })
+  }, [workers, statusFilter, nationalityFilter, facilityFilter, joiningFilter, genderFilter, iqamaFilter, q])
 
-</div></div></div></div>})()}
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE))
+  const paged = filtered.slice(page * PAGE, page * PAGE + PAGE)
 
-{/* ═══ FORM POPUPS ═══ */}
-{pop==='worker'&&<FormPopup title={form._id?'تعديل عامل':'إضافة عامل'} fields={wFields} form={form} setForm={setForm} onSave={()=>saveG('workers',form)} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
-{pop==='permit'&&<FormPopup title={form._id?'تعديل رخصة':'إضافة رخصة'} fields={[{k:'facility_id',l:'المنشأة',opts:facilities.map(f=>({v:f.id,l:f.name_ar}))},{k:'worker_id',l:'العامل',opts:workers.map(w=>({v:w.id,l:w.name_ar})),r:1},{k:'wp_issue_date',l:'الإصدار',t:'date',r:1},{k:'wp_expiry_date',l:'الانتهاء',t:'date',r:1},{k:'duration_months',l:'المدة',d:1},{k:'is_reduced',l:'مخفضة',opts:['true','false']},{k:'notes',l:'ملاحظات',w:1}]} form={form} setForm={setForm} onSave={()=>saveG('work_permits',form)} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
-{pop==='iqama'&&<FormPopup title={form._id?'تعديل إقامة':'إضافة إقامة'} fields={[{k:'facility_id',l:'المنشأة',opts:facilities.map(f=>({v:f.id,l:f.name_ar}))},{k:'worker_id',l:'العامل',opts:workers.map(w=>({v:w.id,l:w.name_ar})),r:1},{k:'iqama_issue_date',l:'الإصدار',t:'date',r:1},{k:'iqama_expiry_date',l:'الانتهاء',t:'date',r:1},{k:'duration_months',l:'المدة',d:1},{k:'notes',l:'ملاحظات',w:1}]} form={form} setForm={setForm} onSave={()=>saveG('iqama_cards',form)} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
-{pop==='ins'&&<FormPopup title={form._id?'تعديل تأمين':'إضافة تأمين'} fields={[{k:'worker_id',l:'العامل',opts:workers.map(w=>({v:w.id,l:w.name_ar})),r:1},{k:'insurance_company',l:'الشركة',r:1},{k:'insurance_policy_no',l:'رقم الوثيقة',d:1},{k:'start_date',l:'البداية',t:'date',r:1},{k:'end_date',l:'النهاية',t:'date',r:1},{k:'notes',l:'ملاحظات',w:1}]} form={form} setForm={setForm} onSave={()=>saveG('worker_insurance',form)} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
-</div>}
+  /* ─── Edit form fields ─── */
+  const wFields = [
+    { k: 'worker_number', l: T('رقم العامل','Worker No'), d: 1 },
+    { k: 'name_ar', l: T('الاسم بالعربي','Name (AR)'), r: 1 },
+    { k: 'name_en', l: T('الاسم بالإنجليزي','Name (EN)'), d: 1 },
+    { k: 'gender', l: T('الجنس','Gender'), opts: [{ v: 'male', l: T('ذكر','Male') }, { v: 'female', l: T('أنثى','Female') }] },
+    { k: 'nationality', l: T('الجنسية','Nationality') },
+    { k: 'phone', l: T('الجوال','Phone'), d: 1 },
+    { k: 'iqama_number', l: T('رقم الإقامة','Iqama No'), d: 1, r: 1 },
+    { k: 'border_number', l: T('رقم الحدود','Border No'), d: 1 },
+    { k: 'passport_number', l: T('رقم الجواز','Passport'), d: 1 },
+    { k: 'passport_expiry', l: T('انتهاء الجواز','Passport Expiry'), t: 'date' },
+    { k: 'facility_id', l: T('المنشأة','Facility'), opts: facilities.map(f => ({ v: f.id, l: f.name_ar })) },
+    { k: 'broker_id', l: T('الوسيط','Broker'), opts: brokers.map(b => ({ v: b.id, l: b.name_ar })) },
+    { k: 'birth_date_g', l: T('تاريخ الميلاد','Birth Date'), t: 'date' },
+    { k: 'gosi_salary', l: T('راتب التأمينات','GOSI Salary'), d: 1 },
+    { k: 'qiwa_salary', l: T('راتب قوى','Qiwa Salary'), d: 1 },
+    { k: 'worker_status', l: T('الحالة','Status'), opts: Object.entries(STATUS_THEME).map(([v, t]) => ({ v, l: T(t.label_ar, t.label_en) })), r: 1 },
+    { k: 'identity_type', l: T('نوع الهوية','ID Type'), opts: [{ v: 'citizen', l: T('مواطن','Citizen') }, { v: 'resident', l: T('مقيم','Resident') }] },
+    { k: 'marital_status', l: T('الحالة الاجتماعية','Marital'), opts: ['single','married','divorced','widowed'].map(v => ({ v, l: T(VAL_AR[v], v) })) },
+    { k: 'joining_method', l: T('طريقة الانضمام','Joining'), opts: Object.entries(JOIN_THEME).map(([v, t]) => ({ v, l: T(t.label_ar, t.label_en) })) },
+    { k: 'iqama_expiry_date', l: T('انتهاء الإقامة','Iqama Expiry'), t: 'date' },
+    { k: 'entry_port', l: T('منفذ الدخول','Entry Port') },
+    { k: 'dependents_count', l: T('عدد المرافقين','Dependents'), d: 1 },
+    { k: 'notes', l: T('ملاحظات','Notes'), w: 1 },
+  ]
+  const openAdd = () => { const init = {}; wFields.forEach(f => init[f.k] = ''); init.worker_status = 'active'; init.gender = 'male'; setForm(init); setPop('worker') }
+  const openEdit = (r) => { const init = { _id: r.id }; wFields.forEach(f => init[f.k] = r[f.k] ?? ''); setForm(init); setPop('worker') }
+
+  /* ─── Detail page ─── */
+  if (detail) {
+    return (
+      <WorkerDetailPage
+        worker={detail}
+        sb={sb}
+        toast={toast}
+        T={T}
+        isAr={isAr}
+        onBack={() => setDetail(null)}
+        onEdit={() => { openEdit(detail); setDetail(null) }}
+        onDelete={() => { del('workers', detail.id); setDetail(null) }}
+        bundle={{
+          facilities, brokers, branches, occMap,
+          permits: permits.filter(p => p.worker_id === detail.id),
+          iqamas: iqamas.filter(p => p.worker_id === detail.id),
+          insurance: insurance.filter(p => p.worker_id === detail.id),
+          passports: passports.filter(p => p.worker_id === detail.id),
+          licenses: licenses.filter(p => p.worker_id === detail.id),
+          dependents: dependents.filter(p => p.worker_id === detail.id),
+          contracts: contracts.filter(p => p.worker_id === detail.id),
+          salaryHistory: salaryHistory.filter(p => p.worker_id === detail.id),
+          visas: visas.filter(p => p.worker_id === detail.id),
+          vehicles: vehicles.filter(p => p.worker_id === detail.id),
+          timeline: timeline.filter(p => p.worker_id === detail.id),
+          transferReqs: transferReqs.filter(p => p.worker_id === detail.id),
+          gosiSubs: gosiSubs.filter(p => p.worker_id === detail.id),
+          attFiles: attFiles.filter(a => a.entity_type === 'worker' && a.entity_id === detail.id),
+        }}
+      />
+    )
+  }
+
+  /* ═══════════════ List view ═══════════════ */
+  return (
+    <div style={{ fontFamily: F, paddingTop: 0 }}>
+      {/* Hero */}
+      <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('العمالة','Workforce')}</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('إدارة بيانات العمّال والوثائق والعقود والتنقلات','Manage worker records, documents, contracts and transfers')}</div>
+        </div>
+        <button onClick={openAdd} style={btnGold}>+ {T('إضافة عامل','Add Worker')}</button>
+      </div>
+
+      {/* Stats — Hero + Iqama health + Joining method */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.7fr 1.6fr', gap: 14, marginBottom: 24 }}>
+        {/* Hero — Total */}
+        <div style={{
+          position: 'relative', padding: '18px 22px', borderRadius: 16,
+          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+          border: '1px solid rgba(255,255,255,.05)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          overflow: 'hidden', minHeight: 150,
+        }}>
+          <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
+            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي العمّال','Total Workers')}</span>
+          </div>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
+            <span style={{ fontSize: 42, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(stats.total)}</span>
+          </div>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', gap: 8 }}>
+            <span style={{ fontSize: 11, color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.ok }} /> {num(stats.active)} {T('نشط','active')}
+            </span>
+            {stats.absconded > 0 && (
+              <span style={{ fontSize: 11, color: C.red, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.red }} /> {num(stats.absconded)} {T('هارب','absconded')}
+              </span>
+            )}
+            {stats.finalExit > 0 && (
+              <span style={{ fontSize: 11, color: C.gray, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.gray }} /> {num(stats.finalExit)} {T('خروج','exit')}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Iqama health */}
+        {(() => {
+          const tot = Math.max(1, stats.total)
+          const segs = [
+            { l: T('سارية','Valid'), v: stats.valid, c: C.ok },
+            { l: T('≤ 90 يوم','≤90d'), v: stats.exp90, c: C.orange },
+            { l: T('≤ 30 يوم','≤30d'), v: stats.exp30, c: C.gold },
+            { l: T('منتهية','Expired'), v: stats.expired, c: C.red },
+          ]
+          return (
+            <div style={{
+              borderRadius: 16,
+              background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+              border: '1px solid rgba(255,255,255,.05)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+              padding: '12px 16px',
+              display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('صحة الإقامات','Iqama Health')}</span>
+                <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
+                  <span style={{ color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{Math.round(stats.valid / tot * 100)}%</span> {T('سارية','valid')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
+                {segs.filter(s => s.v > 0).map(s => (
+                  <div key={s.l} title={`${s.l}: ${s.v}`} style={{ width: (s.v / tot * 100) + '%', background: s.c, transition: 'width .3s' }} />
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 16px' }}>
+                {segs.map(s => (
+                  <button key={s.l} onClick={() => { setIqamaFilter(p => p === s.l ? '' : ['valid','90d','30d','expired'][segs.indexOf(s)]); setPage(0) }} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, opacity: s.v === 0 ? 0.45 : 1, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: F, textAlign: 'right' }}>
+                    <span style={{ color: s.v === 0 ? 'var(--tx4)' : s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 20, textAlign: 'center', flexShrink: 0, fontWeight: 700 }}>{num(s.v)}</span>
+                    <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.l}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Joining method */}
+        {(() => {
+          const tot = Math.max(1, stats.total)
+          const recPct = Math.round(stats.recruit / tot * 100)
+          const trPct = Math.round(stats.transfer / tot * 100)
+          return (
+            <div style={{
+              borderRadius: 16,
+              background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+              border: '1px solid rgba(255,255,255,.05)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+              padding: '12px 16px',
+              display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('طريقة الانضمام','Joining Method')}</span>
+                <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{num(stats.recruit + stats.transfer)}</span>
+              </div>
+              <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
+                {stats.recruit > 0 && <div style={{ width: recPct + '%', background: C.blue }} />}
+                {stats.transfer > 0 && <div style={{ width: trPct + '%', background: C.purple }} />}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
+                {[
+                  { code: 'recruitment', v: stats.recruit, pct: recPct, t: JOIN_THEME.recruitment },
+                  { code: 'transfer', v: stats.transfer, pct: trPct, t: JOIN_THEME.transfer },
+                ].map(s => (
+                  <button key={s.code} onClick={() => { setJoiningFilter(joiningFilter === s.code ? '' : s.code); setPage(0) }} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: F, textAlign: 'right' }}>
+                    <span style={{ color: s.t.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 28, textAlign: 'center', fontWeight: 800, fontSize: 13 }}>{s.pct}%</span>
+                    <span style={{ color: 'var(--tx2)', flex: 1 }}>{T(s.t.label_ar, s.t.label_en)}</span>
+                    <span style={{ color: 'var(--tx4)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(s.v)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+      </div>
+
+      {/* Filter row */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            placeholder={T('ابحث بالاسم/الإقامة/الجوال…','Search by name/iqama/phone…')}
+            value={q}
+            onChange={e => { setQ(e.target.value); setPage(0) }}
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+          />
+        </div>
+        {(() => {
+          const hasFilters = !!(statusFilter || nationalityFilter || facilityFilter || joiningFilter || iqamaFilter || genderFilter)
+          const clearAll = () => { setStatusFilter(''); setNationalityFilter(''); setFacilityFilter(''); setJoiningFilter(''); setIqamaFilter(''); setGenderFilter(''); setPage(0) }
+          return (
+            <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
+              {T('تصفية','Filter')}
+              {hasFilters ? (
+                <span
+                  role="button" tabIndex={0}
+                  title={T('مسح الفلاتر','Clear filters')}
+                  onClick={e => { e.stopPropagation(); clearAll() }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); clearAll() } }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+                  style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </span>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="18" y1="6" x2="20" y2="6"/><circle cx="16" cy="6" r="2"/><line x1="4" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="20" y2="12"/><circle cx="10" cy="12" r="2"/><line x1="4" y1="18" x2="16" y2="18"/><line x1="20" y1="18" x2="20" y2="18"/><circle cx="18" cy="18" r="2"/></svg>
+              )}
+            </button>
+          )
+        })()}
+      </div>
+
+      {/* Advanced filter panel */}
+      {advOpen && (() => {
+        const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
+        return (
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+              <div>
+                <div style={fLbl}>{T('الحالة','Status')}</div>
+                <Sel value={statusFilter} onChange={v => { setStatusFilter(v); setPage(0) }} placeholder={T('الكل','All')} options={[{ v: '', l: T('الكل','All') }, ...Object.entries(STATUS_THEME).map(([v, t]) => ({ v, l: T(t.label_ar, t.label_en) }))]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('المنشأة','Facility')}</div>
+                <Sel value={facilityFilter} onChange={v => { setFacilityFilter(v); setPage(0) }} placeholder={T('كل المنشآت','All')} options={[{ v: '', l: T('كل المنشآت','All') }, ...facilities.map(f => ({ v: f.id, l: f.name_ar }))]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('الجنسية','Nationality')}</div>
+                <Sel value={nationalityFilter} onChange={v => { setNationalityFilter(v); setPage(0) }} placeholder={T('الكل','All')} options={[{ v: '', l: T('الكل','All') }, ...natList.map(n => ({ v: n, l: n }))]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('طريقة الانضمام','Joining')}</div>
+                <Sel value={joiningFilter} onChange={v => { setJoiningFilter(v); setPage(0) }} placeholder={T('الكل','All')} options={[{ v: '', l: T('الكل','All') }, ...Object.entries(JOIN_THEME).map(([v, t]) => ({ v, l: T(t.label_ar, t.label_en) }))]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('الإقامة','Iqama')}</div>
+                <Sel value={iqamaFilter} onChange={v => { setIqamaFilter(v); setPage(0) }} placeholder={T('الكل','All')} options={[{ v: '', l: T('الكل','All') }, { v: 'valid', l: T('سارية','Valid') }, { v: '90d', l: T('≤ 90 يوم','≤90d') }, { v: '30d', l: T('≤ 30 يوم','≤30d') }, { v: 'expired', l: T('منتهية','Expired') }]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('الجنس','Gender')}</div>
+                <Sel value={genderFilter} onChange={v => { setGenderFilter(v); setPage(0) }} placeholder={T('الكل','All')} options={[{ v: '', l: T('الكل','All') }, { v: 'male', l: T('ذكر','Male') }, { v: 'female', l: T('أنثى','Female') }]} />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Counter */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>{num(filtered.length)} {T('عامل','workers')}</span>
+        {filtered.length !== workers.length && <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('من أصل','out of')} {num(workers.length)}</span>}
+      </div>
+
+      {/* Cards grid */}
+      {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>…</div>}
+      {!loading && filtered.length === 0 && (
+        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
+          {T('لا يوجد عمّال','No workers')}
+        </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gap: 12 }}>
+          {paged.map(r => {
+            const fac = facilities.find(f => f.id === r.facility_id)
+            const status = STATUS_THEME[r.worker_status] || STATUS_THEME.active
+            const join = JOIN_THEME[r.joining_method]
+            const iqDays = r.iqama_expiry_date ? Math.ceil((new Date(r.iqama_expiry_date) - now) / 86400000) : null
+            const iqClr = iqDays === null ? C.gray : iqDays < 0 ? C.red : iqDays <= 30 ? C.gold : iqDays <= 90 ? C.orange : C.ok
+            const iqText = iqDays === null ? '—' : iqDays < 0 ? T('منتهية','Expired') : iqDays + ' ' + T('يوم','d')
+            const iqPct = iqDays === null ? 0 : iqDays < 0 ? 100 : Math.max(2, Math.min(100, Math.round(((365 - Math.min(365, iqDays)) / 365) * 100)))
+            const occ = occMap[r.occupation_id]
+
+            return (
+              <div key={r.id} onClick={() => setDetail(r)}
+                style={{
+                  position: 'relative', cursor: 'pointer',
+                  borderRadius: 14,
+                  background: 'radial-gradient(ellipse at top, rgba(212,160,23,.06) 0%, #222 60%)',
+                  border: '1px solid rgba(255,255,255,.05)',
+                  boxShadow: '0 4px 14px rgba(0,0,0,.22)',
+                  transition: 'all .15s', overflow: 'hidden',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = status.c + '55' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}
+              >
+                <div style={{ padding: '16px 22px 14px 18px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 130px', gap: 18, alignItems: 'center' }}>
+                    {/* Right: identity */}
+                    <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <NatFlag nationality={r.nationality} size={26} />
+                        <span style={{ fontSize: 16, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>{r.name_ar || r.name_en || '—'}</span>
+                        <StatusBadge status={r.worker_status} T={T} />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {r.iqama_number && (
+                          <span title={T('رقم الإقامة','Iqama')} style={{ fontSize: 11, color: 'var(--tx3)', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/></svg>
+                            <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{r.iqama_number}</span>
+                            <CopyBtn value={r.iqama_number} toast={toast} T={T} />
+                          </span>
+                        )}
+                        {r.phone && (
+                          <a href={`tel:${r.phone}`} onClick={e => e.stopPropagation()} title={r.phone} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--tx3)', direction: 'ltr', textDecoration: 'none', fontWeight: 600 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                            {String(r.phone).replace(/^966/, '0')}
+                          </a>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {join && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 6, background: join.c + '1f', border: '1px solid ' + join.c + '40', color: join.c, fontSize: 10.5, fontWeight: 700 }}>
+                            {T(join.label_ar, join.label_en)}
+                          </span>
+                        )}
+                        {occ && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 6, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.28)', color: C.gold, fontSize: 10.5, fontWeight: 700 }}>{occ}</span>
+                        )}
+                        {fac?.name_ar && (
+                          <span title={fac.name_ar} style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx4)', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg>
+                            {fac.name_ar}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,.06)', minHeight: 60 }} />
+
+                    {/* Left: iqama countdown */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('الإقامة','Iqama')}</span>
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: iqClr, fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1, textAlign: 'center' }}>{iqText}</div>
+                      <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, textAlign: 'center', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{r.iqama_expiry_date || '—'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom progress strip — iqama validity */}
+                <div style={{ height: 5, background: 'rgba(255,255,255,.05)' }}>
+                  <div style={{ height: '100%', width: `${iqPct}%`, background: iqClr, transition: 'width .3s' }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && filtered.length > PAGE && (() => {
+        const goPrev = () => setPage(p => Math.max(0, p - 1))
+        const goNext = () => setPage(p => p + 1)
+        const goTo = n => setPage(Math.max(0, Math.min(totalPages - 1, n)))
+        const fromN = page * PAGE + 1
+        const toN = Math.min(filtered.length, (page + 1) * PAGE)
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px 4px', borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 18 }}>
+            <style>{`
+              .wf-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
+              .wf-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
+              .wf-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
+              .wf-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+              .wf-pg-input::-webkit-outer-spin-button,.wf-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+            `}</style>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(filtered.length)}</span>
+              <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{T('صفحة','Page')} {page + 1} {T('من','of')} {totalPages}</span>
+            </div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <button className="wf-pg-btn" disabled={page === 0} onClick={goPrev} aria-label={T('السابق','Prev')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              <input className="wf-pg-input" type="number" min={1} max={totalPages} value={page + 1} onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) goTo(v - 1) }} />
+              <button className="wf-pg-btn" disabled={page + 1 >= totalPages} onClick={goNext} aria-label={T('التالي','Next')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Edit form modal */}
+      {pop === 'worker' && <FormPopup title={form._id ? T('تعديل عامل','Edit Worker') : T('إضافة عامل','Add Worker')} fields={wFields} form={form} setForm={setForm} onSave={() => saveG('workers', form)} onClose={() => setPop(null)} saving={saving} T={T} lang={lang} />}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Worker Detail Page (full page replacing the modal)
+   ═══════════════════════════════════════════════════════════════ */
+function WorkerDetailPage({ worker, sb, toast, T, isAr, onBack, onEdit, onDelete, bundle }) {
+  const r = worker
+  const fac = bundle.facilities.find(f => f.id === r.facility_id)
+  const br = bundle.branches.find(b => b.id === r.branch_id)
+  const broker = bundle.brokers.find(b => b.id === r.broker_id)
+  const occ = bundle.occMap[r.occupation_id]
+  const status = STATUS_THEME[r.worker_status] || STATUS_THEME.active
+  const join = JOIN_THEME[r.joining_method]
+  const now = new Date()
+  const iqDays = r.iqama_expiry_date ? Math.ceil((new Date(r.iqama_expiry_date) - now) / 86400000) : null
+  const iqClr = iqDays === null ? C.gray : iqDays < 0 ? C.red : iqDays <= 30 ? C.gold : iqDays <= 90 ? C.orange : C.ok
+  const iqPct = iqDays === null ? 0 : iqDays < 0 ? 100 : Math.max(2, Math.min(100, Math.round(((365 - Math.min(365, iqDays)) / 365) * 100)))
+
+  const hasIns = bundle.insurance.some(i => i.end_date && new Date(i.end_date) >= now)
+
+  return (
+    <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
+      {/* Top bar: back + actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+        <button onClick={onBack} title={T('رجوع','Back')} style={{ height: 40, padding: '0 14px', borderRadius: 11, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.78)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 500, transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)'; e.currentTarget.style.color = C.gold }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'rgba(255,255,255,.78)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          <span>{T('رجوع','Back')}</span>
+        </button>
+
+        <div style={{ display: 'inline-flex', gap: 8 }}>
+          <button onClick={onEdit} style={btnGold}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            <span>{T('تعديل','Edit')}</span>
+          </button>
+          <button onClick={onDelete} title={T('حذف','Delete')} style={{ height: 40, padding: '0 14px', borderRadius: 11, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.32)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 700 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span>{T('حذف','Delete')}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Heading: name + tags */}
+      <div style={{ marginBottom: 18, marginTop: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <NatFlag nationality={r.nationality} size={28} />
+          <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.2px' }}>{r.name_ar || r.name_en || T('عامل','Worker')}</div>
+          <StatusBadge status={r.worker_status} T={T} />
+        </div>
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)' }}>
+          {r.name_en && <><span>{r.name_en}</span><span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} /></>}
+          {r.iqama_number && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>
+              <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 700 }}>#{r.iqama_number}</span>
+              <CopyBtn value={r.iqama_number} toast={toast} T={T} />
+            </span>
+          )}
+          {r.nationality && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
+              <span style={{ color: 'var(--tx3)', fontWeight: 600 }}>{r.nationality}</span>
+            </>
+          )}
+          {fac && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
+              <span style={{ color: C.gold, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg>
+                {fac.name_ar}
+              </span>
+            </>
+          )}
+          {iqDays !== null && iqDays < 0 && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
+              <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(229,134,122,.10)', border: '1px solid ' + C.red, color: C.red, fontSize: 10.5, fontWeight: 800, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {T('الإقامة منتهية','Iqama expired')}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+        {/* Main column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Identity */}
+          <div style={cardChrome}>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={cardTitle}>{T('الهوية','Identity')}</span></div>
+            <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+              <DetailRow label={T('رقم العامل','Worker No')} value={r.worker_number} mono toast={toast} T={T} />
+              <DetailRow label={T('رقم الإقامة','Iqama No')} value={r.iqama_number} mono toast={toast} T={T} />
+              <DetailRow label={T('رقم الحدود','Border No')} value={r.border_number} mono toast={toast} T={T} />
+              <DetailRow label={T('رقم الجواز','Passport No')} value={r.passport_number} mono toast={toast} T={T} />
+              <DetailRow label={T('انتهاء الجواز','Passport Expiry')} value={r.passport_expiry} />
+              <DetailRow label={T('نوع الهوية','ID Type')} value={VAL_AR[r.identity_type] || r.identity_type} />
+              <DetailRow label={T('تاريخ الميلاد','Birth Date')} value={r.birth_date_g} />
+              <DetailRow label={T('الجنس','Gender')} value={VAL_AR[r.gender] || r.gender} />
+              <DetailRow label={T('الجنسية','Nationality')} value={r.nationality} />
+              <DetailRow label={T('الحالة الاجتماعية','Marital')} value={VAL_AR[r.marital_status] || r.marital_status} />
+              <DetailRow label={T('عدد المرافقين','Dependents')} value={r.dependents_count} />
+              <DetailRow label={T('الجوال','Phone')} value={r.phone} mono toast={toast} T={T} />
+            </div>
+          </div>
+
+          {/* Work */}
+          <div style={cardChrome}>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('بيانات العمل','Work Information')}</span></div>
+            <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+              <DetailRow label={T('المنشأة','Facility')} value={fac?.name_ar} />
+              <DetailRow label={T('المهنة','Occupation')} value={occ} />
+              <DetailRow label={T('المكتب','Branch')} value={br?.name_ar} />
+              <DetailRow label={T('الوسيط','Broker')} value={broker?.name_ar} />
+              <DetailRow label={T('طريقة الانضمام','Joining')} value={join ? T(join.label_ar, join.label_en) : null} />
+              <DetailRow label={T('تاريخ الدخول','Entry Date')} value={r.entry_date_saudi} />
+              <DetailRow label={T('منفذ الدخول','Entry Port')} value={r.entry_port} />
+              <DetailRow label={T('انتهاء الإقامة','Iqama Expiry')} value={r.iqama_expiry_date} />
+              <DetailRow label={T('راتب التأمينات','GOSI Salary')} value={r.gosi_salary ? num(r.gosi_salary) + ' ' + T('ر.س','SAR') : null} mono />
+              <DetailRow label={T('راتب قوى','Qiwa Salary')} value={r.qiwa_salary ? num(r.qiwa_salary) + ' ' + T('ر.س','SAR') : null} mono />
+              <DetailRow label={T('حالة التأمينات','GOSI Status')} value={VAL_AR[r.gosi_status] || r.gosi_status} />
+              <DetailRow label={T('حالة عقد قوى','Qiwa Contract')} value={VAL_AR[r.qiwa_contract_status] || r.qiwa_contract_status} />
+            </div>
+          </div>
+
+          {/* Documents */}
+          <DetailListCard title={T('الوثائق','Documents')} color={C.cyan} count={bundle.iqamas.length + bundle.passports.length + bundle.visas.length + bundle.licenses.length}>
+            {bundle.iqamas.length === 0 && bundle.passports.length === 0 && bundle.visas.length === 0 && bundle.licenses.length === 0 ? (
+              <EmptyHint T={T} text={T('لا توجد وثائق','No documents')} />
+            ) : (
+              <div style={{ padding: '10px 22px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {bundle.iqamas.length > 0 && <DocList title={T('الإقامات','Iqama Cards')} items={bundle.iqamas} render={(i) => ({
+                  primary: i.version_number ? `v${i.version_number}` : (i.iqama_number || '—'),
+                  cells: [
+                    { l: T('الإصدار','Issue'), v: i.iqama_issue_date || i.issue_date },
+                    { l: T('الانتهاء','Expiry'), v: i.iqama_expiry_date || i.expiry_date, expiry: true },
+                    { l: T('المدة','Duration'), v: i.duration_months ? i.duration_months + ' ' + T('شهر','m') : null },
+                  ],
+                })} T={T} />}
+                {bundle.passports.length > 0 && <DocList title={T('الجوازات','Passports')} items={bundle.passports} render={(p) => ({
+                  primary: p.passport_number, mono: true,
+                  cells: [
+                    { l: T('الإصدار','Issue'), v: p.issue_date },
+                    { l: T('الانتهاء','Expiry'), v: p.expiry_date, expiry: true },
+                    { l: T('مكان الإصدار','Issue Place'), v: p.issue_place },
+                  ],
+                })} T={T} />}
+                {bundle.visas.length > 0 && <DocList title={T('التأشيرات','Visas')} items={bundle.visas} render={(v) => ({
+                  primary: v.visa_number,
+                  cells: [
+                    { l: T('النوع','Type'), v: v.visa_type },
+                    { l: T('الإصدار','Issue'), v: v.issue_date },
+                    { l: T('الخروج قبل','Exit Before'), v: v.exit_before, expiry: true },
+                  ],
+                })} T={T} />}
+                {bundle.licenses.length > 0 && <DocList title={T('رخص السياقة','Licenses')} items={bundle.licenses} render={(l) => ({
+                  primary: l.license_type || T('رخصة','License'),
+                  cells: [
+                    { l: T('الإصدار','Issue'), v: l.issue_date },
+                    { l: T('الانتهاء','Expiry'), v: l.expiry_date, expiry: true },
+                  ],
+                })} T={T} />}
+              </div>
+            )}
+          </DetailListCard>
+
+          {/* Contracts & Salary */}
+          <DetailListCard title={T('العقود والرواتب','Contracts & Salary')} color={C.gold} count={bundle.contracts.length + bundle.salaryHistory.length}>
+            {bundle.contracts.length === 0 && bundle.salaryHistory.length === 0 ? (
+              <EmptyHint T={T} text={T('لا توجد عقود','No contracts')} />
+            ) : (
+              <div style={{ padding: '10px 22px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {bundle.contracts.length > 0 && <DocList title={T('العقود','Contracts')} items={bundle.contracts} render={(c) => ({
+                  primary: c.contract_number ? '#' + c.contract_number : (c.contract_type || T('عقد','Contract')),
+                  cells: [
+                    { l: T('البداية','Start'), v: c.start_date },
+                    { l: T('النهاية','End'), v: c.end_date || T('غير محدد','Open') },
+                    { l: T('المدة','Duration'), v: c.duration_months ? c.duration_months + ' ' + T('شهر','m') : (c.duration_type || null) },
+                  ],
+                })} T={T} />}
+                {bundle.salaryHistory.length > 0 && <DocList title={T('سجل الرواتب','Salary History')} items={bundle.salaryHistory} render={(s) => ({
+                  primary: s.change_date,
+                  cells: [
+                    { l: T('من','From'), v: s.old_salary ? num(s.old_salary) : null },
+                    { l: T('إلى','To'), v: s.new_salary ? num(s.new_salary) : null },
+                    { l: T('السبب','Reason'), v: s.reason },
+                  ],
+                })} T={T} />}
+              </div>
+            )}
+          </DetailListCard>
+
+          {/* Permits & Insurance */}
+          <DetailListCard title={T('رخص العمل والتأمينات','Permits & Insurance')} color={C.blue} count={bundle.permits.length + bundle.insurance.length + bundle.gosiSubs.length}>
+            {bundle.permits.length === 0 && bundle.insurance.length === 0 && bundle.gosiSubs.length === 0 ? (
+              <EmptyHint T={T} text={T('لا توجد بيانات','No data')} />
+            ) : (
+              <div style={{ padding: '10px 22px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {bundle.permits.length > 0 && <DocList title={T('رخص العمل','Work Permits')} items={bundle.permits} render={(p) => ({
+                  primary: p.wp_order ? '#' + p.wp_order : T('رخصة','Permit'),
+                  cells: [
+                    { l: T('الإصدار','Issue'), v: p.wp_issue_date },
+                    { l: T('الانتهاء','Expiry'), v: p.wp_expiry_date, expiry: true },
+                    { l: T('المدة','Duration'), v: p.duration_months ? p.duration_months + ' ' + T('شهر','m') : null },
+                  ],
+                })} T={T} />}
+                {bundle.insurance.length > 0 && <DocList title={T('التأمين الطبي','Medical Insurance')} items={bundle.insurance} render={(i) => ({
+                  primary: i.insurance_company,
+                  cells: [
+                    { l: T('البداية','Start'), v: i.start_date },
+                    { l: T('النهاية','End'), v: i.end_date, expiry: true },
+                    { l: T('الوثيقة','Policy'), v: i.policy_number },
+                  ],
+                })} T={T} />}
+                {bundle.gosiSubs.length > 0 && <DocList title={T('اشتراكات التأمينات','GOSI Subscriptions')} items={bundle.gosiSubs} render={(g) => ({
+                  primary: g.subscription_start || '—',
+                  cells: [
+                    { l: T('الراتب الأساسي','Base'), v: g.base_salary ? num(g.base_salary) : null },
+                    { l: T('الإجمالي','Total'), v: g.total_amount ? num(g.total_amount) : null },
+                  ],
+                })} T={T} />}
+              </div>
+            )}
+          </DetailListCard>
+
+          {/* Family & Vehicles */}
+          <DetailListCard title={T('المرافقون والمركبات','Family & Vehicles')} color={C.purple} count={bundle.dependents.length + bundle.vehicles.length}>
+            {bundle.dependents.length === 0 && bundle.vehicles.length === 0 ? (
+              <EmptyHint T={T} text={T('لا توجد بيانات','No data')} />
+            ) : (
+              <div style={{ padding: '10px 22px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {bundle.dependents.length > 0 && <DocList title={T('التابعون','Dependents')} items={bundle.dependents} render={(d) => ({
+                  primary: d.full_name || '—',
+                  cells: [
+                    { l: T('الصلة','Relation'), v: d.relation_type },
+                    { l: T('تاريخ الميلاد','Birth Date'), v: d.date_of_birth },
+                    { l: T('رقم الهوية','ID No'), v: d.identity_number },
+                  ],
+                })} T={T} />}
+                {bundle.vehicles.length > 0 && <DocList title={T('المركبات','Vehicles')} items={bundle.vehicles} render={(v) => ({
+                  primary: v.plate_number || '—',
+                  cells: [
+                    { l: T('النوع','Type'), v: v.vehicle_type },
+                    { l: T('الموديل','Model'), v: v.model },
+                    { l: T('السنة','Year'), v: v.year },
+                  ],
+                })} T={T} />}
+              </div>
+            )}
+          </DetailListCard>
+
+          {/* Timeline */}
+          {bundle.timeline.length > 0 && (
+            <div style={cardChrome}>
+              <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.orange }} /><span style={cardTitle}>{T('السجل الزمني','Timeline')}</span></div>
+              <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {bundle.timeline.map((ev, i) => (
+                  <div key={ev.id} style={{ display: 'flex', gap: 14, paddingBottom: 14 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 14 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: i === 0 ? C.gold : 'rgba(255,255,255,.18)', boxShadow: i === 0 ? '0 0 8px ' + C.gold : 'none' }} />
+                      {i < bundle.timeline.length - 1 && <div style={{ width: 2, flex: 1, background: 'rgba(255,255,255,.06)', marginTop: 4 }} />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{ev.title || ev.event_type || '—'}</span>
+                        <span style={{ fontSize: 10.5, color: 'var(--tx5)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{ev.event_date}</span>
+                      </div>
+                      {ev.description && <div style={{ fontSize: 11.5, color: 'var(--tx4)' }}>{ev.description}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {r.notes && (
+            <div style={cardChrome}>
+              <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gray }} /><span style={cardTitle}>{T('ملاحظات','Notes')}</span></div>
+              <div style={{ padding: '14px 22px', fontSize: 13, color: 'var(--tx3)', lineHeight: 1.8 }}>{r.notes}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Iqama health card */}
+          <div style={cardChrome}>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: iqClr }} /><span style={cardTitle}>{T('حالة الإقامة','Iqama Status')}</span></div>
+            <div style={{ padding: '20px 22px 14px', textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 6 }}>{iqDays === null ? T('غير محدد','Not set') : iqDays < 0 ? T('متأخر','Overdue') : T('متبقي','Remaining')}</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: iqClr, fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-1px', lineHeight: 1 }}>
+                {iqDays === null ? '—' : Math.abs(iqDays)}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, marginTop: 4 }}>{iqDays === null ? '' : T('يوم','days')}</div>
+              <div style={{ marginTop: 14, height: 6, borderRadius: 999, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: iqPct + '%', background: iqClr, transition: 'width .3s' }} />
+              </div>
+              <div style={{ marginTop: 10, fontSize: 11, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{r.iqama_expiry_date || '—'}</div>
+            </div>
+          </div>
+
+          {/* Compliance grid */}
+          <div style={cardChrome}>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('الالتزام','Compliance')}</span></div>
+            <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[
+                { l: T('رخصة العمل','Permit'), ok: bundle.permits.some(p => p.wp_expiry_date && new Date(p.wp_expiry_date) >= now) },
+                { l: T('التأمينات','GOSI'), ok: r.gosi_status === 'active' || r.gosi_status === 'registered' || hasIns },
+                { l: T('عقد قوى','Qiwa'), ok: r.qiwa_contract_status === 'active' || r.qiwa_contract_status === 'registered' },
+                { l: T('تأمين طبي','Insurance'), ok: hasIns },
+              ].map(s => (
+                <div key={s.l} style={{ padding: '10px 12px', borderRadius: 10, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>{s.l}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: s.ok ? C.ok : C.gray, fontWeight: 700 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.ok ? C.ok : C.gray, boxShadow: s.ok ? '0 0 6px ' + C.ok : 'none' }} />
+                    {s.ok ? T('ساري','OK') : T('—','—')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Counters card */}
+          <div style={cardChrome}>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} /><span style={cardTitle}>{T('السجلات','Records')}</span></div>
+            <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                [T('وثائق','Documents'), bundle.iqamas.length + bundle.passports.length + bundle.visas.length + bundle.licenses.length],
+                [T('عقود','Contracts'), bundle.contracts.length],
+                [T('رخص عمل','Permits'), bundle.permits.length],
+                [T('طلبات نقل','Transfer Reqs'), bundle.transferReqs.length],
+                [T('تابعون','Dependents'), bundle.dependents.length],
+                [T('مركبات','Vehicles'), bundle.vehicles.length],
+                [T('مرفقات','Attachments'), bundle.attFiles.length],
+              ].map(([l, v]) => (
+                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ color: 'var(--tx4)' }}>{l}</span>
+                  <span style={{ color: v > 0 ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(v)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Detail helpers ─── */
+const DetailRow = ({ label, value, mono, toast, T }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', minHeight: 28, gap: 8 }}>
+    <span style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: value ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 600, direction: mono ? 'ltr' : undefined, fontFamily: mono ? 'monospace' : F, fontVariantNumeric: mono ? 'tabular-nums' : undefined }}>
+      {value || '—'}
+      {value && mono && toast && <CopyBtn value={value} toast={toast} T={T} />}
+    </span>
+  </div>
+)
+
+const DetailListCard = ({ title, color, count, children }) => (
+  <div style={cardChrome}>
+    <div style={cardHeader}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+      <span style={cardTitle}>{title}</span>
+      {count != null && <span style={{ marginInlineStart: 'auto', fontSize: 11, color: count > 0 ? color : 'var(--tx5)', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: count > 0 ? color + '14' : 'rgba(255,255,255,.04)' }}>{num(count)}</span>}
+    </div>
+    {children}
+  </div>
+)
+
+const EmptyHint = ({ T, text }) => (
+  <div style={{ padding: '24px 22px', textAlign: 'center', color: 'var(--tx5)', fontSize: 12, fontWeight: 600 }}>{text || T('لا توجد بيانات','No data')}</div>
+)
+
+const DocList = ({ title, items, render, T }) => {
+  const now = new Date()
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase' }}>{title}</span>
+        <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
+        <span style={{ fontSize: 10.5, color: 'var(--tx5)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{items.length}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {items.map((it, idx) => {
+          const meta = render(it)
+          const cells = (meta.cells || []).filter(c => c.v != null && c.v !== '')
+          return (
+            <div key={it.id || idx} style={{ padding: '10px 12px', borderRadius: 10, background: 'linear-gradient(180deg,#252525 0%,#1f1f1f 100%)', border: '1px solid rgba(255,255,255,.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: cells.length ? 6 : 0, gap: 8 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', direction: meta.mono ? 'ltr' : undefined, fontFamily: meta.mono ? 'monospace' : F, fontVariantNumeric: meta.mono ? 'tabular-nums' : undefined }}>{meta.primary || '—'}</span>
+              </div>
+              {cells.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, cells.length)}, 1fr)`, gap: 6 }}>
+                  {cells.map((c, i) => {
+                    const isExpired = c.expiry && c.v && (new Date(c.v) < now)
+                    return (
+                      <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{c.l}</span>
+                        <span style={{ fontSize: 11.5, color: isExpired ? C.red : 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{c.v}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Form popup (used for add/edit)
+   ═══════════════════════════════════════════════════════════════ */
+function FormPopup({ title, fields, form, setForm, onSave, onClose, saving, T, lang }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16, fontFamily: F }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: 620, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        borderRadius: 16,
+        background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+        border: '1px solid rgba(255,255,255,.06)',
+        boxShadow: '0 24px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06)',
+      }}>
+        <div style={{ height: 3, background: `linear-gradient(90deg,transparent,${C.gold} 30%,${C.goldSoft} 50%,${C.gold} 70%,transparent)` }} />
+        <div style={{ padding: '18px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{title}</div>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            {fields.map(f => <FormField key={f.k} f={f} form={form} setForm={setForm} T={T} lang={lang} />)}
+          </div>
+        </div>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.07)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={{ height: 42, padding: '0 18px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{T('إلغاء','Cancel')}</button>
+          <button onClick={onSave} disabled={saving} style={{ ...btnGold, height: 42, padding: '0 22px', opacity: saving ? .6 : 1 }}>{saving ? '...' : (form._id ? T('حفظ','Save') : T('إضافة','Add'))}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FormField({ f, form, setForm, T, lang }) {
+  const v = form[f.k] || ''
+  const set = val => setForm(p => ({ ...p, [f.k]: val }))
+  const fS = { width: '100%', height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', boxSizing: 'border-box' }
+  return (
+    <div style={{ gridColumn: f.w ? '1 / -1' : undefined }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{f.l}{f.r && <span style={{ color: C.red }}> *</span>}</div>
+      {f.opts ? (
+        <Sel value={v} onChange={set} placeholder={T('— اختر —','— Select —')} options={f.opts} />
+      ) : f.t === 'date' ? (
+        <DateField value={v} onChange={set} lang={lang} />
+      ) : f.w ? (
+        <textarea value={v} onChange={e => set(e.target.value)} rows={3} style={{ ...fS, height: 'auto', padding: 12, resize: 'vertical' }} />
+      ) : (
+        <input value={v} onChange={e => set(e.target.value)} style={{ ...fS, direction: f.d ? 'ltr' : 'rtl', textAlign: f.d ? 'left' : 'right' }} />
+      )}
+    </div>
+  )
+}

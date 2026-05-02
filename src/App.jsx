@@ -11,8 +11,12 @@ import ServiceRequestPage from './ServiceRequestPage.jsx'
 import ServiceAdminPage from './ServiceAdminPage.jsx'
 import KafalaCalculator, { DateField, Sel } from './pages/KafalaCalculator.jsx'
 import PersonsPage from './pages/admin/PersonsPage.jsx'
+import ClientsPage from './pages/admin/ClientsPage.jsx'
+import AgentsPage from './pages/admin/AgentsPage.jsx'
 import PermissionsPage from './pages/admin/PermissionsPage.jsx'
 import OTPMessages from './pages/OTPMessages.jsx'
+import TransactionsPage from './pages/TransactionsPage.jsx'
+import PaymentsPage from './pages/PaymentsPage.jsx'
 import StampBadge from './components/ui/StampBadge.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
 import SyncHub from './pages/SyncHub.jsx'
@@ -693,7 +697,7 @@ const loadActivityLog=useCallback(async()=>{setActivityLoading(true);try{const{d
 const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);const nav=[
 {id:'home',l:T('الرئيسية','Dashboard'),i:'home'},
 {id:'workforce',l:T('المنشآت والعمالة','Workforce'),i:'worker'},
-{id:'finance_hub',l:T('المالية','Finance'),i:'invoice'},
+{id:'finance_hub',l:T('العمليات','Operations'),i:'invoice'},
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'},
 {id:'otp_messages',l:T('الرسائل النصية','SMS'),i:'alert'},
 {id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
@@ -701,8 +705,8 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 ];
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'}],
-  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_persons',l:T('الأشخاص','Persons'),i:'client'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_permissions',l:T('إدارة المستخدمين','Users'),i:'role'}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'},{id:'transactions',l:T('المعاملات','Transactions'),i:'transaction'}],
+  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_clients',l:T('العملاء','Clients'),i:'client'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'role'},{id:'admin_persons',l:T('الأشخاص','Persons'),i:'client'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_permissions',l:T('إدارة المستخدمين','Users'),i:'role'}],
   settings:[{id:'settings_general',l:T('الإعدادات العامة','General Settings'),i:'settings'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
@@ -1160,11 +1164,15 @@ return<div><div>
 {pg==='workers'&&<WorkforcePage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='worker_leaves'&&<WorkerLeavesPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='transfer_calc'&&<TransferCalcPage sb={sb} toast={tt} user={user} lang={lang} onNewCalc={()=>setShowKafalaCalc(true)}/>}
-{/* المالية */}
+{/* العمليات */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='transactions'&&<TransactionsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_persons'&&<PersonsPage toast={tt} user={user}/>}
+{pg==='admin_clients'&&<ClientsPage sb={sb} user={user} toast={tt} lang={lang}/>}
+{pg==='admin_agents'&&<AgentsPage sb={sb} user={user} toast={tt} lang={lang}/>}
 {pg==='admin_services'&&<ServiceAdminPage toast={tt} lang={lang}/>}
 {pg==='admin_permissions'&&<PermissionsPage sb={sb} user={user} toast={tt} lang={lang} nav={nav} hubTabs={hubTabs} visibility={visibility} onVisibilityChange={saveVisibility}/>}
 {pg==='admin_ui_controls'&&(()=>{window.setTimeout(()=>setPg('admin_permissions'),0);return null})()}
@@ -1836,7 +1844,7 @@ filteredData.forEach(r=>{const key=tcDayKey(r);if(!tcGroups[key]){tcGroups[key]=
 const tcDayNames=[T('الأحد','Sun'),T('الاثنين','Mon'),T('الثلاثاء','Tue'),T('الأربعاء','Wed'),T('الخميس','Thu'),T('الجمعة','Fri'),T('السبت','Sat')]
 const tcMonthNames=[T('يناير','Jan'),T('فبراير','Feb'),T('مارس','Mar'),T('أبريل','Apr'),T('مايو','May'),T('يونيو','Jun'),T('يوليو','Jul'),T('أغسطس','Aug'),T('سبتمبر','Sep'),T('أكتوبر','Oct'),T('نوفمبر','Nov'),T('ديسمبر','Dec')]
 const tcDayLabel=(k)=>{if(k===todayStr)return T('اليوم','Today');try{const d=new Date(k+'T12:00:00');return tcDayNames[d.getDay()]}catch{return k}}
-const tcDayFull=(k)=>{try{const d=new Date(k+'T12:00:00');return d.getDate()+' '+tcMonthNames[d.getMonth()]+' '+d.getFullYear()}catch{return k}}
+const tcDayFull=(k)=>{try{const d=new Date(k+'T12:00:00');return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')}catch{return k}}
 // ═══ Trend comparisons (this month vs last) ═══
 const monthKey=d=>{const x=new Date(d);return x.getFullYear()+'-'+x.getMonth()}
 const now=new Date()
@@ -1912,86 +1920,60 @@ return{perMonth:totalMonths>0?Math.round(totalFee/totalMonths):0,totalFee:Math.r
 const glassCard={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,padding:'10px 12px',position:'relative',overflow:'hidden',transition:'.25s cubic-bezier(.4,0,.2,1)',boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
 const innerBox={background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}
 return<>
-{/* ═══ KPI dashboard cards ═══ */}
-<div style={{display:'grid',gridTemplateColumns:'minmax(0,2.6fr) minmax(0,1fr)',gap:14,marginBottom:36}}>
-{/* ── Wide card: status counts + period chart ── */}
-<div style={glassCard} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)'}}>
-{/* Header: completion progress bar (replaces the section title) + period tabs */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 2fr',gap:8,marginBottom:8,alignItems:'center'}}>
-{[{l:T('مسعّرة','Priced'),v:sCounts.priced,c:'#eab308'},{l:T('مصدّقة','Approved'),v:sCounts.approved,c:C.blue},{l:T('مفوترة','Invoiced'),v:sCounts.invoiced+sCounts.completed,c:C.ok}].map(s=>(
-<div key={s.l} style={{padding:'7px 12px',borderRadius:10,...innerBox,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{width:6,height:6,borderRadius:'50%',background:s.c,boxShadow:'0 0 5px '+s.c}}/>
-<div style={{fontSize:20,fontWeight:700,color:s.c,letterSpacing:'-.3px',direction:'ltr',lineHeight:1}}>{s.v}</div>
+{/* ═══ KPI strip — invoice-style 3-card layout ═══ */}
+<div style={{display:'grid',gridTemplateColumns:'2.2fr 1fr 1.5fr',gap:14,marginBottom:24}}>
+{/* Hero — متوسط رسوم المكتب */}
+<div style={{position:'relative',padding:'18px 22px',borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',display:'flex',flexDirection:'column',justifyContent:'space-between',overflow:'hidden',minHeight:150}}>
+<div style={{position:'absolute',insetInlineStart:-60,top:-60,width:180,height:180,borderRadius:'50%',background:`radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`,pointerEvents:'none'}}/>
+<div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:-6}}>
+<span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:`0 0 10px ${C.gold}aa`}}/>
+<span style={{fontSize:24,color:'#fff',fontWeight:600,letterSpacing:'.2px'}}>{T('متوسط رسوم المكتب','Avg Office Fee')}</span>
 </div>
-<div style={{fontSize:12,color:'var(--tx2)',fontWeight:600}}>{s.l}</div>
-</div>))}
-{(()=>{const tot=sCounts.priced+sCounts.approved+sCounts.invoiced+sCounts.completed
-const done=sCounts.invoiced+sCounts.completed
-const pct=tot>0?Math.round((done/tot)*100):0
-return<div style={{minWidth:0,padding:'0 6px',display:'flex',alignItems:'center',gap:10}}>
-<span style={{fontSize:12,color:'var(--tx2)',fontWeight:600,whiteSpace:'nowrap'}}>{T('نسبة الفوترة','Invoice rate')}</span>
-<div style={{flex:1,height:7,borderRadius:5,background:'rgba(255,255,255,.06)',overflow:'hidden',position:'relative'}}>
-<div style={{width:pct+'%',height:'100%',background:`linear-gradient(90deg, ${C.ok}cc, ${C.ok})`,borderRadius:5,transition:'.4s',boxShadow:'0 0 8px '+C.ok+'66'}}/>
+<div style={{position:'relative',display:'flex',alignItems:'baseline',gap:7,direction:'ltr'}}>
+<span style={{fontSize:42,fontWeight:800,color:C.gold,letterSpacing:'-1.5px',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{nm(officeStats.perMonth)}</span>
+<span style={{fontSize:13,fontWeight:600,color:C.gold,opacity:.75}}>{T('ر.س / شهر','SAR/mo')}</span>
 </div>
-<span style={{fontSize:13,fontWeight:600,color:C.ok,direction:'ltr'}}>{pct}%</span>
-</div>})()}
+<div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',paddingTop:8,borderTop:'1px solid rgba(255,255,255,.06)'}}>
+<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600}}>{T('عدد التسعيرات','Quotes')}</span>
+<span style={{fontSize:13,color:C.gold,fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{nm(officeStats.count)}</span>
 </div>
-{/* Smooth area chart with axes + labels */}
-{(()=>{const n=periodSeries.length;if(n<2)return null
-const W=560,H=88,padL=22,padR=12,padT=12,padB=12
-const cw=W-padL-padR,ch=H-padT-padB
-const mx=Math.max(1,...periodSeries.flatMap(p=>[p.priced,p.approved,p.invoiced]))
-const niceMx=Math.max(2,Math.ceil(mx/2)*2)
-const xAt=i=>(padL+(i/(n-1))*cw).toFixed(1)
-const yAt=v=>(padT+ch-(v/niceMx)*ch).toFixed(1)
-// Cubic-bezier smoothing
-const smooth=(pts)=>{if(pts.length<2)return ''
-let d='M'+pts[0][0]+','+pts[0][1]
-for(let i=0;i<pts.length-1;i++){const[x0,y0]=pts[Math.max(0,i-1)],[x1,y1]=pts[i],[x2,y2]=pts[i+1],[x3,y3]=pts[Math.min(pts.length-1,i+2)]
-const t=.22
-const c1x=x1+(x2-x0)*t,c1y=y1+(y2-y0)*t
-const c2x=x2-(x3-x1)*t,c2y=y2-(y3-y1)*t
-d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+x2+','+y2}
-return d}
-const ptsOf=(k)=>periodSeries.map((p,i)=>[Number(xAt(i)),Number(yAt(p[k]))])
-const lineP=(k)=>smooth(ptsOf(k))
-const areaP=(k)=>{const p=ptsOf(k);if(p.length<2)return '';return smooth(p)+' L'+p[p.length-1][0]+','+(padT+ch)+' L'+p[0][0]+','+(padT+ch)+' Z'}
-const yTicks=[0,niceMx/2,niceMx]
-return<div style={{padding:'6px 10px'}}>
-<svg width="100%" viewBox={`0 0 ${W} ${H-padB+14}`} preserveAspectRatio="none" style={{display:'block',height:90}}>
-<defs>
-<linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#eab308" stopOpacity=".4"/><stop offset="100%" stopColor="#eab308" stopOpacity="0"/></linearGradient>
-<linearGradient id="gb" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.blue} stopOpacity=".35"/><stop offset="100%" stopColor={C.blue} stopOpacity="0"/></linearGradient>
-<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.ok} stopOpacity=".35"/><stop offset="100%" stopColor={C.ok} stopOpacity="0"/></linearGradient>
-</defs>
-{/* Y grid + labels */}
-{yTicks.map((t,i)=><g key={i}>
-<line x1={padL} x2={W-padR} y1={yAt(t)} y2={yAt(t)} stroke="rgba(255,255,255,.05)" strokeWidth="1"/>
-<text x={padL-6} y={Number(yAt(t))+3} fontSize="9" fill="rgba(255,255,255,.3)" textAnchor="end" fontFamily="'Cairo',sans-serif">{t}</text>
-</g>)}
-{/* Areas + lines */}
-<path d={areaP('priced')} fill="url(#ga)"/><path d={lineP('priced')} fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-<path d={areaP('approved')} fill="url(#gb)"/><path d={lineP('approved')} fill="none" stroke={C.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-<path d={areaP('invoiced')} fill="url(#gc)"/><path d={lineP('invoiced')} fill="none" stroke={C.ok} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-{/* End markers (last point of each line) */}
-{['priced','approved','invoiced'].map((k)=>{const c=k==='priced'?'#eab308':k==='approved'?C.blue:C.ok;const last=ptsOf(k)[n-1];return<circle key={k} cx={last[0]} cy={last[1]} r="4" fill="#1a1a1a" stroke={c} strokeWidth="2"/>})}
-</svg>
-</div>
-})()}
 </div>
 
-{/* ── Narrow card: avg office fee per iqama month ── */}
-<div style={{...glassCard,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6}} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)'}}>
-{/* Title centered above the amount */}
-<span style={{fontSize:13,fontWeight:600,color:'var(--tx2)',letterSpacing:'.1px'}}>{T('متوسط رسوم المكتب','Avg office fee')}</span>
-{/* Hero amount */}
-<div style={{display:'flex',alignItems:'baseline',gap:8,marginTop:2}}>
-<span style={{fontSize:48,fontWeight:700,color:C.gold,letterSpacing:'-1.2px',lineHeight:1,textShadow:`0 0 22px ${C.gold}33`,direction:'ltr'}}>{nm(officeStats.perMonth)}</span>
-<span style={{fontSize:14,fontWeight:600,color:C.gold,opacity:.75}}>{T('ريال','SAR')}</span>
+{/* Sidebar — 2 stacked status KPIs */}
+<div style={{borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',display:'flex',flexDirection:'column',overflow:'hidden',minHeight:150}}>
+{[{k:'approved',l:T('مصدّقة','Approved'),v:sCounts.approved,c:C.blue},{k:'invoiced',l:T('مفوترة','Invoiced'),v:sCounts.invoiced+sCounts.completed,c:C.ok}].map((s,i)=>{
+const isActive=listFilter===s.k||(s.k==='invoiced'&&listFilter==='completed')
+return<div key={i} onClick={()=>setListFilter(isActive?'all':s.k)} style={{position:'relative',padding:'12px 16px',flex:1,borderTop:i>0?'1px solid rgba(255,255,255,.06)':'none',display:'flex',flexDirection:'column',justifyContent:'space-between',gap:6,overflow:'hidden',cursor:'pointer',background:isActive?`${s.c}10`:'transparent',transition:'.15s'}}>
+<div style={{position:'absolute',insetInlineStart:-25,top:'50%',transform:'translateY(-50%)',width:70,height:70,borderRadius:'50%',background:`radial-gradient(circle, ${s.c}10 0%, transparent 70%)`,pointerEvents:'none'}}/>
+<div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',gap:5}}>
+<span style={{width:5,height:5,borderRadius:'50%',background:s.c}}/>
+<span style={{fontSize:13,color:'#fff',fontWeight:700}}>{s.l}</span>
 </div>
-<div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',letterSpacing:'.3px'}}>{T('متوسط شهري','Monthly average')}</div>
+<div style={{position:'relative',display:'flex',alignItems:'baseline',direction:'ltr'}}>
+<span style={{fontSize:22,fontWeight:700,color:s.c,fontVariantNumeric:'tabular-nums',lineHeight:1,letterSpacing:'-.5px'}}>{nm(s.v)}</span>
 </div>
+</div>})}
+</div>
+
+{/* Status breakdown card */}
+{(()=>{
+const STATUSES=[{k:'priced',c:'#eab308',l:T('مسعّرة','Priced')},{k:'approved',c:C.blue,l:T('مصدّقة','Approved')},{k:'invoiced',c:C.ok,l:T('مفوترة','Invoiced')},{k:'completed',c:'#1a8a3e',l:T('مكتملة','Completed')},{k:'cancelled',c:C.red,l:T('ملغاة','Cancelled')}]
+const totalSt=STATUSES.reduce((a,s)=>a+(sCounts[s.k]||0),0)
+return<div style={{borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',padding:'12px 16px',display:'flex',flexDirection:'column',gap:10,minHeight:150}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+<span style={{fontSize:12,color:'var(--tx2)',fontWeight:600,letterSpacing:'.2px'}}>{T('الحالات','Statuses')}</span>
+<span style={{fontSize:11,color:'var(--tx4)',fontWeight:600}}><span style={{color:C.gold,fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{nm(totalSt)}</span> {T('تسعيرة','quotes')}</span>
+</div>
+{totalSt>0&&<div style={{display:'flex',height:8,borderRadius:999,overflow:'hidden',background:'rgba(255,255,255,.04)'}}>
+{STATUSES.filter(s=>(sCounts[s.k]||0)>0).map(s=>{const cnt=sCounts[s.k]||0;const pct=(cnt/totalSt)*100;return<div key={s.k} title={`${s.l}: ${cnt}`} style={{width:pct+'%',background:s.c,transition:'width .3s'}}/>})}
+</div>}
+<div style={{display:'grid',gridTemplateColumns:'repeat(2, 1fr)',gap:'6px 16px'}}>
+{STATUSES.map(s=>{const cnt=sCounts[s.k]||0;const isZero=cnt===0;const isActive=listFilter===s.k;return<div key={s.k} onClick={()=>setListFilter(isActive?'all':s.k)} style={{display:'flex',alignItems:'center',gap:7,fontSize:11,fontWeight:600,opacity:isZero?0.45:1,cursor:'pointer',color:isActive?s.c:undefined,transition:'.15s'}}>
+<span style={{color:isZero?'var(--tx4)':s.c,fontVariantNumeric:'tabular-nums',direction:'ltr',minWidth:14,textAlign:'center',flexShrink:0,fontWeight:700}}>{nm(cnt)}</span>
+<span style={{color:isActive?s.c:'var(--tx2)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.l}</span>
+</div>})}
+</div>
+</div>})()}
 </div>
 
 {/* Override the global gold-focus-border for our scoped inputs (higher specificity beats `input:not(:placeholder-shown)...`) */}
@@ -2020,11 +2002,11 @@ input[type="date"].tc-noring.tc-noring.tc-noring.tc-noring::-webkit-calendar-pic
 
 {/* ═══ Search + Advanced filter ═══ */}
 <div style={{display:'flex',alignItems:'center',gap:10,marginTop:0,marginBottom:14,flexWrap:'wrap'}}>
-<div style={{flex:1,minWidth:240,position:'relative'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',left:12,right:'auto',top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,.4)'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input className="tc-noring tc-search" value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder={T('ابحث باسم العامل أو رقم الإقامة أو رقم التسعيرة...','Search by worker name, iqama, or quote no...')} style={{width:'100%',height:40,padding:'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:"'Cairo',sans-serif",fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',direction:lang==='en'?'ltr':'rtl',boxSizing:'border-box',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}/>
+<div style={{flex:'1 1 280px',position:'relative'}}>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',left:14,right:'auto',top:'50%',transform:'translateY(-50%)',color:'var(--tx4)'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input className="tc-noring tc-search" value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder={T('ابحث باسم العامل أو رقم الإقامة أو رقم التسعيرة...','Search by worker name, iqama, or quote no...')} style={{width:'100%',height:44,padding:'0 14px 0 38px',background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',borderRadius:12,fontFamily:"'Cairo',sans-serif",fontSize:13,fontWeight:400,color:'#fff',outline:'none',direction:lang==='en'?'ltr':'rtl',boxSizing:'border-box',transition:'.2s'}}/>
 </div>
-<button onClick={()=>setAdvOpen(o=>!o)} style={{height:40,width:120,padding:'0 14px',borderRadius:11,border:advOpen||Object.values(advFilter).some(Boolean)?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.06)',background:advOpen||Object.values(advFilter).some(Boolean)?'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:advOpen||Object.values(advFilter).some(Boolean)?C.gold:'rgba(255,255,255,.78)',fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,flexShrink:0,boxShadow:advOpen||Object.values(advFilter).some(Boolean)?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>
+<button onClick={()=>setAdvOpen(o=>!o)} style={{height:44,padding:'0 16px',borderRadius:12,border:advOpen||Object.values(advFilter).some(Boolean)?'1px solid rgba(212,160,23,.3)':'1px solid rgba(255,255,255,.05)',background:advOpen||Object.values(advFilter).some(Boolean)?'rgba(212,160,23,.12)':'rgba(0,0,0,.18)',color:advOpen||Object.values(advFilter).some(Boolean)?C.gold:'var(--tx2)',fontFamily:"'Cairo',sans-serif",fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,flexShrink:0,transition:'.2s',boxSizing:'border-box'}}>
 {T('تصفية','Filter')}
 <span style={{width:18,height:18,display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{!Object.values(advFilter).some(Boolean)?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>:<span role="button" tabIndex={0} title={T('مسح الفلاتر','Clear filters')} onClick={e=>{e.stopPropagation();setAdvFilter({from:'',to:'',service:'',employee:'',officeMin:'',officeMax:''})}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.stopPropagation();e.preventDefault();setAdvFilter({from:'',to:'',service:'',employee:'',officeMin:'',officeMax:''})}}} onMouseEnter={e=>{e.currentTarget.style.background=C.red;e.currentTarget.style.color='#fff'}} onMouseLeave={e=>{e.currentTarget.style.background=C.gold;e.currentTarget.style.color='#000'}} style={{background:C.gold,color:'#000',width:18,height:18,borderRadius:999,display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'.18s'}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>}</span>
 </button>
@@ -2040,7 +2022,7 @@ input[type="date"].tc-noring.tc-noring.tc-noring.tc-noring::-webkit-calendar-pic
 </div>
 </div>})()}
 {filteredData.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)'}}>{T('لا توجد حسبات','No calculations')}</div>:
-<div>{tcGroupOrder.map(dateKey=>{const items=tcGroups[dateKey];const isToday=dateKey===todayStr;const dayCounts={priced:items.filter(rr=>rr.status==='priced').length,approved:items.filter(rr=>rr.status==='approved').length,invoiced:items.filter(rr=>rr.status==='invoiced'||rr.status==='completed').length};return<div key={dateKey} style={{marginBottom:22}}><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}><div style={{width:10,height:10,borderRadius:'50%',background:isToday?C.gold:'rgba(255,255,255,.18)',border:isToday?'2px solid rgba(212,160,23,.25)':'none',flexShrink:0}}/><div style={{fontSize:13,fontWeight:600,color:isToday?C.gold:'rgba(255,255,255,.65)'}}>{tcDayLabel(dateKey)}</div><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>{tcDayFull(dateKey)}</div><div style={{flex:1,height:1,background:'rgba(255,255,255,.07)'}}/><div style={{display:'flex',gap:8,fontSize:11,fontWeight:600}}><span style={{color:'var(--tx5)'}}>{items.length} {T('حسبة','calc')}</span>{dayCounts.priced>0&&<span style={{color:'#eab308'}}>{dayCounts.priced} {T('مسعّرة','priced')}</span>}{dayCounts.approved>0&&<span style={{color:C.blue}}>{dayCounts.approved} {T('مصدّقة','approved')}</span>}{dayCounts.invoiced>0&&<span style={{color:C.ok}}>{dayCounts.invoiced} {T('مفوترة','invoiced')}</span>}</div></div><div style={{display:'flex',flexDirection:'column',gap:14}}>{items.map((r,idx)=>{const sc=stClr[r.status]||'#999';const tc=Number(r.total_cost||0);const cc=Number(r.client_charge||0);const pr=cc-tc;const prMargin=cc>0?Math.round((pr/cc)*100):0;const ds=daysSince(r.created_at);const nxt=stNext[r.status]
+<div>{tcGroupOrder.map(dateKey=>{const items=tcGroups[dateKey];const isToday=dateKey===todayStr;const dayCounts={priced:items.filter(rr=>rr.status==='priced').length,approved:items.filter(rr=>rr.status==='approved').length,invoiced:items.filter(rr=>rr.status==='invoiced'||rr.status==='completed').length};return<div key={dateKey} style={{marginBottom:28}}><div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:12,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,.06)'}}><div style={{display:'flex',alignItems:'baseline',gap:12}}><span style={{fontSize:14,fontWeight:700,color:isToday?C.gold:'var(--tx2)'}}>{tcDayLabel(dateKey)}</span><span style={{fontSize:12,color:'var(--tx4)',fontVariantNumeric:'tabular-nums',direction:'ltr'}}>{tcDayFull(dateKey)}</span></div><div style={{fontSize:11,color:'var(--tx3)',display:'flex',gap:16,fontWeight:600}}><span>{items.length} {T('حسبة','calc')}</span>{dayCounts.priced>0&&<span style={{color:'#eab308',direction:'ltr',fontVariantNumeric:'tabular-nums'}}>· {dayCounts.priced} {T('مسعّرة','priced')}</span>}{dayCounts.approved>0&&<span style={{color:C.blue,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>· {dayCounts.approved} {T('مصدّقة','approved')}</span>}{dayCounts.invoiced>0&&<span style={{color:C.ok,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>✓ {dayCounts.invoiced}</span>}</div></div><div style={{display:'flex',flexDirection:'column',gap:14}}>{items.map((r,idx)=>{const sc=stClr[r.status]||'#999';const tc=Number(r.total_cost||0);const cc=Number(r.client_charge||0);const pr=cc-tc;const prMargin=cc>0?Math.round((pr/cc)*100):0;const ds=daysSince(r.created_at);const nxt=stNext[r.status]
 let meta={};try{if(r.notes)meta=typeof r.notes==='string'?JSON.parse(r.notes):(r.notes||{})}catch(e){}
 const workerName=r.workers?.name_ar||meta.worker_name||r.new_employer_name||T('عامل','Worker')
 const iqamaNo=r.workers?.iqama_number||meta.iqama_number||'—'
@@ -2071,9 +2053,9 @@ const showValidity=(r.status==='priced'||r.status==='approved')&&pricedAtMs>0
 const isExpired=showValidity&&remainingMs<=0
 const remDays=Math.max(0,Math.floor(remainingMs/86400000))
 const remHrs=Math.max(0,Math.floor((remainingMs%86400000)/3600000))
-return<div key={r.id} onClick={()=>{setDetailsRow({...r,_meta:meta})}} style={{background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',borderRadius:16,overflow:'visible',transition:'.25s cubic-bezier(.4,0,.2,1)',border:'1px solid '+(isExpired?'rgba(192,57,43,.35)':'rgba(255,255,255,.08)'),position:'relative',cursor:'pointer',padding:'18px 22px',display:'grid',gridTemplateColumns:'1fr auto auto',gap:22,alignItems:'center',opacity:isExpired?.7:1,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}
-onMouseEnter={e=>{e.currentTarget.style.borderColor=sc+'66';e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+sc+'33, inset 0 1px 0 rgba(255,255,255,.08)'}}
-onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.08)';e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
+return<div key={r.id} onClick={()=>{setDetailsRow({...r,_meta:meta})}} style={{background:`radial-gradient(ellipse at top, ${sc}10 0%, #222 60%)`,borderRadius:14,overflow:'hidden',transition:'all .15s',border:'1px solid '+(isExpired?'rgba(192,57,43,.35)':'rgba(255,255,255,.05)'),position:'relative',cursor:'pointer',padding:'18px 22px 22px',display:'grid',gridTemplateColumns:'1fr auto auto',gap:22,alignItems:'center',opacity:isExpired?.7:1,boxShadow:'0 4px 14px rgba(0,0,0,.22)'}}
+onMouseEnter={e=>{e.currentTarget.style.borderColor=sc+'55'}}
+onMouseLeave={e=>{e.currentTarget.style.borderColor=isExpired?'rgba(192,57,43,.35)':'rgba(255,255,255,.05)'}}>
 <button onClick={e=>{e.stopPropagation();setViewRow({...r,_meta:meta})}} title={showValidity?(isExpired?T('انتهت — معاينة الحسبة','Expired — Quote preview'):T(`صالحة ${remDays}ي ${remHrs}س — معاينة الحسبة`,`${remDays}d ${remHrs}h — Quote preview`)):T('معاينة الحسبة','Quote preview')} style={{position:'absolute',top:10,left:10,width:28,height:28,borderRadius:'50%',background:showValidity?'transparent':'rgba(212,160,23,.12)',border:showValidity?'none':'1px solid rgba(212,160,23,.3)',color:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,zIndex:2,transition:'.15s'}} onMouseEnter={e=>{if(!showValidity){e.currentTarget.style.background='rgba(212,160,23,.22)';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}else{e.currentTarget.style.transform='scale(1.08)'}}} onMouseLeave={e=>{if(!showValidity){e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor='rgba(212,160,23,.3)'}else{e.currentTarget.style.transform='scale(1)'}}}>
 {showValidity?(()=>{
 const total=5
@@ -2181,6 +2163,7 @@ return<div style={{fontSize:11,color:'#dcc06e',fontWeight:600,letterSpacing:'.2p
 })()}
 </div>
 </>})()}
+<div style={{position:'absolute',bottom:0,left:0,right:0,height:5,background:'rgba(255,255,255,.05)'}}><div style={{height:'100%',width:'100%',background:sc,opacity:.7}}/></div>
 </div>})}</div></div>})}</div>}
 </>})()}
 </>}
@@ -2205,20 +2188,18 @@ const icoShield=<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stro
 // but those greens/navy are too dark to read on dark UI — we lighten them while keeping the same hue family.
 const SRC_META={muqeem:{c:'#F47B20',l:T('مقيم','Muqeem')},chi:{c:'#5188C9',l:T('الضمان الصحي','CHI')},hrsd:{c:'#2DB174',l:T('وزارة العمل','HRSD')},employee:{c:'#888',l:T('موظف','Employee')},system:{c:'#666',l:T('نظام','System')}}
 const formatAuditValue=(v)=>{if(v===null||v===undefined)return'—';if(typeof v==='boolean')return v?T('نعم','Yes'):T('لا','No');if(typeof v==='object')return JSON.stringify(v).slice(0,40);return String(v).slice(0,40)}
-const sec=(title,rows,icon)=>{const filtered=rows.filter(Boolean);if(!filtered.length)return null;return<div style={{background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',borderRadius:16,border:'1px solid rgba(255,255,255,.08)',padding:'18px 22px',position:'relative',marginTop:14,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
-<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-<span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',color:C.gold,flexShrink:0}}>{React.cloneElement(icon||icoNote,{width:20,height:20,strokeWidth:2})}</span>
-<span style={{fontSize:13,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{title}</span>
+const sec=(title,rows,icon,dotColor)=>{const filtered=rows.filter(Boolean);if(!filtered.length)return null;return<div style={{background:'linear-gradient(180deg,#1f1f1f 0%,#181818 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:16,overflow:'hidden'}}>
+<div style={{padding:'14px 22px',borderBottom:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:10}}>
+<span style={{width:6,height:6,borderRadius:'50%',background:dotColor||C.gold}}/>
+<span style={{fontSize:13,fontWeight:700,color:'#fff',letterSpacing:'.2px'}}>{title}</span>
 </div>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:10}}>
-{filtered.map((row,i)=>{const fieldKey=row[5];const auditEntries=fieldKey?(detailsAudit[fieldKey]||[]):[];const latest=auditEntries[auditEntries.length-1];const srcKey=latest?.source||'employee';const srcMeta=SRC_META[srcKey]||SRC_META.employee;const modified=auditEntries.length>1;const editor=latest?.changed_user;const editorName=editor?(lang==='en'?(editor.name_en||editor.name_ar):editor.name_ar):null;// For employee-sourced fields, show the editor's name on the badge instead of the literal "موظف".
-const badgeLabel=srcKey==='employee'&&editorName?editorName:srcMeta.l;const tooltip=auditEntries.length?(modified?T(`عُدّل: ${formatAuditValue(auditEntries[0].new_value)} ← ${formatAuditValue(latest.new_value)}${editorName?`\nبواسطة: ${editorName}`:''}\nالمصدر: ${srcMeta.l}`,`Modified: ${formatAuditValue(auditEntries[0].new_value)} → ${formatAuditValue(latest.new_value)}${editorName?`\nBy: ${editorName}`:''}\nSource: ${srcMeta.l}`):T(`المصدر: ${srcMeta.l}${editorName?`\nبواسطة: ${editorName}`:''}`,`Source: ${srcMeta.l}${editorName?`\nBy: ${editorName}`:''}`)):'';return<div key={i} title={tooltip} style={{background:row[3]||'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:10,padding:'10px 14px',border:'1px solid '+(row[4]||'rgba(255,255,255,.06)'),position:'relative',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,marginBottom:6}}>
-<div style={{fontSize:11,color:'var(--tx5)',fontWeight:500,letterSpacing:'.2px'}}>{row[0]}</div>
-{fieldKey&&auditEntries.length>0&&<span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',borderRadius:4,fontSize:9,fontWeight:600,background:srcMeta.c+'18',color:srcMeta.c,letterSpacing:'.2px',whiteSpace:'nowrap',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis'}}>{modified?'✎ ':''}{badgeLabel}</span>}
-</div>
-<div style={{fontSize:13,color:row[2]||'var(--tx)',fontWeight:600,wordBreak:'break-word'}}>{fmt(row[1])}</div>
-{modified&&<div style={{fontSize:9,color:'var(--tx5)',marginTop:3,textDecoration:'line-through',opacity:.6}}>{formatAuditValue(auditEntries[0].new_value)}</div>}
+<div style={{padding:'4px 22px 14px'}}>
+{filtered.map((row,i)=>{const fieldKey=row[5];const auditEntries=fieldKey?(detailsAudit[fieldKey]||[]):[];const latest=auditEntries[auditEntries.length-1];const srcKey=latest?.source||'employee';const srcMeta=SRC_META[srcKey]||SRC_META.employee;const modified=auditEntries.length>1;const editor=latest?.changed_user;const editorName=editor?(lang==='en'?(editor.name_en||editor.name_ar):editor.name_ar):null;const badgeLabel=srcKey==='employee'&&editorName?editorName:srcMeta.l;const tooltip=auditEntries.length?(modified?T(`عُدّل: ${formatAuditValue(auditEntries[0].new_value)} ← ${formatAuditValue(latest.new_value)}${editorName?`\nبواسطة: ${editorName}`:''}\nالمصدر: ${srcMeta.l}`,`Modified: ${formatAuditValue(auditEntries[0].new_value)} → ${formatAuditValue(latest.new_value)}${editorName?`\nBy: ${editorName}`:''}\nSource: ${srcMeta.l}`):T(`المصدر: ${srcMeta.l}${editorName?`\nبواسطة: ${editorName}`:''}`,`Source: ${srcMeta.l}${editorName?`\nBy: ${editorName}`:''}`)):'';const showBadge=fieldKey&&auditEntries.length>0;const v=fmt(row[1]);const hasArabic=typeof v==='string'&&/[؀-ۿ]/.test(v);const isMono=typeof v==='string'&&/^[\d+\-]/.test(v)&&!hasArabic;const isLast=i===filtered.length-1;return<div key={i} title={tooltip} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',minHeight:28,gap:10,borderBottom:isLast?'none':'1px solid rgba(255,255,255,.03)'}}>
+<span style={{fontSize:12,color:'var(--tx3)',fontWeight:600}}>{row[0]}</span>
+<span style={{display:'inline-flex',alignItems:'center',gap:6}}>
+{showBadge&&<span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',borderRadius:4,fontSize:9,fontWeight:600,background:srcMeta.c+'18',color:srcMeta.c,letterSpacing:'.2px',whiteSpace:'nowrap'}}>{modified?'✎ ':''}{badgeLabel}</span>}
+<span style={{fontSize:13,color:row[2]||'var(--tx2)',fontVariantNumeric:isMono?'tabular-nums':undefined,fontFamily:isMono?'monospace':F,direction:isMono?'ltr':undefined,fontWeight:600,wordBreak:'break-word'}}>{v}</span>
+</span>
 </div>})}
 </div>
 </div>}
@@ -2230,22 +2211,31 @@ return<div style={{fontFamily:"'Cairo','Tajawal',sans-serif",paddingTop:0,color:
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
 <span>{T('رجوع','Back')}</span>
 </button>
-{(()=>{const tc=dr._tc||{};const reqMissing=!tc.nationality_id||!tc.work_permit_expiry;const expired=tc.priced_at?(Date.now()-new Date(tc.priced_at).getTime())>(5*86400000):false;const hasApprovePerm=Array.isArray(user?.perms)&&user.perms.some(p=>p.module==='quotations'&&p.action==='approve');const canApprove=isGM||hasApprovePerm;const showApprove=dr.status==='priced'&&canApprove;const showInvoice=dr.status==='approved';if(showApprove){const blocked=expired||reqMissing;return<button onClick={()=>{if(expired){toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق','Quote expired — cannot approve'));return}setApproveForm({_id:dr.id,worker_name:tc.worker_name||'',phone:tc.phone||'',dob:tc.dob||'',nationality_id:tc.nationality_id||'',gender:tc.gender||'',work_permit_expiry:tc.work_permit_expiry||'',has_notice_period:tc.has_notice_period,employer_consent:tc.employer_consent,manual_discount:Number(tc.manual_discount||0),_subtotal:Number(tc.subtotal||0),_currentTotal:Number(tc.total_amount||0),_workerName:tc.worker_name,_quoteNo:tc.quote_no})}} disabled={saving||blocked} title={expired?T('انتهت صلاحية التسعيرة','Quote expired'):reqMissing?T('املأ الجنسية وانتهاء رخصة العمل قبل التصديق','Fill nationality and work permit expiry before approving'):T('فتح نافذة التصديق','Open approval form')} style={{height:40,padding:'0 18px',borderRadius:11,border:'none',background:expired?'rgba(192,57,43,.18)':C.blue,color:expired?C.red:'#fff',fontFamily:F,fontSize:12,fontWeight:600,cursor:(saving||blocked)?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:8,opacity:(saving||blocked)?.55:1,transition:'.15s',boxShadow:'0 2px 8px rgba(52,131,180,.28), inset 0 1px 0 rgba(255,255,255,.12)'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-<span>{T('تصديق الحسبة','Approve Quote')}</span>
-</button>}if(showInvoice){return<button onClick={async()=>{await changeStatus(dr.id,'invoiced');setDetailsRow(null)}} disabled={saving} style={{height:40,padding:'0 18px',borderRadius:11,border:'none',background:C.ok,color:'#fff',fontFamily:F,fontSize:12,fontWeight:600,cursor:saving?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:8,opacity:saving?.65:1,transition:'.15s',boxShadow:'0 2px 8px rgba(39,160,70,.28), inset 0 1px 0 rgba(255,255,255,.12)'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-<span>{T('إصدار فاتورة','Issue Invoice')}</span>
-</button>}return null})()}
 </div>
-<div style={{display:'grid',gridTemplateColumns:'minmax(240px,1fr) auto minmax(0,1fr)',alignItems:'center',gap:20}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:20}}>
 <div>
-<div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{T('تفاصيل تسعيرة التنازل','Transfer Quote Details')}</div>
-<div style={{fontSize:13,color:C.gold,fontWeight:600,marginTop:10,letterSpacing:'.5px',fontFamily:"'JetBrains Mono',monospace"}}>{quoteNo}</div>
+<div style={{fontSize:21,fontWeight:600,color:'rgba(255,255,255,.93)'}}>{T('تفاصيل تسعيرة التنازل','Transfer Quote Details')}</div>
+<div style={{marginTop:18,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',fontSize:11.5,color:'var(--tx3)'}}>
+{(()=>{const isFinal=dr.transfer_type==='final_exit';const c=isFinal?C.red:C.gold;const l=isFinal?T('خروج نهائي','Final Exit'):T('نقل كفالة','Sponsorship');return<span style={{color:c,fontSize:12,fontWeight:700,borderBottom:`1.5px solid ${c}`,paddingBottom:1}}>{l}</span>})()}
+<span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
+<span style={{display:'inline-flex',alignItems:'center',gap:4,direction:'ltr'}}>
+<span style={{color:C.gold,fontFamily:'monospace',fontWeight:600}}>{quoteNo}</span>
+<button title={T('نسخ رقم التسعيرة','Copy quote no')} onClick={()=>{try{navigator.clipboard?.writeText(quoteNo);toast&&toast(T('تم النسخ','Copied'))}catch{}}} style={{width:19,height:19,padding:0,borderRadius:4,background:'transparent',border:'none',color:'var(--tx4)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center'}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx4)'}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+</button>
+</span>
+{(()=>{const branch=dr.priced_user?.branch?.code||dr.approved_user?.branch?.code||dr.created_user?.branch?.code;if(!branch)return null;return<>
+<span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
+<span title={T('المكتب','Branch')} style={{color:C.gold,fontWeight:700,direction:'ltr',display:'inline-flex',alignItems:'center',gap:4}}>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg>
+<span>{branch}</span>
+</span>
+</>})()}
+<span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
+<span style={{color:'var(--tx4)'}}>{(()=>{try{const d=new Date(dr.created_at);return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')}catch{return ''}})()}</span>
+</div>
 </div>
 {(()=>{const tc=dr._tc||{};const pricedAt=tc.priced_at?new Date(tc.priced_at).getTime():0;const ageMs=Date.now()-pricedAt;const remainingMs=Math.max(0,(5*86400000)-ageMs);const expired=remainingMs<=0;const remDays=Math.floor(remainingMs/86400000);const remHrs=Math.floor((remainingMs%86400000)/3600000);const progress=expired?0:(remainingMs/(5*86400000));const ringClr=expired?C.red:(remDays<=1?C.gold:'#27a046');const stampClr=stClr[dr.status]||'#999';const stampLabel=stLabel[dr.status]||dr.status||'';return<>
-{/* Status stamp — full OfficialStampBadge (branch + date + status + employee) */}
-{(()=>{const stampDate=dr.status==='priced'?(tc.priced_at||dr.created_at):(dr.status==='approved'||dr.status==='invoiced'||dr.status==='completed')?(dr.approved_at||tc.priced_at||dr.created_at):dr.created_at;const stampUser=(dr.status==='approved'||dr.status==='invoiced'||dr.status==='completed')?(dr.approved_user?(lang==='en'?(dr.approved_user.name_en||dr.approved_user.name_ar):dr.approved_user.name_ar):null):(dr.priced_user?(lang==='en'?(dr.priced_user.name_en||dr.priced_user.name_ar):dr.priced_user.name_ar):null);const stampBranch=dr.priced_user?.branch?.code||dr.approved_user?.branch?.code||dr.created_user?.branch?.code||'';return<OfficialStampBadge status={stampLabel} employeeName={stampUser||''} branchCode={stampBranch} date={stampDate} color={stampClr} rotate={-5}/>})()}
 {/* Day-dots countdown for the 5-day quote validity */}
 <div style={{justifySelf:'end'}}>
 <div title={expired?T('انتهت الصلاحية','Expired'):T(`متبقي ${remDays} يوم و ${remHrs} ساعة`,`${remDays}d ${remHrs}h left`)} style={{padding:8,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',gap:6,boxSizing:'border-box'}}>
@@ -2262,16 +2252,9 @@ return<div style={{fontFamily:"'Cairo','Tajawal',sans-serif",paddingTop:0,color:
 </div>
 </div>
 {(()=>{const tc=dr._tc||{};const muqeemOk=!!tc.muqeem_fetched_at;const chiOk=!!tc.chi_verified_at;const hrsdOk=!!tc.hrsd_verified_at;const Pill=({ok,label,clr})=><span style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:10,fontSize:11,fontWeight:600,background:ok?(clr+'14'):'rgba(255,255,255,.04)',border:`1px solid ${ok?clr+'55':'rgba(255,255,255,.08)'}`,color:ok?clr:'var(--tx5)',boxShadow:ok?'inset 0 1px 0 '+clr+'22':'inset 0 1px 0 rgba(255,255,255,.04)'}}>{ok?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}<span>{label}</span></span>;return<div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14,alignItems:'center',direction:'rtl'}}><span style={{fontSize:11,color:'var(--tx3)',fontWeight:500,marginInlineEnd:4}}>{T('مصادر البيانات:','Sources:')}</span><Pill ok={muqeemOk} label={T('مقيم','Muqeem')} clr="#F47B20"/><Pill ok={chiOk} label={T('الضمان الصحي','CHI')} clr="#5188C9"/><Pill ok={hrsdOk} label={T('وزارة العمل','HRSD')} clr="#2DB174"/>
-<span style={{flex:1,minWidth:8}}/>
-<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,color:'var(--tx3)',fontWeight:500,marginInlineEnd:4}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>{T('طباعة:','Print:')}</span>
-{[{k:'ar',l:'عربي',cc:'sa'},{k:'en',l:'English',cc:'gb'},{k:'bn',l:'বাংলা',cc:'bd'},{k:'ur',l:'اُردُو',cc:'pk'}].map(o=>
-<button key={o.k} onClick={()=>printCalc(dr,o.k)} title={T('طباعة بـ ','Print in ')+o.l} style={{height:36,padding:'0 12px',borderRadius:10,background:'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))',border:'1px solid rgba(212,160,23,.35)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:11,fontWeight:600,cursor:'pointer',transition:'.2s',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,boxShadow:'0 2px 8px rgba(212,160,23,.14), inset 0 1px 0 rgba(212,160,23,.18)'}} onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(180deg,rgba(212,160,23,.28),rgba(212,160,23,.14))';e.currentTarget.style.borderColor=C.gold}} onMouseLeave={e=>{e.currentTarget.style.background='linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))';e.currentTarget.style.borderColor='rgba(212,160,23,.35)'}}>
-<img src={`https://flagcdn.com/w40/${o.cc}.png`} alt="" width="18" height="13" style={{display:'block',borderRadius:2,objectFit:'cover',flexShrink:0}}/>
-<span>{o.l}</span>
-</button>
-)}
 </div>})()}
-<div style={{direction:'rtl'}}>
+<div style={{direction:'rtl',display:'grid',gridTemplateColumns:'1fr 340px',gap:14,alignItems:'flex-start'}}>
+<div style={{display:'flex',flexDirection:'column',gap:14,minWidth:0}}>
 {(()=>{const tc=dr._tc||{};
 let ageStr=null;if(tc.dob){const dob=new Date(tc.dob);const tod=new Date();let y=tod.getFullYear()-dob.getFullYear();let m=tod.getMonth()-dob.getMonth();if(tod.getDate()<dob.getDate())m-=1;if(m<0){y-=1;m+=12};ageStr=y+T(' سنة و ',' yr ')+m+T(' شهر',' mo')}
 const iqExp=tc.iqama_expired===true;const iqValid=tc.iqama_expired===false;const iqColor=iqExp?C.red:(iqValid?'#27a046':null)
@@ -2308,15 +2291,15 @@ if(mm.change_profession)svcTags.push(T('تغيير المهنة'+(mm.new_occupat
 if(Number(mm.late_fine_amount||0)>0)svcTags.push(T('غرامة تأخير الإقامة','Iqama Late Fine'))
 if(Array.isArray(mm.extras))mm.extras.forEach(e=>{if(e?.name&&Number(e?.amount||0)!==0)svcTags.push(e.name)})
 if(!svcTags.length)return null
-return <div style={{background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',borderRadius:16,border:'1px solid rgba(255,255,255,.08)',padding:'18px 22px',position:'relative',marginTop:14,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
-<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-<span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',color:C.gold,flexShrink:0}}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span>
-<span style={{fontSize:13,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{T('الخدمات','Services')}</span>
+return <div style={{background:'linear-gradient(180deg,#1f1f1f 0%,#181818 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:16,overflow:'hidden'}}>
+<div style={{padding:'14px 22px',borderBottom:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:10}}>
+<span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>
+<span style={{fontSize:13,fontWeight:700,color:'#fff',letterSpacing:'.2px'}}>{T('الخدمات','Services')}</span>
 <span style={{fontSize:11,color:'var(--tx5)',fontWeight:500,marginInlineStart:'auto'}}>{svcTags.length} {T(svcTags.length===1?'بند':'بنود',svcTags.length===1?'item':'items')}</span>
 </div>
-<div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-{svcTags.map((tag,i)=><span key={i} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:10,fontSize:12,fontWeight:600,background:'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))',border:'1px solid rgba(212,160,23,.35)',color:C.gold,boxShadow:'inset 0 1px 0 rgba(212,160,23,.2)'}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:C.gold,boxShadow:'0 0 4px '+C.gold}}/>{tag}
+<div style={{padding:'14px 22px',display:'flex',flexWrap:'wrap',gap:8}}>
+{svcTags.map((tag,i)=><span key={i} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:8,fontSize:11,fontWeight:700,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.32)',color:C.gold}}>
+<span style={{width:5,height:5,borderRadius:'50%',background:C.gold}}/>{tag}
 </span>)}
 </div>
 </div>})()}
@@ -2375,6 +2358,39 @@ mm.internal_notes?[T('ملاحظات داخلية','Internal Notes'),mm.internal
 (dr.notes&&typeof dr.notes==='string'&&!dr.notes.trim().startsWith('{'))?[T('ملاحظات','Notes'),dr.notes]:null,
 ],icoNote):null}
 </>}
+</div>
+{/* ═══ Sticky sidebar — Summary + Actions ═══ */}
+{(()=>{const tc=dr._tc||{};const total=Number(tc.total_amount||dr.client_charge||0);const absher=Number(tc.absher_discount||0);const manualDisc=Number(tc.manual_discount||0);const totalDiscount=absher+manualDisc;const officeFee=Number(tc.office_fee||mm.office_fee||0);const durMo=Number(mm.duration_months||tc.duration_months||0);const durDays=Number(mm.duration_days||tc.duration_days||0);const expDays=Number(mm.expected_iqama_days||tc.expected_iqama_days||0);const renMo=Number(mm.renewal_months||tc.renewal_months||0);let durLabel='';if(durMo>0||durDays>0){const parts=[];if(durMo>0)parts.push(durMo+' '+T('شهر','mo'));if(durDays>0)parts.push(durDays+' '+T('يوم','d'));durLabel=parts.join(' · ')}else if(expDays>0){const m=Math.floor(expDays/30);const d=expDays%30;const parts=[];if(m>0)parts.push(m+' '+T('شهر','mo'));if(d>0)parts.push(d+' '+T('يوم','d'));durLabel=parts.join(' · ')}else if(renMo>0){durLabel=renMo+' '+T('شهر','mo')}const cardChrome={background:'linear-gradient(180deg,#1f1f1f 0%,#181818 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:16,overflow:'hidden'};const cardHeader={padding:'14px 22px',borderBottom:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:10};const cardTitle={fontSize:13,fontWeight:700,color:'#fff',letterSpacing:'.2px'};const AmountBox=({label,value,color})=><div style={{padding:'14px 18px',background:'rgba(0,0,0,.18)',textAlign:'center'}}><div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:6,letterSpacing:1}}>{label}</div><div style={{fontSize:18,fontWeight:700,color,direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}>{value}</div></div>;return<div style={{position:'sticky',top:14,display:'flex',flexDirection:'column',gap:14}}>
+{/* Summary card */}
+<div style={cardChrome}>
+<div style={cardHeader}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/><span style={cardTitle}>{T('الملخص','Summary')}</span></div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,padding:1,background:'rgba(255,255,255,.04)'}}>
+<AmountBox label={T('الإجمالي','Total')} value={nm(total)} color={C.gold}/>
+<AmountBox label={T('رسوم المكتب','Office Fee')} value={nm(officeFee)} color={'#fff'}/>
+</div>
+<div style={{padding:'14px 22px',display:'flex',flexDirection:'column',gap:8}}>
+<div style={{display:'flex',justifyContent:'space-between',fontSize:12}}><span style={{color:'var(--tx4)'}}>{T('الخصم','Discount')}</span><span style={{color:totalDiscount>0?C.ok:'var(--tx2)',fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{totalDiscount>0?'− '+nm(totalDiscount):'—'}</span></div>
+<div style={{display:'flex',justifyContent:'space-between',fontSize:12}}><span style={{color:'var(--tx4)'}}>{T('المدة المتوقعة في الإقامة','Expected Iqama Duration')}</span><span style={{color:'var(--tx2)',fontWeight:700,fontVariantNumeric:'tabular-nums'}}>{durLabel||'—'}</span></div>
+<div style={{display:'flex',justifyContent:'space-between',fontSize:12,paddingTop:8,borderTop:'1px solid rgba(255,255,255,.06)'}}><span style={{color:'var(--tx4)'}}>{T('الحالة','Status')}</span><span style={{color:stClr[dr.status]||'#999',fontWeight:700}}>{stLabel[dr.status]||dr.status}</span></div>
+</div>
+</div>
+{/* Action buttons grid 2x2 */}
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+{(()=>{const reqMissing=!tc.nationality_id||!tc.work_permit_expiry;const expired=tc.priced_at?(Date.now()-new Date(tc.priced_at).getTime())>(5*86400000):false;const hasApprovePerm=Array.isArray(user?.perms)&&user.perms.some(p=>p.module==='quotations'&&p.action==='approve');const canApprove=isGM||hasApprovePerm;const showApprove=dr.status==='priced'&&canApprove;const showInvoice=dr.status==='approved';const blocked=expired||reqMissing;if(showApprove)return<button onClick={()=>{if(expired){toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق','Quote expired'));return}setApproveForm({_id:dr.id,worker_name:tc.worker_name||'',phone:tc.phone||'',dob:tc.dob||'',nationality_id:tc.nationality_id||'',gender:tc.gender||'',work_permit_expiry:tc.work_permit_expiry||'',has_notice_period:tc.has_notice_period,employer_consent:tc.employer_consent,manual_discount:Number(tc.manual_discount||0),_subtotal:Number(tc.subtotal||0),_currentTotal:Number(tc.total_amount||0),_workerName:tc.worker_name,_quoteNo:tc.quote_no})}} disabled={saving||blocked} style={{height:44,padding:'0 12px',borderRadius:11,background:'rgba(52,131,180,.10)',border:'1px solid rgba(52,131,180,.30)',color:C.blue,cursor:blocked?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:F,fontSize:12.5,fontWeight:700,opacity:blocked?.55:1,gridColumn:'span 2'}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>{T('تصديق الحسبة','Approve Quote')}</span></button>;if(showInvoice)return<button onClick={async()=>{await changeStatus(dr.id,'invoiced');setDetailsRow(null)}} disabled={saving} style={{height:44,padding:'0 12px',borderRadius:11,background:'rgba(46,204,113,.10)',border:'1px solid rgba(46,204,113,.32)',color:C.ok,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:F,fontSize:12.5,fontWeight:700,gridColumn:'span 2'}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>{T('إصدار فاتورة','Issue Invoice')}</span></button>;return null})()}
+{/* Print section header */}
+<div style={{gridColumn:'span 2',display:'flex',alignItems:'center',gap:8,marginTop:6,paddingBottom:2}}>
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:C.gold}}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+<span style={{fontSize:11,fontWeight:700,color:'var(--tx3)',letterSpacing:'.3px'}}>{T('طباعة','Print')}</span>
+<span style={{flex:1,height:1,background:'rgba(255,255,255,.05)'}}/>
+</div>
+{[{k:'ar',l:'عربي',cc:'sa'},{k:'en',l:'English',cc:'gb'},{k:'bn',l:'বাংলা',cc:'bd'},{k:'ur',l:'اُردُو',cc:'pk'}].map(o=>(
+<button key={o.k} onClick={()=>printCalc(dr,o.k)} title={T('طباعة بـ ','Print in ')+o.l} style={{height:40,padding:'0 10px',borderRadius:10,background:'rgba(212,160,23,.06)',border:'1px solid rgba(212,160,23,.22)',color:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:F,fontSize:12,fontWeight:700,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.14)';e.currentTarget.style.borderColor='rgba(212,160,23,.45)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.06)';e.currentTarget.style.borderColor='rgba(212,160,23,.22)'}}>
+<img src={`https://flagcdn.com/w40/${o.cc}.png`} alt="" width="18" height="13" style={{display:'block',borderRadius:2,objectFit:'cover',flexShrink:0}}/>
+<span>{o.l}</span>
+</button>
+))}
+</div>
+</div>})()}
 </div>
 </div>
 })()}

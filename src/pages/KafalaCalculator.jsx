@@ -258,7 +258,7 @@ export const DateField = ({ value, onChange, label, req, lang }) => {
   )
 }
 
-const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
+export const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
   const isAr = lang !== 'en'
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')

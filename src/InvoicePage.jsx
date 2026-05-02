@@ -1,685 +1,1970 @@
-import React,{useState,useEffect,useCallback} from 'react'
-import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
-const F="'Cairo','Tajawal',sans-serif"
-const C={gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
-const num=v=>Number(v||0).toLocaleString('en-US')
-const stClr={paid:'#27a046',partial:'#D4A017',unpaid:'#c0392b',cancelled:'#666',overpaid:'#3483b4'}
-const stLabel={paid:'مسدّدة',partial:'سداد جزئي',unpaid:'غير مسدّدة',cancelled:'ملغاة',overpaid:'سداد زائد'}
+import React, { useEffect, useMemo, useState, useRef } from 'react'
+import ReactDOM from 'react-dom'
+import { DateField, Sel } from './pages/KafalaCalculator.jsx'
 
-export default function InvoicePage({sb,user,toast,lang}){
-const isAr=lang!=='en';const T=(a,e)=>isAr?a:e
-const isGM=!user?.roles||user?.roles?.name_ar==='المدير العام'||user?.roles?.name_en==='General Manager'
-const[invs,setInvs]=useState([]);const[loading,setLoading]=useState(true)
-const[q,setQ]=useState('');const[filter,setFilter]=useState('all')
-const[payPop,setPayPop]=useState(null);const[viewPop,setViewPop]=useState(null);const[delPop,setDelPop]=useState(null)
-const[payF,setPayF]=useState({amount:'',method:'cash',date:'',reference:'',bank:'',notes:''})
-const[saving,setSaving]=useState(false);const[clients,setClients]=useState([]);const[brokersList,setBrokers]=useState([])
-const[payments,setPayments]=useState([]);const[viewTab,setViewTab]=useState('info');const[installments,setInstallments]=useState([]);const[invoiceItems,setInvoiceItems]=useState([])
-const[branches,setBranches]=useState([])
-const[aging,setAging]=useState([])
-const[officeFilter,setOfficeFilter]=useState(()=>isGM?'':(user?.branch_id||''))
-const[officeDropOpen,setOfficeDropOpen]=useState(false)
-const[statsPeriod,setStatsPeriod]=useState('daily')
-const[periodOffset,setPeriodOffset]=useState(0)
-const[advOpen,setAdvOpen]=useState(false)
-const[advFilter,setAdvFilter]=useState({from:'',to:'',service:'',client:'',amountMin:'',amountMax:'',status:''})
+const F = "'Cairo','Tajawal',sans-serif"
+const C = {
+  gold: '#D4A017', goldSoft: '#e8c77a',
+  blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
+  ok: '#2ecc71', warn: '#eab308', red: '#e87265',
+}
+const PAGE = 60
 
-const load=useCallback(async()=>{
-setLoading(true)
-const[inv,br,ag]=await Promise.all([
-sb.from('invoices').select('*,clients:client_id(name_ar,name_en,phone),brokers:broker_id(name_ar)').is('deleted_at',null).order('created_at',{ascending:false}),
-sb.from('branches').select('id,name_ar').is('deleted_at',null).order('name_ar'),
-sb.from('v_receivables_aging').select('*')
-])
-setInvs(inv.data||[]);setBranches(br.data||[]);setAging(ag.data||[]);setLoading(false)
-},[sb])
-
-useEffect(()=>{load()
-sb.from('clients').select('id,name_ar,name_en,phone,id_number').is('deleted_at',null).order('name_ar').then(({data})=>setClients(data||[]))
-sb.from('brokers').select('id,name_ar').is('deleted_at',null).order('name_ar').then(({data})=>setBrokers(data||[]))
-// _transferCalcs is set but never read — leaving the legacy global empty for any external consumers.
-window._transferCalcs=[]
-},[load,sb])
-
-// Load payments for a specific invoice
-const loadPayments=async(invId)=>{
-const{data}=await sb.from('invoice_payments').select('*').eq('invoice_id',invId).is('deleted_at',null).order('payment_date',{ascending:false})
-setPayments(data||[])
+const num = (v) => Number(v || 0).toLocaleString('en-US')
+const flagEmoji = (code) => { if (!code || code.length !== 2) return ''; try { return String.fromCodePoint(...[...code.toUpperCase()].map(c => c.charCodeAt(0) + 127397)) } catch { return '' } }
+const fmtGreg = (iso, ar = true) => {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const yyyy = d.getFullYear()
+    return `${yyyy}/${mm}/${dd}`
+  } catch { return '—' }
+}
+const fmtPhone = (phone) => {
+  if (!phone) return phone
+  const s = String(phone).replace(/[^\d]/g, '')
+  if (s.startsWith('966') && s.length === 12) return '0' + s.slice(3)
+  return s
+}
+const fmtDateTime = (iso, ar = true) => {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const yyyy = d.getFullYear()
+    const h24 = d.getHours()
+    const mn = String(d.getMinutes()).padStart(2, '0')
+    const period = ar ? (h24 < 12 ? 'ص' : 'م') : (h24 < 12 ? 'AM' : 'PM')
+    const h12 = ((h24 + 11) % 12) + 1
+    const hh = String(h12).padStart(2, '0')
+    return `${yyyy}/${mm}/${dd} · ${hh}:${mn} ${period}`
+  } catch { return '—' }
+}
+const fmtShort = (iso) => {
+  if (!iso) return '—'
+  try { const d = new Date(iso); const y = d.getFullYear() % 100; return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(y).padStart(2,'0') } catch { return '—' }
 }
 
-// Stats
-const today=new Date().toISOString().split('T')[0]
-
-// Office scope: non-GM locked to their branch; GM can filter by officeFilter
-const inOfficeScope=(inv)=>{
-const rb=inv.branch_id
-if(!isGM)return !user?.branch_id||!rb||rb===user.branch_id
-if(!officeFilter)return true
-return rb===officeFilter
-}
-const periodInvs=invs.filter(inOfficeScope)
-const sts={
-total:periodInvs.reduce((s,i)=>s+(i.total_amount||0),0),
-paid:periodInvs.reduce((s,i)=>s+(i.paid_amount||0),0),
-outstanding:periodInvs.reduce((s,i)=>s+(i.remaining_amount||0),0),
-net:periodInvs.reduce((s,i)=>s+(i.net_amount||0),0),
-count:periodInvs.length,
-pdc:periodInvs.filter(i=>i.status==='paid').length,
-prc:periodInvs.filter(i=>i.status==='partial').length,
-uc:periodInvs.filter(i=>i.status==='unpaid').length,
-cc:periodInvs.filter(i=>i.status==='cancelled').length
+const SVC_THEME = {
+  work_visa:      { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',     label_en: 'Work Visa' },
+  iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة',    label_en: 'Iqama Issuance' },
+  transfer:       { c: C.orange, bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',      label_en: 'Transfer' },
+  iqama_renewal:  { c: C.cyan,   bg: 'rgba(22,160,133,.12)',  bd: 'rgba(22,160,133,.32)',  label_ar: 'تجديد الإقامة',  label_en: 'Iqama Renewal' },
+  ajeer:          { c: C.purple, bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'عقد أجير',       label_en: 'Ajeer Contract' },
+  other:          { c: C.gold,   bg: 'rgba(212,160,23,.12)',  bd: 'rgba(212,160,23,.32)',  label_ar: 'الغرفة التجارية', label_en: 'Chamber' },
+  general:        { c: C.gray,   bg: 'rgba(149,165,166,.12)', bd: 'rgba(149,165,166,.32)', label_ar: 'خدمات أخرى',     label_en: 'Other Services' },
 }
 
-// Filter + Search + Advanced
-const filtered=periodInvs.filter(i=>{
-if(filter!=='all'&&i.status!==filter)return false
-if(advFilter.status&&i.status!==advFilter.status)return false
-if(advFilter.from&&i.issue_date&&i.issue_date<advFilter.from)return false
-if(advFilter.to&&i.issue_date&&i.issue_date>advFilter.to)return false
-if(advFilter.service&&i.service_category!==advFilter.service)return false
-if(advFilter.client&&i.client_id!==advFilter.client)return false
-if(advFilter.amountMin&&Number(i.total_amount||0)<Number(advFilter.amountMin))return false
-if(advFilter.amountMax&&Number(i.total_amount||0)>Number(advFilter.amountMax))return false
-if(!q)return true
-const s=q.toLowerCase()
-return(i.invoice_number||'').toLowerCase().includes(s)||(i.clients?.name_ar||'').includes(s)||(i.clients?.name_en||'').toLowerCase().includes(s)||(i.brokers?.name_ar||'').includes(s)||String(i.total_amount||'').includes(s)||(i.clients?.phone||'').includes(s)
-})
-
-// Derived stats for KPI dashboard
-const totalIssued=periodInvs.filter(i=>i.status!=='cancelled').reduce((s,i)=>s+Number(i.total_amount||0),0)
-const totalPaid=periodInvs.filter(i=>i.status!=='cancelled').reduce((s,i)=>s+Number(i.paid_amount||0),0)
-const collectionPct=totalIssued>0?Math.round(totalPaid/totalIssued*100):0
-const activeInvCount=periodInvs.filter(i=>i.status!=='cancelled').length
-const avgInvoiceValue=activeInvCount>0?Math.round(totalIssued/activeInvCount):0
-
-// Period series for paid vs due chart (7 buckets, shiftable by periodOffset)
-const periodBuckets=7
-const nowMs=Date.now()
-const bucketMs=statsPeriod==='daily'?86400000:statsPeriod==='weekly'?7*86400000:30*86400000
-const offsetShift=periodOffset*periodBuckets*bucketMs
-const periodSeries=(()=>{
-const result=Array.from({length:periodBuckets},()=>({paid:0,due:0,total:0}))
-periodInvs.forEach(inv=>{if(inv.status==='cancelled')return
-const d=new Date((inv.issue_date||inv.created_at||'').slice(0,10)+'T12:00:00')
-if(isNaN(d))return
-const age=Math.floor((nowMs-d.getTime()-offsetShift)/bucketMs)
-if(age<0||age>=periodBuckets)return
-const idx=periodBuckets-1-age
-result[idx].paid+=Number(inv.paid_amount||0)
-result[idx].due+=Number(inv.remaining_amount||0)
-result[idx].total+=Number(inv.total_amount||0)})
-return result
-})()
-
-const branchMap=Object.fromEntries(branches.map(b=>[b.id,b]))
-
-// Group by date
-const groups={}
-const groupOrder=[]
-filtered.forEach(inv=>{
-const key=(inv.issue_date||'').slice(0,10)||'بدون تاريخ'
-if(!groups[key]){groups[key]=[];groupOrder.push(key)}
-groups[key].push(inv)
-})
-
-const dayNames=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
-const monthNames=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
-const dayLabel=(key)=>{
-if(key===today)return'اليوم'
-try{const d=new Date(key+'T12:00:00');return dayNames[d.getDay()]}catch{return key}
+const INV_STATUS_THEME = {
+  new:        { c: C.blue,   stamp_ar: 'جديدة',           stamp_en: 'NEW' },
+  active:     { c: C.gold,   stamp_ar: 'نشطة',            stamp_en: 'ACTIVE' },
+  fully_paid: { c: C.ok,     stamp_ar: 'مدفوعة بالكامل',  stamp_en: 'PAID' },
+  cancelled:  { c: C.red,    stamp_ar: 'ملغية',           stamp_en: 'CANCELLED' },
 }
-const dayFull=(key)=>{
-try{const d=new Date(key+'T12:00:00');return d.getDate()+' '+monthNames[d.getMonth()]+' '+d.getFullYear()}catch{return key}
+// Compute synthetic status from amounts when status_id is missing or generic
+const inferPayState = (inv) => {
+  const total = Number(inv.total_amount || 0)
+  const paid  = Number(inv.paid_amount || 0)
+  if (total <= 0)              return 'unpaid'
+  if (paid <= 0)               return 'unpaid'
+  if (paid >= total)           return 'paid'
+  return 'partial'
+}
+const PAY_THEME = {
+  paid:    { c: C.ok,   stamp_ar: 'مسدّدة',     stamp_en: 'PAID' },
+  partial: { c: C.gold, stamp_ar: 'جزئي',        stamp_en: 'PARTIAL' },
+  unpaid:  { c: C.red,  stamp_ar: 'غير مسدّدة',  stamp_en: 'UNPAID' },
 }
 
-const openView=async(inv)=>{await loadPayments(inv.id);const[instR,itemsR]=await Promise.all([sb.from('invoice_installments').select('*').eq('invoice_id',inv.id).is('deleted_at',null).order('installment_order'),sb.from('invoice_items').select('*').eq('invoice_id',inv.id).order('sort_order')]);setInstallments(instR.data||[]);setInvoiceItems(itemsR.data||[]);setViewTab('info');setViewPop(inv)}
-const openPay=(inv)=>{setPayF({_id:inv.id,amount:'',method:'cash',date:today,reference:'',bank:'',notes:'',max:inv.remaining_amount||0,inv_num:inv.invoice_number,client:inv.clients?.name_ar});setPayPop(inv)}
+/* ─── Tiny bits ─── */
+const Pill = ({ count, label, color, money }) => (
+  <div style={{
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '7px 14px', borderRadius: 999,
+    background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)',
+  }}>
+    <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, boxShadow: '0 0 6px ' + color }} />
+    <span style={{ fontSize: money ? 14 : 18, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{count}</span>
+    <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>{label}</span>
+  </div>
+)
 
+const StatCard = ({ label, value, sub, color, sup }) => {
+  const c = color || C.gold
+  return (
+    <div style={{
+      minWidth: 0, minHeight: 130,
+      padding: '14px 18px', borderRadius: 16,
+      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+      border: '1px solid rgba(255,255,255,.05)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+      position: 'relative', overflow: 'hidden',
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+    }}>
+      {/* Subtle top color accent */}
+      <div style={{ position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, height: 2, background: `linear-gradient(90deg, ${c}55, transparent 70%)` }} />
+      {/* Faded watermark glow */}
+      <div style={{ position: 'absolute', insetInlineStart: -40, top: -40, width: 110, height: 110, borderRadius: '50%', background: `radial-gradient(circle, ${c}12 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
-// Delete invoice with reason
-const delInv=async()=>{
-setSaving(true)
-const{error}=await sb.from('invoices').update({deleted_at:new Date().toISOString(),deleted_by:user?.id,deleted_reason:delPop.reason||null}).eq('id',delPop.id)
-if(error)toast(T('خطأ','Error'));else{toast(T('تم حذف الفاتورة','Invoice deleted'));load()}
-setDelPop(null);setSaving(false)}
+      {/* Top: label + glowing dot */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.1px' }}>{label}</div>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, boxShadow: `0 0 8px ${c}aa` }} />
+      </div>
 
-// Save payment
-const savePay=async()=>{
-if(!payF.amount||Number(payF.amount)<=0){toast(T('أدخل مبلغ الدفعة','Enter payment amount'));return}
-if(Number(payF.amount)>payF.max){toast(T('المبلغ أكبر من المتبقي (','Amount exceeds remaining (')+num(payF.max)+T(' ر.س)',' SAR)'));return}
-setSaving(true)
-const{error:e1}=await sb.from('invoice_payments').insert({invoice_id:payPop.id,amount:Number(payF.amount),payment_method:payF.method,payment_date:payF.date,reference_number:payF.reference||null,bank_name:payF.bank||null,notes:payF.notes||null,collected_by_user_id:user?.id,created_by:user?.id})
-if(e1){toast(T('خطأ: ','Error: ')+e1.message);setSaving(false);return}
-const newPaid=(payPop.paid_amount||0)+Number(payF.amount);const newRem=(payPop.remaining_amount||0)-Number(payF.amount)
-const newStatus=newRem<=0?'paid':newPaid>0?'partial':'unpaid'
-await sb.from('invoices').update({paid_amount:newPaid,remaining_amount:Math.max(0,newRem),status:newStatus,updated_by:user?.id}).eq('id',payPop.id)
-toast(T('تم تسجيل الدفعة بنجاح','Payment recorded'));
-// Auto WhatsApp notification
-const cl=payPop.clients;const ph=cl?.phone?.replace(/\D/g,'').replace(/^0/,'966')
-if(ph&&confirm(T('إرسال إشعار واتساب للعميل؟','Send WhatsApp to client?'))){
-const msg=encodeURIComponent(`السلام عليكم ${cl.name_ar}\n\n✅ تم استلام دفعة بمبلغ ${num(Number(payF.amount))} ريال\n\nفاتورة: ${payPop.invoice_number}\nالمدفوع الآن: ${num(newPaid)} ريال\nالمتبقي: ${num(Math.max(0,newRem))} ريال\nالحالة: ${newStatus==='paid'?'مدفوعة بالكامل ✅':newStatus==='partial'?'مدفوعة جزئياً':'غير مدفوعة'}\n\nشكراً لكم — جسر للأعمال`)
-window.open('https://wa.me/'+ph+'?text='+msg,'_blank')
-sb.from('whatsapp_log').insert({phone:ph,client_id:payPop.client_id,event_type:'payment_received',message_ar:'دفعة '+num(Number(payF.amount))+' — فاتورة '+payPop.invoice_number,entity_id:payPop.id,sent_by:user?.id}).then(()=>{})
+      {/* Big value — centered vertically in available space, right-aligned in RTL */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'flex-start', gap: 5, padding: '6px 0' }}>
+        <div style={{ fontSize: 32, fontWeight: 700, color: c, letterSpacing: '-1px', lineHeight: 1, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+        {sup && <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{sup}</span>}
+      </div>
+
+      {/* Bottom: divider + sub aligned right */}
+      {sub && (
+        <div style={{ position: 'relative', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', fontSize: 11, color: 'var(--tx3)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{sub}</span>
+        </div>
+      )}
+    </div>
+  )
 }
-// Print receipt
-if(confirm(T('طباعة إيصال تحصيل؟','Print receipt?'))){const w=window.open('','_blank');w.document.write('<html dir="rtl"><head><style>body{font-family:Cairo,sans-serif;padding:40px;color:#333;max-width:400px;margin:0 auto}h2{font-size:16px;text-align:center;border-bottom:2px solid #D4A017;padding-bottom:10px;color:#D4A017}table{width:100%;margin:12px 0}td{padding:6px 0;font-size:12px;border-bottom:1px solid #eee}td:first-child{color:#888;width:35%}td:last-child{font-weight:700;text-align:left;direction:ltr}.amt{font-size:20px;text-align:center;color:#27a046;font-weight:800;margin:16px 0}.footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px}</style></head><body>');w.document.write('<h2>إيصال تحصيل — جسر للأعمال</h2>');w.document.write('<div class="amt">'+num(Number(payF.amount))+' ر.س</div>');w.document.write('<table><tr><td>العميل</td><td>'+(cl?.name_ar||'—')+'</td></tr><tr><td>رقم الفاتورة</td><td>'+payPop.invoice_number+'</td></tr><tr><td>المبلغ المدفوع</td><td>'+num(Number(payF.amount))+' ر.س</td></tr><tr><td>طريقة الدفع</td><td>'+(payF.method==='cash'?'نقداً':'حوالة بنكية')+'</td></tr>'+(payF.reference?'<tr><td>رقم المرجع</td><td>'+payF.reference+'</td></tr>':'')+'<tr><td>التاريخ</td><td>'+(payF.date||new Date().toISOString().slice(0,10))+'</td></tr><tr><td>إجمالي المدفوع</td><td>'+num(newPaid)+' ر.س</td></tr><tr><td>المتبقي</td><td>'+num(Math.max(0,newRem))+' ر.س</td></tr><tr><td>الحالة</td><td>'+(newStatus==='paid'?'مدفوعة بالكامل ✅':'مدفوعة جزئياً')+'</td></tr></table>');w.document.write('<div class="footer">طُبع بتاريخ '+new Date().toLocaleDateString('ar-SA')+' — جسر للأعمال<br>هذا إيصال إلكتروني ولا يحتاج توقيع</div></body></html>');w.document.close();w.print()}
-setPayPop(null);load();setSaving(false)}
 
-const statusColors={paid:'rgba(39,174,96,.85)',partial:C.gold,unpaid:C.red,cancelled:'rgba(255,255,255,.25)',overpaid:C.blue}
-const statusLabels={paid:'مسددة بالكامل',partial:'سداد جزئي',unpaid:'بانتظار السداد',cancelled:'ملغاة',overpaid:'سداد زائد'}
-const orderStatusLabels={draft:{l:'مسودة',c:'#888'},pending:{l:'بانتظار المراجعة',c:'#e67e22'},in_progress:{l:'قيد التنفيذ',c:'#3483b4'},completed:{l:'مكتمل',c:'#27a046'},on_hold:{l:'معلّق',c:'#9b59b6'},cancelled:{l:'ملغي',c:'#c0392b'},issue:{l:'يوجد مشكلة',c:'#c0392b'}}
-const svcLabelAr={PERM_VISA:'تأشيرة دائمة',TEMP_VISA:'تأشيرة مؤقتة',TRANSFER:'نقل خدمات',TRANSFER_RENEW:'تجديد نقل كفالة',IQAMA_NEW:'إصدار إقامة',IQAMA_RENEW:'تجديد إقامة',AJEER:'عقد أجير',SAUDIZATION:'سعودة',OTHER:'خدمات أخرى',external:'خدمات خارجية',internal:'خدمات داخلية',office:'خدمات مكتبية',client_transaction:'معاملة عميل',CR_OPEN:'إصدار سجل تجاري',CR_EDIT:'تعديل سجل تجاري',CR_DELETE:'شطب سجل تجاري',WP_NEW:'إصدار رخصة عمل',WP_REN:'تجديد رخصة عمل',GOSI_REG:'تسجيل تأمينات',VISA_REC:'تأشيرة استقدام',VISA_VIS:'تأشيرة زيارة'}
-const pct=(inv)=>inv.total_amount>0?Math.round((inv.paid_amount||0)/inv.total_amount*100):0
-
-const printInvoice=(inv)=>{
-const cl=inv.clients||{};const w=window.open('','_blank')
-sb.from('invoice_payments').select('*').eq('invoice_id',inv.id).is('deleted_at',null).order('payment_date').then(({data:pays})=>{
-sb.from('invoice_installments').select('*').eq('invoice_id',inv.id).is('deleted_at',null).order('installment_order').then(({data:insts})=>{
-const pmts=pays||[];const installments=insts||[];const paidAmts=pmts.map(p=>num(p.amount)).join(' ,')
-const stBar=inv.status==='paid'?['#27a046','مدفوعة بالكامل — Fully paid']:inv.status==='partial'?['#D4A017','مدفوعة جزئياً — Partially paid']:['#c0392b','غير مدفوعة — Unpaid']
-const svcLabel={PERM_VISA:'تأشيرة عمل — Work Visa',TEMP_VISA:'تأشيرة مؤقتة — Temp Visa',TRANSFER:'نقل كفالة — Sponsorship Transfer',IQAMA_RENEW:'تجديد إقامة — Iqama Renewal',AJEER:'عقد أجير — Ajeer',OTHER:'خدمات أخرى — Other'}
-w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><style>
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Cairo',sans-serif;color:#222;font-size:11px;background:#fff}
-.p{max-width:780px;margin:0 auto;padding:20px 28px}
-.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;padding-bottom:8px;border-bottom:3px solid #D4A017}
-.on{font-size:18px;font-weight:800}.oa{font-size:9px;color:#555;line-height:1.6}
-.lg{font-size:28px;font-weight:900;color:#D4A017}.ls{font-size:8px;color:#999;letter-spacing:1px}
-.br{background:#2c3e50;color:#fff;text-align:center;padding:6px;border-radius:4px;margin-bottom:6px;font-size:11px;font-weight:700}
-.sb{text-align:center;padding:8px;border-radius:4px;margin-bottom:10px;font-size:14px;font-weight:800}
-.ir{display:flex;justify-content:space-between;padding:2px 0;font-size:10px}.il{color:#888}.iv{font-weight:700}
-.rg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.rb{border:1px solid #ddd;border-radius:6px;padding:10px 12px}
-.rb h4{font-size:8px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #eee}
-.ab{background:#f5f3ec;border:2px solid #D4A017;border-radius:8px;text-align:center;padding:14px;margin-bottom:12px}
-.ab h3{font-size:10px;color:#555;margin-bottom:4px;font-weight:600}.ab .bg{font-size:26px;font-weight:900;color:#222}
-table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:10px}
-th{background:#4a6fa5;color:#fff;padding:6px 8px;font-weight:700;border:1px solid #3d5d8f;text-align:center;font-size:9px}
-td{padding:6px 8px;border:1px solid #ddd;text-align:center}tr:nth-child(even){background:#f9f9f9}
-.gt th{background:#D4A017;border-color:#b8963d}
-.sm{border:2px solid #D4A017;border-radius:6px;overflow:hidden;margin-bottom:10px}
-.sh{background:#D4A017;color:#fff;padding:6px 12px;font-size:11px;font-weight:700;display:flex;justify-content:space-between}
-.sr{display:flex;justify-content:space-between;padding:6px 12px;font-size:11px;border-bottom:1px solid #f0f0f0}.sr:last-child{border:none}
-.st{background:#f8f6f0;font-size:13px;font-weight:800}
-.sp{background:#e8f5e9;color:#27a046;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;display:inline-block}
-.su{background:#fce4ec;color:#c0392b;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;display:inline-block}
-.spt{background:#fff8e1;color:#D4A017;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;display:inline-block}
-.nt{background:#fff8e1;border:1px solid #f0d36e;border-radius:4px;padding:6px 10px;font-size:8px;color:#8a6d00;margin:10px 0;text-align:center;line-height:1.8}
-.ft{padding-top:6px;border-top:2px solid #D4A017;font-size:7px;color:#bbb;display:flex;justify-content:space-between}
-@media print{body{padding:0}.p{padding:12px 20px}}
-</style></head><body><div class="p">
-<div class="hdr"><div style="width:35%;text-align:right"><div class="on">جسر للأعمال</div><div class="oa">خدمات مكاتب الاستقدام<br>المملكة العربية السعودية</div></div>
-<div style="width:30%;text-align:center"><div class="lg">جسر</div><div class="ls">JISR BUSINESS</div></div>
-<div style="width:35%;text-align:left;direction:ltr"><div class="on" style="font-size:14px">Jisr Business</div><div class="oa">Recruitment Services<br>Saudi Arabia</div></div></div>
-<div class="br">${svcLabel[inv.service_category]||inv.service_category||'خدمات مكتبية'}</div>
-<div class="sb" style="background:${stBar[0]}18;color:${stBar[0]};border:1.5px solid ${stBar[0]}40">${stBar[1]}</div>
-<div style="display:flex;justify-content:space-between;font-size:9px;color:#666;margin-bottom:8px"><div>تاريخ الإيصال: <b>${inv.issue_date||'—'}</b></div><div style="direction:ltr">Receipt No: <b>${inv.invoice_number||'—'}</b></div></div>
-<div class="rg"><div class="rb"><h4>مفوتر إلى — Bill To</h4>
-<div class="ir"><span class="il">الاسم</span><span class="iv">${cl.name_ar||'—'}</span></div>
-${cl.name_en?'<div class="ir"><span class="il">Name</span><span class="iv">'+cl.name_en+'</span></div>':''}
-${cl.id_number?'<div class="ir"><span class="il">الهوية — ID</span><span class="iv" style="direction:ltr">'+cl.id_number+'</span></div>':''}
-<div class="ir"><span class="il">الجوال — Phone</span><span class="iv" style="direction:ltr">${cl.phone||'—'}</span></div></div>
-<div class="rb"><h4>بيانات الفاتورة</h4>
-<div class="ir"><span class="il">رقم الفاتورة</span><span class="iv">${inv.invoice_number||'—'}</span></div>
-<div class="ir"><span class="il">تاريخ الإصدار</span><span class="iv">${inv.issue_date||'—'}</span></div>
-<div class="ir"><span class="il">تاريخ الاستحقاق</span><span class="iv">${inv.due_date||'—'}</span></div>
-<div class="ir"><span class="il">الحالة</span><span class="iv"><span class="${inv.status==='paid'?'sp':inv.status==='partial'?'spt':'su'}">${inv.status==='paid'?'مدفوعة':inv.status==='partial'?'جزئي':'غير مدفوعة'}</span></span></div></div></div>
-<div class="ab"><h3>المبلغ المستلم لهذا الإيصال — Amount Received For This Receipt</h3><div class="bg">﷼ ${num(inv.paid_amount||0)}</div></div>
-${pmts.length>0||installments.length>0?`<div style="font-size:11px;font-weight:700;padding:6px 0;border-bottom:2px solid #D4A017;margin-bottom:6px">تفاصيل الدفع — Payment Details</div>
-${paidAmts?'<table style="margin-bottom:6px"><tr style="background:#f5f5f5"><td style="text-align:right;font-weight:700;border:1px solid #ddd;padding:6px 10px">سجل الدفعات المستلمة الفعلية<br><span style="font-size:8px;color:#888">Record of actual received payments</span></td><td style="direction:ltr;font-weight:700;border:1px solid #ddd;padding:6px 10px">'+paidAmts+'</td></tr></table>':''}
-<div style="font-size:11px;font-weight:700;padding:6px 0;border-bottom:2px solid #D4A017;margin-bottom:6px">جدول الأقساط — Payment Schedule</div>
-<table class="gt"><thead><tr><th>#</th><th>القيمة<br>Amount</th><th>الاستحقاق<br>Due Condition</th><th>تاريخ الاستحقاق<br>Due Date</th><th>المبلغ المسدد<br>Amount Paid</th><th>الطريقة<br>Method</th><th>الحالة<br>Status</th></tr></thead><tbody>
-${installments.length>0?installments.map((inst,i)=>{const pd=inst.status==='paid';const pm=pmts[i];return'<tr><td>'+(i+1)+'</td><td>'+num(inst.amount)+' ريال</td><td>'+(inst.notes||'—')+'</td><td>'+(inst.due_date||pm?.payment_date||'—')+'</td><td>'+(pd?num(pm?.amount||inst.amount)+' ريال':'—')+'</td><td>'+(pd?(pm?.payment_method==='cash'?'نقداً<br>Cash':'حوالة بنكية<br>Bank'):'—')+'</td><td>'+(pd?'<span class="sp">مدفوع كاملاً<br>Fully paid</span>':inst.status==='partial'?'<span class="spt">مدفوع جزئياً<br>Partially paid</span>':'<span class="su">في الانتظار<br>Pending</span>')+'</td></tr>'}).join('')
-:pmts.map((p,i)=>'<tr><td>'+(i+1)+'</td><td>'+num(p.amount)+' ريال</td><td>'+(i===0?'دفعة أولية<br>Initial payment':'دفعة '+(i+1)+'<br>Payment '+(i+1))+'</td><td>'+(p.payment_date||'—')+'</td><td>'+num(p.amount)+' ريال</td><td>'+(p.payment_method==='cash'?'نقداً<br>Cash':'حوالة بنكية<br>Bank Transfer')+'</td><td><span class="sp">مدفوع كاملاً<br>Fully paid</span></td></tr>').join('')}
-</tbody></table>`:''}
-<div class="sm"><div class="sh"><span>ملخص الفاتورة — Invoice Summary</span></div>
-<div class="sr"><span>المبلغ الإجمالي — Total Amount</span><span><b><u>${num(inv.total_amount)}</u></b> &nbsp; <b>SAR</b> &nbsp;&nbsp; ريال &nbsp; <b><u>${num(inv.total_amount)}</u></b></span></div>
-${Number(inv.discount_amount)>0?'<div class="sr"><span>الخصم — Discount</span><span style="color:#D4A017"><b>-'+num(inv.discount_amount)+'</b> SAR</span></div>':''}
-<div class="sr"><span style="color:#27a046">المبلغ المدفوع — Paid Amount</span><span style="color:#27a046"><b>${num(inv.paid_amount||0)}</b> &nbsp; <b>SAR</b> &nbsp;&nbsp; ريال &nbsp; <b>${num(inv.paid_amount||0)}</b></span></div>
-<div class="sr st"><span style="color:#c0392b">المبلغ المتبقي — Remaining Amount</span><span style="color:#c0392b"><b>${num(inv.remaining_amount||0)}</b> &nbsp; <b>SAR</b> &nbsp;&nbsp; ريال &nbsp; <b>${num(inv.remaining_amount||0)}</b></span></div></div>
-<div class="nt">إشعار هام: المكتب غير مسؤول عن أي مدفوعات بدون فاتورة رسمية. يجب على العميل طلب فاتورة لجميع تعاملاته<br>Important Notice: Office not responsible for payments without official invoice. Client must request invoice for all transactions</div>
-<div class="ft"><span>جسر للأعمال — Jisr Business</span><span>طُبعت بتاريخ ${new Date().toLocaleDateString('ar-SA')} — ${new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}</span></div>
-</div></body></html>`)
-w.document.close();setTimeout(()=>w.print(),400)})})}
-const fieldS={width:'100%',height:40,padding:'0 14px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
-const lblS={fontSize:12,fontWeight:600,color:'var(--tx3)',marginBottom:6}
-const overlayS={position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}
-const popupS={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',borderRadius:16,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.08)'}
-const headS={background:'linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.06))',padding:'16px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}
-const closeS={width:30,height:30,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
-const goldBtnS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}
-const ghostBtnS={height:40,padding:'0 18px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'var(--tx4)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
-
-return<div style={{fontFamily:F,paddingTop:0}}>
-<div style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap',position:'relative'}}>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>{T('لوحة الفواتير','Invoices Dashboard')}</div>
-<div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>{T('إدارة الفواتير والمدفوعات اليومية','Daily invoices and payments management')}</div>
-<div style={{display:'flex',alignItems:'center',gap:10,marginTop:14}}>
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-<span style={{width:6,height:6,borderRadius:'50%',background:C.gold,boxShadow:'0 0 5px '+C.gold}}/>
-<span style={{fontSize:13,fontWeight:600,color:'var(--tx3)'}}>{T('الفترة','Period')}</span>
-</div>
-{(()=>{const order=[['monthly',T('شهري','Monthly')],['weekly',T('أسبوعي','Weekly')],['daily',T('يومي','Daily')]]
-const idx=order.findIndex(([k])=>k===statsPeriod)
-const cycle=(dir)=>{const next=idx+dir;if(next<0||next>=order.length)return;setStatsPeriod(order[next][0]);setPeriodOffset(0)}
-const atStart=idx===0,atEnd=idx===order.length-1
-const btnStyle=(dis)=>({width:28,height:28,borderRadius:10,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'var(--tx3)',cursor:dis?'not-allowed':'pointer',opacity:dis?.35:1,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'})
-return<div style={{display:'flex',alignItems:'center',gap:8}}>
-<button disabled={atEnd} onClick={()=>cycle(1)} title={T('التالي','Next')} style={btnStyle(atEnd)}>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-</button>
-<span style={{fontSize:12,fontWeight:600,color:C.gold,minWidth:64,textAlign:'center'}}>{order[idx][1]}</span>
-<button disabled={atStart} onClick={()=>cycle(-1)} title={T('السابق','Previous')} style={btnStyle(atStart)}>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-</button>
-</div>})()}
-</div>
-</div>
-{isGM&&branches.length>0&&(()=>{const sel=branches.find(b=>b.id===officeFilter)
-const items=[{id:'',label:T('كل المكاتب','All offices')},...branches.map(b=>({id:b.id,label:b.name_ar||b.code||b.id.slice(0,6)}))]
-return<div style={{position:'relative'}}>
-<button onClick={()=>setOfficeDropOpen(o=>!o)} style={{height:40,padding:'0 14px',borderRadius:11,border:officeDropOpen?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.06)',background:officeDropOpen?'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:sel?C.gold:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:500,outline:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'space-between',gap:10,minWidth:130,boxShadow:officeDropOpen?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>
-<span style={{flex:1,textAlign:'center'}}>{sel?(sel.name_ar||sel.code||sel.id.slice(0,6)):T('كل المكاتب','All offices')}</span>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.2s',transform:officeDropOpen?'rotate(180deg)':'none',flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg>
-</button>
-{officeDropOpen&&<><div onClick={()=>setOfficeDropOpen(false)} style={{position:'fixed',inset:0,zIndex:1}}/>
-<div style={{position:'absolute',top:46,insetInlineEnd:0,minWidth:160,background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:11,padding:6,zIndex:3,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06)'}}>
-{items.map(it=>{const active=it.id===officeFilter
-return<div key={it.id||'__all__'} onClick={()=>{setOfficeFilter(it.id);setOfficeDropOpen(false)}} style={{padding:'9px 14px',fontSize:12,fontWeight:600,color:active?C.gold:'var(--tx2)',background:active?'rgba(212,160,23,.1)':'transparent',borderRadius:8,cursor:'pointer',textAlign:'center',transition:'.12s',whiteSpace:'nowrap'}} onMouseEnter={e=>{if(!active)e.currentTarget.style.background='rgba(255,255,255,.04)'}} onMouseLeave={e=>{if(!active)e.currentTarget.style.background='transparent'}}>{it.label}</div>})}
-</div></>}
-</div>})()}
-</div>
-<style>{`
-input.iv-noring.iv-noring.iv-noring.iv-noring,
-input.iv-noring.iv-noring.iv-noring.iv-noring:not(:placeholder-shown),
-select.iv-noring.iv-noring.iv-noring.iv-noring,
-textarea.iv-noring.iv-noring.iv-noring.iv-noring{
-  border-color:rgba(255,255,255,.06)!important;
-  box-shadow:0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)!important;
+function Sparkline({ points, width = 360, height = 90 }) {
+  if (!points?.length) return null
+  const max = Math.max(1, ...points)
+  const W = width, H = height
+  const px = i => (i / Math.max(1, points.length - 1)) * W
+  const py = v => H - (v / max) * (H - 8) - 4
+  const linePath = points.map((v, i) => (i === 0 ? 'M' : 'L') + px(i).toFixed(1) + ',' + py(v).toFixed(1)).join(' ')
+  const areaPath = linePath + ` L${W},${H} L0,${H} Z`
+  return (
+    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id="inv-spark-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={C.gold} stopOpacity="0.42" />
+          <stop offset="100%" stopColor={C.gold} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#inv-spark-fill)" />
+      <path d={linePath} stroke={C.gold} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={px(0)} cy={py(points[0])} r="3.5" fill={C.ok} stroke="#1a1a1a" strokeWidth="2" />
+      <circle cx={px(points.length - 1)} cy={py(points[points.length - 1])} r="3.5" fill={C.gold} stroke="#1a1a1a" strokeWidth="2" />
+    </svg>
+  )
 }
-input.iv-noring.iv-noring.iv-noring.iv-noring:focus,
-select.iv-noring.iv-noring.iv-noring.iv-noring:focus,
-textarea.iv-noring.iv-noring.iv-noring.iv-noring:focus{
-  border-color:rgba(212,160,23,.35)!important;
-  box-shadow:0 2px 8px rgba(212,160,23,.12), inset 0 1px 0 rgba(255,255,255,.05)!important;
+
+/* ═══════════════════════════════════════════════════════════════ */
+export default function InvoicePage({ sb, lang, user, branchId, toast }) {
+  const isAr = lang !== 'en'
+  const T = (a, e) => (isAr ? a : e)
+
+  const [rows, setRows] = useState([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState(null)
+  const [page, setPage] = useState(0)
+
+  // Stats
+  const [statsAgg, setStatsAgg] = useState({ services: [], statuses: [] })
+  const [statsDaily, setStatsDaily] = useState([])
+  const [statsTotalCount, setStatsTotalCount] = useState(0)
+  const [aging, setAging] = useState([])
+  const [dailyCash, setDailyCash] = useState(0)
+  const [periodStats, setPeriodStats] = useState({
+    cash: { cnt: 0, sum: 0 },
+    bank: { cnt: 0, sum: 0 },
+    cancelled: { cnt: 0, sum: 0 },
+    voided: { cnt: 0, sum: 0 },
+  })
+  const [weekStats, setWeekStats] = useState({
+    cash: { cnt: 0, sum: 0 },
+    bank: { cnt: 0, sum: 0 },
+    voided: { cnt: 0, sum: 0 },
+  })
+  const [svcToday, setSvcToday] = useState([])
+  const [svcWeek, setSvcWeek] = useState([])
+
+  // Filters
+  const [q, setQ] = useState('')
+  const [serviceType, setServiceType] = useState('')
+  const [payFilter, setPayFilter] = useState('') // paid | partial | unpaid
+  const [branchFilter, setBranchFilter] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [paymentPlan, setPaymentPlan] = useState('') // cash | installment
+  const [amountMin, setAmountMin] = useState('')
+  const [amountMax, setAmountMax] = useState('')
+  const [advOpen, setAdvOpen] = useState(false)
+
+  // Lookups
+  const [branches, setBranches] = useState([])
+  const [services, setServices] = useState([])
+
+  const [detail, setDetail] = useState(null)
+  const [cancelledStatusId, setCancelledStatusId] = useState(null)
+  const [busyId, setBusyId] = useState(null)
+  const [refreshTick, setRefreshTick] = useState(0)
+
+  useEffect(() => {
+    let alive = true
+    Promise.all([
+      sb.from('branches').select('id,branch_code').order('branch_code'),
+      sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)').eq('category.category_key', 'service_type'),
+      sb.from('lookup_items').select('id,code,category:lookup_categories!inner(category_key)').eq('category.category_key', 'invoice_status').eq('code', 'cancelled').limit(1),
+    ]).then(([b, s, st]) => {
+      if (!alive) return
+      setBranches(b.data || [])
+      setServices(s.data || [])
+      setCancelledStatusId(st.data?.[0]?.id || null)
+    })
+    return () => { alive = false }
+  }, [sb])
+
+  const cancelInvoice = async (inv) => {
+    if (!cancelledStatusId) { toast?.(T('تعذر تحديد حالة "ملغية"','Cannot resolve cancelled status'), 'error'); return }
+    if (!window.confirm(T(`هل تريد إلغاء الفاتورة ${inv.invoice_no}؟`, `Cancel invoice ${inv.invoice_no}?`))) return
+    setBusyId(inv.id)
+    const { error } = await sb.from('invoices').update({ status_id: cancelledStatusId }).eq('id', inv.id)
+    setBusyId(null)
+    if (error) { toast?.(T('فشل الإلغاء: ','Cancel failed: ') + error.message, 'error'); return }
+    toast?.(T('تم إلغاء الفاتورة','Invoice cancelled'), 'delete')
+    setRefreshTick(t => t + 1)
+  }
+
+  const refundInvoice = async (inv) => {
+    if (!window.confirm(T(`هل تريد استرجاع الفاتورة ${inv.invoice_no} (تعطيل جميع المدفوعات)؟`, `Refund invoice ${inv.invoice_no} (void all payments)?`))) return
+    setBusyId(inv.id)
+    const { error } = await sb.from('payments').update({ is_valid: false }).eq('invoice_id', inv.id).is('deleted_at', null)
+    setBusyId(null)
+    if (error) { toast?.(T('فشل الاسترجاع: ','Refund failed: ') + error.message, 'error'); return }
+    toast?.(T('تم استرجاع الفاتورة','Invoice refunded'), 'delete')
+    setRefreshTick(t => t + 1)
+  }
+
+  // Aggregations
+  useEffect(() => {
+    let alive = true
+    const todayIso = new Date().toISOString().slice(0, 10)
+    Promise.all([
+      sb.from('v_invoice_stats').select('*'),
+      sb.from('v_invoice_daily').select('*'),
+      sb.from('v_invoice_aging').select('*'),
+      sb.from('invoices').select('id', { count: 'exact', head: true }).is('deleted_at', null),
+      sb.from('payments').select('amount,payment_method:payment_method_id!inner(code)')
+        .eq('payment_method.code', 'cash')
+        .eq('is_valid', true)
+        .is('deleted_at', null)
+        .gte('payment_date', todayIso + 'T00:00:00')
+        .lte('payment_date', todayIso + 'T23:59:59'),
+    ]).then(([s, d, a, c, pc]) => {
+      if (!alive) return
+      const items = s.data || []
+      setStatsAgg({
+        services: items.filter(i => i.dim === 'service_type'),
+        statuses: items.filter(i => i.dim === 'status'),
+      })
+      setStatsDaily(d.data || [])
+      setAging(a.data || [])
+      setStatsTotalCount(c.count || 0)
+      setDailyCash((pc.data || []).reduce((s, p) => s + (Number(p.amount) || 0), 0))
+    })
+    return () => { alive = false }
+  }, [sb])
+
+  // Daily + weekly KPI breakdown (cash / bank+pos / cancelled / voided)
+  useEffect(() => {
+    let alive = true
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 6)
+    const norm = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0 })
+    Promise.all([
+      sb.rpc('invoice_period_stats', { p_start: todayStart.toISOString() }),
+      sb.rpc('invoice_period_stats', { p_start: weekStart.toISOString() }),
+    ]).then(([t, w]) => {
+      if (!alive) return
+      if (t.data) {
+        setPeriodStats({
+          cash: norm(t.data.cash),
+          bank: norm(t.data.bank),
+          cancelled: norm(t.data.cancelled),
+          voided: norm(t.data.voided),
+        })
+      }
+      if (w.data) {
+        setWeekStats({
+          cash: norm(w.data.cash),
+          bank: norm(w.data.bank),
+          voided: norm(w.data.voided),
+        })
+      }
+    })
+    return () => { alive = false }
+  }, [sb])
+
+  // Service distribution — today AND last 7 days (shown as two separate cards)
+  useEffect(() => {
+    let alive = true
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 6)
+    const norm = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
+    Promise.all([
+      sb.rpc('invoice_period_stats', { p_start: todayStart.toISOString() }),
+      sb.rpc('invoice_period_stats', { p_start: weekStart.toISOString() }),
+    ]).then(([t, w]) => {
+      if (!alive) return
+      setSvcToday(norm(t.data?.services))
+      setSvcWeek(norm(w.data?.services))
+    })
+    return () => { alive = false }
+  }, [sb])
+
+  // Paged invoice list
+  useEffect(() => {
+    let alive = true
+    setLoading(true); setErr(null)
+    let qb = sb
+      .from('invoices')
+      .select(`
+        id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, created_at,
+        service_type:service_type_id(code,value_ar,value_en),
+        status:status_id(code,value_ar,value_en),
+        branch:branch_id(id,branch_code),
+        agent:agent_id(name_ar,name_en),
+        service_request:service_request_id(
+          id, request_ref_no, request_date, quantity,
+          client:client_id(name_ar,name_en,phone,id_number,nationality:nationality_id(code,name_ar,flag_url)),
+          visa_applications(visa_type:visa_type_id(code,value_ar,value_en)),
+          transfer_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
+          ajeer_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
+          iqama_renewal_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
+          other_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url)))
+        )
+      `, { count: 'exact' })
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false, nullsFirst: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1)
+
+    if (branchFilter) qb = qb.eq('branch_id', branchFilter)
+    if (serviceType) qb = qb.eq('service_type_id', serviceType)
+    if (from) qb = qb.gte('created_at', from)
+    if (to) qb = qb.lte('created_at', to + 'T23:59:59')
+    if (q.trim()) qb = qb.ilike('invoice_no', `%${q.trim()}%`)
+    if (payFilter === 'paid')    qb = qb.eq('remaining_amount', 0)
+    if (payFilter === 'unpaid')  qb = qb.eq('paid_amount', 0).gt('total_amount', 0)
+    if (payFilter === 'partial') qb = qb.gt('paid_amount', 0).gt('remaining_amount', 0)
+    if (paymentPlan) qb = qb.eq('payment_plan', paymentPlan)
+    if (amountMin)   qb = qb.gte('total_amount', Number(amountMin))
+    if (amountMax)   qb = qb.lte('total_amount', Number(amountMax))
+
+    qb.then(({ data, count, error }) => {
+      if (!alive) return
+      if (error) { setErr(error.message); setLoading(false); return }
+      setRows(data || []); setTotal(count || 0); setLoading(false)
+    })
+    return () => { alive = false }
+  }, [sb, page, branchFilter, serviceType, payFilter, from, to, q, paymentPlan, amountMin, amountMax, refreshTick])
+
+  const stats = useMemo(() => {
+    const total = statsTotalCount
+    const byService = Object.fromEntries(statsAgg.services.map(s => [s.code || 'general', { cnt: Number(s.cnt) || 0, total: Number(s.total) || 0, paid: Number(s.paid) || 0 }]))
+    const totalAmt = Object.values(byService).reduce((s, v) => s + v.total, 0)
+    const totalPaid = Object.values(byService).reduce((s, v) => s + v.paid, 0)
+    const totalRemaining = Math.max(0, totalAmt - totalPaid)
+
+    const days = 14, today = new Date(); today.setHours(0,0,0,0)
+    const buckets = new Array(days).fill(0)
+    statsDaily.forEach(d => {
+      const dt = new Date(d.day); dt.setHours(0,0,0,0)
+      const age = Math.round((today - dt) / 86400000)
+      if (age >= 0 && age < days) buckets[days - 1 - age] = Number(d.cnt) || 0
+    })
+
+    // Pay state buckets — derived from invoices select payload below
+    return { total, byService, totalAmt, totalPaid, totalRemaining, sparkline: buckets, aging }
+  }, [statsAgg, statsDaily, statsTotalCount, aging])
+
+  // Day grouping
+  const grouped = useMemo(() => {
+    const days = {}; const order = []
+    rows.forEach(r => {
+      const k = (r.created_at || '').slice(0, 10) || 'بدون'
+      if (!days[k]) { days[k] = []; order.push(k) }
+      days[k].push(r)
+    })
+    return { days, order }
+  }, [rows])
+  const todayStr = new Date().toISOString().slice(0,10)
+  const dayNames = [T('الأحد','Sun'), T('الاثنين','Mon'), T('الثلاثاء','Tue'), T('الأربعاء','Wed'), T('الخميس','Thu'), T('الجمعة','Fri'), T('السبت','Sat')]
+  const monthNames = [T('يناير','Jan'),T('فبراير','Feb'),T('مارس','Mar'),T('أبريل','Apr'),T('مايو','May'),T('يونيو','Jun'),T('يوليو','Jul'),T('أغسطس','Aug'),T('سبتمبر','Sep'),T('أكتوبر','Oct'),T('نوفمبر','Nov'),T('ديسمبر','Dec')]
+  const dayLabel = (k) => k === todayStr ? T('اليوم','Today') : (() => { try { const d = new Date(k + 'T12:00:00'); return dayNames[d.getDay()] } catch { return k } })()
+  const dayFull  = (k) => { try { const d = new Date(k + 'T12:00:00'); return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') } catch { return k } }
+  const totalPages = Math.max(1, Math.ceil(total / PAGE))
+
+  if (detail) return <InvoiceDetailPage sb={sb} inv={detail} onBack={() => setDetail(null)} isAr={isAr} T={T} toast={toast} />
+
+  return (
+    <div style={{ fontFamily: F, paddingTop: 0 }}>
+      {/* Hero */}
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الفواتير','Invoices')}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('إدارة الفواتير وحالات السداد ومتابعة الأقساط والدفعات','Manage invoices, payment status, installments and payments')}</div>
+      </div>
+
+      {/* Stats + Services — Hero + Sidebar + Services (refined layout) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.5fr', gap: 14, marginBottom: 24 }}>
+        {/* Hero — big primary KPI: نقدية */}
+        <div style={{
+          position: 'relative', padding: '18px 22px', borderRadius: 16,
+          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+          border: '1px solid rgba(255,255,255,.05)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          overflow: 'hidden', minHeight: 150,
+        }}>
+          <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.ok}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+          {/* Top — label with dot */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.ok, boxShadow: `0 0 10px ${C.ok}aa` }} />
+            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدية','Cash')}</span>
+          </div>
+          {/* Center — big number with currency */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
+            <span style={{ fontSize: 42, fontWeight: 800, color: C.ok, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(periodStats.cash.sum)}</span>
+          </div>
+          {/* Bottom — count badge */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد المقبوضات','Receipts')}</span>
+            <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(periodStats.cash.cnt)}</span>
+          </div>
+        </div>
+
+        {/* Sidebar — 2 secondary KPIs stacked, balanced */}
+        <div style={{
+          borderRadius: 16,
+          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+          border: '1px solid rgba(255,255,255,.05)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 150,
+        }}>
+          {[
+            { label: T('تحويلات بنكية','Bank Transfers'), val: periodStats.bank.sum, cnt: periodStats.bank.cnt, c: C.blue },
+            { label: T('فواتير مرتجعة','Voided'), val: periodStats.voided.sum, cnt: periodStats.voided.cnt, c: C.red },
+          ].map((s, i) => (
+            <div key={i} style={{
+              position: 'relative', padding: '12px 16px', flex: 1,
+              borderTop: i > 0 ? '1px solid rgba(255,255,255,.06)' : 'none',
+              display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6,
+              overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', insetInlineStart: -25, top: '50%', transform: 'translateY(-50%)', width: 70, height: 70, borderRadius: '50%', background: `radial-gradient(circle, ${s.c}10 0%, transparent 70%)`, pointerEvents: 'none' }} />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.c }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{s.label}</span>
+                  <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>({num(s.cnt)})</span>
+                </div>
+              </div>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', direction: 'ltr' }}>
+                <span style={{ fontSize: 20, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{num(s.val)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Services card — list all main services with mini progress bars */}
+        {(() => {
+          const MAIN_SVC = ['work_visa', 'transfer', 'iqama_renewal', 'ajeer', 'other', 'general']
+          const mergeAll = (svc) => {
+            const map = Object.fromEntries(svc.map(s => [s.code, s]))
+            return MAIN_SVC.map(code => map[code] || { code, cnt: 0, sum: 0 })
+          }
+          const todaySvcs = mergeAll(svcToday)
+          const todayTotal = todaySvcs.reduce((a, b) => a + b.cnt, 0)
+          const max = Math.max(...todaySvcs.map(s => s.cnt), 1)
+
+          return (
+            <div style={{
+              borderRadius: 16,
+              background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+              border: '1px solid rgba(255,255,255,.05)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+              padding: '12px 16px',
+              display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الخدمات — اليوم','Services — Today')}</span>
+                <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
+                  <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(todayTotal)}</span> {T('فاتورة','invoices')}
+                </span>
+              </div>
+              {/* Single stacked bar showing all services */}
+              {todayTotal > 0 && (
+                <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
+                  {todaySvcs.filter(s => s.cnt > 0).map(s => {
+                    const theme = SVC_THEME[s.code] || SVC_THEME.general
+                    const pct = (s.cnt / todayTotal) * 100
+                    return <div key={s.code} title={`${theme.label_ar}: ${s.cnt}`} style={{ width: pct + '%', background: theme.c, transition: 'width .3s' }} />
+                  })}
+                </div>
+              )}
+              {/* Services labels list (2 columns, no individual bars) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 16px' }}>
+                {todaySvcs.map(s => {
+                  const theme = SVC_THEME[s.code] || SVC_THEME.general
+                  const isZero = s.cnt === 0
+                  return (
+                    <div key={s.code} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, opacity: isZero ? 0.45 : 1 }}>
+                      <span style={{ color: isZero ? 'var(--tx4)' : theme.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 700 }}>{num(s.cnt)}</span>
+                      <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{T(theme.label_ar, theme.label_en)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+      </div>
+
+      {/* Filter row */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+          <input
+            placeholder={T('ابحث برقم الفاتورة…','Search by invoice no…')}
+            value={q}
+            onChange={e => { setQ(e.target.value); setPage(0) }}
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+          />
+        </div>
+        {(() => {
+          const hasFilters = !!(branchFilter || serviceType || payFilter || from || to || paymentPlan || amountMin || amountMax)
+          const clearAll = () => { setBranchFilter(''); setFrom(''); setTo(''); setServiceType(''); setPayFilter(''); setPaymentPlan(''); setAmountMin(''); setAmountMax(''); setPage(0) }
+          return (
+        <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
+          {T('تصفية','Filter')}
+          {hasFilters ? (
+            <span
+              role="button"
+              tabIndex={0}
+              title={T('مسح الفلاتر','Clear filters')}
+              onClick={e => { e.stopPropagation(); clearAll() }}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); clearAll() } }}
+              onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
+              onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+              style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </span>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="18" y1="6" x2="20" y2="6"/><circle cx="16" cy="6" r="2"/><line x1="4" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="20" y2="12"/><circle cx="10" cy="12" r="2"/><line x1="4" y1="18" x2="16" y2="18"/><line x1="20" y1="18" x2="20" y2="18"/><circle cx="18" cy="18" r="2"/></svg>
+          )}
+        </button>
+          )
+        })()}
+      </div>
+
+      {/* Advanced filter panel — matches Transfer Calc design */}
+      {advOpen && (() => {
+        const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
+        const fInp = { height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.18s', width: '100%', boxSizing: 'border-box' }
+        return (
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+              <div>
+                <div style={fLbl}>{T('المكتب','Branch')}</div>
+                <Sel value={branchFilter} onChange={v => { setBranchFilter(v); setPage(0) }} placeholder={T('كل المكاتب','All branches')} options={[{ v: '', l: T('كل المكاتب','All branches') }, ...branches.map(b => ({ v: b.id, l: b.branch_code }))]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('تاريخ من','Date From')}</div>
+                <DateField value={from} onChange={v => { setFrom(v); setPage(0) }} lang={lang} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('تاريخ إلى','Date To')}</div>
+                <DateField value={to} onChange={v => { setTo(v); setPage(0) }} lang={lang} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('نوع الخدمة','Service Type')}</div>
+                <Sel value={serviceType} onChange={v => { setServiceType(v); setPage(0) }} placeholder={T('الكل','All')} options={[{ v: '', l: T('الكل','All') }, ...services.map(s => ({ v: s.id, l: isAr ? s.value_ar : (s.value_en || s.value_ar) }))]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('حالة السداد','Pay Status')}</div>
+                <Sel value={payFilter} onChange={v => { setPayFilter(v); setPage(0) }} placeholder={T('الكل','All')} options={[{ v: '', l: T('الكل','All') }, { v: 'paid', l: T('مسدّدة','Paid') }, { v: 'partial', l: T('جزئي','Partial') }, { v: 'unpaid', l: T('غير مسدّدة','Unpaid') }]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('خطة الدفع','Payment Plan')}</div>
+                <Sel value={paymentPlan} onChange={v => { setPaymentPlan(v); setPage(0) }} placeholder={T('الكل','All')} options={[{ v: '', l: T('الكل','All') }, { v: 'cash', l: T('نقد','Cash') }, { v: 'installment', l: T('أقساط','Installments') }]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('المبلغ من','Amount Min')}</div>
+                <input type="number" inputMode="decimal" value={amountMin} onChange={e => { setAmountMin(e.target.value); setPage(0) }} placeholder="0" style={{ ...fInp, textAlign: 'center', direction: 'ltr' }} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('المبلغ إلى','Amount Max')}</div>
+                <input type="number" inputMode="decimal" value={amountMax} onChange={e => { setAmountMax(e.target.value); setPage(0) }} placeholder="∞" style={{ ...fInp, textAlign: 'center', direction: 'ltr' }} />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+
+      {/* List */}
+      {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>…</div>}
+      {!loading && err && <div style={{ padding: 60, textAlign: 'center', color: C.red, fontSize: 13 }}>{err}</div>}
+      {!loading && !err && rows.length === 0 && (
+        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
+          {T('لا توجد فواتير','No invoices')}
+        </div>
+      )}
+
+      {!loading && !err && grouped.order.map(dayKey => {
+        const dayRows = grouped.days[dayKey]
+        const dayTotal = dayRows.reduce((s, r) => s + Number(r.total_amount || 0), 0)
+        const dayPaid  = dayRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
+        return (
+          <div key={dayKey} style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: dayKey === todayStr ? C.gold : 'var(--tx2)' }}>{dayLabel(dayKey)}</span>
+                <span style={{ fontSize: 12, color: 'var(--tx4)', fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{dayFull(dayKey)}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 16, fontWeight: 600 }}>
+                <span>{num(dayRows.length)} {T('فاتورة','invoices')}</span>
+                <span style={{ color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(dayTotal)}</span>
+                <span style={{ color: C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(dayPaid)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {dayRows.map((r, idx) => {
+                const svc = SVC_THEME[r.service_type?.code || 'general'] || SVC_THEME.general
+                const pay = inferPayState(r)
+                const payT = PAY_THEME[pay]
+                const remaining = Number(r.remaining_amount || 0)
+                const total = Number(r.total_amount || 0)
+                const paid = Number(r.paid_amount || 0)
+                const pct = total ? Math.min(100, Math.round((paid / total) * 100)) : 0
+                // When workerIsClient was checked at request time, client_id stays null but
+                // a worker exists on the application table — use the worker as the displayed party.
+                // PostgREST returns 1:1 embeds as object (or array depending on schema) — handle both.
+                const sr = r.service_request
+                const pickWorker = (rel) => Array.isArray(rel) ? rel[0]?.worker : rel?.worker
+                const workerFromApp = pickWorker(sr?.transfer_applications)
+                                   || pickWorker(sr?.ajeer_applications)
+                                   || pickWorker(sr?.iqama_renewal_applications)
+                                   || pickWorker(sr?.other_applications)
+                                   || null
+                const party = sr?.client || workerFromApp
+                const partyIsWorker = !sr?.client && !!workerFromApp
+                const partyId = party?.id_number || party?.iqama_number
+                const phone = party?.phone
+                const overdueDays = pay === 'unpaid' ? Math.max(0, Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000)) : 0
+                const shortDate = (() => { try { const d = new Date(r.created_at); return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') } catch { return '' } })()
+                const SVC_ICON = {
+                  work_visa: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4M14 14h4"/></svg>,
+                  transfer: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>,
+                  ajeer: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+                  iqama_renewal: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>,
+                  other: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 2"/></svg>,
+                  general: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>,
+                }
+                const svcCode = r.service_type?.code || 'general'
+                const svcIcon = SVC_ICON[svcCode] || SVC_ICON.general
+                return (
+                  <div key={r.id} onClick={() => setDetail(r)} className="inv-card"
+                    style={{
+                      position: 'relative', cursor: 'pointer',
+                      borderRadius: 14,
+                      background: 'radial-gradient(ellipse at top, rgba(212,160,23,.06) 0%, #222 60%)',
+                      border: '1px solid rgba(255,255,255,.05)',
+                      boxShadow: '0 4px 14px rgba(0,0,0,.22)',
+                      transition: 'all .15s', overflow: 'hidden',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = payT.c + '55' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
+
+                    {/* Padded content */}
+                    <div style={{ padding: '16px 22px 14px 18px' }}>
+                      {/* Top section: client info + amount, separated by vertical divider */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 200px', gap: 18, alignItems: 'center' }}>
+
+                        {/* Right (client) */}
+                        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
+                          {/* Name row */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                            {(() => { const nat = party?.nationality; const fl = nat?.flag_url; const em = flagEmoji(nat?.code); return fl ? <img src={fl} alt={nat?.name_ar || ''} title={nat?.name_ar || ''} style={{ width: 30, height: 21, objectFit: 'cover', flexShrink: 0, borderRadius: 3 }} /> : (em ? <span title={nat?.name_ar || ''} style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null) })()}
+                            <span style={{ fontSize: 17, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>{party?.name_ar || party?.name_en || T('— بدون عميل —','— no client —')}</span>
+                            {partyIsWorker && (
+                              <span title={T('العامل هو العميل','Worker is the client')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5, background: 'rgba(212,160,23,.10)', border: '1px solid rgba(212,160,23,.32)', color: C.gold, fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                                {T('العامل هو العميل','worker = client')}
+                              </span>
+                            )}
+                            {(r.agent?.name_ar || r.agent?.name_en) && (
+                              <span title={T('الوسيط','Broker')} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 7px', borderRadius: 5, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
+                                {isAr ? (r.agent.name_ar || r.agent.name_en) : (r.agent.name_en || r.agent.name_ar)}
+                              </span>
+                            )}
+                            {overdueDays > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5, background: 'rgba(232,114,101,.14)', border: '1px solid rgba(232,114,101,.4)', fontSize: 10, fontWeight: 700, color: C.red, flexShrink: 0 }}>
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                                {T(`متأخرة ${overdueDays} يوم`, `${overdueDays}d overdue`)}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* ID + phone (under name) */}
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {partyId && (
+                              <span title={partyIsWorker ? T('رقم الإقامة','Iqama number') : T('رقم الهوية','ID number')} style={{ fontSize: 11, color: 'var(--tx3)', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/></svg>
+                                <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{partyId}</span>
+                              </span>
+                            )}
+                            {phone && (
+                              <a href={`tel:${phone}`} onClick={e => e.stopPropagation()} title={phone} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--tx3)', direction: 'ltr', textDecoration: 'none', padding: '2px 6px', borderRadius: 5, fontWeight: 600 }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                {phone.replace(/^966/, '0')}
+                              </a>
+                            )}
+                            {r.branch?.branch_code && (
+                              <span title={T('المكتب','Branch')} style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx3)', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+                                {r.branch.branch_code}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Service + INV + branch */}
+                          {(() => {
+                            const qty = Number(r.service_request?.quantity || 0)
+                            const isVisa = r.service_type?.code === 'work_visa'
+                            const va = Array.isArray(r.service_request?.visa_applications) ? r.service_request.visa_applications[0] : null
+                            const subLabel = va?.visa_type ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
+                            const fullLabel = [isAr ? svc.label_ar : svc.label_en, subLabel].filter(Boolean).join(' ')
+                            const showQty = isVisa && qty > 0
+                            return (
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 6, background: svc.bg, border: '1px solid ' + svc.bd, color: svc.c, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                              {showQty && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 800, paddingInlineStart: 8, borderInlineStart: '1px solid ' + svc.bd }}>×{qty}</span>}
+                              <span>{fullLabel}</span>
+                            </span>
+                            {r.service_request?.request_ref_no && (
+                              <span title={T('رقم الطلب الرئيسي','Main request no')} style={{ fontSize: 12, color: 'var(--tx2)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                <button
+                                  title={T('نسخ رقم الطلب','Copy request no')}
+                                  onClick={e => { e.stopPropagation(); try { navigator.clipboard?.writeText(r.service_request.request_ref_no); toast?.(T('تم نسخ رقم الطلب','Request no copied')) } catch {} }}
+                                  style={{ width: 16, height: 16, padding: 0, borderRadius: 3, background: 'transparent', border: 'none', color: 'currentColor', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', opacity: 0.75 }}
+                                  onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
+                                  onMouseLeave={e => { e.currentTarget.style.opacity = '0.75' }}
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                </button>
+                                <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 700 }}>{r.service_request.request_ref_no}</span>
+                              </span>
+                            )}
+                            <span style={{ fontSize: 12, color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              <button
+                                title={T('نسخ رقم الفاتورة','Copy invoice no')}
+                                onClick={e => { e.stopPropagation(); try { navigator.clipboard?.writeText(r.invoice_no); toast?.(T('تم نسخ رقم الفاتورة','Invoice no copied')) } catch {} }}
+                                style={{ width: 16, height: 16, padding: 0, borderRadius: 3, background: 'transparent', border: 'none', color: 'currentColor', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', opacity: 0.75 }}
+                                onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
+                                onMouseLeave={e => { e.currentTarget.style.opacity = '0.75' }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                              </button>
+                              <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 700 }}>{r.invoice_no}</span>
+                            </span>
+                          </div>
+                            )
+                          })()}
+                        </div>
+
+                        {/* Vertical divider */}
+                        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,.06)', minHeight: 60 }} />
+
+                        {/* Left (amount) — structured with header, big value, paid/remaining rows */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {/* Date row */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('الإجمالي','Total')}</span>
+                            <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{shortDate}</span>
+                          </div>
+                          {/* Big amount */}
+                          <div style={{ fontSize: 28, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{num(total)}</div>
+                          {/* Paid / Remaining structured rows */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                              <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('المسدّد','Paid')}</span>
+                              <span style={{ color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(paid)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                              <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('المتبقي','Remaining')}</span>
+                              <span style={{ color: remaining > 0 ? C.warn : C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{remaining > 0 ? '− ' + num(remaining) : '✓'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Progress strip — flush at bottom edge of card */}
+                    <div style={{ height: 5, background: 'rgba(255,255,255,.05)' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: payT.c, transition: 'width .3s' }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Pagination — Slim split with divider lines */}
+      {!loading && total > PAGE && (() => {
+        const goPrev = () => { setPage(p => Math.max(0, p - 1)); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
+        const goNext = () => { setPage(p => p + 1); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
+        const goTo = n => { setPage(Math.max(0, Math.min(totalPages - 1, n))); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
+        const PrevIco = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        const NextIco = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        const prevDisabled = page === 0
+        const nextDisabled = page + 1 >= totalPages
+        const fromN = (page*PAGE)+1
+        const toN = Math.min(total,(page+1)*PAGE)
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,.06)', margin: '4px 4px 14px' }}>
+          <style>{`
+            .inv-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
+            .inv-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
+            .inv-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
+            .inv-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+            .inv-pg-input::-webkit-outer-spin-button,.inv-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+          `}</style>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 13, color: '#fff', fontWeight: 700, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
+            <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500, fontFamily: F }}>{T('صفحة','Page')} {page+1} {T('من','of')} {totalPages}</span>
+          </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <button className="inv-pg-btn" disabled={prevDisabled} onClick={goPrev} aria-label={T('السابق','Prev')}><PrevIco/></button>
+            <input className="inv-pg-input" type="number" min={1} max={totalPages} value={page+1} onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) goTo(v-1) }}/>
+            <button className="inv-pg-btn" disabled={nextDisabled} onClick={goNext} aria-label={T('التالي','Next')}><NextIco/></button>
+          </div>
+        </div>
+      })()}
+
+
+    </div>
+  )
 }
-input[type="date"].iv-noring.iv-noring.iv-noring.iv-noring::-webkit-calendar-picker-indicator{filter:invert(70%) sepia(60%) saturate(500%) hue-rotate(20deg)}
-`}</style>
 
-{(()=>{const glassCard={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',padding:'10px 12px',position:'relative',overflow:'hidden',transition:'.2s'}
-const pillBox={background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}
-return<div style={{display:'grid',gridTemplateColumns:'minmax(0,2.6fr) minmax(0,1fr)',gap:14,marginBottom:14}}>
-<div style={glassCard} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)'}}>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 2fr',gap:10,marginBottom:8,alignItems:'center'}}>
-{[{l:T('مسدّدة','Paid'),v:sts.pdc,c:C.ok},{l:T('جزئي','Partial'),v:sts.prc,c:C.gold},{l:T('غير مسدّدة','Unpaid'),v:sts.uc,c:C.red}].map(s=>(
-<div key={s.l} style={{padding:'7px 12px',borderRadius:10,...pillBox,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{width:6,height:6,borderRadius:'50%',background:s.c,boxShadow:'0 0 5px '+s.c}}/>
-<div style={{fontSize:20,fontWeight:700,color:s.c,letterSpacing:'-.3px',direction:'ltr',lineHeight:1}}>{s.v}</div>
-</div>
-<div style={{fontSize:12,color:'var(--tx2)',fontWeight:600}}>{s.l}</div>
-</div>))}
-<div style={{minWidth:0,padding:'0 6px',display:'flex',alignItems:'center',gap:10}}>
-<span style={{fontSize:12,color:'var(--tx2)',fontWeight:600,whiteSpace:'nowrap'}}>{T('نسبة التحصيل','Collection rate')}</span>
-<div style={{flex:1,height:7,borderRadius:5,background:'rgba(255,255,255,.06)',overflow:'hidden',position:'relative'}}>
-<div style={{width:collectionPct+'%',height:'100%',background:`linear-gradient(90deg, ${C.ok}cc, ${C.ok})`,borderRadius:5,transition:'.4s',boxShadow:'0 0 8px '+C.ok+'66'}}/>
-</div>
-<span style={{fontSize:13,fontWeight:700,color:C.ok,direction:'ltr'}}>{collectionPct}%</span>
-</div>
-</div>
-{/* Smooth chart — paid vs due */}
-{(()=>{const n=periodSeries.length;if(n<2)return null
-const W=560,H=88,padL=26,padR=12,padT=12,padB=12
-const cw=W-padL-padR,ch=H-padT-padB
-const mx=Math.max(1,...periodSeries.flatMap(p=>[p.paid,p.due]))
-const niceMx=Math.max(100,Math.ceil(mx/100)*100)
-const xAt=i=>(padL+(i/(n-1))*cw).toFixed(1)
-const yAt=v=>(padT+ch-(v/niceMx)*ch).toFixed(1)
-const smooth=(pts)=>{if(pts.length<2)return ''
-let d='M'+pts[0][0]+','+pts[0][1]
-for(let i=0;i<pts.length-1;i++){const[x0,y0]=pts[Math.max(0,i-1)],[x1,y1]=pts[i],[x2,y2]=pts[i+1],[x3,y3]=pts[Math.min(pts.length-1,i+2)]
-const t=.22
-const c1x=x1+(x2-x0)*t,c1y=y1+(y2-y0)*t
-const c2x=x2-(x3-x1)*t,c2y=y2-(y3-y1)*t
-d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+x2+','+y2}
-return d}
-const ptsOf=(k)=>periodSeries.map((p,i)=>[Number(xAt(i)),Number(yAt(p[k]))])
-const lineP=(k)=>smooth(ptsOf(k))
-const areaP=(k)=>{const p=ptsOf(k);if(p.length<2)return '';return smooth(p)+' L'+p[p.length-1][0]+','+(padT+ch)+' L'+p[0][0]+','+(padT+ch)+' Z'}
-const yTicks=[0,niceMx/2,niceMx]
-const fmtTick=v=>v>=1000?Math.round(v/1000)+'k':String(Math.round(v))
-return<div style={{padding:'6px 10px'}}>
-<svg width="100%" viewBox={`0 0 ${W} ${H-padB+14}`} preserveAspectRatio="none" style={{display:'block',height:90}}>
-<defs>
-<linearGradient id="inv-gp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.ok} stopOpacity=".35"/><stop offset="100%" stopColor={C.ok} stopOpacity="0"/></linearGradient>
-<linearGradient id="inv-gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.red} stopOpacity=".3"/><stop offset="100%" stopColor={C.red} stopOpacity="0"/></linearGradient>
-</defs>
-{yTicks.map((t,i)=><g key={i}>
-<line x1={padL} x2={W-padR} y1={yAt(t)} y2={yAt(t)} stroke="rgba(255,255,255,.05)" strokeWidth="1"/>
-<text x={padL-6} y={Number(yAt(t))+3} fontSize="9" fill="rgba(255,255,255,.3)" textAnchor="end" fontFamily="'Cairo',sans-serif">{fmtTick(t)}</text>
-</g>)}
-<path d={areaP('paid')} fill="url(#inv-gp)"/><path d={lineP('paid')} fill="none" stroke={C.ok} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-<path d={areaP('due')} fill="url(#inv-gd)"/><path d={lineP('due')} fill="none" stroke={C.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-{['paid','due'].map((k)=>{const c=k==='paid'?C.ok:C.red;const last=ptsOf(k)[n-1];return<circle key={k} cx={last[0]} cy={last[1]} r="4" fill="#2A2A2A" stroke={c} strokeWidth="2"/>})}
-</svg>
-</div>
-})()}
-</div>
-<div style={{...glassCard,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6}} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)'}}>
-<span style={{fontSize:13,fontWeight:600,color:'var(--tx2)',letterSpacing:'.1px'}}>{T('متوسط قيمة الفاتورة','Avg invoice value')}</span>
-<div style={{display:'flex',alignItems:'baseline',gap:8,marginTop:2}}>
-<span style={{fontSize:54,fontWeight:700,color:C.gold,letterSpacing:'-1.2px',lineHeight:1,textShadow:`0 0 22px ${C.gold}33`,direction:'ltr'}}>{num(avgInvoiceValue)}</span>
-<span style={{fontSize:16,fontWeight:600,color:C.gold,opacity:.75}}>{T('ريال','SAR')}</span>
-</div>
-<div style={{fontSize:12,fontWeight:600,color:'var(--tx4)',letterSpacing:'.3px'}}>{T('عبر '+activeInvCount+' فاتورة','Across '+activeInvCount+' invoices')}</div>
-</div>
-</div>})()}
+/* ═════════════ Full-page detail ═════════════ */
+function InvoiceDetailPage({ sb, inv, onBack, isAr, T, toast }) {
+  const [data, setData] = useState({ loading: true })
+  const [actionModal, setActionModal] = useState(null)
 
-<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,flexWrap:'wrap'}}>
-<div style={{flex:1,minWidth:240,position:'relative'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',right:isAr?12:'auto',left:isAr?'auto':12,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,.4)'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input className="iv-noring" value={q} onChange={e=>setQ(e.target.value)} placeholder={T('ابحث برقم الفاتورة أو اسم العميل أو الجوال...','Search by invoice no, client name, or phone...')} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',direction:isAr?'rtl':'ltr',boxSizing:'border-box'}}/>
-</div>
-{(()=>{const advActive=advOpen||Object.values(advFilter).some(Boolean)
-return<button onClick={()=>setAdvOpen(o=>!o)} style={{height:40,padding:'0 14px',borderRadius:11,border:advActive?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.06)',background:advActive?'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:advActive?C.gold:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:10,boxShadow:advActive?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',flexShrink:0}}>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-{T('بحث متقدم','Advanced Search')}
-{Object.values(advFilter).filter(Boolean).length>0&&<span style={{background:C.gold,color:'#000',fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:999}}>{Object.values(advFilter).filter(Boolean).length}</span>}
-</button>})()}
-{q&&<button onClick={()=>setQ('')} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid rgba(192,57,43,.3)',background:'linear-gradient(180deg,rgba(192,57,43,.16),rgba(192,57,43,.08))',color:C.red,cursor:'pointer',fontFamily:F,fontSize:12,fontWeight:500,flexShrink:0,boxShadow:'0 2px 8px rgba(192,57,43,.18), inset 0 1px 0 rgba(192,57,43,.18)',transition:'.2s'}}>{T('مسح','Clear')}</button>}
-</div>
-{advOpen&&(()=>{const inS={width:'100%',height:38,padding:'0 12px',border:'1px solid rgba(255,255,255,.06)',borderRadius:10,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',color:'var(--tx)',fontFamily:F,fontSize:12,fontWeight:500,outline:'none',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'};const dateS={...inS,colorScheme:'dark',direction:'ltr',textAlign:'center'};const numS={...inS,direction:'ltr',textAlign:'center'};const selS={...inS,colorScheme:'dark',cursor:'pointer'};const advLblS={fontSize:12,color:'var(--tx3)',fontWeight:600,marginBottom:6}
-return<div style={{marginBottom:14,padding:'16px 18px',background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:12}}>
-<div><div style={advLblS}>{T('من تاريخ','From')}</div><input className="iv-noring" type="date" value={advFilter.from} onChange={e=>setAdvFilter(f=>({...f,from:e.target.value}))} style={dateS}/></div>
-<div><div style={advLblS}>{T('إلى تاريخ','To')}</div><input className="iv-noring" type="date" value={advFilter.to} onChange={e=>setAdvFilter(f=>({...f,to:e.target.value}))} style={dateS}/></div>
-<div><div style={advLblS}>{T('الحالة','Status')}</div>
-<select className="iv-noring" value={advFilter.status} onChange={e=>setAdvFilter(f=>({...f,status:e.target.value}))} style={selS}>
-<option value="">{T('الكل','All')}</option>
-<option value="paid">{T('مسدّدة','Paid')}</option>
-<option value="partial">{T('جزئي','Partial')}</option>
-<option value="unpaid">{T('غير مسدّدة','Unpaid')}</option>
-<option value="cancelled">{T('ملغاة','Cancelled')}</option>
-</select></div>
-<div><div style={advLblS}>{T('نوع الخدمة','Service Type')}</div>
-<select className="iv-noring" value={advFilter.service} onChange={e=>setAdvFilter(f=>({...f,service:e.target.value}))} style={selS}>
-<option value="">{T('الكل','All')}</option>
-{Object.entries(svcLabelAr).map(([k,v])=><option key={k} value={k}>{v}</option>)}
-</select></div>
-<div><div style={advLblS}>{T('العميل','Client')}</div>
-<select className="iv-noring" value={advFilter.client} onChange={e=>setAdvFilter(f=>({...f,client:e.target.value}))} style={selS}>
-<option value="">{T('الكل','All')}</option>
-{clients.map(c=><option key={c.id} value={c.id}>{c.name_ar}</option>)}
-</select></div>
-<div><div style={advLblS}>{T('المبلغ — أقل','Amount — Min')}</div><input className="iv-noring" type="number" value={advFilter.amountMin} onChange={e=>setAdvFilter(f=>({...f,amountMin:e.target.value}))} placeholder="0" style={numS}/></div>
-<div><div style={advLblS}>{T('المبلغ — أعلى','Amount — Max')}</div><input className="iv-noring" type="number" value={advFilter.amountMax} onChange={e=>setAdvFilter(f=>({...f,amountMax:e.target.value}))} placeholder="∞" style={numS}/></div>
-<div style={{display:'flex',alignItems:'flex-end'}}><button onClick={()=>setAdvFilter({from:'',to:'',service:'',client:'',amountMin:'',amountMax:'',status:''})} style={{width:'100%',height:38,borderRadius:10,border:'1px solid rgba(192,57,43,.3)',background:'linear-gradient(180deg,rgba(192,57,43,.16),rgba(192,57,43,.08))',color:C.red,fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',boxShadow:'0 2px 8px rgba(192,57,43,.18), inset 0 1px 0 rgba(192,57,43,.18)',transition:'.2s'}}>{T('مسح الفلاتر','Clear filters')}</button></div>
-</div>
-</div>})()}
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const code = inv.service_type?.code
+      const srId = inv.service_request?.id
 
-{loading?<div style={{textAlign:'center',padding:60,color:'var(--tx5)',fontSize:13,fontWeight:500}}>{T('جاري تحميل الفواتير...','Loading...')}</div>:
-filtered.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)',fontSize:13,fontWeight:500}}>{T('لا توجد فواتير مطابقة','No invoices match')}</div>:
-<div>
-{groupOrder.map((dateKey,gi)=>{
-const items=groups[dateKey]
-const isToday=dateKey===today
-const dayPaid=items.filter(i=>i.status==='paid').length
-const dayPartial=items.filter(i=>i.status==='partial').length
-const dayUnpaid=items.filter(i=>i.status==='unpaid').length
+      const SELECTS = {
+        work_visa: `id,visa_number,visa_cost,border_number,wakalah_number,wakalah_date,wakalah_office,visa_used,visa_used_date_check,gender,
+          main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
+          nationality:nationality_id(name_ar,name_en),
+          occupation:occupation_id(name_ar,name_en),
+          embassy:embassy_id(name_ar,name_en),
+          visa_type:visa_type_id(value_ar,value_en),
+          visa_order_kind:visa_order_kind_id(value_ar,value_en),
+          wakalah_status:wakalah_status_id(value_ar,value_en)`,
+        transfer: `id,reference_number,total_price_initial,total_price_final,discount,office_cost,iqama_expiry_date,
+          worker:worker_id(name_ar,name_en,iqama_number,phone),
+          main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
+          new_occupation:new_occupation_id(name_ar,name_en),
+          status:status_id(value_ar,value_en),
+          worker_status:worker_status_id(value_ar,value_en)`,
+        ajeer: `id,duration_months,start_date,end_date,
+          worker:worker_id(name_ar,name_en,iqama_number),
+          ajeer_facility:ajeer_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
+          main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
+          ajeer_city:ajeer_city_id(name_ar,name_en)`,
+        iqama_renewal: `id,duration_months,current_expire_date,new_expire_date,
+          worker:worker_id(name_ar,name_en,iqama_number),
+          worker_facility:worker_facility_id(name_ar,unified_number)`,
+        iqama_issuance: `id,is_temporary,entry_date,check_date,worker_name_at_entry,
+          iqama_status,iqama_number,iqama_expiry,iqama_amount,
+          medical_status,medical_amount,
+          work_permit_status,work_permit_expiry,work_permit_amount,
+          insurance_status,insurance_amount,
+          iqama_print_status,iqama_print_amount,iqama_delivery_status,
+          contract_authentication_status,all_payment_status,
+          worker:worker_id(name_ar,name_en,iqama_number),
+          main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number)`,
+        other: `id,description,
+          worker:worker_id(name_ar,name_en,iqama_number),
+          worker_facility:worker_facility_id(name_ar,unified_number)`,
+      }
+      const TABLES = { work_visa: 'visa_applications', transfer: 'transfer_applications', ajeer: 'ajeer_applications', iqama_renewal: 'iqama_renewal_applications', iqama_issuance: 'iqama_issuance_applications', other: 'other_applications' }
+      const tbl = TABLES[code]
+      const sel = SELECTS[code]
 
-return<div key={dateKey} style={{marginBottom:22}}>
-<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-<div style={{width:10,height:10,borderRadius:'50%',background:isToday?C.gold:'rgba(255,255,255,.18)',flexShrink:0,boxShadow:isToday?'0 0 8px '+C.gold+'55':'none'}}/>
-<div style={{fontSize:13,fontWeight:600,color:isToday?C.gold:'rgba(255,255,255,.65)'}}>{dayLabel(dateKey)}</div>
-<div style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>{dayFull(dateKey)}</div>
-<div style={{flex:1,height:1,background:'rgba(255,255,255,.07)'}}/>
-<div style={{display:'flex',gap:8,fontSize:11,fontWeight:500}}>
-<span style={{color:'var(--tx5)'}}>{items.length} {T('فاتورة','inv')}</span>
-{dayPaid>0&&<span style={{color:'rgba(39,174,96,.6)'}}>{dayPaid} {T('مسدّدة','paid')}</span>}
-{dayPartial>0&&<span style={{color:C.gold}}>{dayPartial} {T('جزئي','partial')}</span>}
-{dayUnpaid>0&&<span style={{color:'rgba(192,57,43,.6)'}}>{dayUnpaid} {T('غير مسدّدة','unpaid')}</span>}
-</div>
-</div>
+      const [insts, pays, det] = await Promise.all([
+        sb.from('installments').select('id,installment_order,total_amount,paid_amount,expected_date,paid_date,receipt_no,bank_reference,notes,payment_method:payment_method_id(value_ar,value_en),payment_milestone:payment_milestone_id(value_ar,value_en)').eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order'),
+        sb.from('payments').select('id,amount,payment_date,is_valid,receipt_no,bank_reference,payment_method:payment_method_id(value_ar,value_en),installment_id').eq('invoice_id', inv.id).is('deleted_at', null).order('payment_date', { ascending: false }),
+        (tbl && srId) ? sb.from(tbl).select(sel).eq('service_request_id', srId) : Promise.resolve({ data: [] }),
+      ])
+      if (alive) setData({ loading: false, insts: insts.data || [], pays: pays.data || [], det: det.data || [], code })
+    })()
+    return () => { alive = false }
+  }, [sb, inv.id, inv.service_type?.code, inv.service_request?.id])
 
-<div style={{display:'flex',flexDirection:'column',gap:8,paddingInlineStart:20,borderInlineStart:'2px solid '+(isToday?'rgba(212,160,23,.15)':'rgba(255,255,255,.07)')}}>
-{items.map((inv,ii)=>{
-const sc=stClr[inv.status]||'#999'
-const rem=Number(inv.remaining_amount||0)
-const paid=Number(inv.paid_amount||0)
-const total=Number(inv.total_amount||0)
-const dueDate=inv.due_date?new Date(inv.due_date+'T00:00:00'):null
-const nowDate=new Date()
-const isOverdue=dueDate&&inv.status!=='paid'&&inv.status!=='cancelled'&&dueDate<nowDate
-const daysLeft=dueDate&&inv.status!=='paid'&&inv.status!=='cancelled'?Math.ceil((dueDate-nowDate)/86400000):null
-const relTime=(()=>{if(!inv.created_at)return'—';const h=Math.floor((Date.now()-new Date(inv.created_at).getTime())/3600000);if(h<1)return T('الآن','just now');if(h<24)return T('منذ '+h+'س',h+'h ago');const d=Math.floor(h/24);return d===1?T('أمس','yesterday'):T('منذ '+d+' يوم',d+'d ago')})()
-const tags=[]
-if(inv.service_category&&svcLabelAr[inv.service_category])tags.push(svcLabelAr[inv.service_category])
-if(inv.brokers?.name_ar)tags.push('⟡ '+inv.brokers.name_ar)
-if(isOverdue)tags.push(T('متأخر '+Math.abs(daysLeft)+' يوم','Overdue '+Math.abs(daysLeft)+'d'))
-else if(daysLeft!==null&&daysLeft>=0&&daysLeft<=7)tags.push(T('يستحق خلال '+daysLeft+' يوم','Due in '+daysLeft+'d'))
-const branch=branchMap[inv.branch_id]
-const CopyBtn=({val})=><button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(val);toast&&toast(T('تم النسخ','Copied'))}} title={T('نسخ','Copy')} style={{width:18,height:18,background:'transparent',border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,color:'var(--tx6)',flexShrink:0,opacity:.55}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.opacity=1}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx6)';e.currentTarget.style.opacity=.55}}>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-</button>
-return<div key={inv.id} onClick={()=>openView(inv)} style={{background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',borderRadius:16,overflow:'visible',transition:'.25s cubic-bezier(.4,0,.2,1)',border:'1px solid rgba(255,255,255,.08)',boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',position:'relative',cursor:'pointer',padding:'18px 22px',display:'grid',gridTemplateColumns:'1fr auto auto',gap:22,alignItems:'center'}}
-onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+sc+'33, inset 0 1px 0 rgba(255,255,255,.08)'}}
-onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
-<div style={{minWidth:0,display:'flex',flexDirection:'column',gap:8}}>
-<div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-<span style={{fontSize:14,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',letterSpacing:'.15px'}}>{inv.clients?.name_ar||T('بدون عميل','No client')}</span>
-<CopyBtn val={inv.clients?.name_ar||''}/>
-<span style={{width:3,height:3,borderRadius:'50%',background:'var(--tx6)',opacity:.5}}/>
-<span style={{display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{fontSize:12,color:sc,fontWeight:600,fontFamily:"'JetBrains Mono',monospace",direction:'ltr',letterSpacing:'.4px'}}>#{inv.invoice_number||'—'}</span>
-<CopyBtn val={String(inv.invoice_number||'')}/>
-</span>
-<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:sc+'15',color:sc,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:sc}}/>{stLabel[inv.status]||inv.status}
-</span>
-</div>
-<div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',fontSize:12,color:'var(--tx5)'}}>
-{inv.clients?.phone&&<span style={{display:'inline-flex',alignItems:'center',gap:6}}>
-<span style={{fontFamily:"'JetBrains Mono',monospace",direction:'ltr',color:'var(--tx2)',fontWeight:500,fontSize:13,letterSpacing:'.3px'}}>{inv.clients.phone}</span>
-<CopyBtn val={inv.clients.phone}/>
-</span>}
-{inv.clients?.phone&&<span style={{width:3,height:3,borderRadius:'50%',background:'var(--tx6)',opacity:.5}}/>}
-<span style={{display:'inline-flex',alignItems:'center',gap:4,fontWeight:500}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-{relTime}
-</span>
-</div>
-{tags.length>0&&<div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',fontSize:12,color:'rgba(255,255,255,.8)',fontWeight:500,letterSpacing:'.2px'}}>
-{tags.map((tag,i)=><React.Fragment key={i}>{i>0&&<span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.3)'}}/>}<span>{tag}</span></React.Fragment>)}
-</div>}
-</div>
+  const svc = SVC_THEME[inv.service_type?.code || 'general'] || SVC_THEME.general
+  const pay = inferPayState(inv)
+  const payT = PAY_THEME[pay]
+  const total = Number(inv.total_amount || 0)
+  const paid = Number(inv.paid_amount || 0)
+  const remaining = Number(inv.remaining_amount || 0)
+  const pct = total ? Math.min(100, Math.round((paid / total) * 100)) : 0
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const overdueCount = (data.insts || []).filter(i => {
+    const insTotal = Number(i.total_amount || 0)
+    const insPaid = Number(i.paid_amount || 0)
+    return insTotal > insPaid && i.expected_date && i.expected_date < todayStr
+  }).length
 
-<div style={{display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:'0 6px'}}>
-<div style={{transform:'scale(.85)',transformOrigin:'center'}}>
-<OfficialStampBadge status={stLabel[inv.status]||inv.status} branchCode={branch?.code} date={inv.issue_date} color={sc} rotate={-5}/>
-</div>
-</div>
+  const onRecordPayment = () => setActionModal('payment')
+  const onRefund        = () => setActionModal('refund')
+  const onCancelInv     = () => setActionModal('cancel')
+  const onPrint         = () => setActionModal('print')
 
-<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flexShrink:0,borderInlineStart:'1px dashed rgba(255,255,255,.18)',paddingInlineStart:22}}>
-<div style={{fontSize:11,color:C.gold,opacity:.75,fontWeight:600,letterSpacing:'1.5px'}}>{T('الإجمالي','TOTAL')}</div>
-<div style={{lineHeight:1,fontVariantNumeric:'tabular-nums',textAlign:'center'}}><bdi style={{fontSize:28,fontWeight:700,color:C.gold,letterSpacing:'-.6px'}}>{num(Math.round(total))}</bdi> <span style={{fontSize:13,fontWeight:600,color:C.gold,opacity:.7,letterSpacing:'.3px'}}>{T('ريال','SAR')}</span></div>
-{inv.status!=='paid'&&inv.status!=='cancelled'&&<div style={{display:'flex',alignItems:'center',gap:8,marginTop:3,fontSize:11,fontWeight:600}}>
-<span style={{color:paid>0?C.ok:'var(--tx6)'}}>{T('مدفوع','Paid')}: {num(paid)}</span>
-<span style={{width:1,height:10,background:'rgba(255,255,255,.08)'}}/>
-<span style={{color:rem>0?(inv.status==='partial'?C.gold:C.red):C.ok}}>{T('متبقي','Due')}: {num(rem)}</span>
-</div>}
-</div>
-</div>})}
-</div>
-</div>})}
-</div>}
+  return (
+    <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
+      {/* Top bar: back */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+        <button onClick={onBack} title={T('رجوع','Back')} style={{ height: 40, padding: '0 14px', borderRadius: 11, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.78)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 500, transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)'; e.currentTarget.style.color = C.gold }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'rgba(255,255,255,.78)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          <span>{T('رجوع','Back')}</span>
+        </button>
+      </div>
 
+      {/* Header — underlined title + tags */}
+      <div style={{ marginBottom: 18, marginTop: 6 }}>
+        <div style={{ fontSize: 21, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{T('تفاصيل الفاتورة','Invoice Details')}</div>
+        <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)' }}>
+          {(() => {
+            const isVisa = inv.service_type?.code === 'work_visa'
+            const va = Array.isArray(inv.service_request?.visa_applications) ? inv.service_request.visa_applications[0] : null
+            const sub = va?.visa_type ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
+            const qty = Number(inv.service_request?.quantity || 0)
+            const full = [isAr ? svc.label_ar : svc.label_en, sub].filter(Boolean).join(' ')
+            const showQty = isVisa && qty > 0
+            return (
+              <span style={{ color: svc.c, fontSize: 12, fontWeight: 700, borderBottom: '1.5px solid ' + svc.c, paddingBottom: 1, display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+                {showQty && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 800 }}>×{qty}</span>}
+                <span>{full}</span>
+              </span>
+            )
+          })()}
+          <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>
+            <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 600 }}>#{inv.invoice_no}</span>
+            <button
+              title={T('نسخ رقم الفاتورة','Copy invoice no')}
+              onClick={() => { try { navigator.clipboard?.writeText(inv.invoice_no); toast?.(T('تم نسخ رقم الفاتورة','Invoice no copied')) } catch {} }}
+              style={{ width: 19, height: 19, padding: 0, borderRadius: 4, background: 'transparent', border: 'none', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.18s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = C.gold }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--tx4)' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </span>
+          {inv.branch?.branch_code && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
+              <span title={T('المكتب','Branch')} style={{ color: C.gold, fontWeight: 700, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
+                <span>{inv.branch.branch_code}</span>
+              </span>
+            </>
+          )}
+          <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
+          <span style={{ color: 'var(--tx4)' }}>{fmtDateTime(inv.created_at, isAr)}</span>
+          {overdueCount > 0 && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
+              <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(229,134,122,.10)', border: '1px solid ' + C.red, color: C.red, fontSize: 10.5, fontWeight: 800, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>{overdueCount} {T(overdueCount === 1 ? 'دفعة متأخرة' : 'دفعات متأخرة', overdueCount === 1 ? 'overdue payment' : 'overdue payments')}</span>
+              </span>
+            </>
+          )}
+        </div>
+      </div>
 
-{payPop&&<div onClick={()=>setPayPop(null)} style={overlayS}>
-<div onClick={e=>e.stopPropagation()} style={{...popupS,width:500}}>
-<div style={headS}>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<div style={{width:36,height:36,borderRadius:10,background:'linear-gradient(180deg,rgba(39,174,96,.16),rgba(39,174,96,.08))',border:'1px solid rgba(39,174,96,.25)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05)'}}>
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="1.5"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-</div>
-<div><div style={{color:'var(--tx)',fontSize:14,fontWeight:600}}>تسجيل دفعة جديدة</div>
-<div style={{fontSize:11,fontWeight:500,color:'var(--tx4)',marginTop:2}}>الفاتورة #{payF.inv_num} — {payF.client}</div></div>
-</div>
-<button onClick={()=>setPayPop(null)} style={closeS}>✕</button>
-</div>
-<div style={{padding:'18px 22px'}}>
-<div style={{padding:'10px 14px',background:'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))',borderRadius:11,border:'1px solid rgba(212,160,23,.25)',marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:'inset 0 1px 0 rgba(212,160,23,.18)'}}>
-<span style={{fontSize:12,fontWeight:600,color:'var(--tx3)'}}>المبلغ المتبقي</span>
-<span style={{fontSize:18,fontWeight:700,color:C.gold,direction:'ltr',letterSpacing:'-.3px'}}>{num(payF.max)} ر.س</span>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div><div style={lblS}>المبلغ <span style={{color:C.red}}>*</span></div><input className="iv-noring" value={payF.amount} onChange={e=>setPayF(p=>({...p,amount:e.target.value}))} type="number" placeholder="0.00" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-<div><div style={lblS}>طريقة الدفع</div>
-<select className="iv-noring" value={payF.method} onChange={e=>setPayF(p=>({...p,method:e.target.value}))} style={{...fieldS,textAlign:'right',cursor:'pointer'}}>
-<option value="cash">نقداً</option><option value="bank_transfer">حوالة بنكية</option></select></div>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:12}}>
-<div><div style={lblS}>التاريخ</div><input className="iv-noring" value={payF.date} onChange={e=>setPayF(p=>({...p,date:e.target.value}))} type="date" style={{...fieldS,direction:'ltr'}}/></div>
-<div><div style={lblS}>رقم المرجع</div><input className="iv-noring" value={payF.reference} onChange={e=>setPayF(p=>({...p,reference:e.target.value}))} placeholder="اختياري" style={{...fieldS,direction:'ltr',textAlign:'left'}}/></div>
-</div>
-<div style={{marginTop:12}}><div style={lblS}>ملاحظات</div>
-<textarea className="iv-noring" value={payF.notes} onChange={e=>setPayF(p=>({...p,notes:e.target.value}))} rows={2} placeholder="ملاحظات إضافية ..." style={{...fieldS,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/></div>
-</div>
-<div style={{padding:'14px 22px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',justifyContent:'space-between',flexDirection:'row-reverse'}}>
-<button onClick={savePay} disabled={saving} style={{...goldBtnS,minWidth:140,opacity:saving?.7:1}}>{saving?'جاري التسجيل...':'تسجيل الدفعة'}</button>
-<button onClick={()=>setPayPop(null)} style={ghostBtnS}>إلغاء</button>
-</div></div></div>}
+      <InvoiceDetailLayout inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} />
 
-{viewPop&&(()=>{const v=viewPop;const stClr=v.status==='paid'?C.ok:v.status==='partial'?C.gold:C.red;const paidPct=Number(v.total_amount)>0?Math.round(Number(v.paid_amount||0)/Number(v.total_amount)*100):0;const daysUntilDue=v.due_date?Math.ceil((new Date(v.due_date)-new Date())/86400000):null;const isOverdue=v.status!=='paid'&&daysUntilDue!==null&&daysUntilDue<0
-return<div onClick={()=>setViewPop(null)} style={overlayS}>
-<div onClick={e=>e.stopPropagation()} style={{...popupS,width:860,height:'min(600px,88vh)'}}>
-<div style={headS}>
-<div style={{display:'flex',alignItems:'center',gap:12,flex:1}}>
-<div style={{width:44,height:44,borderRadius:12,background:'linear-gradient(180deg,'+stClr+'22,'+stClr+'10)',border:'1px solid '+stClr+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0,color:stClr,boxShadow:'inset 0 1px 0 rgba(255,255,255,.06)'}}>{v.status==='paid'?'✓':v.status==='partial'?'◐':'○'}</div>
-<div style={{flex:1}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
-<span style={{fontSize:16,fontWeight:600,color:'var(--tx)'}}>#{v.invoice_number}</span>
-<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:stClr+'15',color:stClr,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:stClr}}/>{statusLabels[v.status]||v.status}
-</span>
-{isOverdue&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:C.red}}/>متأخرة {Math.abs(daysUntilDue)} يوم
-</span>}
-</div>
-<div style={{fontSize:12,fontWeight:500,color:'var(--tx4)'}}>{v.clients?.name_ar||'—'} · {svcLabelAr[v.service_category]||v.service_category||''}</div>
-<div style={{display:'flex',alignItems:'center',gap:8,marginTop:6}}>
-<div style={{flex:1,maxWidth:180,height:4,borderRadius:2,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:paidPct+'%',borderRadius:2,background:paidPct>=100?C.ok:paidPct>0?C.gold:C.red,transition:'.5s'}}/></div>
-<span style={{fontSize:11,fontWeight:600,color:paidPct>=100?C.ok:C.gold}}>{paidPct}% {paidPct>=100?'مسدد':'محصّل'}</span>
-</div>
-</div></div>
-<button onClick={()=>setViewPop(null)} style={closeS}>✕</button>
-</div>
-<div style={{flex:1,display:'flex',overflow:'hidden'}}>
-<div style={{width:148,background:'rgba(0,0,0,.18)',borderLeft:'1px solid rgba(255,255,255,.06)',padding:'12px 8px',flexShrink:0}}>
-{[{id:'info',l:'📋 البيانات'},{id:'financial',l:'💰 المالية'},{id:'payments',l:'💳 المدفوعات',n:payments.length},{id:'installments',l:'📅 الأقساط',n:installments.length}].map(t=><div key={t.id} onClick={()=>setViewTab(t.id)} style={{padding:'10px 12px',borderRadius:10,marginBottom:4,fontSize:12,fontWeight:viewTab===t.id?600:500,color:viewTab===t.id?C.gold:'rgba(255,255,255,.55)',background:viewTab===t.id?'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))':'transparent',border:viewTab===t.id?'1px solid rgba(212,160,23,.45)':'1px solid transparent',boxShadow:viewTab===t.id?'inset 0 1px 0 rgba(212,160,23,.18)':'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'.2s'}}><span>{t.l}</span>{t.n>0&&<span style={{fontSize:10,fontWeight:600,color:viewTab===t.id?C.gold:'rgba(255,255,255,.45)',background:viewTab===t.id?'rgba(212,160,23,.18)':'rgba(255,255,255,.06)',padding:'1px 7px',borderRadius:6}}>{t.n}</span>}</div>)}
-</div>
-<div className="dash-content" style={{flex:1,overflowY:'auto',padding:'18px 22px'}}>
-{viewTab==='info'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-{v.clients?.name_ar&&<div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(212,160,23,.18)',borderRadius:11,padding:'12px 14px',display:'flex',alignItems:'center',gap:12,boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}>
-<div style={{width:38,height:38,borderRadius:10,background:'linear-gradient(180deg,rgba(212,160,23,.22),rgba(212,160,23,.10))',border:'1px solid rgba(212,160,23,.35)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:600,color:C.gold,boxShadow:'inset 0 1px 0 rgba(212,160,23,.18)'}}>{v.clients.name_ar[0]}</div>
-<div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{v.clients.name_ar}</div>{v.clients.phone&&<div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',direction:'ltr',marginTop:2}}>{v.clients.phone}</div>}</div>
-{v.brokers?.name_ar&&<div style={{textAlign:'center'}}><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>الوسيط</div><div style={{fontSize:12,fontWeight:600,color:C.blue}}>{v.brokers.name_ar}</div></div>}
-</div>}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-{[['🔢 رقم الفاتورة',v.invoice_number],['📋 نوع الخدمة',svcLabelAr[v.service_category]||v.service_category],['💳 طريقة الدفع',v.payment_method==='cash'?'نقداً':v.payment_method==='bank_transfer'?'حوالة بنكية':v.payment_method||'—'],['📅 تاريخ الإصدار',v.issue_date?new Date(v.issue_date).toLocaleDateString('ar-SA',{year:'numeric',month:'short',day:'numeric'}):'—'],['⏰ تاريخ الاستحقاق',v.due_date?new Date(v.due_date).toLocaleDateString('ar-SA',{year:'numeric',month:'short',day:'numeric'}):'—']].filter(([,val])=>val&&val!=='—').map(([l,val],i)=><div key={i} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:11,padding:'10px 14px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',marginBottom:5}}>{l}</div><div style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.85)'}}>{val}</div></div>)}
-</div>
-{invoiceItems.length>0&&<div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:11,border:'1px solid rgba(255,255,255,.06)',overflow:'hidden',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}>
-<div style={{padding:'10px 14px',borderBottom:'1px solid rgba(255,255,255,.06)',fontSize:12,fontWeight:600,color:'var(--tx2)'}}>📦 بنود الفاتورة ({invoiceItems.length})</div>
-{invoiceItems.map((item,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 14px',borderBottom:i<invoiceItems.length-1?'1px solid rgba(255,255,255,.04)':'none'}}>
-<div style={{flex:1}}><div style={{fontSize:12,fontWeight:500,color:'var(--tx3)'}}>{item.description_ar||item.description_en||'—'}</div>{item.quantity>1&&<span style={{fontSize:11,color:'var(--tx5)'}}>{item.quantity} × {num(item.unit_price)}</span>}</div>
-<div style={{fontSize:12,fontWeight:600,color:C.gold,direction:'ltr'}}>{num(item.unit_price*item.quantity)} ر.س</div>
-</div>)}
-</div>}
-{v.notes&&<div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:11,padding:'12px 14px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',marginBottom:6}}>📝 ملاحظات</div><div style={{fontSize:12,fontWeight:500,color:'var(--tx2)',lineHeight:1.8}}>{v.notes}</div></div>}
-</div>}
-{viewTab==='financial'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
-<div style={{background:'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.06))',borderRadius:11,padding:'16px',border:'1px solid rgba(212,160,23,.25)',textAlign:'center',boxShadow:'inset 0 1px 0 rgba(212,160,23,.18), 0 2px 4px rgba(0,0,0,.22)'}}><div style={{fontSize:11,fontWeight:600,color:C.gold,opacity:.75,marginBottom:6}}>الإجمالي</div><div style={{fontSize:22,fontWeight:700,color:C.gold,letterSpacing:'-.4px',direction:'ltr'}}>{num(v.total_amount)}</div></div>
-<div style={{background:'linear-gradient(180deg,rgba(39,160,70,.16),rgba(39,160,70,.06))',borderRadius:11,padding:'16px',border:'1px solid rgba(39,160,70,.25)',textAlign:'center',boxShadow:'inset 0 1px 0 rgba(39,160,70,.18), 0 2px 4px rgba(0,0,0,.22)'}}><div style={{fontSize:11,fontWeight:600,color:C.ok,opacity:.75,marginBottom:6}}>المدفوع</div><div style={{fontSize:22,fontWeight:700,color:C.ok,letterSpacing:'-.4px',direction:'ltr'}}>{num(v.paid_amount)}</div></div>
-<div style={{background:Number(v.remaining_amount)>0?'linear-gradient(180deg,rgba(192,57,43,.16),rgba(192,57,43,.06))':'linear-gradient(180deg,rgba(39,160,70,.16),rgba(39,160,70,.06))',borderRadius:11,padding:'16px',border:'1px solid '+(Number(v.remaining_amount)>0?'rgba(192,57,43,.25)':'rgba(39,160,70,.25)'),textAlign:'center',boxShadow:'inset 0 1px 0 '+(Number(v.remaining_amount)>0?'rgba(192,57,43,.18)':'rgba(39,160,70,.18)')+', 0 2px 4px rgba(0,0,0,.22)'}}><div style={{fontSize:11,fontWeight:600,color:Number(v.remaining_amount)>0?C.red:C.ok,opacity:.75,marginBottom:6}}>المتبقي</div><div style={{fontSize:22,fontWeight:700,color:Number(v.remaining_amount)>0?C.red:C.ok,letterSpacing:'-.4px',direction:'ltr'}}>{num(v.remaining_amount)}</div></div>
-</div>
-<div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:11,padding:14,border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}>
-<div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:12,fontWeight:600,color:'var(--tx3)'}}>نسبة السداد</span><span style={{fontSize:13,fontWeight:700,color:paidPct>=100?C.ok:paidPct>0?C.gold:C.red,direction:'ltr'}}>{paidPct}%</span></div>
-<div style={{height:8,borderRadius:4,background:'rgba(255,255,255,.06)',overflow:'hidden'}}><div style={{height:'100%',width:paidPct+'%',borderRadius:4,background:paidPct>=100?C.ok:paidPct>50?C.gold:C.red,transition:'width .5s',boxShadow:'0 0 8px '+(paidPct>=100?C.ok:paidPct>50?C.gold:C.red)+'66'}}/></div>
-{isOverdue&&<div style={{fontSize:11,fontWeight:500,color:C.red,marginTop:8}}>⚠ متأخرة عن السداد بـ {Math.abs(daysUntilDue)} يوم</div>}
-{!isOverdue&&daysUntilDue!==null&&daysUntilDue>0&&v.status!=='paid'&&<div style={{fontSize:11,fontWeight:500,color:C.gold,marginTop:8}}>⏰ متبقي {daysUntilDue} يوم على الاستحقاق</div>}
-</div>
-{Number(v.discount_amount)>0&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:11,padding:'10px 14px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',marginBottom:5}}>الخصم</div><div style={{fontSize:14,fontWeight:600,color:C.gold,direction:'ltr'}}>{num(v.discount_amount)} ر.س</div></div>
-<div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:11,padding:'10px 14px',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',marginBottom:5}}>الضريبة</div><div style={{fontSize:14,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{num(v.vat_amount)} ر.س</div></div>
-</div>}
-{invoiceItems.length>0&&<div style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',borderRadius:11,border:'1px solid rgba(255,255,255,.06)',overflow:'hidden',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}>
-<div style={{padding:'10px 14px',borderBottom:'1px solid rgba(255,255,255,.06)',fontSize:11,fontWeight:600,color:'var(--tx3)',letterSpacing:'.3px'}}>تفصيل البنود</div>
-{invoiceItems.map((item,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 14px',borderBottom:i<invoiceItems.length-1?'1px solid rgba(255,255,255,.04)':'none',fontSize:12}}><span style={{color:'var(--tx3)'}}>{item.description_ar||'—'}</span><span style={{fontWeight:600,color:C.gold,direction:'ltr'}}>{num(item.unit_price*item.quantity)}</span></div>)}
-</div>}
-</div>}
-{viewTab==='payments'&&<div>
-{payments.length===0?<div style={{textAlign:'center',padding:40}}>
-{v.status==='paid'?<><div style={{fontSize:32,marginBottom:8}}>✅</div><div style={{fontSize:13,color:C.ok,fontWeight:600}}>تم السداد بالكامل</div><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',marginTop:6}}>لا توجد دفعات مفصّلة مسجلة</div></>:<><div style={{fontSize:32,marginBottom:8}}>💳</div><div style={{fontSize:13,fontWeight:500,color:'var(--tx5)'}}>لا توجد دفعات مسجّلة بعد</div></>}
-</div>:
-payments.map((pay,pi)=><div key={pi} style={{display:'flex',gap:12,padding:'12px 14px',background:'linear-gradient(180deg,rgba(39,160,70,.10),rgba(39,160,70,.04))',borderRadius:11,marginBottom:6,border:'1px solid rgba(39,160,70,.18)',alignItems:'center',boxShadow:'inset 0 1px 0 rgba(39,160,70,.10)'}}>
-<div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,'+C.ok+'25,'+C.ok+'10)',border:'1px solid '+C.ok+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,color:C.ok,flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,.08)'}}>{pi+1}</div>
-<div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:C.ok,direction:'ltr'}}>{num(pay.amount)} ر.س</div><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',marginTop:2}}>{pay.payment_method==='cash'?'💵 نقداً':'🏦 حوالة بنكية'}{pay.reference_number?' — '+pay.reference_number:''}</div></div>
-<div style={{textAlign:'left',direction:'ltr'}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx3)'}}>{pay.payment_date?new Date(pay.payment_date).toLocaleDateString('ar-SA',{month:'short',day:'numeric'}):'—'}</div>{pay.notes&&<div style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>{pay.notes}</div>}</div>
-</div>)}
-</div>}
-{viewTab==='installments'&&<div>
-{installments.length===0?<div style={{textAlign:'center',padding:40}}>
-<div style={{fontSize:32,marginBottom:8}}>📅</div>
-<div style={{fontSize:13,fontWeight:500,color:'var(--tx5)'}}>فاتورة بدفعة واحدة — لا يوجد جدولة أقساط</div>
-</div>:
-<div>
-<div style={{display:'flex',gap:8,marginBottom:12}}>
-<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.ok+'15',color:C.ok,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:C.ok}}/>{installments.filter(i=>i.status==='paid').length} مسدد
-</span>
-<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.gold+'15',color:C.gold,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:C.gold}}/>{installments.filter(i=>i.status!=='paid').length} معلّق
-</span>
-</div>
-{installments.map((inst,ii)=>{const isPaid=inst.status==='paid';const isLate=!isPaid&&inst.due_date&&new Date(inst.due_date)<new Date()
-const ic=isPaid?C.ok:isLate?C.red:C.gold
-return<div key={ii} style={{display:'flex',gap:12,padding:'12px 14px',background:'linear-gradient(180deg,'+ic+'10,'+ic+'04)',borderRadius:11,marginBottom:6,border:'1px solid '+ic+'25',alignItems:'center',boxShadow:'inset 0 1px 0 '+ic+'10'}}>
-<div style={{width:32,height:32,borderRadius:'50%',background:'linear-gradient(180deg,'+ic+'25,'+ic+'10)',border:'1px solid '+ic+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600,color:ic,flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,.08)'}}>{isPaid?'✓':inst.installment_order}</div>
-<div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',direction:'ltr'}}>{num(inst.amount)} ر.س</div><div style={{fontSize:11,fontWeight:500,color:'var(--tx5)',marginTop:2}}>{inst.due_date?new Date(inst.due_date).toLocaleDateString('ar-SA',{year:'numeric',month:'short',day:'numeric'}):'—'}</div></div>
-<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:ic+'15',color:ic,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:ic}}/>{isPaid?'مسدد':isLate?'متأخر':'مستحق'}
-</span>
-</div>})}</div>}
-</div>}
-</div></div>
-<div style={{padding:'14px 22px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',gap:8,justifyContent:'center'}}>
-{v.status!=='paid'&&<button onClick={()=>{setViewPop(null);openPay(v)}} style={{height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(39,174,96,.45)',background:'linear-gradient(180deg,rgba(39,174,96,.22) 0%,rgba(39,174,96,.10) 100%)',color:C.ok,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(39,174,96,.18), inset 0 1px 0 rgba(39,174,96,.18)',transition:'.2s',flex:1}}>+ تسجيل دفعة</button>}
-<button onClick={()=>printInvoice(v)} style={{height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(155,89,182,.45)',background:'linear-gradient(180deg,rgba(155,89,182,.22) 0%,rgba(155,89,182,.10) 100%)',color:'#9b59b6',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(155,89,182,.18), inset 0 1px 0 rgba(155,89,182,.18)',transition:'.2s',flex:1}}>🖨️ طباعة</button>
-<button onClick={()=>{setViewPop(null);setDelPop(v)}} style={{height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(192,57,43,.45)',background:'linear-gradient(180deg,rgba(192,57,43,.22) 0%,rgba(192,57,43,.10) 100%)',color:C.red,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(192,57,43,.18), inset 0 1px 0 rgba(192,57,43,.18)',transition:'.2s',flex:1}}>🗑 حذف</button>
-<button onClick={()=>setViewPop(null)} style={{...ghostBtnS,flex:1}}>إغلاق</button>
-</div></div></div>})()}
+      {actionModal && <ActionModal type={actionModal} onClose={() => setActionModal(null)} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} />}
+    </div>
+  )
+}
 
-{delPop&&<div onClick={()=>setDelPop(null)} style={overlayS}>
-<div onClick={e=>e.stopPropagation()} style={{...popupS,width:420}}>
-<div style={{...headS,background:'linear-gradient(180deg,rgba(192,57,43,.18),rgba(192,57,43,.06))',borderBottom:'1px solid rgba(192,57,43,.25)'}}>
-<div style={{color:C.red,fontSize:14,fontWeight:600}}>حذف الفاتورة</div>
-<button onClick={()=>setDelPop(null)} style={closeS}>✕</button>
-</div>
-<div style={{padding:'22px 22px',textAlign:'center'}}>
-<div style={{width:50,height:50,borderRadius:'50%',background:'linear-gradient(180deg,rgba(192,57,43,.16),rgba(192,57,43,.06))',border:'1px solid rgba(192,57,43,.35)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px',boxShadow:'inset 0 1px 0 rgba(192,57,43,.18), 0 2px 8px rgba(0,0,0,.22)'}}>
-<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="6" width="14" height="14" rx="2" fill="rgba(192,57,43,.1)" stroke={C.red} strokeWidth="1.5"/><path d="M3 6h18" stroke={C.red} strokeWidth="1.5" strokeLinecap="round"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke={C.red} strokeWidth="1.5" opacity=".5"/></svg>
-</div>
-<div style={{fontSize:14,fontWeight:600,color:C.red,marginBottom:5}}>حذف الفاتورة #{delPop.invoice_number}؟</div>
-<div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',lineHeight:1.8,marginBottom:14}}>هذا الإجراء لا يمكن التراجع عنه</div>
-<div style={{textAlign:'right',marginBottom:8}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx3)',marginBottom:6}}>سبب الحذف <span style={{color:C.red}}>*</span></div>
-<textarea className="iv-noring" value={delPop.reason||''} onChange={e=>setDelPop(p=>({...p,reason:e.target.value}))} rows={2} placeholder="اكتب سبب الحذف..." style={{width:'100%',padding:12,border:'1px solid rgba(192,57,43,.25)',borderRadius:11,fontFamily:F,fontSize:13,fontWeight:400,color:'var(--tx)',background:'linear-gradient(180deg,rgba(192,57,43,.08),rgba(192,57,43,.02))',outline:'none',resize:'vertical',textAlign:'right',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 8px rgba(0,0,0,.18)'}}/></div>
-</div>
-<div style={{padding:'14px 22px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',gap:10,justifyContent:'center'}}>
-<button onClick={delInv} disabled={saving||!delPop.reason?.trim()} style={{height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(192,57,43,.45)',background:'linear-gradient(180deg,rgba(192,57,43,.32) 0%,rgba(192,57,43,.16) 100%)',color:'#fff',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',flex:1,opacity:saving||!delPop.reason?.trim()?.7:1,boxShadow:'0 2px 8px rgba(192,57,43,.28), inset 0 1px 0 rgba(255,255,255,.10)',transition:'.2s'}}>تأكيد الحذف</button>
-<button onClick={()=>setDelPop(null)} style={{...ghostBtnS,flex:1}}>تراجع</button>
-</div></div></div>}
+const fmtAmt = (v) => {
+  const s = String(v ?? '')
+  if (!s) return ''
+  const [intPart, decPart] = s.split('.')
+  const withSep = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return decPart !== undefined ? `${withSep}.${decPart}` : withSep
+}
+const unfmtAmt = (s) => String(s ?? '').replace(/,/g, '').trim()
 
-{/* Animation */}
-<style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
-</div>}
+const PaymentDetailsForm = ({ T, accent, color, remaining }) => {
+  const [paidAmount, setPaidAmount] = useState(String(remaining || ''))
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [transferReference, setTransferReference] = useState('')
+  const [transferReceipt, setTransferReceipt] = useState(null)
+  const [receiptDrag, setReceiptDrag] = useState(false)
+  const [bankAccSearch, setBankAccSearch] = useState('')
+
+  const eff = Number(remaining) || 0
+  const p = Number(paidAmount) || 0
+  const fieldset = { border: '1.5px solid ' + accent, borderRadius: 12, padding: '14px 14px 12px', position: 'relative' }
+  const legend = { position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color, fontFamily: F }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* المبلغ المدفوع */}
+      <div style={fieldset}>
+        <div style={legend}>{T('المبلغ المدفوع', 'Paid Amount')}</div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={fmtAmt(paidAmount)}
+            onChange={e => {
+              const raw = unfmtAmt(e.target.value)
+              if (raw === '') { setPaidAmount(''); return }
+              if (!/^\d*\.?\d*$/.test(raw)) return
+              let n = Number(raw); if (isNaN(n)) return
+              if (n < 0) n = 0
+              if (n > eff) n = eff
+              setPaidAmount(String(n))
+            }}
+            placeholder="0.00"
+            style={{ width: 160, height: 42, padding: '0 14px', borderRadius: 9, border: '1px solid rgba(255,255,255,.05)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', color, fontFamily: F, fontSize: 16, fontWeight: 900, textAlign: 'center', direction: 'ltr', outline: 'none', boxSizing: 'border-box' }}
+          />
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.58)', fontFamily: F }}>{T('ريال', 'SAR')}</span>
+        </div>
+        {p < eff && eff > 0 && (
+          <div style={{ position: 'absolute', bottom: -9, left: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 11, fontWeight: 700, color: C.red, fontFamily: F, direction: 'rtl' }}>
+            {T('المتبقي','Remaining')} <span style={{ direction: 'ltr', display: 'inline-block' }}>{fmtAmt((eff - p).toFixed(2))}</span> {T('ريال','SAR')}
+          </div>
+        )}
+        {p >= eff && eff > 0 && (
+          <div style={{ position: 'absolute', bottom: -9, left: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 11, fontWeight: 700, color: C.ok, fontFamily: F }}>
+            ✓ {T('مدفوع بالكامل', 'Paid in full')}
+          </div>
+        )}
+      </div>
+
+      {/* طريقة الدفع */}
+      {p > 0 && (
+        <div style={{ ...fieldset, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={legend}>{T('طريقة الدفع', 'Payment Method')}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[
+              { k: 'cash', l: T('نقداً','Cash'), icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg> },
+              { k: 'bank', l: T('حوالة بنكية','Bank Transfer'), icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg> },
+            ].map(o => {
+              const on = paymentMethod === o.k
+              return (
+                <div key={o.k} onClick={() => setPaymentMethod(o.k)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9, border: `1.5px solid ${on ? color : 'rgba(255,255,255,.07)'}`, background: on ? color + '14' : 'linear-gradient(180deg,#2C2C2C 0%,#222 100%)', cursor: 'pointer', transition: '.18s', color: on ? color : 'var(--tx3)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, fontFamily: F }}>{o.l}</span>
+                  {o.icon}
+                </div>
+              )
+            })}
+          </div>
+          {paymentMethod === 'bank' && (
+            <>
+              <div
+                style={{ display: 'flex', gap: 10, alignItems: 'stretch', marginTop: 14 }}
+                onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(true) }}
+                onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!receiptDrag) setReceiptDrag(true) }}
+                onDragLeave={e => { e.preventDefault(); e.stopPropagation(); if (e.currentTarget.contains(e.relatedTarget)) return; setReceiptDrag(false) }}
+                onDrop={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(false); const f = e.dataTransfer.files?.[0]; if (f) setTransferReceipt(f) }}
+              >
+                <input
+                  type="text"
+                  value={transferReference}
+                  onChange={e => setTransferReference(e.target.value)}
+                  placeholder={T('الرقم المرجعي للحوالة', 'Transfer reference')}
+                  style={{ flex: 1, height: 42, padding: '0 12px', borderRadius: 9, border: `1px solid ${receiptDrag ? color : (transferReference ? color + '40' : 'rgba(255,255,255,.08)')}`, background: receiptDrag ? color + '14' : 'rgba(0,0,0,.2)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', direction: 'ltr', textAlign: 'center', transition: '.2s' }}
+                />
+                {!transferReceipt ? (
+                  <label htmlFor="payModalReceiptInput" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '0 14px', height: 42, borderRadius: 9, border: `1px dashed ${receiptDrag ? color : color + '4d'}`, background: receiptDrag ? color + '26' : color + '0d', color, cursor: 'pointer', transition: '.2s', fontFamily: F, fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', transform: receiptDrag ? 'scale(1.02)' : 'scale(1)' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>{receiptDrag ? T('أفلت الملف هنا','Drop file') : T('إيصال','Receipt')}</span>
+                    <input id="payModalReceiptInput" type="file" accept="image/*,application/pdf" onChange={e => setTransferReceipt(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                  </label>
+                ) : (
+                  <div title={transferReceipt.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 12px', height: 42, borderRadius: 9, border: '1px solid rgba(46,160,67,.25)', background: 'rgba(46,160,67,.06)', color: '#2ea043', fontFamily: F, fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis' }}>{transferReceipt.name}</span>
+                    <button type="button" onClick={() => setTransferReceipt(null)} style={{ width: 22, height: 22, borderRadius: 5, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <input
+                value={bankAccSearch}
+                onChange={e => setBankAccSearch(e.target.value)}
+                placeholder={T('ابحث باسم البنك أو الحساب أو IBAN...', 'Search bank/account/IBAN...')}
+                style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, fontFamily: F, fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', textAlign: 'right', boxSizing: 'border-box' }}
+              />
+              <div style={{ padding: '14px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.5)', border: '1px dashed rgba(255,255,255,.1)', borderRadius: 9, background: 'rgba(0,0,0,.12)' }}>
+                {T('لا توجد نتائج', 'No results')}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const RefundDetailsForm = ({ T, accent, color, paid }) => {
+  const [refundAmount, setRefundAmount] = useState(String(paid || ''))
+  const [refundMethod, setRefundMethod] = useState('cash')
+  const [transferReference, setTransferReference] = useState('')
+  const [transferReceipt, setTransferReceipt] = useState(null)
+  const [receiptDrag, setReceiptDrag] = useState(false)
+  const [bankAccSearch, setBankAccSearch] = useState('')
+
+  const eff = Number(paid) || 0
+  const fieldset = { border: '1.5px solid ' + accent, borderRadius: 12, padding: '14px 14px 12px', position: 'relative' }
+  const legend = { position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color, fontFamily: F }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* المبلغ المسترجع */}
+      <div style={fieldset}>
+        <div style={legend}>{T('المبلغ المسترجع','Refund Amount')}</div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={fmtAmt(refundAmount)}
+            onChange={e => {
+              const raw = unfmtAmt(e.target.value)
+              if (raw === '') { setRefundAmount(''); return }
+              if (!/^\d*\.?\d*$/.test(raw)) return
+              let n = Number(raw); if (isNaN(n)) return
+              if (n < 0) n = 0
+              if (n > eff) n = eff
+              setRefundAmount(String(n))
+            }}
+            placeholder="0.00"
+            style={{ width: 160, height: 42, padding: '0 14px', borderRadius: 9, border: '1px solid rgba(255,255,255,.05)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', color, fontFamily: F, fontSize: 16, fontWeight: 900, textAlign: 'center', direction: 'ltr', outline: 'none', boxSizing: 'border-box' }}
+          />
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.58)', fontFamily: F }}>{T('ريال','SAR')}</span>
+        </div>
+      </div>
+
+      {/* طريقة الاسترجاع */}
+      <div style={{ ...fieldset, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={legend}>{T('طريقة الاسترجاع','Refund Method')}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[
+            { k: 'cash', l: T('نقداً','Cash'),         icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg> },
+            { k: 'bank', l: T('حوالة بنكية','Bank Transfer'), icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg> },
+          ].map(o => {
+            const on = refundMethod === o.k
+            return (
+              <div key={o.k} onClick={() => setRefundMethod(o.k)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9, border: `1.5px solid ${on ? color : 'rgba(255,255,255,.07)'}`, background: on ? color + '14' : 'linear-gradient(180deg,#2C2C2C 0%,#222 100%)', cursor: 'pointer', transition: '.18s', color: on ? color : 'var(--tx3)' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: F }}>{o.l}</span>
+                {o.icon}
+              </div>
+            )
+          })}
+        </div>
+        {refundMethod === 'bank' && (
+          <>
+            <div
+              style={{ display: 'flex', gap: 10, alignItems: 'stretch', marginTop: 14 }}
+              onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(true) }}
+              onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!receiptDrag) setReceiptDrag(true) }}
+              onDragLeave={e => { e.preventDefault(); e.stopPropagation(); if (e.currentTarget.contains(e.relatedTarget)) return; setReceiptDrag(false) }}
+              onDrop={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(false); const f = e.dataTransfer.files?.[0]; if (f) setTransferReceipt(f) }}
+            >
+              <input
+                type="text"
+                value={transferReference}
+                onChange={e => setTransferReference(e.target.value)}
+                placeholder={T('الرقم المرجعي للحوالة', 'Transfer reference')}
+                style={{ flex: 1, height: 42, padding: '0 12px', borderRadius: 9, border: `1px solid ${receiptDrag ? color : (transferReference ? color + '40' : 'rgba(255,255,255,.08)')}`, background: receiptDrag ? color + '14' : 'rgba(0,0,0,.2)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', direction: 'ltr', textAlign: 'center', transition: '.2s' }}
+              />
+              {!transferReceipt ? (
+                <label htmlFor="refundModalReceiptInput" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '0 14px', height: 42, borderRadius: 9, border: `1px dashed ${receiptDrag ? color : color + '4d'}`, background: receiptDrag ? color + '26' : color + '0d', color, cursor: 'pointer', transition: '.2s', fontFamily: F, fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', transform: receiptDrag ? 'scale(1.02)' : 'scale(1)' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>{receiptDrag ? T('أفلت الملف هنا','Drop file') : T('إيصال','Receipt')}</span>
+                  <input id="refundModalReceiptInput" type="file" accept="image/*,application/pdf" onChange={e => setTransferReceipt(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                </label>
+              ) : (
+                <div title={transferReceipt.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 12px', height: 42, borderRadius: 9, border: '1px solid rgba(46,160,67,.25)', background: 'rgba(46,160,67,.06)', color: '#2ea043', fontFamily: F, fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis' }}>{transferReceipt.name}</span>
+                  <button type="button" onClick={() => setTransferReceipt(null)} style={{ width: 22, height: 22, borderRadius: 5, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              )}
+            </div>
+            <input
+              value={bankAccSearch}
+              onChange={e => setBankAccSearch(e.target.value)}
+              placeholder={T('ابحث باسم البنك أو الحساب أو IBAN...', 'Search bank/account/IBAN...')}
+              style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, fontFamily: F, fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', textAlign: 'right', boxSizing: 'border-box' }}
+            />
+            <div style={{ padding: '14px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.5)', border: '1px dashed rgba(255,255,255,.1)', borderRadius: 9, background: 'rgba(0,0,0,.12)' }}>
+              {T('لا توجد نتائج', 'No results')}
+            </div>
+          </>
+        )}
+      </div>
+
+    </div>
+  )
+}
+
+const ModalDropdown = ({ value, onChange, options, placeholder, accent, color, disabled }) => {
+  const opts = (options || []).map(o => typeof o === 'string' ? { v: o, l: o } : o)
+  const selectedLabel = (opts.find(o => o.v === value) || {}).l || ''
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 380 })
+  const btnRef = useRef(null)
+  const popRef = useRef(null)
+  const toggle = () => {
+    if (disabled) return
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const maxH = Math.min(opts.length * 42 + 4, 320)
+      setPos({ top: r.bottom + 6, left: r.left, width: r.width, maxH })
+    }
+    setOpen(o => !o)
+  }
+  useEffect(() => {
+    if (!open) return
+    const onDoc = e => { if (popRef.current && !popRef.current.contains(e.target) && btnRef.current && !btnRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={toggle}
+        disabled={disabled}
+        style={{ width: '100%', height: 42, padding: '0 32px', borderRadius: 10, border: `1px solid ${open ? color + '66' : 'rgba(255,255,255,.08)'}`, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', color: value ? 'var(--tx)' : 'var(--tx5)', cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 14, fontWeight: 500, outline: 'none', position: 'relative', boxSizing: 'border-box', opacity: disabled ? .6 : 1, transition: '.2s' }}
+      >
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>{selectedLabel || placeholder || '...'}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && ReactDOM.createPortal(
+        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
+          <style>{`.am-sel-pop-scroll{scrollbar-width:none;-ms-overflow-style:none}.am-sel-pop-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
+          <div className="am-sel-pop-scroll" style={{ flex: 1, overflowY: 'auto' }}>
+            {opts.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 13, color: 'var(--tx5)' }}>—</div>}
+            {opts.map(o => {
+              const isSel = value === o.v
+              return (
+                <div
+                  key={o.v}
+                  onClick={() => { onChange(o.v); setOpen(false) }}
+                  style={{ padding: '10px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid rgba(255,255,255,.06)', background: isSel ? color + '14' : 'transparent', transition: '.12s' }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
+                  onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}
+                >
+                  <span style={{ fontSize: 14, fontWeight: isSel ? 600 : 400, color: isSel ? color : 'rgba(255,255,255,.92)', textAlign: 'center', display: 'block' }}>{o.l}</span>
+                  {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+              )
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
+const RefundReasonForm = ({ T, sb, isAr, accent, color }) => {
+  const [reasonId, setReasonId] = useState('')
+  const [notes, setNotes] = useState('')
+  const [reasons, setReasons] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!sb) { setLoading(false); return }
+    let alive = true
+    ;(async () => {
+      const { data } = await sb
+        .from('lookup_items')
+        .select('id,value_ar,value_en,sort_order,category:lookup_categories!inner(category_key)')
+        .eq('category.category_key', 'refund_reason')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+      if (alive) {
+        setReasons(data || [])
+        setLoading(false)
+      }
+    })()
+    return () => { alive = false }
+  }, [sb])
+
+  const fieldset = { border: '1.5px solid ' + accent, borderRadius: 12, padding: '14px 14px 12px', position: 'relative' }
+  const legend = { position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color, fontFamily: F }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={fieldset}>
+        <div style={legend}>{T('سبب الاسترجاع','Refund Reason')}</div>
+        <ModalDropdown
+          value={reasonId}
+          onChange={setReasonId}
+          options={reasons.map(r => ({ v: r.id, l: isAr ? (r.value_ar || r.value_en) : (r.value_en || r.value_ar) }))}
+          placeholder={loading ? T('جاري التحميل…','Loading…') : (reasons.length ? T('— اختر السبب —','— Select reason —') : T('لا توجد أسباب مُعرَّفة','No reasons defined'))}
+          accent={accent}
+          color={color}
+          disabled={loading || reasons.length === 0}
+        />
+      </div>
+      <div style={fieldset}>
+        <div style={legend}>{T('ملاحظات إضافية','Additional Notes')}</div>
+        <textarea
+          rows={4}
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder={T('تفاصيل إضافية (اختياري)…','Additional details (optional)…')}
+          style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid rgba(255,255,255,.05)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', textAlign: 'start', boxSizing: 'border-box', resize: 'vertical' }}
+        />
+      </div>
+    </div>
+  )
+}
+
+const CancelReasonForm = ({ T, accent, color }) => {
+  const [reason, setReason] = useState('')
+  const fieldset = { border: '1.5px solid ' + accent, borderRadius: 12, padding: '14px 14px 12px', position: 'relative' }
+  const legend = { position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color, fontFamily: F }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: 12.5, color: '#e5867a', padding: '10px 14px', borderRadius: 10, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.20)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>{T('تنبيه: إلغاء الفاتورة سيعيد جميع الأقساط والدفعات إلى حالتها الأصلية ولا يمكن التراجع.', 'Warning: Cancelling will reset all installments and payments. Cannot be undone.')}</span>
+      </div>
+      <div style={fieldset}>
+        <div style={legend}>{T('سبب الإلغاء','Cancellation Reason')}</div>
+        <textarea
+          rows={4}
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          placeholder={T('اذكر سبب الإلغاء...','Explain why...')}
+          style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid rgba(255,255,255,.05)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', textAlign: 'start', boxSizing: 'border-box', resize: 'vertical' }}
+        />
+      </div>
+    </div>
+  )
+}
+
+const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, toast }) => {
+  const [step, setStep] = useState(1)
+  const isMultiStep = type === 'payment' || type === 'refund' || type === 'cancel'
+  const totalSteps = type === 'refund' ? 3 : (isMultiStep ? 2 : 1)
+  const meta = {
+    payment: {
+      title: T('تسجيل دفعة', 'Record Payment'),
+      color: C.ok,
+      accent: 'rgba(46,204,113,.35)',
+      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>,
+      submit: T('حفظ الدفعة', 'Save Payment'),
+    },
+    refund: {
+      title: T('استرجاع دفعة', 'Refund Payment'),
+      color: C.blue,
+      accent: 'rgba(93,173,226,.35)',
+      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7"/></svg>,
+      submit: T('تأكيد الاسترجاع', 'Confirm Refund'),
+    },
+    cancel: {
+      title: T('إلغاء الفاتورة', 'Cancel Invoice'),
+      color: C.red,
+      accent: 'rgba(229,134,122,.35)',
+      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>,
+      submit: T('تأكيد الإلغاء', 'Confirm Cancel'),
+    },
+    print: {
+      title: T('طباعة الفاتورة', 'Print Invoice'),
+      color: C.gold,
+      accent: 'rgba(212,160,23,.35)',
+      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+      submit: T('طباعة', 'Print'),
+    },
+  }[type]
+
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1500, padding: 16, fontFamily: F }
+  const box = { background: 'var(--modal-bg)', borderRadius: 16, width: 540, maxWidth: '95vw', height: 525, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative' }
+  const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid ' + meta.accent, padding: '20px 22px' }
+  const legend = { position: 'absolute', top: -10, [isAr ? 'right' : 'left']: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: meta.color, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
+  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg)', textAlign: 'center', boxSizing: 'border-box', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }
+  const lbl = { fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
+
+  const onSubmit = () => {
+    toast?.(T(meta.title + ' — قريباً', meta.title + ' — coming soon'))
+    onClose()
+  }
+
+  return (
+    <div onClick={onClose} style={overlay} dir={isAr ? 'rtl' : 'ltr'}>
+      <div onClick={e => e.stopPropagation()} style={box}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+              <span style={{ color: meta.color, flexShrink: 0, display: 'inline-flex' }}>{meta.icon}</span>
+              <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{meta.title}</div>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label={T('إغلاق', 'Close')}
+              onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
+              style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: F, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          {isMultiStep && (
+            <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
+              {Array.from({ length: totalSteps }, (_, i) => (
+                <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i < step ? `linear-gradient(90deg, ${meta.color}, ${meta.color}aa)` : 'rgba(255,255,255,0.06)', transition: '.35s' }} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minHeight: 0 }}>
+          {(!isMultiStep || step === 1) && (
+            <div style={fieldset}>
+              <div style={legend}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <span>{T('بيانات الفاتورة', 'Invoice Info')}</span>
+              </div>
+              <div>
+                {(() => {
+                  const focusOnPaid = type === 'refund' || type === 'cancel'
+                  const rows = focusOnPaid
+                    ? [
+                        { label: T('رقم الفاتورة','Invoice No'), value: '#' + inv.invoice_no, color: C.gold, mono: true },
+                        { label: T('الإجمالي','Total'),          value: num(total),            color: 'var(--tx2)' },
+                        { label: T('المتبقي','Remaining'),       value: num(remaining),        color: C.gold },
+                      ]
+                    : [
+                        { label: T('رقم الفاتورة','Invoice No'), value: '#' + inv.invoice_no, color: C.gold, mono: true },
+                        { label: T('الإجمالي','Total'),          value: num(total),            color: 'var(--tx2)' },
+                        { label: T('المدفوع','Paid'),            value: num(paid),             color: C.ok },
+                      ]
+                  const focus = focusOnPaid
+                    ? { label: T('المدفوع','Paid'),       value: num(paid),       color: C.ok }
+                    : { label: T('المتبقي','Remaining'),  value: num(remaining),  color: C.gold }
+                  return (
+                    <>
+                      {rows.map((s, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed rgba(255,255,255,.08)' }}>
+                          <span style={{ fontSize: 12, color: 'var(--tx4)' }}>{s.label}</span>
+                          <span style={{ fontSize: 13, color: s.color, fontWeight: 700, direction: 'ltr', fontFamily: s.mono ? 'monospace' : 'inherit', fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 12px', marginTop: 8, borderRadius: 10, background: focus.color + '14', border: '1px solid ' + focus.color + '40' }}>
+                        <span style={{ fontSize: 14, color: focus.color, fontWeight: 700, letterSpacing: '.3px' }}>{focus.label}</span>
+                        <span style={{ fontSize: 22, color: focus.color, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{focus.value}</span>
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
+
+          {type === 'payment' && step === 2 && (
+            <PaymentDetailsForm T={T} accent={meta.accent} color={meta.color} remaining={remaining} />
+          )}
+
+          {type === 'refund' && step === 2 && (
+            <RefundDetailsForm T={T} accent={meta.accent} color={meta.color} paid={paid} />
+          )}
+
+          {type === 'refund' && step === 3 && (
+            <RefundReasonForm T={T} sb={sb} isAr={isAr} accent={meta.accent} color={meta.color} />
+          )}
+
+          {type === 'cancel' && step === 2 && (
+            <CancelReasonForm T={T} accent={meta.accent} color={meta.color} />
+          )}
+
+          {type === 'print' && (
+            <div style={fieldset}>
+              <div style={legend}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg><span>{T('خيارات الطباعة', 'Print Options')}</span></div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: T('شعار المؤسسة', 'Company Logo'), defChecked: true },
+                  { label: T('بيانات العميل', 'Client Info'), defChecked: true },
+                  { label: T('تفاصيل الأقساط والدفعات', 'Installments & Payments'), defChecked: true },
+                  { label: T('ختم وتوقيع', 'Stamp & Signature'), defChecked: false },
+                ].map((opt, i) => (
+                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" defaultChecked={opt.defChecked} style={{ width: 16, height: 16, accentColor: meta.color }} />
+                    <span style={{ color: 'var(--tx2)' }}>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <style>{`.am-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:var(--am-c);font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.am-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:var(--am-c-bg);display:flex;align-items:center;justify-content:center;transition:.2s;color:var(--am-c)}.am-nav-btn:hover:not(:disabled) .nav-ico{background:var(--am-c);color:#000}.am-back-btn{color:var(--tx3)}.am-back-btn .nav-ico{background:rgba(255,255,255,.06);color:var(--tx3)}.am-back-btn:hover:not(:disabled){color:var(--tx)}.am-back-btn:hover:not(:disabled) .nav-ico{background:rgba(255,255,255,.14);color:var(--tx)}.am-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
+        <div style={{ padding: '12px 24px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', gap: 12, '--am-c': meta.color, '--am-c-bg': meta.color + '1a' }}>
+          <div style={{ justifySelf: 'start' }}>
+            {isMultiStep && step > 1 && (
+              <button onClick={() => setStep(s => Math.max(1, s - 1))} className="am-nav-btn am-back-btn">
+                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                <span>{T('السابق','Previous')}</span>
+              </button>
+            )}
+          </div>
+          <div style={{ justifySelf: 'end' }}>
+            {isMultiStep && step < totalSteps ? (
+              <button onClick={() => setStep(s => Math.min(totalSteps, s + 1))} className="am-nav-btn">
+                <span>{T('التالي','Next')}</span>
+                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
+              </button>
+            ) : (
+              <button onClick={onSubmit} className="am-nav-btn">
+                <span>{meta.submit}</span>
+                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── shared building blocks ─── */
+const cardChrome = { background: 'linear-gradient(180deg,#1f1f1f 0%,#181818 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
+const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
+const cardTitle  = { fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '.2px' }
+const cardSub    = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }
+
+const ActionToolbar = ({ T, onRecordPayment, onRefund, onCancelInv, onPrint }) => {
+  const btn = (color, bgLight, bdLight) => ({
+    height: 40, padding: '0 16px', borderRadius: 11, background: bgLight, border: '1px solid ' + bdLight, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 700, transition: '.18s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)'
+  })
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <button onClick={onRecordPayment} style={btn(C.ok, 'rgba(46,204,113,.10)', 'rgba(46,204,113,.32)')}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>{T('تسجيل دفعة','Record Payment')}</span>
+      </button>
+      <button onClick={onRefund} style={btn(C.blue, 'rgba(93,173,226,.10)', 'rgba(93,173,226,.30)')}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7"/></svg>
+        <span>{T('استرجاع','Refund')}</span>
+      </button>
+      <button onClick={onCancelInv} style={btn(C.red, 'rgba(229,134,122,.10)', 'rgba(229,134,122,.30)')}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+        <span>{T('إلغاء','Cancel')}</span>
+      </button>
+      <button onClick={onPrint} style={btn('rgba(255,255,255,.78)', 'rgba(255,255,255,.04)', 'rgba(255,255,255,.10)')}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        <span>{T('طباعة','Print')}</span>
+      </button>
+    </div>
+  )
+}
+
+const ClientRows = ({ inv, T }) => {
+  // When client_id is null but the request has a worker (workerIsClient at create time),
+  // fall back to the worker as the displayed party.
+  const sr = inv.service_request
+  const pickWorker = (rel) => Array.isArray(rel) ? rel[0]?.worker : rel?.worker
+  const workerFromApp = pickWorker(sr?.transfer_applications)
+                     || pickWorker(sr?.ajeer_applications)
+                     || pickWorker(sr?.iqama_renewal_applications)
+                     || pickWorker(sr?.other_applications)
+                     || null
+  const c = sr?.client || workerFromApp
+  const isWorker = !sr?.client && !!workerFromApp
+  const primary = c?.name_ar || c?.name_en
+  const secondary = c?.name_ar && c?.name_en ? c.name_en : null
+  const idValue = c?.id_number || c?.iqama_number
+  return (
+    <>
+      {primary && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', alignItems: 'flex-start', minHeight: 28, gap: 12 }}>
+          <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, paddingTop: 2, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {T('الاسم','Name')}
+            {isWorker && (
+              <span title={T('العامل هو العميل','Worker is the client')} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 4, background: 'rgba(212,160,23,.10)', border: '1px solid rgba(212,160,23,.32)', color: C.gold, fontSize: 9, fontWeight: 700 }}>
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                {T('العامل هو العميل','worker = client')}
+              </span>
+            )}
+          </span>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{primary}</div>
+            {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, marginTop: 2, direction: 'ltr' }}>{secondary}</div>}
+          </div>
+        </div>
+      )}
+      <Row label={isWorker ? T('الإقامة','Iqama') : T('الهوية','ID')} value={idValue} mono />
+      <Row label={T('الجوال','Phone')} value={fmtPhone(c?.phone)} mono />
+      {inv.agent && <Row label={T('الوسيط','Agent')} value={inv.agent.name_ar || inv.agent.name_en} />}
+    </>
+  )
+}
+
+const TransactionRows = ({ inv, isAr, T, svc, payT, data }) => {
+  const code = data?.code || inv.service_type?.code
+  const d = data?.det?.[0]
+  const lbl = (o) => o ? (isAr ? o.value_ar || o.name_ar : (o.value_en || o.value_ar || o.name_en || o.name_ar)) : null
+  const date = (v) => v ? fmtGreg(v, isAr) : null
+  const qty = Number(inv.service_request?.quantity || 0)
+
+  return (
+    <>
+      {/* Header */}
+      <Row label={T('نوع الخدمة','Service')} value={isAr ? svc.label_ar : svc.label_en} color={svc.c} />
+      {qty > 0 && <Row label={T('الكمية','Quantity')} value={'×' + qty} mono />}
+
+      {/* Service-specific application details */}
+      {data?.loading && (
+        <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'center', padding: '10px 0' }}>{T('جاري تحميل التفاصيل…','Loading details…')}</div>
+      )}
+      {!data?.loading && d && (
+        <>
+          {code === 'work_visa' && (<>
+            <SectionLabel label={T('المنشأة','Facility')} color={C.blue} />
+            <Row label={T('المنشأة المستفيدة','Beneficiary Facility')} value={d.main_facility?.name_ar || d.main_facility?.unified_number} />
+            <Row label={T('الرقم الموحد','Unified Number')} value={d.main_facility?.unified_number} mono />
+            <Row label={T('رقم التأمينات','GOSI No')} value={d.main_facility?.gosi_number} mono />
+            <Row label={T('رقم قوى','Qiwa No')} value={[d.main_facility?.qiwa_prefix, d.main_facility?.qiwa_number].filter(Boolean).join('-') || null} mono />
+
+            <SectionLabel label={T('بيانات التأشيرة','Visa Info')} color={svc.c} />
+            <Row label={T('الجنسية','Nationality')} value={isAr ? d.nationality?.name_ar : (d.nationality?.name_en || d.nationality?.name_ar)} />
+            <Row label={T('السفارة','Embassy')} value={isAr ? d.embassy?.name_ar : (d.embassy?.name_en || d.embassy?.name_ar)} />
+            <Row label={T('المهنة','Occupation')} value={isAr ? d.occupation?.name_ar : (d.occupation?.name_en || d.occupation?.name_ar)} />
+
+            <SectionLabel label={T('بعد إصدار التأشيرة','After Issuance')} color={C.gold} />
+            <Row label={T('رقم التأشيرة','Visa No')} value={d.visa_number} mono />
+            <BorderRow T={T} borderNo={d.border_number} visaUsed={d.visa_used} />
+            {d.visa_cost && <Row label={T('قيمة التأشيرة','Visa Cost')} value={num(d.visa_cost) + ' ' + T('ر.س','SAR')} mono color={C.gold} />}
+            {d.wakalah_number && <Row label={T('رقم الوكالة','Wakalah No')} value={d.wakalah_number} mono />}
+            {d.wakalah_date && <Row label={T('تاريخ الوكالة','Wakalah Date')} value={date(d.wakalah_date)} mono />}
+            {d.wakalah_office && <Row label={T('مكتب الوكالة','Wakalah Office')} value={d.wakalah_office} />}
+            {d.wakalah_status && <Row label={T('حالة الوكالة','Wakalah Status')} value={lbl(d.wakalah_status)} />}
+          </>)}
+          {code === 'transfer' && (<>
+            <Row label={T('العامل','Worker')} value={d.worker?.name_ar || d.worker?.name_en} />
+            <Row label={T('رقم الإقامة','Iqama No')} value={d.worker?.iqama_number} mono />
+            <Row label={T('المنشأة المنقول إليها','Target Facility')} value={d.main_facility?.name_ar || d.main_facility?.unified_number} />
+            <Row label={T('المهنة الجديدة','New Occupation')} value={isAr ? d.new_occupation?.name_ar : (d.new_occupation?.name_en || d.new_occupation?.name_ar)} />
+            <Row label={T('حالة النقل','Status')} value={lbl(d.status)} />
+            <Row label={T('حالة العامل','Worker Status')} value={lbl(d.worker_status)} />
+            {d.total_price_initial != null && <Row label={T('السعر الابتدائي','Initial Price')} value={num(d.total_price_initial) + ' ' + T('ر.س','SAR')} mono />}
+            {d.total_price_final != null && <Row label={T('السعر النهائي','Final Price')} value={num(d.total_price_final) + ' ' + T('ر.س','SAR')} mono color={C.gold} />}
+            {d.discount != null && <Row label={T('الخصم','Discount')} value={num(d.discount) + ' ' + T('ر.س','SAR')} mono />}
+            {d.office_cost != null && <Row label={T('رسوم المكتب','Office Cost')} value={num(d.office_cost) + ' ' + T('ر.س','SAR')} mono />}
+            {d.iqama_expiry_date && <Row label={T('انتهاء الإقامة','Iqama Expiry')} value={date(d.iqama_expiry_date)} mono />}
+            {d.reference_number && <Row label={T('رقم المرجع','Ref No')} value={d.reference_number} mono />}
+          </>)}
+          {code === 'ajeer' && (<>
+            <Row label={T('العامل','Worker')} value={d.worker?.name_ar || d.worker?.name_en} />
+            <Row label={T('رقم الإقامة','Iqama No')} value={d.worker?.iqama_number} mono />
+            <Row label={T('منشأة الأجير','Ajeer Facility')} value={d.ajeer_facility?.name_ar || d.ajeer_facility?.unified_number} />
+            <Row label={T('المنشأة المستفيدة','Beneficiary Facility')} value={d.main_facility?.name_ar || d.main_facility?.unified_number} />
+            <Row label={T('المدينة','City')} value={isAr ? d.ajeer_city?.name_ar : (d.ajeer_city?.name_en || d.ajeer_city?.name_ar)} />
+            {d.duration_months && <Row label={T('المدة','Duration')} value={d.duration_months + ' ' + T('شهر','months')} />}
+            {d.start_date && <Row label={T('تاريخ البدء','Start Date')} value={date(d.start_date)} mono />}
+            {d.end_date && <Row label={T('تاريخ الانتهاء','End Date')} value={date(d.end_date)} mono />}
+          </>)}
+          {code === 'iqama_renewal' && (<>
+            <Row label={T('العامل','Worker')} value={d.worker?.name_ar || d.worker?.name_en} />
+            <Row label={T('رقم الإقامة','Iqama No')} value={d.worker?.iqama_number} mono />
+            <Row label={T('المنشأة','Facility')} value={d.worker_facility?.name_ar || d.worker_facility?.unified_number} />
+            {d.duration_months && <Row label={T('مدة التجديد','Renewal Duration')} value={d.duration_months + ' ' + T('شهر','months')} />}
+            {d.current_expire_date && <Row label={T('تاريخ الانتهاء الحالي','Current Expiry')} value={date(d.current_expire_date)} mono />}
+            {d.new_expire_date && <Row label={T('تاريخ الانتهاء الجديد','New Expiry')} value={date(d.new_expire_date)} mono color={C.ok} />}
+          </>)}
+          {code === 'other' && (<>
+            <Row label={T('العامل','Worker')} value={d.worker?.name_ar || d.worker?.name_en} />
+            <Row label={T('رقم الإقامة','Iqama No')} value={d.worker?.iqama_number} mono />
+            <Row label={T('المنشأة','Facility')} value={d.worker_facility?.name_ar || d.worker_facility?.unified_number} />
+            <Row label={T('الوصف','Description')} value={d.description} />
+          </>)}
+        </>
+      )}
+
+    </>
+  )
+}
+
+const FinancialKPIs = ({ total, paid, remaining, pct, payT, T }) => (
+  <>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>
+      <AmountBox label={T('الإجمالي','Total')} value={num(total)} color="#fff" />
+      <AmountBox label={T('المسدّد','Paid')} value={num(paid)} color={C.ok} />
+      <AmountBox label={T('المتبقي','Remaining')} value={num(remaining)} color={remaining > 0 ? C.warn : C.ok} />
+    </div>
+    <div style={{ padding: '14px 22px 18px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--tx3)' }}>
+        <span>{T('نسبة السداد','Paid')}</span>
+        <span style={{ color: payT.c, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
+      </div>
+      <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${payT.c}, ${payT.c}dd)`, transition: 'width .3s' }} />
+      </div>
+    </div>
+  </>
+)
+
+const PaymentRow = ({ p, isAr, T, overflow = 0 }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', opacity: p.is_valid ? 1 : 0.5, gap: 10, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: p.is_valid ? C.ok : C.red, flexShrink: 0 }} />
+      <span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(p.amount)}</span>
+      {p.payment_method && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>· {isAr ? p.payment_method.value_ar : (p.payment_method.value_en || p.payment_method.value_ar)}</span>}
+      {p.bank_reference && <span style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace' }}>· {p.bank_reference}</span>}
+      {overflow > 0 && (
+        <span style={{ fontSize: 9.5, padding: '2px 8px', borderRadius: 999, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.32)', color: C.gold, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span>+{num(overflow)} {T('للقسط التالي','to next')}</span>
+        </span>
+      )}
+    </div>
+    <span style={{ fontSize: 10.5, color: 'var(--tx3)', direction: 'ltr' }}>{fmtGreg(p.payment_date, isAr)}</span>
+  </div>
+)
+
+/* ═════ Installment timeline — vertical stepper showing each stage ═════ */
+const deriveInstMeta = (ins, T, isAr) => {
+  const insTotal = Number(ins.total_amount || 0)
+  const insPaid = Number(ins.paid_amount || 0)
+  const state = insPaid >= insTotal && insTotal > 0 ? 'paid' : (insPaid > 0 ? 'partial' : 'unpaid')
+  const stateC = state === 'paid' ? C.ok : (state === 'partial' ? C.gold : 'rgba(255,255,255,.32)')
+  const stateBg = state === 'paid' ? 'rgba(46,204,113,.16)' : (state === 'partial' ? 'rgba(212,160,23,.14)' : 'rgba(255,255,255,.05)')
+  const stateLabel = state === 'paid' ? T('مسدّد','Paid') : (state === 'partial' ? T('جزئي','Partial') : T('لم يُسدد','Unpaid'))
+  const milestone = ins.payment_milestone
+    ? (isAr ? ins.payment_milestone.value_ar : (ins.payment_milestone.value_en || ins.payment_milestone.value_ar))
+    : (ins.notes || null)
+  return { insTotal, insPaid, state, stateC, stateBg, stateLabel, milestone }
+}
+const CheckIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+
+const InstallmentTimeline = ({ insts, T, isAr }) => (
+  <div style={{ position: 'relative', paddingInlineStart: 22 }}>
+    <div style={{ position: 'absolute', insetInlineStart: 13, top: 14, bottom: 14, width: 2, background: 'rgba(255,255,255,.06)' }} />
+    {insts.map((ins, i) => { const m = deriveInstMeta(ins, T, isAr); return (
+      <div key={ins.id} style={{ position: 'relative', paddingBottom: i === insts.length - 1 ? 0 : 18 }}>
+        <span style={{ position: 'absolute', insetInlineStart: -22, top: 4, width: 24, height: 24, borderRadius: '50%', background: m.stateBg, border: '2px solid ' + m.stateC, color: m.stateC, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>{m.state === 'paid' ? <CheckIcon/> : ins.installment_order}</span>
+        <div style={{ paddingInlineStart: 12 }}>
+          <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 700, marginBottom: 4 }}>{m.milestone || `${T('قسط','Installment')} ${ins.installment_order}`}</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 16, color: 'var(--tx1)', fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(m.insTotal)}</span>
+            <span style={{ fontSize: 10, color: m.stateC, fontWeight: 700 }}>· {m.stateLabel}</span>
+            {m.state === 'partial' && <span style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>({num(m.insPaid)} / {num(m.insTotal)})</span>}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 10, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>{T('التاريخ المتوقع','Expected')}:</span>
+            <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', color: ins.expected_date ? 'var(--tx3)' : 'var(--tx4)' }}>{ins.expected_date ? fmtGreg(ins.expected_date, isAr) : '—'}</span>
+          </div>
+        </div>
+      </div>
+    )})}
+  </div>
+)
+
+const InstallmentsWithPayments = ({ data, isAr, T }) => {
+  if (data.loading) return (
+    <div style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--tx4)', fontSize: 12 }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
+      <span>{T('جاري تحميل الأقساط والدفعات…','Loading installments & payments…')}</span>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+  const insts = (data.insts || []).slice().sort((a, b) => (a.installment_order || 0) - (b.installment_order || 0))
+  const pays = (data.pays || []).slice().sort((a, b) => (b.payment_date || '').localeCompare(a.payment_date || ''))
+  if (!insts.length && !pays.length) return <div style={{ padding: 22, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>{T('لا توجد أقساط ولا دفعات','No installments or payments')}</div>
+
+  return (
+    <div style={{ padding: '4px 22px 14px' }}>
+      {/* Installments — target breakdown */}
+      <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px', margin: '6px 0 4px' }}>
+        {T('الأقساط','Installments')} ({insts.length})
+      </div>
+      {insts.length === 0 ? (
+        <div style={{ padding: '6px 0 10px', fontSize: 11, color: 'var(--tx4)' }}>{T('لا توجد أقساط — الفاتورة نقدية','No installments — cash invoice')}</div>
+      ) : (
+        <InstallmentTimeline insts={insts} isAr={isAr} T={T} />
+      )}
+
+      {/* Payments — all actual payments */}
+      <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px', margin: '16px 0 4px' }}>
+        {T('الدفعات','Payments')} ({pays.length})
+      </div>
+      {pays.length === 0 ? (
+        <div style={{ padding: '6px 0', fontSize: 11, color: 'var(--tx4)' }}>{T('لا توجد دفعات','No payments yet')}</div>
+      ) : (
+        <div>
+          {pays.map(p => <PaymentRow key={p.id} p={p} isAr={isAr} T={T} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const HeaderChips = ({ inv, isAr, T, svc, payT }) => (
+  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+    <span style={{ padding: '4px 12px', borderRadius: 8, background: svc.bg, border: '1px solid ' + svc.bd, color: svc.c, fontSize: 12, fontWeight: 700 }}>{isAr ? svc.label_ar : svc.label_en}</span>
+    <span style={{ padding: '4px 12px', borderRadius: 999, border: '1.5px solid ' + payT.c, color: payT.c, fontSize: 11, fontWeight: 800, letterSpacing: 1 }}>{isAr ? payT.stamp_ar : payT.stamp_en}</span>
+    <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{fmtGreg(inv.created_at, isAr)}</span>
+    {inv.branch?.branch_code && <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', direction: 'ltr', fontWeight: 700 }}>{inv.branch.branch_code}</span>}
+  </div>
+)
+
+const InvoiceDetailLayout = ({ inv, data, isAr, T, svc, payT, total, paid, remaining, pct, onRecordPayment, onRefund, onCancelInv, onPrint }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={cardChrome}>
+        <div style={cardHeader}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
+          <span style={cardTitle}>{T('العميل','Client')}</span>
+          {(() => {
+            const nat = inv.service_request?.client?.nationality
+            if (!nat) return null
+            const fl = nat.flag_url
+            const em = flagEmoji(nat.code)
+            return fl
+              ? <img src={fl} alt={nat.name_ar || ''} title={nat.name_ar || ''} style={{ width: 22, height: 16, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />
+              : (em ? <span title={nat.name_ar || ''} style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null)
+          })()}
+        </div>
+        <div style={{ padding: '14px 22px' }}><ClientRows inv={inv} T={T} /></div>
+      </div>
+      <div style={cardChrome}>
+        <div style={cardHeader}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+          <span style={cardTitle}>{T('الأقساط والدفعات','Installments & Payments')}</span>
+        </div>
+        <InstallmentsWithPayments data={data} isAr={isAr} T={T} />
+      </div>
+      <div style={cardChrome}>
+        <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: svc.c }} /><span style={cardTitle}>{T('بيانات المعاملة','Transaction Details')}</span></div>
+        <div style={{ padding: '14px 22px' }}><TransactionRows inv={inv} isAr={isAr} T={T} svc={svc} payT={payT} data={data} /></div>
+      </div>
+    </div>
+    <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={cardChrome}>
+        <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('الملخص المالي','Financial Summary')}</span></div>
+        <FinancialKPIs total={total} paid={paid} remaining={remaining} pct={pct} payT={payT} T={T} />
+        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <span style={{ color: 'var(--tx4)' }}>{T('عدد الأقساط','Installments')}</span>
+            <span style={{ color: 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{data.insts?.length || 0}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <span style={{ color: 'var(--tx4)' }}>{T('عدد الدفعات','Payments')}</span>
+            <span style={{ color: 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{data.pays?.length || 0}</span>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <ActionGridButton onClick={onRecordPayment} color={C.ok} bg="rgba(46,204,113,.10)" bd="rgba(46,204,113,.32)" label={T('تسجيل دفعة','Record Payment')}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        </ActionGridButton>
+        <ActionGridButton onClick={onRefund} color={C.blue} bg="rgba(93,173,226,.10)" bd="rgba(93,173,226,.30)" label={T('استرجاع','Refund')}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7"/></svg>
+        </ActionGridButton>
+        <ActionGridButton onClick={onPrint} color="rgba(255,255,255,.78)" bg="rgba(255,255,255,.04)" bd="rgba(255,255,255,.10)" label={T('طباعة','Print')}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </ActionGridButton>
+        <ActionGridButton onClick={onCancelInv} color={C.red} bg="rgba(229,134,122,.10)" bd="rgba(229,134,122,.30)" label={T('إلغاء','Cancel')}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+        </ActionGridButton>
+      </div>
+    </div>
+  </div>
+)
+
+const ActionGridButton = ({ onClick, color, bg, bd, label, children }) => (
+  <button
+    onClick={onClick}
+    style={{ height: 44, padding: '0 12px', borderRadius: 11, background: bg, border: '1px solid ' + bd, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, transition: '.18s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)' }}
+  >
+    <span>{label}</span>
+    {children}
+  </button>
+)
+
+const AmountBox = ({ label, value, color }) => (
+  <div style={{ padding: '14px 18px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
+    <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: 1 }}>{label}</div>
+    <div style={{ fontSize: 18, fontWeight: 700, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
+  </div>
+)
+
+const Section = ({ title, children }) => (
+  <div style={{ padding: '18px 28px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+    <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, marginBottom: 12, letterSpacing: 1, textTransform: 'uppercase' }}>{title}</div>
+    {children}
+  </div>
+)
+const Row = ({ label, value, mono, color }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', alignItems: 'center', minHeight: 28 }}>
+    <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{label}</span>
+    <span style={{ fontSize: 13, color: color || 'var(--tx2)', fontVariantNumeric: mono ? 'tabular-nums' : undefined, fontFamily: mono ? 'monospace' : F, direction: mono ? 'ltr' : undefined, fontWeight: 600 }}>{value || '—'}</span>
+  </div>
+)
+
+const SectionLabel = ({ label, color = C.gold }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 0 6px', marginTop: 4 }}>
+    <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}aa` }} />
+    <span style={{ fontSize: 10.5, color: color, fontWeight: 700, letterSpacing: '.6px' }}>{label}</span>
+    <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
+  </div>
+)
+
+const BorderRow = ({ T, borderNo, visaUsed }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', alignItems: 'center', minHeight: 28, gap: 10 }}>
+    <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('رقم الحدود','Border No')}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{
+        padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 800, letterSpacing: '.4px',
+        background: visaUsed ? 'rgba(46,204,113,.12)' : 'rgba(255,255,255,.04)',
+        border: '1px solid ' + (visaUsed ? 'rgba(46,204,113,.32)' : 'rgba(255,255,255,.08)'),
+        color: visaUsed ? C.ok : 'var(--tx4)',
+      }}>{visaUsed ? T('مستخدمة','Used') : T('لم تستخدم','Not Used')}</span>
+      <span style={{ fontSize: 13, color: 'var(--tx2)', fontFamily: 'monospace', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{borderNo || '—'}</span>
+    </div>
+  </div>
+)
+
+const selS = { padding: '9px 12px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, color: 'var(--tx1)', fontSize: 13, fontFamily: F, minWidth: 130 }
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

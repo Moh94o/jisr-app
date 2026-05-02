@@ -1,6 +1,7 @@
 import React,{useState,useEffect,useCallback,useMemo,useRef} from 'react'
 import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Languages,Wallet,Printer,Plane,PlaneTakeoff,TriangleAlert,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Paperclip,Copy,Check,MapPin,Sparkles,TrendingUp} from 'lucide-react'
 import {isServiceActive,isServiceBillable} from './ServiceAdminPage.jsx'
+import {DateField, Sel as KafalaSel, OccSelect as KafalaOccSelect} from './pages/KafalaCalculator.jsx'
 const F="'Cairo','Tajawal',sans-serif"
 const C={gold:'#D4A017',red:'#c0392b',ok:'#27a046',blue:'#3483b4',bentoGold:'#D4A017'}
 // Format Saudi phone: +966558908008 → 055 890 8008
@@ -388,45 +389,53 @@ const[saving,setSaving]=useState(false)
 const[err,setErr]=useState('')
 const[loading,setLoading]=useState(true)
 
-// Load data
+// Load data — adapted to the new schema (clients/workers/agents/lookup_items/nationalities/embassies)
 useEffect(()=>{if(!sb)return;(async()=>{
-const[s,r,c,w,b,ci,ba]=await Promise.all([
-sb.from('sub_services').select('*').eq('is_active',true).eq('show_in_request_popup',true).order('sort_order'),
-sb.from('regions').select('id,name_ar').eq('is_active',true).order('sort_order'),
-sb.from('clients').select('id,client_number,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).eq('status','active').order('name_ar'),
-sb.from('workers').select('id,name,name_ar,name_en,phone,iqama_number,iqama_expiry_date,birth_date,nationality,passport_number,passport_expiry,country:countries!fk_workers_nationality(nationality_ar,flag_emoji,code),occupation:lookup_items!fk_workers_occupation(value_ar),facility:facilities!fk_workers_facility(id,name_ar,unified_national_number,qiwa_unified_number,qiwa_file_number,gosi_file_number),work_permits(wp_expiry_date),worker_insurance(end_date)').is('deleted_at',null).order('name').limit(50),
-sb.from('brokers').select('id,name_ar,name_en,phone,id_number').is('deleted_at',null).eq('status','active').order('name_ar').limit(50),
+const[r,c,w,b,ci]=await Promise.all([
+sb.from('regions').select('id,name_ar').order('name_ar'),
+sb.from('clients').select('id,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).order('name_ar').limit(500),
+// Worker query with current_facility / current_occupation / nationality joins (new schema)
+sb.from('workers').select('id,name_ar,name_en,phone,iqama_number,birth_date,nationality:nationality_id(id,name_ar,code:code),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,unified_number)').is('deleted_at',null).order('name_ar').limit(50),
+sb.from('agents').select('id,name_ar,name_en,phone,id_number').is('deleted_at',null).order('name_ar').limit(50),
 sb.from('cities').select('id,name_ar,region_id').order('name_ar'),
-sb.from('bank_accounts').select('id,bank_name,account_name,account_number,iban,is_primary').eq('is_active',true).order('is_primary',{ascending:false}).order('bank_name')
 ])
-const svcs=s.data||[]
+// Build a synthetic services array from MAIN+OTHER_SERVICES so downstream code keeps working.
+const svcs=ALL_SERVICES.map((s,i)=>({id:s.id,name_ar:s.name_ar,category:MAIN_SERVICES.includes(s)?'main':'other',default_price:0,gov_fee:0,pricing_rules:{},inputs:[],sort_order:i,is_active:true,show_in_request_popup:true}))
 setServices(svcs)
 setRegions(r.data||[])
 setClients(c.data||[])
-setWorkers(w.data||[])
+// Reshape workers to match the legacy `country` / `occupation` / `facility` field names downstream code expects.
+const wRows=(w.data||[]).map(x=>({
+id:x.id,name:x.name_ar||x.name_en,name_ar:x.name_ar,name_en:x.name_en,phone:x.phone,iqama_number:x.iqama_number,
+iqama_expiry_date:null,birth_date:x.birth_date,passport_number:null,passport_expiry:null,
+nationality:x.nationality?.name_ar||null,
+country:x.nationality?{nationality_ar:x.nationality.name_ar,flag_emoji:null,code:x.nationality.code||null}:null,
+occupation:x.current_occupation?{value_ar:x.current_occupation.name_ar}:null,
+facility:x.current_facility?{id:x.current_facility.id,name_ar:x.current_facility.name_ar,unified_national_number:x.current_facility.unified_number,qiwa_unified_number:x.current_facility.unified_number,qiwa_file_number:null,gosi_file_number:null}:null,
+work_permits:null,worker_insurance:null,
+}))
+setWorkers(wRows)
 setBrokers(b?.data||[])
 setCities(ci?.data||[])
-setBankAccounts(ba?.data||[])
-if(svcs.length>0){const cats=[...new Set(svcs.map(x=>x.category))];setSelCat(cats[0]||'')}
-// Load visa-related lookups (countries + embassies + occupation + gender)
-const[lkRes,coRes,emRes]=await Promise.all([
-sb.from('lookup_items').select('id,value_ar,code,sort_order,lookup_categories!inner(category_key)').eq('is_active',true).in('lookup_categories.category_key',['occupation','gender']).order('sort_order'),
-sb.from('countries').select('id,name_ar,nationality_ar,code,flag_emoji').eq('is_active',true).order('sort_order',{nullsFirst:false}).order('nationality_ar'),
-sb.from('embassies_consulates').select('id,country_id,city_ar,type,sort_order').eq('is_active',true).order('sort_order')
+setBankAccounts([])
+setSelCat('main')
+// Visa lookups: occupations from `occupations` table, gender hardcoded (no lookup category for it).
+const[occRes,natRes,emRes]=await Promise.all([
+sb.from('occupations').select('id,name_ar,code').is('is_active',true).order('name_ar').limit(2000),
+sb.from('nationalities').select('id,name_ar,code,country_name_ar').is('is_active',true).order('name_ar'),
+sb.from('embassies').select('id,name_ar,name_en,nationality_id').is('is_active',true).order('name_ar'),
 ])
-if(lkRes.data){
-const byCat=k=>lkRes.data.filter(i=>i.lookup_categories?.category_key===k)
-setLkOccupations(byCat('occupation'))
-setLkGenders(byCat('gender'))
-}
-// Dedupe countries by nationality_ar (table has dupes) + exclude GCC (work visas not applicable)
-if(coRes.data){
+setLkOccupations((occRes.data||[]).map(o=>({id:o.id,value_ar:o.name_ar,code:o.code,sort_order:0})))
+setLkGenders([{id:'male',value_ar:'ذكر',code:'male',sort_order:1},{id:'female',value_ar:'أنثى',code:'female',sort_order:2}])
+// Reshape nationalities to match legacy countries shape (nationality_ar)
+if(natRes.data){
 const GCC=new Set(['SA','AE','KW','QA','BH','OM'])
 const seen=new Set(),uniq=[]
-for(const c of coRes.data){if(c.nationality_ar&&!seen.has(c.nationality_ar)&&!GCC.has((c.code||'').toUpperCase())){seen.add(c.nationality_ar);uniq.push(c)}}
+for(const c of natRes.data){const code=(c.code||'').toUpperCase();const nat=c.name_ar;if(nat&&!seen.has(nat)&&!GCC.has(code)){seen.add(nat);uniq.push({id:c.id,name_ar:c.country_name_ar||c.name_ar,nationality_ar:c.name_ar,code:c.code,flag_emoji:null})}}
 setLkCountries(uniq)
 }
-setLkEmbassies(emRes.data||[])
+// Reshape embassies (country_id mirrors nationality_id for filtering)
+setLkEmbassies((emRes.data||[]).map((e,i)=>({id:e.id,country_id:e.nationality_id||null,nationality_id:e.nationality_id||null,city_ar:e.name_ar,name_en:e.name_en||null,type:'embassy',sort_order:i})))
 setLoading(false)
 })()},[sb])
 
@@ -470,16 +479,8 @@ const q=clientQ.trim().toLowerCase()
 return clients.filter(c=>(c.name_ar||'').toLowerCase().includes(q)||(c.name_en||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.id_number||'').includes(q)).slice(0,2)
 },[clients,clientQ])
 
-// Fetch latest facility weekly stat when a worker is selected
-useEffect(()=>{
-if(!sb||!selWorker?.facility?.id){setWorkerFacilityStat(null);return}
-let cancelled=false
-;(async()=>{
-const{data}=await sb.from('facility_weekly_stats').select('nitaqat_color,wps_has_notes,week_date,nitaqat:lookup_items!facility_weekly_stats_nitaqat_color_fkey(value_ar,code)').eq('facility_id',selWorker.facility.id).order('week_date',{ascending:false}).limit(1).maybeSingle()
-if(!cancelled)setWorkerFacilityStat(data||null)
-})()
-return()=>{cancelled=true}
-},[sb,selWorker])
+// Facility weekly stats are not in the new schema yet — keep null so dependent UI gracefully renders empty
+useEffect(()=>{setWorkerFacilityStat(null)},[selWorker])
 
 // Broker search
 const filteredBrokers=useMemo(()=>{
@@ -682,12 +683,28 @@ const[otherExtraAmount,setOtherExtraAmount]=useState('')
 // Reset when service changes
 useEffect(()=>{setOtherServicePricing({overrides:{},extras:[],absherBalance:'',discount:''});setOtherExtraName('');setOtherExtraAmount('')},[selSvc])
 // Set Arabic as default for documents language
-// Load priced kafala transfer quotes when entering step 3 with kafala_transfer
+// Load priced kafala transfer quotes from `transfer_calculation` when entering step 3 with kafala_transfer
 useEffect(()=>{
 if(!sb||step!==3||selSvc!=='kafala_transfer'||loadingKafalaQuotes||kafalaQuotes.length>0)return
 setLoadingKafalaQuotes(true)
-sb.from('worker_transfers').select('id,new_employer_name,client_charge,transfer_fee,iqama_cost,work_permit_cost,insurance_cost,other_costs,priced_at,notes,transfer_type').eq('status','priced').order('priced_at',{ascending:false}).limit(200).then(({data})=>{
-const parsed=(data||[]).map(q=>{let n={};try{n=JSON.parse(q.notes||'{}')}catch{}return{...q,_notes:n,quote_no:n.quote_no||'',worker_name:n.worker_name||q.new_employer_name||'',iqama_number:n.iqama_number||'',phone:n.phone||''}})
+sb.from('transfer_calculation').select('id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,transfer_fee,iqama_renewal_fee,work_permit_fee,medical_fee,office_fee,prof_change_fee,priced_at,transfer_only').eq('status','priced').is('deleted_at',null).order('priced_at',{ascending:false}).limit(200).then(({data})=>{
+const parsed=(data||[]).map(q=>({
+id:q.id,
+new_employer_name:q.worker_name||'',
+client_charge:Number(q.total_amount||0),
+transfer_fee:Number(q.transfer_fee||0),
+iqama_cost:Number(q.iqama_renewal_fee||0),
+work_permit_cost:Number(q.work_permit_fee||0),
+insurance_cost:Number(q.medical_fee||0),
+other_costs:Number(q.office_fee||0)+Number(q.prof_change_fee||0),
+priced_at:q.priced_at,
+transfer_type:q.transfer_only?'transfer_only':'sponsorship',
+_notes:{},
+quote_no:q.quote_no||'',
+worker_name:q.worker_name||'',
+iqama_number:q.iqama_number||'',
+phone:q.phone?('+966'+q.phone):'',
+}))
 setKafalaQuotes(parsed)
 setLoadingKafalaQuotes(false)
 })
@@ -812,14 +829,10 @@ if(step===2){
 if(step2Mode==='client'){
 if(clientMode==='existing'&&!selClient&&!workerIsClient){setErr('يرجى اختيار عميل');return false}
 if(clientMode==='new'&&!workerIsClient){
-const nAr=newClient.name_ar.trim()
-if(!nAr){setErr('يرجى إدخال الاسم بالعربي');return false}
-if(!/^[\u0600-\u06FF\s]+$/.test(nAr)){setErr('الاسم بالعربي يجب أن يحتوي على حروف عربية فقط');return false}
-{const w=nAr.split(/\s+/).filter(Boolean);if(w.length<2||w.length>3){setErr('الاسم بالعربي يجب أن يكون من كلمتين إلى ثلاث كلمات');return false}}
-const nEn=newClient.name_en.trim()
-if(!nEn){setErr('يرجى إدخال الاسم بالإنجليزي');return false}
-if(!/^[A-Za-z\s]+$/.test(nEn)){setErr('الاسم بالإنجليزي يجب أن يحتوي على حروف إنجليزية فقط');return false}
-{const w=nEn.split(/\s+/).filter(Boolean);if(w.length<2||w.length>3){setErr('الاسم بالإنجليزي يجب أن يكون من كلمتين إلى ثلاث كلمات');return false}}
+const nm=(newClient.name_ar||newClient.name_en||'').trim()
+if(!nm){setErr('يرجى إدخال اسم العميل');return false}
+{const isArN=/^[؀-ۿ\s]+$/.test(nm),isEnN=/^[A-Za-z\s]+$/.test(nm);if(!isArN&&!isEnN){setErr('اسم العميل يجب أن يكون بالعربية فقط أو بالإنجليزية فقط');return false}const w=nm.split(/\s+/).filter(Boolean);if(w.length!==2){setErr('اسم العميل يجب أن يكون من كلمتين بالضبط');return false}}
+if(!newClient.nationality_id){setErr('يرجى اختيار الجنسية');return false}
 if(!newClient.id_number||newClient.id_number.length!==10){setErr('رقم الهوية يجب أن يكون 10 أرقام');return false}
 if(!newClient.phone||newClient.phone.length!==9){setErr('رقم الجوال يجب أن يكون 9 أرقام');return false}
 }
@@ -896,6 +909,7 @@ const inputs=hasSec?allInps.filter(i=>i.section===kafalaPage):allInps
 for(const inp of inputs){
 if(!inp.required)continue
 if(inp.show_if&&!fields[inp.show_if])continue
+if(inp.show_if_eq&&fields[inp.show_if_eq.key]!==inp.show_if_eq.value)continue
 if(inp.type==='toggle'){if(fields[inp.key]!==true&&fields[inp.key]!==false){setErr(`يرجى تعبئة: ${inp.label_ar}`);return false}}
 else if(inp.type==='date_hijri'){if(!fields[inp.key]||!/^\d{4}-\d{2}-\d{2}$/.test(fields[inp.key])){setErr(`يرجى تعبئة: ${inp.label_ar}`);return false}}
 else if(!fields[inp.key]){setErr(`يرجى تعبئة: ${inp.label_ar}`);return false}
@@ -997,103 +1011,179 @@ if(step===4&&hasMergedField){setStep(2);setStep2Mode('worker');return}
 setStep(s=>Math.max(s-1,1))
 }
 
-// Submit
+// Submit — adapted to the new schema:
+//   service_requests + (visa/transfer/ajeer/iqama_renewal/other)_applications + invoice (when billable) + installments
 const handleSubmit=async()=>{
 if(saving)return
+// Branch on every write follows the user's primary branch — falling back to the dashboard filter if absent.
+const userBranchId=user?.primary_branch_id||branchId||null
+if(!userBranchId){setErr('لا يوجد مكتب مرتبط بحسابك — تواصل مع مدير النظام لتعيين مكتبك');return}
 setSaving(true);setErr('')
 try{
 let finalClientId=selClient?.id||null
-
-// Create new worker if needed
 let finalWorkerId=selWorker?.id||null
+
+// Create new worker if needed (new schema columns)
 if(!workerIsClient&&workerMode==='new'){
 const{data:nw,error:nwErr}=await sb.from('workers').insert({
-name:newWorker.name,
-phone:'+966'+newWorker.phone,iqama_number:newWorker.iqama_number||null,
-created_by:user?.id
-}).select().single()
+name_ar:newWorker.name||null,
+phone:newWorker.phone?('966'+newWorker.phone):null,
+iqama_number:newWorker.iqama_number||null,
+branch_id:userBranchId,
+}).select('id').single()
 if(nwErr)throw nwErr
 finalWorkerId=nw.id
 }
 
-// Create new client if needed
+// Create new client if needed (new schema columns — no client_number/status)
 if(clientMode==='new'){
 const{data:nc,error:ncErr}=await sb.from('clients').insert({
-name_ar:newClient.name_ar,name_en:newClient.name_en||null,
-phone:'+966'+newClient.phone,
-id_number:newClient.id_number||null,branch_id:branchId,status:'active',
-client_number:'CL-'+Date.now(),created_by:user?.id
-}).select().single()
+name_ar:newClient.name_ar||null,name_en:newClient.name_en||null,
+phone:newClient.phone?('966'+newClient.phone):null,
+id_number:newClient.id_number||null,
+nationality_id:newClient.nationality_id||null,
+branch_id:userBranchId,
+}).select('id').single()
 if(ncErr)throw ncErr
 finalClientId=nc.id
 }
 
-// Generate transaction number
-const year=new Date().getFullYear()
-const{count}=await sb.from('transactions').select('id',{count:'exact',head:true}).like('transaction_number',`TXN-${year}%`)
-const txNum=`TXN-${year}-${String((count||0)+1).padStart(5,'0')}`
+// Map page-side service id → schema service_type code
+const SVC_CODE_MAP={work_visa_permanent:'work_visa',work_visa_temporary:'work_visa',kafala_transfer:'transfer',iqama_renewal:'iqama_renewal',ajeer_contract:'ajeer'}
+const svcCode=SVC_CODE_MAP[selSvc]||'other'
 
-// Create transaction
-const{data:tx,error:txErr}=await sb.from('transactions').insert({
-transaction_number:txNum,transaction_type:'client_transaction',
-service_id:selSvc,service_category:selectedService?.category,
-client_id:finalClientId,worker_id:workerIsClient?null:finalWorkerId,
-status:'pending',priority:'normal',branch_id:branchId,
-start_date:new Date().toISOString().split('T')[0],
-due_date:new Date(Date.now()+14*86400000).toISOString().split('T')[0],
-client_note:clientNote||null,internal_note:internalNote||null,
-notes:selectedService?.name_ar,created_by:user?.id
-}).select().single()
-if(txErr)throw txErr
+// Resolve lookup IDs (service_type + 'new' status)
+const{data:svcTypeRow}=await sb.from('lookup_items').select('id,category:lookup_categories!inner(category_key)').eq('code',svcCode).eq('category.category_key','service_type').maybeSingle()
+const{data:newStatusRow}=await sb.from('lookup_items').select('id,category:lookup_categories!inner(category_key)').eq('code','new').eq('category.category_key','request_status').maybeSingle()
+if(!svcTypeRow?.id||!newStatusRow?.id)throw new Error('lookup ids not found')
 
-// Save dynamic field values (keep `false` values for toggles, drop empty/null/undefined)
-const fieldEntries=Object.entries(fields).filter(([,v])=>v!==undefined&&v!==null&&v!=='')
-if(fieldEntries.length>0){
-const{error:fErr}=await sb.from('transaction_field_values').insert(
-fieldEntries.map(([key,val])=>({transaction_id:tx.id,field_key:key,field_value:String(val),created_at:new Date().toISOString(),updated_at:new Date().toISOString()}))
-)
-if(fErr)throw fErr
-}
+// Generate ref number (timestamp-based, last 10 digits)
+const refNo=String(Date.now()).slice(-10)
+// Determine quantity (visas can have many)
+const qty=Math.max(1,Number(fields.visa_count||fields.quantity||1))
 
-// Create invoice
-const invNum=`INV-${year}-${String((count||0)+1).padStart(5,'0')}`
+// 1. Insert service_request
+const{data:sr,error:srErr}=await sb.from('service_requests').insert({
+request_ref_no:refNo,
+branch_id:userBranchId,
+client_id:finalClientId,
+service_type_id:svcTypeRow.id,
+status_id:newStatusRow.id,
+request_date:new Date().toISOString(),
+quantity:qty,
+note:[clientNote,internalNote].filter(Boolean).join(' — ')||null,
+}).select('id').single()
+if(srErr)throw srErr
+
+// 2. Insert detail row in the matching application table
+const detailTbl=svcCode==='work_visa'?'visa_applications'
+:svcCode==='transfer'?'transfer_applications'
+:svcCode==='ajeer'?'ajeer_applications'
+:svcCode==='iqama_renewal'?'iqama_renewal_applications'
+:'other_applications'
+const detailRow=(svcCode==='work_visa')?{service_request_id:sr.id,main_facility_id:selWorker?.facility?.id||null,nationality_id:fields.nationality_id||null,occupation_id:fields.occupation_id||null,embassy_id:fields.embassy_id||null,gender:fields.gender||null,visa_cost:Number(pricing.price||0)||null}
+:(svcCode==='transfer')?{service_request_id:sr.id,worker_id:finalWorkerId,main_facility_id:selWorker?.facility?.id||null,total_price_final:Number(pricing.total||0)||null}
+:(svcCode==='ajeer')?{service_request_id:sr.id,worker_id:finalWorkerId,main_facility_id:selWorker?.facility?.id||null,duration_months:Number(fields.duration_months)||null,start_date:fields.start_date||null,end_date:fields.end_date||null}
+:(svcCode==='iqama_renewal')?{service_request_id:sr.id,worker_id:finalWorkerId,worker_facility_id:selWorker?.facility?.id||null,duration_months:Number(fields.duration_months)||12,current_expire_date:fields.current_expire_date||null,new_expire_date:fields.new_expire_date||null}
+:{service_request_id:sr.id,worker_id:workerIsClient?null:finalWorkerId,worker_facility_id:selWorker?.facility?.id||null,description:selectedService?.name_ar||fields.description||null}
+const{error:dErr}=await sb.from(detailTbl).insert(detailRow)
+if(dErr)throw dErr
+
+// 3. Insert invoice IF the service is billable. Free services skip the invoice (per the user's free-service flow).
+const billable=isServiceBillable?isServiceBillable(selSvc):true
+let createdInvId=null
+const effectiveTotal=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?Number(totalOverride):Number(pricing?.total||0)
+if(billable&&effectiveTotal>0){
+const total=effectiveTotal
+const invNo='INV-'+refNo
+const paidNum=Math.min(Number(paidAmount)||0,total)
+
+// Build the installment schedule based on the chosen service.
+// Visa services use the visa-specific stages (issuance / authorization / residence) shown in the UI;
+// other services fall back to the generic N-equal-installments split.
+const isVisa=VISA_SERVICES.has(selSvc)
+const visaHasAuth=isVisa&&selSvc!=='work_visa_temporary'
+const visaStageCount=isVisa?(visaHasAuth?3:2):0
+const numVisas=isVisa?(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1):1
+const defaultEachVisa=isVisa?total/(visaHasAuth?3:2):0
+const issuanceVal=isVisa?(visaInstallments.issuance===''?defaultEachVisa:(Number(visaInstallments.issuance)||0)):0
+const authVal=visaHasAuth?(visaInstallments.authorization===''?defaultEachVisa:(Number(visaInstallments.authorization)||0)):0
+const residenceVal=isVisa?Math.max(0,total-issuanceVal-authVal):0
+const planCount=isVisa?visaStageCount:(installmentsCount&&installmentsCount>1?installmentsCount:0)
+
 const{data:inv,error:invErr}=await sb.from('invoices').insert({
-invoice_number:invNum,client_id:finalClientId,branch_id:branchId,
-transaction_id:tx.id,total_amount:(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.subtotal,
-discount_amount:0,vat_amount:pricing.vat,vat_rate:pricing.vatRate*100,
-net_amount:(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total,paid_amount:0,remaining_amount:(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total,
-status:'unpaid',invoice_type:'client',
-issue_date:new Date().toISOString().split('T')[0],
-due_date:new Date(Date.now()+7*86400000).toISOString().split('T')[0],
-service_category:selectedService?.category,
-payment_terms_type:'full',payment_terms_days:7,
-created_by:user?.id
-}).select().single()
+invoice_no:invNo,
+service_request_id:sr.id,
+branch_id:userBranchId,
+service_type_id:svcTypeRow.id,
+service_quantity:qty,
+total_amount:total,
+paid_amount:paidNum,
+payment_plan:planCount>1?'installment':'cash',
+installments_count:planCount>1?planCount:0,
+note_public:clientNote||null,
+note_private:internalNote||null,
+}).select('id').single()
 if(invErr)throw invErr
+createdInvId=inv.id
 
-// Create invoice items
-if((selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||SVC_WITH_PRICING.has(selSvc))&&pricing.rules?.rules?.length){
-// One row per non-zero kafala line + one row for office fee under "service"
-const lines=pricing.rules.rules.filter(l=>l.amount>0)
-const items=lines.map(l=>{
-const lineTotal=Number(l.amount)
-const vatAmt=Math.round(lineTotal*(pricing.vatRate)*100)/100
-return{invoice_id:inv.id,item_type:'service',description_ar:l.label,
-sub_service_id:selSvc,quantity:1,unit_price:lineTotal,discount:0,
-vat_rate:pricing.vatRate*100,vat_amount:vatAmt,
-line_total:lineTotal,line_total_with_vat:lineTotal+vatAmt}
-})
-if(items.length>0){
-const{error:iiErr}=await sb.from('invoice_items').insert(items)
-if(iiErr)throw iiErr
+// Resolve payment_method lookup once — needed for both payment row + paid installments
+let pmId=null
+if(paidNum>0){
+const payCode=paymentMethod==='bank'?'bank_transfer':'cash'
+const{data:pmRow}=await sb.from('lookup_items').select('id,category:lookup_categories!inner(category_key)').eq('code',payCode).eq('category.category_key','payment_method').maybeSingle()
+pmId=pmRow?.id||null
 }
-}else{
-await sb.from('invoice_items').insert({
-invoice_id:inv.id,item_type:'service',description_ar:selectedService?.name_ar,
-sub_service_id:selSvc,quantity:1,unit_price:pricing.price,
-discount:0,vat_rate:pricing.vatRate*100,vat_amount:pricing.vat,
-line_total:pricing.subtotal,line_total_with_vat:pricing.total
+const nowIso=new Date().toISOString()
+
+// 4. Installments — visa stages or generic equal-split, with down-payment consumed in order
+if(planCount>1){
+const amounts=isVisa
+?(visaHasAuth?[issuanceVal,authVal,residenceVal]:[issuanceVal,residenceVal])
+:(()=>{const each=Math.round((total/planCount)*100)/100;const remainder=total-(each*(planCount-1));return Array.from({length:planCount},(_,i)=>i===planCount-1?remainder:each)})()
+const labels=isVisa
+?(visaHasAuth?['عند إصدار التأشيرة','عند توكيل التأشيرة','عند إصدار الإقامة']:['عند إصدار التأشيرة','عند إصدار الإقامة'])
+:[]
+// Only attach due dates when the user explicitly picked a first-installment date.
+// Visa stages happen on real events (issuance/authorization/residence) and have no schedulable date upfront,
+// and even for generic installments we don't fabricate dates the user never entered.
+const startDate=(!isVisa&&firstInstallmentDate)?new Date(firstInstallmentDate):null
+let leftover=paidNum
+const insts=amounts.map((amt,i)=>{
+const instPaid=Math.min(leftover,amt)
+leftover-=instPaid
+let expectedDate=null
+if(startDate){const d=new Date(startDate);d.setMonth(d.getMonth()+i);expectedDate=d.toISOString().slice(0,10)}
+return{
+invoice_id:createdInvId,
+service_request_id:sr.id,
+branch_id:userBranchId,
+installment_order:i+1,
+total_amount:amt,
+paid_amount:instPaid,
+expected_date:expectedDate,
+paid_date:instPaid>=amt?nowIso:null,
+payment_method_id:instPaid>0?pmId:null,
+notes:labels[i]||null,
+}
 })
+const{error:instErr}=await sb.from('installments').insert(insts)
+if(instErr)throw instErr
+}
+
+// 5. Down-payment — record an actual payment row so the receipts log stays consistent
+if(paidNum>0){
+const{error:payErr}=await sb.from('payments').insert({
+invoice_id:createdInvId,
+service_request_id:sr.id,
+branch_id:userBranchId,
+amount:paidNum,
+payment_method_id:pmId,
+bank_reference:paymentMethod==='bank'?(transferReference||null):null,
+is_valid:true,
+})
+if(payErr)throw payErr
+}
 }
 
 toast(T('تم رفع الطلب بنجاح ✓','Request submitted successfully ✓'))
@@ -1126,10 +1216,6 @@ input[type=number]{-moz-appearance:textfield}
 .sr-next-btn:hover:not(:disabled) .nav-ico{background:#D4A017;color:#000}
 .sr-back-btn:hover:not(:disabled){color:var(--tx)}
 .sr-back-btn:hover:not(:disabled) .nav-ico{background:rgba(255,255,255,.14);color:var(--tx)}
-.sr-next-btn.dir-fwd:hover:not(:disabled) .nav-ico{transform:translateX(-4px)}
-.sr-next-btn.dir-back:hover:not(:disabled) .nav-ico,.sr-back-btn:hover:not(:disabled) .nav-ico{transform:translateX(4px)}
-[dir=rtl] .sr-next-btn.dir-fwd:hover:not(:disabled) .nav-ico{transform:translateX(4px)}
-[dir=rtl] .sr-next-btn.dir-back:hover:not(:disabled) .nav-ico,[dir=rtl] .sr-back-btn:hover:not(:disabled) .nav-ico{transform:translateX(-4px)}
 .sr-next-btn:disabled,.sr-back-btn:disabled{opacity:.5;cursor:not-allowed}
 .bento-card{padding:12px 10px;border-radius:12px;cursor:pointer;transition:all .2s;background:linear-gradient(180deg,#2A2A2A 0%,#222 100%);border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;min-height:86px;box-shadow:0 2px 8px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.04);font-family:${F}}
 .bento-card:hover{background:linear-gradient(180deg,rgba(212,160,23,.1) 0%,rgba(212,160,23,.04) 100%);border-color:rgba(212,160,23,.25)}
@@ -1372,38 +1458,36 @@ return <div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,pa
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>تسجيل عميل جديد</div>
 <button onClick={()=>{setClientMode('existing');setClientQ('');setNewClient({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''});setNatOpenClient(false);setNatSearchClient('')}} style={{position:'absolute',top:-11,left:14,height:22,padding:'0 10px',borderRadius:6,border:'1px solid rgba(192,57,43,.3)',background:'var(--modal-bg)',color:C.red,cursor:'pointer',fontSize:10,fontFamily:F,fontWeight:700}}>إلغاء</button>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div>
-<div style={regLblS}>الاسم بالعربي <span style={{color:C.red}}>*</span></div>
-<input value={newClient.name_ar} onChange={e=>{const v=e.target.value.replace(/[^\u0600-\u06FF\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewClient(p=>({...p,name_ar:v}))}} placeholder="الاسم الأول والأخير" style={regInpS}/>
+{(()=>{
+const cur=newClient.name_ar||newClient.name_en||''
+const isAr=/[؀-ۿ]/.test(cur)
+const handle=(raw)=>{
+let v=raw.replace(/[^؀-ۿA-Za-z\s]/g,'').replace(/\s+/g,' ').replace(/^\s+/,'')
+const words=v.trim().split(/\s+/).filter(Boolean)
+if(words.length>2) v=words.slice(0,2).join(' ')+(v.endsWith(' ')?'':'')
+const isArNow=/[؀-ۿ]/.test(v)
+setNewClient(p=>({...p, name_ar: isArNow?v:'' , name_en: !isArNow&&v?v:''}))
+}
+return <div style={{gridColumn:'1 / -1'}}>
+<div style={regLblS}>الاسم <span style={{color:C.red}}>*</span></div>
+<input value={cur} onChange={e=>handle(e.target.value)} placeholder="اسمين فقط — عربي أو إنجليزي / Two words — Arabic or English" style={{...regInpS,direction:isAr?'rtl':(cur?'ltr':'rtl'),textAlign:'center'}}/>
 </div>
-<div>
-<div style={regLblS}>الاسم بالإنجليزي <span style={{color:C.red}}>*</span></div>
-<input value={newClient.name_en} onChange={e=>{const v=e.target.value.replace(/[^A-Za-z\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewClient(p=>({...p,name_en:v}))}} placeholder="First and Last Name" style={{...regInpS,direction:'ltr'}}/>
-</div>
-<div>
-<div style={regLblS}>الجنسية <span style={{color:C.red}}>*</span></div>
-<div style={{position:'relative'}}>
-<div ref={natTriggerRef} onClick={openNatDropdown} style={{width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:newClient.nationality_id?'rgba(255,255,255,.95)':'rgba(255,255,255,.38)',background:'var(--modal-input-bg)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',boxSizing:'border-box'}}>
-<span style={{flex:1,textAlign:'center'}}>{(()=>{if(!newClient.nationality_id)return'اختر الجنسية';const f=lkCountries.find(co=>co.id===newClient.nationality_id);return f?f.nationality_ar:'اختر الجنسية'})()}</span>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0,transform:natOpenClient?'rotate(180deg)':'none',transition:'.2s'}}><polyline points="6 9 12 15 18 9" stroke={C.bentoGold} strokeWidth="2.5" fill="none"/></svg>
-</div>
-{natOpenClient&&<><div onClick={()=>{setNatOpenClient(false);setNatSearchClient('')}} style={{position:'fixed',inset:0,zIndex:9998}}/>
-<div style={{position:'fixed',top:natPos.top,left:natPos.left,width:natPos.width,background:'var(--modal-bg)',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,maxHeight:220,display:'flex',flexDirection:'column',zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.6)',overflow:'hidden'}}>
-<div style={{padding:'6px 8px',borderBottom:'1px solid rgba(255,255,255,.05)',flexShrink:0}}>
-<input value={natSearchClient} onChange={e=>setNatSearchClient(e.target.value)} placeholder="بحث..." autoFocus style={{width:'100%',height:30,padding:'0 10px',border:'1px solid rgba(255,255,255,.05)',borderRadius:7,background:'var(--modal-input-bg)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',fontFamily:F,fontSize:11,fontWeight:500,color:'var(--tx2)',outline:'none',textAlign:'center',boxSizing:'border-box'}}/>
-</div>
-<div style={{flex:1,overflowY:'auto',scrollbarWidth:'none'}}>
-{lkCountries.filter(co=>!natSearchClient||(co.nationality_ar||'').includes(natSearchClient)).map(co=><div key={co.id} onClick={()=>{setNewClient(p=>({...p,nationality_id:co.id}));setNatOpenClient(false);setNatSearchClient('')}} style={{padding:'10px 14px',fontSize:13,fontWeight:newClient.nationality_id===co.id?700:500,color:newClient.nationality_id===co.id?C.bentoGold:'rgba(255,255,255,.7)',cursor:'pointer',textAlign:'center',borderBottom:'1px solid var(--bd2)',background:newClient.nationality_id===co.id?'rgba(212,160,23,.06)':'transparent'}}>{co.nationality_ar}</div>)}
-{lkCountries.filter(co=>!natSearchClient||(co.nationality_ar||'').includes(natSearchClient)).length===0&&<div style={{padding:12,textAlign:'center',fontSize:10,color:'var(--tx5)'}}>لا توجد نتائج</div>}
-</div>
-</div></>}
-</div>
-</div>
+})()}
 <div>
 <div style={regLblS}>رقم الهوية <span style={{color:C.red}}>*</span></div>
 <input value={newClient.id_number} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);setNewClient(p=>({...p,id_number:v}))}} placeholder="XXXXXXXXXX" inputMode="numeric" maxLength={10} style={{...regInpS,direction:'ltr'}}/>
 </div>
 <div>
+<div style={regLblS}>الجنسية <span style={{color:C.red}}>*</span></div>
+<KafalaOccSelect
+value={(()=>{const f=lkCountries.find(co=>co.id===newClient.nationality_id);return f?f.nationality_ar:''})()}
+onChange={(_label,item)=>setNewClient(p=>({...p,nationality_id:item?.id||null}))}
+items={lkCountries.map(co=>({id:co.id,name_ar:co.nationality_ar,name_en:null}))}
+lang={lang}
+placeholder="اختر الجنسية"
+/>
+</div>
+<div style={{gridColumn:'1 / -1'}}>
 <div style={regLblS}>رقم الجوال <span style={{color:C.red}}>*</span></div>
 <div style={{display:'flex',direction:'ltr',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,overflow:'hidden',background:'var(--modal-input-bg)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}>
 <div style={{height:42,padding:'0 10px',background:'rgba(255,255,255,.04)',borderRight:'1px solid rgba(255,255,255,.05)',display:'flex',alignItems:'center',fontSize:12,fontWeight:700,color:C.bentoGold,flexShrink:0,fontFamily:F}}>+966</div>
@@ -1586,7 +1670,7 @@ style={{height:34,padding:'0 14px',borderRadius:8,background:'rgba(212,160,23,.1
 options={inp.source==='regions'?regions.map(r=>({value:r.id,label:r.name_ar})):inp.source==='countries'?lkCountries.map(c=>({value:c.nationality_ar,label:c.nationality_ar})):inp.source==='occupations'?lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar})):(inp.options||[])}
 onChange={v=>setFields(p=>({...p,[inp.key]:v}))}/>
 :inp.type==='date'?
-<input type="date" value={val} onChange={e=>setFields(p=>({...p,[inp.key]:e.target.value}))} style={{...fS,height:42,direction:'ltr',textAlign:'left'}}/>
+<DateField value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} lang={lang}/>
 :inp.type==='textarea'?
 <textarea value={val} onChange={e=>setFields(p=>({...p,[inp.key]:e.target.value}))} placeholder={inp.placeholder||''} rows={3} style={{...fS,height:'auto',padding:'10px 14px',resize:'vertical'}}/>
 :<input type={inp.type==='number'?'number':'text'} value={val} onChange={e=>setFields(p=>({...p,[inp.key]:e.target.value}))}
@@ -1869,25 +1953,35 @@ style={{position:'absolute',top:-11,left:14,height:22,padding:'0 10px',borderRad
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:solo?12:8,flexShrink:0}}>
 <div style={{display:'flex',flexDirection:'column',gap:LGAP}}>
 {solo&&<span style={{fontSize:LFS,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,paddingRight:2}}>الجنسية <span style={{color:C.red}}>*</span></span>}
-<NiceSelect height={H} fontSize={FS} value={g.nationality} placeholder={solo?'اختر الجنسية...':'الجنسية *'}
-options={lkCountries.map(co=>({value:co.id,label:co.nationality_ar}))}
-onChange={v=>updateGroup(g.id,{nationality:v,embassy:''})}/>
+<KafalaOccSelect lang={lang} placeholder={solo?'اختر الجنسية...':'الجنسية *'}
+value={(()=>{const f=lkCountries.find(co=>co.id===g.nationality);return f?f.nationality_ar:''})()}
+items={lkCountries.map(co=>({id:co.id,name_ar:co.nationality_ar,name_en:null}))}
+onChange={(_l,item)=>updateGroup(g.id,{nationality:item?.id||'',embassy:''})}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:LGAP}}>
 {solo&&<span style={{fontSize:LFS,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,paddingRight:2}}>السفارة <span style={{color:C.red}}>*</span></span>}
-<NiceSelect height={H} fontSize={FS} value={g.embassy} disabled={!g.nationality}
-placeholder={!g.nationality?(solo?'اختر الجنسية أولاً':'السفارة (اختر الجنسية أولاً)'):(filteredEm.length?(solo?'اختر المدينة...':'السفارة *'):'لا توجد')}
-emptyText="لا توجد سفارة"
-options={filteredEm.map(em=>({value:em.id,label:em.city_ar}))}
-onChange={v=>updateGroup(g.id,{embassy:v})}/>
+{!g.nationality?
+<div style={{...{width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.07)',borderRadius:10,fontFamily:F,fontSize:14,fontWeight:500,color:'var(--tx5)',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',boxSizing:'border-box',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',cursor:'not-allowed',opacity:.6,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}}>
+{solo?'اختر الجنسية أولاً':'السفارة (اختر الجنسية أولاً)'}
+</div>
+:filteredEm.length===0?
+<div style={{width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(192,57,43,.25)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:500,color:'rgba(192,57,43,.85)',background:'linear-gradient(180deg,#322424 0%,#261c1c 100%)',boxSizing:'border-box',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center'}}>
+لا توجد سفارة لهذه الجنسية
+</div>
+:
+<KafalaOccSelect lang={lang} placeholder={solo?'اختر المدينة...':'السفارة *'}
+value={(()=>{const f=filteredEm.find(em=>em.id===g.embassy);return f?f.city_ar:''})()}
+items={filteredEm.map(em=>({id:em.id,name_ar:em.city_ar,name_en:em.name_en||null}))}
+onChange={(_l,item)=>updateGroup(g.id,{embassy:item?.id||''})}/>}
 </div>
 </div>
 {/* Row 2: profession (full width) */}
 <div style={{display:'flex',flexDirection:'column',gap:LGAP,flexShrink:0}}>
 {solo&&<span style={{fontSize:LFS,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F,paddingRight:2}}>المهنة <span style={{color:C.red}}>*</span></span>}
-<NiceSelect height={H} fontSize={FS} value={g.profession} placeholder={solo?'اختر المهنة...':'المهنة *'}
-options={lkOccupations.map(o=>({value:o.id,label:o.value_ar}))}
-onChange={v=>updateGroup(g.id,{profession:v})}/>
+<KafalaOccSelect lang={lang} placeholder={solo?'اختر المهنة...':'المهنة *'}
+value={(()=>{const f=lkOccupations.find(o=>o.id===g.profession);return f?f.value_ar:''})()}
+items={lkOccupations.map(o=>({id:o.id,name_ar:o.value_ar,name_en:null}))}
+onChange={(_l,item)=>updateGroup(g.id,{profession:item?.id||''})}/>
 </div>
 {/* Row 3: gender + count */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:solo?12:8,minWidth:0,flexShrink:0}}>
@@ -2062,11 +2156,11 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 </div>
 {/* Yes/No buttons — first */}
 <div style={{display:'flex',gap:8,flexShrink:0,marginTop:6}}>
-{[{v:false,l:'لا',c:C.red,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>},
+{[{v:false,l:'لا',c:C.blue,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>},
 {v:true,l:'نعم',c:C.ok,icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}].map(o=>{
-const sel=fields.change_profession===o.v
+const sel=(fields.change_profession??false)===o.v
 return<div key={String(o.v)} onClick={()=>setFields(p=>({...p,change_profession:o.v,...(o.v===false?{new_occupation:''}:{})}))}
-style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,height:36,borderRadius:9,border:`1.5px solid ${sel?`${o.c}80`:'rgba(255,255,255,.07)'}`,background:sel?`linear-gradient(180deg,${o.c}25 0%,${o.c}0d 100%)`:'linear-gradient(180deg,#2C2C2C 0%,#222 100%)',boxShadow:sel?`inset 0 1px 0 ${o.c}38`:'0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)',cursor:'pointer',transition:'.18s',color:sel?o.c:'var(--tx3)'}}>
+style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,height:40,borderRadius:9,border:`1.5px solid ${sel?o.c:'rgba(255,255,255,.07)'}`,background:sel?`${o.c}14`:'linear-gradient(180deg,#2C2C2C 0%,#222 100%)',boxShadow:'none',cursor:'pointer',transition:'.18s',color:sel?o.c:'var(--tx3)'}}>
 <span style={{fontSize:14,fontWeight:sel?700:500,fontFamily:F}}>{o.l}</span>
 {o.icon}
 </div>
@@ -2105,7 +2199,9 @@ onChange={v=>setFields(p=>({...p,new_occupation:v}))}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>عدد أشهر التجديد <span style={{color:C.red}}>*</span></label>
-<input type="text" inputMode="numeric" value={fields.renewal_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'');setFields(p=>({...p,renewal_months:raw}))}} placeholder="أدخل عدد الأشهر" style={{...fS,direction:'ltr',textAlign:'center'}}/>
+<KafalaSel value={fields.renewal_months||''} placeholder="اختر المدة..."
+options={[{v:'3',l:'3'},{v:'6',l:'6'},{v:'9',l:'9'},{v:'12',l:'12'}]}
+onChange={v=>setFields(p=>({...p,renewal_months:v}))}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الإقامة المتوقع</label>
@@ -2946,6 +3042,7 @@ const fieldsGrid=<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1
 {inputs.map(inp=>{
 // Conditional show_if — only render if dependency field is truthy
 if(inp.show_if&&!fields[inp.show_if])return null
+if(inp.show_if_eq&&fields[inp.show_if_eq.key]!==inp.show_if_eq.value)return null
 // Auto-prefill from worker data (once per field — skip if already prefilled or user cleared)
 if(!prefilledRef.current.has(inp.key)&&!fields[inp.key]&&selWorker){
 const doPrefill=(v)=>{if(v){prefilledRef.current.add(inp.key);setTimeout(()=>setFields(p=>p[inp.key]?p:{...p,[inp.key]:v}),0)}}
@@ -2971,7 +3068,7 @@ style={{flex:1,borderRadius:8,border:`1.5px solid ${sel?o.c:'rgba(255,255,255,.1
 options={inp.source==='regions'?regions.map(r=>({value:r.id,label:r.name_ar})):inp.source==='countries'?lkCountries.map(c=>({value:c.nationality_ar,label:c.nationality_ar})):inp.source==='occupations'?lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar})):(inp.options||[])}
 onChange={v=>setFields(p=>({...p,[inp.key]:v}))}/>
 :inp.type==='date'?
-<input type="date" value={val||''} onChange={e=>setFields(p=>({...p,[inp.key]:e.target.value}))} style={{...fS,direction:'ltr',textAlign:'left'}}/>
+<DateField value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} lang={lang}/>
 :inp.type==='date_hijri'?
 (()=>{
 const parts=val?val.split('-'):[]
@@ -3667,7 +3764,7 @@ return null})()}
 {[{k:'cash',l:'نقداً',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>},
 {k:'bank',l:'حوالة بنكية',icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg>}].map(o=>{
 const on=paymentMethod===o.k
-return<div key={o.k} onClick={()=>setPaymentMethod(o.k)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,height:36,borderRadius:9,border:`1.5px solid ${on?C.gold:'rgba(255,255,255,.07)'}`,background:on?'linear-gradient(180deg,rgba(212,160,23,.18) 0%,rgba(212,160,23,.06) 100%)':'linear-gradient(180deg,#2C2C2C 0%,#222 100%)',boxShadow:on?'inset 0 1px 0 rgba(212,160,23,.22)':'0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)',cursor:'pointer',transition:'.18s',color:on?C.gold:'var(--tx3)'}}>
+return<div key={o.k} onClick={()=>setPaymentMethod(o.k)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,height:40,borderRadius:9,border:`1.5px solid ${on?C.gold:'rgba(255,255,255,.07)'}`,background:on?'rgba(212,160,23,.08)':'linear-gradient(180deg,#2C2C2C 0%,#222 100%)',boxShadow:'none',cursor:'pointer',transition:'.18s',color:on?C.gold:'var(--tx3)'}}>
 <span style={{fontSize:13,fontWeight:700,fontFamily:F}}>{o.l}</span>
 {o.icon}
 </div>
@@ -3897,12 +3994,12 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.02)'}}>
 <div style={{padding:'14px 24px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,gap:12}}>
 <div style={{display:'flex',gap:8}}>
 {step===1?(showOthers?<button onClick={()=>setShowOthers(false)} className="sr-back-btn">
-<span>السابق</span>
 <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+<span>السابق</span>
 </button>:<div/>)
 :<button onClick={goBack} className="sr-back-btn">
-<span>السابق</span>
 <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+<span>السابق</span>
 </button>}
 </div>
 

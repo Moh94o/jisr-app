@@ -251,6 +251,26 @@ if(o&&typeof o.billable==='boolean')return o.billable
 return svc?.defaultBillable!==false
 }
 
+// ── Per-branch overrides ──
+// Shape: { [branchId]: { [svcId]: { active?, billable?, pricing?: {...partial fields} } } }
+// Any unset key falls back to the global service default above.
+const BRANCH_STORAGE_KEY='jisr_branch_overrides'
+export function getBranchOverrides(){try{return JSON.parse(localStorage.getItem(BRANCH_STORAGE_KEY)||'{}')}catch{return{}}}
+function writeBranchOverrides(next){localStorage.setItem(BRANCH_STORAGE_KEY,JSON.stringify(next))}
+
+export function isServiceActiveFor(svcId,branchId){
+  if(!branchId)return isServiceActive(svcId)
+  const o=getBranchOverrides()[branchId]?.[svcId]
+  if(o&&typeof o.active==='boolean')return o.active
+  return isServiceActive(svcId)
+}
+export function isServiceBillableFor(svcId,branchId){
+  if(!branchId)return isServiceBillable(svcId)
+  const o=getBranchOverrides()[branchId]?.[svcId]
+  if(o&&typeof o.billable==='boolean')return o.billable
+  return isServiceBillable(svcId)
+}
+
 // ── Pricing helpers ──
 const readStore=(key)=>{try{return JSON.parse(localStorage.getItem(key)||'{}')}catch{return{}}}
 const writeStore=(key,data)=>localStorage.setItem(key,JSON.stringify(data))
@@ -278,11 +298,66 @@ else{Object.assign(raw,values)}
 writeStore(sch.store,raw)
 }
 
+// Resolve pricing for a specific branch — merges default with per-branch overrides.
+export function getPricingFor(svcId,branchId){
+  const def=getPricing(svcId)
+  if(!branchId||!def)return def
+  const op=getBranchOverrides()[branchId]?.[svcId]?.pricing
+  if(!op)return def
+  return {...def,...op}
+}
+
 export default function ServiceAdminPage({toast,lang}){
 const isAr=lang!=='en';const T=(a,e)=>isAr?a:e
 const [overrides,setOverrides]=useState(getServiceOverrides())
 const [expanded,setExpanded]=useState(null)// svc id being edited
+const [selectedSvcId,setSelectedSvcId]=useState(null)// service id for detail view
 const [priceState,setPriceState]=useState({})
+// Per-branch overrides (active/billable/pricing) live in state + localStorage
+const [branchOverrides,setBranchOverridesState]=useState(getBranchOverrides())
+const [branches,setBranches]=useState([])
+// {svcId, branchId|null, draft:{active?,billable?,pricing:{...}}} or null
+const [overrideEditor,setOverrideEditor]=useState(null)
+const [searchQ,setSearchQ]=useState('')
+useEffect(()=>{
+  const sb=getSupabase();if(!sb)return
+  sb.from('branches').select('id,branch_code').is('deleted_at',null).order('branch_code').then(({data})=>setBranches(data||[]))
+},[])
+useEffect(()=>{writeBranchOverrides(branchOverrides)},[branchOverrides])
+const getOverridesForSvc=(svcId)=>{
+  const out=[]
+  Object.entries(branchOverrides).forEach(([bid,svcs])=>{if(svcs[svcId])out.push({branchId:bid,...svcs[svcId]})})
+  return out
+}
+const upsertBranchOverride=(branchId,svcId,patch)=>{
+  setBranchOverridesState(p=>{
+    const next={...p}
+    next[branchId]={...(next[branchId]||{})}
+    const cur=next[branchId][svcId]||{}
+    const merged={...cur,...patch}
+    Object.keys(merged).forEach(k=>{if(merged[k]===undefined||merged[k]===null||(k==='pricing'&&Object.keys(merged[k]||{}).length===0))delete merged[k]})
+    if(Object.keys(merged).length===0)delete next[branchId][svcId]
+    else next[branchId][svcId]=merged
+    if(Object.keys(next[branchId]||{}).length===0)delete next[branchId]
+    return next
+  })
+}
+const removeBranchOverride=(branchId,svcId)=>{
+  setBranchOverridesState(p=>{
+    const next={...p}
+    if(next[branchId]){delete next[branchId][svcId];if(Object.keys(next[branchId]).length===0)delete next[branchId]}
+    return next
+  })
+  toast(T('تم حذف التخصيص','Override removed'))
+}
+const openOverrideEditor=(svcId,branchId=null)=>{
+  const existing=branchId?(branchOverrides[branchId]?.[svcId]||{}):{}
+  setOverrideEditor({svcId,branchId,draft:{
+    active:existing.active,
+    billable:existing.billable,
+    pricing:existing.pricing||{},
+  }})
+}
 const ALL_KAFALA_SECTIONS=['رسوم نقل الكفالة','تجديد الإقامة','كرت العمل','رسوم تغيير المهنة','رسوم المكتب','المدة المتوقعة في الإقامة','التأمين الطبي']
 const [collapsed,setCollapsed]=useState(Object.fromEntries(ALL_KAFALA_SECTIONS.map(t=>[t,true])))// key: section title → true means collapsed (all collapsed by default)
 const toggleSection=(title)=>setCollapsed(p=>({...p,[title]:!p[title]}))
@@ -899,6 +974,86 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
 </div>
 }
 
+// Compact row card for the list view — click opens the detail page.
+const renderRow=(s)=>{
+  const st=getState(s.id)
+  const I=s.Icon
+  const tone=!st.active?C.red:(!st.billable?C.ok:C.gold)
+  const ovs=getOverridesForSvc(s.id)
+  const sp=samplePrice(s.id)
+  const hasPrice=!!PRICING_SCHEMA[s.id]
+  // Activity strip width = active branches ratio (default + non-disabled overrides)
+  const totalBr=branches.length||1
+  const disabledOv=ovs.filter(o=>o.active===false).length
+  const effActive=st.active?(totalBr-disabledOv):0
+  const pct=Math.min(100,Math.round((effActive/totalBr)*100))
+  return(
+    <div key={s.id} className="brs-row" onClick={()=>setSelectedSvcId(s.id)}
+      style={{position:'relative',cursor:'pointer',borderRadius:14,background:`radial-gradient(ellipse at top, ${tone}10 0%, #222 60%)`,border:'1px solid rgba(255,255,255,.05)',boxShadow:'0 4px 14px rgba(0,0,0,.22)',overflow:'hidden',opacity:st.active?1:.7,transition:'.15s'}}
+      onMouseEnter={e=>{e.currentTarget.style.borderColor=`${tone}55`}}
+      onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.05)'}}>
+      <div style={{padding:'16px 22px 14px 18px'}}>
+        <div className="svc-row-grid">
+          {/* Right (info): icon + name + tags */}
+          <div style={{minWidth:0,display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:40,height:40,borderRadius:10,background:'linear-gradient(180deg,rgba(212,160,23,.14),rgba(212,160,23,.06))',border:'1px solid rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold,flexShrink:0}}>
+              <I size={18} strokeWidth={1.8}/>
+            </div>
+            <div style={{minWidth:0,flex:1,display:'flex',flexDirection:'column',gap:6}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                <span style={{fontSize:14.5,fontWeight:700,color:'#fff',letterSpacing:'-.2px'}}>{s.name_ar}</span>
+                <span style={{fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:6,background:`${st.active?C.ok:C.red}18`,color:st.active?C.ok:C.red,border:`1px solid ${st.active?C.ok:C.red}38`,display:'inline-flex',alignItems:'center',gap:4,flexShrink:0}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:st.active?C.ok:C.red}}/>
+                  {st.active?'فعّالة':'معطّلة'}
+                </span>
+                {!st.billable&&<span style={{fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:6,background:`${C.ok}18`,color:C.ok,border:`1px solid ${C.ok}38`,display:'inline-flex',alignItems:'center',gap:4,flexShrink:0}}>
+                  <Gift size={9} strokeWidth={2.8}/> مجانية
+                </span>}
+                {ovs.length>0&&<span style={{fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:6,background:'rgba(212,160,23,.12)',color:C.gold,border:'1px solid rgba(212,160,23,.35)',display:'inline-flex',alignItems:'center',gap:4,flexShrink:0}}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+                  {ovs.length} مكتب
+                </span>}
+              </div>
+              <div style={{fontSize:11,color:'var(--tx4)',fontFamily:'monospace',direction:'ltr',fontWeight:500}}>{s.id}</div>
+            </div>
+          </div>
+
+          {/* Vertical divider */}
+          <div className="svc-row-divider" style={{width:1,alignSelf:'stretch',background:'rgba(255,255,255,.06)',minHeight:60}}/>
+
+          {/* Left (stats): default price + overrides */}
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:10,color:'var(--tx4)',fontWeight:600,letterSpacing:'.3px',textTransform:'uppercase'}}>{st.billable?'السعر':'التشغيل'}</span>
+              <span style={{fontSize:10,color:'var(--tx4)',fontWeight:600}}>{hasPrice?`${PRICING_SCHEMA[s.id].fields.length} حقل`:'ديناميكي'}</span>
+            </div>
+            <div style={{fontSize:24,fontWeight:700,color:'#fff',fontVariantNumeric:'tabular-nums',direction:'ltr',letterSpacing:'-.5px',lineHeight:1}}>
+              {st.billable?(sp?Number(sp.value).toLocaleString('en-US'):'—'):(st.active?'مجانية':'معطّلة')}
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:3,paddingTop:6,borderTop:'1px solid rgba(255,255,255,.06)'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11}}>
+                <span style={{color:'var(--tx4)',fontWeight:600}}>تخصيصات</span>
+                <span style={{color:ovs.length?C.gold:'var(--tx5)',fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{ovs.length}</span>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11}}>
+                <span style={{color:'var(--tx4)',fontWeight:600}}>الفوترة</span>
+                <span style={{color:st.billable?C.gold:C.ok,fontWeight:700,display:'inline-flex',alignItems:'center',gap:4}}>
+                  {st.billable?<DollarSign size={11} strokeWidth={2.5}/>:<Gift size={11} strokeWidth={2.5}/>}
+                  {st.billable?'مفوترة':'مجانية'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Progress strip */}
+      <div style={{height:5,background:'rgba(255,255,255,.05)'}}>
+        <div style={{height:'100%',width:`${pct}%`,background:tone,transition:'width .3s'}}/>
+      </div>
+    </div>
+  )
+}
+
 const renderCard=(s)=>{
 const st=getState(s.id)
 const I=s.Icon
@@ -948,6 +1103,47 @@ style={{width:46,height:24,borderRadius:999,border:'none',background:st.active?C
 <span style={{fontSize:10,fontWeight:600,color:st.active?C.ok:C.red,fontFamily:F}}>{st.active?'فعّالة':'معطّلة'}</span>
 </div>
 </div>
+{/* Per-branch overrides strip */}
+{(() => {
+  const ovs=getOverridesForSvc(s.id)
+  return(
+    <div style={{padding:'10px 22px 14px',borderTop:'1px solid rgba(255,255,255,.04)',display:'flex',flexDirection:'column',gap:8,background:'rgba(0,0,0,.10)'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,flexWrap:'wrap'}}>
+        <span style={{fontSize:11,fontWeight:700,color:'var(--tx3)',display:'inline-flex',alignItems:'center',gap:6}}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+          تخصيص لكل مكتب {ovs.length>0&&<span style={{padding:'1px 7px',borderRadius:999,background:'rgba(212,160,23,.14)',color:C.gold,fontWeight:800,fontSize:10}}>{ovs.length}</span>}
+        </span>
+        <button type="button" onClick={()=>openOverrideEditor(s.id,null)}
+          style={{height:28,padding:'0 10px',borderRadius:7,border:'1px dashed rgba(212,160,23,.35)',background:'transparent',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:4}}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          إضافة تخصيص
+        </button>
+      </div>
+      {ovs.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+        {ovs.map(o=>{
+          const br=branches.find(b=>b.id===o.branchId)
+          const code=br?.branch_code||'—'
+          const aOff=o.active===false
+          const bOff=typeof o.billable==='boolean'&&o.billable!==(s.defaultBillable!==false)
+          const pCount=o.pricing?Object.keys(o.pricing).length:0
+          return(
+            <span key={o.branchId} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 4px 4px 10px',borderRadius:999,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.25)',fontSize:11,fontWeight:700,color:'var(--tx)'}}>
+              <button type="button" onClick={()=>openOverrideEditor(s.id,o.branchId)} title="تعديل التخصيص" style={{background:'transparent',border:'none',padding:0,cursor:'pointer',color:'inherit',fontFamily:F,fontWeight:700,display:'inline-flex',alignItems:'center',gap:5}}>
+                <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace'}}>{code}</span>
+                {aOff&&<span title="معطّلة" style={{color:C.red,fontSize:10}}>✗</span>}
+                {!aOff&&bOff&&<span title="مجانية" style={{color:C.ok,fontSize:10}}>$</span>}
+                {pCount>0&&<span style={{padding:'1px 6px',borderRadius:999,background:'rgba(212,160,23,.18)',color:C.gold,fontSize:9}}>{pCount} سعر</span>}
+              </button>
+              <button type="button" onClick={()=>removeBranchOverride(o.branchId,s.id)} title="حذف" style={{width:18,height:18,borderRadius:'50%',border:'none',background:'rgba(192,57,43,.18)',color:C.red,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0}}>
+                <X size={9} strokeWidth={3}/>
+              </button>
+            </span>
+          )
+        })}
+      </div>}
+    </div>
+  )
+})()}
 {/* Expandable price editor */}
 {isOpen&&<div style={{padding:'24px 22px 18px',borderTop:'1px solid rgba(255,255,255,.06)',background:'rgba(0,0,0,.18)'}}>
 {renderPriceEditor(s)}
@@ -967,7 +1163,6 @@ const billableCount=ALL_SERVICES.filter(s=>{const st=getState(s.id);return st.bi
 const freeCount=ALL_SERVICES.filter(s=>{const st=getState(s.id);return !st.billable&&st.active}).length
 const disabledCount=totalCount-activeCount
 
-const [searchQ,setSearchQ]=useState('')
 const filterSvcs=(list)=>{
   const q=searchQ.trim().toLowerCase()
   if(!q)return list
@@ -976,64 +1171,587 @@ const filterSvcs=(list)=>{
 const filteredMain=filterSvcs(mainSvcs)
 const filteredOther=filterSvcs(otherSvcs)
 
-return<div style={{padding:'24px 28px',display:'flex',flexDirection:'column',gap:14,direction:'rtl',fontFamily:F}}>
+// ─── Helpers shared between list and detail views ───
+const selectedSvc=selectedSvcId?ALL_SERVICES.find(s=>s.id===selectedSvcId):null
+
+// Effective default sample price for the row stat — uses the first numeric pricing field (best-effort).
+const samplePrice=(svcId)=>{
+  const sch=PRICING_SCHEMA[svcId];if(!sch)return null
+  const def=getPricing(svcId)||{}
+  const f=sch.fields.find(f=>def[f.k]!=null&&def[f.k]!==''&&!isNaN(Number(def[f.k])))
+  return f?{value:Number(def[f.k]),sfx:f.sfx,label:f.l}:null
+}
+
+const SVC_LIST_STYLES=(<style>{`
+  .svc-hero{display:grid;grid-template-columns:2.2fr 1fr 1.5fr;gap:14px;margin-bottom:24px}
+  @media (max-width: 1100px){.svc-hero{grid-template-columns:1fr 1fr}.svc-hero > :nth-child(3){grid-column:1/-1}}
+  @media (max-width: 720px){.svc-hero{grid-template-columns:1fr}}
+  .svc-row-grid{display:grid;grid-template-columns:1fr 1px 240px;gap:18px;align-items:center}
+  @media (max-width: 720px){.svc-row-grid{grid-template-columns:1fr;gap:12px}.svc-row-divider{display:none}}
+  .svc-section{background:linear-gradient(180deg,#1f1f1f 0%,#181818 100%);border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;margin-bottom:14px}
+  .svc-section-head{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .svc-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:#fff;letter-spacing:.2px}
+  .svc-section-body{padding:18px 22px}
+  .svc-section-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+  .svc-section-count{padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:10px;font-weight:700;color:var(--tx3)}
+`}</style>)
+
+// ═══════════════════════════════════════════════════════════════
+// DETAIL VIEW — opens when a service is clicked from the list
+// ═══════════════════════════════════════════════════════════════
+if(selectedSvc){
+  const s=selectedSvc
+  const I=s.Icon
+  const st=getState(s.id)
+  const tone=!st.active?C.red:(!st.billable?C.ok:C.gold)
+  const hasPrice=!!PRICING_SCHEMA[s.id]
+  const sp=samplePrice(s.id)
+  const ovs=getOverridesForSvc(s.id)
+  // Bar shows overrides distribution: how many disable / change billable / change pricing
+  const ovDisabled=ovs.filter(o=>o.active===false).length
+  const ovBillable=ovs.filter(o=>typeof o.billable==='boolean').length
+  const ovPriced=ovs.filter(o=>o.pricing&&Object.keys(o.pricing).length>0).length
+  return<div style={{padding:'24px 28px',direction:'rtl',fontFamily:F,color:'var(--tx2)'}}>
+    {SVC_LIST_STYLES}
+
+    {/* Top bar — back button */}
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
+      <button type="button" onClick={()=>setSelectedSvcId(null)}
+        style={{height:40,padding:'0 14px',borderRadius:11,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'rgba(255,255,255,.78)',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,fontFamily:F,fontSize:12,fontWeight:500,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}
+        onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(212,160,23,.45)';e.currentTarget.style.color=C.gold}}
+        onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.color='rgba(255,255,255,.78)'}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        <span>رجوع</span>
+      </button>
+    </div>
+
+    {/* Header — title + tag row */}
+    <div style={{marginBottom:18,marginTop:6}}>
+      <div style={{fontSize:21,fontWeight:600,color:'rgba(255,255,255,.93)'}}>تفاصيل الخدمة</div>
+      <div style={{marginTop:18,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',fontSize:11.5,color:'var(--tx3)'}}>
+        <span style={{display:'inline-flex',alignItems:'center',gap:7,color:C.gold,fontWeight:700,borderBottom:`1.5px solid ${C.gold}`,paddingBottom:1}}>
+          <I size={14} strokeWidth={1.8}/>
+          {s.name_ar}
+        </span>
+        <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
+        <span style={{color:'var(--tx4)',fontFamily:'monospace',direction:'ltr',fontWeight:600}}>{s.id}</span>
+        <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
+        <span style={{display:'inline-flex',alignItems:'center',gap:5,color:st.active?C.ok:C.red,fontWeight:700}}>
+          <span style={{width:5,height:5,borderRadius:'50%',background:st.active?C.ok:C.red,boxShadow:`0 0 5px ${st.active?C.ok:C.red}`}}/>
+          {st.active?'فعّالة':'معطّلة'}
+        </span>
+        <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
+        <span style={{display:'inline-flex',alignItems:'center',gap:5,color:st.billable?C.gold:C.ok,fontWeight:700}}>
+          {st.billable?<DollarSign size={11} strokeWidth={2.5}/>:<Gift size={11} strokeWidth={2.5}/>}
+          {st.billable?'مفوترة':'مجانية'}
+        </span>
+        {ovs.length>0&&<>
+          <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
+          <span style={{padding:'3px 10px',borderRadius:999,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:10.5,fontWeight:800,display:'inline-flex',alignItems:'center',gap:5}}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+            {ovs.length} مكتب مخصّص
+          </span>
+        </>}
+      </div>
+    </div>
+
+    {/* 3-col hero — Big primary KPI + Stacked + Distribution */}
+    <div className="svc-hero">
+      {/* Big primary — sample default price OR status if free */}
+      <div style={{position:'relative',padding:'18px 22px',borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',display:'flex',flexDirection:'column',justifyContent:'space-between',overflow:'hidden',minHeight:150}}>
+        <div style={{position:'absolute',insetInlineStart:-60,top:-60,width:180,height:180,borderRadius:'50%',background:`radial-gradient(circle, ${tone}18 0%, transparent 70%)`,pointerEvents:'none'}}/>
+        <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:-6}}>
+          <span style={{width:8,height:8,borderRadius:'50%',background:tone,boxShadow:`0 0 10px ${tone}aa`}}/>
+          <span style={{fontSize:24,color:'#fff',fontWeight:600,letterSpacing:'.2px'}}>{st.billable?'السعر الافتراضي':(st.active?'خدمة مجانية':'الخدمة معطّلة')}</span>
+        </div>
+        <div style={{position:'relative',display:'flex',alignItems:'baseline',gap:7,direction:'ltr'}}>
+          {st.billable&&sp?<>
+            <span style={{fontSize:13,color:'var(--tx4)',fontWeight:600}}>{sp.sfx||'ريال'}</span>
+            <span style={{fontSize:42,fontWeight:800,color:tone,letterSpacing:'-1.5px',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{Number(sp.value).toLocaleString('en-US')}</span>
+          </>:<span style={{fontSize:42,fontWeight:800,color:tone,letterSpacing:'-1.5px',lineHeight:1}}>{st.billable?'—':'0'}</span>}
+        </div>
+        <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',paddingTop:8,borderTop:'1px solid rgba(255,255,255,.06)'}}>
+          <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600}}>{sp?sp.label:(hasPrice?'يحتاج إعداد التسعير':'يُحسب ديناميكياً')}</span>
+          {hasPrice&&<span style={{fontSize:11,color:C.gold,fontWeight:700}}>{PRICING_SCHEMA[s.id].fields.length} حقل تسعير</span>}
+        </div>
+      </div>
+
+      {/* Stacked secondary — overrides + branches affected */}
+      <div style={{borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',display:'flex',flexDirection:'column',overflow:'hidden',minHeight:150}}>
+        {[
+          {label:'تخصيصات لمكاتب',val:ovs.length,cnt:ovDisabled,c:C.gold,sub:'معطّلة فيهم'},
+          {label:'فرق أسعار',val:ovPriced,cnt:ovBillable,c:C.blue,sub:'فوترة مختلفة'},
+        ].map((s2,i)=>(
+          <div key={i} style={{position:'relative',padding:'12px 16px',flex:1,borderTop:i>0?'1px solid rgba(255,255,255,.06)':'none',display:'flex',flexDirection:'column',justifyContent:'space-between',gap:6,overflow:'hidden'}}>
+            <div style={{position:'absolute',insetInlineStart:-25,top:'50%',transform:'translateY(-50%)',width:70,height:70,borderRadius:'50%',background:`radial-gradient(circle, ${s2.c}10 0%, transparent 70%)`,pointerEvents:'none'}}/>
+            <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',gap:5}}>
+              <span style={{width:5,height:5,borderRadius:'50%',background:s2.c}}/>
+              <div style={{display:'flex',alignItems:'center',gap:5}}>
+                <span style={{fontSize:13,color:'#fff',fontWeight:700}}>{s2.label}</span>
+                <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600}}>({s2.cnt} {s2.sub})</span>
+              </div>
+            </div>
+            <div style={{position:'relative',display:'flex',alignItems:'baseline',direction:'ltr'}}>
+              <span style={{fontSize:20,fontWeight:700,color:s2.c,fontVariantNumeric:'tabular-nums',lineHeight:1,letterSpacing:'-.5px'}}>{s2.val}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Distribution — branches affected (compact list) */}
+      <div style={{borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',padding:'12px 16px',display:'flex',flexDirection:'column',gap:10,minHeight:150}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{fontSize:12,color:'var(--tx2)',fontWeight:600,letterSpacing:'.2px'}}>المكاتب المتأثّرة</span>
+          <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600}}>
+            <span style={{color:C.gold,fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{ovs.length}</span>/{branches.length}
+          </span>
+        </div>
+        {ovs.length===0?(
+          <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'10px 0'}}>
+            لا توجد تخصيصات — كل المكاتب على الافتراضي
+          </div>
+        ):(
+          <div style={{display:'flex',flexWrap:'wrap',gap:5,maxHeight:90,overflowY:'auto'}}>
+            {ovs.map(o=>{
+              const br=branches.find(b=>b.id===o.branchId)
+              const code=br?.branch_code||'—'
+              const isOff=o.active===false
+              return(
+                <span key={o.branchId} title={code} style={{padding:'3px 8px',borderRadius:999,background:isOff?'rgba(192,57,43,.10)':'rgba(212,160,23,.10)',border:`1px solid ${isOff?'rgba(192,57,43,.3)':'rgba(212,160,23,.3)'}`,color:isOff?C.red:C.gold,fontSize:10.5,fontWeight:800,fontFamily:'monospace',direction:'ltr'}}>
+                  {code}
+                </span>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Section: Operations — active + billable toggles */}
+    <div className="svc-section">
+      <div className="svc-section-head">
+        <span className="svc-section-head-l">
+          <span className="svc-section-dot" style={{background:C.gold}}/>
+          <Power size={13} color={C.gold}/> التشغيل والفوترة (افتراضي لكل المكاتب)
+        </span>
+      </div>
+      <div className="svc-section-body">
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+          {/* Active */}
+          <div style={{padding:'14px 16px',borderRadius:11,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+            <div>
+              <div style={{fontSize:12,color:'var(--tx2)',fontWeight:700,marginBottom:4}}>حالة التشغيل</div>
+              <div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500}}>{st.active?'الخدمة متاحة لكل المكاتب':'الخدمة معطّلة لكل المكاتب'}</div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+              <button type="button" onClick={()=>update(s.id,'active',!st.active)} title={st.active?'اضغط للتعطيل':'اضغط للتفعيل'}
+                style={{width:50,height:26,borderRadius:999,border:'none',background:st.active?C.ok:'rgba(192,57,43,.7)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
+                <span style={{position:'absolute',width:20,height:20,borderRadius:'50%',background:'#fff',top:3,right:st.active?3:27,transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {st.active?<Power size={11} color={C.ok} strokeWidth={3}/>:<PowerOff size={11} color={C.red} strokeWidth={3}/>}
+                </span>
+              </button>
+              <span style={{fontSize:10,fontWeight:700,color:st.active?C.ok:C.red}}>{st.active?'فعّالة':'معطّلة'}</span>
+            </div>
+          </div>
+          {/* Billable */}
+          <div style={{padding:'14px 16px',borderRadius:11,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+            <div>
+              <div style={{fontSize:12,color:'var(--tx2)',fontWeight:700,marginBottom:4}}>حالة الفوترة</div>
+              <div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500}}>{st.billable?'تُضاف للفاتورة بسعر التسعير':'لا تُحتسب على العميل'}</div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+              <button type="button" onClick={()=>update(s.id,'billable',!st.billable)} title={st.billable?'اضغط لجعلها مجانية':'اضغط لجعلها مفوترة'}
+                style={{width:50,height:26,borderRadius:999,border:'none',background:st.billable?C.gold:'rgba(39,160,70,.7)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
+                <span style={{position:'absolute',width:20,height:20,borderRadius:'50%',background:'#fff',top:3,right:st.billable?3:27,transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {st.billable?<DollarSign size={11} color={C.gold} strokeWidth={3}/>:<Gift size={11} color={C.ok} strokeWidth={3}/>}
+                </span>
+              </button>
+              <span style={{fontSize:10,fontWeight:700,color:st.billable?C.gold:C.ok}}>{st.billable?'مفوترة':'مجانية'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Section: Default pricing editor (full editor inline) */}
+    {hasPrice&&st.billable&&(()=>{
+      // Lazy-init priceState for this service so the editor renders correctly
+      if(expanded!==s.id){setTimeout(()=>{setExpanded(s.id);setPriceState(getPricing(s.id)||{});setCollapsed(Object.fromEntries(ALL_KAFALA_SECTIONS.map(t=>[t,true])));setEditing({})},0)}
+      return(
+        <div className="svc-section">
+          <div className="svc-section-head">
+            <span className="svc-section-head-l">
+              <span className="svc-section-dot" style={{background:C.gold}}/>
+              <DollarSign size={13} color={C.gold}/> التسعير الافتراضي (لكل المكاتب)
+            </span>
+            <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600}}>{PRICING_SCHEMA[s.id].fields.length} حقل</span>
+          </div>
+          <div className="svc-section-body" style={{padding:'18px 22px',background:'rgba(0,0,0,.10)'}}>
+            {renderPriceEditor(s)}
+          </div>
+        </div>
+      )
+    })()}
+
+    {/* Section: Per-branch overrides */}
+    <div className="svc-section">
+      <div className="svc-section-head">
+        <span className="svc-section-head-l">
+          <span className="svc-section-dot" style={{background:C.blue}}/>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+          التخصيصات حسب المكتب
+          <span className="svc-section-count">{ovs.length}</span>
+        </span>
+        <button type="button" onClick={()=>openOverrideEditor(s.id,null)}
+          style={{height:32,padding:'0 12px',borderRadius:9,border:'1px dashed rgba(212,160,23,.45)',background:'rgba(212,160,23,.06)',color:C.gold,fontFamily:F,fontSize:11.5,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5}}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          إضافة تخصيص
+        </button>
+      </div>
+      <div className="svc-section-body">
+        {ovs.length===0?(
+          <div style={{padding:28,textAlign:'center',color:'var(--tx4)',fontSize:12,border:'1px dashed rgba(255,255,255,.08)',borderRadius:10}}>
+            كل المكاتب تستخدم الإعدادات الافتراضية أعلاه — اضغط «إضافة تخصيص» لتغيير الحالة أو السعر لمكتب معين
+          </div>
+        ):(
+          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            {ovs.map(o=>{
+              const br=branches.find(b=>b.id===o.branchId)
+              const code=br?.branch_code||'—'
+              const aOff=o.active===false
+              const bOff=typeof o.billable==='boolean'&&o.billable!==(s.defaultBillable!==false)
+              const pCount=o.pricing?Object.keys(o.pricing).length:0
+              return(
+                <span key={o.branchId} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 8px 8px 14px',borderRadius:11,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.25)'}}>
+                  <button type="button" onClick={()=>openOverrideEditor(s.id,o.branchId)} title="تعديل" style={{background:'transparent',border:'none',padding:0,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,fontFamily:F}}>
+                    <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace',fontWeight:800,fontSize:13}}>{code}</span>
+                    {aOff&&<span title="معطّلة" style={{padding:'2px 7px',borderRadius:5,background:'rgba(192,57,43,.15)',border:'1px solid rgba(192,57,43,.35)',color:C.red,fontSize:10,fontWeight:700,display:'inline-flex',alignItems:'center',gap:3}}><PowerOff size={9} strokeWidth={2.8}/>معطّلة</span>}
+                    {!aOff&&bOff&&<span title="فوترة مختلفة" style={{padding:'2px 7px',borderRadius:5,background:'rgba(39,160,70,.15)',border:'1px solid rgba(39,160,70,.35)',color:C.ok,fontSize:10,fontWeight:700,display:'inline-flex',alignItems:'center',gap:3}}><Gift size={9} strokeWidth={2.8}/>مجانية</span>}
+                    {pCount>0&&<span style={{padding:'2px 7px',borderRadius:5,background:'rgba(212,160,23,.18)',color:C.gold,fontSize:10,fontWeight:700,display:'inline-flex',alignItems:'center',gap:3}}><DollarSign size={9} strokeWidth={2.8}/>{pCount} سعر</span>}
+                  </button>
+                  <button type="button" onClick={()=>removeBranchOverride(o.branchId,s.id)} title="حذف التخصيص" style={{width:22,height:22,borderRadius:'50%',border:'none',background:'rgba(192,57,43,.15)',color:C.red,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0}}>
+                    <X size={11} strokeWidth={3}/>
+                  </button>
+                </span>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+
+    <div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'10px 0'}}>الإعدادات تُحفظ محلياً على هذا المتصفح</div>
+  </div>
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIST VIEW — InvoicePage-style hero + grouped row-cards
+// ═══════════════════════════════════════════════════════════════
+return<div style={{padding:'24px 28px',display:'flex',flexDirection:'column',direction:'rtl',fontFamily:F}}>
+{SVC_LIST_STYLES}
+
 {/* Page header */}
-<div style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>إدارة الخدمات</div>
-<div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>تحكّم في حالة الخدمات (مفعّلة / معطّلة)، فوترتها (مفوترة / مجانية)، وضبط التسعير الثابت لكل خدمة</div>
-</div>
+<div style={{marginBottom:22}}>
+  <div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>إدارة الخدمات</div>
+  <div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>تحكّم في حالة الخدمات (مفعّلة / معطّلة)، فوترتها (مفوترة / مجانية)، وتسعيرها لكل مكتب على حدة</div>
 </div>
 
-{/* KPI strip */}
-<div style={{...GLASS_CARD,padding:'10px 12px',marginBottom:14}}>
-<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:8}}>
-{[
-{l:'إجمالي الخدمات',v:totalCount,c:C.gold},
-{l:'فعّالة',v:activeCount,c:C.ok},
-{l:'مفوترة',v:billableCount,c:C.gold},
-{l:'مجانية',v:freeCount,c:C.blue},
-{l:'معطّلة',v:disabledCount,c:C.red},
-].map(s=>(
-<div key={s.l} style={{padding:'7px 12px',borderRadius:10,...INNER_PILL,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{width:6,height:6,borderRadius:'50%',background:s.c,boxShadow:'0 0 5px '+s.c}}/>
-<div style={{fontSize:20,fontWeight:700,color:s.c,letterSpacing:'-.3px',direction:'ltr',lineHeight:1}}>{s.v}</div>
-</div>
-<div style={{fontSize:12,color:'var(--tx2)',fontWeight:600}}>{s.l}</div>
-</div>
-))}
-</div>
+{/* 3-col Hero — Big primary KPI + Stacked + Distribution */}
+<div className="svc-hero">
+  {/* Big primary — total services */}
+  <div style={{position:'relative',padding:'18px 22px',borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',display:'flex',flexDirection:'column',justifyContent:'space-between',overflow:'hidden',minHeight:150}}>
+    <div style={{position:'absolute',insetInlineStart:-60,top:-60,width:180,height:180,borderRadius:'50%',background:`radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`,pointerEvents:'none'}}/>
+    <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:-6}}>
+      <span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:`0 0 10px ${C.gold}aa`}}/>
+      <span style={{fontSize:24,color:'#fff',fontWeight:600,letterSpacing:'.2px'}}>الخدمات الفعّالة</span>
+    </div>
+    <div style={{position:'relative',display:'flex',alignItems:'baseline',gap:7,direction:'ltr'}}>
+      <span style={{fontSize:13,color:'var(--tx4)',fontWeight:600}}>/ {totalCount}</span>
+      <span style={{fontSize:42,fontWeight:800,color:C.gold,letterSpacing:'-1.5px',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{activeCount}</span>
+    </div>
+    <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',paddingTop:8,borderTop:'1px solid rgba(255,255,255,.06)'}}>
+      <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600}}>{disabledCount===0?'كل الخدمات فعّالة':`${disabledCount} معطّلة`}</span>
+      <span style={{fontSize:13,color:C.gold,fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{Object.keys(branchOverrides).length} مكتب مخصّص</span>
+    </div>
+  </div>
+
+  {/* Stacked secondary — billable / free */}
+  <div style={{borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',display:'flex',flexDirection:'column',overflow:'hidden',minHeight:150}}>
+    {[
+      {label:'مفوترة',val:billableCount,cnt:totalCount-billableCount-disabledCount,c:C.gold,sub:'مجانية'},
+      {label:'معطّلة',val:disabledCount,cnt:freeCount,c:disabledCount?C.red:'#999',sub:'مجانية'},
+    ].map((s,i)=>(
+      <div key={i} style={{position:'relative',padding:'12px 16px',flex:1,borderTop:i>0?'1px solid rgba(255,255,255,.06)':'none',display:'flex',flexDirection:'column',justifyContent:'space-between',gap:6,overflow:'hidden'}}>
+        <div style={{position:'absolute',insetInlineStart:-25,top:'50%',transform:'translateY(-50%)',width:70,height:70,borderRadius:'50%',background:`radial-gradient(circle, ${s.c}10 0%, transparent 70%)`,pointerEvents:'none'}}/>
+        <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',gap:5}}>
+          <span style={{width:5,height:5,borderRadius:'50%',background:s.c}}/>
+          <div style={{display:'flex',alignItems:'center',gap:5}}>
+            <span style={{fontSize:13,color:'#fff',fontWeight:700}}>{s.label}</span>
+            <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600}}>({s.cnt} {s.sub})</span>
+          </div>
+        </div>
+        <div style={{position:'relative',display:'flex',alignItems:'baseline',direction:'ltr'}}>
+          <span style={{fontSize:20,fontWeight:700,color:s.c,fontVariantNumeric:'tabular-nums',lineHeight:1,letterSpacing:'-.5px'}}>{s.val}</span>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {/* Distribution — by category */}
+  <div style={{borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',padding:'12px 16px',display:'flex',flexDirection:'column',gap:10,minHeight:150}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <span style={{fontSize:12,color:'var(--tx2)',fontWeight:600,letterSpacing:'.2px'}}>التوزّع حسب الفئة</span>
+      <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600}}>
+        <span style={{color:C.gold,fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{totalCount}</span> خدمة
+      </span>
+    </div>
+    {totalCount>0&&(
+      <div style={{display:'flex',height:8,borderRadius:999,overflow:'hidden',background:'rgba(255,255,255,.04)'}}>
+        <div title={`رئيسية: ${mainSvcs.length}`} style={{width:(mainSvcs.length/totalCount*100)+'%',background:C.gold,transition:'width .3s'}}/>
+        <div title={`أخرى: ${otherSvcs.length}`} style={{width:(otherSvcs.length/totalCount*100)+'%',background:C.blue,transition:'width .3s'}}/>
+      </div>
+    )}
+    <div style={{display:'grid',gridTemplateColumns:'repeat(2, 1fr)',gap:'6px 16px'}}>
+      {[
+        {l:'الخدمات الرئيسية',v:mainSvcs.length,c:C.gold},
+        {l:'الخدمات الأخرى',v:otherSvcs.length,c:C.blue},
+      ].map(x=>(
+        <div key={x.l} style={{display:'flex',alignItems:'center',gap:7,fontSize:11,fontWeight:600}}>
+          <span style={{color:x.c,fontVariantNumeric:'tabular-nums',direction:'ltr',minWidth:14,textAlign:'center',fontWeight:700}}>{x.v}</span>
+          <span style={{color:'var(--tx2)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{x.l}</span>
+        </div>
+      ))}
+    </div>
+  </div>
 </div>
 
-{/* Search bar */}
-<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,flexWrap:'wrap'}}>
-<div style={{flex:1,minWidth:240,position:'relative'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,.4)'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="ابحث باسم الخدمة أو معرّفها..." style={{width:'100%',height:40,padding:'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',direction:'rtl',boxSizing:'border-box',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}/>
-</div>
-</div>
-
-{/* Main services */}
-<div style={sectionCard}>
-<div style={sectionHead}>
-<span style={sectionIconBox}><Sparkles size={14} strokeWidth={2.2}/></span>
-<div style={sectionTitle}><span>الخدمات الرئيسية</span><span style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>· {filteredMain.length} من {mainSvcs.length}</span></div>
-</div>
-<div style={{display:'flex',flexDirection:'column',gap:10}}>{filteredMain.length?filteredMain.map(renderCard):<div style={{textAlign:'center',padding:24,color:'var(--tx5)',fontSize:12}}>لا توجد نتائج</div>}</div>
+{/* Filter row */}
+<div style={{display:'flex',gap:10,marginBottom:18,alignItems:'center',flexWrap:'wrap'}}>
+  <div style={{flex:'1 1 280px',position:'relative'}}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--tx4)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="ابحث باسم الخدمة أو معرّفها..." style={{width:'100%',height:44,padding:'0 14px 0 38px',borderRadius:12,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',color:'#fff',fontSize:13,fontFamily:F,boxSizing:'border-box'}}/>
+  </div>
 </div>
 
-{/* Other services */}
-<div style={sectionCard}>
-<div style={sectionHead}>
-<span style={sectionIconBox}><FileStack size={14} strokeWidth={2.2}/></span>
-<div style={sectionTitle}><span>الخدمات الأخرى</span><span style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>· {filteredOther.length} من {otherSvcs.length}</span></div>
-</div>
-<div style={{display:'flex',flexDirection:'column',gap:10}}>{filteredOther.length?filteredOther.map(renderCard):<div style={{textAlign:'center',padding:24,color:'var(--tx5)',fontSize:12}}>لا توجد نتائج</div>}</div>
-</div>
+{/* Group: الخدمات الرئيسية */}
+{(() => {
+  const list=filteredMain
+  const totalAct=list.filter(s=>getState(s.id).active).length
+  return(
+    <div style={{marginBottom:28}}>
+      <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:12,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+        <div style={{display:'flex',alignItems:'baseline',gap:12}}>
+          <span style={{width:6,height:6,borderRadius:'50%',background:C.gold,transform:'translateY(-2px)'}}/>
+          <span style={{fontSize:14,fontWeight:700,color:'var(--tx2)'}}>الخدمات الرئيسية</span>
+          <span style={{fontSize:12,color:'var(--tx4)',fontWeight:600}}>· {totalAct}/{list.length} فعّالة</span>
+        </div>
+        <div style={{fontSize:11,color:'var(--tx3)',fontWeight:600}}>
+          <span style={{color:C.gold,direction:'ltr',fontVariantNumeric:'tabular-nums',fontWeight:700}}>{list.filter(s=>getOverridesForSvc(s.id).length>0).length}</span> بتخصيصات
+        </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {list.length?list.map(s=>renderRow(s)):<div style={{padding:60,textAlign:'center',color:'var(--tx4)',fontSize:13,border:'1px dashed rgba(255,255,255,.08)',borderRadius:14}}>لا توجد نتائج</div>}
+      </div>
+    </div>
+  )
+})()}
+
+{/* Group: الخدمات الأخرى */}
+{(() => {
+  const list=filteredOther
+  const totalAct=list.filter(s=>getState(s.id).active).length
+  return(
+    <div style={{marginBottom:28}}>
+      <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:12,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+        <div style={{display:'flex',alignItems:'baseline',gap:12}}>
+          <span style={{width:6,height:6,borderRadius:'50%',background:C.blue,transform:'translateY(-2px)'}}/>
+          <span style={{fontSize:14,fontWeight:700,color:'var(--tx2)'}}>الخدمات الأخرى</span>
+          <span style={{fontSize:12,color:'var(--tx4)',fontWeight:600}}>· {totalAct}/{list.length} فعّالة</span>
+        </div>
+        <div style={{fontSize:11,color:'var(--tx3)',fontWeight:600}}>
+          <span style={{color:C.gold,direction:'ltr',fontVariantNumeric:'tabular-nums',fontWeight:700}}>{list.filter(s=>getOverridesForSvc(s.id).length>0).length}</span> بتخصيصات
+        </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {list.length?list.map(s=>renderRow(s)):<div style={{padding:60,textAlign:'center',color:'var(--tx4)',fontSize:13,border:'1px dashed rgba(255,255,255,.08)',borderRadius:14}}>لا توجد نتائج</div>}
+      </div>
+    </div>
+  )
+})()}
 
 <div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'10px 0'}}>
 الإعدادات تُحفظ محلياً على هذا المتصفح
 </div>
+
+{/* ─── Branch override editor modal ─── */}
+{overrideEditor&&(()=>{
+  const svc=ALL_SERVICES.find(x=>x.id===overrideEditor.svcId)
+  if(!svc)return null
+  const sch=PRICING_SCHEMA[svc.id]
+  const fields=sch?.fields?.filter(f=>!f.t||f.t==='text')||[]  // skip date/complex fields in this minimal editor
+  const def=getPricing(svc.id)||{}
+  const draft=overrideEditor.draft
+  const baseActive=isServiceActive(svc.id)
+  const baseBillable=isServiceBillable(svc.id)
+  const eff={
+    active:typeof draft.active==='boolean'?draft.active:baseActive,
+    billable:typeof draft.billable==='boolean'?draft.billable:baseBillable,
+  }
+  const setDraft=patch=>setOverrideEditor(p=>({...p,draft:{...p.draft,...patch}}))
+  const setPricingField=(k,v)=>setOverrideEditor(p=>({...p,draft:{...p.draft,pricing:{...(p.draft.pricing||{}),[k]:v}}}))
+  const clearPricingField=(k)=>setOverrideEditor(p=>{const np={...(p.draft.pricing||{})};delete np[k];return{...p,draft:{...p.draft,pricing:np}}})
+  const usedBranchIds=new Set(getOverridesForSvc(svc.id).map(o=>o.branchId).filter(b=>b!==overrideEditor.branchId))
+  const availableBranches=branches.filter(b=>!usedBranchIds.has(b.id))
+  const canSave=!!overrideEditor.branchId
+  const onSave=()=>{
+    if(!overrideEditor.branchId){toast(T('اختر مكتباً أولاً','Pick a branch first'));return}
+    const patch={}
+    if(typeof draft.active==='boolean'&&draft.active!==baseActive)patch.active=draft.active
+    else patch.active=undefined
+    if(typeof draft.billable==='boolean'&&draft.billable!==baseBillable)patch.billable=draft.billable
+    else patch.billable=undefined
+    // Coerce pricing values to numbers when applicable, drop empty
+    const cleanPricing={}
+    Object.entries(draft.pricing||{}).forEach(([k,v])=>{
+      if(v===''||v===null||v===undefined)return
+      const n=typeof v==='string'&&/^\d+(\.\d+)?$/.test(v)?Number(v):v
+      cleanPricing[k]=n
+    })
+    patch.pricing=Object.keys(cleanPricing).length?cleanPricing:undefined
+    upsertBranchOverride(overrideEditor.branchId,svc.id,patch)
+    toast(T('تم حفظ التخصيص','Override saved'))
+    setOverrideEditor(null)
+  }
+  const overlayS={position:'fixed',inset:0,background:'rgba(0,0,0,.6)',backdropFilter:'blur(4px)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:14,direction:'rtl',fontFamily:F}
+  const modalS={width:'min(560px, 100%)',maxHeight:'92vh',overflowY:'auto',background:'linear-gradient(180deg,#1f1f1f 0%,#181818 100%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 20px 50px rgba(0,0,0,.6)'}
+  const headS={padding:'14px 22px',borderBottom:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}
+  const labelS={fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:6,display:'block',textAlign:'right'}
+  const compactInp={...FORM_INPUT,height:36,fontSize:12}
+  const Toggle=({on,onChange,onLabel,offLabel,onColor,offColor,onIcon,offIcon})=>(
+    <div style={{display:'inline-flex',alignItems:'center',gap:6}}>
+      <button type="button" onClick={()=>onChange(!on)}
+        style={{width:44,height:22,borderRadius:999,border:'none',background:on?onColor:offColor,cursor:'pointer',position:'relative',transition:'.2s',padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
+        <span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:3,right:on?3:25,transition:'.2s',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+          {on?onIcon:offIcon}
+        </span>
+      </button>
+      <span style={{fontSize:11,fontWeight:700,color:on?onColor:offColor}}>{on?onLabel:offLabel}</span>
+    </div>
+  )
+  return(
+    <div style={overlayS} onClick={()=>setOverrideEditor(null)}>
+      <div style={modalS} onClick={e=>e.stopPropagation()}>
+        <div style={headS}>
+          <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
+            <span style={{width:36,height:36,borderRadius:9,background:'linear-gradient(180deg,rgba(212,160,23,.14),rgba(212,160,23,.06))',border:'1px solid rgba(212,160,23,.25)',display:'inline-flex',alignItems:'center',justifyContent:'center',color:C.gold,flexShrink:0}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+            </span>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>تخصيص لمكتب</div>
+              <div style={{fontSize:11,color:'var(--tx4)',fontWeight:500,marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{svc.name_ar}</div>
+            </div>
+          </div>
+          <button type="button" onClick={()=>setOverrideEditor(null)} style={{width:30,height:30,borderRadius:8,border:'1px solid rgba(255,255,255,.06)',background:'rgba(255,255,255,.03)',color:'var(--tx3)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0}}>
+            <X size={14} strokeWidth={2.5}/>
+          </button>
+        </div>
+        <div style={{padding:'18px 22px',display:'flex',flexDirection:'column',gap:14}}>
+          {/* Branch picker */}
+          <div>
+            <label style={labelS}>المكتب</label>
+            {overrideEditor.branchId?(
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderRadius:10,background:'rgba(212,160,23,.08)',border:`1px solid ${C.gold}55`}}>
+                <span style={{display:'inline-flex',alignItems:'center',gap:8,color:C.gold,fontSize:13,fontWeight:800}}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:C.gold,boxShadow:`0 0 6px ${C.gold}`}}/>
+                  <span style={{fontFamily:'monospace',direction:'ltr'}}>{branches.find(b=>b.id===overrideEditor.branchId)?.branch_code||'—'}</span>
+                </span>
+                <button type="button" onClick={()=>setOverrideEditor(p=>({...p,branchId:null}))} style={{fontSize:11,color:'var(--tx4)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>تغيير المكتب</button>
+              </div>
+            ):(
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(110px,1fr))',gap:6,maxHeight:200,overflowY:'auto',padding:8,borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)'}}>
+                {availableBranches.length===0?(
+                  <div style={{gridColumn:'1/-1',padding:14,textAlign:'center',fontSize:11,color:'var(--tx5)'}}>كل المكاتب لها تخصيص بالفعل أو لا توجد مكاتب نشطة</div>
+                ):availableBranches.map(b=>(
+                  <button key={b.id} type="button" onClick={()=>setOverrideEditor(p=>({...p,branchId:b.id}))}
+                    style={{height:36,borderRadius:8,border:'1px solid rgba(255,255,255,.06)',background:'rgba(255,255,255,.03)',color:C.gold,fontFamily:'monospace',fontSize:12,fontWeight:800,cursor:'pointer',direction:'ltr',transition:'.15s'}}
+                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor=`${C.gold}55`}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}>
+                    {b.branch_code}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Active + Billable toggles */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)'}}>
+              <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:8}}>الحالة <span style={{color:'var(--tx5)'}}>(الافتراضي: {baseActive?'فعّالة':'معطّلة'})</span></div>
+              <Toggle on={eff.active} onChange={v=>setDraft({active:v})}
+                onLabel="فعّالة" offLabel="معطّلة" onColor={C.ok} offColor={C.red}
+                onIcon={<Power size={9} color={C.ok} strokeWidth={3}/>} offIcon={<PowerOff size={9} color={C.red} strokeWidth={3}/>}/>
+              {typeof draft.active==='boolean'&&<button type="button" onClick={()=>setDraft({active:undefined})} style={{marginInlineStart:8,fontSize:10,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
+            </div>
+            <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)'}}>
+              <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:8}}>الفوترة <span style={{color:'var(--tx5)'}}>(الافتراضي: {baseBillable?'مفوترة':'مجانية'})</span></div>
+              <Toggle on={eff.billable} onChange={v=>setDraft({billable:v})}
+                onLabel="مفوترة" offLabel="مجانية" onColor={C.gold} offColor={C.ok}
+                onIcon={<DollarSign size={9} color={C.gold} strokeWidth={3}/>} offIcon={<Gift size={9} color={C.ok} strokeWidth={3}/>}/>
+              {typeof draft.billable==='boolean'&&<button type="button" onClick={()=>setDraft({billable:undefined})} style={{marginInlineStart:8,fontSize:10,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
+            </div>
+          </div>
+
+          {/* Pricing fields */}
+          {fields.length>0&&(
+            <div style={{padding:'12px 14px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)'}}>
+              <div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
+                <DollarSign size={12} color={C.gold}/> أسعار خاصة لهذا المكتب
+                <span style={{marginInlineStart:'auto',fontSize:10,color:'var(--tx5)',fontWeight:500}}>اترك فارغاً لاستعمال السعر الافتراضي</span>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                {fields.map(f=>{
+                  const ov=draft.pricing?.[f.k]
+                  const has=ov!==undefined&&ov!==''
+                  return(
+                    <div key={f.k}>
+                      <label style={{...labelS,display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+                        <span>{f.l}</span>
+                        {has&&<button type="button" onClick={()=>clearPricingField(f.k)} title="إزالة التخصيص" style={{fontSize:9,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
+                      </label>
+                      <div style={{display:'flex',alignItems:'center',gap:5}}>
+                        <input type="text" inputMode="decimal" value={ov??''}
+                          onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPricingField(f.k,v)}}
+                          placeholder={String(def[f.k]??f.d)} style={{...compactInp,flex:1,textAlign:'center',direction:'ltr',borderColor:has?C.gold+'66':'rgba(255,255,255,.07)'}}/>
+                        {f.sfx&&<span style={{fontSize:9,fontWeight:700,color:'var(--tx5)',minWidth:48,textAlign:'center'}}>{f.sfx}</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+        <div style={{padding:'12px 22px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+          <div style={{fontSize:10,color:'var(--tx5)',fontWeight:500}}>
+            القيم الفارغة = استعمال الافتراضي. التخصيصات تُحفظ محلياً.
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            {overrideEditor.branchId&&getOverridesForSvc(svc.id).some(o=>o.branchId===overrideEditor.branchId)&&(
+              <button type="button" onClick={()=>{removeBranchOverride(overrideEditor.branchId,svc.id);setOverrideEditor(null)}}
+                style={{height:36,padding:'0 14px',borderRadius:9,border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.08)',color:C.red,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                حذف التخصيص
+              </button>
+            )}
+            <button type="button" onClick={()=>setOverrideEditor(null)} style={{height:36,padding:'0 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'var(--tx3)',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>إلغاء</button>
+            <button type="button" onClick={onSave} disabled={!canSave}
+              style={{height:36,padding:'0 16px',borderRadius:9,border:'1px solid '+(canSave?'rgba(212,160,23,.45)':'rgba(255,255,255,.06)'),background:canSave?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'rgba(255,255,255,.03)',color:canSave?C.gold:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:700,cursor:canSave?'pointer':'not-allowed'}}>
+              حفظ التخصيص
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})()}
 </div>
 }

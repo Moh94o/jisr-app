@@ -17,7 +17,6 @@ function toProfile(p, userMap) {
   return {
     ...p,
     person_id: p.id,
-    phone_primary: p.personal_phone || null,
     user_id: userId,
     roles_summary: roles,
   }
@@ -48,7 +47,7 @@ export async function listPersons({ search = '', role = '', page = 1 } = {}) {
   let q = sb.from('persons').select('*', { count: 'exact' })
   if (search) {
     const s = search.replace(/[%,]/g, '')
-    q = q.or(`name_ar.ilike.%${s}%,name_en.ilike.%${s}%,id_number.ilike.%${s}%,personal_phone.ilike.%${s}%`)
+    q = q.or(`name_ar.ilike.%${s}%,name_en.ilike.%${s}%,id_number.ilike.%${s}%,phone_primary.ilike.%${s}%`)
   }
   // Role filter relies on roles_summary from v_person_profile — no-op until the view exists.
   q = q.order('name_ar', { ascending: true })

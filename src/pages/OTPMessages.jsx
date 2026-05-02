@@ -91,6 +91,7 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   }
   const [persons, setPersons] = useState([])
   const [messages, setMessages] = useState([])
+  const [detailMsg, setDetailMsg] = useState(null)
   const [selPerson, setSelPerson] = useState('all')
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
@@ -656,6 +657,212 @@ export default function OTPMessages({ sb, toast, user, lang }) {
   const _glassCard = { background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 16, padding: '10px 12px', position: 'relative', overflow: 'hidden', transition: '.25s cubic-bezier(.4,0,.2,1)', boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }
   const _innerBox = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)' }
 
+  // ═══ Message Detail Page ═══
+  if (detailMsg) {
+    const m = detailMsg
+    const svc = applySvcOverrides(detectService(m.phone_from, m.message_body))
+    const person = persons.find(p => p.id === m.person_id)
+    const svcCats = (svc.cats && svc.cats.length ? svc.cats : (svc.cat ? [svc.cat] : []))
+    const catLabelMap = lang==='en' ? { gov: 'Government', bank: 'Banks', other: 'Other' } : { gov: 'حكومي', bank: 'بنوك', other: 'أخرى' }
+    const catLabelOf = k => { if (catLabelMap[k]) return catLabelMap[k]; const c = customCategories.find(c => c.k === k); return (lang==='en' && c?.l_en) ? c.l_en : (c?.l || k) }
+    const userCats = m.user_classifications || []
+    const userMarkedNonOtp = userCats.length > 0 && !userCats.includes('otp')
+    const treatAsOtp = m.otp_code && !userMarkedNonOtp
+    const tl = m.otp_code ? getTimeLeft(m.created_at || m.received_at) : -1
+    const exp = tl <= 0 && m.otp_code
+    const expClr = tl > 30 ? C.ok : tl > 15 ? '#e67e22' : C.red
+    const dt = new Date(m.created_at || m.received_at)
+    const pad = n => String(n).padStart(2, '0')
+    const fmtDateTime = (d) => { if (!d) return '—'; const x = new Date(d); return `${x.getFullYear()}/${pad(x.getMonth()+1)}/${pad(x.getDate())} · ${pad(x.getHours())}:${pad(x.getMinutes())}:${pad(x.getSeconds())}` }
+    const senderKey = (m.phone_from || '').toLowerCase()
+    const msgPerms = permissions.filter(pm => pm.is_active && pm.person_id === m.person_id && (pm.can_view_all || (pm.allowed_senders || []).some(s => senderKey.includes(s.toLowerCase()))))
+    const cardChrome = { background: 'linear-gradient(180deg,#1f1f1f 0%,#181818 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
+    const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
+    const cardTitle = { fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '.2px' }
+    const Row = ({label, value, mono, color}) => (
+      <div style={{display:'flex',justifyContent:'space-between',padding:'6px 0',alignItems:'center',minHeight:28}}>
+        <span style={{fontSize:12,color:'var(--tx3)',fontWeight:600}}>{label}</span>
+        <span style={{fontSize:13,color:color||'var(--tx2)',fontVariantNumeric:mono?'tabular-nums':undefined,fontFamily:mono?'monospace':F,direction:mono?'ltr':undefined,fontWeight:600,textAlign:'left'}}>{value || '—'}</span>
+      </div>
+    )
+
+    return (
+      <div style={{ fontFamily: F, direction: lang==='en'?'ltr':'rtl', paddingTop: 0, color: 'var(--tx2)' }}>
+        {/* Top: Back button */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <button onClick={()=>setDetailMsg(null)} title={T('رجوع','Back')} style={{ height: 40, padding: '0 14px', borderRadius: 11, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.78)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 500, transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }} onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(212,160,23,.45)';e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.color='rgba(255,255,255,.78)'}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span>{T('رجوع','Back')}</span>
+          </button>
+        </div>
+
+        {/* Header — title + breadcrumb */}
+        <div style={{ marginBottom: 18, marginTop: 6 }}>
+          <div style={{ fontSize: 21, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{T('تفاصيل الرسالة','Message Details')}</div>
+          <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)' }}>
+            <span style={{ color: svc.color, fontSize: 12, fontWeight: 700, borderBottom: `1.5px solid ${svc.color}`, paddingBottom: 1 }}>{svc.name}</span>
+            <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }}/>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>
+              <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 600 }}>{m.phone_from}</span>
+              <button title={T('نسخ الرقم','Copy phone')} onClick={()=>{try{navigator.clipboard?.writeText(m.phone_from);toast?.(T('تم النسخ','Copied'))}catch{}}} style={{ width: 19, height: 19, padding: 0, borderRadius: 4, background: 'transparent', border: 'none', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e=>{e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx4)'}}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </span>
+            <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }}/>
+            <span style={{ color: 'var(--tx4)' }}>{fmtDateTime(m.created_at || m.received_at)}</span>
+            {treatAsOtp && (
+              <>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }}/>
+                <span style={{ padding: '3px 10px', borderRadius: 999, border: `1.5px solid ${exp ? C.red : expClr}`, color: exp ? C.red : expClr, fontSize: 10.5, fontWeight: 800, letterSpacing: '.5px' }}>{exp ? T('منتهية','EXPIRED') : T('OTP نشط','ACTIVE OTP')}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 2-col grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+          {/* Main column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+            {/* Service card */}
+            <div style={cardChrome}>
+              <div style={cardHeader}>
+                <span style={{width:6,height:6,borderRadius:'50%',background:svc.color}}/>
+                <span style={cardTitle}>{T('الجهة المرسلة','Sender')}</span>
+                <span style={{ marginInlineStart: 'auto' }}><SvcLogo sender={m.phone_from} body={m.message_body} size={28} customAvatars={customAvatars}/></span>
+              </div>
+              <div style={{ padding: '14px 22px' }}>
+                <Row label={T('اسم الجهة','Service Name')} value={svc.name} color={svc.color}/>
+                <Row label={T('الرقم','Phone')} value={m.phone_from} mono/>
+                {svcCats.length > 0 && <Row label={T('التصنيف','Classification')} value={svcCats.map(catLabelOf).join(' · ')}/>}
+              </div>
+            </div>
+
+            {/* Account Owner card */}
+            {person && (
+              <div style={cardChrome}>
+                <div style={cardHeader}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:C.blue}}/>
+                  <span style={cardTitle}>{T('صاحب الحساب','Account Owner')}</span>
+                </div>
+                <div style={{ padding: '14px 22px' }}>
+                  <Row label={T('الاسم','Name')} value={(lang==='en' && person.name_en) ? person.name_en : person.name} color={C.gold}/>
+                  {person.full_name_ar && <Row label={T('الاسم الكامل','Full Name')} value={person.full_name_ar}/>}
+                  {person.phone && <Row label={T('الجوال','Phone')} value={person.phone} mono/>}
+                </div>
+              </div>
+            )}
+
+            {/* Message body card */}
+            <div style={cardChrome}>
+              <div style={cardHeader}>
+                <span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>
+                <span style={cardTitle}>{T('نص الرسالة','Message Body')}</span>
+                <button onClick={()=>{try{navigator.clipboard?.writeText(m.message_body);toast?.(T('تم نسخ نص الرسالة','Message copied'))}catch{}}} style={{ marginInlineStart: 'auto', height: 28, padding: '0 10px', borderRadius: 8, background: 'rgba(212,160,23,.10)', border: '1px solid rgba(212,160,23,.30)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: F, fontSize: 11, fontWeight: 700 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>{T('نسخ','Copy')}</span>
+                </button>
+              </div>
+              <div style={{ padding: '18px 22px', fontSize: 13, color: 'var(--tx2)', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.message_body || '—'}</div>
+            </div>
+
+            {/* Permissions card */}
+            {msgPerms.length > 0 && (
+              <div style={cardChrome}>
+                <div style={cardHeader}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:'#bb8fce'}}/>
+                  <span style={cardTitle}>{T('صلاحيات العرض','View Permissions')}</span>
+                  <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{msgPerms.length}</span>
+                </div>
+                <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {msgPerms.map((pm, i) => {
+                    const u = sysUsers.find(u => u.id === pm.user_id)
+                    const uName = u ? ((lang==='en' && u.name_en) ? u.name_en : u.name) : '—'
+                    return (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i === msgPerms.length-1 ? 'none' : '1px solid rgba(255,255,255,.04)' }}>
+                        <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600 }}>{uName}</span>
+                        <span style={{ fontSize: 10, color: pm.can_view_all ? C.ok : '#bb8fce', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: pm.can_view_all ? 'rgba(46,204,113,.12)' : 'rgba(187,143,206,.12)', border: '1px solid ' + (pm.can_view_all ? 'rgba(46,204,113,.32)' : 'rgba(187,143,206,.32)') }}>{pm.can_view_all ? T('عرض كل الرسائل','All Messages') : T('مرسلين محددين','Specific Senders')}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* OTP code card (if applicable) */}
+            {treatAsOtp && (
+              <div style={cardChrome}>
+                <div style={cardHeader}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:exp?C.red:C.ok}}/>
+                  <span style={cardTitle}>{T('رمز التحقق','OTP Code')}</span>
+                </div>
+                <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                  <div style={{ display: 'flex', gap: 5, direction: 'ltr' }}>
+                    {m.otp_code.split('').map((d, i, arr) => {
+                      const hidden = i >= arr.length - 2
+                      const visColor = exp ? 'rgba(255,255,255,.35)' : C.ok
+                      return <div key={i} style={{
+                        width: 38, height: 50,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: hidden ? 16 : 26, fontWeight: 900,
+                        color: hidden ? C.gold : visColor,
+                        fontFamily: 'monospace',
+                        borderRadius: 10, lineHeight: 1,
+                        background: hidden ? 'rgba(212,160,23,.1)' : (exp ? 'rgba(255,255,255,.03)' : 'rgba(39,160,70,.1)'),
+                        border: '1.5px solid ' + (hidden ? 'rgba(212,160,23,.4)' : (exp ? 'rgba(255,255,255,.1)' : 'rgba(39,160,70,.32)')),
+                        textShadow: hidden ? '0 0 10px rgba(212,160,23,.55)' : 'none',
+                      }}>{hidden ? '●' : d}</div>
+                    })}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: exp ? C.red : expClr }}>
+                    {exp ? T('انتهت صلاحية الرمز','Expired') : T(`متبقي ${tl} ث`,`${tl}s left`)}
+                  </div>
+                </div>
+                {!exp && <div style={{ padding: '14px 22px' }}>
+                  <button onClick={()=>{try{navigator.clipboard?.writeText(m.otp_code);toast?.(T('تم نسخ الرمز','OTP copied'))}catch{}}} style={{ width: '100%', height: 40, borderRadius: 10, background: 'rgba(46,204,113,.10)', border: '1px solid rgba(46,204,113,.32)', color: C.ok, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 700 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span>{T('نسخ الرمز','Copy OTP')}</span>
+                  </button>
+                </div>}
+              </div>
+            )}
+
+            {/* Metadata card */}
+            <div style={cardChrome}>
+              <div style={cardHeader}>
+                <span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>
+                <span style={cardTitle}>{T('معلومات الاستلام','Reception Info')}</span>
+              </div>
+              <div style={{ padding: '14px 22px' }}>
+                <Row label={T('وقت الاستلام','Received At')} value={fmtDateTime(m.received_at || m.created_at)} mono/>
+                {m.created_at && m.received_at && m.created_at !== m.received_at && <Row label={T('وقت الإنشاء','Created At')} value={fmtDateTime(m.created_at)} mono/>}
+                <Row label={T('معرف الرسالة','Message ID')} value={String(m.id).slice(0, 8) + '…'} mono/>
+              </div>
+            </div>
+
+            {/* Quick actions */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {can('edit_msg_category') && (
+                <button onClick={()=>{ setDetailMsg(null); setMsgClassifyPicker(m.id) }} style={{ height: 44, padding: '0 12px', borderRadius: 11, background: 'rgba(93,173,226,.10)', border: '1px solid rgba(93,173,226,.30)', color: C.blue, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, gridColumn: 'span 2' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  <span>{T('تعديل الفئة','Edit Category')}</span>
+                </button>
+              )}
+              {can('delete_message') && (
+                <button onClick={()=>{ setDeleteConfirm(m.id); setDetailMsg(null) }} style={{ height: 44, padding: '0 12px', borderRadius: 11, background: 'rgba(229,134,122,.10)', border: '1px solid rgba(229,134,122,.30)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, gridColumn: 'span 2' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  <span>{T('حذف الرسالة','Delete Message')}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ fontFamily: F, direction: lang==='en'?'ltr':'rtl', paddingTop: 0 }}>
       {/* ═══ Header (matches PersonsPage exactly) ═══ */}
@@ -668,117 +875,103 @@ export default function OTPMessages({ sb, toast, user, lang }) {
         </div>
       </div>
 
-      {/* ═══ KPI Cards (matches PersonsPage exactly) ═══ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.6fr) minmax(0,1fr)', gap: 14, marginBottom: 22 }}>
-        {/* Wide: stat boxes + trend chart */}
-        <div style={_glassCard}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-            {[
-              { l: T('رموز تحقق', 'OTPs'), v: kpiOtpCount, c: C.gold },
-              { l: T('بنكية', 'Bank'), v: kpiBankCount, c: C.blue },
-              { l: T('حكومية', 'Gov'), v: kpiGovCount, c: '#d9a15a' }
-            ].map(s => (
-              <div key={s.l} style={{ padding: '7px 12px', borderRadius: 10, ..._innerBox,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.c, boxShadow: `0 0 5px ${s.c}` }} />
-                  <div style={{ fontSize: 20, fontWeight: 700, color: s.c, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{s.v}</div>
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600 }}>{s.l}</div>
+      {/* ═══ KPI strip — invoice-style 3-card layout ═══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.5fr', gap: 14, marginBottom: 24 }}>
+        {/* Hero — Total messages */}
+        <div style={{
+          position: 'relative', padding: '18px 22px', borderRadius: 16,
+          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+          border: '1px solid rgba(255,255,255,.05)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          overflow: 'hidden', minHeight: 150,
+        }}>
+          <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
+            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي الرسائل', 'Total Messages')}</span>
+          </div>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
+            <span style={{ fontSize: 42, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{messages.length}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.gold, opacity: .75 }}>{T('رسالة', 'msg')}</span>
+          </div>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('الحسابات النشطة','Active accounts')}</span>
+            <span style={{ fontSize: 13, color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{kpiActivePersons} / {persons.length}</span>
+          </div>
+        </div>
+
+        {/* Sidebar — 2 stacked KPIs */}
+        <div style={{
+          borderRadius: 16,
+          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+          border: '1px solid rgba(255,255,255,.05)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 150,
+        }}>
+          {[
+            { l: T('رموز تحقق', 'OTPs'), v: kpiOtpCount, c: C.gold },
+            { l: T('بنكية', 'Bank'), v: kpiBankCount, c: C.blue },
+          ].map((s, i) => (
+            <div key={i} style={{
+              position: 'relative', padding: '12px 16px', flex: 1,
+              borderTop: i > 0 ? '1px solid rgba(255,255,255,.06)' : 'none',
+              display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6,
+              overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', insetInlineStart: -25, top: '50%', transform: 'translateY(-50%)', width: 70, height: 70, borderRadius: '50%', background: `radial-gradient(circle, ${s.c}10 0%, transparent 70%)`, pointerEvents: 'none' }} />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.c }} />
+                <span style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{s.l}</span>
               </div>
-            ))}
-            <div style={{ minWidth: 0, padding: '0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('حوالات', 'Transfers')}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#c0c0c0', direction: 'ltr' }}>{kpiTransferCount}</span>
-              <span style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('منسوخ', 'Copied')}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#e5867a', direction: 'ltr' }}>{kpiCopiedCount}</span>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', direction: 'ltr' }}>
+                <span style={{ fontSize: 22, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{s.v}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Categories breakdown */}
+        {(()=>{
+          const CATS = [
+            { k: 'otp', l: T('رموز تحقق','OTPs'), c: C.gold, v: kpiOtpCount },
+            { k: 'bank', l: T('بنكية','Bank'), c: C.blue, v: kpiBankCount },
+            { k: 'gov', l: T('حكومية','Gov'), c: '#d9a15a', v: kpiGovCount },
+            { k: 'transfer', l: T('حوالات','Transfers'), c: '#c0c0c0', v: kpiTransferCount },
+            { k: 'copied', l: T('منسوخ','Copied'), c: '#e5867a', v: kpiCopiedCount },
+          ]
+          const total = CATS.reduce((a,c)=>a+(c.v||0),0)
+          return <div style={{
+            borderRadius: 16,
+            background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+            border: '1px solid rgba(255,255,255,.05)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+            padding: '12px 16px',
+            display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الفئات','Categories')}</span>
+              <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
+                <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{total}</span> {T('رسالة','msgs')}
+              </span>
+            </div>
+            {total > 0 && <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
+              {CATS.filter(c => (c.v||0) > 0).map(c => {
+                const pct = ((c.v||0)/total)*100
+                return <div key={c.k} title={`${c.l}: ${c.v}`} style={{ width: pct+'%', background: c.c, transition: 'width .3s' }}/>
+              })}
+            </div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 16px' }}>
+              {CATS.map(c => {
+                const isZero = (c.v||0) === 0
+                return <div key={c.k} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, opacity: isZero ? 0.45 : 1 }}>
+                  <span style={{ color: isZero ? 'var(--tx4)' : c.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 700 }}>{c.v||0}</span>
+                  <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.l}</span>
+                </div>
+              })}
             </div>
           </div>
-
-          {/* Trend chart — last 7 days */}
-          {(() => {
-            const n = _periodSeries.length
-            if (n < 2) return null
-            const W = 560, H = 88, padL = 22, padR = 12, padT = 12, padB = 12
-            const cw = W - padL - padR, ch = H - padT - padB
-            const mx = Math.max(1, ..._periodSeries.flatMap(p => [p.otp, p.gov, p.bank]))
-            const niceMx = Math.max(2, Math.ceil(mx / 2) * 2)
-            const xAt = i => (padL + (i / (n - 1)) * cw).toFixed(1)
-            const yAt = v => (padT + ch - (v / niceMx) * ch).toFixed(1)
-            const smooth = (pts) => {
-              if (pts.length < 2) return ''
-              let d = 'M' + pts[0][0] + ',' + pts[0][1]
-              for (let i = 0; i < pts.length - 1; i++) {
-                const [x0, y0] = pts[Math.max(0, i - 1)], [x1, y1] = pts[i]
-                const [x2, y2] = pts[i + 1], [x3, y3] = pts[Math.min(pts.length - 1, i + 2)]
-                const t = .22
-                const c1x = x1 + (x2 - x0) * t, c1y = y1 + (y2 - y0) * t
-                const c2x = x2 - (x3 - x1) * t, c2y = y2 - (y3 - y1) * t
-                d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + x2 + ',' + y2
-              }
-              return d
-            }
-            const ptsOf = (k) => _periodSeries.map((p, i) => [Number(xAt(i)), Number(yAt(p[k]))])
-            const lineP = (k) => smooth(ptsOf(k))
-            const areaP = (k) => {
-              const p = ptsOf(k); if (p.length < 2) return ''
-              return smooth(p) + ' L' + p[p.length - 1][0] + ',' + (padT + ch) + ' L' + p[0][0] + ',' + (padT + ch) + ' Z'
-            }
-            const yTicks = [0, niceMx / 2, niceMx]
-            return (
-              <div style={{ padding: '6px 10px' }}>
-                <svg width="100%" viewBox={`0 0 ${W} ${H - padB + 14}`} preserveAspectRatio="none" style={{ display: 'block', height: 90 }}>
-                  <defs>
-                    <linearGradient id="otpa" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={C.gold} stopOpacity=".4" />
-                      <stop offset="100%" stopColor={C.gold} stopOpacity="0" /></linearGradient>
-                    <linearGradient id="otpb" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#d9a15a" stopOpacity=".35" />
-                      <stop offset="100%" stopColor="#d9a15a" stopOpacity="0" /></linearGradient>
-                    <linearGradient id="otpc" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={C.blue} stopOpacity=".35" />
-                      <stop offset="100%" stopColor={C.blue} stopOpacity="0" /></linearGradient>
-                  </defs>
-                  {yTicks.map((t, i) => (
-                    <g key={i}>
-                      <line x1={padL} x2={W - padR} y1={yAt(t)} y2={yAt(t)} stroke="rgba(255,255,255,.05)" strokeWidth="1" />
-                      <text x={padL - 6} y={Number(yAt(t)) + 3} fontSize="9" fill="rgba(255,255,255,.3)" textAnchor="end" fontFamily={F}>{t}</text>
-                    </g>
-                  ))}
-                  <path d={areaP('otp')} fill="url(#otpa)" />
-                  <path d={lineP('otp')} fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d={areaP('gov')} fill="url(#otpb)" />
-                  <path d={lineP('gov')} fill="none" stroke="#d9a15a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d={areaP('bank')} fill="url(#otpc)" />
-                  <path d={lineP('bank')} fill="none" stroke={C.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  {['otp', 'gov', 'bank'].map(k => {
-                    const c = k === 'otp' ? C.gold : k === 'gov' ? '#d9a15a' : C.blue
-                    const last = ptsOf(k)[n - 1]
-                    return <circle key={k} cx={last[0]} cy={last[1]} r="4" fill="#1a1a1a" stroke={c} strokeWidth="2" />
-                  })}
-                </svg>
-              </div>
-            )
-          })()}
-        </div>
-
-        {/* Narrow: total messages hero */}
-        <div style={{ ..._glassCard, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)', letterSpacing: '.1px' }}>{T('إجمالي الرسائل', 'Total Messages')}</span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
-            <span style={{ fontSize: 48, fontWeight: 700, color: C.gold, letterSpacing: '-1.2px', lineHeight: 1,
-              textShadow: `0 0 22px ${C.gold}33`, direction: 'ltr' }}>{messages.length}</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.gold, opacity: .75 }}>{T('رسالة', 'msg')}</span>
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', letterSpacing: '.3px' }}>
-            {kpiActivePersons} {T('نشط', 'active')} · {persons.length - kpiActivePersons} {T('معطّل', 'inactive')}
-          </div>
-        </div>
+        })()}
       </div>
 
       {/* ═══ Content ═══ */}
@@ -823,18 +1016,27 @@ export default function OTPMessages({ sb, toast, user, lang }) {
             const lblS = { fontSize: 12, color: 'rgba(255,255,255,.55)', marginBottom: 8, fontWeight: 600 }
             const selectedPerson = selPerson !== 'all' ? persons.find(p => p.id === selPerson) : null
             return <>
-              {/* Search bar */}
-              {can('search') && <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 12, right: 'auto', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,.4)' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder={T('ابحث في الرسائل / الرقم / صاحب الحساب …', 'Search messages / code / owner …')} style={{ width: '100%', height: 40, padding: '0 14px 0 36px', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 11, fontFamily: F, fontSize: 14, fontWeight: 400, color: 'var(--tx)', outline: 'none', direction: lang==='en'?'ltr':'rtl', boxSizing: 'border-box', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }} />
+              {/* Search bar — invoice style */}
+              {can('search') && (() => {
+                const hasFilters = !!(searchSvc || searchSvcCat || searchMsgCat)
+                const clearAll = () => { setSearchSvc(''); setSearchSvcCat(''); setSearchMsgCat('') }
+                return <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 280px', position: 'relative' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder={T('ابحث في الرسائل / الرقم / صاحب الحساب …', 'Search messages / code / owner …')} style={{ width: '100%', height: 44, padding: '0 14px 0 38px', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 12, fontFamily: F, fontSize: 13, fontWeight: 400, color: '#fff', outline: 'none', direction: lang==='en'?'ltr':'rtl', boxSizing: 'border-box', transition: '.2s' }} />
+                  </div>
+                  {can('advanced_search') && <button onClick={() => setShowAdvancedSearch(!showAdvancedSearch)} style={{ height: 44, padding: '0 16px', borderRadius: 12, border: showAdvancedSearch || hasFilters ? '1px solid rgba(212,160,23,.3)' : '1px solid rgba(255,255,255,.05)', background: showAdvancedSearch || hasFilters ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', color: showAdvancedSearch || hasFilters ? C.gold : 'var(--tx2)', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0, boxSizing: 'border-box', transition: '.2s' }}>
+                    {T('تصفية', 'Filter')}
+                    {hasFilters ? (
+                      <span role="button" tabIndex={0} title={T('مسح الفلاتر','Clear filters')} onClick={e=>{e.stopPropagation();clearAll()}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.stopPropagation();e.preventDefault();clearAll()}}} onMouseEnter={e=>{e.currentTarget.style.background=C.red;e.currentTarget.style.color='#fff'}} onMouseLeave={e=>{e.currentTarget.style.background=C.gold;e.currentTarget.style.color='#000'}} style={{background:C.gold,color:'#000',width:18,height:18,borderRadius:999,display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'.18s'}}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      </span>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                    )}
+                  </button>}
                 </div>
-                {can('advanced_search') && <button onClick={() => setShowAdvancedSearch(!showAdvancedSearch)} style={{ height: 40, padding: '0 14px', borderRadius: 11, border: showAdvancedSearch ? '1px solid rgba(212,160,23,.45)' : '1px solid rgba(255,255,255,.06)', background: showAdvancedSearch ? 'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))' : 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: showAdvancedSearch ? C.gold : 'rgba(255,255,255,.78)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0, boxShadow: showAdvancedSearch ? '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)' : '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-                  {T('بحث متقدم', 'Advanced Search')}
-                </button>}
-                {(searchText || searchSvc || searchSvcCat || searchMsgCat) && <button onClick={() => { setSearchText(''); setSearchSvc(''); setSearchSvcCat(''); setSearchMsgCat('') }} style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(192,57,43,.3)', background: 'linear-gradient(180deg,rgba(192,57,43,.16),rgba(192,57,43,.08))', color: C.red, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 500, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>{T('مسح', 'Clear')}</button>}
-              </div>}
+              })()}
               {showAdvancedSearch && can('advanced_search') && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 14, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }}>{T('الجهة', 'Service')}</div>
@@ -911,9 +1113,9 @@ export default function OTPMessages({ sb, toast, user, lang }) {
               return (
                 <div key={m.id} style={{ position: 'relative' }}>
                   {can('delete_message') && <button onClick={() => setDeleteConfirm(m.id)} style={{ position: 'absolute', top: -10, left: 14, background: 'var(--bg)', padding: '2px 10px', fontSize: 10, fontWeight: 600, color: 'rgba(192,57,43,.75)', cursor: 'pointer', border: '1px dashed rgba(192,57,43,.45)', borderRadius: 6, fontFamily: F, transition: '.15s', zIndex: 2 }} onMouseEnter={e => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = C.red }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(192,57,43,.75)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.45)' }}>{T('حذف', 'Delete')}</button>}
-                  <div style={{ borderRadius: 16, background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid rgba(255,255,255,.08)', transition: '.25s cubic-bezier(.4,0,.2,1)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px ' + svc.color + '33, inset 0 1px 0 rgba(255,255,255,.08)' }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }}>
+                  <div onClick={(e)=>{ if(e.target.closest('button')) return; setDetailMsg(m) }} style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: `radial-gradient(ellipse at top, ${svc.color}10 0%, #222 60%)`, border: '1px solid rgba(255,255,255,.05)', overflow: 'hidden', transition: 'all .15s', boxShadow: '0 4px 14px rgba(0,0,0,.22)' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = svc.color + '55' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
                     {/* Part 1 — Unified header: Avatar + Service + Owner + (CountRing if OTP) + Date */}
                     <div style={{ padding: '18px 22px', display: 'flex', alignItems: 'flex-start', gap: 12, borderBottom: '1px solid rgba(255,255,255,.07)' }}>
                       <SvcLogo sender={m.phone_from} body={m.message_body} size={48} customAvatars={customAvatars} />
