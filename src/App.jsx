@@ -20,6 +20,7 @@ import PaymentsPage from './pages/PaymentsPage.jsx'
 import AccountingPage from './pages/AccountingPage.jsx'
 import ZatcaPage from './pages/ZatcaPage.jsx'
 import WhatsappInbox from './pages/WhatsappInbox.jsx'
+import ExemptionLinkagePage from './pages/ExemptionLinkagePage.jsx'
 import StampBadge from './components/ui/StampBadge.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
 import SyncHub from './pages/SyncHub.jsx'
@@ -708,7 +709,7 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 ];
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'accounting',l:T('المحاسبة','Accounting'),i:'chart'},{id:'zatca',l:T('الفوترة الإلكترونية','ZATCA'),i:'invoice'},{id:'whatsapp',l:T('واتساب','WhatsApp'),i:'notification'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'},{id:'transactions',l:T('المعاملات','Transactions'),i:'transaction'}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'accounting',l:T('المحاسبة','Accounting'),i:'chart'},{id:'zatca',l:T('الفوترة الإلكترونية','ZATCA'),i:'invoice'},{id:'whatsapp',l:T('واتساب','WhatsApp'),i:'notification'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'},{id:'exemption_linkage',l:T('الإعفاء والربط','Exemption & Linkage'),i:'transaction'},{id:'transactions',l:T('المعاملات','Transactions'),i:'transaction'}],
   admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_clients',l:T('العملاء','Clients'),i:'client'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'role'},{id:'admin_persons',l:T('الأشخاص','Persons'),i:'client'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_permissions',l:T('إدارة المستخدمين','Users'),i:'role'}],
   settings:[{id:'settings_general',l:T('الإعدادات العامة','General Settings'),i:'settings'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };const pages={
@@ -1174,6 +1175,7 @@ return<div><div>
 {pg==='zatca'&&<ZatcaPage toast={tt} user={user} lang={lang}/>}
 {pg==='whatsapp'&&<WhatsappInbox toast={tt} user={user} lang={lang}/>}
 {pg==='transactions'&&<TransactionsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='exemption_linkage'&&<ExemptionLinkagePage toast={tt} lang={lang}/>}
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_persons'&&<PersonsPage toast={tt} user={user}/>}

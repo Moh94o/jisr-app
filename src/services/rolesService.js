@@ -253,15 +253,45 @@ export async function removePersonRoleFlag(personId, roleType) {
   if (error) throw error
 }
 
-// Returns persons whose `roles_summary` contains the Arabic label for the
-// given role_type — covers BOTH actual facility relationships AND flagged-only.
+// Returns persons flagged for the given role_type via person_role_flags.
+// Each result carries a `roles_summary` array with Arabic labels for every
+// role flag the person holds — so the picker can show all their assignments,
+// not just the one that matched the query.
 export async function listPersonsByRole(roleType) {
   const sb = getSupabase()
   const ROLE_AR = { owner: 'مالك', manager: 'مدير', beneficiary: 'مستفيد', supervisor: 'مشرف', tracker: 'معقب' }
-  const ar = ROLE_AR[roleType]
-  if (!ar) return []
-  // v_person_profile / roles_summary aren't built yet — returns [] until the view exists.
-  return []
+  if (!ROLE_AR[roleType]) return []
+
+  const { data: flagged, error: e1 } = await sb.from('person_role_flags')
+    .select('person_id').eq('role_type', roleType)
+  if (e1 || !flagged?.length) return []
+
+  const ids = Array.from(new Set(flagged.map(f => f.person_id)))
+
+  const [personsRes, flagsRes] = await Promise.all([
+    sb.from('persons')
+      .select('id, name_ar, name_en, id_number, phone_primary')
+      .in('id', ids).is('deleted_at', null),
+    sb.from('person_role_flags')
+      .select('person_id, role_type').in('person_id', ids),
+  ])
+
+  const flagsByPerson = {}
+  ;(flagsRes.data || []).forEach(f => {
+    const ar = ROLE_AR[f.role_type]
+    if (!ar) return
+    if (!flagsByPerson[f.person_id]) flagsByPerson[f.person_id] = []
+    if (!flagsByPerson[f.person_id].includes(ar)) flagsByPerson[f.person_id].push(ar)
+  })
+
+  return (personsRes.data || []).map(p => ({
+    person_id: p.id,
+    name_ar: p.name_ar,
+    name_en: p.name_en,
+    id_number: p.id_number,
+    phone_primary: p.phone_primary,
+    roles_summary: flagsByPerson[p.id] || [],
+  }))
 }
 
 // ═══════════════════════════════════════════════════════════════════

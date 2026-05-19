@@ -397,11 +397,6 @@ const[muqeemInputs,setMuqeemInputs]=useState({username:'',password:''})
 const[muqeemShowPw,setMuqeemShowPw]=useState(false)
 const[muqeemSaving,setMuqeemSaving]=useState(false)
 const[muqeemEditing,setMuqeemEditing]=useState(false)
-const[sbcCreds,setSbcCreds]=useState({username:'',password:'',updated_at:null})
-const[sbcInputs,setSbcInputs]=useState({username:'',password:''})
-const[sbcShowPw,setSbcShowPw]=useState(false)
-const[sbcSaving,setSbcSaving]=useState(false)
-const[sbcEditing,setSbcEditing]=useState(false)
 
 const toggle=id=>setOpen(p=>({...p,[id]:!p[id]}))
 useEffect(()=>{onTabChange&&onTabChange({tab,svcSubTab})},[tab,svcSubTab,onTabChange])
@@ -424,7 +419,6 @@ setSData(s.data||[]);setSLoading(false);setRegions(rg.data||[]);setCities(ct.dat
 setLLists(ll.data||[]);setLItems(li.data||[]);setDocs(dc.data||[])
 setOccupationsList(oc.data||[]);setNatList(nat.data||[]);setEmbList(emb.data||[])
 sb.from('muqeem_credentials').select('username,password,updated_at').eq('id','default').maybeSingle().then(({data})=>{const d=data||{username:'',password:'',updated_at:null};setMuqeemCreds(d);setMuqeemInputs({username:d.username||'',password:d.password||''})})
-sb.from('sbc_credentials').select('username,password,updated_at').eq('id','default').maybeSingle().then(({data})=>{const d=data||{username:'',password:'',updated_at:null};setSbcCreds(d);setSbcInputs({username:d.username||'',password:d.password||''})})
 setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
@@ -432,8 +426,6 @@ useEffect(()=>{loadAll()},[loadAll])
 const saveSetting=async(key,val)=>{const{error}=await sb.from('system_settings').update({setting_value:val,updated_at:new Date().toISOString()}).eq('setting_key',key);if(error)toast(isAr?'خطأ':'Error');else toast(isAr?'تم الحفظ':'Saved')}
 const saveMuqeemCreds=async()=>{const u=(muqeemInputs.username||'').trim();const p=(muqeemInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setMuqeemSaving(true);const{error}=await sb.from('muqeem_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setMuqeemSaving(false);if(error){toast((isAr?'خطأ: ':'Error: ')+error.message?.slice(0,80));return}setMuqeemCreds({username:u,password:p,updated_at:new Date().toISOString()});setMuqeemEditing(false);setMuqeemShowPw(false);toast(isAr?'تم حفظ بيانات دخول مقيم':'Muqeem credentials saved')}
 const cancelMuqeemEdit=()=>{setMuqeemInputs({username:muqeemCreds.username||'',password:muqeemCreds.password||''});setMuqeemEditing(false);setMuqeemShowPw(false)}
-const saveSbcCreds=async()=>{const u=(sbcInputs.username||'').trim();const p=(sbcInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setSbcSaving(true);const{error}=await sb.from('sbc_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setSbcSaving(false);if(error){toast((isAr?'خطأ: ':'Error: ')+error.message?.slice(0,80));return}setSbcCreds({username:u,password:p,updated_at:new Date().toISOString()});setSbcEditing(false);setSbcShowPw(false);toast(isAr?'تم حفظ بيانات دخول المركز السعودي':'SBC credentials saved')}
-const cancelSbcEdit=()=>{setSbcInputs({username:sbcCreds.username||'',password:sbcCreds.password||''});setSbcEditing(false);setSbcShowPw(false)}
 const saveForm=async()=>{setSaving(true);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
 if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
 if(d.is_system!==undefined&&d.is_system!==null)d.is_system=d.is_system==='true'
@@ -595,51 +587,6 @@ return<div>
 <input type={muqeemShowPw?'text':'password'} value={muqeemInputs.password} onChange={e=>setMuqeemInputs(p=>({...p,password:e.target.value}))} readOnly={!muqeemEditing} autoComplete="new-password" style={{...FORM_INPUT,width:'100%',padding:'0 38px 0 14px',direction:'ltr',textAlign:'center'}}/>
 <button type="button" onClick={()=>setMuqeemShowPw(s=>!s)} style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',width:24,height:24,borderRadius:6,border:'none',background:'transparent',color:'var(--tx5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}} title={muqeemShowPw?(isAr?'إخفاء':'Hide'):(isAr?'إظهار':'Show')}>
 {muqeemShowPw?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
-</button>
-</div>
-</div>
-</div>
-</div>
-</div>
-
-{/* ── SBC (Saudi Business Center) bot credentials — same pattern as Muqeem ── */}
-<div style={{marginBottom:14}}>
-<div style={{...secS,marginBottom:4}}><span style={{width:6,height:6,borderRadius:'50%',background:'#D4A017',boxShadow:'0 0 5px #D4A017'}}/>{isAr?'بيانات دخول المركز السعودي للأعمال (البوت)':'SBC Bot Credentials'}</div>
-{sbcCreds.updated_at&&<div style={{fontSize:10,color:'var(--tx5)',fontWeight:500,textAlign:isAr?'right':'left',marginBottom:8,paddingRight:16,paddingLeft:16}}>{isAr?'آخر تحديث: ':'Last updated: '}{new Date(sbcCreds.updated_at).toLocaleString('en-GB')}</div>}
-<div className="muq-in" data-editing={sbcEditing?'true':'false'} style={{position:'relative',padding:'26px 10px 10px',...GLASS_CARD,border:'1px solid '+(sbcEditing?'rgba(212,160,23,.35)':'rgba(255,255,255,.08)'),display:'flex',flexDirection:'column',gap:8}}>
-{sbcEditing
-?<div style={{position:'absolute',top:-12,left:12,zIndex:2,display:'inline-flex',alignItems:'center',gap:6}}>
-<button onClick={saveSbcCreds} disabled={sbcSaving||!sbcInputs.username||!sbcInputs.password} title={isAr?'حفظ التعديلات':'Save changes'} className="muq-save-btn" style={{height:24,padding:'0 12px',border:'1px solid',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,opacity:(sbcSaving||!sbcInputs.username||!sbcInputs.password)?0.5:1}}>
-<span>{sbcSaving?(isAr?'جارِ الحفظ...':'Saving...'):(isAr?'حفظ':'Save')}</span>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-</button>
-<button onClick={cancelSbcEdit} title={isAr?'إلغاء التعديل بدون حفظ':'Cancel without saving'} className="muq-cancel-btn" style={{height:24,padding:'0 12px',border:'1px solid',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5}}>
-<span>{isAr?'إلغاء التعديل':'Cancel'}</span>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-</button>
-</div>
-:<button onClick={()=>{setSbcInputs({username:sbcCreds.username||'',password:sbcCreds.password||''});setSbcEditing(true)}} title={isAr?'تعديل بيانات المركز السعودي':'Edit SBC credentials'} className="muq-edit-btn" style={{position:'absolute',top:-12,left:12,height:24,padding:'0 12px',border:'1px dashed',borderRadius:6,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',zIndex:2,display:'inline-flex',alignItems:'center',gap:5}}>
-<span>{isAr?'تعديل':'Edit'}</span>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-</button>}
-<div style={{display:'flex',flexDirection:'column',gap:8,pointerEvents:sbcEditing?'auto':'none',filter:sbcEditing?'none':'saturate(.75)'}}>
-<div style={{padding:'10px 14px',fontSize:11,color:'var(--tx4)',lineHeight:1.7,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',borderRadius:10,boxShadow:PILL_SHADOW}}>{isAr?'يستخدمها البوت للدخول إلى نفاذ ثم بوابة تيسير (المركز السعودي للأعمال). رمز التحقق يصل إلى قاعدة البيانات تلقائياً.':'Used by the bot to log into Nafath then Tayseer (SBC). The OTP arrives in the database automatically.'}</div>
-<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:10,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',boxShadow:PILL_SHADOW}}>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:13,fontWeight:500,color:'var(--tx2)',marginBottom:2}}>{isAr?'اسم المستخدم (هوية نفاذ)':'Username (Nafath ID)'}</div>
-<div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>SBC_USERNAME</div>
-</div>
-<input value={sbcInputs.username} onChange={e=>setSbcInputs(p=>({...p,username:e.target.value}))} readOnly={!sbcEditing} autoComplete="off" style={{...FORM_INPUT,width:260,direction:'ltr',textAlign:'center'}}/>
-</div>
-<div style={{display:'flex',alignItems:'center',gap:14,padding:12,borderRadius:10,background:PILL_BG,border:'1px solid rgba(255,255,255,.06)',boxShadow:PILL_SHADOW}}>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:13,fontWeight:500,color:'var(--tx2)',marginBottom:2}}>{isAr?'كلمة المرور':'Password'}</div>
-<div style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr',textAlign:'right'}}>SBC_PASSWORD</div>
-</div>
-<div style={{position:'relative',width:260}}>
-<input type={sbcShowPw?'text':'password'} value={sbcInputs.password} onChange={e=>setSbcInputs(p=>({...p,password:e.target.value}))} readOnly={!sbcEditing} autoComplete="new-password" style={{...FORM_INPUT,width:'100%',padding:'0 38px 0 14px',direction:'ltr',textAlign:'center'}}/>
-<button type="button" onClick={()=>setSbcShowPw(s=>!s)} style={{position:'absolute',top:'50%',left:8,transform:'translateY(-50%)',width:24,height:24,borderRadius:6,border:'none',background:'transparent',color:'var(--tx5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}} title={sbcShowPw?(isAr?'إخفاء':'Hide'):(isAr?'إظهار':'Show')}>
-{sbcShowPw?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
 </button>
 </div>
 </div>
