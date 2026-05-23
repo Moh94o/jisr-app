@@ -323,47 +323,137 @@ export const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
   )
 }
 
-export const Sel = ({ value, onChange, options, placeholder }) => {
+export const Sel = ({ value, onChange, options, placeholder, maxVisible, searchable, searchPlaceholder, multiple }) => {
   const opts = options.map(o => typeof o === 'string' ? { v: o, l: o } : o)
-  const selectedLabel = (opts.find(o => o.v === value) || {}).l || ''
+  const selectedSet = useMemo(() => new Set(multiple ? (Array.isArray(value) ? value : []) : []), [multiple, value])
+  const isSelected = (v) => multiple ? selectedSet.has(v) : value === v
+  const selectedLabel = (() => {
+    if (multiple) {
+      const picks = opts.filter(o => !o.divider && selectedSet.has(o.v))
+      if (picks.length === 0) return ''
+      if (picks.length === 1) return picks[0].l
+      return `${picks[0].l} +${picks.length - 1}`
+    }
+    return (opts.find(o => !o.divider && o.v === value) || {}).l || ''
+  })()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 380 })
+  const [query, setQuery] = useState('')
   const btnRef = useRef(null)
   const popRef = useRef(null)
-  const toggle = () => {
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect()
-      const maxH = opts.length * 42 + 4
-      setPos({ top: r.bottom + 6, left: r.left, width: r.width, maxH })
+  const searchInputRef = useRef(null)
+  // Filter opts by query; drop dividers that no longer separate two visible groups.
+  const visibleOpts = useMemo(() => {
+    const q = (query || '').trim().toLowerCase()
+    if (!searchable || !q) return opts
+    const matched = opts.map(o => {
+      if (o.divider) return o
+      const hay = `${o.l || ''} ${o.sub || ''}`.toLowerCase()
+      return hay.includes(q) ? o : null
+    })
+    // Walk through and only keep dividers that have at least one match on each side
+    // before the next divider — otherwise the divider stands alone or floats at an edge.
+    const out = []
+    for (let i = 0; i < matched.length; i++) {
+      const o = matched[i]
+      if (!o) continue
+      if (o.divider) {
+        const lastIsRow = out.length > 0 && !out[out.length - 1].divider
+        const restHasRow = matched.slice(i + 1).some(x => x && !x.divider)
+        if (lastIsRow && restHasRow) out.push(o)
+        continue
+      }
+      out.push(o)
     }
+    return out
+  }, [opts, query, searchable])
+  const reposition = () => {
+    if (!btnRef.current) return
+    const r = btnRef.current.getBoundingClientRect()
+    const visibleCount = maxVisible ? Math.min(visibleOpts.length, maxVisible) : visibleOpts.length
+    const rowH = visibleOpts.some(o => o.sub) ? 56 : 42
+    const listH = visibleCount * rowH + 4
+    const searchH = searchable ? 48 : 0
+    setPos({ top: r.bottom + 6, left: r.left, width: r.width, maxH: listH + searchH })
+  }
+  const toggle = () => {
+    if (!open) { setQuery(''); reposition() }
     setOpen(o => !o)
   }
+  useEffect(() => { if (open) reposition() // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleOpts.length])
+  useEffect(() => {
+    if (!open) return
+    if (searchable && searchInputRef.current) {
+      // Tiny delay so the input is mounted before focus.
+      const t = setTimeout(() => searchInputRef.current?.focus(), 0)
+      return () => clearTimeout(t)
+    }
+  }, [open, searchable])
   useEffect(() => {
     if (!open) return
     const onDoc = e => { if (popRef.current && !popRef.current.contains(e.target) && btnRef.current && !btnRef.current.contains(e.target)) setOpen(false) }
+    // Track scroll on any ancestor (capture phase catches scroll containers like .dash-content)
+    // and window resize so the popover stays glued to its button.
+    const onScrollOrResize = () => reposition()
     document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
+    window.addEventListener('scroll', onScrollOrResize, true)
+    window.addEventListener('resize', onScrollOrResize)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      window.removeEventListener('scroll', onScrollOrResize, true)
+      window.removeEventListener('resize', onScrollOrResize)
+    }
   }, [open])
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
+      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: selectedLabel ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>{selectedLabel || placeholder || '...'}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
         <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
           <style>{`.sel-pop-scroll{scrollbar-width:none;-ms-overflow-style:none}.sel-pop-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
-          <div className="sel-pop-scroll" style={{ flex: 1, overflowY: 'auto' }}>
-            {opts.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 14, color: 'var(--tx5)' }}>—</div>}
-            {opts.map(o => {
-              const isSel = value === o.v
+          {searchable && (
+            <div style={{ padding: 6, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.18)', position: 'relative', flexShrink: 0 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', color: 'var(--tx4)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input ref={searchInputRef} value={query} onChange={e => setQuery(e.target.value)}
+                placeholder={searchPlaceholder || 'بحث…'}
+                style={{ width: '100%', height: 34, padding: '0 32px 0 10px', borderRadius: 8, background: 'rgba(0,0,0,.25)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx)', fontSize: 12.5, fontFamily: F, outline: 'none', boxSizing: 'border-box' }}/>
+            </div>
+          )}
+          <div className="sel-pop-scroll" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            {visibleOpts.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 13, color: 'var(--tx5)' }}>—</div>}
+            {visibleOpts.map((o, i) => {
+              if (o.divider) {
+                return (
+                  <div key={`div-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: 'rgba(255,255,255,.02)', borderBottom: '1px solid rgba(255,255,255,.06)', borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                    <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}/>
+                    {o.l && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.4px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{o.l}</span>}
+                    <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}/>
+                  </div>
+                )
+              }
+              const isSel = isSelected(o.v)
+              const handleClick = () => {
+                if (multiple) {
+                  // Empty value (e.g. "All") clears the selection.
+                  if (o.v === '' || o.v == null) { onChange([]); return }
+                  const cur = Array.isArray(value) ? value : []
+                  const next = cur.includes(o.v) ? cur.filter(x => x !== o.v) : [...cur, o.v]
+                  onChange(next)
+                } else {
+                  onChange(o.v); setOpen(false)
+                }
+              }
               return (
-                <div key={o.v} onClick={() => { onChange(o.v); setOpen(false) }}
-                  style={{ padding: '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid rgba(255,255,255,.08)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
+                <div key={o.v} onClick={handleClick}
+                  style={{ padding: o.sub ? '7px 14px' : '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid rgba(255,255,255,.08)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
                   onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                     <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.l}</span>
+                    {o.sub && <span style={{ fontSize: 11, fontWeight: 500, color: isSel ? 'rgba(212,160,23,.7)' : 'var(--tx4)', textAlign: 'center', width: '100%', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{o.sub}</span>}
                   </div>
                   {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </div>

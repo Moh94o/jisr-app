@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
+import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
+import { Sel } from './KafalaCalculator.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -104,7 +106,7 @@ function NumberRow({ color, label, value, toast, T }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '3px 0' }} title={label}>
       {hasVal ? (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr', minWidth: 0 }}>
-          <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10.5, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
+          <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
           <button type="button" onClick={onCopy} title={T ? T('نُسخ', 'Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
             onMouseEnter={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.7)' }}
             onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.3)' }}>
@@ -296,6 +298,178 @@ function ActivitiesCard({ activities, lang, T }) {
   )
 }
 
+// GOSI establishment card — renders the full /v1/establishment/{regNo}
+// response. Source data lives in public.gosi_establishments.raw_main and is
+// populated by the GOSI sync bookmarklet. Sections mirror the field groups
+// the user shared (basic info / activity / CR / dates / MOL / contact / etc).
+function GosiEstablishmentCard({ data, T, lang }) {
+  const r = data?.raw_main || {}
+  const isAr = (lang || 'ar') !== 'en'
+  const pickLang = (obj) => obj ? (isAr ? (obj.arabic || obj.english) : (obj.english || obj.arabic)) : null
+  const fmtDate = (d) => {
+    if (!d) return null
+    const g = d.gregorian ? String(d.gregorian).slice(0, 10) : null
+    const h = d.hijiri || null
+    return [g, h].filter(Boolean).join(' · ') || null
+  }
+  const yesNo = (v) => v == null ? null : (v ? T('نعم', 'Yes') : T('لا', 'No'))
+
+  const Row = ({ k, v, mono }) => (v == null || v === '' ? null : (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8,
+      border: '1px solid rgba(255,255,255,.05)', gap: 10,
+    }}>
+      <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{k}</span>
+      <span style={{
+        fontWeight: 700, color: 'var(--tx)', fontSize: 11.5, textAlign: 'end',
+        direction: mono ? 'ltr' : undefined,
+        fontFamily: mono ? 'ui-monospace, monospace' : undefined,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>{v}</span>
+    </div>
+  ))
+
+  const Section = ({ title, children }) => {
+    const kids = React.Children.toArray(children).filter(Boolean)
+    if (!kids.length) return null
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, color: 'rgba(255,255,255,.45)', letterSpacing: '.4px', textTransform: 'uppercase', paddingInlineStart: 2 }}>{title}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>{kids}</div>
+      </div>
+    )
+  }
+
+  // Most fields are scalar — these helpers extract the right localised value.
+  const addr = r.contactDetails?.addresses?.[0] || null
+  const addrLine = addr
+    ? [pickLang(addr.city), addr.district, addr.streetName, addr.buildingNo && (T('مبنى', 'Bldg') + ' ' + addr.buildingNo), addr.postalCode]
+        .filter(Boolean).join(' · ')
+    : null
+
+  const accent = '#22c55e'
+  return (
+    <CollapsibleCard
+      title={T('بيانات التأمينات الإجتماعية (الملف الرئيسي)', 'GOSI Establishment (main file)')}
+      color={accent}
+      defaultExpanded={false}>
+      <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        <Section title={T('بيانات أساسية', 'Basic')}>
+          <Row k={T('رقم التسجيل (تأمينات)', 'GOSI Reg. No.')} v={r.registrationNo} mono />
+          <Row k={T('الرقم الموحد', 'Unified National No.')} v={r.unifiedNationalNumber} mono />
+          <Row k={T('الاسم بالعربي', 'Name (AR)')} v={r.name?.arabic} />
+          <Row k={T('الاسم بالإنجليزي', 'Name (EN)')} v={r.name?.english} />
+          <Row k={T('الكيان القانوني', 'Legal entity')} v={pickLang(r.legalEntity)} />
+          <Row k={T('الكيان (وزارة التجارة)', 'MCI legal entity')} v={pickLang(r.mciLegalEntity)} />
+          <Row k={T('الحالة', 'Status')} v={pickLang(r.status)} />
+          <Row k={T('نوع المنشأة', 'Type')} v={pickLang(r.establishmentType)} />
+          <Row k={T('المنشأة الرئيسية', 'Main est. reg. no.')} v={r.mainEstablishmentRegNo} mono />
+          <Row k={T('رقم الاستقدام', 'Recruitment no.')} v={r.recruitmentNo} mono />
+          <Row k={T('الجنسية', 'Nationality')} v={pickLang(r.nationalityCode)} />
+          <Row k={T('دولة خليجية', 'GCC country')} v={yesNo(r.gccCountry)} />
+        </Section>
+
+        <Section title={T('النشاط والتصنيف', 'Activity & classification')}>
+          <Row k={T('النشاط', 'Activity')} v={pickLang(r.activityType)} />
+          <Row k={T('نظام معمول به', 'Law type')} v={pickLang(r.lawType)} />
+          <Row k={T('القطاع', 'Sector')} v={r.classification?.sector} />
+          <Row k={T('الحجم', 'Size')} v={r.classification?.size} />
+          <Row k={T('رمز التصنيف', 'Class. code')} v={r.classification?.code} mono />
+        </Section>
+
+        <Section title={T('السجل التجاري', 'Commercial Register')}>
+          <Row k={T('رقم السجل', 'CR number')} v={r.crn?.number} mono />
+          <Row k={T('موثّق وزارة التجارة', 'MCI verified')} v={yesNo(r.crn?.mciVerified)} />
+          <Row k={T('تاريخ الإصدار', 'Issue date')} v={fmtDate(r.crn?.issueDate)} mono />
+          <Row k={T('تاريخ الانتهاء', 'Expiry date')} v={fmtDate(r.crn?.expiryDate)} mono />
+          <Row k={T('تاريخ التأكيد', 'Confirm date')} v={r.crn?.confirmDate} mono />
+          <Row k={T('اسم المنشأة (سجل)', 'CR name')} v={r.crn?.estNameArb} />
+        </Section>
+
+        <Section title={T('تواريخ مهمة', 'Key dates')}>
+          <Row k={T('تاريخ البداية', 'Start date')} v={fmtDate(r.startDate)} mono />
+          <Row k={T('تاريخ التسجيل', 'GOSI reg. date')} v={fmtDate(r.gosiRegistrationDate)} mono />
+          <Row k={T('بداية المعاش', 'Annuity start')} v={fmtDate(r.annuityStartDate)} mono />
+          <Row k={T('بداية الأخطار المهنية', 'OH start')} v={fmtDate(r.ohStartDate)} mono />
+          <Row k={T('بداية التعطل', 'UI start')} v={fmtDate(r.uiStartDate)} mono />
+          <Row k={T('إصلاح المعاشات (OH)', 'Pension reform OH')} v={fmtDate(r.pensionReformOhEnableDate)} mono />
+          <Row k={T('تاريخ الإغلاق', 'Close date')} v={fmtDate(r.closeDate)} mono />
+          <Row k={T('إغلاق بعد إعادة فتح', 'Close after reopen')} v={fmtDate(r.closureDateAfterReopen)} mono />
+        </Section>
+
+        <Section title={T('وزارة العمل', 'MOL identifiers')}>
+          <Row k={T('معرّف المنشأة', 'MOL est. ID')} v={r.molEstablishmentIds?.molEstablishmentId} mono />
+          <Row k={T('معرّف المكتب', 'MOL office ID')} v={r.molEstablishmentIds?.molOfficeId} mono />
+          <Row k={T('معرّف مكتب المنشأة', 'MOL est. office ID')} v={r.molEstablishmentIds?.molEstablishmentOfficeId} mono />
+          <Row k={T('الرقم الموحد (عمل)', 'MOL UN ID')} v={r.molEstablishmentIds?.molunId} mono />
+          <Row k={T('حالة ملف العمل', 'MOL file status')} v={pickLang(r.molFileStatus)} />
+          <Row k={T('المكتب الميداني', 'Field office')} v={pickLang(r.fieldOfficeName)} />
+        </Section>
+
+        <Section title={T('بيانات الاتصال', 'Contact')}>
+          <Row k={T('البريد الأساسي', 'Primary email')} v={r.contactDetails?.emailId?.primary} mono />
+          <Row k={T('الجوال الأساسي', 'Primary mobile')} v={r.contactDetails?.mobileNo?.primary} mono />
+          <Row k={T('الجوال الثانوي', 'Secondary mobile')} v={r.contactDetails?.mobileNo?.secondary} mono />
+          <Row k={T('الهاتف الأساسي', 'Primary phone')} v={r.contactDetails?.telephoneNo?.primary} mono />
+          {addrLine && (
+            <div style={{
+              gridColumn: '1 / -1',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8,
+              border: '1px solid rgba(255,255,255,.05)', gap: 10,
+            }}>
+              <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{T('العنوان الوطني', 'National address')}</span>
+              <span style={{ fontWeight: 700, color: 'var(--tx)', fontSize: 11.5, textAlign: 'end' }}>{addrLine}</span>
+            </div>
+          )}
+        </Section>
+
+        <Section title={T('الحساب والشهادة', 'Account & certificate')}>
+          <Row k={T('نوع الدفع', 'Payment type')} v={pickLang(r.establishmentAccount?.paymentType)} />
+          <Row k={T('بداية الحساب', 'Account start')} v={fmtDate(r.establishmentAccount?.startDate)} mono />
+          <Row k={T('اسم البنك', 'Bank')} v={r.establishmentAccount?.bankAccount?.bankName} />
+          <Row k={T('رقم الآيبان', 'IBAN')} v={r.establishmentAccount?.bankAccount?.ibanAccountNo} mono />
+          <Row k={T('حالة الحساب', 'Account status')} v={r.establishmentAccount?.bankAccount?.accountStatus} />
+          <Row k={T('حالة الشهادة', 'Certificate active')} v={yesNo(r.certificateStatus)} />
+          <Row k={T('نسبة الأخطار المهنية', 'Current OH rate')} v={r.currentOHRate != null ? r.currentOHRate + '%' : null} />
+        </Section>
+
+        <Section title={T('خصائص', 'Flags')}>
+          <Row k={T('استباقية', 'Proactive')} v={yesNo(r.proactive)} />
+          <Row k={T('استباقية خليجية', 'GCC proactive')} v={yesNo(r.gccProactive)} />
+          <Row k={T('خارج السوق', 'Out of market')} v={yesNo(r.outOfMarket)} />
+          <Row k={T('شريك واحد', 'One partner')} v={yesNo(r.onePartner)} />
+          <Row k={T('نادي رياضي', 'Sports club')} v={yesNo(r.sportsClub)} />
+          <Row k={T('منشأة PPA', 'PPA establishment')} v={yesNo(r.ppaEstablishment)} />
+          <Row k={T('مسجّل إدارياً', 'Admin registered')} v={yesNo(r.adminRegistered)} />
+          <Row k={T('مسموح تأمين ممتد', 'Extended insurance')} v={yesNo(r.allowedForExtendedInsurance)} />
+          <Row k={T('اكتمل التسجيل', 'Registration completed')} v={yesNo(r.registrationCompleted)} />
+          <Row k={T('حالة الاستباقية', 'Proactive status')} v={r.proactiveStatus} mono />
+        </Section>
+
+        {Array.isArray(r.violation) && r.violation.length > 0 && (
+          <Section title={T('المخالفات', 'Violations')}>
+            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {r.violation.map((v, i) => (
+                <div key={i} style={{ padding: '10px 12px', background: 'rgba(239,68,68,.06)', border: '1px solid rgba(239,68,68,.18)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>{v.description}</div>
+                  {v.violationDate && <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 4, direction: 'ltr' }}>{String(v.violationDate).slice(0, 10)}</div>}
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        <div style={{ fontSize: 10, color: 'var(--tx5)', textAlign: 'end', paddingTop: 4, borderTop: '1px dashed rgba(255,255,255,.06)' }}>
+          {T('آخر مزامنة', 'Last synced')}: {data.synced_at ? new Date(data.synced_at).toLocaleString() : '—'}
+        </div>
+      </div>
+    </CollapsibleCard>
+  )
+}
+
 // Detect whether a partner / manager entry is a company (vs a natural person).
 // SBC flags this via identifierType ("الرقم الموحد" / "commercial registration"),
 // or via ID heuristic: 10-digit Unified National Numbers start with 7.
@@ -466,6 +640,27 @@ function SbcSyncBookmarklet({ syncPersonId, T }) {
   )
 }
 
+// GOSI sync bookmarklet — drags to user's browser. When run on
+// ameen.gosi.gov.sa it captures the bearer token, decodes the JWT to find
+// every establishment regNo the account has access to, then pulls
+// /v1/establishment/{regNo} for each into public.gosi_establishments.
+function GosiSyncBookmarklet({ syncPersonId, T }) {
+  const dataHref = buildGosiBookmarklet({ personId: syncPersonId || '' })
+  return (
+    <DragBookmark
+      href={dataHref}
+      accent="#22c55e"
+      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح أمين التأمينات واضغط لمزامنة بيانات المنشآت', 'Drag to bookmarks bar, open Ameen and click to sync GOSI facility data')}
+      label={T('مزامنة التأمينات الإجتماعية', 'Sync GOSI')}
+      icon={(
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      )}
+    />
+  )
+}
+
 export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
@@ -474,7 +669,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   const [err, setErr] = useState(null)
   const [search, setSearch] = useState('')
   const [advOpen, setAdvOpen] = useState(false)
-  const [adv, setAdv] = useState({ owner: '', partnersMin: '', partnersMax: '', city: '', status: '', crNumber: '', crNational: '', managersMin: '', managersMax: '', sortConfirm: '', sortIssue: '', nitaq: '' })
+  const [adv, setAdv] = useState({ owner: [], manager: [], partnersCount: [], city: '', status: [], sortConfirm: '', sortIssue: '', nitaq: [] })
   const [detail, setDetail] = useState(null)
   const [lastSync, setLastSync] = useState(null)
   const [filter, setFilter] = useState('all') // all | main | manager | partner | confirmation
@@ -496,6 +691,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // Populated on detail open via the useEffect below; reset when detail closes.
   const [extDetail, setExtDetail] = useState(null)
   const [extDetailLoading, setExtDetailLoading] = useState(false)
+  // GOSI establishment main info — pulled from public.gosi_establishments
+  // (populated by the GOSI bookmarklet). Looked up by gosi_registration_number
+  // when the facility detail opens.
+  const [gosiEstablishment, setGosiEstablishment] = useState(null)
 
   // Build GOSI + HRSD patch from Netlify response payloads.
   const buildFetchPatch = useCallback((g, h) => {
@@ -675,6 +874,22 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   useEffect(() => { load() }, [load])
   useEffect(() => { loadProvenance() }, [loadProvenance, rows.length])
 
+  // Load GOSI establishment row by gosi_registration_number when the detail
+  // opens. Populated by the GOSI bookmarklet (see gosiSyncBookmarklet.js).
+  useEffect(() => {
+    if (!sb || !detail?.gosi_registration_number) { setGosiEstablishment(null); return }
+    let cancelled = false
+    ;(async () => {
+      const { data } = await sb
+        .from('gosi_establishments')
+        .select('*')
+        .eq('registration_no', String(detail.gosi_registration_number))
+        .maybeSingle()
+      if (!cancelled) setGosiEstablishment(data || null)
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail?.gosi_registration_number])
+
   // Load extended detail data from sbc_sync_debug whenever a facility detail
   // opens. Pulls the latest response body per (endpoint, cr) so we can show
   // the rich payloads (momrah list, gosi-file, gosi-compliance, qawaem,
@@ -770,28 +985,74 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     }
   }), [rows, lang])
 
-  // Distinct HRSD Nitaq values present in the loaded rows — powers the
-  // nitaq dropdown filter. Empty rows (no HRSD data yet) are skipped.
+  // HRSD Nitaq dropdown options — distinct values present in the data,
+  // ordered best→worst by the canonical Nitaq tier ranking.
   const nitaqOptions = useMemo(() => {
     const set = new Set()
     for (const r of rows) if (r.hrsd_nitaq_name) set.add(r.hrsd_nitaq_name)
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'))
+    const order = ['بلاتيني', 'أخضر مرتفع', 'أخضر متوسط', 'أخضر منخفض', 'أصفر', 'أحمر', 'اخضر صغير', 'احمر صغير']
+    const rank = (s) => {
+      const i = order.findIndex(k => s.includes(k))
+      return i === -1 ? 999 : i
+    }
+    return Array.from(set).sort((a, b) => {
+      const ra = rank(a), rb = rank(b)
+      if (ra !== rb) return ra - rb
+      return a.localeCompare(b, 'ar')
+    })
   }, [rows])
 
-  // Distinct partner roster across all (operator-scoped) rows — powers the
-  // owner/partner dropdown filter. Keyed by national id when present, falling
-  // back to the display name for entities with no id surfaced by SBC.
-  const partnerOptions = useMemo(() => {
+  // Distinct partner/manager rosters across all (operator-scoped) rows — power
+  // the owner and manager dropdown filters. Keyed by national id when present,
+  // falling back to display name for entities with no id surfaced by SBC.
+  const buildRoster = (key) => {
     const map = new Map()
     for (const r of normalized) {
-      for (const p of (r._partners || [])) {
-        const { name, id } = extractPartyDisplay(p)
+      for (const p of (r[key] || [])) {
+        const { name, id, isCompany } = extractPartyDisplay(p)
         if (!name && !id) continue
-        const key = id || name
-        if (!map.has(key)) map.set(key, { id: id || '', name: name || '—' })
+        const k = id || name
+        if (!map.has(k)) map.set(k, { id: id || '', name: name || '—', isCompany: !!isCompany })
       }
     }
-    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'))
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.isCompany !== b.isCompany) return a.isCompany ? 1 : -1
+      return (a.name || '').localeCompare(b.name || '', 'ar')
+    })
+  }
+  const partnerOptions = useMemo(() => buildRoster('_partners'), [normalized])
+  const managerOptions = useMemo(() => buildRoster('_managers'), [normalized])
+  // Partners-count dropdown options. Capped at 3 with the final "or more"
+  // bucket catching everything above that — keeps the list compact since
+  // facilities with 4+ owners are rare and roll up into "ثلاثة أو أكثر".
+  const partnersCountOptions = useMemo(() => {
+    const arNames = ['', 'مالك واحد', 'اثنين', 'ثلاثة']
+    const enNames = ['', '1 owner', '2', '3']
+    const opts = []
+    for (let n = 1; n <= 3; n++) {
+      opts.push({ v: `eq:${n}`, l: T(arNames[n], enNames[n]) })
+      opts.push({ v: `ge:${n}`, l: T(`${arNames[n]} أو أكثر`, `${enNames[n]} or more`) })
+    }
+    return opts
+  }, [lang])
+
+  const statusOptions = useMemo(() => {
+    const set = new Set()
+    for (const r of normalized) {
+      const s = String(r._status || '').trim()
+      if (s) set.add(s)
+    }
+    // Canonical order: active → suspended → struck-off → expired → others.
+    const order = ['نشط', 'معلق', 'موقوف', 'مشطوب', 'منتهي']
+    const rank = (s) => {
+      const i = order.findIndex(k => s.includes(k))
+      return i === -1 ? 999 : i
+    }
+    return Array.from(set).sort((a, b) => {
+      const ra = rank(a), rb = rank(b)
+      if (ra !== rb) return ra - rb
+      return a.localeCompare(b, 'ar')
+    })
   }, [normalized])
 
   // Build a flat, searchable "blob" per partner/manager that covers both AR + EN names and the national id.
@@ -817,30 +1078,81 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     else if (filter === 'confirmation') out = out.filter(r => r.is_in_confirmation_period)
     const q = search.trim().toLowerCase()
     if (q) {
+      // Digits-only form of the query so a user can type a MOL number either
+      // with or without the office-id/sequence dash and still match.
+      const qDigits = q.replace(/\D/g, '')
       out = out.filter(r => {
-        if ([r.entity_full_name_ar, r.entity_full_name_en, r.cr_number, r.cr_national_number, r._city, r._status]
+        if ([r.entity_full_name_ar, r.entity_full_name_en, r.cr_number, r.cr_national_number, r.gosi_registration_number]
           .some(v => String(v || '').toLowerCase().includes(q))) return true
-        if ((r._partners || []).some(p => personBlob(p).includes(q))) return true
-        if ((r._managers || []).some(p => personBlob(p).includes(q))) return true
+        if (qDigits) {
+          const molCombined = (r.hrsd_labor_office_id != null && r.hrsd_sequence_number != null)
+            ? `${r.hrsd_labor_office_id}${r.hrsd_sequence_number}` : ''
+          if (molCombined && molCombined.includes(qDigits)) return true
+          if (r.hrsd_labor_office_id != null && String(r.hrsd_labor_office_id).includes(qDigits)) return true
+          if (r.hrsd_sequence_number != null && String(r.hrsd_sequence_number).includes(qDigits)) return true
+        }
         return false
       })
     }
-    const oq = (adv.owner || '').trim()
-    if (oq) out = out.filter(r => (r._partners || []).some(p => {
-      const pid = String(p?.personInfo?.identifierNo || extractPartyDisplay(p).id || '')
-      return pid === oq
-    }))
-    if (adv.crNumber.trim()) out = out.filter(r => String(r.cr_number || '').includes(adv.crNumber.trim()))
-    if (adv.crNational.trim()) out = out.filter(r => String(r.cr_national_number || '').includes(adv.crNational.trim()))
-    if (adv.city.trim()) out = out.filter(r => String(r._city || '').toLowerCase().includes(adv.city.trim().toLowerCase()))
-    if (adv.status.trim()) out = out.filter(r => String(r._status || '').toLowerCase().includes(adv.status.trim().toLowerCase()))
-    const pMin = parseInt(adv.partnersMin), pMax = parseInt(adv.partnersMax)
-    if (!isNaN(pMin)) out = out.filter(r => (r._partnersCount ?? 0) >= pMin)
-    if (!isNaN(pMax)) out = out.filter(r => (r._partnersCount ?? 0) <= pMax)
-    const mMin = parseInt(adv.managersMin), mMax = parseInt(adv.managersMax)
-    if (!isNaN(mMin)) out = out.filter(r => ((r._managers || []).length) >= mMin)
-    if (!isNaN(mMax)) out = out.filter(r => ((r._managers || []).length) <= mMax)
-    if (adv.nitaq) out = out.filter(r => r.hrsd_nitaq_name === adv.nitaq)
+    // Advanced filter dropdowns combine with OR semantics: any row matching
+    // at least one active filter group is included. Each group's own
+    // multi-select is still OR internally.
+    const owners = Array.isArray(adv.owner) ? adv.owner.filter(Boolean) : (adv.owner ? [adv.owner] : [])
+    const managers = Array.isArray(adv.manager) ? adv.manager.filter(Boolean) : (adv.manager ? [adv.manager] : [])
+    const statuses = Array.isArray(adv.status) ? adv.status.filter(Boolean) : (adv.status ? [adv.status] : [])
+    const partnerCountPicks = Array.isArray(adv.partnersCount) ? adv.partnersCount.filter(Boolean) : []
+    const nitaqs = Array.isArray(adv.nitaq) ? adv.nitaq.filter(Boolean) : (adv.nitaq ? [adv.nitaq] : [])
+    const cityQ = adv.city.trim().toLowerCase()
+
+    const advGroups = []
+    if (owners.length) {
+      advGroups.push(r => (r._partners || []).some(p => {
+        const pid = String(p?.personInfo?.identifierNo || extractPartyDisplay(p).id || '')
+        return owners.includes(pid)
+      }))
+    }
+    if (managers.length) {
+      advGroups.push(r => (r._managers || []).some(p => {
+        const pid = String(p?.personInfo?.identifierNo || extractPartyDisplay(p).id || '')
+        return managers.includes(pid)
+      }))
+    }
+    if (cityQ) {
+      advGroups.push(r => String(r._city || '').toLowerCase().includes(cityQ))
+    }
+    if (statuses.length) {
+      const wantsActiveInConfirm = statuses.includes('__active_confirm__')
+      const plainStatuses = statuses.filter(s => s !== '__active_confirm__')
+      advGroups.push(r => {
+        const s = String(r._status || '').trim()
+        const isActive = /نشط|active/i.test(s)
+        // Plain "نشط" excludes rows currently in the confirmation period —
+        // those belong to the "نشط (ضمن فترة التأكيد)" sub-filter instead.
+        if (plainStatuses.includes(s)) {
+          if (isActive && r.is_in_confirmation_period) return false
+          return true
+        }
+        if (wantsActiveInConfirm && isActive && r.is_in_confirmation_period) return true
+        return false
+      })
+    }
+    if (partnerCountPicks.length) {
+      advGroups.push(r => {
+        const c = r._partnersCount ?? 0
+        return partnerCountPicks.some(p => {
+          const [op, nStr] = p.split(':')
+          const n = parseInt(nStr)
+          if (isNaN(n)) return false
+          return op === 'eq' ? c === n : op === 'ge' ? c >= n : false
+        })
+      })
+    }
+    if (nitaqs.length) {
+      advGroups.push(r => nitaqs.includes(r.hrsd_nitaq_name))
+    }
+    if (advGroups.length) {
+      out = out.filter(r => advGroups.some(check => check(r)))
+    }
     return out
   }, [normalized, search, filter, adv, personFilter])
 
@@ -1115,7 +1427,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                'All facilities and workers — every value carries its source and last sync time.')}
           </div>
         </div>
-        <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+          <GosiSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+        </div>
       </div>
 
       {err && <Card style={{ marginBottom: 14, borderColor: 'rgba(192,57,43,.35)', background: 'rgba(192,57,43,.06)' }}>
@@ -1239,9 +1554,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           const tot = Math.max(1, counts.total)
           const segs = [
             { k: 'active',    l: T('نشط','Active'),                                v: statusBuckets.active,    c: C.ok },
-            { k: 'confirm',   l: T('في فترة التأكيد السنوي','In annual confirm'),  v: statusBuckets.confirm,   c: C.gold },
+            { k: 'confirm',   l: T('ضمن فترة التأكيد','In annual confirm'),  v: statusBuckets.confirm,   c: C.gold },
             { k: 'suspended', l: T('معلّق','Suspended'),                           v: statusBuckets.suspended, c: C.red },
-            { k: 'cancelled', l: T('مشطوب','Struck off'),                          v: statusBuckets.cancelled, c: C.gray },
+            { k: 'cancelled', l: T('مشطوب','Struck off'),                          v: statusBuckets.cancelled, c: '#ef4444' },
           ]
           // Donut geometry: continuous ring, butt caps. Each segment carries
           // a subtle radial→darker tint via per-segment SVG linearGradient.
@@ -1385,120 +1700,165 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         })()}
       </div>
 
-      {/* Search bar + advanced toggle — matches Invoices page filter row */}
+      {/* Search bar + filter toggle — matches Invoices page filter row */}
       <div style={{ display: 'flex', gap: 10, marginBottom: advOpen ? 10 : 18, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', color: 'var(--tx4)', pointerEvents: 'none' }}>
+            style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: 'var(--tx4)', pointerEvents: 'none' }}>
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={T('ابحث بالاسم، السجل، المدينة، المالك، المدير…', 'Search by name, CR, city, owner, manager…')}
-            style={{ width: '100%', height: 44, padding: '0 38px 0 14px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
+            placeholder={T('ابحث بالاسم، السجل، الرقم الموحد، التأمينات، الموارد…', 'Search by name, CR, unified no., GOSI, MOL…')}
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
         </div>
-        <button type="button" onClick={() => setAdvOpen(v => !v)}
-          style={{ padding: '0 16px', height: 44, borderRadius: 12,
-            border: `1px solid ${advOpen || advCount ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.05)'}`,
-            background: advOpen || advCount ? 'rgba(212,160,23,.08)' : 'rgba(0,0,0,.18)',
-            color: advOpen || advCount ? C.gold : 'var(--tx)',
-            fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.15s' }}>
-          <span>{T('بحث متقدم', 'Advanced')}</span>
-          {advCount > 0 ? (
-            <span style={{ background: C.gold, color: '#1a1a1a', fontSize: 10, fontWeight: 800, padding: '1px 7px', borderRadius: 999 }}>{advCount}</span>
-          ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-          )}
-        </button>
-        {(search || advCount > 0) && <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{resultCount} {T('نتيجة', 'results')}</span>}
+        {(() => {
+          const hasFilters = advCount > 0
+          const clearAll = () => setAdv({ owner: [], manager: [], partnersCount: [], city: '', status: [], sortConfirm: '', sortIssue: '', nitaq: [] })
+          return (
+            <button type="button" onClick={() => setAdvOpen(v => !v)} style={btnFilter(advOpen || hasFilters)}>
+              {T('تصفية', 'Filter')}
+              {hasFilters ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  title={T('مسح الفلاتر', 'Clear filters')}
+                  onClick={e => { e.stopPropagation(); clearAll() }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); clearAll() } }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+                  style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </span>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="18" y1="6" x2="20" y2="6"/><circle cx="16" cy="6" r="2"/><line x1="4" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="20" y2="12"/><circle cx="10" cy="12" r="2"/><line x1="4" y1="18" x2="16" y2="18"/><line x1="20" y1="18" x2="20" y2="18"/><circle cx="18" cy="18" r="2"/></svg>
+              )}
+            </button>
+          )
+        })()}
       </div>
 
       {/* Advanced search panel — matches Invoices page filter panel */}
       {advOpen && (
         <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{T('فلاتر متقدمة', 'Advanced Filters')}</div>
-            {advCount > 0 && (
-              <button type="button" onClick={() => setAdv({ owner: '', partnersMin: '', partnersMax: '', city: '', status: '', crNumber: '', crNational: '', managersMin: '', managersMax: '', sortConfirm: '', sortIssue: '', nitaq: '' })} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)', color: C.red, fontFamily: F, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>{T('مسح الكل', 'Clear all')}</button>
-            )}
-          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <div>
-              <label style={advLbl}>{T('اسم المالك / الشريك', 'Owner / Partner')}</label>
-              <select value={adv.owner} onChange={e => setAdv(a => ({ ...a, owner: e.target.value }))} style={{ ...advInp, padding: '0 10px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }}>
-                <option value="">{T('الكل', 'All')} ({partnerOptions.length})</option>
-                {partnerOptions.map(p => (
-                  <option key={p.id || p.name} value={p.id || p.name}>{p.name}{p.id ? ` · ${p.id}` : ''}</option>
-                ))}
-              </select>
+              <div style={advLbl}>{T('المالك / الشريك', 'Owner / Partner')}</div>
+              <Sel value={adv.owner} onChange={v => setAdv(a => ({ ...a, owner: v }))}
+                placeholder={`${T('الكل', 'All')} (${partnerOptions.length})`}
+                maxVisible={4}
+                searchable
+                multiple
+                searchPlaceholder={T('ابحث بالاسم أو الرقم…', 'Search by name or ID…')}
+                options={(() => {
+                  const persons = partnerOptions.filter(p => !p.isCompany)
+                  const companies = partnerOptions.filter(p => p.isCompany)
+                  const toOpt = p => ({ v: p.id || p.name, l: p.name || '—', sub: p.id || undefined })
+                  const out = [{ v: '', l: `${T('الكل', 'All')} (${partnerOptions.length})` }]
+                  if (persons.length) out.push(...persons.map(toOpt))
+                  if (persons.length && companies.length) out.push({ divider: true, l: T('الشركات', 'Companies') })
+                  if (companies.length) out.push(...companies.map(toOpt))
+                  return out
+                })()}/>
             </div>
             <div>
-              <label style={advLbl}>{T('رقم السجل التجاري', 'CR Number')}</label>
-              <input value={adv.crNumber} onChange={e => setAdv(a => ({ ...a, crNumber: e.target.value }))} placeholder="10XXXXXXXX" style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
+              <div style={advLbl}>{T('المدير / المدراء', 'Manager / Managers')}</div>
+              <Sel value={adv.manager} onChange={v => setAdv(a => ({ ...a, manager: v }))}
+                placeholder={`${T('الكل', 'All')} (${managerOptions.length})`}
+                maxVisible={4}
+                searchable
+                multiple
+                searchPlaceholder={T('ابحث بالاسم أو الرقم…', 'Search by name or ID…')}
+                options={(() => {
+                  const persons = managerOptions.filter(p => !p.isCompany)
+                  const companies = managerOptions.filter(p => p.isCompany)
+                  const toOpt = p => ({ v: p.id || p.name, l: p.name || '—', sub: p.id || undefined })
+                  const out = [{ v: '', l: `${T('الكل', 'All')} (${managerOptions.length})` }]
+                  if (persons.length) out.push(...persons.map(toOpt))
+                  if (persons.length && companies.length) out.push({ divider: true, l: T('الشركات', 'Companies') })
+                  if (companies.length) out.push(...companies.map(toOpt))
+                  return out
+                })()}/>
             </div>
             <div>
-              <label style={advLbl}>{T('الرقم الموحد', 'Unified Nat. No.')}</label>
-              <input value={adv.crNational} onChange={e => setAdv(a => ({ ...a, crNational: e.target.value }))} placeholder="7XXXXXXXXX" style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
-            </div>
-            <div>
-              <label style={advLbl}>{T('المدينة', 'City')}</label>
+              <div style={advLbl}>{T('المدينة', 'City')}</div>
               <input value={adv.city} onChange={e => setAdv(a => ({ ...a, city: e.target.value }))} placeholder={T('الرياض، جدة…', 'Riyadh, Jeddah…')} style={advInp}/>
             </div>
             <div>
-              <label style={advLbl}>{T('حالة السجل', 'CR Status')}</label>
-              <input value={adv.status} onChange={e => setAdv(a => ({ ...a, status: e.target.value }))} placeholder={T('سارٍ، منتهي…', 'Active, expired…')} style={advInp}/>
+              <div style={advLbl}>{T('حالة السجل', 'CR Status')}</div>
+              <Sel value={adv.status} onChange={v => setAdv(a => ({ ...a, status: v }))}
+                placeholder={T('الكل', 'All')}
+                maxVisible={4}
+                multiple
+                options={(() => {
+                  const out = [{ v: '', l: T('الكل', 'All') }]
+                  for (const s of statusOptions) {
+                    out.push({ v: s, l: s })
+                    // Slot the "in confirmation" sub-filter directly after the
+                    // plain "نشط" entry so related options stay adjacent.
+                    if (/نشط|active/i.test(s)) {
+                      out.push({ v: '__active_confirm__', l: T('نشط (ضمن فترة التأكيد)', 'Active (within confirmation)') })
+                    }
+                  }
+                  return out
+                })()}/>
             </div>
             <div>
-              <label style={advLbl}>{T('نطاق المنشأة', 'Nitaq')}</label>
-              <select value={adv.nitaq} onChange={e => setAdv(a => ({ ...a, nitaq: e.target.value }))} style={{ ...advInp, padding: '0 10px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }}>
-                <option value="">{T('الكل', 'All')} ({nitaqOptions.length})</option>
-                {nitaqOptions.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <div style={advLbl}>{T('نطاق المنشأة', 'Nitaq')}</div>
+              <Sel value={adv.nitaq} onChange={v => setAdv(a => ({ ...a, nitaq: v }))}
+                placeholder={T('الكل', 'All')}
+                maxVisible={4}
+                multiple
+                options={[
+                  { v: '', l: T('الكل', 'All') },
+                  ...nitaqOptions.map(n => ({ v: n, l: n })),
+                ]}/>
             </div>
             <div>
-              <label style={advLbl}>{T('عدد الملاك', 'Partners count')}</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input inputMode="numeric" value={adv.partnersMin} onChange={e => setAdv(a => ({ ...a, partnersMin: e.target.value.replace(/\D/g,'') }))} placeholder={T('من', 'Min')} style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
-                <input inputMode="numeric" value={adv.partnersMax} onChange={e => setAdv(a => ({ ...a, partnersMax: e.target.value.replace(/\D/g,'') }))} placeholder={T('إلى', 'Max')} style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
-              </div>
+              <div style={advLbl}>{T('عدد الملاك', 'Partners count')}</div>
+              <Sel value={adv.partnersCount} onChange={v => setAdv(a => ({ ...a, partnersCount: v }))}
+                placeholder={T('الكل', 'All')}
+                maxVisible={4}
+                multiple
+                options={[
+                  { v: '', l: T('الكل', 'All') },
+                  ...partnersCountOptions,
+                ]}/>
             </div>
             <div>
-              <label style={advLbl}>{T('عدد المدراء', 'Managers count')}</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input inputMode="numeric" value={adv.managersMin} onChange={e => setAdv(a => ({ ...a, managersMin: e.target.value.replace(/\D/g,'') }))} placeholder={T('من', 'Min')} style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
-                <input inputMode="numeric" value={adv.managersMax} onChange={e => setAdv(a => ({ ...a, managersMax: e.target.value.replace(/\D/g,'') }))} placeholder={T('إلى', 'Max')} style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
-              </div>
-            </div>
-            <div>
-              <label style={advLbl}>
+              <div style={advLbl}>
                 {T('ترتيب حسب تاريخ التأكيد', 'Sort by confirm date')}
                 {adv.sortConfirm && adv.sortIssue && <span style={{ marginInlineStart: 6, fontSize: 10, color: C.gold, fontWeight: 700 }}>{T('· رئيسي', '· primary')}</span>}
-              </label>
-              <select value={adv.sortConfirm} onChange={e => setAdv(a => ({ ...a, sortConfirm: e.target.value }))} style={{ ...advInp, padding: '0 10px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }}>
-                <option value="">{T('بدون ترتيب', 'No sort')}</option>
-                <option value="asc">{T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first')}</option>
-                <option value="desc">{T('تنازلي · الأحدث أولاً', 'Descending · newest first')}</option>
-              </select>
+              </div>
+              <Sel value={adv.sortConfirm} onChange={v => setAdv(a => ({ ...a, sortConfirm: v }))}
+                placeholder={T('بدون ترتيب', 'No sort')}
+                options={[
+                  { v: '', l: T('بدون ترتيب', 'No sort') },
+                  { v: 'asc', l: T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first') },
+                  { v: 'desc', l: T('تنازلي · الأحدث أولاً', 'Descending · newest first') },
+                ]}/>
             </div>
             <div>
-              <label style={advLbl}>
+              <div style={advLbl}>
                 {T('ترتيب حسب تاريخ الإصدار', 'Sort by issue date')}
                 {adv.sortConfirm && adv.sortIssue && <span style={{ marginInlineStart: 6, fontSize: 10, color: C.blue, fontWeight: 700 }}>{T('· ثانوي', '· secondary')}</span>}
-              </label>
-              <select value={adv.sortIssue} onChange={e => setAdv(a => ({ ...a, sortIssue: e.target.value }))} style={{ ...advInp, padding: '0 10px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }}>
-                <option value="">{T('بدون ترتيب', 'No sort')}</option>
-                <option value="asc">{T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first')}</option>
-                <option value="desc">{T('تنازلي · الأحدث أولاً', 'Descending · newest first')}</option>
-              </select>
+              </div>
+              <Sel value={adv.sortIssue} onChange={v => setAdv(a => ({ ...a, sortIssue: v }))}
+                placeholder={T('بدون ترتيب', 'No sort')}
+                options={[
+                  { v: '', l: T('بدون ترتيب', 'No sort') },
+                  { v: 'asc', l: T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first') },
+                  { v: 'desc', l: T('تنازلي · الأحدث أولاً', 'Descending · newest first') },
+                ]}/>
             </div>
           </div>
         </div>
       )}
 
       {/* Counter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>{num(displayRows.length)} {T('منشأة','facilities')}</span>
-        {displayRows.length !== rows.length && <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('من أصل','out of')} {num(rows.length)}</span>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, justifyContent: 'flex-end', padding: '0 14px' }}>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx2)' }}>{num(displayRows.length)} {T('منشأة','facilities')}</span>
+        {displayRows.length !== rows.length && <span style={{ fontSize: 9.5, color: 'var(--tx5)' }}>{T('من أصل','out of')} {num(rows.length)}</span>}
       </div>
 
       {/* Card grid — one card per facility, matches Facilities page design */}
@@ -1721,6 +2081,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           gosi: 'التأمينات', chambers: 'الغرف التجارية', ajeer: 'أجير',
           mudad: 'مدد', zatca: 'الزكاة والدخل',
         }
+        const SOURCE_NAMES_EN = {
+          sbc: 'Saudi Business Center', qiwa: 'Qiwa', muqeem: 'Muqeem',
+          gosi: 'GOSI', chambers: 'Chambers', ajeer: 'Ajeer',
+          mudad: 'Mudad', zatca: 'ZATCA',
+        }
         const provEntries = provByCr[detail.cr_number] || []
         const provFor = (sourceId) => provEntries.find(e => e.source_id === sourceId) || null
         const fallbackProv = (sourceId) => ({
@@ -1930,6 +2295,42 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               )}
               <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.2px' }}>{detail.entity_full_name_ar || T('منشأة','Facility')}</div>
             </div>
+            {(() => {
+              const sourceIds = Array.from(new Set(['sbc', ...prov.map(p => p.source_id).filter(Boolean)]))
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12, paddingInlineStart: 36 }}>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 600 }}>
+                    {T('مصادر البيانات', 'Data sources')}
+                  </span>
+                  {sourceIds.map(sid => {
+                    const brand = SOURCE_BRAND[sid] || { color: '#888' }
+                    const fullName = (lang === 'en' ? SOURCE_NAMES_EN[sid] : SOURCE_NAMES_AR[sid]) || sid
+                    const op = provFor(sid)
+                    const opLabel = op
+                      ? (lang === 'en' ? (op.person_name_en || op.person_name_ar) : (op.person_name_ar || op.person_name_en))
+                      : null
+                    const ago = op ? fmtAgo(op.last_synced_at, lang) : null
+                    const title = [fullName, opLabel, ago].filter(Boolean).join(' · ')
+                    return (
+                      <span key={sid} title={title}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '5px 10px', borderRadius: 8,
+                          background: `${brand.color}14`,
+                          border: `1px solid ${brand.color}40`,
+                          color: brand.color,
+                          fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                        }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        {fullName}
+                      </span>
+                    )
+                  })}
+                </div>
+              )
+            })()}
           </div>
 
           {/* 2-column layout — main content + sidebar */}
@@ -2530,13 +2931,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
                     {/* رخص البلدية (Momrah) */}
                     {momrahList.length > 0 && (
-                      <div style={cardChrome}>
-                        <div style={cardHeader}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f97316' }} />
-                          <SbcSourceIcon />
-                          <span style={cardTitle}>{T('رخص البلدية', 'Municipal Licenses')}</span>
-                          <span style={{ marginInlineStart: 'auto', fontSize: 11, color: '#f97316', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#f9731614' }}>{num(momrahList.length)}</span>
-                        </div>
+                      <CollapsibleCard title={T('رخص البلدية', 'Municipal Licenses')} color="#f97316" badge={num(momrahList.length)} showSbcIcon>
                         <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                           {momrahList.map((lic, i) => (
                             <div key={lic.licenseId || i} style={{ ...rowBase, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
@@ -2586,7 +2981,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </CollapsibleCard>
                     )}
 
                     {/* ملفات السجل (PDF) — with inline thumbnail previews.
@@ -2594,12 +2989,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         zoomed-to-fit; clicking the preview (or its label) opens
                         the file full-screen in a new tab. Unavailable variants
                         get a dim placeholder so the layout stays balanced. */}
-                    <div style={cardChrome}>
-                      <div style={cardHeader}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#9b59b6' }} />
-                        <SbcSourceIcon />
-                        <span style={cardTitle}>{T('ملفات السجل (PDF)', 'CR Documents (PDF)')}</span>
-                      </div>
+                    <CollapsibleCard title={T('ملفات السجل (PDF)', 'CR Documents (PDF)')} color="#9b59b6" showSbcIcon>
                       {/* Min card width 280px — Chrome's PDF viewer needs
                           enough room to apply FitH cleanly; below ~220px it
                           falls back to native zoom and shows scrollbars
@@ -2660,7 +3050,17 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           )
                         })}
                       </div>
-                    </div>
+                    </CollapsibleCard>
+
+                    {/* Thin white separator between SBC cards and the GOSI
+                        establishment card below — visual cue that the source
+                        changes. */}
+                    {gosiEstablishment && gosiEstablishment.raw_main && (
+                      <>
+                        <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '8px 0' }} />
+                        <GosiEstablishmentCard data={gosiEstablishment} T={T} lang={lang} />
+                      </>
+                    )}
 
                     {/* (Contact info card was moved up — now sits right
                          after the Facility card per user request) */}
