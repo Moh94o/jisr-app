@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -167,9 +168,15 @@ function PersonCompact({ p, dotColor }) {
   // managers). Visual distinction makes it easy to scan who's a person vs an
   // owning/managing entity.
   const color = isCompany ? C.gold : (dotColor || 'rgba(255,255,255,.85)')
+  const words = (name || '').split(/\s+/).filter(Boolean)
+  const isLong = words.length > 3
+  const shortName = isLong ? words.slice(0, 3).join(' ') + '…' : name
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '2px 0', minWidth: 0 }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }} title={name}>{name}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '2px 0', minWidth: 0, width: '100%' }}>
+      <div className={isLong ? 'pc-marquee pc-marquee-long' : 'pc-marquee'} title={name} style={{ fontSize: 10.5, fontWeight: 700, color }}>
+        <span className="pc-short">{shortName}</span>
+        {isLong && <span className="pc-full">{name}</span>}
+      </div>
       {id && (
         <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 9.5, fontWeight: 600, color: 'rgba(255,255,255,.55)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{id}</span>
       )}
@@ -179,12 +186,112 @@ function PersonCompact({ p, dotColor }) {
 
 // Sibling of NumberRow used inside the merged "التواريخ" cell. Labels on the
 // start side, date value on the end side. Missing dates show a faint "—".
-function DateRow({ label, value, T }) {
+function DateRow({ label, value, T, confirm }) {
   const hasVal = value && value !== '—'
+  let valColor = hasVal ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.3)'
+  if (confirm && hasVal) {
+    const t = new Date(value).getTime()
+    if (!Number.isNaN(t)) {
+      const daysDiff = Math.floor((Date.now() - t) / 86400000)
+      if (daysDiff < 0) valColor = '#22c55e'
+      else if (daysDiff <= 90) valColor = '#eab308'
+      else valColor = '#ef4444'
+    }
+  }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, padding: '2px 0' }} title={hasVal ? `${label}: ${value}` : label}>
-      <span style={{ fontSize: 8.5, fontWeight: 700, color: 'rgba(255,255,255,.4)', whiteSpace: 'nowrap' }}>{label}</span>
-      <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 9.5, fontWeight: 700, color: hasVal ? 'rgba(255,255,255,.8)' : 'rgba(255,255,255,.3)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', whiteSpace: 'nowrap' }}>{hasVal ? value : '—'}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '2px 0' }} title={hasVal ? `${label}: ${value}` : label}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, color: valColor, fontVariantNumeric: 'tabular-nums', direction: 'ltr', whiteSpace: 'nowrap' }}>{hasVal ? value : '—'}</span>
+    </div>
+  )
+}
+
+// Activities card — collapsed by default; click the header to expand/collapse.
+// Small source-attribution icon — flags a card as being sourced from the
+// Saudi Business Center (SBC). Image lives at public/sbc-logo.jpg. If the
+// image fails to load (file not present yet), we swap to a small text
+// badge "م.س" so the chrome doesn't show a broken-image icon.
+function SbcSourceIcon({ size = 16 }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <span
+        title="المركز السعودي للأعمال"
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: size, height: size, borderRadius: 4,
+          background: 'rgba(212,160,23,.18)', color: '#D4A017',
+          fontSize: Math.round(size * 0.55), fontWeight: 800,
+          flexShrink: 0, lineHeight: 1, fontFamily: F,
+        }}>م.س</span>
+    )
+  }
+  return (
+    <img
+      src="/sbc-logo.jpg"
+      alt="SBC"
+      title="المركز السعودي للأعمال"
+      width={size}
+      height={size}
+      style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+// Reusable collapsible card — click header to expand/collapse. Used for cards
+// that contain a lot of fields the user usually skips (e.g. WPS compliance).
+// Matches the same chrome + chevron pattern as ActivitiesCard below.
+function CollapsibleCard({ title, color, badge, defaultExpanded = false, children, showSbcIcon = false }) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  return (
+    <div style={cardChrome}>
+      <div
+        onClick={() => setExpanded(v => !v)}
+        style={{ ...cardHeader, cursor: 'pointer', userSelect: 'none' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+        {showSbcIcon && <SbcSourceIcon />}
+        <span style={cardTitle}>{title}</span>
+        {badge != null && (
+          <span style={{ marginInlineStart: 'auto', fontSize: 11, color, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: color + '14' }}>{badge}</span>
+        )}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ color: 'rgba(255,255,255,.5)', marginInlineStart: badge != null ? 0 : 'auto', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </div>
+      {expanded && children}
+    </div>
+  )
+}
+
+function ActivitiesCard({ activities, lang, T }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!activities?.length) return null
+  return (
+    <div style={cardChrome}>
+      <div
+        onClick={() => setExpanded(v => !v)}
+        style={{ ...cardHeader, cursor: 'pointer', userSelect: 'none' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.orange }} />
+        <SbcSourceIcon />
+        <span style={cardTitle}>{T('الأنشطة التجارية', 'Commercial Activities')}</span>
+        <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.orange, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: C.orange + '14' }}>{num(activities.length)}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ color: 'rgba(255,255,255,.5)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </div>
+      {expanded && (
+        <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {activities.map((a, i) => (
+            <div key={i} style={{ padding: '8px 12px', background: 'linear-gradient(180deg,#252525 0%,#1f1f1f 100%)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 11.5, color: 'var(--tx)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lang === 'en' ? (a.activityDescriptionEn || a.activityDescriptionAr) : (a.activityDescriptionAr || a.activityDescriptionEn)}</span>
+              <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'rgba(255,255,255,.5)', direction: 'ltr', whiteSpace: 'nowrap' }}>({a.activityID})</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -284,7 +391,7 @@ const fmtTime = (s) => {
 const statusTheme = (s) => {
   const v = String(s || '').toLowerCase()
   if (v.includes('active') || v.includes('نشط')) return { fg: '#22c55e', bg: 'rgba(34,197,94,.12)', border: 'rgba(34,197,94,.35)' }
-  if (v.includes('suspend') || v.includes('معلق') || v.includes('موقوف')) return { fg: '#f59e0b', bg: 'rgba(245,158,11,.12)', border: 'rgba(245,158,11,.35)' }
+  if (v.includes('suspend') || v.includes('معلق') || v.includes('موقوف')) return { fg: '#e87265', bg: 'rgba(232,114,101,.12)', border: 'rgba(232,114,101,.35)' }
   if (v.includes('cancel') || v.includes('ملغ') || v.includes('مشطوب') || v.includes('struck') || v.includes('removed')) return { fg: '#ef4444', bg: 'rgba(239,68,68,.12)', border: 'rgba(239,68,68,.35)' }
   if (v.includes('expired') || v.includes('منتهي')) return { fg: '#e67e22', bg: 'rgba(230,126,34,.12)', border: 'rgba(230,126,34,.35)' }
   return { fg: 'rgba(255,255,255,.75)', bg: 'rgba(255,255,255,.05)', border: 'rgba(255,255,255,.1)' }
@@ -299,7 +406,67 @@ const currencyShort = (s, lang) => {
   return v
 }
 
-export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync }) {
+// Draggable SBC sync bookmarklet anchor — the gold "مزامنة المركز السعودي" pill
+// shown at the top of the facilities page. Same drag-to-bookmarks-bar pattern
+// used elsewhere: clicking it does nothing; the user drags it to the browser's
+// bookmarks bar, opens the Tayseer portal, and clicks the bookmark to sync.
+// Renders TWO draggable bookmarklets: one syncs facility data (fast, ~10
+// min for ~216 facilities), the other downloads PDF certificates from
+// printcr.mc.gov.sa using the URLs the data bookmarklet captured. They're
+// split because PDFs require a different fetch strategy (direct browser
+// fetch from the user's Saudi network) versus the API endpoints (which
+// work fine through the saudibusiness gateway with CORS).
+function DragBookmark({ href, label, accent, title, icon }) {
+  const ref = useRef(null)
+  useEffect(() => { if (ref.current) ref.current.setAttribute('href', href) }, [href])
+  return (
+    <a
+      ref={ref}
+      title={title}
+      onClick={e => e.preventDefault()}
+      draggable="true"
+      style={{
+        height: 38, padding: '0 16px', borderRadius: 10,
+        background: `linear-gradient(180deg, ${accent}26 0%, ${accent}14 100%)`,
+        border: `1.5px solid ${accent}`,
+        color: accent,
+        textDecoration: 'none', fontFamily: F, fontSize: 12.5, fontWeight: 800,
+        cursor: 'grab',
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        boxShadow: `0 4px 14px ${accent}33, inset 0 1px 0 rgba(255,255,255,.06)`,
+        transition: '.15s', userSelect: 'none',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = `linear-gradient(180deg, ${accent}3A 0%, ${accent}22 100%)`; e.currentTarget.style.transform = 'translateY(-1px)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(180deg, ${accent}26 0%, ${accent}14 100%)`; e.currentTarget.style.transform = 'translateY(0)' }}>
+      {icon}
+      {label}
+    </a>
+  )
+}
+
+function SbcSyncBookmarklet({ syncPersonId, T }) {
+  // Bake current site origin into the bookmarklet so it can POST to our
+  // Netlify proxy from across the e2.business.sa origin. PDF upload is
+  // fire-and-forget inside the data bookmarklet itself — token-expiry
+  // prevented the previous split design (separate PDF button) from working.
+  const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const dataHref = buildBookmarklet({ sourceId: 'sbc', personId: syncPersonId || '', proxyBaseUrl })
+  return (
+    <DragBookmark
+      href={dataHref}
+      accent="#9b59b6"
+      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح تيسير واضغط لمزامنة بيانات وملفات المنشآت', 'Drag to bookmarks bar, open Tayseer and click to sync facility data + PDFs')}
+      label={T('مزامنة المركز السعودي', 'Sync SBC')}
+      icon={(
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      )}
+    />
+  )
+}
+
+export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
   const [rows, setRows] = useState([])
@@ -307,7 +474,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   const [err, setErr] = useState(null)
   const [search, setSearch] = useState('')
   const [advOpen, setAdvOpen] = useState(false)
-  const [adv, setAdv] = useState({ owner: '', partnersMin: '', partnersMax: '', city: '', status: '', crNumber: '', crNational: '', managersMin: '', managersMax: '' })
+  const [adv, setAdv] = useState({ owner: '', partnersMin: '', partnersMax: '', city: '', status: '', crNumber: '', crNational: '', managersMin: '', managersMax: '', sortConfirm: '', sortIssue: '', nitaq: '' })
   const [detail, setDetail] = useState(null)
   const [lastSync, setLastSync] = useState(null)
   const [filter, setFilter] = useState('all') // all | main | manager | partner | confirmation
@@ -324,6 +491,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   const [provByCr, setProvByCr] = useState({})
   // Person-scoped MoC violations stats fetched from sbc_dashboard_stats via sync_persons.
   const [personStats, setPersonStats] = useState(null)
+  // Extended per-facility data pulled from sbc_sync_debug (response bodies for
+  // each endpoint we synced). Keyed by short endpoint name → latest payload.
+  // Populated on detail open via the useEffect below; reset when detail closes.
+  const [extDetail, setExtDetail] = useState(null)
+  const [extDetailLoading, setExtDetailLoading] = useState(false)
 
   // Build GOSI + HRSD patch from Netlify response payloads.
   const buildFetchPatch = useCallback((g, h) => {
@@ -503,6 +675,53 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   useEffect(() => { load() }, [load])
   useEffect(() => { loadProvenance() }, [loadProvenance, rows.length])
 
+  // Load extended detail data from sbc_sync_debug whenever a facility detail
+  // opens. Pulls the latest response body per (endpoint, cr) so we can show
+  // the rich payloads (momrah list, gosi-file, gosi-compliance, qawaem,
+  // emtethal, violations) without re-fetching from the SBC gateway. Keyed
+  // by endpoint name in the returned object so the render can pluck what
+  // it needs by name.
+  useEffect(() => {
+    if (!detail?.cr_national_number || !sb) { setExtDetail(null); return }
+    let cancelled = false
+    setExtDetailLoading(true)
+    ;(async () => {
+      const endpoints = [
+        'mcV2/GetViolationsQuery',
+        'mcV2/GetCaseViolationsQuery',
+        'mcV2/GetEmtethalViolationsQuery',
+        'Qawaem/GetQawaemStatistics',
+        'gosi/establishments-main-info-by-cr-national-number',
+        'gosi/establishments-file-info-by-registration-number',
+        'gosi/establishment-compliance',
+        'hrsd/get-establishment-statistics',
+        'momrah/commercial-licenses-by-cr-number',
+        'mcV2/get-print-cr-by-national-number',
+        'mcV2/get-print-cr-by-national-number(en)',
+        'mcV2/get-print-cr-contract-by-national-number',
+      ]
+      const cr = detail.cr_national_number
+      // PostgREST eq filter — we issue one query per endpoint to avoid the
+      // in.(...) paren-escaping headache we hit before with the (en) suffix.
+      const out = {}
+      await Promise.all(endpoints.map(async (ep) => {
+        const { data } = await sb
+          .from('sbc_sync_debug')
+          .select('endpoint, response_status, response_body, request_body, created_at')
+          .eq('endpoint', ep)
+          .eq('request_body->>crNationalNumber', cr)
+          .order('created_at', { ascending: false })
+          .limit(1)
+        if (Array.isArray(data) && data.length) out[ep] = data[0]
+      }))
+      if (!cancelled) {
+        setExtDetail(out)
+        setExtDetailLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [detail?.cr_national_number, sb])
+
   // Load MoC violations stats for the active person via sync_persons → sbc_dashboard_stats.
   useEffect(() => {
     if (!sb || !personFilter?.person_id) { setPersonStats(null); return }
@@ -541,13 +760,39 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       _city: pickLang(r, 'headquarter_city', lang),
       _status: pickLang(r, 'cr_status', lang),
       _issueDate: fmtDate(r.cr_issue_date_gregorian || r.cr_issue_date),
+      _issueDateRaw: r.cr_issue_date_gregorian || r.cr_issue_date || null,
       _confirmDate: fmtDate(r.cr_confirm_date_gregorian || r.cr_confirm_date),
+      _confirmDateRaw: r.cr_confirm_date_gregorian || r.cr_confirm_date || null,
       _parentNatNo: cr.mainCRNationalNumber || cr.mainCrNationalNumber || null,
       _partners: partners,
       _partnersCount: partners.length,
       _managers: managers,
     }
   }), [rows, lang])
+
+  // Distinct HRSD Nitaq values present in the loaded rows — powers the
+  // nitaq dropdown filter. Empty rows (no HRSD data yet) are skipped.
+  const nitaqOptions = useMemo(() => {
+    const set = new Set()
+    for (const r of rows) if (r.hrsd_nitaq_name) set.add(r.hrsd_nitaq_name)
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'))
+  }, [rows])
+
+  // Distinct partner roster across all (operator-scoped) rows — powers the
+  // owner/partner dropdown filter. Keyed by national id when present, falling
+  // back to the display name for entities with no id surfaced by SBC.
+  const partnerOptions = useMemo(() => {
+    const map = new Map()
+    for (const r of normalized) {
+      for (const p of (r._partners || [])) {
+        const { name, id } = extractPartyDisplay(p)
+        if (!name && !id) continue
+        const key = id || name
+        if (!map.has(key)) map.set(key, { id: id || '', name: name || '—' })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'))
+  }, [normalized])
 
   // Build a flat, searchable "blob" per partner/manager that covers both AR + EN names and the national id.
   const personBlob = (p) => {
@@ -580,8 +825,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         return false
       })
     }
-    const oq = (adv.owner || '').trim().toLowerCase()
-    if (oq) out = out.filter(r => (r._partners || []).some(p => personBlob(p).includes(oq)))
+    const oq = (adv.owner || '').trim()
+    if (oq) out = out.filter(r => (r._partners || []).some(p => {
+      const pid = String(p?.personInfo?.identifierNo || extractPartyDisplay(p).id || '')
+      return pid === oq
+    }))
     if (adv.crNumber.trim()) out = out.filter(r => String(r.cr_number || '').includes(adv.crNumber.trim()))
     if (adv.crNational.trim()) out = out.filter(r => String(r.cr_national_number || '').includes(adv.crNational.trim()))
     if (adv.city.trim()) out = out.filter(r => String(r._city || '').toLowerCase().includes(adv.city.trim().toLowerCase()))
@@ -592,6 +840,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     const mMin = parseInt(adv.managersMin), mMax = parseInt(adv.managersMax)
     if (!isNaN(mMin)) out = out.filter(r => ((r._managers || []).length) >= mMin)
     if (!isNaN(mMax)) out = out.filter(r => ((r._managers || []).length) <= mMax)
+    if (adv.nitaq) out = out.filter(r => r.hrsd_nitaq_name === adv.nitaq)
     return out
   }, [normalized, search, filter, adv, personFilter])
 
@@ -600,6 +849,35 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // its main row. This gives hierarchy without a disruptive expand UI for
   // accounts with few branches.
   const displayRows = useMemo(() => {
+    // When any date sort is active the branch grouping is intentionally
+    // bypassed — chronological order trumps parent/branch adjacency. If both
+    // confirm + issue sorts are set, confirm date is primary and issue date
+    // breaks ties.
+    if (adv.sortConfirm || adv.sortIssue) {
+      const ts = (raw) => {
+        if (!raw) return null
+        const t = new Date(raw).getTime()
+        return isNaN(t) ? null : t
+      }
+      const cmpField = (a, b, field, dir) => {
+        const ta = ts(a[field]), tb = ts(b[field])
+        if (ta == null && tb == null) return 0
+        if (ta == null) return 1   // empties always at the bottom regardless of dir
+        if (tb == null) return -1
+        return ta === tb ? 0 : (ta > tb ? dir : -dir)
+      }
+      return [...filtered].sort((a, b) => {
+        if (adv.sortConfirm) {
+          const c = cmpField(a, b, '_confirmDateRaw', adv.sortConfirm === 'asc' ? 1 : -1)
+          if (c !== 0) return c
+        }
+        if (adv.sortIssue) {
+          const c = cmpField(a, b, '_issueDateRaw', adv.sortIssue === 'asc' ? 1 : -1)
+          if (c !== 0) return c
+        }
+        return 0
+      })
+    }
     const branchesByParent = {}
     const mains = []
     const orphans = []
@@ -627,7 +905,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     }
     for (const o of orphans) out.push(o)
     return out
-  }, [filtered])
+  }, [filtered, adv.sortConfirm, adv.sortIssue])
 
   const Tag = ({ children, color }) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: color || 'rgba(255,255,255,.7)', lineHeight: 1.2 }}>
@@ -813,15 +1091,31 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     <div style={{ fontFamily: F }}>
       <style>{`.sbc-tbl-scroll::-webkit-scrollbar{display:none}`}</style>
       {!detail && (<>
-      {/* Page title + description — only on the list view, hidden when a facility detail is open */}
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
-          {T('المنشآت والعمالة', 'Facilities & workforce')}
+      {/* Page title + description + sync anchor */}
+      <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {onBack && (
+              <button onClick={onBack}
+                title={T('رجوع لمركز المزامنة', 'Back to Sync Hub')}
+                style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s', flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)'; e.currentTarget.style.color = '#D4A017' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.color = 'var(--tx3)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {(lang || 'ar') !== 'en' ? (<><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></>) : (<><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></>)}
+                </svg>
+              </button>
+            )}
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
+              {T('المنشآت والعمالة', 'Facilities & workforce')}
+            </div>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
+            {T('جميع المنشآت والعمّال — كل قيمة تحمل مصدرها وآخر تاريخ مزامنة.',
+               'All facilities and workers — every value carries its source and last sync time.')}
+          </div>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
-          {T('جميع المنشآت والعمّال المرتبطين بهذا الشخص عبر منصات الحكومة — كل قيمة تحمل مصدرها والحساب الذي تمت المزامنة منه.',
-             'All facilities and workers linked to this person across government platforms — every value carries its source and the account that synced it.')}
-        </div>
+        <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
       </div>
 
       {err && <Card style={{ marginBottom: 14, borderColor: 'rgba(192,57,43,.35)', background: 'rgba(192,57,43,.06)' }}>
@@ -863,30 +1157,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           </div>
           <div style={{ position: 'relative', fontSize: 13, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.7, maxWidth: 540 }}>
             {T(
-              'اضغط زر «مزامنة» أعلى الصفحة — راح يفتح لك خطوة واحدة: اسحب الإشارة المرجعية في متصفحك، افتح بوابة تيسير، واضغطها. كل المنشآت الي حساب نفاذ مهدي يقدر يشوفها راح تنزل هنا تلقائياً.',
-              'Click "Sync" at the top of the page — drag the bookmarklet to your browser bar, open the Tayseer portal, click it. Every facility your Nafath account can see will land here automatically.',
+              'اسحب زر «مزامنة المركز السعودي» إلى شريط الإشارات في متصفحك، افتح بوابة تيسير وسجّل بنفاذ، ثم اضغط الإشارة. كل المنشآت اللي يقدر حسابك يشوفها بتنزل هنا تلقائياً.',
+              'Drag the "Sync SBC" button to your browser bookmarks bar, open the Tayseer portal and log in with Nafath, then click the bookmark. Every facility your account can see will land here automatically.',
             )}
           </div>
 
-          {onTriggerSync && (
-            <button onClick={onTriggerSync}
-              style={{
-                position: 'relative', marginTop: 8,
-                height: 44, padding: '0 26px', borderRadius: 12,
-                background: C.gold, border: 'none',
-                color: '#1a1a1a',
-                fontFamily: F, fontSize: 13, fontWeight: 800,
-                cursor: 'pointer',
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                boxShadow: `0 6px 18px ${C.gold}44, inset 0 1px 0 rgba(255,255,255,.25)`,
-                transition: '.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 10px 24px ${C.gold}55, inset 0 1px 0 rgba(255,255,255,.3)` }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 6px 18px ${C.gold}44, inset 0 1px 0 rgba(255,255,255,.25)` }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              {T('ابدأ المزامنة الأولى', 'Start first sync')}
-            </button>
-          )}
+          <div style={{ position: 'relative', marginTop: 8 }}>
+            <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+          </div>
 
           {/* 3-step mini guide */}
           <div style={{ position: 'relative', marginTop: 18, display: 'inline-flex', gap: 18, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 720 }}>
@@ -1141,13 +1419,18 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{T('فلاتر متقدمة', 'Advanced Filters')}</div>
             {advCount > 0 && (
-              <button type="button" onClick={() => setAdv({ owner: '', partnersMin: '', partnersMax: '', city: '', status: '', crNumber: '', crNational: '', managersMin: '', managersMax: '' })} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)', color: C.red, fontFamily: F, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>{T('مسح الكل', 'Clear all')}</button>
+              <button type="button" onClick={() => setAdv({ owner: '', partnersMin: '', partnersMax: '', city: '', status: '', crNumber: '', crNational: '', managersMin: '', managersMax: '', sortConfirm: '', sortIssue: '', nitaq: '' })} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)', color: C.red, fontFamily: F, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>{T('مسح الكل', 'Clear all')}</button>
             )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <div>
               <label style={advLbl}>{T('اسم المالك / الشريك', 'Owner / Partner')}</label>
-              <input value={adv.owner} onChange={e => setAdv(a => ({ ...a, owner: e.target.value }))} placeholder={T('بحث بالاسم أو الهوية', 'Name or ID')} style={advInp}/>
+              <select value={adv.owner} onChange={e => setAdv(a => ({ ...a, owner: e.target.value }))} style={{ ...advInp, padding: '0 10px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }}>
+                <option value="">{T('الكل', 'All')} ({partnerOptions.length})</option>
+                {partnerOptions.map(p => (
+                  <option key={p.id || p.name} value={p.id || p.name}>{p.name}{p.id ? ` · ${p.id}` : ''}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label style={advLbl}>{T('رقم السجل التجاري', 'CR Number')}</label>
@@ -1166,6 +1449,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               <input value={adv.status} onChange={e => setAdv(a => ({ ...a, status: e.target.value }))} placeholder={T('سارٍ، منتهي…', 'Active, expired…')} style={advInp}/>
             </div>
             <div>
+              <label style={advLbl}>{T('نطاق المنشأة', 'Nitaq')}</label>
+              <select value={adv.nitaq} onChange={e => setAdv(a => ({ ...a, nitaq: e.target.value }))} style={{ ...advInp, padding: '0 10px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }}>
+                <option value="">{T('الكل', 'All')} ({nitaqOptions.length})</option>
+                {nitaqOptions.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div>
               <label style={advLbl}>{T('عدد الملاك', 'Partners count')}</label>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input inputMode="numeric" value={adv.partnersMin} onChange={e => setAdv(a => ({ ...a, partnersMin: e.target.value.replace(/\D/g,'') }))} placeholder={T('من', 'Min')} style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
@@ -1178,6 +1468,28 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 <input inputMode="numeric" value={adv.managersMin} onChange={e => setAdv(a => ({ ...a, managersMin: e.target.value.replace(/\D/g,'') }))} placeholder={T('من', 'Min')} style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
                 <input inputMode="numeric" value={adv.managersMax} onChange={e => setAdv(a => ({ ...a, managersMax: e.target.value.replace(/\D/g,'') }))} placeholder={T('إلى', 'Max')} style={{ ...advInp, direction: 'ltr', textAlign: 'center' }}/>
               </div>
+            </div>
+            <div>
+              <label style={advLbl}>
+                {T('ترتيب حسب تاريخ التأكيد', 'Sort by confirm date')}
+                {adv.sortConfirm && adv.sortIssue && <span style={{ marginInlineStart: 6, fontSize: 10, color: C.gold, fontWeight: 700 }}>{T('· رئيسي', '· primary')}</span>}
+              </label>
+              <select value={adv.sortConfirm} onChange={e => setAdv(a => ({ ...a, sortConfirm: e.target.value }))} style={{ ...advInp, padding: '0 10px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }}>
+                <option value="">{T('بدون ترتيب', 'No sort')}</option>
+                <option value="asc">{T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first')}</option>
+                <option value="desc">{T('تنازلي · الأحدث أولاً', 'Descending · newest first')}</option>
+              </select>
+            </div>
+            <div>
+              <label style={advLbl}>
+                {T('ترتيب حسب تاريخ الإصدار', 'Sort by issue date')}
+                {adv.sortConfirm && adv.sortIssue && <span style={{ marginInlineStart: 6, fontSize: 10, color: C.blue, fontWeight: 700 }}>{T('· ثانوي', '· secondary')}</span>}
+              </label>
+              <select value={adv.sortIssue} onChange={e => setAdv(a => ({ ...a, sortIssue: e.target.value }))} style={{ ...advInp, padding: '0 10px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }}>
+                <option value="">{T('بدون ترتيب', 'No sort')}</option>
+                <option value="asc">{T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first')}</option>
+                <option value="desc">{T('تنازلي · الأحدث أولاً', 'Descending · newest first')}</option>
+              </select>
             </div>
           </div>
         </div>
@@ -1204,15 +1516,31 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
         <style>{`
           .sbcv-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-          .sbcv-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.85);font-size:11px;font-weight:700;text-align:center;padding:14px 5px 10px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2}
-          .sbcv-tbl thead .hd-icon{color:${C.gold};font-size:11px;margin-inline-end:5px}
+          .sbcv-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12.5px;font-weight:700;text-align:center;padding:14px 5px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+          .sbcv-tbl thead .hd-icon{color:${C.gold};display:inline-flex;align-items:center;justify-content:center;margin-inline-end:6px;vertical-align:middle}
+          .sbcv-tbl thead .hd-icon svg{width:14px;height:14px;display:block}
           .sbcv-tbl tbody td{padding:10px 5px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.02)}
           .sbcv-tbl tbody tr{cursor:pointer;transition:background .12s}
           .sbcv-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
           .sbcv-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+          .sbcv-tbl tbody tr:last-child td:first-child{border-bottom-right-radius:9px}
+          .sbcv-tbl tbody tr:last-child td:last-child{border-bottom-left-radius:9px}
+          .sbcv-tbl tbody tr:last-child td{border-bottom:none}
+          .sbcv-tbl thead tr:first-child th:first-child{border-top-right-radius:9px}
+          .sbcv-tbl thead tr:first-child th:last-child{border-top-left-radius:9px}
           .sbcv-tbl .num{direction:ltr;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;font-weight:700}
           .sbcv-tbl .muted{color:var(--tx5)}
-          .sbcv-tbl .name-cell{overflow:hidden}
+          .sbcv-tbl .name-cell{overflow:hidden;padding-inline:14px}
+          .sbcv-tbl .name-marquee{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;font-weight:700;color:var(--tx)}
+          .sbcv-tbl .name-marquee .marquee-inner{display:inline-block;will-change:transform}
+          .sbcv-tbl tbody tr:hover .name-marquee{text-overflow:clip}
+          .sbcv-tbl tbody tr:hover .name-marquee .marquee-inner{animation:name-bounce 9s ease-in-out infinite}
+          @keyframes name-bounce{0%,12%{transform:translateX(0)}50%{transform:translateX(40%)}88%,100%{transform:translateX(0)}}
+          .sbcv-tbl .pc-marquee{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-align:center}
+          .sbcv-tbl .pc-marquee .pc-short{display:inline-block}
+          .sbcv-tbl .pc-marquee .pc-full{display:none}
+          .sbcv-tbl tbody tr:hover .pc-marquee-long .pc-short{display:none}
+          .sbcv-tbl tbody tr:hover .pc-marquee-long .pc-full{display:inline-block;animation:name-bounce 9s ease-in-out infinite}
           .sbcv-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;white-space:nowrap;line-height:1.5}
           .sbcv-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
         `}</style>
@@ -1221,23 +1549,23 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         <div style={{ borderRadius: 10 }}>
           <table className="sbcv-tbl">
             <colgroup>
-              <col style={{ width: '30%' }} />
-              <col style={{ width: '11%' }} />
-              <col style={{ width: '13%' }} />
-              <col style={{ width: '13%' }} />
+              <col style={{ width: '24%' }} />
               <col style={{ width: '13%' }} />
               <col style={{ width: '12%' }} />
-              <col style={{ width: '8%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '15%' }} />
             </colgroup>
             <thead>
               <tr>
-                <th><span className="hd-icon">🏛</span>{T('المنشأة','Facility')}</th>
-                <th><span className="hd-icon">⬡</span>{T('الكيان والشكل','Entity & Form')}</th>
-                <th><span className="hd-icon">#</span>{T('الأرقام','Numbers')}</th>
-                <th><span className="hd-icon">♛</span>{T('الملاك','Owners')}</th>
-                <th><span className="hd-icon">★</span>{T('المدراء','Managers')}</th>
-                <th><span className="hd-icon">⏱</span>{T('التواريخ','Dates')}</th>
-                <th><span className="hd-icon">●</span>{T('الحالة','Status')}</th>
+                <th><span className="hd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg></span>{T('المنشأة','Facility')}</th>
+                <th><span className="hd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></span>{T('الكيان','Entity')}</th>
+                <th><span className="hd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg></span>{T('الأرقام','Numbers')}</th>
+                <th><span className="hd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 19l2-12 4 4 4-7 4 7 4-4 2 12z"/><line x1="3" y1="21" x2="21" y2="21"/></svg></span>{T('الملاك','Owners')}</th>
+                <th><span className="hd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>{T('المدراء','Managers')}</th>
+                <th><span className="hd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>{T('التواريخ','Dates')}</th>
+                <th><span className="hd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></span>{T('السجل','Status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1260,37 +1588,30 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 return (
                   <tr key={key} onClick={() => setDetail(r)}>
                     <td className="name-cell" title={r.entity_full_name_ar || ''}>
-                      {(() => {
-                        const labelColor = r.is_main ? C.gold : branch ? C.blue : null
-                        const labelText = r.is_main ? T('رئيسي','Main') : branch ? T('فرع','Branch') : null
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', minWidth: 0 }}>
-                              {labelText && (
-                                <>
-                                  <span style={{ color: labelColor, fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap', letterSpacing: '.3px' }}>{labelText}</span>
-                                  <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,.15)', flexShrink: 0 }} />
-                                </>
-                              )}
-                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{r.entity_full_name_ar || '—'}</span>
-                            </div>
-                            {r.entity_full_name_en && (
-                              <span style={{ fontSize: 9.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
-                            )}
-                          </div>
-                        )
-                      })()}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0, width: '100%' }}>
+                        <div className="name-marquee">
+                          <span className="marquee-inner">{r.entity_full_name_ar || '—'}</span>
+                        </div>
+                        {r.entity_full_name_en && (
+                          <span style={{ fontSize: 9.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       {(() => {
                         const entity = r._entity || (lang === 'en' ? r.entity_type_en : r.entity_type_ar) || r.entity_type_ar || r.entity_type_en
                         const form = (lang === 'en' ? r.company_form_en : r.company_form_ar) || r.company_form_ar || r.company_form_en
                         const formDiffers = form && entity && form !== entity
-                        if (!entity && !form) return <span className="muted">—</span>
+                        const roleColor = r.is_main ? C.gold : branch ? C.blue : null
+                        const roleText = r.is_main ? T('رئيسي','Main') : branch ? T('فرع','Branch') : null
+                        if (!entity && !form && !roleText) return <span className="muted">—</span>
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}>
                             {entity && <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{entity}</span>}
                             {formDiffers && <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }} title={form}>{form}</span>}
+                            {roleText && (
+                              <span style={{ fontSize: 9.5, fontWeight: 800, color: roleColor, letterSpacing: '.3px', whiteSpace: 'nowrap', marginTop: 1 }}>{roleText}</span>
+                            )}
                           </div>
                         )
                       })()}
@@ -1319,14 +1640,22 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                         <DateRow label={T('الإصدار','Issued')} value={r._issueDate} T={T} />
-                        <DateRow label={T('التأكيد','Confirm')} value={r._confirmDate} T={T} />
+                        <DateRow label={T('التأكيد','Confirm')} value={r._confirmDate} T={T} confirm />
                       </div>
                     </td>
                     <td>
-                      <span className="sbcv-pill" style={{ background: theme.fg + '18', border: '1px solid ' + theme.fg + '38', color: theme.fg }}>
-                        <span className="sbcv-dot" style={{ background: theme.fg }} />
-                        {r._status || '—'}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                        <span className="sbcv-pill" style={{ background: theme.fg + '18', border: '1px solid ' + theme.fg + '38', color: theme.fg }}>
+                          <span className="sbcv-dot" style={{ background: theme.fg }} />
+                          {r._status || '—'}
+                        </span>
+                        {r.is_in_confirmation_period && (
+                          <span className="sbcv-pill" style={{ background: '#facc1518', border: '1px solid #facc1538', color: '#facc15' }}>
+                            <span className="sbcv-dot" style={{ background: '#facc15' }} />
+                            {T('ضمن فترة التأكيد','In Confirm Period')}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -1443,6 +1772,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         )
         const fmtNum = (n) => n != null ? Number(n).toLocaleString('en-US') : null
         const PersonRow = ({ p, roleAr }) => {
+          const [expanded, setExpanded] = useState(false)
           if (!p) return null
           const info = p.personInfo
           const isCompany = !info || !!extractPartyDisplay(p).isCompany
@@ -1461,22 +1791,64 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           const idLabel = info?.identifierType?.identifierTypeDescAr || info?.identifierType?.identifierTypeDescEn
             || (isCompany ? T('رقم موحد', 'Unified no.') : T('هوية', 'ID'))
           const idValue = info?.identifierNo || extracted.id
+          // hasDetails drives whether the row is expandable. Partner-specific
+          // data (share counts, parity type) also counts as "details", so the
+          // chevron + click handler stay enabled when only those are present.
+          const hasPartnerExtras = !!(p.partnerShare?.totalContributionCount != null
+            || p.partnerShare?.cashContributionCount > 0
+            || p.partnerShare?.inkindContributionCount > 0
+            || p.parityType?.parityTypeDescriptionAr)
+          const hasDetails = !!(idValue || (natAr && !isCompany) || dob || hasPartnerExtras)
           return (
             <div style={{ padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {isCompany && (
-                    <span title={T('شركة / منشأة', 'Company / Entity')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 4, background: 'rgba(212,160,23,.15)', color: C.gold, flexShrink: 0 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: hasDetails ? 'pointer' : 'default', userSelect: 'none' }}>
+                  <span title={isCompany ? T('شركة / منشأة', 'Company / Entity') : T('شخص', 'Person')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 4, background: isCompany ? 'rgba(212,160,23,.15)' : 'rgba(255,255,255,.08)', color: isCompany ? C.gold : 'var(--tx)', flexShrink: 0 }}>
+                    {isCompany ? (
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
-                    </span>
+                    ) : (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+                    )}
+                  </span>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: isCompany ? C.gold : 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{fullName}</div>
+                  {hasDetails && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ color: isCompany ? C.gold : 'var(--tx)', flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
                   )}
-                  <div style={{ fontSize: 12, fontWeight: 700, color: isCompany ? C.gold : 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName}</div>
                 </div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', display: 'flex', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-                  {idValue && <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{idLabel}: {idValue}</span>}
-                  {natAr && !isCompany && <span>· {natAr}</span>}
-                  {dob && <span>· {T('مواليد', 'DOB')} {dob}</span>}
-                </div>
+                {expanded && (hasDetails || p.partnerShare || p.parityType) && (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                    {idValue && <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{idLabel}: {idValue}</span>}
+                    {natAr && !isCompany && <span>· {natAr}</span>}
+                    {dob && <span>· {T('مواليد', 'DOB')} {dob}</span>}
+                    {/* Partner-specific extras — only when partnerShare data is present.
+                        Show parityType (e.g. "شريك") + share counts. */}
+                    {p.parityType?.parityTypeDescriptionAr && (
+                      <span>· {p.parityType.parityTypeDescriptionAr}</span>
+                    )}
+                    {p.partnerShare?.totalContributionCount != null && (
+                      <span style={{ color: C.gold, fontWeight: 700 }}>
+                        · {T('إجمالي الحصص', 'Total shares')}: {fmtNum(p.partnerShare.totalContributionCount)}
+                      </span>
+                    )}
+                    {p.partnerShare?.cashContributionCount != null && Number(p.partnerShare.cashContributionCount) > 0 && (
+                      <span>· {T('نقدية', 'Cash')}: {fmtNum(p.partnerShare.cashContributionCount)}</span>
+                    )}
+                    {p.partnerShare?.inkindContributionCount != null && Number(p.partnerShare.inkindContributionCount) > 0 && (
+                      <span>· {T('عينية', 'In-kind')}: {fmtNum(p.partnerShare.inkindContributionCount)}</span>
+                    )}
+                    {/* Company-partner extras — CR number when the partner is an entity */}
+                    {isCompany && extracted.id && extracted.id !== idValue && (
+                      <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>
+                        · {T('سجل', 'CR')}: {extracted.id}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               {roleAr && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.gold, whiteSpace: 'nowrap', textAlign: 'end' }}>{roleAr}</span>}
             </div>
@@ -1523,7 +1895,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         const hasHrsd = true
         const prov = provByCr[detail.cr_number] || []
         return (
-        <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
+        <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
           {/* Top bar — Back + sync trigger (mirrors FacilityDetailPage top bar) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
             <button onClick={() => setDetail(null)} title={T('رجوع','Back')}
@@ -1556,12 +1928,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   {T('تصفية','Liquidation')}
                 </span>
               )}
-              {detail.is_in_confirmation_period && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: '#facc1518', border: '1px solid #facc1538', color: '#facc15', fontSize: 10.5, fontWeight: 700 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#facc15' }} />
-                  {T('ضمن فترة التأكيد','In Confirm Period')}
-                </span>
-              )}
               <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.2px' }}>{detail.entity_full_name_ar || T('منشأة','Facility')}</div>
             </div>
           </div>
@@ -1572,64 +1938,81 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
               {/* Identifiers card — CR/national numbers + all government authority registrations
-                  consolidated into a single panel so the user sees every "official number" in one place. */}
-              <div style={cardChrome}>
-                <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('المنشأة','Facility')}</span></div>
-                <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {detail.entity_full_name_ar && (
-                    <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', gap: 10 }}>
-                      <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11 }}>{T('اسم المنشأة بالعربي', 'Facility name (AR)')}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detail.entity_full_name_ar}>{detail.entity_full_name_ar}</span>
+                  consolidated into a single panel so the user sees every "official number" in one place.
+                  Compact inline layout (label left + value right) to stay within original card height. */}
+              {(() => {
+                const authorities = [
+                  { ar: 'الزكاة والضريبة', en: 'ZATCA',                    fullAr: 'هيئة الزكاة والضريبة والجمارك',              color: '#0f766e', n: detail.zakat_tax_number },
+                  { ar: 'التأمينات الاجتماعية', en: 'GOSI',                  fullAr: 'المؤسسة العامة للتأمينات الاجتماعية',          color: '#22c55e', n: detail.gosi_registration_number },
+                  { ar: 'العنوان الوطني',  en: 'SPL',                      fullAr: 'اشتراك العنوان الوطني للسجل التجاري',         color: '#06b6d4', n: detail.spl_national_address_id },
+                  { ar: 'الغرف التجارية',  en: 'Chamber of Commerce',      fullAr: 'اتحاد الغرف التجارية السعودية',               color: '#0ea5e9', n: detail.coc_chamber_number },
+                  { ar: 'المقاولين',       en: 'Contractors Authority',    fullAr: 'الهيئة السعودية للمقاولين',                   color: '#f59e0b', n: detail.sca_contractor_number },
+                  { ar: 'الموارد البشرية', en: 'HRSD / Qiwa',              fullAr: 'وزارة الموارد البشرية والتنمية الاجتماعية',    color: '#16a085', n: detail.hrsd_labor_office_id != null && detail.hrsd_sequence_number != null ? `${detail.hrsd_labor_office_id}-${detail.hrsd_sequence_number}` : (detail.hrsd_labor_office_id != null ? String(detail.hrsd_labor_office_id) : null) },
+                  { ar: 'وزارة العدل',     en: 'MOJ Contract',             fullAr: 'وزارة العدل · رقم العقد',                     color: '#8b5cf6', n: detail.moj_contract_number },
+                  { ar: 'وزارة التجارة',   en: 'MC Contract Auth.',        fullAr: 'وزارة التجارة · رقم توثيق العقد',              color: '#D4A017', n: detail.mc_contract_number },
+                ].filter(row => row.n)
+
+                const rowBase = {
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
+                  background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)',
+                }
+                const rowGold = { ...rowBase, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.22)' }
+                const lbl = { color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
+
+                return (
+                  <div style={cardChrome}>
+                    <div style={cardHeader}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+                      <SbcSourceIcon />
+                      <span style={cardTitle}>{T('المنشأة','Facility')}</span>
                     </div>
-                  )}
-                  {detail.entity_full_name_en && (
-                    <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', gap: 10 }}>
-                      <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11 }}>{T('اسم المنشأة بالإنجليزي', 'Facility name (EN)')}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', direction: 'ltr', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detail.entity_full_name_en}>{detail.entity_full_name_en}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(212,160,23,.06)', borderRadius: 8, border: '1px solid rgba(212,160,23,.18)', gap: 10 }}>
-                    <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11 }}>{T('الرقم الموحد', 'Unified No.')}</span>
-                    <CopyableNumber value={detail.cr_national_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(212,160,23,.06)', borderRadius: 8, border: '1px solid rgba(212,160,23,.18)', gap: 10 }}>
-                    <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11 }}>{T('رقم السجل التجاري', 'CR Number')}</span>
-                    <CopyableNumber value={detail.cr_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
-                  </div>
-                  {detail.encrypted_cr_national_number && (
-                    <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,.02)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)', gap: 10 }}>
-                      <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11 }}>{T('رمز المنشأة', 'Facility code')}</span>
-                      <CopyableNumber value={detail.encrypted_cr_national_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
-                    </div>
-                  )}
-                  {[
-                    { ar: 'هيئة الزكاة والضريبة والجمارك', en: 'ZATCA', color: '#0f766e', n: detail.zakat_tax_number },
-                    { ar: 'المؤسسة العامة للتأمينات الاجتماعية', en: 'GOSI', color: '#22c55e', n: detail.gosi_registration_number },
-                    { ar: 'اشتراك العنوان الوطني للسجل التجاري', en: 'SPL (National Address)', color: '#06b6d4', n: detail.spl_national_address_id },
-                    { ar: 'اتحاد الغرف التجارية السعودية', en: 'Chamber of Commerce', color: '#0ea5e9', n: detail.coc_chamber_number },
-                    { ar: 'الهيئة السعودية للمقاولين', en: 'Saudi Contractors Authority', color: '#f59e0b', n: detail.sca_contractor_number },
-                    { ar: 'وزارة الموارد البشرية والتنمية الاجتماعية', en: 'HRSD / Qiwa', color: '#16a085', n: detail.hrsd_labor_office_id != null && detail.hrsd_sequence_number != null ? `${detail.hrsd_labor_office_id}-${detail.hrsd_sequence_number}` : (detail.hrsd_labor_office_id != null ? String(detail.hrsd_labor_office_id) : null) },
-                    { ar: 'وزارة العدل · رقم العقد', en: 'MOJ · Contract', color: '#8b5cf6', n: detail.moj_contract_number },
-                    { ar: 'وزارة التجارة · رقم توثيق العقد', en: 'MC · Contract Auth.', color: '#D4A017', n: detail.mc_contract_number },
-                  ].filter(row => row.n).map((row, i) => (
-                    <div key={i} style={{ padding: '10px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: row.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{T(row.ar, row.en)}</span>
+                    <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {detail.entity_full_name_ar && (
+                        <div style={{ ...rowBase, gridColumn: '1 / -1' }}>
+                          <span style={lbl}>{T('اسم المنشأة بالعربي', 'Facility name (AR)')}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detail.entity_full_name_ar}>{detail.entity_full_name_ar}</span>
+                        </div>
+                      )}
+                      {detail.entity_full_name_en && (
+                        <div style={{ ...rowBase, gridColumn: '1 / -1' }}>
+                          <span style={lbl}>{T('اسم المنشأة بالإنجليزي', 'Facility name (EN)')}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', direction: 'ltr', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detail.entity_full_name_en}>{detail.entity_full_name_en}</span>
+                        </div>
+                      )}
+                      {/* Name language — moved here from the Classification card
+                          per user request. Belongs with the name fields above. */}
+                      {detail.entity_name_lang_ar && (
+                        <div style={{ ...rowBase, gridColumn: '1 / -1' }}>
+                          <span style={lbl}>{T('لغة اسم المنشأة', 'Name Language')}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detail.entity_name_lang_ar}>{detail.entity_name_lang_ar}</span>
+                        </div>
+                      )}
+                      <div style={rowGold}>
+                        <span style={{ ...lbl, color: C.gold }}>{T('الرقم الموحد', 'Unified No.')}</span>
+                        <CopyableNumber value={detail.cr_national_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <CopyableNumber value={row.n} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
+                      <div style={rowGold}>
+                        <span style={{ ...lbl, color: C.gold }}>{T('السجل التجاري', 'CR Number')}</span>
+                        <CopyableNumber value={detail.cr_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
                       </div>
+                      {authorities.map((row, i) => (
+                        <div key={i} style={rowGold} title={T(row.fullAr, row.en)}>
+                          <span style={{ ...lbl, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis' }}>{T(row.ar, row.en)}</span>
+                          <CopyableNumber value={row.n} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                )
+              })()}
 
               {/* Partners */}
               {partners.length > 0 && (
                 <div style={cardChrome}>
                   <div style={cardHeader}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
+                    <SbcSourceIcon />
                     <span style={cardTitle}>{T('الملاك والشركاء', 'Partners')}</span>
                     <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.blue, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: C.blue + '14' }}>{num(partners.length)}</span>
                   </div>
@@ -1647,6 +2030,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 <div style={cardChrome}>
                   <div style={cardHeader}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.purple }} />
+                    <SbcSourceIcon />
                     <span style={cardTitle}>{T('المدراء', 'Managers')}</span>
                     <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.purple, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: C.purple + '14' }}>{num(managers.length)}</span>
                   </div>
@@ -1656,25 +2040,124 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 </div>
               )}
 
-              {/* Classification card */}
-              <div style={cardChrome}>
-                <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={cardTitle}>{T('السجل التجاري','Commercial Register')}</span></div>
-                <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <Field k={T('النوع', 'Entity')} v={detail._entity} />
-                  <Field k={T('الشكل', 'Form')} v={detail._form} />
-                  <Field k={T('صفات الشركة', 'Company character')} v={companyCharAr} />
-                  <Field k={T('المدينة', 'City')} v={detail._city} />
-                  <Field k={T('رأس المال', 'Capital')} v={detail.capital != null ? Number(detail.capital).toLocaleString('en-US') : null} />
-                  <Field k={T('تاريخ الإصدار', 'Issue date')} v={detail._issueDate} />
-                  <Field k={T('تاريخ التأكيد', 'Confirm date')} v={detail._confirmDate} />
-                </div>
-              </div>
+              {/* Classification card — merged with the "Full CR Data" fields
+                   so all non-duplicate CR attributes live in one place. The
+                   pair Gregorian/Hijri date row appears at the bottom. */}
+              {(() => {
+                const yesNo = (b) => b ? T('نعم', 'Yes') : T('لا', 'No')
+                // API returns Hijri dates as DD-MM-YYYY; user prefers YYYY-MM-DD
+                // (same order as Gregorian ISO dates shown elsewhere on the page).
+                const reverseHijri = (s) => {
+                  if (!s || typeof s !== 'string') return s
+                  const parts = s.split('-')
+                  return parts.length === 3 ? parts.reverse().join('-') : s
+                }
+                return (
+                  <div style={cardChrome}>
+                    <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><SbcSourceIcon /><span style={cardTitle}>{T('السجل التجاري','Commercial Register')}</span></div>
+                    <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {/* Each Field is now conditional — null/empty/undefined
+                          values are hidden entirely per user request. Boolean
+                          fields render only when the underlying flag is non-null
+                          (so explicit "لا" still shows; missing data doesn't). */}
+                      {detail._entity && <Field k={T('النوع', 'Entity')} v={detail._entity} />}
+                      {detail._form && <Field k={T('الشكل', 'Form')} v={detail._form} />}
+                      {companyCharAr && <Field k={T('صفات الشركة', 'Company character')} v={companyCharAr} />}
+                      {detail._city && <Field k={T('المدينة', 'City')} v={detail._city} />}
+                      {detail.capital != null && <Field k={T('رأس المال', 'Capital')} v={Number(detail.capital).toLocaleString('en-US')} />}
+                      {detail.company_duration != null && detail.company_duration !== 0 && detail.company_duration !== '' && <Field k={T('مدة الشركة', 'Company Duration')} v={detail.company_duration} />}
+                      {/* Yes/no flags grouped into one full-width split row —
+                          three compact cells separated by vertical dividers. */}
+                      {(() => {
+                        const flags = [
+                          detail.is_license_based != null ? { k: T('قائم على ترخيص', 'License-based'), v: detail.is_license_based } : null,
+                          detail.has_ecommerce != null ? { k: T('تجارة إلكترونية', 'E-commerce'), v: detail.has_ecommerce } : null,
+                          detail.in_liquidation_process != null ? { k: T('تحت التصفية', 'In Liquidation'), v: detail.in_liquidation_process } : null,
+                        ].filter(Boolean)
+                        if (flags.length === 0) return null
+                        const lblS = { color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }
+                        const valS = { fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                        return (
+                          <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                            {flags.map((f, i) => (
+                              <React.Fragment key={f.k}>
+                                {i > 0 && <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />}
+                                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineStart: i === 0 ? 0 : 14, paddingInlineEnd: i === flags.length - 1 ? 0 : 14 }}>
+                                  <span style={lblS}>{f.k}</span>
+                                  <span style={valS}>{yesNo(f.v)}</span>
+                                </div>
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        )
+                      })()}
+                      {detail.company_contract_from_date && <Field k={T('تاريخ عقد التأسيس', 'Contract Date')} v={detail.company_contract_from_date} />}
+                      {detail.last_cr_suspension_date && <Field k={T('تاريخ آخر تعليق', 'Last Suspension')} v={detail.last_cr_suspension_date} />}
+                      {detail.last_cr_reactivation_date && <Field k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={detail.last_cr_reactivation_date} />}
+                      {detail.delete_date && <Field k={T('تاريخ الشطب', 'Strike-off')} v={detail.delete_date} />}
+                      {/* Combined issue/confirm dates — one full-width row split
+                          into two columns by a vertical divider. Each column
+                          shows the gregorian date prominently on top and the
+                          matching hijri date dimmed underneath. */}
+                      <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineEnd: 14 }}>
+                          <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ الإصدار', 'Issue date')}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
+                            <span style={{ fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail._issueDate || '—'}</span>
+                            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.45)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_issue_date_hijri) || '—'}</span>
+                          </div>
+                        </div>
+                        <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineStart: 14 }}>
+                          <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ التأكيد', 'Confirm date')}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
+                            <span style={{ fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail._confirmDate || '—'}</span>
+                            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.45)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_confirm_date_hijri) || '—'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Contact info — collapsible card, sits right under the
+                  Commercial Register. Uses CollapsibleCard so it matches the
+                  ActivitiesCard / WPS chevron pattern. */}
+              {(() => {
+                const contact = (detail.raw_cr_data || detail._raw || {}).contactInformation || {}
+                if (!contact.phoneNo && !contact.mobileNo && !contact.email && !contact.websiteURL) return null
+                const rowBase = {
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
+                  background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)',
+                }
+                const lbl = { color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
+                const val = { fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                const Row = ({ k, v, fullWidth }) => (
+                  <div style={{ ...rowBase, ...(fullWidth ? { gridColumn: '1 / -1' } : {}) }}>
+                    <span style={lbl}>{k}</span>
+                    <span style={val} title={typeof v === 'string' ? v : undefined}>{v != null && v !== '' ? v : '—'}</span>
+                  </div>
+                )
+                return (
+                  <CollapsibleCard title={T('معلومات الاتصال', 'Contact Information')} color="#5dade2" showSbcIcon>
+                    <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <Row k={T('الهاتف', 'Phone')} v={contact.phoneNo} />
+                      <Row k={T('الجوال', 'Mobile')} v={contact.mobileNo} />
+                      <Row k={T('البريد الإلكتروني', 'Email')} v={contact.email} />
+                      <Row k={T('الموقع', 'Website')} v={contact.websiteURL} />
+                    </div>
+                  </CollapsibleCard>
+                )
+              })()}
 
               {/* GOSI — social insurance */}
               {hasGosi && (
                 <div style={cardChrome}>
                   <div style={cardHeader}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok }} />
+                    <SbcSourceIcon />
                     <span style={cardTitle}>{T('المؤسسة العامة للتأمينات الإجتماعية', 'General Organization for Social Insurance')}</span>
                     {gosiState === 'loading' && <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx5)' }}>{T('جارٍ الجلب…','loading…')}</span>}
                   </div>
@@ -1684,16 +2167,68 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         <Field k={T('اسم المؤسسة في التأمينات', 'GOSI name')} v={gosi.name} />
                       </div>
                     )}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 8 }}>
-                      <Stat k={T('عدد المشتركين', 'Contributors')} v={fmtNum(gosi.total)} />
-                      <Stat k={T('سعوديين', 'Saudi')} v={fmtNum(gosi.saudi)} color="#22c55e" />
-                      <Stat k={T('غير سعوديين', 'Non-Saudi')} v={fmtNum(gosi.nonSaudi)} color={C.purple} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                      <Stat k={T('مبالغ الاشتراكات', 'Contributions')} v={fmtNum(gosi.contribution)} />
-                      <Stat k={T('المديونية', 'Total debt')} v={fmtNum(gosi.debit)} color="#ef4444" />
-                      <Stat k={T('الغرامات', 'Penalties')} v={fmtNum(gosi.penalties)} color="#f59e0b" />
-                    </div>
+                    {(() => {
+                      const groupBox = {
+                        display: 'flex', background: 'rgba(255,255,255,.024)',
+                        borderRadius: 8, border: '1px solid rgba(255,255,255,.05)',
+                        overflow: 'hidden', marginBottom: 8,
+                      }
+                      const primaryCell = {
+                        flex: 1.1, padding: '10px 14px', textAlign: 'center',
+                        borderInlineEnd: '1px solid rgba(255,255,255,.05)',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
+                      }
+                      const breakdownCol = {
+                        flex: 1, display: 'flex', flexDirection: 'column',
+                      }
+                      const breakdownRow = (isLast) => ({
+                        flex: 1, padding: '6px 12px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,.05)',
+                      })
+                      const primaryLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.3px' }
+                      const primaryVal = (color) => ({ fontSize: 22, fontWeight: 800, color: color || 'var(--tx)', direction: 'ltr', lineHeight: 1 })
+                      const subLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.55)', fontWeight: 600 }
+                      const subVal = (color) => ({ fontSize: 13, fontWeight: 800, color: color || 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' })
+
+                      const renderGroup = (primary, children, marginBottom) => (
+                        <div style={{ ...groupBox, marginBottom }}>
+                          <div style={primaryCell}>
+                            <div style={primaryLbl}>{primary.k}</div>
+                            <div style={primaryVal(primary.color)}>{primary.v}</div>
+                          </div>
+                          <div style={breakdownCol}>
+                            {children.map((c, i) => (
+                              <div key={i} style={breakdownRow(i === children.length - 1)}>
+                                <span style={subLbl}>{c.k}</span>
+                                <span style={subVal(c.color)}>{c.v}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+
+                      return (
+                        <>
+                          {renderGroup(
+                            { k: T('عدد المشتركين', 'Contributors'), v: fmtNum(gosi.total), color: null },
+                            [
+                              { k: T('سعوديين', 'Saudi'),       v: fmtNum(gosi.saudi),    color: '#22c55e' },
+                              { k: T('غير سعوديين', 'Non-Saudi'), v: fmtNum(gosi.nonSaudi), color: C.purple },
+                            ],
+                            8,
+                          )}
+                          {renderGroup(
+                            { k: T('المديونية', 'Total debt'), v: fmtNum(gosi.debit), color: '#ef4444' },
+                            [
+                              { k: T('مبالغ الاشتراكات', 'Contributions'), v: fmtNum(gosi.contribution), color: null },
+                              { k: T('الغرامات', 'Penalties'),             v: fmtNum(gosi.penalties),    color: '#f59e0b' },
+                            ],
+                            0,
+                          )}
+                        </>
+                      )
+                    })()}
                     {gosiState === 'error' && gosi.total == null && !gosi.regNo && (
                       <div style={{ marginTop: 8, fontSize: 10.5, color: 'rgba(255,255,255,.45)', textAlign: 'center' }}>
                         {sbcSessionErr === 'NO_SESSION' ? T('لا توجد جلسة SBC — شغّل المزامنة أولاً', 'No SBC session — run sync first')
@@ -1710,26 +2245,172 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 <div style={cardChrome}>
                   <div style={cardHeader}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} />
+                    <SbcSourceIcon />
                     <span style={cardTitle}>{T('وزارة الموارد البشرية والتنمية الإجتماعية', 'Ministry of Human Resources and Social Development')}</span>
                     {hrsdState === 'loading' && <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx5)' }}>{T('جارٍ الجلب…','loading…')}</span>}
                   </div>
                   <div style={{ padding: '14px 22px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                      <Field k={T('فرع مكتب العمل', 'Labor office')} v={hrsd.officeName} />
-                      <Field k={T('نطاق المنشأة', 'Nitaq')} v={hrsd.nitaqName} />
-                      <Field k={T('نشاط النطاق', 'Nitaq activity')} v={hrsd.activityName} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 }}>
-                      <Stat k={T('إجمالي العمال', 'Total')} v={fmtNum(hrsd.totalLaborers)} />
-                      <Stat k={T('سعوديين', 'Saudi')} v={fmtNum(hrsd.saudiLaborers)} color="#22c55e" />
-                      <Stat k={T('غير سعوديين', 'Non-Saudi')} v={fmtNum(hrsd.foreignLaborers)} color={C.purple} />
-                      <Stat k={T('نسبة السعودة', 'Saudization')} v={hrsd.saudiPercentage != null ? Number(hrsd.saudiPercentage).toFixed(1) : null} unit="%" color={Number(hrsd.saudiPercentage) > 0 ? '#22c55e' : 'rgba(255,255,255,.7)'} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                      <Stat k={T('رخص عمل مصدرة', 'Issued permits')} v={fmtNum(hrsd.issuedPermits)} />
-                      <Stat k={T('رخص تنتهي قريباً', 'Expiring soon')} v={fmtNum(hrsd.expiringPermits)} color="#f59e0b" />
-                      <Stat k={T('رخص منتهية', 'Expired')} v={fmtNum(hrsd.expiredPermits)} color="#ef4444" />
-                    </div>
+                    {(() => {
+                      const nitaqColor = (name) => {
+                        if (!name) return null
+                        const n = name.toString()
+                        if (n.includes('بلاتيني')) return '#cbd5e1'
+                        if (n.includes('أحمر') || n.includes('احمر')) return '#ef4444'
+                        if (n.includes('أصفر') || n.includes('اصفر')) return '#eab308'
+                        if (n.includes('أخضر') || n.includes('اخضر')) {
+                          if (n.includes('مرتفع')) return '#22c55e'
+                          if (n.includes('متوسط')) return '#16a085'
+                          if (n.includes('منخفض') || n.includes('صغير')) return '#84cc16'
+                          return '#22c55e'
+                        }
+                        return null
+                      }
+                      const fieldChrome = {
+                        position: 'relative', padding: '9px 12px',
+                        background: 'rgba(255,255,255,.025)', borderRadius: 8,
+                        border: '1px solid rgba(255,255,255,.05)',
+                      }
+                      const lbl = { color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }
+                      const val = { fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                      const nColor = nitaqColor(hrsd.nitaqName)
+                      return (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                          <Field k={T('فرع مكتب العمل', 'Labor office')} v={hrsd.officeName} />
+                          <div style={{ ...fieldChrome, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                              <span style={lbl}>{T('نطاق المنشأة', 'Nitaq')}</span>
+                              <span style={{ ...val, color: nColor || 'var(--tx)' }} title={hrsd.nitaqName || ''}>{hrsd.nitaqName || '—'}</span>
+                            </div>
+                            {hrsd.activityName && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, borderTop: '1px solid rgba(255,255,255,.05)', paddingTop: 6 }}>
+                                <span style={lbl}>{T('النشاط', 'Activity')}</span>
+                                <span style={val} title={hrsd.activityName}>{hrsd.activityName}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                    {/* MoL / HRSD identifiers — show only when at least one
+                        value differs from the consolidated «الموارد البشرية»
+                        field already shown on the Facility card above. The
+                        facility card shows `${labor_office_id}-${sequence}`,
+                        so if every individual ID here is just a piece of that
+                        same value, the whole row is hidden. */}
+                    {(() => {
+                      const gosiFile = (extDetail || {})['gosi/establishments-file-info-by-registration-number']?.response_body || null
+                      const hrsdR = (extDetail || {})['hrsd/get-establishment-statistics']?.response_body || null
+                      const molUnified = hrsdR?.unifiedNumber
+                        ? `${hrsdR.unifiedNumber.laborOfficeIdField}-${hrsdR.unifiedNumber.sequenceNumberField}`
+                        : null
+                      // Nothing at all to show
+                      if (!molUnified && gosiFile?.molofficeID == null && gosiFile?.moluniID == null && gosiFile?.molEstID == null) return null
+                      // Compare each value to its facility-card counterpart.
+                      // If they all match (or are unset), the row is redundant.
+                      const facilityCombined = (detail.hrsd_labor_office_id != null && detail.hrsd_sequence_number != null)
+                        ? `${detail.hrsd_labor_office_id}-${detail.hrsd_sequence_number}` : null
+                      const eqOrAbsent = (a, b) => a == null || String(a) === String(b)
+                      const allMatchFacility = (
+                        eqOrAbsent(molUnified, facilityCombined) &&
+                        eqOrAbsent(gosiFile?.molofficeID, detail.hrsd_labor_office_id) &&
+                        eqOrAbsent(gosiFile?.moluniID, detail.hrsd_sequence_number) &&
+                        eqOrAbsent(gosiFile?.molEstID, detail.hrsd_sequence_number)
+                      )
+                      if (allMatchFacility) return null
+                      return (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                          <Field k={T('الرقم الموحد (وزارة العمل)', 'MoL Unified No.')} v={molUnified} />
+                          <Field k={T('معرّف مكتب العمل', 'MoL Office ID')} v={gosiFile?.molofficeID} />
+                          <Field k={T('الرقم الموحد (موارد بشرية)', 'MoL Unified ID')} v={gosiFile?.moluniID} />
+                          <Field k={T('معرّف الملف (MoL Est ID)', 'MoL Establishment ID')} v={gosiFile?.molEstID} />
+                        </div>
+                      )
+                    })()}
+                    {(() => {
+                      const groupBox = {
+                        display: 'flex', background: 'rgba(255,255,255,.024)',
+                        borderRadius: 8, border: '1px solid rgba(255,255,255,.05)',
+                        overflow: 'hidden', marginBottom: 8,
+                      }
+                      const primaryCell = {
+                        flex: 1.1, padding: '10px 14px', textAlign: 'center',
+                        borderInlineEnd: '1px solid rgba(255,255,255,.05)',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
+                      }
+                      const breakdownCol = { flex: 1, display: 'flex', flexDirection: 'column' }
+                      const breakdownRow = (isLast) => ({
+                        flex: 1, padding: '6px 12px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,.05)',
+                      })
+                      const primaryLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.3px' }
+                      const primaryVal = { fontSize: 22, fontWeight: 800, color: 'var(--tx)', direction: 'ltr', lineHeight: 1 }
+                      const subLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.55)', fontWeight: 600 }
+                      const subVal = (color) => ({ fontSize: 13, fontWeight: 800, color: color || 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' })
+                      const children = [
+                        { k: T('سعوديين', 'Saudi'),       v: fmtNum(hrsd.saudiLaborers),  color: '#22c55e' },
+                        { k: T('غير سعوديين', 'Non-Saudi'), v: fmtNum(hrsd.foreignLaborers), color: C.purple },
+                        { k: T('نسبة السعودة', 'Saudization'), v: hrsd.saudiPercentage != null ? `${Number(hrsd.saudiPercentage).toFixed(1)}%` : '—', color: Number(hrsd.saudiPercentage) > 0 ? '#22c55e' : 'rgba(255,255,255,.7)' },
+                      ]
+                      return (
+                        <div style={groupBox}>
+                          <div style={primaryCell}>
+                            <div style={primaryLbl}>{T('إجمالي العمال', 'Total workers')}</div>
+                            <div style={primaryVal}>{fmtNum(hrsd.totalLaborers)}</div>
+                          </div>
+                          <div style={breakdownCol}>
+                            {children.map((c, i) => (
+                              <div key={i} style={breakdownRow(i === children.length - 1)}>
+                                <span style={subLbl}>{c.k}</span>
+                                <span style={subVal(c.color)}>{c.v}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                    {(() => {
+                      const groupBox = {
+                        display: 'flex', background: 'rgba(255,255,255,.024)',
+                        borderRadius: 8, border: '1px solid rgba(255,255,255,.05)',
+                        overflow: 'hidden',
+                      }
+                      const primaryCell = {
+                        flex: 1.1, padding: '10px 14px', textAlign: 'center',
+                        borderInlineEnd: '1px solid rgba(255,255,255,.05)',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
+                      }
+                      const breakdownCol = { flex: 1, display: 'flex', flexDirection: 'column' }
+                      const breakdownRow = (isLast) => ({
+                        flex: 1, padding: '6px 12px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,.05)',
+                      })
+                      const primaryLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.3px' }
+                      const primaryVal = { fontSize: 22, fontWeight: 800, color: 'var(--tx)', direction: 'ltr', lineHeight: 1 }
+                      const subLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.55)', fontWeight: 600 }
+                      const subVal = (color) => ({ fontSize: 13, fontWeight: 800, color: color || 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' })
+                      const children = [
+                        { k: T('رخص تنتهي قريباً', 'Expiring soon'), v: fmtNum(hrsd.expiringPermits), color: '#f59e0b' },
+                        { k: T('رخص منتهية', 'Expired'),             v: fmtNum(hrsd.expiredPermits),  color: '#ef4444' },
+                      ]
+                      return (
+                        <div style={groupBox}>
+                          <div style={primaryCell}>
+                            <div style={primaryLbl}>{T('رخص عمل مصدرة', 'Issued permits')}</div>
+                            <div style={primaryVal}>{fmtNum(hrsd.issuedPermits)}</div>
+                          </div>
+                          <div style={breakdownCol}>
+                            {children.map((c, i) => (
+                              <div key={i} style={breakdownRow(i === children.length - 1)}>
+                                <span style={subLbl}>{c.k}</span>
+                                <span style={subVal(c.color)}>{c.v}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
                     {hrsdState === 'error' && hrsd.totalLaborers == null && !hrsd.officeName && (
                       <div style={{ marginTop: 8, fontSize: 10.5, color: 'rgba(255,255,255,.45)', textAlign: 'center' }}>
                         {sbcSessionErr === 'NO_SESSION' ? T('لا توجد جلسة SBC — شغّل المزامنة أولاً', 'No SBC session — run sync first')
@@ -1742,23 +2423,250 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               )}
 
               {/* Activities */}
-              {activities.length > 0 && (
-                <div style={cardChrome}>
-                  <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.orange }} />
-                    <span style={cardTitle}>{T('الأنشطة التجارية', 'Commercial Activities')}</span>
-                    <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.orange, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: C.orange + '14' }}>{num(activities.length)}</span>
+              <ActivitiesCard activities={activities} lang={lang} T={T} />
+
+              {/* ─── New cards — built in the same shape as the Facility card
+                   above (cardChrome + cardHeader + rowBase/rowGold pill rows).
+                   Anything visually marked «مكرر» means the same field already
+                   exists in another panel on this page; the tooltip names it. */}
+              {(() => {
+                const ext = extDetail || {}
+                const raw = detail.raw_cr_data || detail._raw || {}
+                const contact = raw.contactInformation || {}
+
+                const gosiFile = ext['gosi/establishments-file-info-by-registration-number']?.response_body || null
+                const gosiComp = ext['gosi/establishment-compliance']?.response_body || null
+                const hrsdRaw = ext['hrsd/get-establishment-statistics']?.response_body || null
+                const momrahData = ext['momrah/commercial-licenses-by-cr-number']?.response_body || null
+                const momrahList = momrahData?.data?.result?.list || []
+                const emtethal = ext['mcV2/GetEmtethalViolationsQuery']?.response_body || null
+                const qawaem = ext['Qawaem/GetQawaemStatistics']?.response_body || null
+                const violations = ext['mcV2/GetViolationsQuery']?.response_body || null
+                const caseViolations = ext['mcV2/GetCaseViolationsQuery']?.response_body || null
+                const printAr = ext['mcV2/get-print-cr-by-national-number']?.response_body || null
+                const printEn = ext['mcV2/get-print-cr-by-national-number(en)']?.response_body || null
+                const printContract = ext['mcV2/get-print-cr-contract-by-national-number']?.response_body || null
+
+                const STORAGE_BASE = `https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates/${detail.cr_national_number}`
+
+                // Match existing facility-card styles exactly
+                const rowBase = {
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
+                  background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)',
+                }
+                const rowGold = { ...rowBase, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.22)' }
+                const lbl = { color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
+                const val = { fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                const valLtr = { ...val, direction: 'ltr' }
+
+                // Small pill that flags a field as "already visible in another
+                // card on this page". Hover shows where.
+                const DupBadge = ({ where }) => (
+                  <span title={`مكرر · ${where}`} style={{
+                    fontSize: 9, padding: '1px 5px', borderRadius: 4,
+                    background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.35)',
+                    color: '#D4A017', fontWeight: 700, whiteSpace: 'nowrap',
+                  }}>{T('مكرر', 'DUP')}</span>
+                )
+
+                const Row = ({ k, v, dup, gold, fullWidth, ltr }) => (
+                  <div style={{ ...(gold ? rowGold : rowBase), ...(fullWidth ? { gridColumn: '1 / -1' } : {}) }}>
+                    <span style={{ ...lbl, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {dup && <DupBadge where={dup} />}
+                      {k}
+                    </span>
+                    <span style={ltr ? valLtr : val} title={typeof v === 'string' ? v : undefined}>{v != null && v !== '' ? v : '—'}</span>
                   </div>
-                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {activities.map((a, i) => (
-                      <div key={i} style={{ padding: '8px 12px', background: 'linear-gradient(180deg,#252525 0%,#1f1f1f 100%)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 11.5, color: 'var(--tx)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lang === 'en' ? (a.activityDescriptionEn || a.activityDescriptionAr) : (a.activityDescriptionAr || a.activityDescriptionEn)}</span>
-                        <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'rgba(255,255,255,.5)', direction: 'ltr', whiteSpace: 'nowrap' }}>({a.activityID})</span>
+                )
+
+                const yesNo = (b) => b ? T('نعم', 'Yes') : T('لا', 'No')
+                const numS = (n) => n != null ? num(Number(n)) : null
+
+                return (
+                  <>
+                    {/* GOSI Details and HRSD Details cards were removed — all
+                        their fields were either duplicates of the existing
+                        GOSI/HRSD cards above or have been migrated into them
+                        (MoL IDs now live inside the existing HRSD card). */}
+
+                    {/* WPS Compliance — collapsible (starts closed). */}
+                    {gosiComp && (
+                      <CollapsibleCard title={T('التزام حماية الأجور (WPS)', 'WPS Compliance')} color="#0ea5e9" showSbcIcon>
+                        <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <Row k={T('نسبة الالتزام بحماية الأجور', 'WPS Compliance %')} v={gosiComp.wpsCompliancePercentage != null ? `${gosiComp.wpsCompliancePercentage}%` : null} ltr />
+                          <Row k={T('حالة الالتزام', 'WPS Status')} v={gosiComp.wpsComplianceStatus} />
+                          <Row k={T('عمال تم صرف أجورهم', 'Paid Workers')} v={numS(gosiComp.numberOfPaidLaborers)} ltr />
+                          <Row k={T('عمال لم تُصرف أجورهم', 'Unpaid Workers')} v={numS(gosiComp.numberOfUnPaidLaborers)} ltr />
+                          <Row k={T('نسبة العقود الموثقة', 'Contract Auth %')} v={gosiComp.caCompliancePercentage != null ? `${gosiComp.caCompliancePercentage}%` : null} ltr />
+                          <Row k={T('عقود موثقة', 'Authenticated')} v={numS(gosiComp.numberOfAUthenicated)} ltr />
+                          <Row k={T('عقود غير موثقة', 'Unauthenticated')} v={numS(gosiComp.numberOfUNAUthenicated)} ltr />
+                          <Row k={T('فترة الالتزام', 'Period')} v={gosiComp.compliancePeriod} />
+                        </div>
+                      </CollapsibleCard>
+                    )}
+
+                    {/* MoC Violations — collapsible */}
+                    <CollapsibleCard title={T('مخالفات وزارة التجارة', 'MoC Violations')} color="#ef4444" showSbcIcon>
+                      <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                        <Row k={T('عدم إيداع القوائم', 'Financial Filing')} v={violations?.totalViolationCount != null ? num(violations.totalViolationCount) : null} ltr />
+                        <Row k={T('مخالفات اللجان', 'Committee')} v={caseViolations?.totalViolationCount != null ? num(caseViolations.totalViolationCount) : null} ltr />
+                        <Row k={T('الامتثال', 'Emtethal')} v={emtethal?.totalViolationCount != null ? num(emtethal.totalViolationCount) : (emtethal?.error ? T('غير متاح', 'N/A') : null)} ltr />
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </CollapsibleCard>
+
+                    {/* Filed financial statements (Qawaem) — collapsible */}
+                    {qawaem?.qawaemList && qawaem.qawaemList.length > 0 && (
+                      <CollapsibleCard title={T('القوائم المالية المُودَعة', 'Filed Statements')} color="#a78bfa" badge={num(qawaem.total)} showSbcIcon>
+                        <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          {/* Sort by year ascending — API returns newest-first
+                              but we display oldest → newest per user request. */}
+                          {[...qawaem.qawaemList].sort((a, b) => (a.year || 0) - (b.year || 0)).map(y => (
+                            <Row key={y.year} k={`${T('سنة', 'Year')} ${y.year}`} v={y.count} ltr />
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    )}
+
+                    {/* رخص البلدية (Momrah) */}
+                    {momrahList.length > 0 && (
+                      <div style={cardChrome}>
+                        <div style={cardHeader}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f97316' }} />
+                          <SbcSourceIcon />
+                          <span style={cardTitle}>{T('رخص البلدية', 'Municipal Licenses')}</span>
+                          <span style={{ marginInlineStart: 'auto', fontSize: 11, color: '#f97316', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#f9731614' }}>{num(momrahList.length)}</span>
+                        </div>
+                        <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {momrahList.map((lic, i) => (
+                            <div key={lic.licenseId || i} style={{ ...rowBase, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>{lic.shopName}</div>
+                                  <div style={{ fontSize: 10.5, color: 'var(--tx5)', marginTop: 2 }}>{lic.amanaName} · {lic.baladiaName}</div>
+                                </div>
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: lic.licenseStatus === 'سارية' ? 'rgba(34,197,94,.15)' : 'rgba(234,179,8,.15)', color: lic.licenseStatus === 'سارية' ? '#22c55e' : '#eab308', whiteSpace: 'nowrap' }}>{lic.licenseStatus}</span>
+                              </div>
+                              {(() => {
+                                // City — derived from baladiaName by stripping
+                                // the "بلدية " / "محافظة " prefixes (e.g.
+                                // "بلدية محافظة الخبر" → "الخبر"). The raw
+                                // baladiaName is already shown in the subtitle
+                                // above, so here we surface just the city name.
+                                const city = (lic.baladiaName || '').replace(/^بلدية\s+/, '').replace(/^محافظة\s+/, '').trim() || null
+                                const cell = { display: 'flex', justifyContent: 'space-between', color: 'var(--tx5)' }
+                                const val = { color: 'var(--tx2)' }
+                                return (
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 6, columnGap: 24, fontSize: 10.5 }}>
+                                    <div style={cell}><span>{T('رقم الرخصة', 'License ID')}</span><span style={{ ...val, direction: 'ltr', fontWeight: 700 }}>{lic.licenseId}</span></div>
+                                    <div style={cell}><span>{T('الحي', 'District')}</span><span style={val}>{lic.districtName}</span></div>
+                                    {city && <div style={cell}><span>{T('المدينة', 'City')}</span><span style={val}>{city}</span></div>}
+                                    <div style={cell}><span>{T('انتهاء (هجري)', 'End H.')}</span><span style={{ ...val, direction: 'ltr' }}>{lic.licenseEndDateH}</span></div>
+                                    <div style={cell}><span>{T('انتهاء (ميلادي)', 'End G.')}</span><span style={{ ...val, direction: 'ltr' }}>{lic.licenseEndDateM}</span></div>
+                                    <div style={cell}><span>{T('متبقي', 'Days Left')}</span><span style={{ ...val, direction: 'ltr' }}>{lic.expirationLeftPeriod}</span></div>
+                                    {/* Activity name is long — give it the full
+                                        row so it doesn't truncate weirdly. */}
+                                    <div style={{ ...cell, gridColumn: '1 / -1' }}><span>{T('النشاط', 'Activity')}</span><span style={val}>{lic.mainDetailActivity}</span></div>
+                                  </div>
+                                )
+                              })()}
+                              {/* Prefer the Supabase Storage copy of the
+                                  license PDF (uploaded during data sync) over
+                                  the upstream momra.gov.sa link — so the app
+                                  stays self-contained. Fall back to the live
+                                  URL only when we haven't captured the file yet. */}
+                              {lic.licenseId && (
+                                <a
+                                  href={`https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-municipal-licenses/${encodeURIComponent(lic.licenseId)}.pdf`}
+                                  target="_blank" rel="noopener noreferrer"
+                                  style={{ alignSelf: 'flex-start', fontSize: 11, color: C.gold, textDecoration: 'none', fontWeight: 700 }}>
+                                  ⇲ {T('طباعة الرخصة', 'Print License')}
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ملفات السجل (PDF) — with inline thumbnail previews.
+                        Each available PDF renders inside a sandboxed <iframe>
+                        zoomed-to-fit; clicking the preview (or its label) opens
+                        the file full-screen in a new tab. Unavailable variants
+                        get a dim placeholder so the layout stays balanced. */}
+                    <div style={cardChrome}>
+                      <div style={cardHeader}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#9b59b6' }} />
+                        <SbcSourceIcon />
+                        <span style={cardTitle}>{T('ملفات السجل (PDF)', 'CR Documents (PDF)')}</span>
+                      </div>
+                      {/* Min card width 280px — Chrome's PDF viewer needs
+                          enough room to apply FitH cleanly; below ~220px it
+                          falls back to native zoom and shows scrollbars
+                          inside an otherwise-empty thumbnail. */}
+                      <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+                        {[
+                          { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!printAr?.downloadUrl },
+                          { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!printEn?.downloadUrl },
+                          { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!printContract?.downloadUrl && detail.entity_type_ar === 'شركة' },
+                        ].map(({ lang: lng, label, available }) => {
+                          const href = `${STORAGE_BASE}-${lng}.pdf`
+                          if (!available) {
+                            return (
+                              <div key={lng} style={{ borderRadius: 10, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ aspectRatio: '3 / 2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--tx5)', background: 'rgba(0,0,0,.18)' }}>
+                                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                                  </svg>
+                                </div>
+                                <div style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tx5)', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,.04)' }}>
+                                  {label}
+                                </div>
+                              </div>
+                            )
+                          }
+                          return (
+                            <div key={lng}
+                              style={{ borderRadius: 10, background: 'rgba(155,89,182,.08)', border: '1px solid rgba(155,89,182,.32)', overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: '.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(155,89,182,.6)' }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(155,89,182,.32)' }}>
+                              {/* PDF preview thumbnail. Wrapper aspect is set
+                                  slightly wider (3:2) than the SBC certificate's
+                                  natural A4 landscape (≈1.41:1) — combined with
+                                  iframe height 200% and overflow:hidden, this
+                                  guarantees the page renders at full width from
+                                  the top of the iframe and the bottom gets
+                                  clipped (no empty strip) at every viewport. */}
+                              <div style={{ position: 'relative', aspectRatio: '3 / 2', background: '#fff', overflow: 'hidden' }}>
+                                <iframe
+                                  src={`${href}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                                  title={label}
+                                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '200%', border: 0, display: 'block' }}
+                                  loading="lazy"
+                                  scrolling="no"
+                                />
+                              </div>
+                              <a href={href} target="_blank" rel="noopener noreferrer"
+                                title={T('فتح في تاب جديد', 'Open in new tab')}
+                                style={{ padding: '8px 10px', fontSize: 11, fontWeight: 800, color: '#bb8fce', textAlign: 'center', borderTop: '1px solid rgba(155,89,182,.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textDecoration: 'none', cursor: 'pointer', transition: 'background .15s' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(155,89,182,.18)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                                {label}
+                              </a>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* (Contact info card was moved up — now sits right
+                         after the Facility card per user request) */}
+                  </>
+                )
+              })()}
 
             </div>
 
@@ -1766,13 +2674,56 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* Status summary */}
               <div style={cardChrome}>
-                <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: theme.fg }} /><span style={cardTitle}>{T('حالة السجل','CR Status')}</span></div>
+                <div style={cardHeader}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: theme.fg }} />
+                  <span style={cardTitle}>{T('حالة السجل التجاري','CR Status')}</span>
+                  {(() => {
+                    if (!detail._confirmDate) return null
+                    const t = new Date(detail._confirmDate).getTime()
+                    if (Number.isNaN(t)) return null
+                    const daysDiff = Math.floor((Date.now() - t) / 86400000)
+                    let remain, nextColor, tip
+                    if (daysDiff < 0) {
+                      remain = -daysDiff
+                      nextColor = '#eab308'
+                      tip = T('يوم حتى الدخول في فترة التأكيد', 'days until confirmation window')
+                    } else if (daysDiff <= 90) {
+                      remain = 90 - daysDiff
+                      nextColor = '#ef4444'
+                      tip = T('يوم قبل تعليق السجل', 'days before suspension')
+                    } else {
+                      return null
+                    }
+                    return (
+                      <span title={`${remain} ${tip}`}
+                        style={{
+                          marginInlineStart: 'auto',
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
+                          color: nextColor, fontSize: 10.5, fontWeight: 800,
+                          fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                        }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span style={{ direction: 'ltr' }}>{remain}</span>
+                        <span style={{ fontWeight: 600, opacity: .85 }}>{T('يوم','d')}</span>
+                      </span>
+                    )
+                  })()}
+                </div>
                 <div style={{ padding: '20px 22px 14px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 10 }}>{T('الحالة الحالية','Current')}</div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: theme.fg + '18', border: '1px solid ' + theme.fg + '38' }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme.fg, boxShadow: `0 0 8px ${theme.fg}aa` }} />
                     <span style={{ fontSize: 13, fontWeight: 800, color: theme.fg }}>{detail._status || '—'}</span>
                   </div>
+                  {detail.is_in_confirmation_period && (
+                    <div style={{ marginTop: 8 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: '#facc1518', border: '1px solid #facc1538', color: '#facc15', fontSize: 10.5, fontWeight: 700 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#facc15' }} />
+                        {T('ضمن فترة التأكيد','In Confirm Period')}
+                      </span>
+                    </div>
+                  )}
                   <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 10, color: 'var(--tx4)' }}>
                     <div>
                       <div style={{ fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('إصدار','Issue')}</div>
@@ -1780,21 +2731,27 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     </div>
                     <div>
                       <div style={{ fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('تأكيد','Confirm')}</div>
-                      <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 700, marginTop: 2, direction: 'ltr' }}>{detail._confirmDate}</div>
+                      {(() => {
+                        const cd = detail._confirmDate
+                        let color = 'var(--tx2)'
+                        if (cd) {
+                          const t = new Date(cd).getTime()
+                          if (!Number.isNaN(t)) {
+                            const daysDiff = Math.floor((Date.now() - t) / 86400000)
+                            // Before confirm date → green (no action needed yet)
+                            // Within 90 days after → yellow (confirmation window)
+                            // > 90 days past → red (overdue / suspended)
+                            if (daysDiff < 0) color = '#22c55e'
+                            else if (daysDiff <= 90) color = '#eab308'
+                            else color = '#ef4444'
+                          }
+                        }
+                        return <div style={{ fontSize: 12, color, fontWeight: 700, marginTop: 2, direction: 'ltr' }}>{cd}</div>
+                      })()}
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Provenance */}
-              {prov.length > 0 && (
-                <div style={cardChrome}>
-                  <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('مصدر المزامنة','Sync Sources')}</span></div>
-                  <div style={{ padding: '14px 22px' }}>
-                    <ProvenanceStrip entries={prov} />
-                  </div>
-                </div>
-              )}
 
               {/* Quick stats */}
               <div style={cardChrome}>
@@ -1817,6 +2774,305 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               </div>
             </div>
           </div>
+
+          {/* The extended details previously rendered here have been moved
+              inline above (inside the left column, same design as existing
+              facility cards). */}
+          {false && (() => {
+            // dead block — left here only for reference; will be deleted later.
+            const ext = extDetail || {}
+            const raw = detail.raw_cr_data || detail._raw || {}
+            const cr = detail.crInformation || raw.crInformation || {}
+            const contact = raw.contactInformation || {}
+            const mg = raw.mangmentInformation || {}
+            const acts = raw.crActivities?.activityList || []
+            const procedures = cr.procedures || []
+            const licenses = cr.licenses || []
+            const partnersList = raw.parityList || []
+            const managersList = mg.managerList || []
+
+            const gosiFile = ext['gosi/establishments-file-info-by-registration-number']?.response_body || null
+            const gosiComp = ext['gosi/establishment-compliance']?.response_body || null
+            const hrsdRaw = ext['hrsd/get-establishment-statistics']?.response_body || null
+            const momrahData = ext['momrah/commercial-licenses-by-cr-number']?.response_body || null
+            const momrahList = momrahData?.data?.result?.list || []
+            const emtethal = ext['mcV2/GetEmtethalViolationsQuery']?.response_body || null
+            const qawaem = ext['Qawaem/GetQawaemStatistics']?.response_body || null
+            const violations = ext['mcV2/GetViolationsQuery']?.response_body || null
+            const caseViolations = ext['mcV2/GetCaseViolationsQuery']?.response_body || null
+            const printAr = ext['mcV2/get-print-cr-by-national-number']?.response_body || null
+            const printEn = ext['mcV2/get-print-cr-by-national-number(en)']?.response_body || null
+            const printContract = ext['mcV2/get-print-cr-contract-by-national-number']?.response_body || null
+
+            const STORAGE_BASE = `https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates/${detail.cr_national_number}`
+
+            const SectionCard = ({ title, color, children, count }) => (
+              <div style={{ ...cardChrome, marginTop: 14 }}>
+                <div style={cardHeader}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+                  <span style={cardTitle}>{title}</span>
+                  {count != null && <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(count)}</span>}
+                </div>
+                <div style={{ padding: '14px 18px' }}>{children}</div>
+              </div>
+            )
+
+            const FieldRow = ({ k, v }) => (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px dashed rgba(255,255,255,.05)', fontSize: 12 }}>
+                <span style={{ color: 'var(--tx4)' }}>{k}</span>
+                <span style={{ color: v != null && v !== '' ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 700, direction: 'ltr', textAlign: 'end' }}>{v != null && v !== '' ? v : '—'}</span>
+              </div>
+            )
+
+            const fmtMoney = (n, cur) => n != null ? `${num(Number(n))} ${cur || ''}`.trim() : null
+            const yesNo = (b) => b ? T('نعم', 'Yes') : T('لا', 'No')
+
+            return (
+              <>
+                {extDetailLoading && (
+                  <div style={{ marginTop: 14, padding: 12, textAlign: 'center', color: 'var(--tx5)', fontSize: 12 }}>
+                    {T('جارٍ تحميل البيانات التفصيلية...', 'Loading extended details...')}
+                  </div>
+                )}
+
+                {/* ── Full CR information ── */}
+                <SectionCard title={T('بيانات السجل الكاملة', 'Full CR Information')} color={C.gold}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0 24px' }}>
+                    <FieldRow k={T('رأس المال', 'Capital')} v={fmtMoney(detail.capital, detail.capital_currency_ar)} />
+                    <FieldRow k={T('الشكل القانوني', 'Legal Form')} v={detail.company_form_ar} />
+                    <FieldRow k={T('نوع المنشأة', 'Entity Type')} v={detail.entity_type_ar} />
+                    <FieldRow k={T('لغة اسم المنشأة', 'Entity Name Lang')} v={detail.entity_name_lang_ar} />
+                    <FieldRow k={T('مدة الشركة', 'Company Duration')} v={detail.company_duration} />
+                    <FieldRow k={T('مدينة المركز', 'HQ City')} v={detail.headquarter_city_ar} />
+                    <FieldRow k={T('جنسية الشركاء', 'Partners Nationality')} v={detail.partners_nationality_ar} />
+                    <FieldRow k={T('تاريخ الإصدار (هجري)', 'Issue Date (Hijri)')} v={detail.cr_issue_date_hijri} />
+                    <FieldRow k={T('تاريخ التأكيد (هجري)', 'Confirm Date (Hijri)')} v={detail.cr_confirm_date_hijri} />
+                    <FieldRow k={T('تاريخ عقد التأسيس', 'Contract Date')} v={detail.company_contract_from_date} />
+                    <FieldRow k={T('تاريخ آخر تعليق', 'Last Suspension')} v={detail.last_cr_suspension_date} />
+                    <FieldRow k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={detail.last_cr_reactivation_date} />
+                    <FieldRow k={T('تاريخ الشطب', 'Strike-off Date')} v={detail.delete_date} />
+                    <FieldRow k={T('قائم على ترخيص', 'License-based')} v={yesNo(detail.is_license_based)} />
+                    <FieldRow k={T('تجارة إلكترونية', 'E-commerce')} v={yesNo(detail.has_ecommerce)} />
+                    <FieldRow k={T('تحت التصفية', 'In Liquidation')} v={yesNo(detail.in_liquidation_process)} />
+                    <FieldRow k={T('في فترة التأكيد', 'In Confirm Period')} v={yesNo(detail.is_in_confirmation_period)} />
+                    <FieldRow k={T('سجل رئيسي', 'Main')} v={yesNo(detail.is_main)} />
+                  </div>
+                </SectionCard>
+
+                {/* ── GOSI Details (full) ── */}
+                <SectionCard title={T('بيانات التأمينات الاجتماعية (GOSI)', 'GOSI Details')} color="#22c55e">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
+                    <FieldRow k={T('رقم التسجيل', 'Registration No.')} v={gosi.regNo} />
+                    <FieldRow k={T('اسم المنشأة', 'Establishment Name')} v={gosi.name || gosiFile?.establishmentNamArb} />
+                    <FieldRow k={T('عدد المشتركين', 'Contributors')} v={fmtNum(gosi.total)} />
+                    <FieldRow k={T('مشتركون سعوديون', 'Saudi')} v={fmtNum(gosi.saudi)} />
+                    <FieldRow k={T('مشتركون غير سعوديين', 'Non-Saudi')} v={fmtNum(gosi.nonSaudi)} />
+                    <FieldRow k={T('إجمالي الاشتراكات', 'Total Contribution')} v={gosi.contribution != null ? num(gosi.contribution) + ' ر.س' : null} />
+                    <FieldRow k={T('إجمالي المديونية', 'Total Debit')} v={gosi.debit != null ? num(gosi.debit) + ' ر.س' : null} />
+                    <FieldRow k={T('إجمالي الغرامات', 'Total Penalties')} v={gosi.penalties != null ? num(gosi.penalties) + ' ر.س' : null} />
+                    {gosiFile && (
+                      <>
+                        <FieldRow k={T('معرّف ملف العمل', 'MoL Establishment ID')} v={gosiFile.molEstID} />
+                        <FieldRow k={T('معرّف مكتب العمل', 'MoL Office ID')} v={gosiFile.molofficeID} />
+                        <FieldRow k={T('الرقم الموحد (موارد بشرية)', 'MoL Unified ID')} v={gosiFile.moluniID} />
+                      </>
+                    )}
+                  </div>
+                </SectionCard>
+
+                {/* ── HRSD / Nitaqat Details (full) ── */}
+                <SectionCard title={T('بيانات الموارد البشرية (HRSD/Nitaqat)', 'HRSD / Nitaqat Details')} color="#16a085">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
+                    <FieldRow k={T('مكتب العمل', 'Labor Office')} v={hrsd.officeName} />
+                    <FieldRow k={T('رقم ملف المنشأة', 'Est. File No.')} v={hrsd.officeId != null && hrsd.sequenceNumber != null ? `${hrsd.officeId}-${hrsd.sequenceNumber}` : null} />
+                    <FieldRow k={T('النطاق', 'Nitaq Band')} v={hrsd.nitaqName ? `${hrsd.nitaqName}${hrsd.nitaqCode ? ' (' + hrsd.nitaqCode + ')' : ''}` : null} />
+                    <FieldRow k={T('نشاط نطاقات', 'Nitaqat Activity')} v={hrsd.activityName} />
+                    <FieldRow k={T('نسبة السعودة', 'Saudization %')} v={hrsd.saudiPercentage != null ? `${Number(hrsd.saudiPercentage).toFixed(2)}%` : null} />
+                    <FieldRow k={T('إجمالي العمالة', 'Total Workers')} v={fmtNum(hrsd.totalLaborers)} />
+                    <FieldRow k={T('عمالة سعودية', 'Saudi Workers')} v={fmtNum(hrsd.saudiLaborers)} />
+                    <FieldRow k={T('عمالة غير سعودية', 'Foreign Workers')} v={fmtNum(hrsd.foreignLaborers)} />
+                    <FieldRow k={T('رخص عمل صادرة', 'Issued Permits')} v={fmtNum(hrsd.issuedPermits)} />
+                    <FieldRow k={T('رخص منتهية', 'Expired Permits')} v={fmtNum(hrsd.expiredPermits)} />
+                    <FieldRow k={T('قاربة الانتهاء', 'About-to-expire')} v={fmtNum(hrsd.expiringPermits)} />
+                    {hrsdRaw?.unifiedNumber && (
+                      <FieldRow k={T('الرقم الموحد', 'Unified No.')} v={`${hrsdRaw.unifiedNumber.laborOfficeIdField}-${hrsdRaw.unifiedNumber.sequenceNumberField}`} />
+                    )}
+                  </div>
+                </SectionCard>
+
+                {/* ── WPS / Wage protection compliance ── */}
+                {gosiComp && (
+                  <SectionCard title={T('التزام حماية الأجور (WPS)', 'WPS Compliance')} color="#0ea5e9">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
+                      <FieldRow k={T('نسبة الالتزام بحماية الأجور', 'WPS %')} v={gosiComp.wpsCompliancePercentage != null ? `${gosiComp.wpsCompliancePercentage}%` : null} />
+                      <FieldRow k={T('حالة الالتزام', 'WPS Status')} v={gosiComp.wpsComplianceStatus} />
+                      <FieldRow k={T('عمال تم صرف أجورهم', 'Paid Workers')} v={fmtNum(gosiComp.numberOfPaidLaborers)} />
+                      <FieldRow k={T('عمال لم تُصرف أجورهم', 'Unpaid Workers')} v={fmtNum(gosiComp.numberOfUnPaidLaborers)} />
+                      <FieldRow k={T('نسبة العقود الموثقة', 'Contract Auth %')} v={gosiComp.caCompliancePercentage != null ? `${gosiComp.caCompliancePercentage}%` : null} />
+                      <FieldRow k={T('عقود موثقة', 'Authenticated')} v={fmtNum(gosiComp.numberOfAUthenicated)} />
+                      <FieldRow k={T('عقود غير موثقة', 'Unauthenticated')} v={fmtNum(gosiComp.numberOfUNAUthenicated)} />
+                      <FieldRow k={T('فترة الالتزام', 'Period')} v={gosiComp.compliancePeriod} />
+                    </div>
+                  </SectionCard>
+                )}
+
+                {/* ── MoC Violations (financial + committee + emtethal) ── */}
+                <SectionCard title={T('مخالفات وزارة التجارة', 'MoC Violations')} color="#ef4444">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                    <div style={{ padding: 12, background: 'rgba(239,68,68,.06)', borderRadius: 10, border: '1px solid rgba(239,68,68,.2)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 4 }}>{T('عدم إيداع القوائم', 'Financial Filing')}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: violations?.totalViolationCount > 0 ? C.red : 'var(--tx2)', direction: 'ltr' }}>{violations?.totalViolationCount ?? '—'}</div>
+                    </div>
+                    <div style={{ padding: 12, background: 'rgba(239,68,68,.06)', borderRadius: 10, border: '1px solid rgba(239,68,68,.2)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 4 }}>{T('مخالفات اللجان', 'Committee')}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: caseViolations?.totalViolationCount > 0 ? C.red : 'var(--tx2)', direction: 'ltr' }}>{caseViolations?.totalViolationCount ?? '—'}</div>
+                    </div>
+                    <div style={{ padding: 12, background: 'rgba(239,68,68,.06)', borderRadius: 10, border: '1px solid rgba(239,68,68,.2)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 4 }}>{T('الامتثال', 'Emtethal')}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: emtethal?.totalViolationCount > 0 ? C.red : 'var(--tx2)', direction: 'ltr' }}>
+                        {emtethal?.totalViolationCount ?? (emtethal?.error ? T('غير متاح','N/A') : '—')}
+                      </div>
+                    </div>
+                  </div>
+                </SectionCard>
+
+                {/* ── Qawaem yearly filing ── */}
+                {qawaem?.qawaemList && (
+                  <SectionCard title={T('القوائم المالية المُودَعة', 'Filed Financial Statements')} color="#a78bfa" count={qawaem.total}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+                      {qawaem.qawaemList.map(y => (
+                        <div key={y.year} style={{ padding: '10px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, textAlign: 'center' }}>
+                          <div style={{ fontSize: 11, color: 'var(--tx5)', marginBottom: 4 }}>{T('سنة', 'Year')} {y.year}</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: y.count > 0 ? '#22c55e' : '#ef4444', direction: 'ltr' }}>{y.count}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </SectionCard>
+                )}
+
+                {/* ── Momrah municipal licenses ── */}
+                {momrahList.length > 0 && (
+                  <SectionCard title={T('رخص البلدية', 'Municipal Licenses')} color="#f97316" count={momrahList.length}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {momrahList.map((lic, i) => (
+                        <div key={lic.licenseId || i} style={{ padding: 12, background: 'rgba(255,255,255,.025)', borderRadius: 10, border: '1px solid rgba(255,255,255,.05)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{lic.shopName}</div>
+                              <div style={{ fontSize: 11, color: 'var(--tx5)', marginTop: 2 }}>{lic.amanaName} · {lic.baladiaName}</div>
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: lic.licenseStatus === 'سارية' ? 'rgba(34,197,94,.15)' : 'rgba(234,179,8,.15)', color: lic.licenseStatus === 'سارية' ? '#22c55e' : '#eab308', whiteSpace: 'nowrap' }}>{lic.licenseStatus}</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0 16px' }}>
+                            <FieldRow k={T('رقم الرخصة', 'License ID')} v={lic.licenseId} />
+                            <FieldRow k={T('الحي', 'District')} v={lic.districtName} />
+                            <FieldRow k={T('انتهاء (هجري)', 'End (Hijri)')} v={lic.licenseEndDateH} />
+                            <FieldRow k={T('انتهاء (ميلادي)', 'End (Gregorian)')} v={lic.licenseEndDateM} />
+                            <FieldRow k={T('متبقي (يوم)', 'Days Left')} v={lic.expirationLeftPeriod} />
+                            <FieldRow k={T('النشاط', 'Activity')} v={lic.mainDetailActivity} />
+                          </div>
+                          {lic.printLicenseUrl && (
+                            <a href={lic.printLicenseUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 11, color: C.gold, textDecoration: 'none', fontWeight: 700 }}>
+                              ⇲ {T('طباعة الرخصة', 'Print License')}
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </SectionCard>
+                )}
+
+                {/* ── Documents (PDF downloads from Storage) ── */}
+                <SectionCard title={T('ملفات السجل (PDF)', 'CR Documents (PDF)')} color="#9b59b6">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {[
+                      { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!printAr?.downloadUrl },
+                      { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!printEn?.downloadUrl },
+                      { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!printContract?.downloadUrl && detail.entity_type_ar === 'شركة' },
+                    ].map(({ lang, label, available }) => available ? (
+                      <a key={lang}
+                        href={`${STORAGE_BASE}-${lang}.pdf`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(155,89,182,.1)', border: '1px solid rgba(155,89,182,.4)', borderRadius: 10, color: '#bb8fce', textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                        {label}
+                      </a>
+                    ) : (
+                      <div key={lang} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, color: 'var(--tx5)', fontSize: 12, fontWeight: 600 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        {label} — {T('غير متاح', 'N/A')}
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+
+                {/* ── Detailed managers + partners (full data, beyond the right-rail summary) ── */}
+                {(managersList.length > 0 || partnersList.length > 0) && (
+                  <SectionCard title={T('المدراء والشركاء — تفاصيل كاملة', 'Managers & Partners — Full')} color="#bb8fce">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx5)', marginBottom: 8 }}>{T('المدراء', 'Managers')} ({managersList.length})</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {managersList.map((m, i) => {
+                            const pi = m.personInfo || {}
+                            const name = [pi.firstNameAr, pi.fatherNameAr, pi.grandFatherNameAr, pi.familyNameAr].filter(Boolean).join(' ')
+                            return (
+                              <div key={i} style={{ padding: 10, background: 'rgba(255,255,255,.025)', borderRadius: 8, fontSize: 11.5 }}>
+                                <div style={{ fontWeight: 700, color: 'var(--tx2)' }}>{name || '—'}</div>
+                                <div style={{ color: 'var(--tx5)', marginTop: 3 }}>
+                                  {m.managerType?.managerTypeDescriptionAr} · {pi.nationality?.nationalityDescriptionAr}
+                                </div>
+                                {pi.identifierNo && <div style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--tx4)', direction: 'ltr', marginTop: 3 }}>{pi.identifierType?.identifierTypeDescAr}: {pi.identifierNo}</div>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx5)', marginBottom: 8 }}>{T('الشركاء', 'Partners')} ({partnersList.length})</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {partnersList.map((p, i) => {
+                            const pi = p.personInfo
+                            const name = pi
+                              ? [pi.firstNameAr, pi.fatherNameAr, pi.grandFatherNameAr, pi.familyNameAr].filter(Boolean).join(' ')
+                              : (p.saudiCompany?.nameAr || p.establishment?.nameAr || p.gccCompany?.nameAr || p.foreignCompany?.nameAr || '—')
+                            const share = p.partnerShare
+                            return (
+                              <div key={i} style={{ padding: 10, background: 'rgba(255,255,255,.025)', borderRadius: 8, fontSize: 11.5 }}>
+                                <div style={{ fontWeight: 700, color: 'var(--tx2)' }}>{name}</div>
+                                <div style={{ color: 'var(--tx5)', marginTop: 3 }}>{p.parityType?.parityTypeDescriptionAr}</div>
+                                {share?.totalContributionCount != null && (
+                                  <div style={{ color: 'var(--tx4)', marginTop: 3, direction: 'ltr' }}>
+                                    {T('الحصص', 'Shares')}: {num(share.totalContributionCount)}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </SectionCard>
+                )}
+
+                {/* ── Contact info ── */}
+                {(contact.phoneNo || contact.mobileNo || contact.email || contact.websiteURL) && (
+                  <SectionCard title={T('معلومات الاتصال', 'Contact Information')} color="#5dade2">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
+                      <FieldRow k={T('الهاتف', 'Phone')} v={contact.phoneNo} />
+                      <FieldRow k={T('الجوال', 'Mobile')} v={contact.mobileNo} />
+                      <FieldRow k={T('البريد الإلكتروني', 'Email')} v={contact.email} />
+                      <FieldRow k={T('الموقع', 'Website')} v={contact.websiteURL} />
+                    </div>
+                  </SectionCard>
+                )}
+              </>
+            )
+          })()}
         </div>
         )
       })()}
