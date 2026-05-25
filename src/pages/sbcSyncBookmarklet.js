@@ -637,6 +637,25 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     // /commercial-records) right before the English pass — that prompts
     // the portal to refresh its backend tokens, which our fetch interceptor
     // then re-captures into the "captured" map.
+    // 6-minute cooldown between Arabic and English print fetches.
+    // SBC enforces a ~5-minute per-CR rate limit on /get-print-cr-by-national-number
+    // regardless of culture (ar vs en) — so the second call for the same CR
+    // within that window comes back with a quota/cooldown error and no
+    // downloadUrl, which is why English PDFs were missing in earlier runs.
+    // We sleep 6 minutes (360s) to clear the window for every CR with margin,
+    // showing a live countdown so the user knows the sync isn't stuck.
+    const COOLDOWN_MS = 6 * 60 * 1000;
+    const cooldownStart = Date.now();
+    while (true) {
+      const elapsed = Date.now() - cooldownStart;
+      if (elapsed >= COOLDOWN_MS) break;
+      const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
+      msg('⏳ انتظار تبريد SBC قبل النسخة الإنجليزية · ' + m + ':' + (s < 10 ? '0' : '') + s);
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
     msg('تحديث الجلسة قبل النسخة الإنجليزية...');
     captured['ipapi-nl'] = null;
     try { await visit('/commercial-records'); } catch (_) {}

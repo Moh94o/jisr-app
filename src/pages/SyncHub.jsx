@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
 import SbcFacilities from './SbcFacilities.jsx'
-import QiwaFacilities from './QiwaFacilities.jsx'
 import { buildBookmarklet } from './sbcSyncBookmarklet.js'
-import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
 import { buildNafathBookmarklet } from './nafathSyncBookmarklet.js'
 import NafathInAppLogin from './NafathInAppLogin.jsx'
 import * as rolesService from '../services/rolesService.js'
@@ -321,21 +319,11 @@ export default function SyncHub({ sb, toast, user, lang }) {
         />
       )}
 
-      {focused === 'qiwa' && (
-        <QiwaDrilldown
-          sb={sb} toast={toast} user={user} lang={lang}
-          onBack={() => setFocused(null)}
-          filteredChanges={filteredChanges.filter(c => c.source_id === 'qiwa')}
-          personName={personName}
-          T={T}
-        />
-      )}
-
       {focused === 'gosi' && (
         <GosiPanel T={T} />
       )}
 
-      {focused && focused !== 'sbc' && focused !== 'qiwa' && focused !== 'gosi' && (
+      {focused && focused !== 'sbc' && focused !== 'gosi' && (
         <ComingSoonPanel sourceId={focused} sourceName={sourceName(focused)} onBack={() => setFocused(null)} T={T} />
       )}
     </div>
@@ -964,27 +952,6 @@ function SbcDrilldown({ sb, toast, user, lang, persons, syncPersonId, onBack, fi
               ))}
             </div>
           )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════
-// Qiwa drill-down — mirrors the SBC panel shape.
-// ═══════════════════════════════════════════════════════════════
-function QiwaDrilldown({ sb, toast, user, lang, onBack, filteredChanges, personName, T }) {
-  return (
-    <div>
-      <QiwaFacilities sb={sb} toast={toast} user={user} lang={lang} />
-      {filteredChanges.length > 0 && (
-        <div style={{ marginTop: 20, padding: 16, borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', marginBottom: 10 }}>{T('تغييرات قوى', 'Qiwa Changes')}</div>
-          {filteredChanges.slice(0, 20).map((c, i) => (
-            <div key={c.id} style={{ fontSize: 11.5, padding: '6px 0', borderBottom: i < Math.min(filteredChanges.length, 20) - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', color: 'var(--tx2)' }}>
-              {changeLabel(c, T)} <span style={{ color: 'var(--tx4)', fontSize: 10 }}>· {personName(c.person_id)} · {fmtRelative(c.detected_at, lang)}</span>
-            </div>
-          ))}
         </div>
       )}
     </div>
