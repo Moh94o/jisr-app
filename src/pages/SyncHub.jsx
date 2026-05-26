@@ -159,7 +159,6 @@ const SOURCE_GRADIENT = {
   gosi: 'linear-gradient(135deg, rgba(52,131,180,.12), rgba(52,131,180,.02))',
   muqeem: 'linear-gradient(135deg, rgba(155,89,182,.12), rgba(155,89,182,.02))',
   mudad: 'linear-gradient(135deg, rgba(230,126,34,.12), rgba(230,126,34,.02))',
-  zatca: 'linear-gradient(135deg, rgba(192,57,43,.12), rgba(192,57,43,.02))',
   ajeer: 'linear-gradient(135deg, rgba(6,182,212,.12), rgba(6,182,212,.02))',
   chambers: 'linear-gradient(135deg, rgba(236,72,153,.12), rgba(236,72,153,.02))',
 }
@@ -171,7 +170,6 @@ const SOURCE_ACCENT = {
   chambers: '#06b6d4', // الغرف التجارية — أزرق مختلف (تركوازي)
   ajeer: '#eab308',    // أجير — أصفر
   mudad: '#0ea5e9',    // مدد — سماوي
-  zatca: '#7dd3fc',    // هيئة الزكاة والدخل — سماوي فاتح
 }
 
 // Source-specific header meta — badge label and fallback description when
@@ -182,7 +180,6 @@ const SOURCE_META = {
   gosi:     { badgeAr: 'GOSI · التأمينات',       badgeEn: 'GOSI',                 descAr: 'مزامنة اشتراكات التأمينات الاجتماعية والمشتركين.',                                     descEn: 'Sync GOSI subscriptions and registered employees.' },
   muqeem:   { badgeAr: 'مقيم · الجوازات',        badgeEn: 'Muqeem · MOI',         descAr: 'مزامنة بيانات الإقامات والرخص والمقيمين.',                                             descEn: 'Sync iqama, permits and resident data.' },
   mudad:    { badgeAr: 'مدد · حماية الأجور',     badgeEn: 'Mudad · WPS',          descAr: 'مزامنة الرواتب وحماية الأجور.',                                                       descEn: 'Sync payroll and wage-protection records.' },
-  zatca:    { badgeAr: 'ZATCA · الزكاة والدخل',  badgeEn: 'ZATCA',                descAr: 'مزامنة الإقرارات الضريبية والفواتير الإلكترونية.',                                     descEn: 'Sync tax filings and e-invoices.' },
   ajeer:    { badgeAr: 'أجير · العمل المؤقت',    badgeEn: 'Ajeer',                descAr: 'مزامنة عقود العمل المؤقت.',                                                            descEn: 'Sync Ajeer temporary-work contracts.' },
   chambers: { badgeAr: 'الغرف التجارية',         badgeEn: 'Chambers',             descAr: 'مزامنة شهادات الغرف التجارية والعضويات.',                                              descEn: 'Sync chamber certifications and memberships.' },
 }
@@ -230,7 +227,6 @@ export default function SyncHub({ sb, toast, user, lang }) {
       { id: 'chambers', name_ar: 'الغرف التجارية', name_en: 'Chambers', sort_order: 5 },
       { id: 'ajeer', name_ar: 'أجير', name_en: 'Ajeer', sort_order: 6 },
       { id: 'mudad', name_ar: 'مدد', name_en: 'Mudad', sort_order: 7 },
-      { id: 'zatca', name_ar: 'هيئة الزكاة والدخل', name_en: 'ZATCA', sort_order: 8 },
     ]
     const dbSources = src.data || []
     const merged = fallbackSources.map(fb => dbSources.find(d => d.id === fb.id) || fb)
@@ -466,7 +462,6 @@ const SOURCE_ICON = {
   gosi:     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
   muqeem:   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>,
   mudad:    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-  zatca:    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>,
   ajeer:    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
   chambers: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
 }

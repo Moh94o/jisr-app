@@ -7,7 +7,6 @@ import {
   Trash2, X
 } from 'lucide-react'
 import * as personsService from '../../services/personsService.js'
-import { listForwardersByPerson } from '../../services/smsForwarderService.js'
 import PersonFormModal from '../../components/persons/PersonFormModal.jsx'
 import OfficialStampBadge from '../../components/ui/OfficialStampBadge.jsx'
 import RolePageRouter from './roles/RolePageRouter.jsx'
@@ -52,7 +51,6 @@ const SYNC_SOURCES = [
   { id: 'chambers', label: 'الغرف التجارية',         color: '#06b6d4', Icon: Building2  },
   { id: 'ajeer',    label: 'أجير',                   color: '#eab308', Icon: Users      },
   { id: 'mudad',    label: 'مدد',                    color: '#0ea5e9', Icon: Calendar   },
-  { id: 'zatca',    label: 'هيئة الزكاة والدخل',     color: '#7dd3fc', Icon: Flag       },
 ]
 
 const RoleChip = ({ role, small }) => {
@@ -88,7 +86,8 @@ const StatusBadge = ({ status }) => {
 }
 
 function PersonsList({ toast, countries, branches, idTypes, genders, onOpenDetail, user }) {
-  const isGM = !user?.roles || user?.roles?.name_ar === 'المدير العام' || user?.roles?.name_en === 'General Manager'
+  // Roles join is aliased as `role` (singular) on the user payload — the old `roles` key never resolved.
+  const isGM = user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager'
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -660,22 +659,19 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
   const [person, setPerson] = useState(null)
   const [owned, setOwned] = useState([])
   const [managed, setManaged] = useState([])
-  const [forwarders, setForwarders] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [pg, o, m, fwds] = await Promise.all([
+      const [pg, o, m] = await Promise.all([
         personsService.getPerson(personId),
         personsService.listOwnedFacilities(personId),
         personsService.listManagedFacilities(personId),
-        listForwardersByPerson(personId, { includeDeleted: true }),
       ])
       setProfile(pg.profile); setPerson(pg.person)
       setOwned(o); setManaged(m)
-      setForwarders(fwds || [])
     } catch (e) {
       toast?.('خطأ: ' + (e.message || ''))
     } finally {
@@ -684,11 +680,6 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
   }, [personId, toast])
 
   useEffect(() => { load() }, [load])
-
-  // Forwarder badge state — counts active vs deleted to drive row UI.
-  const fwdActive = forwarders.filter(f => !f.deleted_at && f.is_active).length
-  const fwdHasAny = forwarders.length > 0
-  const fwdAllDeleted = fwdHasAny && forwarders.every(f => f.deleted_at)
 
   const nationality = useMemo(() => {
     if (!person?.nationality_id || !countries) return null
@@ -833,15 +824,6 @@ function PersonDetail({ personId, onBack, onOpenRole, toast, countries, branches
               assigned={(profile.role_flags || []).includes('tracker')} color="#06b6d4" toast={toast}
               onOpen={() => openRole('tracker')}
               linkLabel="تعيين" assignedLabel="معيّن" />
-            <ProfileRow Icon={Phone}
-              label="ملف SMS Forwarder"
-              linked={fwdActive > 0}
-              color="#f39c12"
-              toast={toast}
-              count={fwdActive || null}
-              unit={fwdActive ? 'حساب' : null}
-              linkLabel="فتح"
-              onOpen={() => openRole('sms_forwarder')} />
           </div>
 
           <div className="prs-card">
@@ -1139,7 +1121,6 @@ export default function PersonsPage({ toast, user }) {
   const [view, setView] = useState('list')
   const [detailId, setDetailId] = useState(null)
   const [roleKey, setRoleKey] = useState(null)
-  const [forwarderId, setForwarderId] = useState(null)
   const [countries, setCountries] = useState([])
   const [branches, setBranches] = useState([])
   const [idTypes, setIdTypes] = useState([])
@@ -1155,14 +1136,11 @@ export default function PersonsPage({ toast, user }) {
   useEffect(() => {
     const parseHash = () => {
       const h = window.location.hash.replace(/^#/, '')
-      // /admin/persons/{id}/role/{key}/{forwarderId}? — forwarderId optional, sms_forwarder only
-      const mRoleSub = h.match(/^\/?admin\/persons\/([a-f0-9-]{36})\/role\/([a-z_]+)\/([a-f0-9-]{36})/i)
-      if (mRoleSub) { setDetailId(mRoleSub[1]); setRoleKey(mRoleSub[2]); setForwarderId(mRoleSub[3]); setView('role'); return }
       const mRole = h.match(/^\/?admin\/persons\/([a-f0-9-]{36})\/role\/([a-z_]+)/i)
-      if (mRole) { setDetailId(mRole[1]); setRoleKey(mRole[2]); setForwarderId(null); setView('role'); return }
+      if (mRole) { setDetailId(mRole[1]); setRoleKey(mRole[2]); setView('role'); return }
       const m = h.match(/^\/?admin\/persons\/([a-f0-9-]{36})/i)
-      if (m) { setDetailId(m[1]); setRoleKey(null); setForwarderId(null); setView('detail') }
-      else if (/^\/?admin\/persons/i.test(h)) { setDetailId(null); setRoleKey(null); setForwarderId(null); setView('list') }
+      if (m) { setDetailId(m[1]); setRoleKey(null); setView('detail') }
+      else if (/^\/?admin\/persons/i.test(h)) { setDetailId(null); setRoleKey(null); setView('list') }
     }
     parseHash()
     window.addEventListener('hashchange', parseHash)
@@ -1170,29 +1148,26 @@ export default function PersonsPage({ toast, user }) {
   }, [])
 
   const openDetail = (id) => {
-    setDetailId(id); setRoleKey(null); setForwarderId(null); setView('detail')
+    setDetailId(id); setRoleKey(null); setView('detail')
     try { window.history.replaceState(null, '', '#/admin/persons/' + id) } catch {}
   }
-  const openRole = (id, key, fwdId = null) => {
-    setDetailId(id); setRoleKey(key); setForwarderId(fwdId); setView('role')
-    const path = fwdId
-      ? `#/admin/persons/${id}/role/${key}/${fwdId}`
-      : `#/admin/persons/${id}/role/${key}`
-    try { window.history.replaceState(null, '', path) } catch {}
+  const openRole = (id, key) => {
+    setDetailId(id); setRoleKey(key); setView('role')
+    try { window.history.replaceState(null, '', `#/admin/persons/${id}/role/${key}`) } catch {}
   }
   const goBackToDetail = () => {
-    setRoleKey(null); setForwarderId(null); setView('detail')
+    setRoleKey(null); setView('detail')
     try { window.history.replaceState(null, '', '#/admin/persons/' + detailId) } catch {}
   }
   const goBack = () => {
-    setView('list'); setDetailId(null); setRoleKey(null); setForwarderId(null)
+    setView('list'); setDetailId(null); setRoleKey(null)
     try { window.history.replaceState(null, '', '#/admin/persons') } catch {}
   }
 
   return (
     <div style={{ width: '100%', minHeight: '100%' }}>
       {view === 'role' && detailId && roleKey ? (
-        <RolePageRouter roleKey={roleKey} personId={detailId} forwarderId={forwarderId} onBack={goBackToDetail}
+        <RolePageRouter roleKey={roleKey} personId={detailId} onBack={goBackToDetail}
           toast={toast} countries={countries} branches={branches} idTypes={idTypes} genders={genders} user={user} />
       ) : view === 'detail' && detailId ? (
         <PersonDetail personId={detailId} onBack={goBack} onOpenRole={(key, fwdId) => openRole(detailId, key, fwdId)}

@@ -56,22 +56,6 @@ function parseCSVLine(line) {
   return result;
 }
 
-// ═══ UI-3: واتساب ذكي ═══
-export function sendWhatsApp(phone, message) {
-  if (!phone) return;
-  const ph = phone.replace(/\D/g, '').replace(/^0/, '966');
-  const msg = encodeURIComponent(message);
-  window.open(`https://wa.me/${ph}?text=${msg}`, '_blank');
-}
-
-export function buildWhatsAppMessage(template, variables = {}) {
-  let msg = template;
-  Object.entries(variables).forEach(([key, value]) => {
-    msg = msg.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '');
-  });
-  return msg;
-}
-
 // ═══ UI-4: طباعة PDF ═══
 export function printContent(title, htmlContent, lang = 'ar') {
   const w = window.open('', '_blank');

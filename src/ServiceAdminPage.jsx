@@ -321,7 +321,7 @@ const [overrideEditor,setOverrideEditor]=useState(null)
 const [searchQ,setSearchQ]=useState('')
 useEffect(()=>{
   const sb=getSupabase();if(!sb)return
-  sb.from('branches').select('id,branch_code').is('deleted_at',null).order('branch_code').then(({data})=>setBranches(data||[]))
+  sb.from('branches').select('id,branch_code').is('deleted_at',null).order('branch_code').then(({data,error})=>{if(error){console.error('Failed to load branches',error);toast(T('تعذّر تحميل المكاتب','Failed to load branches'))}else setBranches(data||[])})
 },[])
 useEffect(()=>{writeBranchOverrides(branchOverrides)},[branchOverrides])
 const getOverridesForSvc=(svcId)=>{
@@ -372,7 +372,22 @@ const [occupations,setOccupations]=useState([])
 useEffect(()=>{
   if(expanded!=='kafala_transfer'||occupations.length)return
   const sb=getSupabase();if(!sb)return
-  ;(async()=>{const{data:arch}=await sb.from('lookup_items').select('id,lookup_categories!inner(category_key)').eq('code','archived').eq('lookup_categories.category_key','occupation_category').maybeSingle();let q=sb.from('occupations').select('id,name_ar,name_en').eq('is_active',true).order('sort_order',{nullsFirst:false}).order('name_ar').limit(5000);if(arch?.id)q=q.neq('category_id',arch.id);const{data}=await q;if(Array.isArray(data))setOccupations(data)})()
+  // Abort flag prevents a stale response from overwriting state if the section
+  // is closed/reopened while the previous request is still pending.
+  let cancelled=false
+  ;(async()=>{
+    try{
+      const{data:arch}=await sb.from('lookup_items').select('id,lookup_categories!inner(category_key)').eq('code','archived').eq('lookup_categories.category_key','occupation_category').maybeSingle()
+      if(cancelled)return
+      let q=sb.from('occupations').select('id,name_ar,name_en').eq('is_active',true).order('sort_order',{nullsFirst:false}).order('name_ar').limit(5000)
+      if(arch?.id)q=q.neq('category_id',arch.id)
+      const{data,error}=await q
+      if(cancelled)return
+      if(error){console.error('Failed to load occupations',error);toast(T('تعذّر تحميل المهن','Failed to load occupations'));return}
+      if(Array.isArray(data))setOccupations(data)
+    }catch(e){if(!cancelled){console.error('Failed to load occupations',e);toast(T('تعذّر تحميل المهن','Failed to load occupations'))}}
+  })()
+  return()=>{cancelled=true}
 },[expanded,occupations.length])
 
 const getState=(id)=>{

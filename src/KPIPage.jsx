@@ -14,15 +14,18 @@ const GLASS = {
   boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
 }
 
-export default function KPIPage({ sb, toast, user, lang }) {
+export default function KPIPage({ sb, toast, user, lang, branchId }) {
   const isAr = lang !== 'en'
   const T = (a, e) => isAr ? a : e
+  // Lock non-GM users to their primary branch; GM can still pivot via branchId prop.
+  const isGM = user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager'
+  const lockedBranchId = isGM ? null : (user?.primary_branch_id || user?.branch_id || null)
 
   const [targets, setTargets] = useState([])
   const [loading, setLoading] = useState(true)
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
   const [branches, setBranches] = useState([])
-  const [branchFilter, setBranchFilter] = useState(null)
+  const [branchFilter, setBranchFilter] = useState(lockedBranchId)
   const [editPop, setEditPop] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -50,14 +53,16 @@ export default function KPIPage({ sb, toast, user, lang }) {
     const { data: br } = await sb.from('branches').select('id,name_ar').is('deleted_at', null).order('name_ar')
     setBranches(br || [])
 
-    // تحميل بيانات آخر 6 أشهر للرسم البياني
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-    const { data: hist } = await sb.from('monthly_targets')
+    // تحميل بيانات آخر 6 أشهر للرسم البياني (snap to the 1st so we don't drop early days of the start month).
+    const start = new Date()
+    start.setMonth(start.getMonth() - 6)
+    start.setDate(1)
+    const startISO = start.getFullYear() + '-' + String(start.getMonth() + 1).padStart(2, '0') + '-01'
+    let histQ = sb.from('monthly_targets')
       .select('target_month,metric_key,target_value,actual_value')
-      .gte('target_month', sixMonthsAgo.toISOString().slice(0, 10))
-      .is('branch_id', branchFilter || null)
-      .order('target_month')
+      .gte('target_month', startISO)
+    histQ = branchFilter ? histQ.eq('branch_id', branchFilter) : histQ.is('branch_id', null)
+    const { data: hist } = await histQ.order('target_month')
     setHistory(hist || [])
 
     setLoading(false)
@@ -168,9 +173,10 @@ export default function KPIPage({ sb, toast, user, lang }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input type="month" value={month} onChange={e => setMonth(e.target.value)}
           style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s', direction: 'ltr' }} />
-        <select value={branchFilter || ''} onChange={e => setBranchFilter(e.target.value || null)}
-          style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
-          <option value="">{T('كل المكاتب', 'All Branches')}</option>
+        <select value={branchFilter || ''} onChange={e => setBranchFilter(e.target.value || null)} disabled={!isGM}
+          title={!isGM ? T('فرعك مقفل — اطلب من المدير العام للتغيير', 'Locked to your branch') : undefined}
+          style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: isGM ? 'pointer' : 'not-allowed', opacity: isGM ? 1 : .6, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
+          {isGM && <option value="">{T('كل المكاتب', 'All Branches')}</option>}
           {branches.map(b => <option key={b.id} value={b.id}>{b.name_ar}</option>)}
         </select>
         <button onClick={refreshActuals}

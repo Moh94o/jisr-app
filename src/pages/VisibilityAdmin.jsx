@@ -72,9 +72,9 @@ export default function VisibilityAdmin({ lang, toast, nav, hubTabs, visibility,
       {/* Quick actions */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" onClick={showAll} style={quickBtn}>{isAr ? 'إظهار الكل' : 'Show all'}</button>
-        <button type="button" onClick={() => hideAllExcept(['admin_hub', 'admin_visibility', 'finance_hub', 'transfer_calc', 'otp_messages', 'fab_transfer_calc'])}
+        <button type="button" onClick={() => hideAllExcept(['admin_hub', 'admin_visibility', 'finance_hub', 'transfer_calc', 'fab_transfer_calc'])}
           style={{ ...quickBtn, borderColor: 'rgba(39,160,70,.3)', background: 'rgba(39,160,70,.06)', color: C.ok }}>
-          {isAr ? 'عرض مبسّط (التنازل + الرسائل فقط)' : 'Minimal (Transfer Calc + SMS only)'}
+          {isAr ? 'عرض مبسّط (التنازل فقط)' : 'Minimal (Transfer Calc only)'}
         </button>
       </div>
 

@@ -14,10 +14,8 @@ import PersonsPage from './pages/admin/PersonsPage.jsx'
 import ClientsPage from './pages/admin/ClientsPage.jsx'
 import AgentsPage from './pages/admin/AgentsPage.jsx'
 import PermissionsPage from './pages/admin/PermissionsPage.jsx'
-import OTPMessages from './pages/OTPMessages.jsx'
 import TransactionsPage from './pages/TransactionsPage.jsx'
 import PaymentsPage from './pages/PaymentsPage.jsx'
-import WhatsappInbox from './pages/WhatsappInbox.jsx'
 import StampBadge from './components/ui/StampBadge.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
 import SyncHub from './pages/SyncHub.jsx'
@@ -25,7 +23,7 @@ import VisibilityAdmin, { getVisibility, isItemVisible } from './pages/Visibilit
 import { FileText, Sparkles, Tag } from 'lucide-react'
 
 import { getSupabase } from './lib/supabase.js'
-import { exportToExcel, importFromCSV, sendWhatsApp, buildWhatsAppMessage, printContent, generateClientStatement, checkDuplicate, setupKeyboardShortcuts, calculateNitaqat } from './lib/utils.js'
+import { exportToExcel, importFromCSV, printContent, generateClientStatement, checkDuplicate, setupKeyboardShortcuts, calculateNitaqat } from './lib/utils.js'
 
 const C = { dk:'#171717', md:'#222222', fm:'#1e1e1e', gold:'#D4A017', gl:'#dcc06e', brd:'rgba(255,255,255,.13)', red:'#c0392b', blue:'#3483b4', ok:'#27a046' }
 const F = "'Cairo','Tajawal',sans-serif"
@@ -161,7 +159,6 @@ const[forgotBusy,setForgotBusy]=useState(false);
 const[forgotSent,setForgotSent]=useState(false);
 const[showReg,setShowReg]=useState(false);
 const[reg,setReg]=useState({nationality_id:'',nationality_ar:'',name_ar:'',name_en:'',email:'',phone:'',id_number:'',branch_id:'',pw:'',pw2:''});
-const[regHrsd,setRegHrsd]=useState({phase:'idle',sessionToken:null,captchaImage:null,captchaInput:'',attempts:0,error:null,manual:false,triedIqama:''});
 const[regBusy,setRegBusy]=useState(false);
 const[regDone,setRegDone]=useState(false);
 const[regStep,setRegStep]=useState(1);
@@ -211,10 +208,6 @@ toast(ar?'تم إرسال رابط إعادة التعيين':'Reset link sent s
 catch(err){toast((ar?'خطأ: ':'Error: ')+translateErr(err,lang),'error')}
 setForgotBusy(false)};
 
-const regCallHrsd=async(body)=>{const res=await fetch('/.netlify/functions/check-hrsd-worker',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);return data};
-const regStartHrsd=async(iqama)=>{setRegHrsd(c=>({...c,phase:'loading',error:null,triedIqama:iqama}));try{const r=await regCallHrsd({action:'init'});setRegHrsd(c=>({...c,phase:'captcha',sessionToken:r.session,captchaImage:r.captchaImage,captchaInput:''}))}catch(e){setRegHrsd(c=>({...c,phase:'idle',error:e.message,manual:true}))}};
-const regSubmitHrsd=async()=>{if(!regHrsd.captchaInput||regHrsd.captchaInput.length<3)return;setRegHrsd(c=>({...c,phase:'verifying',error:null}));try{const r=await regCallHrsd({action:'verify',iqama:reg.id_number,captcha:regHrsd.captchaInput,session:regHrsd.sessionToken});if(r.status==='invalid_captcha'||r.status==='unknown'){const next=(regHrsd.attempts||0)+1;if(next>=3){setRegHrsd({phase:'idle',sessionToken:null,captchaImage:null,captchaInput:'',attempts:0,error:null,manual:true,triedIqama:reg.id_number});return}const fresh=await regCallHrsd({action:'init'});setRegHrsd(c=>({...c,phase:'captcha',sessionToken:fresh.session,captchaImage:fresh.captchaImage,captchaInput:'',error:lang==='ar'?`رمز التحقق غير صحيح — ${next+1}/3`:`Invalid captcha — ${next+1}/3`,attempts:next}));return}if(r.code==='SESSION_EXPIRED'){const fresh=await regCallHrsd({action:'init'});setRegHrsd(c=>({...c,phase:'captcha',sessionToken:fresh.session,captchaImage:fresh.captchaImage,captchaInput:'',error:lang==='ar'?'انتهت الجلسة':'Session expired'}));return}if(r.status==='found'&&r.name){setReg(p=>({...p,name_ar:r.name}));setRegHrsd(c=>({...c,phase:'fetched',error:null}))}else{setRegHrsd(c=>({...c,phase:'idle',manual:true,error:lang==='ar'?'لم يتم العثور على البيانات':'Not found'}))}}catch(e){setRegHrsd(c=>({...c,phase:'idle',error:e.message,manual:true}))}};
-
 const doRegister=async()=>{
 if(!sb){toast(lang==='ar'?'خطأ: لا يوجد اتصال':'Error: No connection');return}
 setRegBusy(true);
@@ -227,11 +220,26 @@ const nameAr=collapseSpaces(reg.name_ar);
 const nameEn=toTitleCase(reg.name_en);
 const isSaudi=reg.nationality_ar==='سعودي';
 const idTypeCode=isSaudi?'national_id':'iqama';
+// Pre-flight uniqueness — catches the common case of someone re-registering, so we never
+// create an orphan auth.users row when persons/users insert is doomed to fail.
+const[{data:dupId},{data:dupEmail}]=await Promise.all([
+sb.from('persons').select('id').eq('id_number',idDigits).limit(1),
+sb.from('users').select('id').eq('email',email).limit(1)
+]);
+if(dupId&&dupId.length){setRegErr({id_number:ar?'رقم الهوية مسجل مسبقاً':'ID number already registered'});throw new Error(ar?'رقم الهوية مسجل مسبقاً':'ID number already registered')}
+if(dupEmail&&dupEmail.length){setRegErr({email:ar?'البريد الإلكتروني مسجّل مسبقاً':'Email already registered'});throw new Error(ar?'البريد الإلكتروني مسجّل مسبقاً':'Email already registered')}
 const{data:auth,error:e1}=await sb.auth.signUp({email,password:reg.pw});
 if(e1){if(/already.*registered|exists/i.test(e1.message))setRegErr({email:ar?'البريد الإلكتروني مسجّل مسبقاً':'Email already registered'});throw e1}
 if(!auth.user)throw new Error(ar?'فشل إنشاء حساب المصادقة':'Failed to create auth user');
-const{error:rpcError}=await sb.rpc('register_new_user',{p_auth_user_id:auth.user.id,p_nickname:nameAr,p_id_number:idDigits,p_id_type_code:idTypeCode,p_nationality_id:reg.nationality_id,p_personal_phone:phoneFull,p_email:email});
-if(rpcError){console.error('RPC register_new_user failed:',rpcError);throw new Error(ar?'تم إنشاء حساب المصادقة لكن فشل إعداد الملف الشخصي — تواصل مع الدعم':'Auth created but profile setup failed — contact support')}
+const{error:rpcError}=await sb.rpc('register_new_user',{p_auth_user_id:auth.user.id,p_name_ar:nameAr,p_name_en:nameEn,p_id_number:idDigits,p_id_type_code:idTypeCode,p_nationality_id:reg.nationality_id,p_personal_phone:phoneFull,p_email:email,p_branch_id:reg.branch_id});
+if(rpcError){
+// Race-condition fallback: pre-flight passed but RPC still failed (another concurrent register
+// won). The auth.users row is orphaned; we sign out so the session is at least invalidated.
+// TODO: add a service-role Edge function to actually delete the orphaned auth user.
+console.error('RPC register_new_user failed:',rpcError);
+await sb.auth.signOut().catch(()=>{});
+throw new Error(ar?'تم إنشاء حساب المصادقة لكن فشل إعداد الملف الشخصي — تواصل مع الدعم':'Auth created but profile setup failed — contact support')
+}
 await sb.auth.signOut();
 setReg({nationality_id:'',nationality_ar:'',name_ar:'',name_en:'',email:'',phone:'',id_number:'',branch_id:'',pw:'',pw2:''});
 setRegDone(true);toast(ar?'تم تسجيل الحساب بنجاح':'Account registered successfully');
@@ -255,24 +263,11 @@ setReg(p=>p.name_en===translated?p:{...p,name_en:translated});
 return()=>{if(regTlTimerRef.current)clearTimeout(regTlTimerRef.current)};
 },[reg.name_ar]);
 
-// Auto-trigger HRSD when non-Saudi enters valid Iqama
-useEffect(()=>{
-if(!showReg)return;
-const isSaudi=reg.nationality_ar==='سعودي';
-if(isSaudi||!reg.nationality_ar)return;
-const iq=reg.id_number;
-if(!/^2\d{9}$/.test(iq))return;
-if(regHrsd.triedIqama===iq)return;
-if(regHrsd.phase!=='idle')return;
-if(regHrsd.manual)return;
-regStartHrsd(iq);
-},[reg.id_number,reg.nationality_ar,showReg]);
-
 const regFirstErr=Object.values(regErr)[0];
 const RegErrBadge=regFirstErr?<div style={{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',display:'flex',alignItems:'center',gap:6,fontSize:'clamp(10px,1.4vw,12px)',color:'rgba(192,57,43,.85)',fontWeight:600,maxWidth:'60%',pointerEvents:'none',whiteSpace:'nowrap'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0}}><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span style={{overflow:'hidden',textOverflow:'ellipsis'}}>{regFirstErr}</span></div>:null;
 
 return(<div className='login-wrap' style={{display:'flex',height:'100vh',direction:L.dir,fontFamily:F,background:'var(--bg)',overflow:'hidden'}}><div className='login-form' style={{width:'100%',maxWidth:520,flexShrink:0,background:'var(--modal-bg)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',padding:'clamp(28px,6vh,70px) clamp(18px,6vw,80px) clamp(20px,4vw,44px)',position:'relative',boxShadow:lang==='ar'?'-28px 0 70px rgba(0,0,0,.38)':'28px 0 70px rgba(0,0,0,.38)',overflow:'hidden'}}><LangBtn L={L} switchLang={switchLang} abs/><div style={{textAlign:'center',marginBottom:'clamp(20px,4vw,32px)',width:'100%',display:'flex',flexDirection:'column',alignItems:'center',gap:14}}><div style={{width:64,height:64,borderRadius:'50%',background:'linear-gradient(145deg,rgba(212,160,23,.14),rgba(212,160,23,.04))',border:'1px solid rgba(212,160,23,.22)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 8px 24px rgba(212,160,23,.12), inset 0 1px 0 rgba(255,255,255,.06)'}}><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2.5" fill="rgba(212,160,23,.18)" stroke="#D4A017" strokeWidth="1.6"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="#D4A017" strokeWidth="1.6" strokeLinecap="round"/><circle cx="12" cy="16" r="1.5" fill="#D4A017"/></svg></div><div><div style={{fontSize:'clamp(22px,3.5vw,28px)',fontWeight:700,color:'var(--tx)',letterSpacing:'-.5px',lineHeight:1.2}}>{L.title}</div><div style={{fontSize:14,fontWeight:500,color:'rgba(255,255,255,.55)',marginTop:8}}>{L.sub}</div></div></div><form onSubmit={go} style={{width:'100%',display:'flex',flexDirection:'column',gap:'clamp(10px,1.8vw,16px)'}}><div><div style={{fontSize:14,fontWeight:500,color:'rgba(255,255,255,.6)',marginBottom:8}}>{L.email}</div><div style={{position:'relative'}}><span style={{position:'absolute',top:'50%',transform:'translateY(-50%)',[lang==='ar'?'right':'left']:16,pointerEvents:'none',display:'flex'}}><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="5" y="2" width="14" height="20" rx="2" stroke="#D4A017" strokeWidth="1.5"/><circle cx="12" cy="9" r="2.2" fill="#D4A017"/><path d="M8 15c0-1.5 1.6-2.8 4-2.8s4 1.3 4 2.8" stroke="#D4A017" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="18" x2="15" y2="18" stroke="#D4A017" strokeWidth="1.5" strokeLinecap="round"/></svg></span><input value={em} onChange={e=>{setEm(e.target.value.replace(/\D/g,'').slice(0,10));setLoginErr('')}} type="text" inputMode="numeric" maxLength={10} placeholder="1XXXXXXXXX" required style={finS}/></div></div><div><div style={{fontSize:14,fontWeight:500,color:'rgba(255,255,255,.6)',marginBottom:8}}>{L.pass}</div><div style={{position:'relative'}}><span style={{position:'absolute',top:'50%',transform:'translateY(-50%)',[lang==='ar'?'right':'left']:16,pointerEvents:'none',display:'flex'}}>{pw?<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2.5" stroke="#D4A017" strokeWidth="1.5"/><path d="M7 11V7a5 5 0 019.9-1" stroke="#D4A017" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="16" r="1.5" fill="#D4A017"/></svg>:ICO.lock}</span><input value={pw} onChange={e=>{setPw(arToEn(e.target.value));setLoginErr('')}} type={showPw?'text':'password'} placeholder="······" required style={finS}/><button type="button" onClick={()=>setShowPw(!showPw)} style={{position:'absolute',top:'50%',transform:'translateY(-50%)',[lang==='ar'?'left':'right']:14,background:'none',border:'none',cursor:'pointer',display:'flex',padding:4}}>{showPw?ICO.eyeOn:ICO.eyeOff}</button></div></div><div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}><label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}} onClick={()=>setRem(!rem)}><div style={{width:16,height:16,borderRadius:5,border:rem?'none':'1.5px solid rgba(255,255,255,.3)',background:rem?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',transition:'.2s',flexShrink:0}}>{rem&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#141414" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}</div><span style={{fontSize:'clamp(10px,1.5vw,12px)',fontWeight:600,color:rem?'rgba(255,255,255,.75)':'rgba(255,255,255,.55)'}}>{L.remember}</span></label><button type="button" onClick={()=>{setForgotEmail(em);setForgotSent(false);setShowForgot(true)}} style={{fontSize:'clamp(10px,1.5vw,12px)',fontWeight:700,color:'rgba(212,160,23,.65)',textDecoration:'none',background:'none',border:'none',cursor:'pointer',fontFamily:F,padding:0}}>{L.forgot}</button></div><button type="submit" disabled={busy} style={{...goldS,marginTop:6,opacity:busy?.7:1,gap:10,flexShrink:0}}>{busy?<div style={{width:20,height:20,border:'2.5px solid rgba(14,14,14,.3)',borderTopColor:C.dk,borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:L.login}</button></form>
-<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginTop:18,width:'100%',flexShrink:0,fontSize:13,fontFamily:F}}><span style={{color:'rgba(255,255,255,.55)',fontWeight:500}}>{lang==='ar'?'ليس لديك حساب؟':'No account?'}</span><button onClick={()=>{setReg({nationality_id:'',nationality_ar:'',name_ar:'',name_en:'',email:'',phone:'',id_number:'',branch_id:'',pw:'',pw2:''});setRegHrsd({phase:'idle',sessionToken:null,captchaImage:null,captchaInput:'',attempts:0,error:null,manual:false,triedIqama:''});setRegErr({});setRegDone(false);setShowReg(true)}} style={{background:'none',border:'none',padding:0,cursor:'pointer',fontFamily:F,fontSize:13,fontWeight:600,color:C.gold,textDecoration:'underline',textUnderlineOffset:'3px'}}>{lang==='ar'?'تسجيل حساب جديد':'Create New Account'}</button></div>
+<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginTop:18,width:'100%',flexShrink:0,fontSize:13,fontFamily:F}}><span style={{color:'rgba(255,255,255,.55)',fontWeight:500}}>{lang==='ar'?'ليس لديك حساب؟':'No account?'}</span><button onClick={()=>{setReg({nationality_id:'',nationality_ar:'',name_ar:'',name_en:'',email:'',phone:'',id_number:'',branch_id:'',pw:'',pw2:''});setRegErr({});setRegDone(false);setShowReg(true)}} style={{background:'none',border:'none',padding:0,cursor:'pointer',fontFamily:F,fontSize:13,fontWeight:600,color:C.gold,textDecoration:'underline',textUnderlineOffset:'3px'}}>{lang==='ar'?'تسجيل حساب جديد':'Create New Account'}</button></div>
 {!gmDone&&<button onClick={onSetup} style={{width:'100%',height:36,marginTop:6,background:'none',border:'none',fontFamily:F,fontSize:'clamp(9px,1.3vw,10px)',fontWeight:700,color:C.gold,cursor:'pointer'}}>{lang==='ar'?'إعداد أولي (المدير العام فقط)':'Initial Setup (Admin only)'}</button>}
 </div><BrandPanel lang={lang} L={L}/>
 {showForgot&&(()=>{
@@ -347,7 +342,7 @@ const NatField=<div><div style={lblS}>{lang==='ar'?'الجنسية':'Nationality
 <input value={natSearch} onChange={e=>setNatSearch(e.target.value)} placeholder={lang==='ar'?'بحث...':'Search...'} autoFocus style={{width:'100%',height:32,padding:'0 12px 0 30px',border:'1px solid rgba(255,255,255,.07)',borderRadius:8,background:'linear-gradient(180deg,#323232 0%,#262626 100%)',fontFamily:F,fontSize:13,fontWeight:500,color:'var(--tx)',outline:'none',textAlign:'center',boxSizing:'border-box'}}/>
 </div></div>
 <div style={{flex:1,overflowY:'auto',scrollbarWidth:'none'}}>
-{filteredNats.map(n=><div key={n.ar} className="nat2-item" onClick={()=>{setReg(p=>({...p,nationality_ar:n.ar,nationality_id:n.id||'',name_ar:'',name_en:'',id_number:''}));setNatOpen(false);setNatSearch('');setRegHrsd({phase:'idle',sessionToken:null,captchaImage:null,captchaInput:'',attempts:0,error:null,manual:false,triedIqama:''})}} style={{padding:'10px 14px',fontSize:13,fontWeight:reg.nationality_ar===n.ar?600:500,color:reg.nationality_ar===n.ar?'#D4A017':'rgba(255,255,255,.7)',cursor:'pointer',textAlign:'center',borderBottom:'1px solid rgba(255,255,255,.04)',background:reg.nationality_ar===n.ar?'rgba(212,160,23,.06)':'transparent'}}>{lang==='ar'?n.ar:n.en}</div>)}
+{filteredNats.map(n=><div key={n.ar} className="nat2-item" onClick={()=>{setReg(p=>({...p,nationality_ar:n.ar,nationality_id:n.id||'',name_ar:'',name_en:'',id_number:''}));setNatOpen(false);setNatSearch('')}} style={{padding:'10px 14px',fontSize:13,fontWeight:reg.nationality_ar===n.ar?600:500,color:reg.nationality_ar===n.ar?'#D4A017':'rgba(255,255,255,.7)',cursor:'pointer',textAlign:'center',borderBottom:'1px solid rgba(255,255,255,.04)',background:reg.nationality_ar===n.ar?'rgba(212,160,23,.06)':'transparent'}}>{lang==='ar'?n.ar:n.en}</div>)}
 </div></div></>}
 </div></div>;
 const IdField=<div><div style={lblS}>{idLabel} {reqStar}</div><input value={reg.id_number} onChange={e=>setReg(p=>({...p,id_number:e.target.value.replace(/\D/g,'').slice(0,10)}))} maxLength={10} autoComplete="off" name="reg-id" style={{...sF,direction:'ltr'}} placeholder={idPlaceholder}/></div>;
@@ -481,24 +476,6 @@ setRegErr({});doRegister();
 </>}
 </div>
 </div>
-{regHrsd.phase!=='idle'&&regHrsd.phase!=='fetched'&&!regHrsd.manual&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16,fontFamily:F,direction:lang==='ar'?'rtl':'ltr'}}>
-<div style={{background:'var(--modal-bg)',borderRadius:16,width:'min(420px,95vw)',padding:24,boxShadow:'0 20px 50px rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.06)'}}>
-<div style={{display:'flex',alignItems:'center',gap:12,color:C.gold,marginBottom:14}}>
-<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" fill="rgba(212,160,23,.12)"/><path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-<span style={{fontSize:18,fontWeight:600,color:'var(--tx)',lineHeight:1.2}}>{lang==='ar'?'تحقق الاسم من وزارة العمل':'Verify name from MOL'}</span>
-</div>
-<div style={{fontSize:13,fontWeight:500,color:'rgba(255,255,255,.6)',marginBottom:16,lineHeight:1.7}}>{lang==='ar'?'أدخل رمز التحقق المعروض أدناه لجلب اسمك الرسمي':'Enter the captcha below to fetch your official name'}</div>
-<div style={{minHeight:80,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,.3)',borderRadius:10,marginBottom:12,padding:8}}>
-{regHrsd.phase==='loading'||regHrsd.phase==='verifying'?<div style={{display:'flex',alignItems:'center',gap:10,color:'rgba(255,255,255,.5)',fontSize:13}}><div style={{width:18,height:18,border:'2px solid rgba(212,160,23,.3)',borderTopColor:'#D4A017',borderRadius:'50%',animation:'spin .7s linear infinite'}}/><span>{lang==='ar'?(regHrsd.phase==='loading'?'جاري التحميل...':'جاري التحقق...'):(regHrsd.phase==='loading'?'Loading...':'Verifying...')}</span></div>:regHrsd.captchaImage?<img src={regHrsd.captchaImage} alt="captcha" style={{maxWidth:'100%',maxHeight:60,borderRadius:6}}/>:null}
-</div>
-<input value={regHrsd.captchaInput} onChange={e=>setRegHrsd(c=>({...c,captchaInput:e.target.value}))} onKeyDown={e=>{if(e.key==='Enter')regSubmitHrsd()}} placeholder={lang==='ar'?'رمز التحقق':'Captcha'} disabled={regHrsd.phase==='verifying'||regHrsd.phase==='loading'} style={{...sF,marginBottom:12}}/>
-{regHrsd.error&&<div style={{fontSize:12,color:C.red,marginBottom:12,textAlign:'center'}}>{regHrsd.error}</div>}
-<div style={{display:'flex',gap:8}}>
-<button onClick={()=>setRegHrsd(c=>({...c,phase:'idle',manual:true,error:null}))} style={{flex:1,height:40,borderRadius:10,background:'linear-gradient(180deg,#323232 0%,#262626 100%)',border:'1px solid rgba(255,255,255,.07)',color:'var(--tx3)',fontFamily:F,fontSize:14,fontWeight:500,cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>{lang==='ar'?'إدخال يدوي':'Manual entry'}</button>
-<button onClick={regSubmitHrsd} disabled={regHrsd.phase==='verifying'||regHrsd.phase==='loading'||!regHrsd.captchaInput||regHrsd.captchaInput.length<3} style={{flex:1.2,height:40,borderRadius:10,background:'#D4A017',border:'none',color:'#000',fontFamily:F,fontSize:14,fontWeight:600,cursor:'pointer',opacity:(regHrsd.phase==='verifying'||regHrsd.phase==='loading'||!regHrsd.captchaInput||regHrsd.captchaInput.length<3)?.5:1}}>{lang==='ar'?'تحقق':'Verify'}</button>
-</div>
-</div>
-</div>}
 </>;
 })()}
 <Css/></div>)}
@@ -632,7 +609,8 @@ const[pw,setPw]=useState('');const[pw2,setPw2]=useState('');const[busy,setBusy]=
 const go=async()=>{
 if(!pw||!pw2){toast(lang==='ar'?'أدخل كلمة المرور الجديدة':'Enter new password');return}
 if(pw!==pw2){toast(lang==='ar'?'كلمة المرور غير متطابقة':'Passwords do not match');return}
-if(pw.length<6){toast(lang==='ar'?'كلمة المرور 6 أحرف على الأقل':'Password must be at least 6 characters');return}
+if(pw.length<8){toast(lang==='ar'?'كلمة المرور 8 أحرف على الأقل':'Password must be at least 8 characters');return}
+if(passwordStrength(pw).level<3){toast(lang==='ar'?'كلمة المرور ضعيفة — أضف أحرف كبيرة وأرقام ورموز':'Password too weak — add uppercase, digits, symbols');return}
 setBusy(true);
 try{const{error}=await sb.auth.updateUser({password:pw});if(error)throw error;setDone(true)}
 catch(err){toast((lang==='ar'?'خطأ: ':'Error: ')+translateErr(err,lang),'error')}
@@ -653,9 +631,9 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:14}}>
 <div><div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.65)',marginBottom:6}}>{lang==='ar'?'كلمة المرور الجديدة':'New Password'}</div>
-<input value={pw} onChange={e=>{setPw(e.target.value);setLoginErr('')}} type="password" placeholder="······" style={{...finS,textAlign:'center'}}/></div>
+<input value={pw} onChange={e=>setPw(arToEn(e.target.value))} type="password" placeholder="······" style={{...finS,textAlign:'center'}}/></div>
 <div><div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.65)',marginBottom:6}}>{lang==='ar'?'تأكيد كلمة المرور':'Confirm Password'}</div>
-<input value={pw2} onChange={e=>setPw2(e.target.value)} type="password" placeholder="······" style={{...finS,textAlign:'center'}}/></div>
+<input value={pw2} onChange={e=>setPw2(arToEn(e.target.value))} type="password" placeholder="······" style={{...finS,textAlign:'center'}}/></div>
 <button onClick={go} disabled={busy} style={{...goldS,height:'clamp(42px,6vw,50px)',fontSize:'clamp(13px,2vw,15px)',opacity:busy?.7:1}}>{busy?<div style={{width:18,height:18,border:'2px solid rgba(14,14,14,.3)',borderTopColor:C.dk,borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:lang==='ar'?'تغيير كلمة المرور':'Change Password'}</button>
 </div>
 </div><Css/></div>)}
@@ -673,7 +651,7 @@ const[visibility,setVisibility]=useState(()=>getVisibility());
 const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visibility',JSON.stringify(cfg))};
 const isVisible=(id)=>isItemVisible(id)&&(visibility[id]!==false||['admin_hub','admin_visibility'].includes(id));
 // Admin-only nav items: Sync Hub is hidden from non-GM users regardless of visibility toggles.
-const isGM=!user?.roles||user?.roles?.name_ar==='المدير العام'||user?.roles?.name_en==='General Manager';
+const isGM=user?.role?.name_ar==='المدير العام'||user?.role?.name_en==='General Manager';
 const ADMIN_ONLY=['sync_hub'];
 const canSeeAdminOnly=(id)=>isGM||visibility['grant_'+id]===true;
 const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches);
@@ -700,13 +678,12 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'workforce',l:T('المنشآت والعمالة','Workforce'),i:'worker'},
 {id:'finance_hub',l:T('العمليات','Operations'),i:'invoice'},
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'},
-{id:'otp_messages',l:T('الرسائل النصية','SMS'),i:'alert'},
 {id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
 {id:'settings',l:T('الإعدادات','Settings'),i:'settings'}
 ];
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'whatsapp',l:T('واتساب','WhatsApp'),i:'notification'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'},{id:'transactions',l:T('المعاملات','Transactions'),i:'transaction'}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'},{id:'transactions',l:T('المعاملات','Transactions'),i:'transaction'}],
   admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_clients',l:T('العملاء','Clients'),i:'client'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'role'},{id:'admin_persons',l:T('الأشخاص','Persons'),i:'client'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_permissions',l:T('إدارة المستخدمين','Users'),i:'role'}],
   settings:[{id:'settings_general',l:T('الإعدادات العامة','General Settings'),i:'settings'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };const pages={
@@ -1099,10 +1076,10 @@ return<div key={n.id}>
 <div style={{flex:1,display:'flex',flexDirection:'column',background:'var(--bg)',minWidth:0}}>
 {/* ═══ TOPBAR ═══ */}
 <header className='dash-header' style={{height:56,background:'var(--sb)',display:'flex',alignItems:'center',gap:14,padding:'0 20px',flexShrink:0,boxShadow:'0 2px 12px rgba(0,0,0,.12)',minWidth:0}}>
-<div className='mob-hamburger' onClick={()=>setSideOpen(!sideOpen)} style={{display:'none',width:36,height:36,borderRadius:10,background:sideOpen?'rgba(212,160,23,.14)':'rgba(212,160,23,.04)',border:'1px solid '+(sideOpen?'rgba(212,160,23,.25)':'rgba(212,160,23,.12)'),alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,transition:'.18s'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={sideOpen?C.gold:'rgba(255,255,255,.55)'} strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="16" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+<div className='mob-hamburger' onClick={()=>setSideOpen(!sideOpen)} style={{display:'none',width:36,height:36,borderRadius:10,background:sideOpen?'rgba(212,160,23,.14)':'rgba(212,160,23,.04)',border:'1px solid '+(sideOpen?'rgba(212,160,23,.25)':'rgba(212,160,23,.12)'),alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,transition:'.18s'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={sideOpen?C.gold:'rgba(255,255,255,.55)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></div>
 {/* عنوان الصفحة الحالية — يعكس اختيار السايد بار */}
 {(()=>{
-const specials={home:T('الرئيسية','Dashboard'),otp_messages:T('الرسائل النصية','SMS'),sync_hub:T('مركز المزامنة','Sync Hub'),settings:T('الإعدادات','Settings'),worker_leaves:T('إجازات العمالة','Worker Leaves'),transfer_calc:T('تسعيرات التنازل','Transfer Calc'),kpi:T('المؤشرات','KPIs'),calendar_unified:T('التقويم','Calendar'),appointments:T('المواعيد','Appointments'),installments:T('الأقساط','Installments'),expenses:T('المصروفات','Expenses')};
+const specials={home:T('الرئيسية','Dashboard'),sync_hub:T('مركز المزامنة','Sync Hub'),settings:T('الإعدادات','Settings'),worker_leaves:T('إجازات العمالة','Worker Leaves'),transfer_calc:T('تسعيرات التنازل','Transfer Calc'),kpi:T('المؤشرات','KPIs'),appointments:T('المواعيد','Appointments'),installments:T('الأقساط','Installments'),expenses:T('المصروفات','Expenses')};
 let hubLabel='',pageLabel='';
 for(const [hubId,tabs] of Object.entries(hubTabs)){const tab=tabs.find(t=>t.id===pg);if(tab){const hub=nav.find(n=>n.id===hubId);hubLabel=hub?.l||'';pageLabel=tab.l;break}}
 if(!pageLabel){const direct=nav.find(n=>n.id===pg);if(direct)pageLabel=direct.l;else if(specials[pg])pageLabel=specials[pg]}
@@ -1153,7 +1130,6 @@ return<div><div>
 {/* العمليات */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
-{pg==='whatsapp'&&<WhatsappInbox toast={tt} user={user} lang={lang}/>}
 {pg==='transactions'&&<TransactionsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
@@ -1171,10 +1147,8 @@ return<div><div>
 
 {/* ═══ الإعدادات ═══ */}
 {pg==='sync_hub'&&isGM&&<SyncHub sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='otp_messages'&&<OTPMessages sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='settings'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='kpi'&&<KPIPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
-{pg==='calendar_unified'&&<CalendarPage sb={sb} toast={tt} user={user} lang={lang} onNavigate={setPage}/>}
 {(pg==='installments'||pg==='expenses')&&pageConf&&<CrudPage sb={sb} user={user} conf={pageConf} toast={tt} onRefresh={loadStats} lang={lang}/>}
 {pg==='appointments'&&<AppointmentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 </div>
@@ -1251,7 +1225,7 @@ e.target.value='';
 <div style={{position:'absolute',bottom:-2,right:-2,width:18,height:18,borderRadius:'50%',background:C.gold,border:'2px solid var(--modal-bg)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg></div>
 </div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:22,fontWeight:600,color:'var(--tx)',fontFamily:F,lineHeight:1.2}}>{user?.role?.value_ar||T2('المدير العام','General Manager')}</div>
+<div style={{fontSize:22,fontWeight:600,color:'var(--tx)',fontFamily:F,lineHeight:1.2}}>{(lang==='ar'?user?.role?.name_ar:user?.role?.name_en)||T2('—','—')}</div>
 {user?.branch_id&&dashBranches.find(b=>b.id===user.branch_id)?<div style={{fontSize:11,color:'var(--tx4)',marginTop:6,fontWeight:500,display:'flex',alignItems:'center',gap:6}}><span style={{color:C.gold,fontSize:10}}>•</span><span>{dashBranches.find(b=>b.id===user.branch_id)?.name_ar}</span></div>:null}
 </div>
 </div>
@@ -1504,7 +1478,7 @@ String(viewRow[f.k])
 
 function TransferCalcPage({sb,toast,user,lang,onNewCalc}){
 const T=(a,e)=>lang==='ar'?a:e;const nm=v=>Number(v||0).toLocaleString('en-US')
-const isGM=!user?.roles||user?.roles?.name_ar==='المدير العام'||user?.roles?.name_en==='General Manager'
+const isGM=user?.role?.name_ar==='المدير العام'||user?.role?.name_en==='General Manager'
 const[data,setData]=useState([]);const[workers,setWorkers]=useState([]);const[facilities,setFacilities]=useState([]);const[branches,setBranches]=useState([]);const[nationalities,setNationalities]=useState([])
 const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[detailsRow,setDetailsRow]=useState(null);const[detailsTab,setDetailsTab]=useState('worker');const[wizStep,setWizStep]=useState(0);const[workerMode,setWorkerMode]=useState('existing');const[addingExtra,setAddingExtra]=useState(false);const[extraDraft,setExtraDraft]=useState({name:'',amount:''});const[savingExtra,setSavingExtra]=useState(false);const[editingExtraIdx,setEditingExtraIdx]=useState(null);const[editExtraDraft,setEditExtraDraft]=useState({name:'',amount:''})
 // Office filter: GM defaults to all (''); non-GM is locked to their own branch.
@@ -2573,351 +2547,25 @@ return<div onClick={()=>setPop(false)} style={{position:'fixed',inset:0,backgrou
 </div></div>})()}
 </div>}
 
-function AuditPage({sb,toast,user,lang,branchId}){
-const nm=v=>Number(v||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2})
-const F="'Cairo','Tajawal',sans-serif"
-const[tab,setTab]=useState('cash_deposit')
-const[bankData,setBankData]=useState([])
-const[smsMap,setSmsMap]=useState({})
-const[showSms,setShowSms]=useState(null)
-const[selDate,setSelDate]=useState(new Date().toISOString().slice(0,10))
-const[payFilter,setPayFilter]=useState('all')
-const[expandedCats,setExpandedCats]=useState(new Set())
-const[allPayments,setAllPayments]=useState([])
-const[allExpenses,setAllExpenses]=useState([])
-const[expCats,setExpCats]=useState([])
-const[loading,setLoading]=useState(true)
 
-const reload=useCallback(async()=>{
-setLoading(true)
-const[{data:br},{data:ip},{data:oe},{data:cats}]=await Promise.all([
-sb.from('bank_reconciliation').select('*').is('deleted_at',null).order('transaction_date',{ascending:false}),
-sb.from('invoice_payments').select('*').is('deleted_at',null).order('payment_date',{ascending:false}),
-sb.from('operational_expenses').select('*,cat:expense_categories(id,name_ar,name_en,parent_type)').is('deleted_at',null).order('date',{ascending:false}),
-sb.from('expense_categories').select('*').eq('is_active',true).order('sort_order')
-])
-setBankData(br||[]);setAllPayments(ip||[]);setAllExpenses(oe||[]);setExpCats(cats||[])
-const smsIds=(br||[]).filter(r=>r.otp_message_id).map(r=>r.otp_message_id)
-if(smsIds.length>0){const{data:msgs}=await sb.from('sms_messages').select('id,message_body,phone_from,received_at,created_at').in('id',smsIds).is('deleted_at',null);const map={};(msgs||[]).forEach(m=>{map[m.id]=m});setSmsMap(map)}
-setLoading(false)
-},[sb])
-useEffect(()=>{reload()},[reload])
-
-// Helpers
-const selDateObj=new Date(selDate)
-const dayMs=86400000
-const isIncomeType=(t)=>t==='bank_transfer_in'||t==='cash_in'||t==='deposit'||t==='transfer_in'
-const isExpenseType=(t)=>t==='service_cost'||t==='operational'||t==='petty_cash'||t==='withdrawal'||t==='transfer_out'
-const today=new Date().toISOString().slice(0,10)
-const yesterday=(()=>{const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)})()
-const toggleCat=(cat)=>{const n=new Set(expandedCats);n.has(cat)?n.delete(cat):n.add(cat);setExpandedCats(n)}
-
-// Get Arabic category name
-const getCatName=(e)=>{if(e.cat?.name_ar)return e.cat.name_ar;const map={rent:'إيجار',utilities:'كهرباء/ماء',telecom:'إنترنت/اتصالات',maintenance:'صيانة',insurance:'تأمين',office_supplies:'مستلزمات مكتبية',transport:'مواصلات',marketing:'تسويق',legal:'قانوني',salary:'رواتب',salaries:'رواتب',gov_fee:'رسوم حكومية',government_fees:'رسوم حكومية',other:'أخرى',supplies:'مستلزمات',subscription:'اشتراكات',travel:'سفر'};return map[e.category]||e.category||'أخرى'}
-const getCatParent=(e)=>{if(e.cat?.parent_type)return e.cat.parent_type;const offCats=['rent','utilities','telecom','maintenance','insurance','office_supplies','marketing','legal','subscription'];if(offCats.includes(e.category))return'office';const payCats=['salary','salaries','social_insurance','bonuses'];if(payCats.includes(e.category))return'payroll';const txCats=['gov_fee','government_fees','visa_fees','transfer_fees'];if(txCats.includes(e.category))return'transaction';return'daily'}
-
-// Daily summary
-const dayPayments=allPayments.filter(p=>p.payment_date===selDate)
-const dayExpenses=allExpenses.filter(e=>e.date===selDate)
-const dayCashIncome=dayPayments.filter(p=>p.payment_method==='cash').reduce((s,p)=>s+Number(p.amount||0),0)
-const dayBankIncome=dayPayments.filter(p=>p.payment_method!=='cash').reduce((s,p)=>s+Number(p.amount||0),0)
-const dayTotalExpenses=dayExpenses.reduce((s,e)=>s+Number(e.amount||0),0)
-
-// Deposit calculations
-const expectedDepositToday=dayCashIncome-dayTotalExpenses
-const prevCash=allPayments.filter(p=>p.payment_date&&p.payment_date<selDate&&p.payment_method==='cash').reduce((s,p)=>s+Number(p.amount||0),0)
-const prevExp=allExpenses.filter(e=>e.date&&e.date<selDate).reduce((s,e)=>s+Number(e.amount||0),0)
-const prevDeposits=bankData.filter(r=>isIncomeType(r.transaction_type)&&r.transaction_date<selDate).reduce((s,r)=>s+Number(r.amount||0),0)
-const carryover=Math.max(0,prevCash-prevExp-prevDeposits)
-const expectedDeposit=Math.max(0,expectedDepositToday)+carryover
-
-// SMS deposits/withdrawals
-const smsDeposits=bankData.filter(r=>isIncomeType(r.transaction_type)&&Math.abs(new Date(r.transaction_date)-selDateObj)<=dayMs)
-const smsCashDeposits=smsDeposits.filter(r=>r.transaction_type!=='bank_transfer_in')
-const smsBankTransfers=smsDeposits.filter(r=>r.transaction_type==='bank_transfer_in')
-const actualDeposited=smsDeposits.reduce((s,r)=>s+Number(r.amount||0),0)
-const depositDiff=expectedDeposit-actualDeposited
-const depositStatus=expectedDeposit<=0?'none':actualDeposited>=expectedDeposit-1?'complete':actualDeposited>0?'partial':'pending'
-const depositPct=expectedDeposit>0?Math.min(100,Math.round(actualDeposited/expectedDeposit*100)):0
-
-const smsWithdrawals=bankData.filter(r=>isExpenseType(r.transaction_type))
-
-// Expense matching with SMS
-const matchExpenses=(items)=>{const matched=[];const unmatched=[];const used=new Set()
-for(const op of items){const m=smsWithdrawals.find(s=>!used.has(s.id)&&Math.abs(Number(s.amount||0)-op._amt)<=1&&Math.abs(new Date(s.transaction_date)-new Date(op._date))<=dayMs)
-if(m){matched.push({op,sms:m});used.add(m.id)}else{unmatched.push(op)}}
-return{matched,unmatched}}
-
-// Tab counts
-const officeExps=allExpenses.filter(e=>getCatParent(e)==='office')
-const dailyExps=allExpenses.filter(e=>getCatParent(e)==='daily')
-const payrollExps=allExpenses.filter(e=>getCatParent(e)==='payroll')
-const txExps=allExpenses.filter(e=>getCatParent(e)==='transaction')
-const svcPayments=allPayments.filter(p=>p.payment_method==='bank_transfer')
-
-const tabDefs=[
-{g:'الدخل',items:[
-{k:'cash_deposit',l:'إيداع نقدي',n:smsCashDeposits.length,bc:depositStatus==='complete'?C.ok:depositStatus==='partial'?'#e67e22':null},
-{k:'bank_transfer',l:'حوالة بنكية',n:smsBankTransfers.length}
-]},
-{g:'المدفوعات',items:[
-{k:'service_pay',l:'سداد معاملات',n:svcPayments.length+txExps.length},
-{k:'office_exp',l:'مصاريف مكتبية',n:officeExps.length},
-{k:'daily_exp',l:'مصاريف يومية',n:dailyExps.length},
-{k:'payroll',l:'رواتب',n:payrollExps.length}
-]}
-]
-
-return<div style={{fontFamily:F,direction:'rtl'}}>
-{/* Header */}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
-<div><div style={{fontSize:22,fontWeight:800,color:'var(--tx)'}}>التدقيق المالي</div><div style={{fontSize:11,color:'var(--tx5)',marginTop:4}}>التحقق من الإيداعات والمدفوعات عبر رسائل البنك</div></div>
-</div>
-
-{/* Daily summary bar */}
-<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:14}}>
-<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(39,160,70,.03)',border:'1px solid rgba(39,160,70,.06)',textAlign:'center'}}>
-<div style={{fontSize:8,color:C.ok}}>دخل اليوم</div>
-<div style={{fontSize:16,fontWeight:800,color:C.ok,direction:'ltr'}}>+{nm(dayCashIncome+dayBankIncome)}</div>
-</div>
-<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(192,57,43,.03)',border:'1px solid rgba(192,57,43,.06)',textAlign:'center'}}>
-<div style={{fontSize:8,color:C.red}}>صرف اليوم</div>
-<div style={{fontSize:16,fontWeight:800,color:C.red,direction:'ltr'}}>-{nm(dayTotalExpenses)}</div>
-</div>
-<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(212,160,23,.03)',border:'1px solid rgba(212,160,23,.06)',textAlign:'center'}}>
-<div style={{fontSize:8,color:C.gold}}>صافي اليوم</div>
-<div style={{fontSize:16,fontWeight:800,color:C.gold,direction:'ltr'}}>{nm(dayCashIncome+dayBankIncome-dayTotalExpenses)}</div>
-</div>
-</div>
-
-{/* Layout: Side tabs + Content */}
-<div style={{display:'flex',gap:0}}>
-{/* Side tabs */}
-<div style={{width:140,flexShrink:0,borderLeft:'1px solid rgba(255,255,255,.05)'}}>
-{tabDefs.map(g=><div key={g.g}>
-<div style={{fontSize:9,fontWeight:700,color:'var(--tx6)',padding:'10px 12px 4px'}}>{g.g}</div>
-{g.items.map(t=><div key={t.k} onClick={()=>{setTab(t.k);setPayFilter('all')}} style={{padding:'8px 12px',fontSize:11,fontWeight:tab===t.k?700:500,color:tab===t.k?C.gold:'rgba(255,255,255,.4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',borderRight:tab===t.k?'2.5px solid '+C.gold:'2.5px solid transparent',transition:'.15s',background:tab===t.k?'rgba(212,160,23,.03)':'transparent'}}>
-<span>{t.l}</span>
-{t.n>0&&<span style={{fontSize:8,fontWeight:700,padding:'1px 6px',borderRadius:8,background:(t.bc||'rgba(255,255,255,.15)'),color:t.bc?'#fff':'var(--tx6)'}}>{t.n}</span>}
-</div>)}
-</div>)}
-</div>
-
-{/* Content */}
-<div style={{flex:1,paddingRight:14}}>
-
-{loading?<div style={{textAlign:'center',padding:50,color:'var(--tx5)'}}>...</div>:
-
-/* ═══ إيداع نقدي ═══ */
-tab==='cash_deposit'?<div>
-<div style={{fontSize:14,fontWeight:800,color:'var(--tx)',marginBottom:12}}>إيداع نقدي</div>
-<div style={{display:'flex',gap:6,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
-{[['today','اليوم',today],['yesterday','أمس',yesterday]].map(([k,l,d])=>
-<button key={k} onClick={()=>setSelDate(d)} style={{height:32,padding:'0 14px',borderRadius:8,border:'1px solid '+(selDate===d?'rgba(212,160,23,.2)':'rgba(255,255,255,.06)'),background:selDate===d?'rgba(212,160,23,.08)':'rgba(255,255,255,.02)',color:selDate===d?C.gold:'var(--tx5)',fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer'}}>{l}</button>)}
-<input type="date" value={selDate} onChange={e=>setSelDate(e.target.value)} style={{height:32,padding:'0 10px',borderRadius:8,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.03)',color:'var(--tx)',fontFamily:F,fontSize:11,direction:'ltr'}}/>
-<span style={{fontSize:10,color:'var(--tx6)'}}>{new Date(selDate).toLocaleDateString('ar-SA',{weekday:'long',month:'long',day:'numeric'})}</span>
-</div>
-
-{/* Main deposit card with progress bar */}
-<div style={{padding:'20px 24px',borderRadius:14,background:'linear-gradient(135deg,rgba(52,131,180,.04),rgba(39,160,70,.04))',border:'1.5px solid '+(depositStatus==='complete'?'rgba(39,160,70,.15)':depositStatus==='partial'?'rgba(230,126,34,.15)':'rgba(255,255,255,.06)'),marginBottom:16}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={{fontSize:14,fontWeight:800,color:'var(--tx)'}}>حالة الإيداع</div>
-<div style={{fontSize:12,fontWeight:700,padding:'4px 14px',borderRadius:8,background:depositStatus==='complete'?'rgba(39,160,70,.1)':depositStatus==='partial'?'rgba(230,126,34,.1)':depositStatus==='none'?'rgba(255,255,255,.04)':'rgba(192,57,43,.1)',color:depositStatus==='complete'?C.ok:depositStatus==='partial'?'#e67e22':depositStatus==='none'?'var(--tx6)':C.red}}>{depositStatus==='complete'?'✅ مكتمل':depositStatus==='partial'?'⏳ جزئي':depositStatus==='none'?'لا يوجد':'❌ لم يودع'}</div>
-</div>
-{/* Progress bar */}
-<div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
-<div style={{flex:1}}>
-<div style={{height:10,borderRadius:5,background:'rgba(255,255,255,.06)',overflow:'hidden'}}>
-<div style={{height:'100%',width:depositPct+'%',borderRadius:5,background:depositPct>=100?C.ok:depositPct>=50?'#e67e22':depositPct>0?C.red:'transparent',transition:'.5s'}}/>
-</div>
-</div>
-<span style={{fontSize:12,fontWeight:800,color:depositPct>=100?C.ok:'var(--tx3)',direction:'ltr',flexShrink:0}}>{depositPct}%</span>
-</div>
-{/* Numbers row */}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end'}}>
-<div>
-<div style={{fontSize:9,color:'var(--tx6)',marginBottom:2}}>المودع فعلاً</div>
-<div style={{fontSize:20,fontWeight:900,color:C.ok}}>{nm(actualDeposited)} <span style={{fontSize:10,fontWeight:500}}>ر.س</span></div>
-</div>
-<div style={{textAlign:'center'}}>
-<div style={{fontSize:9,color:'var(--tx6)',marginBottom:2}}>المطلوب</div>
-<div style={{fontSize:20,fontWeight:900,color:C.blue}}>{nm(Math.max(0,expectedDeposit))} <span style={{fontSize:10,fontWeight:500}}>ر.س</span></div>
-{carryover>0&&<div style={{fontSize:8,color:'#e67e22',marginTop:2}}>شامل مرحّل {nm(carryover)}</div>}
-</div>
-<div style={{textAlign:'left'}}>
-<div style={{fontSize:9,color:'var(--tx6)',marginBottom:2}}>المتبقي</div>
-<div style={{fontSize:20,fontWeight:900,color:depositDiff>1?C.red:C.ok}}>{nm(Math.max(0,depositDiff))} <span style={{fontSize:10,fontWeight:500}}>ر.س</span></div>
-</div>
-</div>
-</div>
-
-{/* Cash flow breakdown */}
-<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:16}}>
-<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(39,160,70,.03)',border:'1px solid rgba(39,160,70,.06)',textAlign:'center'}}>
-<div style={{fontSize:8,color:C.ok}}>دخل نقدي</div>
-<div style={{fontSize:16,fontWeight:800,color:C.ok}}>{nm(dayCashIncome)}</div>
-</div>
-<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(192,57,43,.03)',border:'1px solid rgba(192,57,43,.06)',textAlign:'center'}}>
-<div style={{fontSize:8,color:C.red}}>مصاريف</div>
-<div style={{fontSize:16,fontWeight:800,color:C.red}}>{nm(dayTotalExpenses)}</div>
-</div>
-<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(212,160,23,.03)',border:'1px solid rgba(212,160,23,.06)',textAlign:'center'}}>
-<div style={{fontSize:8,color:C.gold}}>صافي اليوم</div>
-<div style={{fontSize:16,fontWeight:800,color:C.gold}}>{nm(expectedDepositToday)}</div>
-</div>
-</div>
-
-{/* Deposit SMS list */}
-{smsDeposits.length>0&&<>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>عمليات الإيداع ({smsDeposits.length})</div>
-<div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16}}>
-{smsDeposits.map(r=><div key={r.id} style={{padding:'10px 14px',borderRadius:10,background:'rgba(39,160,70,.02)',border:'1px solid rgba(39,160,70,.06)',display:'flex',alignItems:'center',gap:10}}>
-<div style={{width:32,height:32,borderRadius:8,background:'rgba(39,160,70,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:C.ok,flexShrink:0}}>↓</div>
-<div style={{flex:1}}>
-<div style={{fontSize:11,fontWeight:700,color:'var(--tx)'}}>{r.description?r.description.substring(0,50):'إيداع'}</div>
-<div style={{display:'flex',gap:6,fontSize:8,color:'var(--tx6)',marginTop:2}}>{r.bank_name&&<span>{r.bank_name}</span>}{r.otp_message_id&&<span style={{color:'#9b59b6'}}>📱</span>}</div>
-</div>
-<div style={{fontSize:15,fontWeight:800,color:C.ok,direction:'ltr'}}>+{nm(r.amount)}</div>
-{r.otp_message_id&&<button onClick={()=>setShowSms(showSms===r.id?null:r.id)} style={{width:26,height:26,borderRadius:6,border:'1px solid rgba(155,89,182,.1)',background:showSms===r.id?'rgba(155,89,182,.08)':'transparent',color:'#9b59b6',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,flexShrink:0}}>☰</button>}
-</div>)}
-</div>
-</>}
-
-{/* Day breakdown */}
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div>
-<div style={{fontSize:11,fontWeight:700,color:C.ok,marginBottom:6}}>مدفوعات ({dayPayments.length})</div>
-{dayPayments.length===0?<div style={{fontSize:10,color:'var(--tx6)',padding:12}}>لا توجد</div>:
-dayPayments.slice(0,5).map((p,i)=><div key={i} style={{padding:'6px 10px',borderRadius:6,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.03)',marginBottom:3,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:10,color:'var(--tx4)'}}>{p.payment_method==='cash'?'💵':'🏦'} #{p.reference_number||'—'}</span>
-<span style={{fontSize:11,fontWeight:700,color:C.ok,direction:'ltr'}}>{nm(p.amount)}</span>
-</div>)}
-{dayPayments.length>5&&<div style={{fontSize:9,color:'var(--tx6)',textAlign:'center',padding:4}}>+{dayPayments.length-5} أخرى</div>}
-</div>
-<div>
-<div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:6}}>مصاريف ({dayExpenses.length})</div>
-{dayExpenses.length===0?<div style={{fontSize:10,color:'var(--tx6)',padding:12}}>لا توجد</div>:
-dayExpenses.slice(0,5).map((e,i)=><div key={i} style={{padding:'6px 10px',borderRadius:6,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.03)',marginBottom:3,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:10,color:'var(--tx4)'}}>{e.description||getCatName(e)}</span>
-<span style={{fontSize:11,fontWeight:700,color:C.red,direction:'ltr'}}>-{nm(e.amount)}</span>
-</div>)}
-{dayExpenses.length>5&&<div style={{fontSize:9,color:'var(--tx6)',textAlign:'center',padding:4}}>+{dayExpenses.length-5} أخرى</div>}
-</div>
-</div>
-</div>
-
-:/* ═══ حوالة بنكية ═══ */
-tab==='bank_transfer'?<div>
-<div style={{fontSize:14,fontWeight:800,color:'var(--tx)',marginBottom:12}}>حوالة بنكية</div>
-{smsBankTransfers.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا توجد حوالات بنكية واردة</div>:
-<div style={{display:'flex',flexDirection:'column',gap:6}}>
-{smsBankTransfers.map(r=><div key={r.id} style={{padding:'12px 16px',borderRadius:10,background:'rgba(39,160,70,.02)',border:'1px solid rgba(39,160,70,.06)',display:'flex',alignItems:'center',gap:10}}>
-<div style={{flex:1}}>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{r.description?r.description.substring(0,60):'حوالة بنكية'}</div>
-<div style={{display:'flex',gap:8,fontSize:9,color:'var(--tx5)',marginTop:3}}>{r.bank_name&&<span>{r.bank_name}</span>}<span>{r.transaction_date}</span>{r.reference_number&&<span>#{r.reference_number}</span>}{r.otp_message_id&&<span style={{color:'#9b59b6'}}>📱 SMS</span>}</div>
-</div>
-<div style={{fontSize:16,fontWeight:800,color:C.ok,direction:'ltr'}}>+{nm(r.amount)}</div>
-{r.otp_message_id&&smsMap[r.otp_message_id]&&<button onClick={()=>setShowSms(showSms===r.id?null:r.id)} style={{width:26,height:26,borderRadius:6,border:'1px solid rgba(155,89,182,.1)',background:showSms===r.id?'rgba(155,89,182,.08)':'transparent',color:'#9b59b6',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,flexShrink:0}}>☰</button>}
-</div>)}
-<div style={{padding:'12px 16px',borderRadius:10,background:'rgba(39,160,70,.04)',border:'1px solid rgba(39,160,70,.08)',textAlign:'center',marginTop:8}}>
-<span style={{fontSize:12,fontWeight:800,color:C.ok}}>إجمالي: {nm(smsBankTransfers.reduce((s,r)=>s+Number(r.amount||0),0))} ر.س</span>
-</div>
-</div>}
-</div>
-
-:/* ═══ المدفوعات (service_pay / office_exp / daily_exp / payroll) ═══ */
-<div>
-{(()=>{
-const tabTitle={service_pay:'سداد معاملات',office_exp:'مصاريف مكتبية',daily_exp:'مصاريف يومية',payroll:'رواتب'}[tab]||tab
-const parentType={service_pay:'transaction',office_exp:'office',daily_exp:'daily',payroll:'payroll'}[tab]
-
-// Get items for this tab
-const tabItems=tab==='service_pay'
-  ?[...svcPayments.map(p=>({...p,_type:'payment',_amt:Number(p.amount||0),_date:p.payment_date,_desc:p.notes||p.reference_number||'دفعة فاتورة',_cat:'دفعة فاتورة'})),...txExps.map(e=>({...e,_type:'expense',_amt:Number(e.amount||0),_date:e.date,_desc:e.description||e.vendor_name||getCatName(e),_cat:getCatName(e)}))]
-  :(tab==='office_exp'?officeExps:tab==='payroll'?payrollExps:dailyExps).map(e=>({...e,_type:'expense',_amt:Number(e.amount||0),_date:e.date,_desc:e.description||e.vendor_name||getCatName(e),_cat:getCatName(e)}))
-
-const{matched:tabMatched,unmatched:tabUnmatched}=matchExpenses(tabItems)
-const tabTotal=tabItems.reduce((s,o)=>s+o._amt,0)
-
-// Group by Arabic category name
-const grpUnmatched={};tabUnmatched.forEach(op=>{const c=op._cat;if(!grpUnmatched[c])grpUnmatched[c]={items:[],total:0};grpUnmatched[c].items.push(op);grpUnmatched[c].total+=op._amt})
-const grpMatched={};tabMatched.forEach(({op,sms})=>{const c=op._cat;if(!grpMatched[c])grpMatched[c]={items:[],total:0};grpMatched[c].items.push({op,sms});grpMatched[c].total+=op._amt})
-
-return<>
-<div style={{fontSize:14,fontWeight:800,color:'var(--tx)',marginBottom:12}}>{tabTitle}</div>
-
-{tabUnmatched.length>0&&<div style={{padding:'12px 16px',borderRadius:10,background:'rgba(192,57,43,.04)',border:'1px solid rgba(192,57,43,.1)',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
-<div><div style={{fontSize:12,fontWeight:700,color:C.red}}>{tabUnmatched.length} عملية بدون تأكيد SMS</div><div style={{fontSize:9,color:'var(--tx5)'}}>إجمالي: {nm(tabUnmatched.reduce((s,o)=>s+o._amt,0))} ر.س</div></div>
-</div>}
-
-<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:14}}>
-<div style={{padding:'12px',borderRadius:10,background:'rgba(212,160,23,.04)',border:'1px solid rgba(212,160,23,.06)',textAlign:'center'}}>
-<div style={{fontSize:8,color:C.gold}}>إجمالي</div><div style={{fontSize:18,fontWeight:900,color:C.gold}}>{tabItems.length}</div><div style={{fontSize:9,color:'var(--tx6)'}}>{nm(tabTotal)} ر.س</div>
-</div>
-<div style={{padding:'12px',borderRadius:10,background:'rgba(39,160,70,.04)',border:'1px solid rgba(39,160,70,.06)',textAlign:'center'}}>
-<div style={{fontSize:8,color:C.ok}}>مؤكدة</div><div style={{fontSize:18,fontWeight:900,color:C.ok}}>{tabMatched.length}</div>
-</div>
-<div style={{padding:'12px',borderRadius:10,background:tabUnmatched.length>0?'rgba(192,57,43,.04)':'rgba(255,255,255,.02)',border:'1px solid '+(tabUnmatched.length>0?'rgba(192,57,43,.06)':'rgba(255,255,255,.04)'),textAlign:'center'}}>
-<div style={{fontSize:8,color:tabUnmatched.length>0?C.red:'var(--tx6)'}}>بدون تأكيد</div><div style={{fontSize:18,fontWeight:900,color:tabUnmatched.length>0?C.red:'var(--tx6)'}}>{tabUnmatched.length}</div>
-</div>
-</div>
-
-<div style={{display:'flex',gap:6,marginBottom:12}}>
-{[['all','الكل',tabItems.length],['unverified','بدون تأكيد',tabUnmatched.length],['verified','مؤكدة',tabMatched.length]].map(([k,l,n])=>
-<button key={k} onClick={()=>setPayFilter(k)} style={{height:28,padding:'0 10px',borderRadius:6,border:'1px solid '+(payFilter===k?'rgba(212,160,23,.2)':'rgba(255,255,255,.05)'),background:payFilter===k?'rgba(212,160,23,.06)':'transparent',color:payFilter===k?C.gold:'var(--tx5)',fontFamily:F,fontSize:9,fontWeight:600,cursor:'pointer'}}>{l} ({n})</button>)}
-</div>
-
-{(payFilter==='all'||payFilter==='unverified')&&Object.keys(grpUnmatched).length>0&&<>
-{payFilter==='all'&&<div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:6}}>بدون تأكيد</div>}
-<div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:14}}>
-{Object.entries(grpUnmatched).map(([cat,{items,total}])=><div key={cat} style={{borderRadius:8,border:'1px solid rgba(192,57,43,.05)',overflow:'hidden'}}>
-<div onClick={()=>toggleCat('u_'+tab+'_'+cat)} style={{padding:'8px 12px',background:'rgba(192,57,43,.02)',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{width:6,height:6,borderRadius:'50%',background:C.red}}/><span style={{fontSize:10,fontWeight:700,color:'var(--tx)'}}>{cat}</span><span style={{fontSize:8,color:'var(--tx6)'}}>({items.length})</span></div>
-<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:11,fontWeight:800,color:C.red,direction:'ltr'}}>-{nm(total)}</span><span style={{fontSize:9,color:'var(--tx6)',transform:expandedCats.has('u_'+tab+'_'+cat)?'rotate(90deg)':'none',transition:'.2s'}}>▸</span></div>
-</div>
-{expandedCats.has('u_'+tab+'_'+cat)&&<div style={{padding:'4px 12px 8px'}}>
-{items.map((op,i)=><div key={i} style={{padding:'5px 8px',borderRadius:5,background:'rgba(255,255,255,.01)',marginBottom:2,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<div style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:5,height:5,borderRadius:'50%',background:C.red,opacity:.4}}/><span style={{fontSize:9,color:'var(--tx3)'}}>{op._desc}</span><span style={{fontSize:7,color:'var(--tx6)'}}>{op._date}</span></div>
-<span style={{fontSize:10,fontWeight:700,color:C.red,direction:'ltr'}}>-{nm(op._amt)}</span>
-</div>)}
-</div>}
-</div>)}
-</div>
-</>}
-
-{(payFilter==='all'||payFilter==='verified')&&Object.keys(grpMatched).length>0&&<>
-{payFilter==='all'&&<div style={{fontSize:11,fontWeight:700,color:C.ok,marginBottom:6}}>مؤكدة</div>}
-<div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:14}}>
-{Object.entries(grpMatched).map(([cat,{items,total}])=><div key={cat} style={{borderRadius:8,border:'1px solid rgba(39,160,70,.05)',overflow:'hidden'}}>
-<div onClick={()=>toggleCat('m_'+tab+'_'+cat)} style={{padding:'8px 12px',background:'rgba(39,160,70,.02)',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{width:6,height:6,borderRadius:'50%',background:C.ok}}/><span style={{fontSize:10,fontWeight:700,color:'var(--tx)'}}>{cat}</span><span style={{fontSize:8,color:'var(--tx6)'}}>({items.length})</span></div>
-<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:11,fontWeight:800,color:C.ok,direction:'ltr'}}>-{nm(total)}</span><span style={{fontSize:9,color:'var(--tx6)',transform:expandedCats.has('m_'+tab+'_'+cat)?'rotate(90deg)':'none',transition:'.2s'}}>▸</span></div>
-</div>
-{expandedCats.has('m_'+tab+'_'+cat)&&<div style={{padding:'4px 12px 8px'}}>
-{items.map(({op},i)=><div key={i} style={{padding:'5px 8px',borderRadius:5,background:'rgba(255,255,255,.01)',marginBottom:2,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<div style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:5,height:5,borderRadius:'50%',background:C.ok,opacity:.4}}/><span style={{fontSize:9,color:'var(--tx3)'}}>{op._desc}</span><span style={{fontSize:7,color:'#9b59b6'}}>📱</span><span style={{fontSize:7,color:'var(--tx6)'}}>{op._date}</span></div>
-<span style={{fontSize:10,fontWeight:700,color:C.ok,direction:'ltr'}}>-{nm(op._amt)}</span>
-</div>)}
-</div>}
-</div>)}
-</div>
-</>}
-</>})()}
-</div>}
-</div>{/* end content */}
-</div>{/* end flex layout */}
-</div>}
-
-
-function AppointmentsPage({sb,toast,user,lang}){
-const T=(a,e)=>lang==='ar'?a:e;const[data,setData]=useState([]);const[loading,setLoading]=useState(true);const[pop,setPop]=useState(null);
-const[f,setF]=useState({title:'',type:'client_visit',date:new Date().toISOString().slice(0,10),time:'09:00',client_id:'',worker_id:'',assigned_to:'',location:'',notes:'',status:'scheduled'});
-const load=useCallback(async()=>{setLoading(true);const{data:d}=await sb.from('appointments').select('*,clients:client_id(name_ar),workers:worker_id(name_ar),users:assigned_to(name_ar)').is('deleted_at',null).order('date',{ascending:true}).order('time',{ascending:true});setData(d||[]);setLoading(false)},[sb]);
+function AppointmentsPage({sb,toast,user,lang,branchId}){
+const T=(a,e)=>lang==='ar'?a:e;const[data,setData]=useState([]);const[loading,setLoading]=useState(true);const[pop,setPop]=useState(null);const[saving,setSaving]=useState(false);
+// Use local-date string (Saudi is GMT+3) so dates don't shift forward/back at UTC boundary.
+const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const isGM=user?.role?.name_ar==='المدير العام'||user?.role?.name_en==='General Manager';
+const scopeBranchId=isGM?branchId:(user?.primary_branch_id||user?.branch_id||null);
+const[f,setF]=useState({title:'',type:'client_visit',date:todayISO(),time:'09:00',client_id:'',worker_id:'',assigned_to:'',location:'',notes:'',status:'scheduled'});
+const load=useCallback(async()=>{setLoading(true);let q=sb.from('appointments').select('*,clients:client_id(name_ar),workers:worker_id(name_ar),users:assigned_to(name_ar)').is('deleted_at',null).order('date',{ascending:true}).order('time',{ascending:true});if(scopeBranchId)q=q.eq('branch_id',scopeBranchId);const{data:d}=await q;setData(d||[]);setLoading(false)},[sb,scopeBranchId]);
 useEffect(()=>{load()},[load]);
 const save=async()=>{if(!f.title||!f.date){toast(T('خطأ: العنوان والتاريخ مطلوبين','Error: Title and date required'));return}
+setSaving(true);
 const row={...f,created_by:user?.id};delete row.clients;delete row.workers;delete row.users;
-if(pop==='new'){const{error}=await sb.from('appointments').insert(row);if(error){toast((lang==='ar'?'خطأ: ':'Error: ')+error.message);return}}
-else{const{error}=await sb.from('appointments').update(row).eq('id',pop);if(error){toast((lang==='ar'?'خطأ: ':'Error: ')+error.message);return}}
+if(!row.branch_id&&scopeBranchId)row.branch_id=scopeBranchId;
+let err;
+if(pop==='new'){err=(await sb.from('appointments').insert(row)).error}
+else{err=(await sb.from('appointments').update(row).eq('id',pop)).error}
+setSaving(false);
+if(err){toast((lang==='ar'?'خطأ: ':'Error: ')+err.message);return}
 toast(T('تم الحفظ','Saved'));setPop(null);load()};
 const typeLabels={client_visit:T('زيارة عميل','Client Visit'),passport_office:T('الجوازات','Passports'),insurance:T('التأمينات','Insurance'),jawazat:T('الجوازات','Jawazat'),labor_office:T('مكتب العمل','Labor Office'),gosi:T('التأمينات الاجتماعية','GOSI'),court:T('محكمة','Court'),other:T('أخرى','Other')};
 const statusColors={scheduled:C.gold,confirmed:C.blue,completed:C.ok,cancelled:C.red,no_show:'#e67e22'};
@@ -2929,14 +2577,14 @@ return<div style={{fontFamily:"'Cairo',sans-serif",paddingTop:0}}>
 <div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>{T('المواعيد','Appointments')}</div>
 <div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>{T('متابعة الزيارات والاجتماعات والمراجعات الحكومية','Track visits, meetings, and government office reviews')}</div>
 </div>
-<button onClick={()=>{setF({title:'',type:'client_visit',date:new Date().toISOString().slice(0,10),time:'09:00',client_id:'',worker_id:'',assigned_to:'',location:'',notes:'',status:'scheduled'});setPop('new')}} style={{height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s',flexShrink:0}}>
+<button onClick={()=>{setF({title:'',type:'client_visit',date:todayISO(),time:'09:00',client_id:'',worker_id:'',assigned_to:'',location:'',notes:'',status:'scheduled'});setPop('new')}} style={{height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s',flexShrink:0}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 {T('موعد جديد','New')}
 </button>
 </div>
 {loading?<div style={{textAlign:'center',padding:60,color:'var(--tx5)',fontSize:13}}>{T('جاري التحميل...','Loading...')}</div>:
 data.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)',fontSize:13,fontWeight:500}}>{T('لا توجد مواعيد','No appointments')}</div>:
-<div style={{display:'flex',flexDirection:'column',gap:14}}>{data.map(a=>{const isToday=a.date===new Date().toISOString().slice(0,10);const isPast=new Date(a.date)<new Date(new Date().toISOString().slice(0,10));const sc=statusColors[a.status]||C.gold;
+<div style={{display:'flex',flexDirection:'column',gap:14}}>{data.map(a=>{const today=todayISO();const isToday=a.date===today;const isPast=(a.date||'')<today;const sc=statusColors[a.status]||C.gold;
 return<div key={a.id} onClick={()=>{setF({...a});setPop(a.id)}} style={{padding:'18px 22px',borderRadius:16,background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid '+(isToday?'rgba(212,160,23,.25)':'rgba(255,255,255,.08)'),cursor:'pointer',display:'flex',gap:18,alignItems:'center',opacity:isPast&&a.status!=='completed'?.65:1,transition:'.25s cubic-bezier(.4,0,.2,1)',boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}} onMouseEnter={e=>{e.currentTarget.style.borderColor=sc+'66';e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+sc+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={e=>{e.currentTarget.style.borderColor=isToday?'rgba(212,160,23,.25)':'rgba(255,255,255,.08)';e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
 <div style={{textAlign:'center',minWidth:54,padding:'8px 10px',borderRadius:10,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.06)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}}>
 <div style={{fontSize:20,fontWeight:700,color:isToday?C.gold:'var(--tx2)',letterSpacing:'-.3px',lineHeight:1,direction:'ltr'}}>{a.date?.slice(8,10)}</div>
@@ -2965,14 +2613,14 @@ return<div key={a.id} onClick={()=>{setF({...a});setPop(a.id)}} style={{padding:
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 <div><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:4}}>{T('النوع','Type')}</div><select value={f.type||''} onChange={e=>setF(p=>({...p,type:e.target.value}))} style={fS}>{Object.entries(typeLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></div>
-<div><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:4}}>{T('الحالة','Status')}</div><select value={f.status||''} onChange={e=>setF(p=>({...p,status:e.target.value}))} style={fS}><option value="scheduled">{T('مجدول','Scheduled')}</option><option value="confirmed">{T('مؤكد','Confirmed')}</option><option value="completed">{T('مكتمل','Completed')}</option><option value="cancelled">{T('ملغي','Cancelled')}</option></select></div>
+<div><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:4}}>{T('الحالة','Status')}</div><select value={f.status||''} onChange={e=>setF(p=>({...p,status:e.target.value}))} style={fS}><option value="scheduled">{T('مجدول','Scheduled')}</option><option value="confirmed">{T('مؤكد','Confirmed')}</option><option value="completed">{T('مكتمل','Completed')}</option><option value="cancelled">{T('ملغي','Cancelled')}</option><option value="no_show">{T('لم يحضر','No Show')}</option></select></div>
 </div>
 <div><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:4}}>{T('الموقع','Location')}</div><input value={f.location||''} onChange={e=>setF(p=>({...p,location:e.target.value}))} style={fS}/></div>
 <div><div style={{fontSize:10,fontWeight:700,color:'var(--tx4)',marginBottom:4}}>{T('ملاحظات','Notes')}</div><textarea value={f.notes||''} onChange={e=>setF(p=>({...p,notes:e.target.value}))} style={{...fS,height:60,padding:'8px 12px',resize:'none'}}/></div>
 </div>
 <div style={{padding:'12px 20px',borderTop:'1px solid var(--bd)',display:'flex',gap:8,justifyContent:'flex-end'}}>
-<button onClick={save} style={{height:38,padding:'0 24px',borderRadius:10,background:C.gold,border:'none',color:C.dk,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:'pointer'}}>{T('حفظ','Save')}</button>
-{pop!=='new'&&<button onClick={async()=>{await sb.from('appointments').update({deleted_at:new Date().toISOString()}).eq('id',pop);toast(T('تم الحذف','Deleted'));setPop(null);load()}} style={{height:38,padding:'0 18px',borderRadius:10,background:'rgba(192,57,43,.1)',border:'1px solid rgba(192,57,43,.15)',color:C.red,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,cursor:'pointer'}}>{T('حذف','Delete')}</button>}
+<button onClick={save} disabled={saving} style={{height:38,padding:'0 24px',borderRadius:10,background:C.gold,border:'none',color:C.dk,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:700,cursor:saving?'not-allowed':'pointer',opacity:saving?.6:1}}>{saving?T('جاري الحفظ...','Saving...'):T('حفظ','Save')}</button>
+{pop!=='new'&&<button onClick={async()=>{const{error}=await sb.from('appointments').update({deleted_at:new Date().toISOString()}).eq('id',pop);if(error){toast((lang==='ar'?'خطأ: ':'Error: ')+error.message);return}toast(T('تم الحذف','Deleted'));setPop(null);load()}} style={{height:38,padding:'0 18px',borderRadius:10,background:'rgba(192,57,43,.1)',border:'1px solid rgba(192,57,43,.15)',color:C.red,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,cursor:'pointer'}}>{T('حذف','Delete')}</button>}
 </div></div></div>}
 </div>}
 

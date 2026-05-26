@@ -35,6 +35,9 @@ const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12
 export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
+  // Lock non-GM users to their own branch so they can't view/edit other offices' fees.
+  const isGM = user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager'
+  const scopeBranchId = isGM ? (branchId || null) : (user?.primary_branch_id || user?.branch_id || null)
 
   const [rows, setRows] = useState([])
   const [total, setTotal] = useState(0)
@@ -82,14 +85,17 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
     ;(async () => {
       const todayIso = new Date().toISOString().slice(0, 10)
       const weekStart = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10)
+      // Branch-scoping for stats: same rule as the list. Walks through service_request.branch_id.
+      const scope = (qb) => scopeBranchId ? qb.eq('service_request.branch_id', scopeBranchId) : qb
+      const baseSel = 'service_request:service_request_id!inner(branch_id)'
       const [pendingHead, pendingSum, paidHead, paidSum, todayPaid, weekPaid, breakdown] = await Promise.all([
-        sb.from('transaction_fees').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'pending'),
-        sb.from('transaction_fees').select('amount').is('deleted_at', null).eq('status', 'pending'),
-        sb.from('transaction_fees').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'paid'),
-        sb.from('transaction_fees').select('paid_amount').is('deleted_at', null).eq('status', 'paid'),
-        sb.from('transaction_fees').select('paid_amount,payment_date').is('deleted_at', null).eq('status', 'paid').gte('payment_date', todayIso + 'T00:00:00').lte('payment_date', todayIso + 'T23:59:59'),
-        sb.from('transaction_fees').select('paid_amount,payment_date').is('deleted_at', null).eq('status', 'paid').gte('payment_date', weekStart + 'T00:00:00'),
-        sb.from('transaction_fees').select('amount,paid_amount,status,fee_kind:fee_kind_id(code,value_ar,value_en)').is('deleted_at', null).eq('status', 'pending'),
+        scope(sb.from('transaction_fees').select('id,'+baseSel, { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'pending')),
+        scope(sb.from('transaction_fees').select('amount,'+baseSel).is('deleted_at', null).eq('status', 'pending')),
+        scope(sb.from('transaction_fees').select('id,'+baseSel, { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'paid')),
+        scope(sb.from('transaction_fees').select('paid_amount,'+baseSel).is('deleted_at', null).eq('status', 'paid')),
+        scope(sb.from('transaction_fees').select('paid_amount,payment_date,'+baseSel).is('deleted_at', null).eq('status', 'paid').gte('payment_date', todayIso + 'T00:00:00').lte('payment_date', todayIso + 'T23:59:59')),
+        scope(sb.from('transaction_fees').select('paid_amount,payment_date,'+baseSel).is('deleted_at', null).eq('status', 'paid').gte('payment_date', weekStart + 'T00:00:00')),
+        scope(sb.from('transaction_fees').select('amount,paid_amount,status,fee_kind:fee_kind_id(code,value_ar,value_en),'+baseSel).is('deleted_at', null).eq('status', 'pending')),
       ])
       if (!alive) return
       setStats({
@@ -113,7 +119,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
       setFeeKindsBreakdown(Object.values(map).sort((a, b) => b.cnt - a.cnt).slice(0, 6))
     })()
     return () => { alive = false }
-  }, [sb, refreshTick])
+  }, [sb, refreshTick, scopeBranchId])
 
   /* List */
   useEffect(() => {
@@ -137,6 +143,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
       if (feeKind) qb = qb.eq('fee_kind_id', feeKind)
       if (from) qb = qb.gte('created_at', from)
       if (to) qb = qb.lte('created_at', to + 'T23:59:59')
+      if (scopeBranchId) qb = qb.eq('service_request.branch_id', scopeBranchId)
       if (q && q.trim()) qb = qb.or(`sadad_no.ilike.%${q.trim()}%,reference_no.ilike.%${q.trim()}%,bank_reference.ilike.%${q.trim()}%`)
       qb = qb.order('created_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1)
 
@@ -149,7 +156,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
       setRows(list); setTotal(count || 0); setLoading(false)
     })()
     return () => { alive = false }
-  }, [sb, page, status, feeKind, q, serviceType, from, to, refreshTick])
+  }, [sb, page, status, feeKind, q, serviceType, from, to, refreshTick, scopeBranchId])
 
   /* Group by day */
   const grouped = useMemo(() => {
@@ -575,6 +582,12 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
     try {
       const amt = Number(v.amount) || 0
       if (amt <= 0) { setErr(T('أدخل المبلغ','Enter the amount')); setSaving(false); return }
+      // Cap at the fee's outstanding balance so a typo can't drive paid_amount above the total.
+      const outstanding = Math.max(0, Number(fee.amount || 0) - Number(fee.paid_amount || 0))
+      if (action !== 'edit' && outstanding > 0 && amt > outstanding + 0.005) {
+        setErr(T(`المبلغ يتجاوز المتبقي (${outstanding.toFixed(2)} ر.س)`,`Amount exceeds outstanding (${outstanding.toFixed(2)} SAR)`))
+        setSaving(false); return
+      }
       const pm = payMethods.find(p => p.code === v.payment_method_code) || null
       const upd = {
         amount: amt, paid_amount: amt, status: 'paid',

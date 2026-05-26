@@ -933,8 +933,14 @@ if(authVal<numVisas*cfg.authorization){setErr('السعر المدخل غير م
 return true
 }
 
-const goNext=()=>{
+const goNext=async()=>{
 if(!canNext())return
+// Duplicate-ID guard: stop the user from creating a second client record under an existing national ID.
+if(step===2&&step2Mode==='client'&&clientMode==='new'&&!workerIsClient&&newClient.id_number&&newClient.id_number.length===10){
+const{data:dup,error:dupErr}=await sb.from('clients').select('id,name_ar,name_en').eq('id_number',newClient.id_number).is('deleted_at',null).limit(1)
+if(dupErr){setErr('تعذر التحقق من رقم الهوية، حاول مرة أخرى');return}
+if(dup&&dup.length){const nm=dup[0].name_ar||dup[0].name_en||'عميل آخر';setErr(`رقم الهوية مسجل مسبقاً للعميل: ${nm} — اختره من القائمة بدلاً من تسجيله من جديد`);return}
+}
 // Step 2 sub-flow: client → (if worker not same and not visa/kafala service) worker → next step
 if(step===2&&step2Mode==='client'&&!VISA_SERVICES.has(selSvc)&&selSvc!=='kafala_transfer'){setStep2Mode('worker');setErr('');return}
 // If the service's single field is merged into Step 2, skip Step 3 entirely
@@ -1037,6 +1043,12 @@ finalWorkerId=nw.id
 
 // Create new client if needed (new schema columns — no client_number/status)
 if(clientMode==='new'){
+// Safety net: re-check ID uniqueness right before insert (in case another user created the same ID between step 2 and submit).
+if(newClient.id_number){
+const{data:dup,error:dupErr}=await sb.from('clients').select('id,name_ar,name_en').eq('id_number',newClient.id_number).is('deleted_at',null).limit(1)
+if(dupErr)throw dupErr
+if(dup&&dup.length){const nm=dup[0].name_ar||dup[0].name_en||'عميل آخر';setErr(`رقم الهوية مسجل مسبقاً للعميل: ${nm}`);setSaving(false);return}
+}
 const{data:nc,error:ncErr}=await sb.from('clients').insert({
 name_ar:newClient.name_ar||null,name_en:newClient.name_en||null,
 phone:newClient.phone?('966'+newClient.phone):null,
@@ -1088,6 +1100,35 @@ const detailRow=(svcCode==='work_visa')?{service_request_id:sr.id,main_facility_
 :{service_request_id:sr.id,worker_id:workerIsClient?null:finalWorkerId,worker_facility_id:selWorker?.facility?.id||null,description:selectedService?.name_ar||fields.description||null}
 const{error:dErr}=await sb.from(detailTbl).insert(detailRow)
 if(dErr)throw dErr
+
+// 2b. Persist broker/agent link. Either reuse the picked broker, or create a new
+// agent row from `newBroker` and then link. Without this step the UI lets the user
+// pick a broker but the selection is discarded at submit.
+let linkedAgentId=null
+if(selBroker?.id){
+  linkedAgentId=selBroker.id
+}else if(brokerMode==='new'&&newBroker?.name_ar?.trim()){
+  const{data:newAgent,error:newAgentErr}=await sb.from('agents').insert({
+    name_ar:newBroker.name_ar.trim(),
+    name_en:(newBroker.name_en||'').trim()||null,
+    phone:newBroker.phone?('966'+String(newBroker.phone).replace(/\D/g,'')):null,
+    id_number:newBroker.id_number||null,
+    nationality_id:newBroker.nationality_id||null,
+    branch_id:userBranchId,
+    created_by:user?.id||null,
+  }).select('id,default_commission_amount').single()
+  if(newAgentErr)throw newAgentErr
+  linkedAgentId=newAgent.id
+}
+if(linkedAgentId){
+  const brokerForCommission=selBroker||{}
+  const{error:sraErr}=await sb.from('service_request_agents').insert({
+    service_request_id:sr.id,
+    agent_id:linkedAgentId,
+    commission_amount:Number(brokerForCommission.default_commission_amount||0)||null,
+  })
+  if(sraErr)throw sraErr
+}
 
 // 3. Insert invoice IF the service is billable. Free services skip the invoice (per the user's free-service flow).
 const billable=isServiceBillable?isServiceBillable(selSvc):true
@@ -1190,7 +1231,16 @@ toast(T('تم رفع الطلب بنجاح ✓','Request submitted successfully 
 onClose()
 }catch(e){
 console.error(e)
-setErr('حدث خطأ: '+(e.message||'حاول مرة أخرى'))
+// Surface specific failure reasons so the user knows whether to retry, pick another value, or contact admin.
+const m=(e.message||'').toLowerCase()
+if(e.code==='23505'||m.includes('duplicate')||m.includes('unique')){
+  if(m.includes('id_number'))setErr('رقم الهوية مسجل مسبقاً — اختر العميل من القائمة بدلاً من تسجيله من جديد')
+  else setErr('قيمة مكررة — راجع الحقول الفريدة (رقم الفاتورة، رقم الطلب)')
+}
+else if(e.code==='23503'||m.includes('foreign key')){setErr('حقل مرجعي غير صالح — تحقق من العميل/العامل/المنشأة المختارة')}
+else if(e.code==='23502'||m.includes('not-null')){setErr('حقل مطلوب فارغ — راجع جميع الخطوات')}
+else if(m.includes('permission')||m.includes('rls')){setErr('ليست لديك صلاحية لإتمام هذا الإجراء')}
+else setErr('حدث خطأ: '+(e.message||'حاول مرة أخرى'))
 }
 setSaving(false)
 }

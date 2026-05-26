@@ -25,8 +25,8 @@ export default function AgentsPage({ sb, lang }) {
   useEffect(() => {
     Promise.all([
       sb.from('agents').select('id,name_ar,name_en,id_number,phone,default_commission_amount,nationality:nationality_id(name_ar,name_en),branch:branch_id(branch_code)').is('deleted_at', null).order('name_ar'),
-      // Aggregate commissions per agent
-      sb.from('service_request_agents').select('agent_id,commission_amount'),
+      // Aggregate commissions per agent — exclude rows whose parent request was soft-deleted.
+      sb.from('service_request_agents').select('agent_id,commission_amount,service_request:service_request_id!inner(deleted_at)').is('service_request.deleted_at', null),
     ]).then(([a, c]) => {
       const byAgent = {}
       ;(c.data || []).forEach(x => {

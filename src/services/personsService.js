@@ -34,7 +34,7 @@ async function fetchUserMap(sb, personIds) {
 export async function listAllPersons() {
   const sb = getSupabase()
   if (!sb) return { rows: [] }
-  const { data, error } = await sb.from('persons').select('*').order('created_at', { ascending: false })
+  const { data, error } = await sb.from('persons').select('*').is('deleted_at', null).order('created_at', { ascending: false })
   if (error) throw error
   const rows = data || []
   const userMap = await fetchUserMap(sb, rows.map(r => r.id))
@@ -44,7 +44,7 @@ export async function listAllPersons() {
 export async function listPersons({ search = '', role = '', page = 1 } = {}) {
   const sb = getSupabase()
   if (!sb) return { rows: [], count: 0 }
-  let q = sb.from('persons').select('*', { count: 'exact' })
+  let q = sb.from('persons').select('*', { count: 'exact' }).is('deleted_at', null)
   if (search) {
     const s = search.replace(/[%,]/g, '')
     q = q.or(`name_ar.ilike.%${s}%,name_en.ilike.%${s}%,id_number.ilike.%${s}%,phone_primary.ilike.%${s}%`)
@@ -62,7 +62,7 @@ export async function listPersons({ search = '', role = '', page = 1 } = {}) {
 export async function getPerson(personId) {
   const sb = getSupabase()
   const [{ data: personRow }, { data: userRow }] = await Promise.all([
-    sb.from('persons').select('*').eq('id', personId).maybeSingle(),
+    sb.from('persons').select('*').eq('id', personId).is('deleted_at', null).maybeSingle(),
     sb.from('users').select('id').eq('person_id', personId).is('deleted_at', null).maybeSingle(),
   ])
   const userMap = new Map(userRow ? [[personId, userRow.id]] : [])
@@ -107,7 +107,8 @@ export async function listManagedFacilities(personId) {
 export async function isIdNumberTaken(idNumber, excludeId = null) {
   const sb = getSupabase()
   if (!idNumber) return false
-  let q = sb.from('persons').select('id').eq('id_number', idNumber)
+  // Soft-deleted persons must not block reuse of their id_number/phone.
+  let q = sb.from('persons').select('id').eq('id_number', idNumber).is('deleted_at', null)
   if (excludeId) q = q.neq('id', excludeId)
   const { data } = await q.limit(1)
   return (data || []).length > 0
@@ -116,7 +117,7 @@ export async function isIdNumberTaken(idNumber, excludeId = null) {
 export async function isPhoneTaken(phone, excludeId = null) {
   const sb = getSupabase()
   if (!phone) return false
-  let q = sb.from('persons').select('id').eq('phone_primary', phone)
+  let q = sb.from('persons').select('id').eq('phone_primary', phone).is('deleted_at', null)
   if (excludeId) q = q.neq('id', excludeId)
   const { data } = await q.limit(1)
   return (data || []).length > 0
@@ -138,7 +139,13 @@ export async function updatePerson(id, payload) {
 
 export async function deletePerson(id) {
   const sb = getSupabase()
-  const { error } = await sb.from('persons').delete().eq('id', id)
+  // Soft-delete to preserve audit trail (the schema has deleted_at + deleted_by).
+  const sess = await sb.auth.getSession()
+  const userId = sess?.data?.session?.user?.id || null
+  const { error } = await sb
+    .from('persons')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
+    .eq('id', id)
   if (error) throw error
 }
 

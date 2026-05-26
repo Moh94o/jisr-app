@@ -1582,18 +1582,7 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
   const F="'Cairo',sans-serif"
   const C={gold:'#D4A017',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
   // Sections grouped by feature area — add new sections here as you gate more features
-  const SECTIONS=[
-    {id:'sms',l:'الرسائل النصية',icon:'💬',controls:[
-      {k:'add_person',l:'إضافة شخص',d:'زر إضافة شخص جديد في أعلى الصفحة'},
-      {k:'service_settings',l:'إعدادات الجهات (الشعارات والألوان)',d:'أيقونة الترس لفتح نافذة تخصيص الجهات'},
-      {k:'person_settings',l:'إعدادات الشخص (الحساب والاتصال)',d:'أزرار إعدادات كل شخص عند اختياره من التبويب'},
-      {k:'delete_message',l:'حذف الرسالة',d:'زر حذف يظهر أعلى كل كرت رسالة'},
-      {k:'edit_msg_category',l:'تعديل فئة الرسالة',d:'زر تعديل الفئة للرسالة الواحدة'},
-      {k:'edit_permissions',l:'تعديل صلاحيات الاطلاع',d:'زر تعديل من يستطيع رؤية الرسالة'},
-      {k:'search',l:'شريط البحث',d:'خانة البحث النصي فوق قائمة الرسائل'},
-      {k:'advanced_search',l:'البحث المتقدم',d:'قائمة الفلاتر (الجهة / التصنيف / الفئة)'},
-    ]},
-  ]
+  const SECTIONS=[]
   const MODES=[
     {v:'everyone',l:'الجميع',c:C.ok,ic:'✓'},
     {v:'disabled',l:'معطّل',c:C.red,ic:'✕'},

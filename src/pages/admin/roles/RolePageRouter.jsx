@@ -10,12 +10,11 @@ import ManagerRolePage from './ManagerRolePage.jsx'
 import SupervisorRolePage from './SupervisorRolePage.jsx'
 import TrackerRolePage from './TrackerRolePage.jsx'
 import SaudizationRolePage from './SaudizationRolePage.jsx'
-import SmsForwarderRolePage from './SmsForwarderRolePage.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = '#D4A017'
 
-export default function RolePageRouter({ roleKey, personId, forwarderId, onBack, toast, countries, branches, idTypes, genders, user }) {
+export default function RolePageRouter({ roleKey, personId, onBack, toast, countries, branches, idTypes, genders, user }) {
   const [person, setPerson] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -49,7 +48,7 @@ export default function RolePageRouter({ roleKey, personId, forwarderId, onBack,
 
   if (!person || !profile) return null
 
-  const shared = { person, profile, forwarderId, onBack, toast, countries, branches, idTypes, genders, user, reload: load }
+  const shared = { person, profile, onBack, toast, countries, branches, idTypes, genders, user, reload: load }
 
   switch (roleKey) {
     case 'user':        return <UserRolePage {...shared} />
@@ -62,7 +61,6 @@ export default function RolePageRouter({ roleKey, personId, forwarderId, onBack,
     case 'supervisor':  return <SupervisorRolePage {...shared} />
     case 'tracker':     return <TrackerRolePage {...shared} />
     case 'saudization': return <SaudizationRolePage {...shared} />
-    case 'sms_forwarder': return <SmsForwarderRolePage {...shared} />
     default: return null
   }
 }

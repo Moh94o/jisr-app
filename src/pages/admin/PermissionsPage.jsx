@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import * as LucideIcons from 'lucide-react'
-import { ChevronLeft, Search, X, Check, ShieldCheck, Building2, Eye, EyeOff } from 'lucide-react'
-import VisibilityAdmin from '../VisibilityAdmin.jsx'
+import { ChevronLeft, Search, X, Check, ShieldCheck, Building2, Eye, EyeOff, Phone, Mail, CreditCard } from 'lucide-react'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -36,7 +35,6 @@ const MODULE_TO_TAB_ID = {
   admin_services: 'admin_services',
   admin_ui_controls: 'admin_ui_controls',
   admin: 'admin_permissions',
-  otp_messages: 'otp_messages',
   sync_hub: 'sync_hub',
   settings: 'settings',
 }
@@ -47,17 +45,21 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
   const [modules, setModules] = useState([])
   const [users, setUsers] = useState([])
   const [branches, setBranches] = useState([])
+  const [roles, setRoles] = useState([])
+  const [nationalities, setNationalities] = useState([])
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState(null) // active permission for modal
 
   const refresh = async () => {
     setLoading(true)
-    const [pRes, uRes, bRes] = await Promise.all([
+    const [pRes, uRes, bRes, rRes, nRes] = await Promise.all([
       sb.from('permissions').select('*').eq('is_active', true).order('module_sort').order('sort_order'),
       sb.from('users')
-        .select('id,role_id,primary_branch_id,is_active,person:persons(name_ar,name_en),branch:branches!users_primary_branch_id_fkey(id,branch_code),role:roles!users_role_id_fkey(id,name_ar,color)')
+        .select('id,role_id,primary_branch_id,is_active,personal_phone,email,created_at,last_login_at,person:persons(id,name_ar,name_en,id_number,id_type_id,nationality_id,phone_primary,birth_date,email),branch:branches!users_primary_branch_id_fkey(id,branch_code),role:roles!users_role_id_fkey(id,name_ar,name_en,color)')
         .is('deleted_at', null).order('created_at'),
       sb.from('branches').select('id,branch_code').is('deleted_at', null).order('branch_code'),
+      sb.from('roles').select('id,name_ar,name_en,color').order('name_ar'),
+      sb.from('nationalities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar'),
     ])
     const perms = pRes.data || []
     // Group by module
@@ -70,6 +72,8 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
     setModules(list)
     setUsers(uRes.data || [])
     setBranches(bRes.data || [])
+    setRoles(rRes.data || [])
+    setNationalities(nRes.data || [])
     setLoading(false)
   }
   useEffect(() => { if (sb) refresh() }, [sb])
@@ -132,7 +136,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
         })}
       </div>
 
-      {tab === 'users' && <UsersTab sb={sb} user={user} toast={toast} lang={lang} users={users} onChanged={() => { refresh() }} />}
+      {tab === 'users' && <UsersTab sb={sb} user={user} toast={toast} lang={lang} users={users} branches={branches} roles={roles} nationalities={nationalities} onChanged={() => { refresh() }} />}
 
       {tab === 'perms' && (loading ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx5)', fontSize: 13 }}>جاري التحميل...</div> :
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gap: 14 }}>
@@ -364,49 +368,72 @@ function PermissionEditor({ sb, user, toast, lang, permission, users, branches, 
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Users tab — activate/deactivate user accounts.
+// Users tab — activate/deactivate user accounts, edit employee details.
 // ═══════════════════════════════════════════════════════════════════
-function UsersTab({ sb, user, toast, lang, users, onChanged }) {
+function UsersTab({ sb, user, toast, lang, users, branches, roles, nationalities, onChanged }) {
   const isAr = lang !== 'en'; const T = (a, e) => isAr ? a : e
   const [q, setQ] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'active' | 'pending'
   const [savingIds, setSavingIds] = useState(() => new Set())
+  const [editing, setEditing] = useState(null)
+  const pendingCount = users.filter(u => !u.is_active).length
   const filtered = users.filter(u => {
+    if (statusFilter === 'active' && !u.is_active) return false
+    if (statusFilter === 'pending' && u.is_active) return false
     if (!q) return true
     const hay = [u.person?.name_ar, u.person?.name_en, u.branch?.branch_code, u.role?.name_ar].filter(Boolean).join(' ').toLowerCase()
     return hay.includes(q.toLowerCase())
   })
+  // Pending accounts surface first so the GM sees what needs action.
+  const sorted = [...filtered].sort((a, b) => Number(a.is_active) - Number(b.is_active))
   const toggle = async (u) => {
     if (u.id === user?.id) { toast(T('لا يمكنك تعطيل حسابك', "You can't disable your own account")); return }
-    setSavingIds(s => new Set([...s, u.id]))
     const next = !u.is_active
+    // Last-GM safety: refuse to deactivate the final active General Manager.
+    if (!next && (u.role?.name_ar === 'المدير العام' || u.role?.name_en === 'General Manager')) {
+      const activeGMs = users.filter(x => x.is_active && (x.role?.name_ar === 'المدير العام' || x.role?.name_en === 'General Manager'))
+      if (activeGMs.length <= 1) { toast(T('لا يمكن تعطيل آخر مدير عام نشط', 'Cannot disable the last active General Manager')); return }
+    }
+    setSavingIds(s => new Set([...s, u.id]))
     const { error } = await sb.from('users').update({ is_active: next, updated_at: new Date().toISOString() }).eq('id', u.id)
     setSavingIds(s => { const n = new Set(s); n.delete(u.id); return n })
     if (error) { toast(T('خطأ: ', 'Error: ') + error.message.slice(0, 80)); return }
     toast(T(next ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب', next ? 'Account enabled' : 'Account disabled'))
     await onChanged?.()
   }
+  const Chip = ({ k, label, count }) => {
+    const sel = statusFilter === k
+    return <button type="button" onClick={() => setStatusFilter(k)}
+      style={{ height: 32, padding: '0 14px', borderRadius: 999, border: '1px solid ' + (sel ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.08)'), background: sel ? 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)' : 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', color: sel ? C.gold : 'var(--tx3)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.18s' }}>
+      {label}
+      {count != null && <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: '0 6px', borderRadius: 9, background: sel ? C.gold : 'rgba(255,255,255,.08)', color: sel ? '#0a0a0a' : 'var(--tx3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{count}</span>}
+    </button>
+  }
   return (
     <div>
-      <div style={{ position: 'relative', marginBottom: 14 }}>
+      <div style={{ position: 'relative', marginBottom: 12 }}>
         <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,.4)' }} />
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث بالاسم أو رمز الفرع أو الدور..."
           style={{ width: '100%', height: 40, padding: '0 14px 0 36px', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 11, fontFamily: F, fontSize: 14, fontWeight: 400, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }} />
       </div>
-      {filtered.length === 0 ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx5)', fontSize: 13 }}>لا يوجد موظفين</div> :
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <Chip k="all" label="الكل" count={users.length} />
+        <Chip k="active" label="نشط" count={users.length - pendingCount} />
+        <Chip k="pending" label="بانتظار الموافقة" count={pendingCount} />
+      </div>
+      {sorted.length === 0 ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx5)', fontSize: 13 }}>لا يوجد موظفين</div> :
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filtered.map(u => {
+          {sorted.map(u => {
             const name = u.person?.name_ar || u.person?.name_en || '—'
             const branchLabel = u.branch ? u.branch.branch_code : '—'
             const isMe = u.id === user?.id
             const saving = savingIds.has(u.id)
-            const initials = (name || '').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('') || '—'
             const accent = u.role?.color || C.gold
-            const accentColor = u.is_active ? accent : 'rgba(255,255,255,.18)'
             return (
-              <div key={u.id} style={{ ...GLASS, padding: '14px 18px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 16, opacity: u.is_active ? 1 : .65, transition: '.2s' }}>
-                {/* Avatar */}
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}88 100%)`, border: `1px solid ${accentColor}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#0a0a0a', flexShrink: 0, boxShadow: `0 4px 12px ${accentColor}30, inset 0 1px 0 rgba(255,255,255,.25)`, fontFamily: F, letterSpacing: '.5px' }}>{initials}</div>
-
+              <div key={u.id} onClick={() => setEditing(u)}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }}
+                style={{ ...GLASS, padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 16, opacity: u.is_active ? 1 : .65, transition: '.2s', cursor: 'pointer' }}>
                 {/* Name + meta */}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -422,11 +449,29 @@ function UsersTab({ sb, user, toast, lang, users, onChanged }) {
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                       <Building2 size={11} />{branchLabel}
                     </span>
+                    {u.person?.id_number && <>
+                      <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--tx6)' }} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}>
+                        <CreditCard size={11} />{u.person.id_number}
+                      </span>
+                    </>}
+                    {u.personal_phone && <>
+                      <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--tx6)' }} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}>
+                        <Phone size={11} />{u.personal_phone}
+                      </span>
+                    </>}
+                    {u.email && <>
+                      <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--tx6)' }} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <Mail size={11} />{u.email}
+                      </span>
+                    </>}
                   </div>
                 </div>
 
                 {/* Status + toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6, background: u.is_active ? 'rgba(39,160,70,.14)' : 'rgba(255,255,255,.05)', color: u.is_active ? C.ok : 'var(--tx5)', border: `1px solid ${u.is_active ? 'rgba(39,160,70,.3)' : 'rgba(255,255,255,.08)'}` }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: u.is_active ? C.ok : 'var(--tx5)', boxShadow: u.is_active ? `0 0 4px ${C.ok}` : 'none' }} />
                     {u.is_active ? 'نشط' : 'معطّل'}
@@ -441,18 +486,146 @@ function UsersTab({ sb, user, toast, lang, users, onChanged }) {
           })}
         </div>
       }
+
+      {editing && <UserEditModal sb={sb} user={editing} branches={branches} roles={roles} nationalities={nationalities} toast={toast} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await onChanged?.() }} />}
     </div>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Visibility tab — wrap the existing VisibilityAdmin so the look matches
-// the surrounding glass cards instead of the legacy gold-bordered fieldset.
+// UserEditModal — GM-facing editor for all employee fields.
+// Updates persons + users tables. Closes when saved.
 // ═══════════════════════════════════════════════════════════════════
-function VisibilityTab({ lang, toast, nav, hubTabs, visibility, onChange }) {
+function UserEditModal({ sb, user, branches, roles, nationalities, toast, onClose, onSaved }) {
+  const [f, setF] = useState({
+    name_ar: user.person?.name_ar || '',
+    name_en: user.person?.name_en || '',
+    id_number: user.person?.id_number || '',
+    nationality_id: user.person?.nationality_id || '',
+    role_id: user.role_id || '',
+    primary_branch_id: user.primary_branch_id || '',
+    personal_phone: user.personal_phone || '',
+    email: user.email || '',
+    is_active: !!user.is_active,
+  })
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+
+  const lbl = { fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }
+  const inp = { width: '100%', height: 40, padding: '0 12px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)', background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', outline: 'none', boxSizing: 'border-box', boxShadow: '0 2px 6px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.04)' }
+  const sel = { ...inp, cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', paddingInlineEnd: 30, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23D4A017' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'left 12px center' }
+
+  const save = async () => {
+    const name_ar = (f.name_ar || '').trim()
+    if (!name_ar) { toast('الاسم بالعربي مطلوب'); return }
+    if (!f.role_id) { toast('الدور مطلوب'); return }
+    if (!f.primary_branch_id) { toast('المكتب مطلوب'); return }
+    setSaving(true)
+    const personPatch = {
+      name_ar,
+      name_en: (f.name_en || '').trim() || null,
+      id_number: (f.id_number || '').trim() || null,
+      nationality_id: f.nationality_id || null,
+      updated_at: new Date().toISOString(),
+    }
+    const userPatch = {
+      role_id: f.role_id,
+      primary_branch_id: f.primary_branch_id,
+      personal_phone: (f.personal_phone || '').trim() || null,
+      email: (f.email || '').trim().toLowerCase() || null,
+      is_active: f.is_active,
+      updated_at: new Date().toISOString(),
+    }
+    const [pRes, uRes] = await Promise.all([
+      sb.from('persons').update(personPatch).eq('id', user.person?.id).select(),
+      sb.from('users').update(userPatch).eq('id', user.id).select(),
+    ])
+    setSaving(false)
+    if (pRes.error) { toast('خطأ: ' + pRes.error.message.slice(0, 100)); return }
+    if (uRes.error) { toast('خطأ: ' + uRes.error.message.slice(0, 100)); return }
+    if ((pRes.data || []).length === 0 || (uRes.data || []).length === 0) { toast('لم يتم الحفظ — ليست لديك صلاحية كافية'); return }
+    toast('تم حفظ بيانات الموظف')
+    await onSaved?.()
+  }
+
   return (
-    <div style={{ ...GLASS, padding: 4 }}>
-      <VisibilityAdmin lang={lang} toast={toast} nav={nav} hubTabs={hubTabs} visibility={visibility} onChange={onChange} />
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16, fontFamily: F, direction: 'rtl' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--modal-bg)', borderRadius: 16, width: 'min(680px, 95vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* Header */}
+        <div style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ShieldCheck size={20} color={C.gold} />
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)' }}>بيانات الموظف</div>
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 22, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 16, rowGap: 14 }}>
+          <div>
+            <div style={lbl}>الاسم بالعربي <span style={{ color: C.red }}>*</span></div>
+            <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} style={inp} dir="rtl" />
+          </div>
+          <div>
+            <div style={lbl}>الاسم بالإنجليزي</div>
+            <input value={f.name_en} onChange={e => set('name_en', e.target.value)} style={inp} dir="ltr" />
+          </div>
+          <div>
+            <div style={lbl}>رقم الهوية</div>
+            <input value={f.id_number} onChange={e => set('id_number', e.target.value.replace(/\D/g, '').slice(0, 10))} style={inp} dir="ltr" inputMode="numeric" />
+          </div>
+          <div>
+            <div style={lbl}>الجنسية</div>
+            <select value={f.nationality_id} onChange={e => set('nationality_id', e.target.value)} style={sel}>
+              <option value="">— اختر —</option>
+              {nationalities.map(n => <option key={n.id} value={n.id}>{n.name_ar}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={lbl}>الدور <span style={{ color: C.red }}>*</span></div>
+            <select value={f.role_id} onChange={e => set('role_id', e.target.value)} style={sel}>
+              <option value="">— اختر —</option>
+              {roles.map(r => <option key={r.id} value={r.id}>{r.name_ar}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={lbl}>المكتب <span style={{ color: C.red }}>*</span></div>
+            <select value={f.primary_branch_id} onChange={e => set('primary_branch_id', e.target.value)} style={sel}>
+              <option value="">— اختر —</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.branch_code}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={lbl}>رقم الجوال</div>
+            <input value={f.personal_phone} onChange={e => set('personal_phone', e.target.value)} style={inp} dir="ltr" placeholder="+9665XXXXXXXX" />
+          </div>
+          <div>
+            <div style={lbl}>البريد الإلكتروني</div>
+            <input value={f.email} onChange={e => set('email', e.target.value)} style={inp} dir="ltr" type="email" />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={lbl}>حالة الحساب</div>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 9, background: 'rgba(0,0,0,.18)', cursor: 'pointer' }}>
+              <button type="button" onClick={() => set('is_active', !f.is_active)}
+                style={{ width: 40, height: 22, borderRadius: 999, border: 'none', background: f.is_active ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'rgba(255,255,255,.14)', cursor: 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0 }}>
+                <span style={{ position: 'absolute', width: 16, height: 16, borderRadius: '50%', background: '#fff', top: 3, right: f.is_active ? 3 : 21, transition: '.2s', boxShadow: '0 2px 4px rgba(0,0,0,.3)' }} />
+              </button>
+              <span style={{ fontSize: 13, fontWeight: 600, color: f.is_active ? C.ok : 'var(--tx4)' }}>{f.is_active ? 'نشط' : 'معطّل'}</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
+          <button onClick={onClose} disabled={saving} style={{ height: 38, padding: '0 18px', borderRadius: 9, border: '1px solid rgba(255,255,255,.08)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', color: 'var(--tx3)', fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
+          <button onClick={save} disabled={saving} style={{ height: 38, padding: '0 22px', borderRadius: 9, border: 'none', background: 'linear-gradient(180deg,#E5B025 0%,#C49213 100%)', color: '#0a0a0a', fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, opacity: saving ? .6 : 1 }}>
+            <Check size={14} />{saving ? 'جاري الحفظ…' : 'حفظ'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
+

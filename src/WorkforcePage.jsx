@@ -185,7 +185,8 @@ export default function WorkforcePage({ sb, toast, user, lang, onTabChange }) {
   }
   const del = async (t, id) => {
     if (!confirm(T('حذف؟','Delete?'))) return
-    await sb.from(t).update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    const { error } = await sb.from(t).update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    if (error) { toast?.(T('خطأ: ','Error: ') + (error.message || '').slice(0, 80), 'error'); return }
     toast?.(T('تم الحذف','Deleted'), 'delete'); load()
   }
 
