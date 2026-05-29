@@ -2288,7 +2288,7 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
           )}
           {/* Tags + badge inlined on the end via a flex spacer — keeps them
               next to the name regardless of whether the row is expanded. */}
-          {(tagList.length > 0 || badge) && <span style={{ flex: 1 }} />}}
+          {(tagList.length > 0 || badge) && <span style={{ flex: 1 }} />}
           {tagList.map((t, i) => (
             <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               {i > 0 && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)' }}>·</span>}
