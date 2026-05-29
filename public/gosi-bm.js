@@ -6,7 +6,7 @@
 // Version is shown in the on-screen toast so we can tell at a glance which
 // build is running ("جسر · تأمينات [v5]").
 ;(async () => {
-  const VERSION = 'v7';
+  const VERSION = 'v16';
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co';
   const K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
   const API = 'https://api.gosi.gov.sa';
@@ -166,11 +166,11 @@
     const asStr = (v) => (v == null ? null : String(v));
     const num = (v) => (v == null || v === '') ? null : (typeof v === 'number' ? v : (isNaN(Number(v)) ? null : Number(v)));
 
-    const callApi = async (path, endpoint, extraReq) => {
+    const callApi = async (path, endpoint, extraReq, extraHeaders) => {
       const t0 = Date.now();
       let res = null, payload = null, rawText = '', netErr = null;
       try {
-        res = await fetch(API + path, { headers });
+        res = await fetch(API + path, { headers: extraHeaders ? { ...headers, ...extraHeaders } : headers });
         rawText = await res.text().catch(() => '');
         try { payload = rawText ? JSON.parse(rawText) : null; } catch (_) { payload = { _parseError: true, raw: rawText.slice(0, 2000) }; }
       } catch (e) { netErr = (e && e.message) ? e.message : String(e); }
@@ -315,6 +315,33 @@
           hadAny = true;
         }
 
+        // (c2) Unpaid violation details + amounts. GOSI route (captured from
+        // the Ameen violations page): /unpaid-violation, needs the
+        // "View Historical Data For Violations" service name. Response shape is
+        // stored raw so the UI can read amounts/types without a re-sync. One
+        // page of 100 covers realistic counts (max seen is single digits).
+        const rViol = await callApi(
+          '/v1/establishment/' + encodeURIComponent(reg) + '/unpaid-violation?pageNo=0&pageSize=100&sortOrder=DESC',
+          'v1/establishment/unpaid-violation',
+          { _reg: reg },
+          { 'X-Service-Name': 'View Historical Data For Violations' },
+        );
+        if (okPayload(rViol)) {
+          const vpayload = rViol.payload;
+          // For each violation, fetch its full detail (/violation/{id}) which
+          // carries the offending contributor's name + national id + the
+          // engagement reason. This endpoint does NOT need X-Service-Name.
+          const vlist = Array.isArray(vpayload && vpayload.violationSummaryDtoList) ? vpayload.violationSummaryDtoList : [];
+          const details = [];
+          for (const vsum of vlist) {
+            if (!vsum || vsum.violationId == null) continue;
+            const rDet = await callApi('/v1/establishment/' + encodeURIComponent(reg) + '/violation/' + encodeURIComponent(vsum.violationId), 'v1/establishment/violation-detail', { _reg: reg, violationId: vsum.violationId });
+            if (okPayload(rDet)) details.push(rDet.payload);
+          }
+          Object.assign(row, { unpaid_violations: vpayload, violation_details: details.length ? details : null, unpaid_violations_synced_at: nowIso });
+          hadAny = true;
+        }
+
         if (hadAny) {
           const save = await supaFetch('/rest/v1/gosi_establishments?on_conflict=registration_no', {
             method: 'POST',
@@ -412,13 +439,13 @@
         }
 
         // (f) Contributors — three calls per establishment, then merge.
-        const PAGE = 1000;
-        const fetchPaged = async (path, label) => {
+        const PAGE = 100;
+        const fetchPaged = async (path, label, extraHeaders) => {
           const all = [];
           let lastMeta = null;
           for (let p = 0; p < 100; p++) {
             const sep = path.indexOf('?') === -1 ? '?' : '&';
-            const r = await callApi(path + sep + 'pageNo=' + p + '&pageSize=' + PAGE, label, { _reg: reg, pageNo: p });
+            const r = await callApi(path + sep + 'pageNo=' + p + '&pageSize=' + PAGE, label, { _reg: reg, pageNo: p }, extraHeaders);
             if (!okPayload(r) || !Array.isArray(r.payload.contributors)) break;
             all.push(...r.payload.contributors);
             lastMeta = r.payload;
@@ -436,21 +463,29 @@
         //   5. wages       — ACTIVE only, paginated, includeWageInfo=true
         // The four list fetches are merged + deduped by socialInsuranceNo so we
         // store one row per contributor regardless of which status surfaced it.
+        // GOSI's gateway rejects every /contributor call (504) unless this
+        // service-name header is present — the Ameen portal sends it on all
+        // contributor requests. Captured from the real portal flow.
+        const CONTRIB_HDR = { 'X-Service-Name': 'Display Contributors Data' };
         const SORT = 'sortBy=LATEST_ENGAGEMENT_WITH_CONTRIBUTOR_NAME&sortOrder=ASC';
-        const fAll = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor/fetch?includeWageInfo=false&queryForCount=true&status=ALL&' + SORT, 'v1/establishment/contributor/fetch-all');
-        const fActive = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor/fetch?includeWageInfo=false&queryForCount=true&status=ACTIVE&' + SORT, 'v1/establishment/contributor/fetch-active');
-        const fInactive = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor/fetch?includeWageInfo=false&queryForCount=false&status=INACTIVE&' + SORT, 'v1/establishment/contributor/fetch-inactive');
-        const fSus = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor/fetch?includeWageInfo=false&queryForCount=false&status=SUSPENDED&' + SORT, 'v1/establishment/contributor/fetch-suspended');
+        // queryForCount=false on ALL/ACTIVE: GOSI returns count-ONLY (empty
+        // contributors[]) when queryForCount=true, so active contributors —
+        // and therefore all wage data — were never saved. queryForCount=false
+        // returns both the rows AND the count meta we need for aggregates.
+        const fAll = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor/fetch?includeWageInfo=false&queryForCount=false&status=ALL&' + SORT, 'v1/establishment/contributor/fetch-all', CONTRIB_HDR);
+        const fActive = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor/fetch?includeWageInfo=false&queryForCount=false&status=ACTIVE&' + SORT, 'v1/establishment/contributor/fetch-active', CONTRIB_HDR);
+        const fInactive = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor/fetch?includeWageInfo=false&queryForCount=false&status=INACTIVE&' + SORT, 'v1/establishment/contributor/fetch-inactive', CONTRIB_HDR);
+        const fSus = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor/fetch?includeWageInfo=false&queryForCount=false&status=SUSPENDED&' + SORT, 'v1/establishment/contributor/fetch-suspended', CONTRIB_HDR);
         // Wage fetch. The unified call (no status filter) is preferred because
         // GOSI returns wageDetails for ALL contributors in one paginated sweep.
         // But for SUSPENDED establishments it returns HTTP 500 — so we retry
         // per-status and merge whatever we get. Each fallback is best-effort:
         // if any individual status call still fails, the others' rows survive.
-        let f3 = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor?includeWageInfo=true', 'v1/establishment/contributor-wage');
+        let f3 = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor?includeWageInfo=true', 'v1/establishment/contributor-wage', CONTRIB_HDR);
         if (!f3 || !f3.contributors || !f3.contributors.length) {
           const merged = [];
           for (const st of ['ACTIVE', 'SUSPENDED', 'INACTIVE']) {
-            const r = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor?includeWageInfo=true&status=' + st, 'v1/establishment/contributor-wage-' + st.toLowerCase());
+            const r = await fetchPaged('/v1/establishment/' + encodeURIComponent(reg) + '/contributor?includeWageInfo=true&status=' + st, 'v1/establishment/contributor-wage-' + st.toLowerCase(), CONTRIB_HDR);
             if (r && Array.isArray(r.contributors)) merged.push(...r.contributors);
           }
           if (merged.length) f3 = { contributors: merged, meta: null };
@@ -565,6 +600,46 @@
               synced_at: nowIso,
             };
           });
+          // (f2) Engagement dates for non-active contributors. GOSI only returns
+          // joiningDate via the wage call (active only), so inactive/suspended
+          // rows lack join/termination dates. Fetch them per contributor from
+          // the engagement endpoint (scoped to this establishment). Stored raw +
+          // parsed start/end so the UI can show تاريخ الالتحاق / تاريخ الفصل.
+          for (const row of rows) {
+            const st = String(row.status_type || '').toUpperCase();
+            if (st === 'ACTIVE' && row.has_live_engagement_in_establishment === true) continue;
+            if (!row.social_insurance_no) continue;
+            const rEng = await callApi(
+              '/v1/establishment/' + encodeURIComponent(reg) + '/contributor/' + encodeURIComponent(row.social_insurance_no) + '/engagement?searchType=ACTIVE_AND_TERMINATED&includeFutureEngagement=true',
+              'v1/establishment/contributor-engagement',
+              { _reg: reg, socialInsuranceNo: row.social_insurance_no },
+              { 'X-Service-Name': 'Display Contributors Data' },
+            );
+            if (!okPayload(rEng)) continue;
+            const ep = rEng.payload;
+            // Do NOT store the full response (~11KB each — it bloats the batch
+            // insert and silently breaks it). Extract only join/termination.
+            const engList = Array.isArray(ep) ? ep : (ep && ep.engagements) || [];
+            // Pick the latest engagement (by joiningDate) = the most recent stint.
+            let best = null;
+            for (const en of engList) {
+              const jg = en && en.joiningDate && en.joiningDate.gregorian;
+              if (jg && (!best || jg > best._jg)) best = { en, _jg: jg };
+            }
+            const en = best && best.en;
+            if (en) {
+              row.engagement_start_date = pickDate(en.joiningDate);
+              row.engagement_start_date_hijri = (en.joiningDate || {}).hijiri || null;
+              // Termination = latest endDate across the engagement's periods.
+              let endG = null, endH = null;
+              for (const pr of (Array.isArray(en.engagementPeriod) ? en.engagementPeriod : [])) {
+                const ed = pr && pr.endDate;
+                if (ed && ed.gregorian && (!endG || ed.gregorian > endG)) { endG = ed.gregorian; endH = ed.hijiri || null; }
+              }
+              row.engagement_end_date = endG ? String(endG).slice(0, 10) : null;
+              row.engagement_end_date_hijri = endH;
+            }
+          }
           for (let s = 0; s < rows.length; s += 100) {
             await supaFetch('/rest/v1/gosi_establishment_contributors?on_conflict=registration_no,social_insurance_no', {
               method: 'POST',
