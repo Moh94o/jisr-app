@@ -859,9 +859,30 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
 }
 
 /* ═════════════ Full-page detail ═════════════ */
-function InvoiceDetailPage({ sb, inv, onBack, isAr, T, toast }) {
+function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast }) {
+  // Keep a local copy of the invoice so we can re-fetch its totals after a
+  // payment/refund/cancel without leaving the detail page. invProp is the
+  // original row from the list; once we re-fetch, `inv` becomes the fresh one.
+  const [inv, setInv] = useState(invProp)
+  useEffect(() => { setInv(invProp) }, [invProp])
   const [data, setData] = useState({ loading: true })
   const [actionModal, setActionModal] = useState(null)
+  const [refreshTick, setRefreshTick] = useState(0)
+
+  // Re-fetch the invoice row's totals/status after an action. We only pull the
+  // fields that change (paid/remaining/status) and merge into the existing inv
+  // so the heavier joined data (service_request, client, branch object…) stays.
+  useEffect(() => {
+    if (refreshTick === 0 || !sb) return
+    let alive = true
+    ;(async () => {
+      const { data: row } = await sb.from('invoices')
+        .select('id, total_amount, paid_amount, remaining_amount, status_id, status:status_id(code,value_ar,value_en)')
+        .eq('id', invProp.id).maybeSingle()
+      if (alive && row) setInv(prev => ({ ...prev, ...row }))
+    })()
+    return () => { alive = false }
+  }, [refreshTick, sb, invProp.id])
 
   useEffect(() => {
     let alive = true
@@ -917,7 +938,8 @@ function InvoiceDetailPage({ sb, inv, onBack, isAr, T, toast }) {
       if (alive) setData({ loading: false, insts: insts.data || [], pays: pays.data || [], det: det.data || [], code })
     })()
     return () => { alive = false }
-  }, [sb, inv.id, inv.service_type?.code, inv.service_request?.id])
+    // refreshTick forces a re-fetch after a payment/refund/cancel so installments+payments stay in sync.
+  }, [sb, inv.id, inv.service_type?.code, inv.service_request?.id, refreshTick])
 
   const svc = SVC_THEME[inv.service_type?.code || 'general'] || SVC_THEME.general
   const pay = inferPayState(inv)
@@ -1004,7 +1026,7 @@ function InvoiceDetailPage({ sb, inv, onBack, isAr, T, toast }) {
 
       <InvoiceDetailLayout inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} />
 
-      {actionModal && <ActionModal type={actionModal} onClose={() => setActionModal(null)} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} />}
+      {actionModal && <ActionModal type={actionModal} onClose={() => setActionModal(null)} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} onSaved={() => setRefreshTick(t => t + 1)} />}
     </div>
   )
 }
@@ -1018,11 +1040,17 @@ const fmtAmt = (v) => {
 }
 const unfmtAmt = (s) => String(s ?? '').replace(/,/g, '').trim()
 
-const PaymentDetailsForm = ({ T, accent, color, remaining }) => {
-  const [paidAmount, setPaidAmount] = useState(String(remaining || ''))
-  const [paymentMethod, setPaymentMethod] = useState('cash')
-  const [transferReference, setTransferReference] = useState('')
-  const [transferReceipt, setTransferReceipt] = useState(null)
+// Controlled form — data state (amount, method, transfer ref, receipt, selected bank
+// account) lives in ActionModal so it can be submitted. UI-only state (drag, search)
+// stays local.
+const PaymentDetailsForm = ({ T, accent, color, remaining,
+  paidAmount, setPaidAmount,
+  paymentMethod, setPaymentMethod,
+  transferReference, setTransferReference,
+  transferReceipt, setTransferReceipt,
+  selBankAccId, setSelBankAccId,
+  bankAccounts,
+}) => {
   const [receiptDrag, setReceiptDrag] = useState(false)
   const [bankAccSearch, setBankAccSearch] = useState('')
 
@@ -1117,15 +1145,59 @@ const PaymentDetailsForm = ({ T, accent, color, remaining }) => {
                   </div>
                 )}
               </div>
-              <input
-                value={bankAccSearch}
-                onChange={e => setBankAccSearch(e.target.value)}
-                placeholder={T('ابحث باسم البنك أو الحساب أو IBAN...', 'Search bank/account/IBAN...')}
-                style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, fontFamily: F, fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', textAlign: 'right', boxSizing: 'border-box' }}
-              />
-              <div style={{ padding: '14px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.5)', border: '1px dashed rgba(255,255,255,.1)', borderRadius: 9, background: 'rgba(0,0,0,.12)' }}>
-                {T('لا توجد نتائج', 'No results')}
-              </div>
+              {/* Bank account picker: shows the receiving accounts (account_purpose =
+                  "التحويلات الواردة") that ActionModal loaded. Filters by search query;
+                  when one is picked we show only that card. */}
+              {!selBankAccId && (
+                <input
+                  value={bankAccSearch}
+                  onChange={e => setBankAccSearch(e.target.value)}
+                  placeholder={T('ابحث باسم البنك أو الحساب أو IBAN...', 'Search bank/account/IBAN...')}
+                  style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, fontFamily: F, fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', textAlign: 'right', boxSizing: 'border-box' }}
+                />
+              )}
+              {(() => {
+                let filtered
+                if (selBankAccId) filtered = (bankAccounts || []).filter(a => a.id === selBankAccId)
+                else if (bankAccSearch) {
+                  const q = bankAccSearch.toLowerCase()
+                  filtered = (bankAccounts || []).filter(a =>
+                    (a.bank_name || '').toLowerCase().includes(q) ||
+                    (a.account_name || '').toLowerCase().includes(q) ||
+                    (a.iban || '').toLowerCase().includes(q) ||
+                    (a.account_number || '').includes(bankAccSearch)
+                  ).slice(0, 1)
+                } else filtered = (bankAccounts || []).slice(0, 1)
+                if (filtered.length === 0) return (
+                  <div style={{ padding: '14px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.5)', border: '1px dashed rgba(255,255,255,.1)', borderRadius: 9, background: 'rgba(0,0,0,.12)' }}>
+                    {T('لا توجد نتائج', 'No results')}
+                  </div>
+                )
+                return filtered.map(a => {
+                  const sel = selBankAccId === a.id
+                  return (
+                    <div key={a.id} onClick={() => setSelBankAccId(sel ? '' : a.id)}
+                      style={{ padding: '8px 12px 8px 36px', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, position: 'relative',
+                        border: sel ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.06)',
+                        background: sel ? 'rgba(212,160,23,.06)' : 'rgba(255,255,255,.03)' }}>
+                      {sel && <div style={{ position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)', width: 20, height: 20, borderRadius: '50%', background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>}
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: sel ? C.gold : 'rgba(255,255,255,.95)' }}>{a.bank_name}</span>
+                          {a.is_primary && <span style={{ fontSize: 9, color: C.gold, fontWeight: 700, padding: '1px 6px', borderRadius: 5, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.25)' }}>{T('رئيسي','Primary')}</span>}
+                          {a.account_name && <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.58)' }}>· {a.account_name}</span>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 10, color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>
+                          {a.account_number && <span style={{ direction: 'ltr', padding: '1px 6px', borderRadius: 5, background: 'rgba(255,255,255,.04)' }}>{a.account_number}</span>}
+                          {a.iban && <span style={{ direction: 'ltr' }}>{a.iban}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              })()}
             </>
           )}
         </div>
@@ -1134,11 +1206,14 @@ const PaymentDetailsForm = ({ T, accent, color, remaining }) => {
   )
 }
 
-const RefundDetailsForm = ({ T, accent, color, paid }) => {
-  const [refundAmount, setRefundAmount] = useState(String(paid || ''))
-  const [refundMethod, setRefundMethod] = useState('cash')
-  const [transferReference, setTransferReference] = useState('')
-  const [transferReceipt, setTransferReceipt] = useState(null)
+const RefundDetailsForm = ({ T, accent, color, paid,
+  refundAmount, setRefundAmount,
+  refundMethod, setRefundMethod,
+  transferReference, setTransferReference,
+  transferReceipt, setTransferReceipt,
+  selBankAccId, setSelBankAccId,
+  bankAccounts,
+}) => {
   const [receiptDrag, setReceiptDrag] = useState(false)
   const [bankAccSearch, setBankAccSearch] = useState('')
 
@@ -1221,15 +1296,58 @@ const RefundDetailsForm = ({ T, accent, color, paid }) => {
                 </div>
               )}
             </div>
-            <input
-              value={bankAccSearch}
-              onChange={e => setBankAccSearch(e.target.value)}
-              placeholder={T('ابحث باسم البنك أو الحساب أو IBAN...', 'Search bank/account/IBAN...')}
-              style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, fontFamily: F, fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', textAlign: 'right', boxSizing: 'border-box' }}
-            />
-            <div style={{ padding: '14px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.5)', border: '1px dashed rgba(255,255,255,.1)', borderRadius: 9, background: 'rgba(0,0,0,.12)' }}>
-              {T('لا توجد نتائج', 'No results')}
-            </div>
+            {/* Same receiving-account picker as PaymentDetailsForm — banks designated
+                for "التحويلات الواردة" via bank_account_branches. */}
+            {!selBankAccId && (
+              <input
+                value={bankAccSearch}
+                onChange={e => setBankAccSearch(e.target.value)}
+                placeholder={T('ابحث باسم البنك أو الحساب أو IBAN...', 'Search bank/account/IBAN...')}
+                style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, fontFamily: F, fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', background: 'var(--modal-input-bg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', textAlign: 'right', boxSizing: 'border-box' }}
+              />
+            )}
+            {(() => {
+              let filtered
+              if (selBankAccId) filtered = (bankAccounts || []).filter(a => a.id === selBankAccId)
+              else if (bankAccSearch) {
+                const q = bankAccSearch.toLowerCase()
+                filtered = (bankAccounts || []).filter(a =>
+                  (a.bank_name || '').toLowerCase().includes(q) ||
+                  (a.account_name || '').toLowerCase().includes(q) ||
+                  (a.iban || '').toLowerCase().includes(q) ||
+                  (a.account_number || '').includes(bankAccSearch)
+                ).slice(0, 1)
+              } else filtered = (bankAccounts || []).slice(0, 1)
+              if (filtered.length === 0) return (
+                <div style={{ padding: '14px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.5)', border: '1px dashed rgba(255,255,255,.1)', borderRadius: 9, background: 'rgba(0,0,0,.12)' }}>
+                  {T('لا توجد نتائج', 'No results')}
+                </div>
+              )
+              return filtered.map(a => {
+                const sel = selBankAccId === a.id
+                return (
+                  <div key={a.id} onClick={() => setSelBankAccId(sel ? '' : a.id)}
+                    style={{ padding: '8px 12px 8px 36px', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, position: 'relative',
+                      border: sel ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.06)',
+                      background: sel ? 'rgba(212,160,23,.06)' : 'rgba(255,255,255,.03)' }}>
+                    {sel && <div style={{ position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)', width: 20, height: 20, borderRadius: '50%', background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>}
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: sel ? C.gold : 'rgba(255,255,255,.95)' }}>{a.bank_name}</span>
+                        {a.is_primary && <span style={{ fontSize: 9, color: C.gold, fontWeight: 700, padding: '1px 6px', borderRadius: 5, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.25)' }}>{T('رئيسي','Primary')}</span>}
+                        {a.account_name && <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.58)' }}>· {a.account_name}</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 10, color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>
+                        {a.account_number && <span style={{ direction: 'ltr', padding: '1px 6px', borderRadius: 5, background: 'rgba(255,255,255,.04)' }}>{a.account_number}</span>}
+                        {a.iban && <span style={{ direction: 'ltr' }}>{a.iban}</span>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            })()}
           </>
         )}
       </div>
@@ -1300,9 +1418,9 @@ const ModalDropdown = ({ value, onChange, options, placeholder, accent, color, d
   )
 }
 
-const RefundReasonForm = ({ T, sb, isAr, accent, color }) => {
-  const [reasonId, setReasonId] = useState('')
-  const [notes, setNotes] = useState('')
+// Controlled form — reasonId/notes are owned by ActionModal; we still load `reasons` here
+// so the dropdown can show them. (No need to lift the list itself.)
+const RefundReasonForm = ({ T, sb, isAr, accent, color, reasonId, setReasonId, notes, setNotes }) => {
   const [reasons, setReasons] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -1355,8 +1473,8 @@ const RefundReasonForm = ({ T, sb, isAr, accent, color }) => {
   )
 }
 
-const CancelReasonForm = ({ T, accent, color }) => {
-  const [reason, setReason] = useState('')
+// Controlled form — reason is owned by ActionModal so it can include it in the cancel call.
+const CancelReasonForm = ({ T, accent, color, reason, setReason }) => {
   const fieldset = { border: '1.5px solid ' + accent, borderRadius: 12, padding: '14px 14px 12px', position: 'relative' }
   const legend = { position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color, fontFamily: F }
 
@@ -1380,10 +1498,76 @@ const CancelReasonForm = ({ T, accent, color }) => {
   )
 }
 
-const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, toast }) => {
+const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, toast, onSaved }) => {
   const [step, setStep] = useState(1)
+  const [submitting, setSubmitting] = useState(false)
   const isMultiStep = type === 'payment' || type === 'refund' || type === 'cancel'
   const totalSteps = type === 'refund' ? 3 : (isMultiStep ? 2 : 1)
+
+  // ─── lifted form state (each operation has its own slice) ─────────────────
+  // payment
+  const [paidAmount, setPaidAmount] = useState(String(remaining || ''))
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [payTransferRef, setPayTransferRef] = useState('')
+  const [payTransferReceipt, setPayTransferReceipt] = useState(null)
+  const [paySelBankAccId, setPaySelBankAccId] = useState('')
+  // refund
+  const [refundAmount, setRefundAmount] = useState(String(paid || ''))
+  const [refundMethod, setRefundMethod] = useState('cash')
+  const [refundTransferRef, setRefundTransferRef] = useState('')
+  const [refundTransferReceipt, setRefundTransferReceipt] = useState(null)
+  const [refundSelBankAccId, setRefundSelBankAccId] = useState('')
+  const [refundReasonId, setRefundReasonId] = useState('')
+  const [refundNotes, setRefundNotes] = useState('')
+  // cancel
+  const [cancelReason, setCancelReason] = useState('')
+
+  // ─── lookups loaded on mount ─────────────────────────────────────────────
+  // payment_method (cash/bank → id), invoice_status='cancelled' → id, and the
+  // receiving-bank accounts for the invoice's branch (account_purpose = "التحويلات الواردة").
+  const [payMethodIds, setPayMethodIds] = useState({ cash: null, bank: null })
+  const [cancelledStatusId, setCancelledStatusId] = useState(null)
+  const [fullyPaidStatusId, setFullyPaidStatusId] = useState(null)
+  const [activeStatusId, setActiveStatusId] = useState(null)
+  // Receiving accounts for payments + outgoing accounts for refunds. Each form
+  // sees only the slice that matches its semantic direction.
+  const [incomingBankAccounts, setIncomingBankAccounts] = useState([])
+  const [outgoingBankAccounts, setOutgoingBankAccounts] = useState([])
+  useEffect(() => {
+    if (!sb) return
+    let alive = true
+    ;(async () => {
+      const branchId = inv?.branch_id || inv?.branch?.id || null
+      const baBase = () => {
+        const q = sb.from('bank_account_branches')
+          .select('id,branch_id,account_purpose,bank_accounts!inner(id,bank_name,account_name,account_number,iban,is_primary,deleted_at)')
+          .is('deleted_at', null).eq('is_active', true)
+          .is('bank_accounts.deleted_at', null)
+        return branchId ? q.eq('branch_id', branchId) : q
+      }
+      const [pm, statuses, baIn, baOut] = await Promise.all([
+        sb.from('lookup_items').select('id,code,category:lookup_categories!inner(category_key)').eq('category.category_key', 'payment_method'),
+        // Pull every invoice_status row in one round-trip — we need cancelled +
+        // fully_paid + active for the post-write status flips.
+        sb.from('lookup_items').select('id,code,category:lookup_categories!inner(category_key)').eq('category.category_key', 'invoice_status'),
+        baBase().eq('account_purpose', 'التحويلات الواردة'),
+        baBase().eq('account_purpose', 'التحويلات الصادرة'),
+      ])
+      if (!alive) return
+      const pmMap = {}
+      ;(pm.data || []).forEach(r => { pmMap[r.code] = r.id })
+      setPayMethodIds({ cash: pmMap.cash || null, bank: pmMap.bank || null })
+      const stMap = {}
+      ;(statuses.data || []).forEach(r => { stMap[r.code] = r.id })
+      setCancelledStatusId(stMap.cancelled || null)
+      setFullyPaidStatusId(stMap.fully_paid || null)
+      setActiveStatusId(stMap.active || null)
+      const reshape = (rows) => (rows || []).map(j => ({ ...(j.bank_accounts || {}), _junction_id: j.id, branch_id: j.branch_id, account_purpose: j.account_purpose }))
+      setIncomingBankAccounts(reshape(baIn?.data))
+      setOutgoingBankAccounts(reshape(baOut?.data))
+    })()
+    return () => { alive = false }
+  }, [sb, inv?.branch_id, inv?.branch?.id])
   const meta = {
     payment: {
       title: T('تسجيل دفعة', 'Record Payment'),
@@ -1422,9 +1606,203 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
   const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg)', textAlign: 'center', boxSizing: 'border-box', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }
   const lbl = { fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
 
-  const onSubmit = () => {
-    toast?.(T(meta.title + ' — قريباً', meta.title + ' — coming soon'))
-    onClose()
+  // ─── onSubmit: actual DB writes per operation type ────────────────────────
+  // payment → insert into `payments` (is_valid=true)
+  // refund  → invalidate all valid payments on the invoice + store reason/notes
+  // cancel  → flip invoice.status_id to "cancelled" + tag notes with the reason
+  // print   → no-op (just close)
+  //
+  // Each branch updates the parent (onSaved) so totals & lists refresh.
+  const onSubmit = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      if (type === 'payment') {
+        const amt = Number(paidAmount) || 0
+        if (amt <= 0) { toast?.(T('أدخل مبلغًا أكبر من صفر', 'Enter an amount greater than zero'), 'error'); return }
+        const pmId = paymentMethod === 'bank' ? payMethodIds.bank : payMethodIds.cash
+        if (!pmId) { toast?.(T('تعذر تحديد طريقة الدفع', 'Cannot resolve payment method'), 'error'); return }
+        const branchId = inv.branch_id || inv.branch?.id || null
+
+        // ─── 1. Re-fetch fresh totals so the over-payment guard isn't fooled by
+        //        a stale `remaining` prop (the bug the user just reported).
+        const { data: invFresh, error: e0 } = await sb.from('invoices')
+          .select('total_amount, paid_amount').eq('id', inv.id).maybeSingle()
+        if (e0) throw e0
+        const totalNum = Number(invFresh?.total_amount) || 0
+        const currentPaid = Number(invFresh?.paid_amount) || 0
+        const freshRemaining = totalNum - currentPaid
+        if (amt > freshRemaining + 0.005) {
+          toast?.(T('المبلغ أكبر من المتبقي على الفاتورة', 'Amount exceeds invoice remaining'), 'error')
+          return
+        }
+
+        // ─── 2. Fetch unpaid installments (FIFO) and plan the allocation.
+        //        We walk through them in installment_order; each gets as much as
+        //        it can absorb until the payment is consumed.
+        const { data: insts, error: e1 } = await sb.from('installments')
+          .select('id, total_amount, paid_amount, installment_order')
+          .eq('invoice_id', inv.id).is('deleted_at', null)
+          .order('installment_order')
+        if (e1) throw e1
+        let left = amt
+        const allocations = []
+        for (const it of insts || []) {
+          if (left <= 0.005) break
+          const available = Number(it.total_amount) - Number(it.paid_amount)
+          if (available <= 0.005) continue
+          const take = Math.min(left, available)
+          allocations.push({
+            id: it.id,
+            newPaid: Number(it.paid_amount) + take,
+            becomesFull: take >= available - 0.005,
+          })
+          left -= take
+        }
+
+        // ─── 3. Insert the payment row, linked to the FIRST installment we
+        //        touched so the join in the list view still works. If the
+        //        payment spans multiple installments we still record it as one
+        //        row — that's a simplification matching the current UI.
+        const firstInstId = allocations[0]?.id || null
+        const { error: e2 } = await sb.from('payments').insert({
+          invoice_id: inv.id,
+          installment_id: firstInstId,
+          service_request_id: inv.service_request?.id || null,
+          branch_id: branchId,
+          amount: amt,
+          payment_method_id: pmId,
+          bank_reference: paymentMethod === 'bank' ? (payTransferRef || null) : null,
+          bank_account_id: paymentMethod === 'bank' ? (paySelBankAccId || null) : null,
+          is_valid: true,
+        })
+        if (e2) throw e2
+
+        // ─── 4. Update each touched installment. (remaining_amount is generated.)
+        const nowIso = new Date().toISOString()
+        for (const a of allocations) {
+          const { error: eU } = await sb.from('installments').update({
+            paid_amount: a.newPaid,
+            ...(a.becomesFull ? { paid_date: nowIso } : {}),
+          }).eq('id', a.id)
+          if (eU) throw eU
+        }
+
+        // ─── 5. Roll up to the invoice. If we just settled the last riyal,
+        //        flip status to "fully_paid".
+        const newInvPaid = currentPaid + amt
+        const invPatch = { paid_amount: newInvPaid }
+        if (newInvPaid >= totalNum - 0.005 && fullyPaidStatusId) {
+          invPatch.status_id = fullyPaidStatusId
+        }
+        const { error: e3 } = await sb.from('invoices').update(invPatch).eq('id', inv.id)
+        if (e3) throw e3
+
+        toast?.(T('تم حفظ الدفعة', 'Payment saved'))
+      } else if (type === 'refund') {
+        // Partial-refund-capable flow:
+        //   • Insert a payment row with NEGATIVE amount representing the refund
+        //     (the CHECK constraint was relaxed to amount<>0 in the
+        //      payments_allow_negative_for_refunds migration so this is legal).
+        //   • Walk installments LIFO (most-recently-paid first) and subtract the
+        //     refund amount from each paid_amount until consumed.
+        //   • Subtract from invoices.paid_amount and flip status to "active"
+        //     (or stay fully_paid if a zero-amount refund slipped through).
+        // This preserves the original payment history while letting partial
+        // refunds work — the user picks any amount up to currentPaid.
+        const rAmt = Number(refundAmount) || 0
+        if (rAmt <= 0) { toast?.(T('أدخل مبلغ استرجاع أكبر من صفر', 'Enter a refund amount greater than zero'), 'error'); return }
+
+        const { data: invFreshR, error: er0 } = await sb.from('invoices')
+          .select('total_amount, paid_amount').eq('id', inv.id).maybeSingle()
+        if (er0) throw er0
+        const totalNumR = Number(invFreshR?.total_amount) || 0
+        const currentPaidR = Number(invFreshR?.paid_amount) || 0
+        if (rAmt > currentPaidR + 0.005) {
+          toast?.(T('مبلغ الاسترجاع أكبر من المدفوع على الفاتورة', 'Refund amount exceeds invoice paid'), 'error')
+          return
+        }
+
+        const branchIdR = inv.branch_id || inv.branch?.id || null
+        const rpmId = refundMethod === 'bank' ? payMethodIds.bank : payMethodIds.cash
+        if (!rpmId) { toast?.(T('تعذر تحديد طريقة الاسترجاع', 'Cannot resolve refund method'), 'error'); return }
+
+        // LIFO walk over paid installments — refund unwinds the latest payment first.
+        const { data: instsR, error: er1 } = await sb.from('installments')
+          .select('id, total_amount, paid_amount, installment_order')
+          .eq('invoice_id', inv.id).is('deleted_at', null)
+          .order('installment_order', { ascending: false })
+        if (er1) throw er1
+        let leftR = rAmt
+        const deAllocs = []
+        for (const it of instsR || []) {
+          if (leftR <= 0.005) break
+          const paidNum = Number(it.paid_amount) || 0
+          if (paidNum <= 0.005) continue
+          const take = Math.min(leftR, paidNum)
+          deAllocs.push({
+            id: it.id,
+            newPaid: paidNum - take,
+            becomesEmpty: take >= paidNum - 0.005,
+          })
+          leftR -= take
+        }
+
+        const refundLine = [refundReasonId ? `refund_reason_id:${refundReasonId}` : null, refundNotes || null].filter(Boolean).join(' — ')
+        const firstInstIdR = deAllocs[0]?.id || null
+        const { error: er2 } = await sb.from('payments').insert({
+          invoice_id: inv.id,
+          installment_id: firstInstIdR,
+          service_request_id: inv.service_request?.id || null,
+          branch_id: branchIdR,
+          amount: -rAmt,
+          payment_method_id: rpmId,
+          bank_reference: refundMethod === 'bank' ? (refundTransferRef || null) : null,
+          bank_account_id: refundMethod === 'bank' ? (refundSelBankAccId || null) : null,
+          is_valid: true,
+          notes: refundLine || (isAr ? 'استرجاع' : 'Refund'),
+        })
+        if (er2) throw er2
+
+        for (const a of deAllocs) {
+          const { error: erU } = await sb.from('installments').update({
+            paid_amount: a.newPaid,
+            ...(a.becomesEmpty ? { paid_date: null } : {}),
+          }).eq('id', a.id)
+          if (erU) throw erU
+        }
+
+        const newInvPaidR = currentPaidR - rAmt
+        const invPatchR = { paid_amount: newInvPaidR }
+        // If the invoice was sitting at fully_paid, drop it back to active. We
+        // don't touch the status when newInvPaidR === 0 because the original
+        // status (new/active) is unknowable here without an extra fetch — leaving
+        // it alone is the conservative choice.
+        if (newInvPaidR < totalNumR - 0.005 && activeStatusId) {
+          invPatchR.status_id = activeStatusId
+        }
+        const { error: er3 } = await sb.from('invoices').update(invPatchR).eq('id', inv.id)
+        if (er3) throw er3
+
+        toast?.(T('تم تنفيذ الاسترجاع', 'Refund processed'), 'delete')
+      } else if (type === 'cancel') {
+        if (!cancelledStatusId) { toast?.(T('تعذر تحديد حالة الإلغاء', 'Cannot resolve cancelled status'), 'error'); return }
+        // The `invoices` table has no notes/reason column today, so cancelReason
+        // is collected for the UX but isn't persisted yet. Add a dedicated
+        // cancellation_reason column (or a cancellations table) when needed.
+        const { error } = await sb.from('invoices').update({ status_id: cancelledStatusId }).eq('id', inv.id)
+        if (error) throw error
+        toast?.(T('تم إلغاء الفاتورة', 'Invoice cancelled'), 'delete')
+      }
+      // print: nothing to write — just close. Real printing logic stays out of this
+      // commit so we can keep the change focused on the persistence work the user asked for.
+      onSaved?.()
+      onClose()
+    } catch (e) {
+      toast?.((isAr ? 'خطأ: ' : 'Error: ') + (e?.message || (isAr ? 'فشلت العملية' : 'Operation failed')), 'error')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -1501,19 +1879,42 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
           )}
 
           {type === 'payment' && step === 2 && (
-            <PaymentDetailsForm T={T} accent={meta.accent} color={meta.color} remaining={remaining} />
+            <PaymentDetailsForm
+              T={T} accent={meta.accent} color={meta.color} remaining={remaining}
+              paidAmount={paidAmount} setPaidAmount={setPaidAmount}
+              paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+              transferReference={payTransferRef} setTransferReference={setPayTransferRef}
+              transferReceipt={payTransferReceipt} setTransferReceipt={setPayTransferReceipt}
+              selBankAccId={paySelBankAccId} setSelBankAccId={setPaySelBankAccId}
+              bankAccounts={incomingBankAccounts}
+            />
           )}
 
           {type === 'refund' && step === 2 && (
-            <RefundDetailsForm T={T} accent={meta.accent} color={meta.color} paid={paid} />
+            <RefundDetailsForm
+              T={T} accent={meta.accent} color={meta.color} paid={paid}
+              refundAmount={refundAmount} setRefundAmount={setRefundAmount}
+              refundMethod={refundMethod} setRefundMethod={setRefundMethod}
+              transferReference={refundTransferRef} setTransferReference={setRefundTransferRef}
+              transferReceipt={refundTransferReceipt} setTransferReceipt={setRefundTransferReceipt}
+              selBankAccId={refundSelBankAccId} setSelBankAccId={setRefundSelBankAccId}
+              bankAccounts={outgoingBankAccounts}
+            />
           )}
 
           {type === 'refund' && step === 3 && (
-            <RefundReasonForm T={T} sb={sb} isAr={isAr} accent={meta.accent} color={meta.color} />
+            <RefundReasonForm
+              T={T} sb={sb} isAr={isAr} accent={meta.accent} color={meta.color}
+              reasonId={refundReasonId} setReasonId={setRefundReasonId}
+              notes={refundNotes} setNotes={setRefundNotes}
+            />
           )}
 
           {type === 'cancel' && step === 2 && (
-            <CancelReasonForm T={T} accent={meta.accent} color={meta.color} />
+            <CancelReasonForm
+              T={T} accent={meta.accent} color={meta.color}
+              reason={cancelReason} setReason={setCancelReason}
+            />
           )}
 
           {type === 'print' && (
@@ -1554,8 +1955,8 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
                 <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
               </button>
             ) : (
-              <button onClick={onSubmit} className="am-nav-btn">
-                <span>{meta.submit}</span>
+              <button onClick={onSubmit} disabled={submitting} className="am-nav-btn">
+                <span>{submitting ? T('جارٍ الحفظ…', 'Saving…') : meta.submit}</span>
                 <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
               </button>
             )}

@@ -6,7 +6,7 @@
 // Version is shown in the on-screen toast so we can tell at a glance which
 // build is running ("جسر · تأمينات [v5]").
 ;(async () => {
-  const VERSION = 'v16';
+  const VERSION = 'v17';
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co';
   const K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
   const API = 'https://api.gosi.gov.sa';
@@ -153,6 +153,11 @@
 
     const CONC = 4;
     let ok = 0, fail = 0;
+    // Contributor-save outcome counters. The batch insert used to swallow all
+    // errors (.catch(()=>{})), which hid a PGRST102 failure that silently
+    // dropped every contributor for mixed-status establishments. Track and
+    // surface these so a save failure is never invisible again.
+    let contribRowsOk = 0, contribRowsFail = 0;
     let idx = 0;
     const headers = { Authorization: captured.auth, Accept: 'application/json, text/plain, */*' };
     if (captured.apikey) headers['X-Apikey'] = captured.apikey;
@@ -598,6 +603,17 @@
               raw: c,
               raw_wage: w || null,
               synced_at: nowIso,
+              // Engagement dates are enriched below for non-active rows only.
+              // They MUST be present (as null) on every row here: PostgREST
+              // bulk insert rejects the whole batch with PGRST102 "All object
+              // keys must match" if rows have differing key sets. Omitting
+              // these and adding them conditionally meant any establishment
+              // mixing live-active + inactive/suspended contributors failed to
+              // save ALL its contributors silently.
+              engagement_start_date: null,
+              engagement_start_date_hijri: null,
+              engagement_end_date: null,
+              engagement_end_date_hijri: null,
             };
           });
           // (f2) Engagement dates for non-active contributors. GOSI only returns
@@ -641,11 +657,33 @@
             }
           }
           for (let s = 0; s < rows.length; s += 100) {
-            await supaFetch('/rest/v1/gosi_establishment_contributors?on_conflict=registration_no,social_insurance_no', {
+            const batch = rows.slice(s, s + 100);
+            const saveRes = await supaFetch('/rest/v1/gosi_establishment_contributors?on_conflict=registration_no,social_insurance_no', {
               method: 'POST',
               headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-              body: JSON.stringify(rows.slice(s, s + 100)),
-            }).catch(() => {});
+              body: JSON.stringify(batch),
+            }).catch(() => null);
+            if (saveRes && saveRes.ok) {
+              contribRowsOk += batch.length;
+            } else {
+              contribRowsFail += batch.length;
+              // Surface the failure into gosi_sync_debug instead of swallowing
+              // it, so a broken save is diagnosable from the data alone.
+              const errTxt = saveRes ? await saveRes.text().catch(() => '') : 'network error';
+              supaFetch('/rest/v1/gosi_sync_debug', {
+                method: 'POST',
+                headers: { Prefer: 'return=minimal' },
+                body: JSON.stringify({
+                  sync_person_id: PERSON || null,
+                  endpoint: 'save/gosi_establishment_contributors',
+                  request_method: 'POST',
+                  request_body: { _reg: reg, rowCount: batch.length },
+                  response_status: saveRes ? saveRes.status : 0,
+                  response_body: { error: errTxt.slice(0, 2000) },
+                  notes: 'contributor save failed · cr=' + reg,
+                }),
+              }).catch(() => {});
+            }
           }
         }
 
@@ -935,7 +973,8 @@
     };
     await Promise.all(Array.from({ length: CONC }, worker));
 
-    msg('✅ تمت مزامنة ' + ok + '/' + regNos.length + ' منشأة' + (fail ? ' (فشل ' + fail + ')' : ''));
+    msg('✅ تمت مزامنة ' + ok + '/' + regNos.length + ' منشأة' + (fail ? ' (فشل ' + fail + ')' : '')
+      + ' · مشتركون ' + contribRowsOk + (contribRowsFail ? (' (فشل حفظ ' + contribRowsFail + ')') : ''));
     setTimeout(() => { const el = document.getElementById('_jisr_gosi_ui'); if (el) el.remove(); }, 20000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));

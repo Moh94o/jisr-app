@@ -211,6 +211,45 @@ function DateRow({ label, value, T, confirm }) {
   )
 }
 
+// Countdown to the CR's next status transition, driven by the annual
+// confirmation date. Before that date it counts days until the confirmation
+// window opens (yellow); within the 90-day window it counts days left before
+// suspension (red). Returns null outside both ranges — nothing actionable.
+// `compact` shrinks it for table cells; the status card uses the default size.
+function CrCountdown({ confirmDate, T, compact, style }) {
+  if (!confirmDate) return null
+  const t = new Date(confirmDate).getTime()
+  if (Number.isNaN(t)) return null
+  const daysDiff = Math.floor((Date.now() - t) / 86400000)
+  let remain, color, tip
+  if (daysDiff < 0) {
+    remain = -daysDiff
+    color = '#eab308'
+    tip = T('يوم حتى الدخول في فترة التأكيد', 'days until confirmation window')
+  } else if (daysDiff <= 90) {
+    remain = 90 - daysDiff
+    color = '#ef4444'
+    tip = T('يوم قبل تعليق السجل', 'days before suspension')
+  } else {
+    return null
+  }
+  const sz = compact ? 9 : 10
+  return (
+    <span title={`${remain} ${tip}`} style={{
+      display: 'inline-flex', alignItems: 'center', gap: compact ? 4 : 5,
+      color, fontSize: compact ? 9.5 : 10.5, fontWeight: 800,
+      fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+      ...style,
+    }}>
+      <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <span style={{ direction: 'ltr' }}>{remain}</span>
+      <span style={{ fontWeight: 600, opacity: .85 }}>{T('يوم','d')}</span>
+    </span>
+  )
+}
+
 // Activities card — collapsed by default; click the header to expand/collapse.
 // Small source-attribution icon — flags a card as being sourced from the
 // Saudi Business Center (SBC). Image lives at public/sbc-logo.jpg. If the
@@ -724,17 +763,18 @@ function MuqeemProgressTracker({ sb, T }) {
       <button onClick={() => setOpen(true)}
         title={T('تتبع مزامنة مقيم اليوم', 'Track Muqeem sync (today)')}
         style={{
-          height: 38, padding: '0 14px', borderRadius: 10,
-          background: 'transparent', border: `1.5px solid ${accent}55`, color: accent,
+          height: 40, padding: '0 12px', borderRadius: 12,
+          background: `${accent}12`, border: `1px solid ${accent}3a`, color: accent,
           fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.15s',
+          display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = `${accent}10`; e.currentTarget.style.borderColor = accent }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${accent}55` }}>
+        onMouseEnter={e => { e.currentTarget.style.background = `${accent}22`; e.currentTarget.style.borderColor = accent }}
+        onMouseLeave={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.borderColor = `${accent}3a` }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/>
         </svg>
-        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{doneToday}/{total} {T('اليوم', 'today')}</span>
+        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{doneToday}/{total}</span>
+        <span style={{ fontWeight: 600, opacity: .7 }}>{T('اليوم', 'today')}</span>
       </button>
 
       {open && ReactDOM.createPortal(
@@ -871,17 +911,18 @@ function QiwaProgressTracker({ sb, T }) {
       <button onClick={() => setOpen(true)}
         title={T('تتبع مزامنة قوى', 'Track Qiwa sync progress')}
         style={{
-          height: 38, padding: '0 14px', borderRadius: 10,
-          background: 'transparent', border: `1.5px solid ${accent}55`, color: accent,
+          height: 40, padding: '0 12px', borderRadius: 12,
+          background: `${accent}12`, border: `1px solid ${accent}3a`, color: accent,
           fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.15s',
+          display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = `${accent}10`; e.currentTarget.style.borderColor = accent }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${accent}55` }}>
+        onMouseEnter={e => { e.currentTarget.style.background = `${accent}22`; e.currentTarget.style.borderColor = accent }}
+        onMouseLeave={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.borderColor = `${accent}3a` }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/>
         </svg>
-        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{doneToday}/{total} {T('اليوم', 'today')}</span>
+        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{doneToday}/{total}</span>
+        <span style={{ fontWeight: 600, opacity: .7 }}>{T('اليوم', 'today')}</span>
       </button>
 
       {open && ReactDOM.createPortal(
@@ -1484,8 +1525,14 @@ function GosiEstablishmentCard({ data, T, lang }) {
           <Row k={T('الكيان (وزارة التجارة)', 'MCI legal entity')} v={pickLang(r.mciLegalEntity)} />
           <Row k={T('نوع المنشأة', 'Type')} v={pickLang(r.establishmentType)} />
           <Row k={T('الحالة', 'Status')} v={pickLang(r.status)} />
-          <Row k={T('الرقم الموحد', 'Unified National No.')} v={r.unifiedNationalNumber} mono gold copy />
-          <Row k={T('رقم الاستقدام', 'Recruitment no.')} v={r.recruitmentNo} mono gold copy />
+          {/* الرقم الموحد + رقم الاستقدام pinned side-by-side in one row (full-width
+              sub-grid) so the section's auto-flow can't split them apart. */}
+          {((r.unifiedNationalNumber != null && r.unifiedNationalNumber !== '') || (r.recruitmentNo != null && r.recruitmentNo !== '')) && (
+            <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Row k={T('الرقم الموحد', 'Unified National No.')} v={r.unifiedNationalNumber} mono gold copy />
+              <Row k={T('رقم الاستقدام', 'Recruitment no.')} v={r.recruitmentNo} mono gold copy />
+            </div>
+          )}
           {/* Only show "Main establishment" when it actually points to a DIFFERENT
               establishment (i.e. this is a branch). Otherwise the value equals
               رقم التسجيل right above and is just visual noise. */}
@@ -1637,15 +1684,38 @@ const _gosiMoney = (n) => {
   if (isNaN(num)) return null
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
+// ALL dates display as YYYY-MM-DD (e.g. 2026-05-27), read left-to-right as
+// year → month → day. One canonical ISO shape used everywhere — Gregorian
+// and Hijri alike — so every date in the app stays consistent. Do NOT flip
+// the segments: GOSI already sends Gregorian in this shape.
 const _gosiDate = (s) => s ? String(s).slice(0, 10) : null
-// Combine the Gregorian date with the Hijri equivalent (when present) into
-// one value: "1994-12-27 · 11-09-1446". GOSI stores hijri as DD-MM-YYYY; we
-// normalize it to YYYY-MM-DD so both halves read the same way.
+// Hijri normalized to the same YYYY-MM-DD shape. GOSI sometimes sends it
+// day-first (DD-MM-YYYY) — detected by a short (≤2-char) first segment — so
+// we flip those back to year-first.
 const _gosiHijriNorm = (h) => {
   if (!h) return null
   const s = String(h).slice(0, 10)
   const parts = s.split('-')
   return parts.length === 3 && parts[0].length <= 2 ? parts.reverse().join('-') : s
+}
+// Whole-day span between two YYYY-MM-DD dates. Drives the employment duration
+// shown for non-active contributors. Returns null for missing/invalid/negative.
+const _gosiDaysBetween = (start, end) => {
+  if (!start || !end) return null
+  const s = new Date(String(start).slice(0, 10))
+  const e = new Date(String(end).slice(0, 10))
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return null
+  const d = Math.round((e - s) / 86400000)
+  return d >= 0 ? d : null
+}
+// Normalize dates embedded inside GOSI free-text (e.g. a violation description
+// "الغاء مدة من 22/02/2026 الى 28/02/2026") from DD/MM/YYYY to the app-wide
+// YYYY-MM-DD shape, leaving the surrounding text untouched, so dates inside
+// sentences match every other date field.
+const _gosiTextDates = (str) => {
+  if (!str) return str
+  return String(str).replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g,
+    (_, d, m, y) => y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'))
 }
 const _gosiDatePair = (greg, hijri) => {
   const g = _gosiDate(greg)
@@ -1669,6 +1739,14 @@ const _GosiDatePair = (greg, hijri) => {
       <span style={{ opacity: .55, fontWeight: 600, fontSize: '.88em' }}>{h}</span>
     </span>
   )
+}
+
+// Plain-text version of a date pair for the copy button — both calendars on
+// one line, e.g. "1987-10-31 / 1408-03-09".
+const _gosiDateCopy = (greg, hijri) => {
+  const g = _gosiDate(greg)
+  const h = _gosiHijriNorm(hijri)
+  return [g, h].filter(Boolean).join(' / ')
 }
 
 // Row styles mirror the SBC facility card (rowBase + lbl + gold variants).
@@ -1778,7 +1856,7 @@ function _GosiCountBadge({ n, color }) {
   )
 }
 
-function GosiAccountCard({ data, bills, T, lang }) {
+function GosiAccountCard({ data, bills, contributors, T, lang }) {
   if (!data || (data.account_synced_at == null && data.outstanding_amount == null)) return null
   const isAr = (lang || 'ar') !== 'en'
   const hasDebt = (data.outstanding_amount || 0) > 0
@@ -1786,6 +1864,16 @@ function GosiAccountCard({ data, bills, T, lang }) {
   // logic as SBC "violations" / "compliance" cards.
   const accent = hasDebt ? C.red : C.ok
   const billsList = Array.isArray(bills) ? bills : []
+  // SIN → contributor name, so a violation's socialInsuranceNoList can be shown
+  // as the actual person rather than a bare number.
+  const sinToName = {}
+  for (const c of (contributors || [])) {
+    if (c.social_insurance_no == null) continue
+    const nm = isAr
+      ? [c.first_name_ar, c.second_name_ar, c.third_name_ar, c.family_name_ar].filter(Boolean).join(' ')
+      : c.full_name_en
+    sinToName[String(c.social_insurance_no)] = nm || c.full_name_en || String(c.social_insurance_no)
+  }
   return (
     <div style={cardChrome}>
       <div style={cardHeader}>
@@ -1884,6 +1972,113 @@ function GosiAccountCard({ data, bills, T, lang }) {
             ]}
           />
         )}
+
+        {/* Unpaid violation details — type, amount, status, date, channel,
+            class — from the /unpaid-violation endpoint (stored raw in the
+            unpaid_violations jsonb column). */}
+        {(() => {
+          const list = data.unpaid_violations && data.unpaid_violations.violationSummaryDtoList
+          if (!Array.isArray(list) || !list.length) return null
+          // Map violationId → full detail (from /violation/{id}); carries the
+          // offending contributor's name + national id + the engagement reason.
+          const detailById = {}
+          for (const d of (Array.isArray(data.violation_details) ? data.violation_details : [])) {
+            if (d && d.violationId != null) detailById[String(d.violationId)] = d
+          }
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={_gosiSectionLbl}>{T('تفاصيل المخالفات', 'Violation details')}</div>
+              {list.map((v, i) => {
+                const det = v.violationId != null ? detailById[String(v.violationId)] : null
+                const detContribs = det && Array.isArray(det.contributors) ? det.contributors : []
+                const date = _gosiDate(v.dateReported && v.dateReported.gregorian)
+                // Fallback contributor names — used only when the per-violation
+                // detail (with full contributor info) wasn't synced; matched from
+                // the summary's SIN list against synced contributor names.
+                const fallbackNames = !detContribs.length && Array.isArray(v.socialInsuranceNoList)
+                  ? v.socialInsuranceNoList.map(s => sinToName[String(s)] || String(s)) : []
+                const reason = det && det.inspectionInfo && det.inspectionInfo.rasedRecommendation
+                  ? (isAr ? det.inspectionInfo.rasedRecommendation.arabic : det.inspectionInfo.rasedRecommendation.english)
+                  : null
+                const meta = [
+                  { k: T('رقم المخالفة', 'Violation no.'), v: v.violationId != null ? String(v.violationId) : null, mono: true },
+                  { k: T('الحالة', 'Status'), v: isAr ? (v.status && v.status.arabic) : (v.status && v.status.english) },
+                  { k: T('تاريخ الرصد', 'Reported'), v: date, mono: true },
+                  { k: T('المصدر', 'Channel'), v: isAr ? (v.channel && v.channel.arabic) : (v.channel && v.channel.english) },
+                  { k: T('الفئة', 'Class'), v: isAr ? (v.approvedViolationClass && v.approvedViolationClass.arabic) : (v.approvedViolationClass && v.approvedViolationClass.english) },
+                  { k: T('المشترك', 'Contributor'), v: fallbackNames.length ? fallbackNames.join('، ') : null },
+                ].filter(m => m.v != null && m.v !== '')
+                return (
+                  <div key={v.violationId || i} style={{ ..._gosiRowDanger, flexDirection: 'column', alignItems: 'stretch', gap: 8, padding: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24 }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx)', lineHeight: 1.45, flex: 1 }}>{isAr ? (v.violationType && v.violationType.arabic) : (v.violationType && v.violationType.english)}</span>
+                      <span style={{ fontSize: 19, fontWeight: 800, color: C.red, direction: 'ltr', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{_gosiMoney(v.penaltyAmount)}</span>
+                    </div>
+                    {meta.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px', fontSize: 10.5, paddingTop: 6, borderTop: '1px dashed rgba(255,255,255,.08)' }}>
+                        {meta.map((m, mi) => (
+                          <span key={mi} style={{ color: 'var(--tx3)' }}>{m.k}: <span style={{ color: 'var(--tx)', fontWeight: 700, direction: m.mono ? 'ltr' : undefined }}>{m.v}</span></span>
+                        ))}
+                      </div>
+                    )}
+                    {reason && (
+                      <div style={{ fontSize: 10.5, color: 'var(--tx3)', lineHeight: 1.5 }}>{T('السبب', 'Reason')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{_gosiTextDates(reason)}</span></div>
+                    )}
+                    {/* Per-contributor block — name, national id, birth (greg/hijri)
+                        and each engagement's join/termination + violation desc. */}
+                    {detContribs.map((c, ci) => {
+                      const cname = isAr ? (c.contributorName && c.contributorName.arabic) : (c.contributorName && c.contributorName.english)
+                      const birth = _gosiDateCopy(c.dateOfBirth && c.dateOfBirth.gregorian, c.dateOfBirth && c.dateOfBirth.hijiri)
+                      const engs = Array.isArray(c.engagementInfo) ? c.engagementInfo : []
+                      // National id + birth (copyable) then each engagement's
+                      // join / termination dates — laid out in one tidy 2-col grid.
+                      const fields = [
+                        { k: T('الهوية', 'National ID'), v: c.nationalId != null ? String(c.nationalId) : null, copy: true },
+                        // Birth stacked: Gregorian on top, Hijri muted below (node);
+                        // copy still yields the flat "greg / hijri" string.
+                        { k: T('الميلاد', 'Born'), v: _GosiDatePair(c.dateOfBirth && c.dateOfBirth.gregorian, c.dateOfBirth && c.dateOfBirth.hijiri), copy: true, copyText: birth },
+                      ]
+                      for (const e of engs) {
+                        const jd = _gosiDate(e.joiningDate && e.joiningDate.gregorian)
+                        const td = _gosiDate(e.terminationDate && e.terminationDate.gregorian)
+                        if (jd) fields.push({ k: T('الالتحاق', 'Joined'), v: jd })
+                        if (td) fields.push({ k: T('الفصل', 'Terminated'), v: td })
+                      }
+                      const shownFields = fields.filter(f => f.v != null && f.v !== '')
+                      const descs = engs.map(e => e.violationDesc ? (isAr ? e.violationDesc.arabic : e.violationDesc.english) : null).filter(Boolean)
+                      return (
+                        <div key={ci} style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, padding: 11, display: 'flex', flexDirection: 'column', gap: 9 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: 6, background: 'rgba(34,197,94,.14)', color: C.ok, flexShrink: 0 }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tx)' }}>{cname || '—'}</span>
+                          </div>
+                          {shownFields.length > 0 && (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 32px' }}>
+                              {shownFields.map((f, fi) => (
+                                <div key={fi} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, minWidth: 0 }}>
+                                  <span style={{ color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{f.k}</span>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
+                                    {f.copy && <CopyBtn value={f.copyText != null ? f.copyText : f.v} />}
+                                    <span style={{ color: 'var(--tx)', fontWeight: 700, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.v}</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {descs.map((d, di) => (
+                            <div key={di} style={{ fontSize: 10.5, color: 'var(--tx3)', lineHeight: 1.5, paddingTop: 7, borderTop: '1px dashed rgba(255,255,255,.07)' }}>{T('وصف المخالفة', 'Description')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{_gosiTextDates(d)}</span></div>
+                          ))}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
@@ -1896,14 +2091,18 @@ function GosiAccountCard({ data, bills, T, lang }) {
 // claiming "مدفوعة".
 function _GosiBillRow({ bill: b, isAr, T }) {
   const statusRaw = String(b.bill_payment_status_ar || b.bill_payment_status_en || '').toLowerCase()
-  const statusSaysPaid = /مدفوع|دفع|paid|settled/.test(statusRaw) && !/غير|un/.test(statusRaw)
-  const statusSaysUnpaid = /غير مدفوع|مستحق|unpaid|due/.test(statusRaw)
-  const outstandingKnown = b.outstanding_amount != null
-  const outstandingZero = outstandingKnown && Number(b.outstanding_amount) === 0
-  const isPaid = statusSaysPaid || (!statusSaysUnpaid && outstandingZero)
-  const isUnknown = !statusRaw && !outstandingKnown
+  const statusSaysPaid = /مدفوع|مسدد|دفع|paid|settled/.test(statusRaw) && !/غير|un/.test(statusRaw)
+  const statusSaysUnpaid = /غير مدفوع|غير مسدد|مستحق|unpaid|due/.test(statusRaw)
+  // GOSI returns no explicit paid/unpaid text on the bill or its summary —
+  // Ameen derives the status from the money still owed. outstanding_amount is
+  // usually null, so fall back to balance_due / total_due_amount.
+  const owed = [b.outstanding_amount, b.balance_due, b.total_due_amount].find(x => x != null)
+  const amountKnown = owed != null
+  const amountZero = amountKnown && Number(owed) === 0
+  const isPaid = statusSaysPaid || (!statusSaysUnpaid && amountZero)
+  const isUnknown = !statusRaw && !amountKnown
   const statusAr = isAr ? b.bill_payment_status_ar : b.bill_payment_status_en
-  const statusFallback = isUnknown ? T('غير معروف', 'Unknown') : (isPaid ? T('مدفوعة', 'Paid') : T('غير مدفوعة', 'Unpaid'))
+  const statusFallback = isUnknown ? T('غير معروف', 'Unknown') : (isPaid ? T('مسددة', 'Paid') : T('غير مسددة', 'Unpaid'))
   const statusColor = isUnknown ? 'rgba(255,255,255,.4)' : (isPaid ? C.ok : C.red)
   return (
     <div style={{ ..._gosiRowBase, padding: 10, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
@@ -2089,7 +2288,7 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
           )}
           {/* Tags + badge inlined on the end via a flex spacer — keeps them
               next to the name regardless of whether the row is expanded. */}
-          {(tagList.length > 0 || badge) && <span style={{ flex: 1 }} />}
+          {(tagList.length > 0 || badge) && <span style={{ flex: 1 }} />}}
           {tagList.map((t, i) => (
             <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               {i > 0 && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)' }}>·</span>}
@@ -2117,14 +2316,17 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
             borderTop: '1px dashed rgba(255,255,255,.07)',
           }}>
             {items.map((m, i) => (
-              <div key={i} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, fontSize: 11 }}>
+              <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
                 <span style={{ color: 'rgba(255,255,255,.4)', fontWeight: 600 }}>{m.k}</span>
-                <span style={{
-                  color: 'var(--tx)', fontWeight: 700,
-                  fontFamily: m.mono ? 'ui-monospace, monospace' : undefined,
-                  direction: m.mono ? 'ltr' : undefined,
-                  fontVariantNumeric: 'tabular-nums',
-                }}>{m.v}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {m.copy && <CopyBtn value={m.copyText != null ? m.copyText : m.v} />}
+                  <span style={{
+                    color: 'var(--tx)', fontWeight: 700,
+                    fontFamily: m.mono ? 'ui-monospace, monospace' : undefined,
+                    direction: m.mono ? 'ltr' : undefined,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>{m.v}</span>
+                </span>
               </div>
             ))}
           </div>
@@ -2147,20 +2349,30 @@ function GosiOwnersCard({ owners, T, lang }) {
       </div>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {owners.map((o) => {
-          const name = isAr
+          const personName = isAr
             ? [o.first_name_ar, o.second_name_ar, o.third_name_ar, o.family_name_ar].filter(Boolean).join(' ')
             : o.full_name_en
+          // Company owners carry no person record — their name + identifier live
+          // under raw.estOwner instead. Fall back to that so company partners
+          // don't render as an empty "—" row.
+          const estOwner = o.raw && o.raw.estOwner ? o.raw.estOwner : null
+          const partnerType = o.raw && o.raw.partnerType ? (isAr ? o.raw.partnerType.arabic : o.raw.partnerType.english) : null
+          const partnershipType = o.raw && o.raw.partnershipType ? (isAr ? o.raw.partnershipType.arabic : o.raw.partnershipType.english) : null
+          const name = personName || (estOwner && estOwner.name) || o.full_name_en
           const active = !o.end_date
           return (
             <_GosiPersonRow
               key={o.id}
-              name={name || o.full_name_en}
-              badge={active ? null : T('انتهت الملكية', 'Ended')}
-              badgeColor={active ? null : C.gray}
+              name={name}
+              badge={active ? T('نشط', 'Active') : T('غير نشط', 'Inactive')}
+              badgeColor={active ? C.ok : C.gray}
               meta={[
-                o.national_id && { k: T('الهوية', 'NID'), v: o.national_id, mono: true },
+                o.national_id && { k: T('الهوية', 'NID'), v: o.national_id, mono: true, copy: true },
+                (estOwner && estOwner.partyId) && { k: T('الرقم الموحد', 'Unified no.'), v: estOwner.partyId, mono: true, copy: true },
                 (o.nationality_ar || o.nationality_en) && { k: T('الجنسية', 'Nationality'), v: isAr ? o.nationality_ar : o.nationality_en },
-                o.birth_date && { k: T('الميلاد', 'Born'), v: _GosiDatePair(o.birth_date, o.birth_date_hijri), mono: true },
+                partnerType && { k: T('نوع الشريك', 'Partner type'), v: partnerType },
+                partnershipType && { k: T('نوع الشراكة', 'Partnership'), v: partnershipType },
+                o.birth_date && { k: T('الميلاد', 'Born'), v: _GosiDatePair(o.birth_date, o.birth_date_hijri), mono: true, copy: true, copyText: _gosiDateCopy(o.birth_date, o.birth_date_hijri) },
                 o.start_date && { k: T('بداية الملكية', 'Since'), v: _gosiDate(o.start_date), mono: true },
                 o.end_date && { k: T('نهاية الملكية', 'Until'), v: _gosiDate(o.end_date), mono: true },
               ]}
@@ -2173,16 +2385,15 @@ function GosiOwnersCard({ owners, T, lang }) {
 }
 
 // GOSI numeric role codes → human labels. Code 2 is confirmed as branch-account
-// manager (per user feedback); the other codes seen in our data (4/5/6/7/8/30)
-// don't have an official public mapping, so we render "دور N" as a stable
-// fallback. Easy to extend once we learn what the other numbers mean.
+// manager (per user feedback); every other code is just a generic admin, so we
+// label it "مشرف" rather than exposing the raw role number.
 const GOSI_ADMIN_ROLE_LABELS = {
   2: { ar: 'مدير حساب الفروع', en: 'Branch account manager' },
 }
 const gosiAdminRoleLabel = (code, isAr) => {
   const m = GOSI_ADMIN_ROLE_LABELS[Number(code)]
   if (m) return isAr ? m.ar : m.en
-  return isAr ? ('دور ' + code) : ('Role ' + code)
+  return isAr ? 'مشرف' : 'Admin'
 }
 
 function GosiAdminsCard({ admins, T, lang }) {
@@ -2216,8 +2427,9 @@ function GosiAdminsCard({ admins, T, lang }) {
               name={name || a.full_name_en}
               tags={roleTags}
               meta={[
-                a.national_id && { k: T('الهوية', 'NID'), v: a.national_id, mono: true },
+                a.national_id && { k: T('الهوية', 'NID'), v: a.national_id, mono: true, copy: true },
                 (a.nationality_ar || a.nationality_en) && { k: T('الجنسية', 'Nationality'), v: isAr ? a.nationality_ar : a.nationality_en },
+                a.birth_date && { k: T('الميلاد', 'Born'), v: _GosiDatePair(a.birth_date, a.birth_date_hijri), mono: true, copy: true, copyText: _gosiDateCopy(a.birth_date, a.birth_date_hijri) },
                 a.social_insurance_number && { k: T('رقم التأمين', 'SIN'), v: a.social_insurance_number, mono: true },
               ]}
             />
@@ -2271,8 +2483,10 @@ function GosiCertificatesCard({ certificates, T }) {
           if (!c) return null
           const meta = CERT_LABELS[type] || { ar: type, en: type }
           const url = STORAGE_BASE + c.storage_path
+          // Newest (to_date) on the left, oldest (from_date) on the right —
+          // reads right-to-left from old → new.
           const dateRange = (c.from_date && c.to_date)
-            ? (fmtDate(c.from_date) + ' ← ' + fmtDate(c.to_date))
+            ? (fmtDate(c.to_date) + ' ← ' + fmtDate(c.from_date))
             : null
           return (
             <a
@@ -2397,15 +2611,18 @@ function _GosiContribRow({ name, wage, statusType, groups, T }) {
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 24, rowGap: 10 }}>
                 {g.items.map((m, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontSize: 11, minWidth: 0 }}>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 11, minWidth: 0 }}>
                     <span style={{ color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>{m.k}</span>
-                    <span style={{
-                      color: 'var(--tx)', fontWeight: 700,
-                      fontFamily: m.mono ? 'ui-monospace, monospace' : undefined,
-                      direction: m.mono ? 'ltr' : undefined,
-                      fontVariantNumeric: 'tabular-nums',
-                      textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>{m.v}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                      {m.copy && <CopyBtn value={m.copyText != null ? m.copyText : m.v} />}
+                      <span style={{
+                        color: 'var(--tx)', fontWeight: 700,
+                        fontFamily: m.mono ? 'ui-monospace, monospace' : undefined,
+                        direction: m.mono ? 'ltr' : undefined,
+                        fontVariantNumeric: 'tabular-nums',
+                        textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{m.v}</span>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -2417,10 +2634,15 @@ function _GosiContribRow({ name, wage, statusType, groups, T }) {
   )
 }
 
-function GosiContributorsCard({ contributors, est, T, lang }) {
+// Saudi detection — GOSI's establishment-level saudi/non-saudi counts are
+// unreliable, so we detect per-contributor: has a national_id (NIN) or its
+// nationality reads Saudi Arabia.
+const gosiIsSaudi = (c) => !!c.national_id
+  || /السعودية|saudi/i.test(String(c.nationality_ar || '') + ' ' + String(c.nationality_en || ''))
+
+function GosiContributorsCard({ contributors, est, T, lang, title }) {
   if (!contributors || !contributors.length) return null
   const isAr = (lang || 'ar') !== 'en'
-  const totalWage = contributors.reduce((s, c) => s + (c.wage_total || 0), 0)
   // Status classification — matches the GOSI portal: a contributor with
   // statusType=ACTIVE but hasLiveEngagementInEstablishment=false is treated
   // as "معلق" (suspended), not active. Without this fix, suspended workers
@@ -2439,15 +2661,6 @@ function GosiContributorsCard({ contributors, est, T, lang }) {
     if (statusOf(c) === 'ACTIVE' && hasLive(c)) return 'ACTIVE'
     return 'SUSPENDED' // ACTIVE without live engagement = suspended subscription
   }
-  // Saudi / Non-Saudi computed from the rows too. GOSI's establishment-level
-  // numberOfSaudiContributors / numberOfNonSaudiContributors meta is unreliable
-  // (often reports 0 even when the contributor list contains Saudis), so we
-  // ignore those columns and detect Saudis directly: a contributor is Saudi if
-  // it has a national_id (NIN), or its nationality reads Saudi Arabia.
-  const isSaudi = (c) => !!c.national_id
-    || /السعودية|saudi/i.test(String(c.nationality_ar || '') + ' ' + String(c.nationality_en || ''))
-  const saudiCount = contributors.filter(isSaudi).length
-  const nonSaudiCount = contributors.length - saudiCount
   // Mini stat tile for the summary strip — mirrors how SBC shows facility
   // counts on the sidebar (label below a big bold number).
   const Stat = ({ n, label, color }) => n == null ? null : (
@@ -2461,7 +2674,7 @@ function GosiContributorsCard({ contributors, est, T, lang }) {
       <div style={cardHeader}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} />
         <GosiSourceIcon />
-        <span style={cardTitle}>{T('الموظفون / المشتركون', 'Contributors')}</span>
+        <span style={cardTitle}>{title || T('الموظفون / المشتركون', 'Contributors')}</span>
         <_GosiCountBadge n={contributors.length} color={C.cyan} />
       </div>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -2477,21 +2690,6 @@ function GosiContributorsCard({ contributors, est, T, lang }) {
           <Stat n={activeCount} label={T('نشطون', 'Active')} color={C.ok} />
           <Stat n={inactiveCount} label={T('غير نشطون', 'Inactive')} color={inactiveCount > 0 ? C.red : undefined} />
           <Stat n={suspendedCount} label={T('معلقون', 'Suspended')} color={suspendedCount > 0 ? C.warn : undefined} />
-        </div>
-        {/* Aggregate strip — nationality split + total wages. Sits below the
-            status strip so the user sees "who" then "what" naturally. */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6,
-          padding: 8, borderRadius: 10,
-          background: 'rgba(255,255,255,.024)',
-          border: '1px solid rgba(255,255,255,.05)',
-        }}>
-          <Stat n={saudiCount} label={T('سعوديون', 'Saudi')} color={C.ok} />
-          <Stat n={nonSaudiCount} label={T('غير سعوديين', 'Non-Saudi')} />
-          <div style={{ textAlign: 'center', padding: '6px 4px' }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: totalWage > 0 ? 'var(--tx)' : 'var(--tx4)', direction: 'ltr' }}>{totalWage > 0 ? _gosiMoney(totalWage) : '—'}</div>
-            <div style={{ fontSize: 10, color: 'var(--tx4)', marginTop: 2 }}>{T('إجمالي الأجور', 'Total wages')}</div>
-          </div>
         </div>
 
         {contributors.map((c) => {
@@ -2522,7 +2720,7 @@ function GosiContributorsCard({ contributors, est, T, lang }) {
                     title: T('بيانات شخصية', 'Personal'),
                     items: [
                       (c.nationality_ar || c.nationality_en) && { k: T('الجنسية', 'Nationality'), v: isAr ? c.nationality_ar : c.nationality_en },
-                      c.birth_date && { k: T('الميلاد', 'Born'), v: _GosiDatePair(c.birth_date, c.birth_date_hijri), mono: true },
+                      c.birth_date && { k: T('الميلاد', 'Born'), v: _GosiDatePair(c.birth_date, c.birth_date_hijri), mono: true, copy: true, copyText: _gosiDateCopy(c.birth_date, c.birth_date_hijri) },
                     ],
                   },
                   {
@@ -2530,12 +2728,12 @@ function GosiContributorsCard({ contributors, est, T, lang }) {
                     items: [
                       // National ID first for Saudis — it's the primary identifier.
                       // For non-Saudis the column is null and the entry is dropped.
-                      c.national_id && { k: T('الهوية', 'NID'), v: c.national_id, mono: true },
-                      c.iqama_no && { k: T('إقامة', 'Iqama'), v: c.iqama_no, mono: true },
+                      c.national_id && { k: T('الهوية', 'NID'), v: c.national_id, mono: true, copy: true },
+                      c.iqama_no && { k: T('إقامة', 'Iqama'), v: c.iqama_no, mono: true, copy: true },
                       c.iqama_expiry_date && { k: T('انتهاء الإقامة', 'Iqama exp.'), v: _gosiDate(c.iqama_expiry_date), mono: true },
                       c.passport_no && { k: T('رقم الجواز', 'Passport'), v: c.passport_no, mono: true },
                       passportExpiry && { k: T('انتهاء الجواز', 'Passport exp.'), v: passportExpiry, mono: true },
-                      c.border_no && { k: T('رقم الحدود', 'Border no.'), v: c.border_no, mono: true },
+                      c.border_no && { k: T('رقم الحدود', 'Border no.'), v: c.border_no, mono: true, copy: true },
                     ],
                   },
                   (() => {
@@ -2554,21 +2752,28 @@ function GosiContributorsCard({ contributors, est, T, lang }) {
                       exitDate = c.suspended_date || null
                       exitLabel = T('تاريخ التعليق', 'Suspended on')
                     } else if (status === 'INACTIVE' || status === 'ENDED') {
-                      exitDate = c.suspended_terminated_date || null
+                      // Prefer the engagement endpoint's endDate (accurate stint
+                      // termination) over the suspension-derived date.
+                      exitDate = c.engagement_end_date || c.suspended_terminated_date || null
                       exitLabel = T('تاريخ الفصل', 'Ended on')
                     }
                     // Joining date: GOSI sets `joining_date` only when the
                     // wageDetails call succeeded — for inactive contributors
-                    // (no wage call) it's null, but `latest_joining_date` still
-                    // carries the most recent engagement start. Fall back so
-                    // every row shows a join date when GOSI knows one.
-                    const joinDate = c.joining_date || c.latest_joining_date
+                    // (no wage call) it's null, so fall back to the engagement
+                    // endpoint's startDate, then latest_joining_date.
+                    const joinDate = c.joining_date || c.engagement_start_date || c.latest_joining_date
                     return {
                       title: T('العمل', 'Employment'),
                       items: [
                         occ && { k: T('المهنة', 'Occupation'), v: occ },
                         joinDate && { k: T('تاريخ الالتحاق', 'Joined'), v: _gosiDate(joinDate), mono: true },
                         exitDate && exitLabel && { k: exitLabel, v: _gosiDate(exitDate), mono: true },
+                        // Employment duration in days for non-active stints —
+                        // computed from the joining and termination dates.
+                        (() => {
+                          const days = (status === 'INACTIVE' || status === 'ENDED') ? _gosiDaysBetween(joinDate, exitDate) : null
+                          return days != null && { k: T('المدة', 'Duration'), v: <span style={{ direction: 'ltr' }}>{days} {T('يوم', days === 1 ? 'day' : 'days')}</span> }
+                        })(),
                         c.wage_contributory != null && c.wage_contributory !== c.wage_total && { k: T('الخاضع', 'Contrib.'), v: _gosiMoney(c.wage_contributory), mono: true },
                       ],
                     }
@@ -2693,6 +2898,18 @@ const currencyShort = (s, lang) => {
   return v
 }
 
+// Normalize a Saudi mobile to local 0-prefixed form: strip +966 / 00966 / 966
+// and replace with a leading 0 (e.g. 00966537593464 → 0537593464). Numbers that
+// aren't in a Saudi international form pass through unchanged.
+const saMobile = (v) => {
+  if (v == null || v === '') return v
+  let s = String(v).trim().replace(/[\s-]/g, '')
+  if (s.startsWith('+')) s = s.slice(1)
+  if (s.startsWith('00966')) return '0' + s.slice(5)
+  if (s.startsWith('966')) return '0' + s.slice(3)
+  return String(v)
+}
+
 // Draggable SBC sync bookmarklet anchor — the gold "مزامنة المركز السعودي" pill
 // shown at the top of the facilities page. Same drag-to-bookmarks-bar pattern
 // used elsewhere: clicking it does nothing; the user drags it to the browser's
@@ -2703,9 +2920,13 @@ const currencyShort = (s, lang) => {
 // split because PDFs require a different fetch strategy (direct browser
 // fetch from the user's Saudi network) versus the API endpoints (which
 // work fine through the saudibusiness gateway with CORS).
-function DragBookmark({ href, label, accent, title, icon }) {
+function DragBookmark({ href, label, accent, title }) {
   const ref = useRef(null)
   useEffect(() => { if (ref.current) ref.current.setAttribute('href', href) }, [href])
+  const rest = `linear-gradient(180deg, ${accent}1f 0%, ${accent}0f 100%)`
+  const hover = `linear-gradient(180deg, ${accent}33 0%, ${accent}1c 100%)`
+  const restShadow = `0 1px 2px rgba(0,0,0,.25), inset 0 1px 0 ${accent}1a`
+  const hoverShadow = `0 7px 18px ${accent}33, inset 0 1px 0 ${accent}2e`
   return (
     <a
       ref={ref}
@@ -2713,19 +2934,31 @@ function DragBookmark({ href, label, accent, title, icon }) {
       onClick={e => e.preventDefault()}
       draggable="true"
       style={{
-        height: 38, padding: '0 16px', borderRadius: 10,
-        background: `linear-gradient(180deg, ${accent}26 0%, ${accent}14 100%)`,
-        border: `1.5px solid ${accent}`,
+        height: 40, paddingInlineStart: 6, paddingInlineEnd: 13, borderRadius: 12,
+        background: rest,
+        border: `1px solid ${accent}66`,
         color: accent,
         textDecoration: 'none', fontFamily: F, fontSize: 12.5, fontWeight: 800,
         cursor: 'grab',
-        display: 'inline-flex', alignItems: 'center', gap: 8,
-        transition: '.15s', userSelect: 'none',
+        // Explicit LTR so the grip handle always sits on the physical right,
+        // independent of the surrounding RTL/LTR context.
+        direction: 'ltr',
+        display: 'inline-flex', alignItems: 'center', gap: 9,
+        boxShadow: restShadow,
+        transition: 'transform .15s, box-shadow .15s, background .15s, border-color .15s',
+        userSelect: 'none',
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = `linear-gradient(180deg, ${accent}3A 0%, ${accent}22 100%)` }}
-      onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(180deg, ${accent}26 0%, ${accent}14 100%)` }}>
-      {icon}
-      {label}
+      onMouseEnter={e => { e.currentTarget.style.background = hover; e.currentTarget.style.borderColor = accent; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = hoverShadow }}
+      onMouseLeave={e => { e.currentTarget.style.background = rest; e.currentTarget.style.borderColor = `${accent}66`; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = restShadow }}>
+      {/* Drag-grip handle — signals "drag me to the bookmarks bar" */}
+      <span aria-hidden="true" style={{ display: 'inline-flex', paddingInline: 2, opacity: .5 }}>
+        <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+          <circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/>
+          <circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/>
+          <circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/>
+        </svg>
+      </span>
+      <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
     </a>
   )
 }
@@ -2744,8 +2977,8 @@ function SbcSyncBookmarklet({ syncPersonId, T }) {
       title={T('اسحب الزر إلى شريط الإشارات، ثم افتح تيسير واضغط لمزامنة بيانات وملفات المنشآت', 'Drag to bookmarks bar, open Tayseer and click to sync facility data + PDFs')}
       label={T('المركز السعودي', 'SBC')}
       icon={(
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/>
         </svg>
       )}
     />
@@ -2765,8 +2998,8 @@ function GosiSyncBookmarklet({ syncPersonId, T }) {
       title={T('اسحب الزر إلى شريط الإشارات، ثم افتح أمين التأمينات واضغط لمزامنة بيانات المنشآت', 'Drag to bookmarks bar, open Ameen and click to sync GOSI facility data')}
       label={T('التأمينات الإجتماعية', 'GOSI')}
       icon={(
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
         </svg>
       )}
     />
@@ -2789,8 +3022,8 @@ function MuqeemSyncBookmarklet({ syncPersonId, T }) {
       title={T('اسحب الزر إلى شريط الإشارات، ثم افتح مقيم واضغط لمزامنة المنشآت', 'Drag to bookmarks bar, open Muqeem and click to sync')}
       label={T('مقيم', 'Muqeem')}
       icon={(
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/>
         </svg>
       )}
     />
@@ -2809,8 +3042,8 @@ function QiwaSyncBookmarklet({ syncPersonId, T }) {
       title={T('اسحب الزر إلى شريط الإشارات، ثم افتح بوابة قوى واضغط لمزامنة المنشآت', 'Drag to bookmarks bar, open Qiwa portal and click to sync facilities')}
       label={T('قوى', 'Qiwa')}
       icon={(
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
       )}
     />
@@ -3093,16 +3326,18 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // change — when bumped, the cached data is invalidated and refetched even
   // if the in-memory state thinks it's loaded. Prevents the "you added a
   // column but old sessions still see the stale shape without it" footgun.
-  const GOSI_AGG_SCHEMA = 3
+  const GOSI_AGG_SCHEMA = 7
   const loadGosiAggregates = useCallback(async () => {
     if (!sb || gosiAggLoading) return
     if (gosiAggLoaded === GOSI_AGG_SCHEMA) return
     setGosiAggLoading(true)
     try {
       const [own, con, est] = await Promise.all([
-        sb.from('gosi_establishment_owners').select('registration_no, first_name_ar, family_name_ar, full_name_en, national_id, nationality_ar, end_date'),
+        // `individual` + `raw` (estOwner block) let the الملاك column show the
+        // company name + unified number for corporate owners, like the SBC view.
+        sb.from('gosi_establishment_owners').select('registration_no, first_name_ar, second_name_ar, third_name_ar, family_name_ar, full_name_en, national_id, nationality_ar, end_date, individual, raw'),
         sb.from('gosi_establishment_contributors').select('registration_no, first_name_ar, family_name_ar, full_name_en, status_type, contributor_type, nationality_ar, nationality_en, iqama_no, national_id, border_no, passport_no, wage_total, has_live_engagement_in_establishment'),
-        sb.from('gosi_establishments').select('registration_no, outstanding_amount, account_total_debit_balance, recruitment_no'),
+        sb.from('gosi_establishments').select('registration_no, outstanding_amount, account_total_debit_balance, recruitment_no, account_debit_total_contribution, account_debit_total_penalty, violations_total, main_est_reg_no, unpaid_violations'),
       ])
       const ownersMap = {}
       for (const r of own.data || []) {
@@ -3661,6 +3896,20 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     liquidation: scopedRows.filter(r => r.in_liquidation_process).length,
   }), [scopedRows])
 
+  // GOSI-sourced establishment counts — drive the hero card when the GOSI view
+  // is active. A GOSI establishment is "main" (رئيسية) when it has no parent
+  // (main_est_reg_no null or equal to its own reg), otherwise it's a branch.
+  const gosiCounts = useMemo(() => {
+    const ests = Object.values(gosiEstByReg || {})
+    let main = 0
+    for (const e of ests) {
+      const m = e.main_est_reg_no
+      if (m == null || String(m) === String(e.registration_no)) main++
+    }
+    return { total: ests.length, main, branches: ests.length - main, liquidation: 0 }
+  }, [gosiEstByReg])
+  const heroCounts = tableView === 'gosi' ? gosiCounts : counts
+
   // 12-month CR registration trend — buckets `cr_issue_date` per calendar month.
   const periodSeries = useMemo(() => {
     const today = new Date()
@@ -3745,7 +3994,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       {!detail && (<>
       {/* Page title + description + sync anchor */}
       <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Title + description claim the full row (flex-basis 100%) so the sync
+            buttons wrap onto their own row below instead of squeezing the title. */}
+        <div style={{ flex: '1 1 100%', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {onBack && (
               <button onClick={onBack}
@@ -3767,13 +4018,17 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                'All facilities and workers — every value carries its source and last sync time.')}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'ltr' }}>
           <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
           <GosiSyncBookmarklet syncPersonId={syncPersonId} T={T} />
-          <QiwaSyncBookmarklet syncPersonId={syncPersonId} T={T} />
-          <QiwaProgressTracker sb={sb} T={T} />
-          <MuqeemSyncBookmarklet syncPersonId={syncPersonId} T={T} />
-          <MuqeemProgressTracker sb={sb} T={T} />
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+            <QiwaSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+            <QiwaProgressTracker sb={sb} T={T} />
+          </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+            <MuqeemSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+            <MuqeemProgressTracker sb={sb} T={T} />
+          </div>
         </div>
       </div>
 
@@ -3781,10 +4036,21 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         <div style={{ fontSize: 12, color: C.red, fontWeight: 600 }}>{err}</div>
       </Card>}
 
-      {isInitiallyEmpty && (
+      {isInitiallyEmpty && (() => {
+        const SOURCES = [
+          { id: 'sbc',    name: T('المركز السعودي', 'SBC'),    accent: '#9b59b6', role: T('الأساس — يبني قائمة المنشآت', 'Base — builds the list'), primary: true,
+            icon: <><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></> },
+          { id: 'qiwa',   name: T('قوى', 'Qiwa'),              accent: '#3b82f6', role: T('العمالة والرخص', 'Workforce & permits'),
+            icon: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></> },
+          { id: 'gosi',   name: T('التأمينات', 'GOSI'),         accent: '#22c55e', role: T('الاشتراكات والمشتركون', 'Contributors'),
+            icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/> },
+          { id: 'muqeem', name: T('مقيم', 'Muqeem'),            accent: '#f59e0b', role: T('الإقامات والمقيمون', 'Iqama & residents'),
+            icon: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></> },
+        ]
+        return (
         <div style={{
           position: 'relative',
-          padding: '64px 32px',
+          padding: '52px 32px',
           borderRadius: 20,
           background: 'linear-gradient(180deg,#222 0%,#1a1a1a 100%)',
           border: '1px solid rgba(255,255,255,.05)',
@@ -3812,25 +4078,52 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           </div>
 
           <div style={{ position: 'relative', fontSize: 20, fontWeight: 700, color: 'var(--tx)', letterSpacing: '-.3px' }}>
-            {T('ابدأ بمزامنة سجلاتك التجارية', 'Start syncing your commercial records')}
+            {T('ابدأ ببناء سجل المنشآت والعمالة', 'Start building your facilities & workforce')}
           </div>
-          <div style={{ position: 'relative', fontSize: 13, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.7, maxWidth: 540 }}>
+          <div style={{ position: 'relative', fontSize: 13, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.7, maxWidth: 560 }}>
             {T(
-              'اسحب زر «مزامنة المركز السعودي» إلى شريط الإشارات في متصفحك، افتح بوابة تيسير وسجّل بنفاذ، ثم اضغط الإشارة. كل المنشآت اللي يقدر حسابك يشوفها بتنزل هنا تلقائياً.',
-              'Drag the "Sync SBC" button to your browser bookmarks bar, open the Tayseer portal and log in with Nafath, then click the bookmark. Every facility your account can see will land here automatically.',
+              'تجمع هذه الصفحة منشآتك وعمّالك من أربع منصات حكومية في مكان واحد — كل قيمة موسومة بمصدرها وآخر تاريخ مزامنة. ابدأ بالمركز السعودي لإنشاء قائمة منشآتك، ثم أثرِها ببيانات قوى والتأمينات ومقيم.',
+              'This page brings your facilities and workers together from four government platforms — every value tagged with its source and last sync. Start with SBC to build your facility list, then enrich it from Qiwa, GOSI and Muqeem.',
             )}
           </div>
 
-          <div style={{ position: 'relative', marginTop: 8 }}>
+          {/* Sources ecosystem — shows the four platforms this page aggregates,
+              with SBC marked as the starting point (it seeds the canonical list). */}
+          <div style={{ position: 'relative', display: 'flex', gap: 9, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 680, marginTop: 4 }}>
+            {SOURCES.map(s => (
+              <div key={s.id} style={{
+                display: 'flex', alignItems: 'center', gap: 9, padding: '9px 13px', borderRadius: 12,
+                background: s.primary ? `${s.accent}1c` : 'rgba(255,255,255,.025)',
+                border: `1px solid ${s.primary ? `${s.accent}88` : 'rgba(255,255,255,.07)'}`,
+              }}>
+                <span style={{ width: 30, height: 30, borderRadius: 8, background: `${s.accent}26`, color: s.accent, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{s.icon}</svg>
+                </span>
+                <div style={{ textAlign: 'start' }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tx)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {s.name}
+                    {s.primary && <span style={{ fontSize: 9, fontWeight: 800, color: s.accent, background: `${s.accent}26`, padding: '1px 6px', borderRadius: 999 }}>{T('ابدأ هنا', 'Start')}</span>}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600, marginTop: 1 }}>{s.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Primary CTA — SBC seeds the canonical facilities, so it leads. */}
+          <div style={{ position: 'relative', marginTop: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)' }}>
+              {T('الخطوة الأولى — اسحب هذا الزر إلى شريط الإشارات', 'Step one — drag this to your bookmarks bar')}
+            </div>
             <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
           </div>
 
           {/* 3-step mini guide */}
-          <div style={{ position: 'relative', marginTop: 18, display: 'inline-flex', gap: 18, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 720 }}>
+          <div style={{ position: 'relative', marginTop: 16, display: 'inline-flex', gap: 18, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 720 }}>
             {[
-              { n: '1', t: T('ثبّت الإشارة', 'Install bookmark'), s: T('اسحب الزر الذهبي إلى شريط الإشارات', 'Drag the gold button to bookmarks bar') },
-              { n: '2', t: T('افتح تيسير', 'Open Tayseer'), s: T('سجّل دخول بنفاذ بهوية مهدي', 'Login via Nafath') },
-              { n: '3', t: T('اضغط الإشارة', 'Click bookmark'), s: T('انتظر «✅» — كل السجلات تنزل تلقائياً', 'Wait for "✅" — records flow in') },
+              { n: '1', t: T('ثبّت الإشارة', 'Install bookmark'), s: T('اسحب الزر إلى شريط الإشارات في متصفحك', 'Drag the button to your bookmarks bar') },
+              { n: '2', t: T('افتح المنصة وسجّل بنفاذ', 'Open the portal'), s: T('ابدأ بتيسير، ثم كرّر مع قوى والتأمينات ومقيم', 'Tayseer first, then Qiwa, GOSI, Muqeem') },
+              { n: '3', t: T('اضغط الإشارة', 'Click bookmark'), s: T('انتظر «✅» — كل السجلات تنزل هنا تلقائياً', 'Wait for "✅" — records flow in here') },
             ].map(step => (
               <div key={step.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minWidth: 0, flex: '0 1 220px' }}>
                 <div style={{ width: 24, height: 24, borderRadius: '50%', background: `${C.gold}1A`, border: `1px solid ${C.gold}40`, color: C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
@@ -3844,7 +4137,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             ))}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {!isInitiallyEmpty && (<>
       {/* KPI Row — matches Facilities page (Total hero + CR status bar + Roles bar) */}
@@ -3855,7 +4149,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
           border: '1px solid rgba(255,255,255,.05)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
-          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          display: 'flex', flexDirection: 'column',
+          justifyContent: tableView === 'gosi' ? 'center' : 'space-between',
+          gap: tableView === 'gosi' ? 16 : 0,
           overflow: 'hidden', minHeight: 150,
         }}>
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
@@ -3864,27 +4160,59 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي المنشآت','Total Facilities')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(counts.total)}</span>
+            <span style={{ fontSize: tableView === 'gosi' ? 52 : 42, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(heroCounts.total)}</span>
           </div>
+          {tableView !== 'gosi' && (
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', gap: 8 }}>
-            <span style={{ fontSize: 11, color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold }} /> {num(counts.main)} {T('رئيسية','main')}
+            <span style={{ fontSize: 11, color: C.gold, fontWeight: 700, direction: 'rtl', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold }} /> {num(heroCounts.main)} {T('رئيسية','main')}
             </span>
-            <span style={{ fontSize: 11, color: C.blue, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.blue }} /> {num(counts.branches)} {T('فرع','branch')}
+            <span style={{ fontSize: 11, color: C.blue, fontWeight: 700, direction: 'rtl', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.blue }} /> {num(heroCounts.branches)} {T('فرعية','branches')}
             </span>
-            {counts.liquidation > 0 && (
-              <span style={{ fontSize: 11, color: C.red, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.red }} /> {num(counts.liquidation)} {T('تصفية','liquidation')}
+            {heroCounts.liquidation > 0 && (
+              <span style={{ fontSize: 11, color: C.red, fontWeight: 700, direction: 'rtl', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.red }} /> {num(heroCounts.liquidation)} {T('تصفية','liquidation')}
               </span>
             )}
           </div>
+          )}
         </div>
 
         {/* CR status — donut chart, 4 states:
             نشط (annual confirm date not yet due) / في فترة التأكيد السنوي (within 90-day grace) /
             معلّق (past grace, active concern) / مشطوب (permanently removed). */}
-        {(() => {
+        {tableView === 'gosi' ? (() => {
+          // GOSI view — non-Saudi contributors that are active or suspended
+          // (excludes inactive/ended). Computed from the loaded aggregate map.
+          let active = 0, suspended = 0
+          for (const reg in gosiContribByReg) {
+            for (const c of gosiContribByReg[reg]) {
+              if (gosiIsSaudi(c)) continue
+              const st = String(c.status_type || '').toUpperCase()
+              if (st === 'INACTIVE') continue
+              if (st === 'ACTIVE' && c.has_live_engagement_in_establishment === true) active++
+              else suspended++
+            }
+          }
+          const total = active + suspended
+          return (
+            <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+              <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('المشتركون الأجانب', 'Foreign contributors')}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr', flex: 1 }}>
+                <span style={{ fontSize: 42, fontWeight: 800, color: C.cyan, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', gap: 8 }}>
+                <span style={{ fontSize: 11, color: C.ok, fontWeight: 700, direction: 'rtl', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.ok }} /> {num(active)} {T('نشط', 'active')}
+                </span>
+                <span style={{ fontSize: 11, color: C.warn, fontWeight: 700, direction: 'rtl', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.warn }} /> {num(suspended)} {T('معلّق', 'suspended')}
+                </span>
+              </div>
+            </div>
+          )
+        })() : (() => {
           const statusBuckets = { active: 0, confirm: 0, suspended: 0, cancelled: 0 }
           for (const r of scopedRows) {
             const v = String(r._status || r.cr_status_ar || r.cr_status_en || '').toLowerCase()
@@ -3981,7 +4309,45 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
         {/* MoC violations — person-scoped, no progress bar.
             Empty/clean state shows a check; danger state highlights the count in red. */}
-        {(() => {
+        {tableView === 'gosi' ? (() => {
+          // GOSI view — total debt with components: contributions + penalties +
+          // violation fines (all amounts). Violation amount = sum of penaltyAmount
+          // across each establishment's unpaid_violations list.
+          let contrib = 0, penalty = 0, violations = 0, debt = 0
+          for (const reg in gosiEstByReg) {
+            const e = gosiEstByReg[reg]
+            contrib += Number(e.account_debit_total_contribution || 0)
+            penalty += Number(e.account_debit_total_penalty || 0)
+            const vlist = e.unpaid_violations && e.unpaid_violations.violationSummaryDtoList
+            if (Array.isArray(vlist)) for (const v of vlist) violations += Number(v.penaltyAmount || 0)
+            // إجمالي المديونيات = Σ المبلغ المستحق per establishment — GOSI's
+            // authoritative figure, already inclusive of contributions, penalties
+            // and violations (and net of any partial payments).
+            debt += Number(e.outstanding_amount || 0)
+          }
+          const danger = debt > 0
+          const tiles = [
+            { k: 'contrib', l: T('اشتراكات', 'Contributions'), v: _gosiMoney(contrib), hot: false },
+            { k: 'penalty', l: T('غرامات', 'Penalties'), v: _gosiMoney(penalty), hot: penalty > 0 },
+            { k: 'viol', l: T('المخالفات', 'Violations'), v: _gosiMoney(violations), hot: violations > 0 },
+          ]
+          return (
+            <div style={{ borderRadius: 16, background: danger ? 'linear-gradient(180deg, rgba(232,114,101,.10) 0%, #222 70%)' : 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: `1px solid ${danger ? 'rgba(232,114,101,.25)' : 'rgba(255,255,255,.05)'}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي المديونيات', 'Total debt')}</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: danger ? C.red : C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{_gosiMoney(debt)}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, flex: 1 }}>
+                {tiles.map(t => (
+                  <div key={t.k} style={{ borderRadius: 12, padding: '10px 12px', background: t.hot ? 'rgba(232,114,101,.10)' : 'rgba(255,255,255,.025)', border: `1px solid ${t.hot ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.04)'}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4 }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: t.hot ? C.red : 'var(--tx)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1.1 }}>{t.v}</span>
+                    <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1.3 }}>{t.l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })() : (() => {
           const fin = personStats?.mc_financial_violations_count
           const com = personStats?.mc_committee_violations_count
           const finN = Number.isFinite(fin) ? fin : null
@@ -4100,7 +4466,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   const toOpt = p => ({ v: p.id || p.name, l: p.name || '—', sub: p.id || undefined })
                   const out = [{ v: '', l: `${T('الكل', 'All')} (${partnerOptions.length})` }]
                   if (persons.length) out.push(...persons.map(toOpt))
-                  if (persons.length && companies.length) out.push({ divider: true, l: T('الشركات', 'Companies') })
+                  if (persons.length && companies.length) out.push({ divider: true, l: T('المنشآت', 'Facilities') })
                   if (companies.length) out.push(...companies.map(toOpt))
                   return out
                 })()}/>
@@ -4119,7 +4485,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   const toOpt = p => ({ v: p.id || p.name, l: p.name || '—', sub: p.id || undefined })
                   const out = [{ v: '', l: `${T('الكل', 'All')} (${managerOptions.length})` }]
                   if (persons.length) out.push(...persons.map(toOpt))
-                  if (persons.length && companies.length) out.push({ divider: true, l: T('الشركات', 'Companies') })
+                  if (persons.length && companies.length) out.push({ divider: true, l: T('المنشآت', 'Facilities') })
                   if (companies.length) out.push(...companies.map(toOpt))
                   return out
                 })()}/>
@@ -4245,10 +4611,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
         <style>{`
           .sbcv-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-          .sbcv-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12.5px;font-weight:700;text-align:center;padding:14px 5px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+          .sbcv-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
           .sbcv-tbl thead .hd-icon{color:${C.gold};display:inline-flex;align-items:center;justify-content:center;margin-inline-end:6px;vertical-align:middle}
           .sbcv-tbl thead .hd-icon svg{width:14px;height:14px;display:block}
-          .sbcv-tbl tbody td{padding:10px 5px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.02)}
+          .sbcv-tbl tbody td{padding:10px 4px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.02)}
           .sbcv-tbl tbody tr{cursor:pointer;transition:background .12s}
           .sbcv-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
           .sbcv-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
@@ -4388,6 +4754,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             {T('ضمن فترة التأكيد','In Confirm Period')}
                           </span>
                         )}
+                        <CrCountdown confirmDate={r._confirmDate} T={T} compact />
                       </div>
                     </td>
                   </tr>
@@ -4406,28 +4773,30 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         <div style={{ borderRadius: 10 }}>
           <table className="sbcv-tbl">
             <colgroup>
-              <col style={{ width: '13%' }} />
+              <col style={{ width: '12%' }} />
               <col style={{ width: '10%' }} />
               <col style={{ width: '8%' }} />
-              <col style={{ width: '10%' }} />
+              <col style={{ width: '9%' }} />
               <col style={{ width: '8%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '11%' }} />
-              <col style={{ width: '10%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '9%' }} />
             </colgroup>
             <thead>
               <tr>
                 <th>{T('المنشأة','Facility')}</th>
                 <th>{T('الأرقام','Numbers')}</th>
-                <th>{T('رقم الاستقدام','Recruit. no.')}</th>
+                <th>{T('الاستقدام','Recruitment')}</th>
                 <th>{T('الملاك','Owners')}</th>
                 <th>{T('المديونية','Debt')}</th>
                 <th>{T('نشط','Active')}</th>
                 <th>{T('غير نشط','Inactive')}</th>
                 <th>{T('معلق','Suspended')}</th>
                 <th>{T('سعودي نشط','Saudi active')}</th>
+                <th>{T('الأجانب','Foreigners')}</th>
                 <th>{T('الرواتب','Wages')}</th>
               </tr>
             </thead>
@@ -4499,11 +4868,26 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10.5 }}>
                             {activeOwners.slice(0, 3).map((o, i) => {
-                              const nm = [o.first_name_ar, o.family_name_ar].filter(Boolean).join(' ') || o.full_name_en || '—'
+                              // Mirror the SBC view's PersonCompact: company owners
+                              // show the establishment name in gold + the unified
+                              // number below; long names reveal in full via the
+                              // pc-marquee hover scroll (the .sbcv-tbl CSS handles it).
+                              const estOwner = o.raw && o.raw.estOwner ? o.raw.estOwner : null
+                              const isCompany = !!estOwner || o.individual === false
+                              const personName = [o.first_name_ar, o.second_name_ar, o.third_name_ar, o.family_name_ar].filter(Boolean).join(' ') || o.full_name_en
+                              const nm = (isCompany ? (estOwner && estOwner.name) : personName) || personName || '—'
+                              const id = isCompany ? (estOwner && estOwner.partyId) : o.national_id
+                              const color = isCompany ? C.gold : 'var(--tx)'
+                              const words = String(nm || '').split(/\s+/).filter(Boolean)
+                              const isLong = words.length > 3
+                              const shortName = isLong ? words.slice(0, 3).join(' ') + '…' : nm
                               return (
-                                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                                  <span style={{ fontWeight: 700, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{nm}</span>
-                                  {o.national_id && <span className="num" style={{ fontSize: 9.5, color: 'rgba(255,255,255,.45)' }}>{o.national_id}</span>}
+                                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minWidth: 0, width: '100%' }}>
+                                  <div className={isLong ? 'pc-marquee pc-marquee-long' : 'pc-marquee'} title={nm} style={{ fontWeight: 700, color }}>
+                                    <span className="pc-short">{shortName}</span>
+                                    {isLong && <span className="pc-full">{nm}</span>}
+                                  </div>
+                                  {id && <span className="num" style={{ fontSize: 9.5, color: 'rgba(255,255,255,.45)', direction: 'ltr' }}>{id}</span>}
                                 </div>
                               )
                             })}
@@ -4529,6 +4913,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     <td>{_GosiContribCell({ list: inactiveList, color: C.red, idField: 'iqama_no' })}</td>
                     <td>{_GosiContribCell({ list: suspendedList, color: C.warn, idField: 'iqama_no' })}</td>
                     <td>{_GosiContribCell({ list: saudiActiveList, color: C.ok, idField: 'national_id' })}</td>
+                    {/* عدد الأجانب — non-Saudi contributors that are active or suspended */}
+                    <td>{(() => {
+                      const n = [...activeList, ...suspendedList].filter(c => !isSaudi(c)).length
+                      return n > 0
+                        ? <span className="num" style={{ fontSize: 13, fontWeight: 800, color: C.cyan }}>{n}</span>
+                        : <span className="muted">—</span>
+                    })()}</td>
                     <td>{_GosiWagesCell({ contributors: allContrib })}</td>
                   </tr>
                 )
@@ -4628,7 +5019,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         // so the rest of the code can keep passing a `prov` prop without conditionals.
         const ProvMarker = () => null
 
-        const Field = ({ k, v, prov = sbcProv }) => (
+        const Field = ({ k, v, prov = sbcProv, copy }) => (
           <div style={{
             position: 'relative',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -4640,7 +5031,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           }}>
             {prov && <ProvMarker prov={prov} />}
             <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{k}</span>
-            <span style={{ fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v || '—'}</span>
+            {copy && v != null && v !== ''
+              // No onToast: the global toast re-renders this card; the inline ✓ confirms.
+              ? <CopyableNumber value={v} copyLabel={T('نُسخ', 'Copied')} />
+              : <span style={{ fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v || '—'}</span>}
           </div>
         )
         const SectionTitle = ({ children }) => (
@@ -4664,7 +5058,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           </div>
         )
         const fmtNum = (n) => n != null ? Number(n).toLocaleString('en-US') : null
-        const PersonRow = ({ p, roleAr }) => {
+        const PersonRow = ({ p, roleAr, isManager }) => {
           const [expanded, setExpanded] = useState(false)
           if (!p) return null
           const info = p.personInfo
@@ -4734,18 +5128,29 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   // gold to keep the headline ownership info visible. Using a
                   // 2-col grid + key/value alignment removes the bus-stop "·"
                   // chain that was hard to scan.
+                  // Field order is tuned for the RTL 2-col grid (fills right→left):
+                  // pushing نوع الشريك before رقم موحد, and نقدية before إجمالي الحصص,
+                  // places نوع الشريك + نقدية in the right column.
                   const items = []
-                  if (idValue) items.push({ k: idLabel, v: idValue, mono: true })
-                  if (natAr && !isCompany) items.push({ k: T('الجنسية', 'Nationality'), v: natAr })
-                  if (dob) items.push({ k: T('مواليد', 'DOB'), v: dob, mono: true })
                   if (p.parityType?.parityTypeDescriptionAr) {
                     items.push({ k: T('نوع الشريك', 'Partner type'), v: p.parityType.parityTypeDescriptionAr })
                   }
-                  if (p.partnerShare?.totalContributionCount != null) {
-                    items.push({ k: T('إجمالي الحصص', 'Total shares'), v: fmtNum(p.partnerShare.totalContributionCount), color: C.gold, mono: true })
+                  // Managers show الجنسية قبل الهوية; elsewhere الهوية أولاً.
+                  const idItem = idValue ? { k: idLabel, v: idValue, mono: true, copy: true } : null
+                  const natItem = (natAr && !isCompany) ? { k: T('الجنسية', 'Nationality'), v: natAr } : null
+                  if (isManager) {
+                    if (natItem) items.push(natItem)
+                    if (idItem) items.push(idItem)
+                  } else {
+                    if (idItem) items.push(idItem)
+                    if (natItem) items.push(natItem)
                   }
+                  if (dob) items.push({ k: T('مواليد', 'DOB'), v: dob, mono: true })
                   if (p.partnerShare?.cashContributionCount != null && Number(p.partnerShare.cashContributionCount) > 0) {
                     items.push({ k: T('نقدية', 'Cash'), v: fmtNum(p.partnerShare.cashContributionCount), mono: true })
+                  }
+                  if (p.partnerShare?.totalContributionCount != null) {
+                    items.push({ k: T('إجمالي الحصص', 'Total shares'), v: fmtNum(p.partnerShare.totalContributionCount), color: C.gold, mono: true })
                   }
                   if (p.partnerShare?.inkindContributionCount != null && Number(p.partnerShare.inkindContributionCount) > 0) {
                     items.push({ k: T('عينية', 'In-kind'), v: fmtNum(p.partnerShare.inkindContributionCount), mono: true })
@@ -4767,14 +5172,22 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           alignItems: 'baseline', gap: 10, fontSize: 11, minWidth: 0,
                         }}>
                           <span style={{ color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>{m.k}</span>
-                          <span style={{
-                            color: m.color || 'var(--tx)', fontWeight: 700,
-                            fontFamily: m.mono ? 'ui-monospace, monospace' : undefined,
-                            direction: m.mono ? 'ltr' : undefined,
-                            fontVariantNumeric: 'tabular-nums',
-                            textAlign: 'end', overflow: 'hidden',
-                            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}>{m.v}</span>
+                          {m.copy ? (
+                            // No onToast here on purpose: the global toast lives on
+                            // DashPage, so firing it re-renders SbcFacilities and
+                            // remounts this (render-defined) PersonRow, collapsing the
+                            // expanded row. The inline ✓ already confirms the copy.
+                            <CopyableNumber value={m.v} copyLabel={T('نُسخ', 'Copied')} />
+                          ) : (
+                            <span style={{
+                              color: m.color || 'var(--tx)', fontWeight: 700,
+                              fontFamily: m.mono ? 'ui-monospace, monospace' : undefined,
+                              direction: m.mono ? 'ltr' : undefined,
+                              fontVariantNumeric: 'tabular-nums',
+                              textAlign: 'end', overflow: 'hidden',
+                              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>{m.v}</span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -4805,20 +5218,29 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           debit: liveGosi?.totalDebit != null ? Number(liveGosi.totalDebit) : detail.gosi_total_debit,
           penalties: liveGosi?.totalPenalties != null ? Number(liveGosi.totalPenalties) : detail.gosi_total_penalties,
         }
+        // HRSD raw payload, in priority order: live fetch (needs an SBC
+        // session, usually absent) → the raw response captured by the sync
+        // bookmarklet (stored in sbc_sync_debug, loaded into extDetail) →
+        // the denormalized hrsd_* columns. The bulk-sync RPC only persists
+        // the labor-office id/sequence into hrsd_* columns; the laborer
+        // counts, nitaq, and office name live only in this raw payload, so
+        // without the extDetail fallback the card is empty whenever there's
+        // no live session.
+        const _hrsdRaw = liveHrsd || ((extDetail || {})['hrsd/get-establishment-statistics']?.response_body) || null
         const hrsd = {
-          officeId: liveHrsd?.establishmentFileNumber?.laborOfficeIdField ?? detail.hrsd_labor_office_id,
-          sequenceNumber: liveHrsd?.establishmentFileNumber?.sequenceNumberField ?? detail.hrsd_sequence_number,
-          officeName: liveHrsd?.laboerOfficeName ?? detail.hrsd_labor_office_name,
-          nitaqCode: liveHrsd?.nitaq?.code ?? detail.hrsd_nitaq_code,
-          nitaqName: liveHrsd?.nitaq?.nameLocal ?? detail.hrsd_nitaq_name,
-          activityName: liveHrsd?.nitaqatEconomicActivity?.nameLocal ?? detail.hrsd_nitaqat_activity_name,
-          saudiLaborers: liveHrsd?.saudiLaborers ?? detail.hrsd_saudi_laborers,
-          foreignLaborers: liveHrsd?.foreignLaborers ?? detail.hrsd_foreign_laborers,
-          totalLaborers: liveHrsd?.totalLaborers ?? detail.hrsd_total_laborers,
-          issuedPermits: liveHrsd?.totalIssuedWorkPermits ?? detail.hrsd_total_issued_permits,
-          expiredPermits: liveHrsd?.totalExpiredWorkPermits ?? detail.hrsd_total_expired_permits,
-          expiringPermits: liveHrsd?.totalAboutToExpireWorkPermits ?? detail.hrsd_total_expiring_permits,
-          saudiPercentage: liveHrsd?.entity_Saudi_Percentage ?? detail.hrsd_saudi_percentage,
+          officeId: _hrsdRaw?.establishmentFileNumber?.laborOfficeIdField ?? detail.hrsd_labor_office_id,
+          sequenceNumber: _hrsdRaw?.establishmentFileNumber?.sequenceNumberField ?? detail.hrsd_sequence_number,
+          officeName: _hrsdRaw?.laboerOfficeName ?? detail.hrsd_labor_office_name,
+          nitaqCode: _hrsdRaw?.nitaq?.code ?? detail.hrsd_nitaq_code,
+          nitaqName: _hrsdRaw?.nitaq?.nameLocal ?? detail.hrsd_nitaq_name,
+          activityName: _hrsdRaw?.nitaqatEconomicActivity?.nameLocal ?? detail.hrsd_nitaqat_activity_name,
+          saudiLaborers: _hrsdRaw?.saudiLaborers ?? detail.hrsd_saudi_laborers,
+          foreignLaborers: _hrsdRaw?.foreignLaborers ?? detail.hrsd_foreign_laborers,
+          totalLaborers: _hrsdRaw?.totalLaborers ?? detail.hrsd_total_laborers,
+          issuedPermits: _hrsdRaw?.totalIssuedWorkPermits ?? detail.hrsd_total_issued_permits,
+          expiredPermits: _hrsdRaw?.totalExpiredWorkPermits ?? detail.hrsd_total_expired_permits,
+          expiringPermits: _hrsdRaw?.totalAboutToExpireWorkPermits ?? detail.hrsd_total_expiring_permits,
+          saudiPercentage: _hrsdRaw?.entity_Saudi_Percentage ?? detail.hrsd_saudi_percentage,
         }
         // Always show both sections now (per user request to always fetch). Loading/error states handle UX.
         const hasGosi = true
@@ -4882,13 +5304,27 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   payload; without SBC sync, the row data would be a misleading mix
                   of empty/partial values from other syncs. */}
               {hasSbcData && (() => {
+                // MoL/labor file number "office-sequence" (e.g. 18-4044360). Prefer the
+                // synced columns; fall back to the live HRSD/GOSI-file responses so the
+                // chip still appears for facilities mapped from staging (where the
+                // hrsd_* columns aren't populated yet).
+                const _gf = (extDetail || {})['gosi/establishments-file-info-by-registration-number']?.response_body
+                const _hr = (extDetail || {})['hrsd/get-establishment-statistics']?.response_body
+                const molFileNo =
+                  (detail.hrsd_labor_office_id != null && detail.hrsd_sequence_number != null)
+                    ? `${detail.hrsd_labor_office_id}-${detail.hrsd_sequence_number}`
+                    : (_hr?.unifiedNumber?.laborOfficeIdField != null && _hr?.unifiedNumber?.sequenceNumberField != null)
+                      ? `${_hr.unifiedNumber.laborOfficeIdField}-${_hr.unifiedNumber.sequenceNumberField}`
+                      : (_gf?.molofficeID != null && _gf?.molEstID != null)
+                        ? `${_gf.molofficeID}-${_gf.molEstID}`
+                        : (detail.hrsd_labor_office_id != null ? String(detail.hrsd_labor_office_id) : null)
                 const authorities = [
                   { ar: 'الزكاة والضريبة', en: 'ZATCA',                    fullAr: 'هيئة الزكاة والضريبة والجمارك',              color: '#0f766e', n: detail.zakat_tax_number },
                   { ar: 'التأمينات الاجتماعية', en: 'GOSI',                  fullAr: 'المؤسسة العامة للتأمينات الاجتماعية',          color: '#22c55e', n: detail.gosi_registration_number },
                   { ar: 'العنوان الوطني',  en: 'SPL',                      fullAr: 'اشتراك العنوان الوطني للسجل التجاري',         color: '#06b6d4', n: detail.spl_national_address_id },
                   { ar: 'الغرف التجارية',  en: 'Chamber of Commerce',      fullAr: 'اتحاد الغرف التجارية السعودية',               color: '#0ea5e9', n: detail.coc_chamber_number },
                   { ar: 'المقاولين',       en: 'Contractors Authority',    fullAr: 'الهيئة السعودية للمقاولين',                   color: '#f59e0b', n: detail.sca_contractor_number },
-                  { ar: 'الموارد البشرية', en: 'HRSD / Qiwa',              fullAr: 'وزارة الموارد البشرية والتنمية الاجتماعية',    color: '#16a085', n: detail.hrsd_labor_office_id != null && detail.hrsd_sequence_number != null ? `${detail.hrsd_labor_office_id}-${detail.hrsd_sequence_number}` : (detail.hrsd_labor_office_id != null ? String(detail.hrsd_labor_office_id) : null) },
+                  { ar: 'الموارد البشرية', en: 'HRSD / Qiwa',              fullAr: 'وزارة الموارد البشرية والتنمية الاجتماعية',    color: '#16a085', n: molFileNo },
                   { ar: 'وزارة العدل',     en: 'MOJ Contract',             fullAr: 'وزارة العدل · رقم العقد',                     color: '#8b5cf6', n: detail.moj_contract_number },
                   { ar: 'وزارة التجارة',   en: 'MC Contract Auth.',        fullAr: 'وزارة التجارة · رقم توثيق العقد',              color: '#D4A017', n: detail.mc_contract_number },
                 ].filter(row => row.n)
@@ -4933,16 +5369,17 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         <span style={{ ...lbl, color: C.gold }}>{T('الرقم الموحد', 'Unified No.')}</span>
                         <CopyableNumber value={detail.cr_national_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
                       </div>
-                      <div style={rowGold}>
-                        <span style={{ ...lbl, color: C.gold }}>{T('السجل التجاري', 'CR Number')}</span>
-                        <CopyableNumber value={detail.cr_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
-                      </div>
                       {authorities.map((row, i) => (
                         <div key={i} style={rowGold} title={T(row.fullAr, row.en)}>
                           <span style={{ ...lbl, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis' }}>{T(row.ar, row.en)}</span>
                           <CopyableNumber value={row.n} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
                         </div>
                       ))}
+                      {/* السجل التجاري آخر حقل بناءً على طلب المستخدم */}
+                      <div style={rowGold}>
+                        <span style={{ ...lbl, color: C.gold }}>{T('السجل التجاري', 'CR Number')}</span>
+                        <CopyableNumber value={detail.cr_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
+                      </div>
                     </div>
                   </div>
                 )
@@ -4958,10 +5395,18 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.blue, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: C.blue + '14' }}>{num(partners.length)}</span>
                   </div>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {partners.map((p, i) => {
-                      const types = Array.isArray(p.partnershipTypeList) ? p.partnershipTypeList.map(t => t.partnershipTypeDescriptionAr).filter(Boolean).join(' · ') : null
-                      return <PersonRow key={i} p={p} roleAr={types} />
-                    })}
+                    {[...partners]
+                      // الأشخاص أولاً ثم المنشآت (إن وُجدت منشأة كشريك). نفس منطق
+                      // تصنيف PersonRow: غياب personInfo أو isCompany = منشأة.
+                      .sort((a, b) => {
+                        const ca = (!a.personInfo || !!extractPartyDisplay(a).isCompany) ? 1 : 0
+                        const cb = (!b.personInfo || !!extractPartyDisplay(b).isCompany) ? 1 : 0
+                        return ca - cb
+                      })
+                      .map((p, i) => {
+                        const types = Array.isArray(p.partnershipTypeList) ? p.partnershipTypeList.map(t => t.partnershipTypeDescriptionAr).filter(Boolean).join(' · ') : null
+                        return <PersonRow key={i} p={p} roleAr={types} />
+                      })}
                   </div>
                 </div>
               )}
@@ -4976,7 +5421,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.purple, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: C.purple + '14' }}>{num(managers.length)}</span>
                   </div>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {managers.map((m, i) => <PersonRow key={i} p={m} roleAr={T('مدير', 'Manager')} />)}
+                    {managers.map((m, i) => <PersonRow key={i} p={m} roleAr={T('مدير', 'Manager')} isManager />)}
                   </div>
                 </div>
               )}
@@ -5077,17 +5522,42 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 }
                 const lbl = { color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
                 const val = { fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-                const Row = ({ k, v, fullWidth }) => (
-                  <div style={{ ...rowBase, ...(fullWidth ? { gridColumn: '1 / -1' } : {}) }}>
-                    <span style={lbl}>{k}</span>
-                    <span style={val} title={typeof v === 'string' ? v : undefined}>{v != null && v !== '' ? v : '—'}</span>
-                  </div>
-                )
+                const Row = ({ k, v, fullWidth }) => {
+                  const [copied, setCopied] = useState(false)
+                  const has = v != null && v !== ''
+                  // Local checkmark feedback only — no global toast (it lives on
+                  // DashPage and would re-render this card on every copy).
+                  const copy = async (e) => {
+                    e.stopPropagation()
+                    if (!has) return
+                    try { await navigator.clipboard.writeText(String(v)); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch { /* clipboard unavailable */ }
+                  }
+                  return (
+                    <div style={{ ...rowBase, ...(fullWidth ? { gridColumn: '1 / -1' } : {}) }}>
+                      <span style={lbl}>{k}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', minWidth: 0 }}>
+                        <span style={val} title={typeof v === 'string' ? v : undefined}>{has ? v : '—'}</span>
+                        {has && (
+                          <button type="button" onClick={copy} title={T('نُسخ', 'Copy')}
+                            style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.gold : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, flexShrink: 0, transition: 'color .15s' }}
+                            onMouseEnter={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.75)' }}
+                            onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
+                            {copied ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            )}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  )
+                }
                 return (
                   <CollapsibleCard title={T('معلومات الاتصال', 'Contact Information')} color="#5dade2" showSbcIcon>
                     <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <Row k={T('الهاتف', 'Phone')} v={contact.phoneNo} />
-                      <Row k={T('الجوال', 'Mobile')} v={contact.mobileNo} />
+                      <Row k={T('الجوال', 'Mobile')} v={saMobile(contact.mobileNo)} />
                       <Row k={T('البريد الإلكتروني', 'Email')} v={contact.email} />
                       <Row k={T('الموقع', 'Website')} v={contact.websiteURL} />
                     </div>
@@ -5262,10 +5732,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       if (allMatchFacility) return null
                       return (
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                          <Field k={T('الرقم الموحد (وزارة العمل)', 'MoL Unified No.')} v={molUnified} />
-                          <Field k={T('معرّف مكتب العمل', 'MoL Office ID')} v={gosiFile?.molofficeID} />
-                          <Field k={T('الرقم الموحد (موارد بشرية)', 'MoL Unified ID')} v={gosiFile?.moluniID} />
-                          <Field k={T('معرّف الملف (MoL Est ID)', 'MoL Establishment ID')} v={gosiFile?.molEstID} />
+                          <Field k={T('الرقم الموحد (وزارة العمل)', 'MoL Unified No.')} v={molUnified} copy />
+                          <Field k={T('رقم الملف (مكتب العمل)', 'MoL Office / Est. ID')} copy
+                            v={(gosiFile?.molofficeID != null && gosiFile?.molEstID != null)
+                                 ? `${gosiFile.molofficeID}-${gosiFile.molEstID}`
+                                 : (gosiFile?.molEstID ?? gosiFile?.molofficeID ?? null)} />
                         </div>
                       )
                     })()}
@@ -5354,7 +5825,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         </div>
                       )
                     })()}
-                    {hrsdState === 'error' && hrsd.totalLaborers == null && !hrsd.officeName && (
+                    {hrsdState === 'error' && !extDetailLoading && hrsd.totalLaborers == null && !hrsd.officeName && (
                       <div style={{ marginTop: 8, fontSize: 10.5, color: 'rgba(255,255,255,.45)', textAlign: 'center' }}>
                         {sbcSessionErr === 'NO_SESSION' ? T('لا توجد جلسة SBC — شغّل المزامنة أولاً', 'No SBC session — run sync first')
                           : sbcSessionErr === 'EXPIRED' ? T('انتهت جلسة SBC — أعد المزامنة', 'SBC session expired — sync again')
@@ -5604,8 +6075,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       <>
                         <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '8px 0' }} />
                         <GosiEstablishmentCard data={gosiEstablishment} T={T} lang={lang} />
-                        <GosiAccountCard data={gosiEstablishment} bills={gosiBills} T={T} lang={lang} />
-                        <GosiContributorsCard contributors={gosiContributors} est={gosiEstablishment} T={T} lang={lang} />
+                        <GosiAccountCard data={gosiEstablishment} bills={gosiBills} contributors={gosiContributors} T={T} lang={lang} />
+                        <GosiContributorsCard contributors={gosiContributors.filter(gosiIsSaudi)} title={T('المشتركون السعوديون', 'Saudi contributors')} est={gosiEstablishment} T={T} lang={lang} />
+                        <GosiContributorsCard contributors={gosiContributors.filter(c => !gosiIsSaudi(c))} title={T('المشتركون غير السعوديين', 'Non-Saudi contributors')} est={gosiEstablishment} T={T} lang={lang} />
                         <GosiOwnersCard owners={gosiOwners} T={T} lang={lang} />
                         <GosiAdminsCard admins={gosiAdmins} T={T} lang={lang} />
                         <GosiCertificatesCard certificates={gosiCertificates} T={T} />
@@ -6321,39 +6793,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 <div style={cardHeader}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: theme.fg }} />
                   <span style={cardTitle}>{T('حالة السجل التجاري','CR Status')}</span>
-                  {(() => {
-                    if (!detail._confirmDate) return null
-                    const t = new Date(detail._confirmDate).getTime()
-                    if (Number.isNaN(t)) return null
-                    const daysDiff = Math.floor((Date.now() - t) / 86400000)
-                    let remain, nextColor, tip
-                    if (daysDiff < 0) {
-                      remain = -daysDiff
-                      nextColor = '#eab308'
-                      tip = T('يوم حتى الدخول في فترة التأكيد', 'days until confirmation window')
-                    } else if (daysDiff <= 90) {
-                      remain = 90 - daysDiff
-                      nextColor = '#ef4444'
-                      tip = T('يوم قبل تعليق السجل', 'days before suspension')
-                    } else {
-                      return null
-                    }
-                    return (
-                      <span title={`${remain} ${tip}`}
-                        style={{
-                          marginInlineStart: 'auto',
-                          display: 'inline-flex', alignItems: 'center', gap: 5,
-                          color: nextColor, fontSize: 10.5, fontWeight: 800,
-                          fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
-                        }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                        <span style={{ direction: 'ltr' }}>{remain}</span>
-                        <span style={{ fontWeight: 600, opacity: .85 }}>{T('يوم','d')}</span>
-                      </span>
-                    )
-                  })()}
+                  <CrCountdown confirmDate={detail._confirmDate} T={T} style={{ marginInlineStart: 'auto' }} />
                 </div>
                 <div style={{ padding: '20px 22px 14px', textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: theme.fg + '18', border: '1px solid ' + theme.fg + '38' }}>
@@ -6741,7 +7181,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   <SectionCard title={T('معلومات الاتصال', 'Contact Information')} color="#5dade2">
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
                       <FieldRow k={T('الهاتف', 'Phone')} v={contact.phoneNo} />
-                      <FieldRow k={T('الجوال', 'Mobile')} v={contact.mobileNo} />
+                      <FieldRow k={T('الجوال', 'Mobile')} v={saMobile(contact.mobileNo)} />
                       <FieldRow k={T('البريد الإلكتروني', 'Email')} v={contact.email} />
                       <FieldRow k={T('الموقع', 'Website')} v={contact.websiteURL} />
                     </div>

@@ -160,15 +160,17 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     // roughly one loop's worth — ~45-60s.
     const items = (payload && Array.isArray(payload.items)) ? payload.items : [];
     const perFacilityTargets = items
-      .map(it => it && it.crInformation)
-      .filter(ci => ci && ci.encryptedCrNationalNumber)
-      .map(ci => ({
-        enc: ci.encryptedCrNationalNumber,
-        cr: ci.crNationalNumber || null,
+      .filter(it => it && it.crInformation && it.crInformation.encryptedCrNationalNumber)
+      .map(it => ({
+        enc: it.crInformation.encryptedCrNationalNumber,
+        cr: it.crInformation.crNationalNumber || null,
         // isCompany: distinguishes شركة (LLC/JSC/...) from مؤسسة. The CR
         // contract endpoint only applies to companies — establishments are
         // sole proprietorships with no founding contract.
-        isCompany: !!(ci.entityType && ci.entityType.entityTypeDescAr === 'شركة'),
+        isCompany: !!(it.crInformation.entityType && it.crInformation.entityType.entityTypeDescAr === 'شركة'),
+        // Full CR-list item — passed to bot_upsert_sbc_facility as p_raw_cr so
+        // the captured response maps into the production sbc_facilities table.
+        raw: it,
       }));
 
     // mapLimit: bounded concurrency over an array. Each worker pulls the next
@@ -387,6 +389,8 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     // the upload to a later run. The Netlify proxy fetches printcr.mc.gov.sa
     // server-side and writes to documents/sbc-cr-certificates/{cr}-{lang}.pdf.
     const pdfStats = { uploaded: 0, fetchFail: 0, uploadFail: 0, skipped: 0 };
+    // Counters for the staging→production mapping (bot_upsert_sbc_facility).
+    const mapStats = { ok: 0, fail: 0 };
     // triggerPdfUpload: fire-and-forget proxy upload. "opts" lets the caller
     // override the storage folder/filename so we can store municipal-license
     // PDFs (sbc-municipal-licenses/{licenseId}.pdf) alongside the CR PDFs.
@@ -543,6 +547,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       // gosi-main resolves — that chained call runs concurrently with the
       // other top-level endpoints (e.g. the slow Qawaem), so it doesn't
       // extend the per-facility wall clock.
+      const epResults = {};
       await Promise.all(ENDPOINTS.map(async (ep) => {
         // shouldFire lets an endpoint opt out per-facility (e.g. contract
         // skips non-company entities). Skipped endpoints don't count as
@@ -550,6 +555,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
         if (ep.shouldFire && !ep.shouldFire(target)) return;
 
         const result = await runEndpoint(target, ep);
+        epResults[ep.key] = result;
 
         // Fire PDF upload immediately when a print/contract response with
         // downloadUrl lands. The token in downloadUrl expires in minutes,
@@ -604,6 +610,25 @@ function body({ sourceId, personId, proxyBaseUrl }) {
           }
         }
       }));
+
+      // Map this facility's captured raw responses into the production
+      // sbc_facilities table via the bot_upsert RPC; the canonical trigger
+      // then upserts into facilities. GOSI/HRSD payloads only when they
+      // returned 200 — otherwise pass null (the RPC tolerates nulls).
+      const gosiPayload = (epResults.g && epResults.g.status === 200) ? epResults.g.payload : null;
+      const hrsdPayload = (epResults.h && epResults.h.status === 200) ? epResults.h.payload : null;
+      const upRes = await supaFetch('/rest/v1/rpc/bot_upsert_sbc_facility', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_person_id: PERSON || null,
+          p_run_id: null,
+          p_cr_national_number: cr,
+          p_raw_cr: target.raw,
+          p_raw_gosi: gosiPayload,
+          p_raw_hrsd: hrsdPayload,
+        }),
+      }).catch(() => null);
+      if (upRes && upRes.ok) mapStats.ok++; else mapStats.fail++;
       } finally {
         facInFlight--;
         inFlightCrs.delete(cr || '?');
@@ -713,7 +738,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       return ep.label + ' ' + s.ok + '/' + s.fail + (s.retried ? (' (أعيد ' + s.retried + ' تعافى ' + s.recovered + ')') : '');
     }).join(' · ');
     const pdfSummary = 'PDF ' + pdfStats.uploaded + ' نجح · ' + (pdfStats.fetchFail + pdfStats.uploadFail) + ' فشل';
-    msg('✅ ' + itemsCount + ' سجل · ' + finalSummary + ' · ' + pdfSummary + ' في ' + (allElapsed + enElapsed) + 's');
+    msg('✅ ' + itemsCount + ' سجل · حُفظ ' + mapStats.ok + ' منشأة (فشل ' + mapStats.fail + ') · ' + finalSummary + ' · ' + pdfSummary + ' في ' + (allElapsed + enElapsed) + 's');
     setTimeout(() => { const el = document.getElementById('_jisr_sync_ui'); if (el) el.remove(); }, 30000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));

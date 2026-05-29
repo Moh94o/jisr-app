@@ -69,14 +69,17 @@ const SERVICE_INPUTS={
   ],
   ajeer_contract:[
     {key:'borrower_700',label_ar:'الرقم الموحد للمنشأة المستعارة',type:'text',required:true,placeholder:'7XX XXX XXXX',direction:'ltr'},
-    {key:'region',label_ar:'المنطقة',type:'select',required:true,source:'regions'},
+    // Region was dropped because city already implies its region — see the rendered
+    // UI in `bيانات عقد أجير` fieldset; cities are shown unfiltered.
     {key:'city',label_ar:'المدينة',type:'select',required:true,source:'cities'},
-    {key:'contract_months',label_ar:'مدة العقد (أشهر)',type:'number',required:true,placeholder:'عدد الأشهر',grid_col:'1'}
+    // 1-24 month dropdown; matches the Ajeer contract's allowed contract length.
+    {key:'contract_months',label_ar:'مدة العقد (أشهر)',type:'select',required:true,options:Array.from({length:24},(_,i)=>({value:String(i+1),label:`${i+1}`})),grid_col:'1'}
   ],
   exit_reentry_visa:[
     {key:'exit_type',label_ar:'نوع التأشيرة',type:'select',required:true,
       options:[{value:'single',label:'مفردة'},{value:'multiple',label:'متعددة'}]},
-    {key:'duration_months',label_ar:'المدة (أشهر)',type:'number',required:true,placeholder:'عدد الأشهر'}
+    // Dropdown 1-12 — exit/reentry visas are issued in whole-month increments.
+    {key:'duration_months',label_ar:'المدة (أشهر)',type:'select',required:true,options:Array.from({length:12},(_,i)=>({value:String(i+1),label:`${i+1}`}))}
   ],
   final_exit_visa:[
     {key:'reason',label_ar:'السبب',type:'textarea',placeholder:'اكتب سبب طلب تأشيرة الخروج النهائي...'}
@@ -87,7 +90,8 @@ const SERVICE_INPUTS={
   passport_update:[],
   name_translation:[
     {key:'new_salary',label_ar:'الراتب الجديد',type:'number',required:true,placeholder:'0'},
-    {key:'salary_weeks',label_ar:'مدة الراتب (أسابيع)',type:'number',required:true,placeholder:'عدد الأسابيع'}
+    // Switched from weeks to months at the user's request — easier to pick + matches HR norms.
+    {key:'salary_months',label_ar:'مدة الراتب (أشهر)',type:'select',required:true,options:Array.from({length:12},(_,i)=>({value:String(i+1),label:`${i+1}`}))}
   ],
   custom:[
     {key:'custom_note',label_ar:'وصف الخدمة',type:'textarea',required:true,placeholder:'اكتب تفاصيل الخدمة المطلوبة...'}
@@ -391,13 +395,22 @@ const[loading,setLoading]=useState(true)
 
 // Load data — adapted to the new schema (clients/workers/agents/lookup_items/nationalities/embassies)
 useEffect(()=>{if(!sb)return;(async()=>{
-const[r,c,w,b,ci]=await Promise.all([
+const[r,c,w,b,ci,ba]=await Promise.all([
 sb.from('regions').select('id,name_ar').order('name_ar'),
 sb.from('clients').select('id,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).order('name_ar').limit(500),
 // Worker query with current_facility / current_occupation / nationality joins (new schema)
 sb.from('workers').select('id,name_ar,name_en,phone,iqama_number,birth_date,nationality:nationality_id(id,name_ar,code:code),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,unified_number)').is('deleted_at',null).order('name_ar').limit(50),
 sb.from('agents').select('id,name_ar,name_en,phone,id_number').is('deleted_at',null).order('name_ar').limit(50),
 sb.from('cities').select('id,name_ar,region_id').order('name_ar'),
+// Receiving-transfer accounts — junction rows where the bank account is designated
+// for incoming transfers ("التحويلات الواردة"). Scoped to this invoice's branch when set.
+(()=>{let q=sb.from('bank_account_branches')
+  .select('id,branch_id,account_purpose,bank_accounts!inner(id,bank_name,account_name,account_number,iban,is_primary,deleted_at)')
+  .is('deleted_at',null).eq('is_active',true)
+  .eq('account_purpose','التحويلات الواردة')
+  .is('bank_accounts.deleted_at',null);
+  if(branchId)q=q.eq('branch_id',branchId);
+  return q})(),
 ])
 // Build a synthetic services array from MAIN+OTHER_SERVICES so downstream code keeps working.
 const svcs=ALL_SERVICES.map((s,i)=>({id:s.id,name_ar:s.name_ar,category:MAIN_SERVICES.includes(s)?'main':'other',default_price:0,gov_fee:0,pricing_rules:{},inputs:[],sort_order:i,is_active:true,show_in_request_popup:true}))
@@ -417,7 +430,10 @@ work_permits:null,worker_insurance:null,
 setWorkers(wRows)
 setBrokers(b?.data||[])
 setCities(ci?.data||[])
-setBankAccounts([])
+// Flatten the junction: one row per (account, branch). The same bank account can
+// appear multiple times if it's the receiving account for several branches, but
+// when branchId is set above we've already narrowed to a single branch.
+setBankAccounts((ba?.data||[]).map(j=>({...(j.bank_accounts||{}),_junction_id:j.id,branch_id:j.branch_id,account_purpose:j.account_purpose})))
 setSelCat('main')
 // Visa lookups: occupations from `occupations` table, gender hardcoded (no lookup category for it).
 const[occRes,natRes,emRes]=await Promise.all([
@@ -1221,6 +1237,8 @@ branch_id:userBranchId,
 amount:paidNum,
 payment_method_id:pmId,
 bank_reference:paymentMethod==='bank'?(transferReference||null):null,
+// Receiving-bank account (only meaningful for bank transfers).
+bank_account_id:paymentMethod==='bank'?(selBankAcc||null):null,
 is_valid:true,
 })
 if(payErr)throw payErr
@@ -1524,10 +1542,6 @@ return <div style={{gridColumn:'1 / -1'}}>
 </div>
 })()}
 <div>
-<div style={regLblS}>رقم الهوية <span style={{color:C.red}}>*</span></div>
-<input value={newClient.id_number} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);setNewClient(p=>({...p,id_number:v}))}} placeholder="XXXXXXXXXX" inputMode="numeric" maxLength={10} style={{...regInpS,direction:'ltr'}}/>
-</div>
-<div>
 <div style={regLblS}>الجنسية <span style={{color:C.red}}>*</span></div>
 <KafalaOccSelect
 value={(()=>{const f=lkCountries.find(co=>co.id===newClient.nationality_id);return f?f.nationality_ar:''})()}
@@ -1536,6 +1550,10 @@ items={lkCountries.map(co=>({id:co.id,name_ar:co.nationality_ar,name_en:null}))}
 lang={lang}
 placeholder="اختر الجنسية"
 />
+</div>
+<div>
+<div style={regLblS}>الهوية <span style={{color:C.red}}>*</span></div>
+<input value={newClient.id_number} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);setNewClient(p=>({...p,id_number:v}))}} placeholder="XXXXXXXXXX" inputMode="numeric" maxLength={10} style={{...regInpS,direction:'ltr'}}/>
 </div>
 <div style={{gridColumn:'1 / -1'}}>
 <div style={regLblS}>رقم الجوال <span style={{color:C.red}}>*</span></div>
@@ -2277,7 +2295,8 @@ const ncLabel=stat?.nitaqat?.value_ar||''
 const ncColor=ncCode?(ncMap[ncCode]||'#888'):null
 const wpsHasNotes=stat?.wps_has_notes
 const fmtDay=(iso)=>{if(!iso)return'—';const d=new Date(iso);if(isNaN(d))return'—';return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`}
-const cityOptions=cities.filter(c=>!fields.region||c.region_id===fields.region).map(c=>({value:c.id,label:c.name_ar}))
+// Region filter removed — show all cities, since the UI no longer asks for a region.
+const cityOptions=cities.map(c=>({value:c.id,label:c.name_ar}))
 const weekDate=stat?.week_date||''
 const inH=38
 const inS={...fS,height:inH}
@@ -2356,28 +2375,29 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <FileCheck size={12} strokeWidth={2.2}/>
 <span>بيانات عقد أجير</span>
 </div>
+{/* Row 1: borrower's 700 number + city. Region was dropped because city is enough. */}
 <div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:10}}>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>الرقم الموحد للمنشأة المستعارة <span style={{color:C.red}}>*</span></label>
 <input type="text" inputMode="numeric" value={fields.borrower_700||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,11);setFields(p=>({...p,borrower_700:raw}))}} placeholder="7XX XXX XXXX" style={{...inS,direction:'ltr',textAlign:'center',letterSpacing:'.5px'}}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>المنطقة <span style={{color:C.red}}>*</span></label>
-<NiceSelect compact height={inH} fontSize={13} value={fields.region||''} placeholder="اختر المنطقة..."
-options={regions.map(r=>({value:r.id,label:r.name_ar}))}
-onChange={v=>setFields(p=>({...p,region:v,city:''}))}/>
-</div>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:10}}>
-<div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>المدينة <span style={{color:C.red}}>*</span></label>
-<NiceSelect compact height={inH} fontSize={13} value={fields.city||''} placeholder={fields.region?'اختر المدينة...':'اختر المنطقة أولاً'}
+<NiceSelect compact height={inH} fontSize={13} value={fields.city||''} placeholder="اختر المدينة..."
 options={cityOptions}
 onChange={v=>setFields(p=>({...p,city:v}))}/>
 </div>
+</div>
+{/* Row 2: contract length only — kept on the right column (1fr) so it sits
+under "المدينة" above. 1-24 month dropdown replaces the free-text input
+so users can only pick a valid contract length. */}
+<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:10}}>
+<div/>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>مدة العقد (أشهر) <span style={{color:C.red}}>*</span></label>
-<input type="text" inputMode="numeric" value={fields.contract_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,3);setFields(p=>({...p,contract_months:raw}))}} placeholder="أدخل عدد الأشهر" style={{...inS,direction:'ltr',textAlign:'center'}}/>
+<NiceSelect compact height={inH} fontSize={13} value={fields.contract_months||''} placeholder="اختر المدة..."
+options={Array.from({length:24},(_,i)=>({value:String(i+1),label:`${i+1}`}))}
+onChange={v=>setFields(p=>({...p,contract_months:v}))}/>
 </div>
 </div>
 </div>
@@ -2694,7 +2714,12 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <span>مدة التمديد المطلوبة <span style={{color:C.red}}>*</span></span>
 </div>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
-<input type="text" inputMode="numeric" value={fields.duration_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,2);setFields(p=>({...p,duration_months:raw,exit_type:fields.exit_type||'single'}))}} placeholder="عدد الأشهر" style={{...inS,direction:'ltr',textAlign:'center',flex:1}}/>
+{/* Extension duration — dropdown 1-12 (months). Also defaults exit_type to "single" if it wasn't set. */}
+<div style={{flex:1}}>
+<NiceSelect compact height={inH} fontSize={13} value={fields.duration_months||''} placeholder="اختر المدة..."
+options={Array.from({length:12},(_,i)=>({value:String(i+1),label:`${i+1}`}))}
+onChange={v=>setFields(p=>({...p,duration_months:v,exit_type:fields.exit_type||'single'}))}/>
+</div>
 <span style={{fontSize:12,fontWeight:700,color:'var(--tx4)',fontFamily:F,flexShrink:0}}>شهر</span>
 </div>
 </div>
@@ -2731,7 +2756,12 @@ onMouseLeave={e=>{if(!sel){e.currentTarget.style.background='rgba(255,255,255,.0
 <span>مدة التأشيرة <span style={{color:C.red}}>*</span></span>
 </div>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
-<input type="text" inputMode="numeric" value={fields.duration_months||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,2);setFields(p=>({...p,duration_months:raw}))}} placeholder="عدد الأشهر" style={{...inS,direction:'ltr',textAlign:'center',flex:1}}/>
+{/* Issuance duration — dropdown 1-12 (months). */}
+<div style={{flex:1}}>
+<NiceSelect compact height={inH} fontSize={13} value={fields.duration_months||''} placeholder="اختر المدة..."
+options={Array.from({length:12},(_,i)=>({value:String(i+1),label:`${i+1}`}))}
+onChange={v=>setFields(p=>({...p,duration_months:v}))}/>
+</div>
 <span style={{fontSize:12,fontWeight:700,color:'var(--tx4)',fontFamily:F,flexShrink:0}}>شهر</span>
 </div>
 </div>
@@ -2845,8 +2875,13 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <label style={{...lblS,marginBottom:0}}>مدة استمرار الراتب <span style={{color:C.red}}>*</span></label>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
-<input type="text" inputMode="numeric" value={fields.salary_weeks||''} onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,'').slice(0,3);setFields(p=>({...p,salary_weeks:raw}))}} placeholder="عدد الأسابيع" style={{...inS,direction:'ltr',textAlign:'center',flex:1}}/>
-<span style={{fontSize:12,fontWeight:700,color:'var(--tx4)',fontFamily:F,flexShrink:0}}>أسبوع</span>
+{/* Months dropdown 1-12. Migrated from a free-text weeks input. */}
+<div style={{flex:1}}>
+<NiceSelect compact height={inH} fontSize={13} value={fields.salary_months||''} placeholder="اختر المدة..."
+options={Array.from({length:12},(_,i)=>({value:String(i+1),label:`${i+1}`}))}
+onChange={v=>setFields(p=>({...p,salary_months:v}))}/>
+</div>
+<span style={{fontSize:12,fontWeight:700,color:'var(--tx4)',fontFamily:F,flexShrink:0}}>شهر</span>
 </div>
 </div>
 </div>
@@ -3660,7 +3695,6 @@ return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,p
 {selSvc==='ajeer_contract'&&<div>
 <SectionTitle>بيانات عقد أجير</SectionTitle>
 {fields.borrower_700&&<Row label="الرقم الموحد للمنشأة المستعارة" value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.borrower_700}</span>}/>}
-{fields.region&&<Row label="المنطقة" value={regions.find(r=>r.id===fields.region)?.name_ar||fields.region}/>}
 {fields.city&&<Row label="المدينة" value={cities.find(c=>c.id===fields.city)?.name_ar||fields.city}/>}
 {fields.contract_months&&<Row label="مدة العقد" value={`${fields.contract_months} أشهر`}/>}
 </div>}
@@ -3741,7 +3775,7 @@ return<div>
 <SectionTitle>بيانات تعديل الراتب</SectionTitle>
 {selWorker?.gosi_salary&&<Row label="الراتب الحالي" value={<span style={{direction:'ltr',display:'inline-block'}}>{Number(selWorker.gosi_salary).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>}/>}
 {fields.new_salary&&<Row label="الراتب الجديد" value={<span style={{direction:'ltr',display:'inline-block'}}>{Number(fields.new_salary).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>}/>}
-{fields.salary_weeks&&<Row label="مدة الاستمرار" value={`${fields.salary_weeks} أسبوع`}/>}
+{fields.salary_months&&<Row label="مدة الاستمرار" value={`${fields.salary_months} أشهر`}/>}
 </div>}
 
 {/* Pricing & installments */}
@@ -3955,13 +3989,9 @@ return <div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,pa
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>تسجيل وسيط جديد</div>
 <button onClick={()=>{setBrokerMode('existing');setBrokerQ('');setNewBroker({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''});setNatOpenBroker(false);setNatSearchBroker('')}} style={{position:'absolute',top:-11,left:14,height:22,padding:'0 10px',borderRadius:6,border:'1px solid rgba(192,57,43,.3)',background:'var(--modal-bg)',color:C.red,cursor:'pointer',fontSize:10,fontFamily:F,fontWeight:700}}>إلغاء</button>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div>
-<div style={regLblS}>الاسم بالعربي <span style={{color:C.red}}>*</span></div>
-<input value={newBroker.name_ar} onChange={e=>{const v=e.target.value.replace(/[^\u0600-\u06FF\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewBroker(p=>({...p,name_ar:v}))}} placeholder="الاسم الأول والأخير" style={regInpS}/>
-</div>
-<div>
-<div style={regLblS}>الاسم بالإنجليزي <span style={{color:C.red}}>*</span></div>
-<input value={newBroker.name_en} onChange={e=>{const v=e.target.value.replace(/[^A-Za-z\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewBroker(p=>({...p,name_en:v}))}} placeholder="First and Last Name" style={{...regInpS,direction:'ltr'}}/>
+<div style={{gridColumn:'1 / -1'}}>
+<div style={regLblS}>الاسم <span style={{color:C.red}}>*</span></div>
+<input value={newBroker.name_ar||newBroker.name_en||''} onChange={e=>{let v=e.target.value.replace(/[^\u0600-\u06FF A-Za-z\s]/g,'').replace(/\s+/g,' ').split(' ').slice(0,2).join(' ');const isArNow=/[؀-ۿ]/.test(v);setNewBroker(p=>({...p,name_ar:isArNow?v:'',name_en:!isArNow&&v?v:''}))}} placeholder="اسمين فقط — عربي أو إنجليزي / Two words — Arabic or English" style={{...regInpS,direction:(newBroker.name_ar?'rtl':(newBroker.name_en?'ltr':'rtl')),textAlign:'center'}}/>
 </div>
 <div>
 <div style={regLblS}>الجنسية <span style={{color:C.red}}>*</span></div>
@@ -3983,7 +4013,7 @@ return <div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,pa
 </div>
 </div>
 <div>
-<div style={regLblS}>رقم الهوية <span style={{color:C.red}}>*</span></div>
+<div style={regLblS}>الهوية <span style={{color:C.red}}>*</span></div>
 <input value={newBroker.id_number} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);setNewBroker(p=>({...p,id_number:v}))}} placeholder="XXXXXXXXXX" inputMode="numeric" maxLength={10} style={{...regInpS,direction:'ltr'}}/>
 </div>
 <div>
