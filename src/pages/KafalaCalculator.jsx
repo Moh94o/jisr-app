@@ -371,7 +371,8 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
     if (!btnRef.current) return
     const r = btnRef.current.getBoundingClientRect()
     const visibleCount = maxVisible ? Math.min(visibleOpts.length, maxVisible) : visibleOpts.length
-    const rowH = visibleOpts.some(o => o.sub) ? 56 : 42
+    const multilineSub = visibleOpts.some(o => typeof o.sub === 'string' && o.sub.includes('\n'))
+    const rowH = multilineSub ? 74 : (visibleOpts.some(o => o.sub) ? 56 : 42)
     const listH = visibleCount * rowH + 4
     const searchH = searchable ? 48 : 0
     setPos({ top: r.bottom + 6, left: r.left, width: r.width, maxH: listH + searchH })
@@ -453,7 +454,7 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                     <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.l}</span>
-                    {o.sub && <span style={{ fontSize: 11, fontWeight: 500, color: isSel ? 'rgba(212,160,23,.7)' : 'var(--tx4)', textAlign: 'center', width: '100%', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{o.sub}</span>}
+                    {o.sub && <span style={{ fontSize: 11, fontWeight: 500, color: isSel ? 'rgba(212,160,23,.7)' : 'var(--tx4)', textAlign: 'center', width: '100%', direction: 'ltr', fontVariantNumeric: 'tabular-nums', whiteSpace: 'pre-line', lineHeight: 1.4 }}>{o.sub}</span>}
                   </div>
                   {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </div>

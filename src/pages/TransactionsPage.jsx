@@ -96,7 +96,7 @@ function Sparkline({ points, color = C.gold, height = 80 }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════ */
-export default function TransactionsPage({ sb, lang, user, branchId, toast }) {
+export default function TransactionsPage({ sb, lang, user, branchId, toast, lockedService, lockedLabel }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
 
@@ -105,6 +105,7 @@ export default function TransactionsPage({ sb, lang, user, branchId, toast }) {
   const [statsAgg, setStatsAgg] = useState({ services: [], statuses: [] })
   const [statsDaily, setStatsDaily] = useState([])
   const [statsTotalCount, setStatsTotalCount] = useState(0)
+  const [typeStats, setTypeStats] = useState(null) // per-type overview (locked pages only)
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
@@ -124,6 +125,9 @@ export default function TransactionsPage({ sb, lang, user, branchId, toast }) {
   const [branches, setBranches] = useState([])
   const [services, setServices] = useState([])
   const [statuses, setStatuses] = useState([])
+
+  // When locked to a single request type, resolve its service_type lookup id.
+  const lockedServiceId = useMemo(() => (lockedService ? (services.find(s => s.code === lockedService)?.id || null) : null), [lockedService, services])
 
   useEffect(() => {
     let alive = true
@@ -160,10 +164,46 @@ export default function TransactionsPage({ sb, lang, user, branchId, toast }) {
     return () => { alive = false }
   }, [sb])
 
+  // Per-type overview stats (locked pages) — scoped to the single request type + branch,
+  // independent of the in-page status/date/search filters so the KPI strip stays stable.
+  useEffect(() => {
+    if (!lockedService) { setTypeStats(null); return }
+    if (!lockedServiceId) { setTypeStats(null); return }
+    let alive = true
+    const effBranch = branchFilter || branchId
+    let qb = sb.from('service_requests')
+      .select('id,request_date,status:status_id(code)', { count: 'exact' })
+      .is('deleted_at', null)
+      .eq('service_type_id', lockedServiceId)
+      .limit(5000)
+    if (effBranch) qb = qb.eq('branch_id', effBranch)
+    qb.then(({ data, count }) => {
+      if (!alive) return
+      const list = data || []
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6); weekAgo.setHours(0, 0, 0, 0)
+      let today = 0, week = 0
+      const byStatus = {}
+      list.forEach(r => {
+        const dStr = (r.request_date || '').slice(0, 10)
+        if (dStr === todayStr) today++
+        const dt = r.request_date ? new Date(r.request_date) : null
+        if (dt && dt >= weekAgo) week++
+        const code = r.status?.code || 'new'
+        byStatus[code] = (byStatus[code] || 0) + 1
+      })
+      setTypeStats({ total: count ?? list.length, today, week, byStatus })
+    })
+    return () => { alive = false }
+  }, [sb, lockedService, lockedServiceId, branchFilter, branchId])
+
   // Paged list
   useEffect(() => {
     let alive = true
     setLoading(true); setErr(null)
+    // Wait until the service-type lookup resolves the locked code's id before querying,
+    // otherwise the first render would briefly show every type.
+    if (lockedService && !lockedServiceId) return () => { alive = false }
     let qb = sb
       .from('service_requests')
       .select(`
@@ -179,7 +219,8 @@ export default function TransactionsPage({ sb, lang, user, branchId, toast }) {
 
     const effectiveBranch = branchFilter || branchId
     if (effectiveBranch) qb = qb.eq('branch_id', effectiveBranch)
-    if (serviceType) qb = qb.eq('service_type_id', serviceType)
+    const effectiveServiceType = lockedServiceId || serviceType
+    if (effectiveServiceType) qb = qb.eq('service_type_id', effectiveServiceType)
     if (status) qb = qb.eq('status_id', status)
     if (from) qb = qb.gte('request_date', from)
     if (to) qb = qb.lte('request_date', to + 'T23:59:59')
@@ -191,7 +232,7 @@ export default function TransactionsPage({ sb, lang, user, branchId, toast }) {
       setRows(data || []); setTotal(count || 0); setLoading(false)
     })
     return () => { alive = false }
-  }, [sb, page, branchFilter, branchId, serviceType, status, q, from, to])
+  }, [sb, page, branchFilter, branchId, serviceType, lockedServiceId, lockedService, status, q, from, to])
 
   /* ─────── Stats (from server-side aggregation views) ─────── */
   const stats = useMemo(() => {
@@ -246,11 +287,12 @@ export default function TransactionsPage({ sb, lang, user, branchId, toast }) {
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       {/* Hero */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('المعاملات','Transactions')}</div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('سجل الطلبات الرئيسية ومتابعة حالتها بحسب الخدمة والمكتب','Main service requests log — tracked by service type, branch and status')}</div>
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{lockedLabel || T('المعاملات','Transactions')}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{lockedService ? T(`جميع طلبات «${lockedLabel}» ومتابعة حالتها`, `All “${lockedLabel}” requests — tracked by status and branch`) : T('سجل الطلبات الرئيسية ومتابعة حالتها بحسب الخدمة والمكتب','Main service requests log — tracked by service type, branch and status')}</div>
       </div>
 
-      {/* Stats — Hero KPI + Sidebar (statuses) + Services card */}
+      {/* Stats — Hero KPI + Sidebar (statuses) + Services card (hidden on per-type pages, where cross-type stats would be misleading) */}
+      {!lockedService && (
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.5fr', gap: 14, marginBottom: 24 }}>
         {/* Hero — Today's transactions count, big */}
         <div style={{
@@ -368,6 +410,92 @@ export default function TransactionsPage({ sb, lang, user, branchId, toast }) {
           )
         })()}
       </div>
+      )}
+
+      {/* Per-type stats — overview card + status-breakdown card */}
+      {lockedService && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 14, marginBottom: 24 }}>
+
+          {/* Overview — total (big) + today / this-week */}
+          <div style={{
+            position: 'relative', padding: '18px 22px', borderRadius: 16,
+            background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+            border: '1px solid rgba(255,255,255,.05)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            overflow: 'hidden', minHeight: 150,
+          }}>
+            <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
+              <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 700 }}>{T('إجمالي الطلبات','Total requests')}</span>
+            </div>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr' }}>
+              <span style={{ fontSize: 44, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(typeStats?.total || 0)}</span>
+            </div>
+            <div style={{ position: 'relative', display: 'flex', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{T('اليوم','Today')}</span>
+                <span style={{ fontSize: 18, color: '#fff', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(typeStats?.today || 0)}</span>
+              </div>
+              <div style={{ width: 1, background: 'rgba(255,255,255,.06)', margin: '0 4px' }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{T('هذا الأسبوع','This week')}</span>
+                <span style={{ fontSize: 18, color: '#fff', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(typeStats?.week || 0)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Status breakdown — stacked bar + clickable status counts */}
+          {(() => {
+            const ST = [
+              { code: 'new',         label: T('جديد','New'),          c: C.blue },
+              { code: 'in_progress', label: T('قيد التنفيذ','In progress'), c: C.gold },
+              { code: 'done',        label: T('منجز','Done'),         c: C.ok },
+              { code: 'cancelled',   label: T('ملغي','Cancelled'),    c: C.red },
+            ]
+            const totalSt = ST.reduce((a, s) => a + (typeStats?.byStatus?.[s.code] || 0), 0)
+            return (
+              <div style={{
+                borderRadius: 16,
+                background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+                border: '1px solid rgba(255,255,255,.05)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+                padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 700 }}>{T('الحالات','Statuses')}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('اضغط للتصفية','Click to filter')}</span>
+                </div>
+                <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
+                  {totalSt > 0 && ST.filter(s => (typeStats?.byStatus?.[s.code] || 0) > 0).map(s => {
+                    const cnt = typeStats?.byStatus?.[s.code] || 0
+                    return <div key={s.code} title={`${s.label}: ${cnt}`} style={{ width: (cnt / totalSt * 100) + '%', background: s.c, transition: 'width .3s' }} />
+                  })}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px 14px' }}>
+                  {ST.map(s => {
+                    const cnt = typeStats?.byStatus?.[s.code] || 0
+                    const li = statuses.find(x => x.code === s.code)
+                    const isActive = li && status === li.id
+                    return (
+                      <div key={s.code}
+                        onClick={li ? () => { setStatus(isActive ? '' : (li.id || '')); setPage(0) } : undefined}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 9, cursor: li ? 'pointer' : 'default', background: isActive ? s.c + '12' : 'transparent', border: `1px solid ${isActive ? s.c + '40' : 'transparent'}`, transition: '.15s', opacity: cnt === 0 && !isActive ? 0.55 : 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.c, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, color: isActive ? s.c : 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
+                        </div>
+                        <span style={{ fontSize: 15, color: s.c, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{num(cnt)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
 
       {/* Filter row */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>

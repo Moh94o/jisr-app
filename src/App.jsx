@@ -16,6 +16,7 @@ import AgentsPage from './pages/admin/AgentsPage.jsx'
 import PermissionsPage from './pages/admin/PermissionsPage.jsx'
 import TransactionsPage from './pages/TransactionsPage.jsx'
 import PaymentsPage from './pages/PaymentsPage.jsx'
+import DepositsPage from './pages/DepositsPage.jsx'
 import StampBadge from './components/ui/StampBadge.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
 import SyncHub from './pages/SyncHub.jsx'
@@ -638,6 +639,27 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 </div>
 </div><Css/></div>)}
 
+// Transaction sub-pages — one per request type (mirrors the service list in ServiceRequestPage).
+// `code` is the service_type lookup code each page filters the transactions list by.
+const TX_TYPES=[
+{id:'tx_work_visa_permanent',code:'work_visa_permanent',ar:'تأشيرة عمل (دائمة)',en:'Work Visa (Permanent)',i:'calendar'},
+{id:'tx_work_visa_temporary',code:'work_visa_temporary',ar:'تأشيرة عمل (مؤقتة)',en:'Work Visa (Temporary)',i:'calendar'},
+{id:'tx_transfer',code:'transfer',ar:'نقل كفالة',en:'Sponsorship Transfer',i:'broker'},
+{id:'tx_iqama_renewal',code:'iqama_renewal',ar:'تجديد الإقامة',en:'Iqama Renewal',i:'role'},
+{id:'tx_ajeer',code:'ajeer',ar:'عقد أجير',en:'Ajeer Contract',i:'users'},
+{id:'tx_chamber',code:'other',ar:'الغرفة التجارية',en:'Chamber of Commerce',i:'branch'},
+{id:'tx_medical_insurance',code:'medical_insurance',ar:'تأمين طبي',en:'Medical Insurance',i:'alert'},
+{id:'tx_profession_change',code:'profession_change',ar:'تغيير المهنة',en:'Profession Change',i:'worker'},
+{id:'tx_salary',code:'name_translation',ar:'تعديل الراتب',en:'Salary Adjustment',i:'payment'},
+{id:'tx_exit_reentry',code:'exit_reentry_visa',ar:'تأشيرة خروج وعودة',en:'Exit / Re-entry Visa',i:'calendar'},
+{id:'tx_final_exit',code:'final_exit_visa',ar:'خروج نهائي / بلاغ تغيب',en:'Final Exit',i:'alert'},
+{id:'tx_passport_update',code:'passport_update',ar:'تحديث بيانات الجواز',en:'Passport Update',i:'client'},
+{id:'tx_iqama_print',code:'iqama_print',ar:'طباعة الإقامة',en:'Iqama Print',i:'notes'},
+{id:'tx_documents',code:'documents',ar:'مستندات',en:'Documents',i:'notes'},
+{id:'tx_general',code:'general',ar:'عام',en:'General',i:'transaction'},
+{id:'tx_saudization',code:'saudization',ar:'سعودة',en:'Saudization',i:'chart'},
+]
+
 function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState('home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),2500)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[emailConfirmStep,setEmailConfirmStep]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[profilePerf,setProfilePerf]=useState(null);const[profileAtt,setProfileAtt]=useState([]);const[profileTasks,setProfileTasks]=useState([]);const[profileSalary,setProfileSalary]=useState([]);const[profileLoans,setProfileLoans]=useState([]);const[profileLogins,setProfileLogins]=useState([]);const[stats,setStats]=useState(null);const[showUserMenu,setShowUserMenu]=useState(false);useEffect(()=>{document.documentElement.setAttribute('data-theme','dark');localStorage.setItem('jisr_theme','dark');const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content','#171717');document.body.style.background='#171717'},[]);const[dashBranch,setDashBranch]=useState(null);const[dashBranches,setDashBranches]=useState([]);const[sTabInfo,setSTabInfo]=useState({tab:'general',svcSubTab:'services'});const[activityLog,setActivityLog]=useState([]);const[activityLoading,setActivityLoading]=useState(false);const[sideOpen,setSideOpen]=useState(false);const[taskCount,setTaskCount]=useState(0);const[approvalCount,setApprovalCount]=useState(0);const[todayAppointments,setTodayAppointments]=useState([]);const[lastWeeklyUpdate,setLastWeeklyUpdate]=useState(null);const[expanded,setExpanded]=useState({tasks_section:true,facilities_workforce:true,finance:true,data:false,reports:false,admin:false});const[showServiceRequest,setShowServiceRequest]=useState(false);const[navExpanded,setNavExpanded]=useState({});
 const[showKafalaCalc,setShowKafalaCalc]=useState(false);
 const[avatarUrl,setAvatarUrl]=useState(user?.avatar_url||user?.person?.avatar_url||'');
@@ -658,7 +680,7 @@ const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matc
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
 useEffect(()=>{const h=e=>{e.preventDefault();setInstallPrompt(e);if(!isStandalone&&!localStorage.getItem('jisr_install_dismissed'))setShowInstallBanner(true)};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h)},[isStandalone]);
-const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',finance_hub:'invoices',admin_hub:'admin_offices',settings:'settings_general'};// Pages with inner hash routing land on this canonical hash so they reset
+const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',finance_hub:'invoices',transactions_hub:'tx_transfer',admin_hub:'admin_offices',settings:'settings_general'};// Pages with inner hash routing land on this canonical hash so they reset
 // to their list/home view (PersonsPage relies on this).
 const pageHashes={admin_persons:'#/admin/persons'};
 // Bumped when the user taps a sidebar entry while already on that page.
@@ -676,14 +698,16 @@ const loadActivityLog=useCallback(async()=>{setActivityLoading(true);try{const{d
 const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);const nav=[
 {id:'home',l:T('الرئيسية','Dashboard'),i:'home'},
 {id:'workforce',l:T('المنشآت والعمالة','Workforce'),i:'worker'},
-{id:'finance_hub',l:T('العمليات','Operations'),i:'invoice'},
+{id:'finance_hub',l:T('المالية','Operations'),i:'invoice'},
+{id:'transactions_hub',l:T('المعاملات','Transactions'),i:'transaction'},
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'},
 {id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
 {id:'settings',l:T('الإعدادات','Settings'),i:'settings'}
 ];
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'},{id:'transactions',l:T('المعاملات','Transactions'),i:'transaction'}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'}],
+  transactions_hub:TX_TYPES.map(t=>({id:t.id,l:T(t.ar,t.en),i:t.i})),
   admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_clients',l:T('العملاء','Clients'),i:'client'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'role'},{id:'admin_persons',l:T('الأشخاص','Persons'),i:'client'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_permissions',l:T('إدارة المستخدمين','Users'),i:'role'}],
   settings:[{id:'settings_general',l:T('الإعدادات العامة','General Settings'),i:'settings'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };const pages={
@@ -1130,7 +1154,8 @@ return<div><div>
 {/* العمليات */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
-{pg==='transactions'&&<TransactionsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='deposits'&&<DepositsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{TX_TYPES.filter(t=>t.id===pg).map(t=><TransactionsPage key={t.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={t.code} lockedLabel={T(t.ar,t.en)}/>)}
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_persons'&&<PersonsPage toast={tt} user={user}/>}
