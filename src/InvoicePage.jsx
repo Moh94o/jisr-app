@@ -2671,6 +2671,16 @@ const printInvoice = (inv, data, printLang = 'ar') => {
 
   const agentHtml = agent ? `<div class="card"><div class="card-h">${T2('الوسيط', 'Agent')}</div>${partyName(agent.name_ar || agent.name_en, agent.nationality)}${partyMeta(agent.id_number, agent.phone)}</div>` : ''
 
+  // Hero header reused on both pages: HUSSAIN · OFFICES + فاتورة title + service-name subtitle, with invoice no / date corners.
+  const headerHtml = `<div class="header">
+<div class="title-center"><div class="eyebrow">HUSSAIN &middot; OFFICES</div><div class="title">${T2('فاتورة', 'Invoice')}</div>${svcName ? `<div class="subtitle">${esc(svcName)}${isVisa && qty > 0 ? `<span class="qty">×${qty}</span>` : ''}</div>` : ''}</div>
+<div class="corner-left"><div class="mini-label">${T2('رقم الفاتورة', 'Invoice No.')}</div><div class="mini-val">${esc(inv.invoice_no || '')}</div></div>
+<div class="corner-right"><div class="mini-label">${T2('التاريخ', 'Date')}</div><div class="mini-val">${fmtD(inv.created_at)}</div>${officeCode ? `<div class="office-line">${T2('المكتب: ', 'Office: ')}<span class="code">${esc(officeCode)}</span></div>` : ''}</div>
+</div>
+<div class="gold-divider"></div>`
+  const decorHtml = `<div class="dots-top"></div><div class="dots-bot"></div>`
+  const watermarkHtml = cancelled ? `<div class="cancel-wm">${T2('ملغاة', 'CANCELLED')}</div>` : ''
+
   const html = `<!DOCTYPE html><html dir="${rtl ? 'rtl' : 'ltr'}" lang="${printLang}"><head><meta charset="utf-8"><title>${T2('فاتورة', 'Invoice')} ${esc(inv.invoice_no || '')}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap">
@@ -2686,6 +2696,8 @@ html,body{width:210mm;background:#f3ecdd;color:#15130e;font-family:'Cairo','Taja
 .title-center{text-align:center}
 .eyebrow{font-size:22px;letter-spacing:6px;color:#D4A017;font-weight:700;font-family:'Playfair Display',serif}
 .title{font-size:30px;font-weight:500;color:#15130e;font-family:'Playfair Display','Cairo',serif;margin-top:6px;letter-spacing:-.8px}
+.subtitle{font-size:14px;font-weight:600;color:rgba(0,0,0,.55);margin-top:6px;letter-spacing:.3px;font-family:'Cairo','Tajawal',sans-serif}
+.subtitle .qty{display:inline-block;margin-inline-start:10px;font-size:11.5px;font-weight:700;color:#D4A017;border:1px solid rgba(212,160,23,.4);border-radius:6px;padding:2px 9px;font-family:'JetBrains Mono',monospace;vertical-align:middle}
 .cancel-wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-28deg);font-size:130px;font-weight:900;color:rgba(192,57,43,.12);letter-spacing:12px;white-space:nowrap;pointer-events:none;z-index:4;font-family:'Cairo',sans-serif}
 .corner-left{position:absolute;top:0;left:0;text-align:left}
 .corner-right{position:absolute;top:0;right:0;text-align:right}
@@ -2744,23 +2756,18 @@ td .tag{font-size:8.5px;font-weight:700;color:#c0392b;border:1px solid rgba(192,
 .tot.grand .tv{font-size:26px;color:#D4A017}
 .tot.paid .tv{color:#1f8f4d}.tot.rem .tv{color:#c0392b}
 .spacer{flex:1;min-height:2mm}
-@media print{html,body{background:#f3ecdd !important}.page{page-break-after:avoid}}
+.page1{page-break-after:always}
+@media print{html,body{background:#f3ecdd !important}.page1{page-break-after:always}.page2{page-break-after:auto}}
 </style></head><body>
-<div class="page">
-<div class="dots-top"></div><div class="dots-bot"></div>
-${cancelled ? `<div class="cancel-wm">${T2('ملغاة', 'CANCELLED')}</div>` : ''}
+<div class="page page1">
+${decorHtml}
+${watermarkHtml}
 <div class="content">
-<div class="header">
-<div class="title-center"><div class="eyebrow">HUSSAIN &middot; OFFICES</div><div class="title">${T2('فاتورة', 'Invoice')}</div></div>
-<div class="corner-left"><div class="mini-label">${T2('رقم الفاتورة', 'Invoice No.')}</div><div class="mini-val">${esc(inv.invoice_no || '')}</div></div>
-<div class="corner-right"><div class="mini-label">${T2('التاريخ', 'Date')}</div><div class="mini-val">${fmtD(inv.created_at)}</div>${officeCode ? `<div class="office-line">${T2('المكتب: ', 'Office: ')}<span class="code">${esc(officeCode)}</span></div>` : ''}</div>
-</div>
-<div class="gold-divider"></div>
+${headerHtml}
 <div class="row2">
 <div class="card"><div class="card-h">${T2('العميل', 'Client')}</div>${clientHtml}</div>
 ${agentHtml || `<div class="card" style="border-color:transparent;background:transparent"></div>`}
 </div>
-<div class="card"><div class="card-h">${T2('الخدمة', 'Service')}</div>${svcHtml}${fileDistHtml}</div>
 ${insts.length ? `<div class="sec-head">${T2('الأقساط', 'Installments')} <span class="count">(${insts.length})</span></div>
 <table><thead><tr><th style="width:26%">${T2('البند', 'Item')}</th><th class="date" style="width:24%">${T2('التاريخ المتوقع', 'Expected Date')}</th><th class="num" style="width:17%">${T2('المبلغ', 'Amount')}</th><th class="num" style="width:16%">${T2('المدفوع', 'Paid')}</th><th class="num" style="width:17%">${T2('المتبقي', 'Remaining')}</th></tr></thead><tbody>${instHtml}</tbody></table>` : ''}
 ${pays.length ? `<div class="sec-head">${T2('الدفعات', 'Payments')} <span class="count">(${pays.length})</span></div>
@@ -2774,6 +2781,15 @@ ${pays.length ? `<div class="sec-head">${T2('الدفعات', 'Payments')} <span
 <div class="tot rem"><span class="tl">${T2('المتبقي', 'Remaining')}</span><span class="tv">${nm(inv.remaining_amount)}</span></div>
 </div>
 </div>
+</div>
+</div>
+<div class="page page2">
+${decorHtml}
+${watermarkHtml}
+<div class="content">
+${headerHtml}
+<div class="card"><div class="card-h">${T2('الخدمة', 'Service')}</div>${svcHtml}${fileDistHtml}</div>
+<div class="spacer"></div>
 </div>
 </div>
 </body></html>`

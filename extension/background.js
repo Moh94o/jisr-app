@@ -38,18 +38,23 @@ async function buildSessionFromHeaders(headers) {
 }
 
 async function syncSessionToJisr(session) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/muqeem_sessions?on_conflict=id`, {
+  // Use the save_muqeem_session SECURITY DEFINER RPC instead of a direct
+  // REST upsert — muqeem_sessions has RLS enabled with no anon policies,
+  // so a direct write fails with 403. The RPC bypasses RLS safely.
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/save_muqeem_session`, {
     method: 'POST',
     headers: {
       'apikey': SUPABASE_ANON_KEY,
       'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       'Content-Type': 'application/json',
-      'Prefer': 'resolution=merge-duplicates,return=minimal',
     },
     body: JSON.stringify({
-      id: 'default',
-      ...session,
-      updated_at: new Date().toISOString(),
+      p_cookies: session.cookies,
+      p_auth_bearer: session.auth_bearer,
+      p_xsrf_token: session.xsrf_token,
+      p_x_domain: session.x_domain,
+      p_jwt_exp: session.jwt_exp,
+      p_moi_number: session.moi_number,
     }),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`)
@@ -95,10 +100,36 @@ chrome.webRequest.onSendHeaders.addListener(
 )
 
 // ─── Auto-login orchestration ─────────────────────────────────
+async function fetchCredentialsFromJisr() {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_muqeem_credentials`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    })
+    if (!r.ok) return null
+    const v = await r.json()
+    if (v && typeof v === 'object' && v.username && v.password) return v
+    return null
+  } catch { return null }
+}
+
 async function triggerLogin() {
   const c = await chrome.storage.local.get(['username', 'password'])
-  if (!c.username || !c.password) {
-    await chrome.storage.local.set({ lastError: 'الدخول التلقائي مفعّل لكن لا يوجد اسم مستخدم / كلمة مرور' })
+  let username = c.username
+  let password = c.password
+  // Fall back to Supabase credentials (entered via Jisr UI) if the popup
+  // hasn't been configured.
+  if (!username || !password) {
+    const remote = await fetchCredentialsFromJisr()
+    if (remote) { username = remote.username; password = remote.password }
+  }
+  if (!username || !password) {
+    await chrome.storage.local.set({ lastError: 'لا توجد بيانات دخول — احفظها من Jisr أو من الإمتداد' })
     await setBadge('err')
     return
   }

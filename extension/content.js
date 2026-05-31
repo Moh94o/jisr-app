@@ -43,6 +43,27 @@
     } catch { return null }
   }
 
+  // Credentials are entered by the user in the Jisr web UI (not the extension
+  // popup). We pull them here on each login attempt so a freshly-typed password
+  // is picked up without the user reopening the extension.
+  async function fetchCredentialsFromJisr() {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_muqeem_credentials`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+      if (!r.ok) return null
+      const v = await r.json()
+      if (v && typeof v === 'object' && v.username && v.password) return v
+      return null
+    } catch { return null }
+  }
+
   function findUsernameInput() {
     const all = [...document.querySelectorAll('input')].filter(i => i.offsetParent && i.type !== 'hidden')
     return all.find(i => /username|userid|user-name|user_id|nationalid|loginid/i.test(`${i.id} ${i.name} ${i.formControlName||''}`))
@@ -68,17 +89,30 @@
 
   async function tryLogin() {
     if (phase !== 'idle') return
-    const cfg = await chrome.storage.local.get(['autoLogin', 'username', 'password'])
-    if (!cfg.autoLogin || !cfg.username || !cfg.password) return
     const pwd = findPasswordInput()
     if (!pwd) return
     const usr = findUsernameInput()
     if (!usr || usr === pwd) return
     if (Date.now() - loginAttemptedAt < 10_000) return
+
+    // Source of truth for credentials is Jisr (Supabase muqeem_credentials,
+    // populated via set_muqeem_credentials RPC from the Jisr UI). The
+    // chrome.storage.local fallback keeps the extension popup working for
+    // users who haven't migrated their workflow to Jisr yet.
+    const cfg = await chrome.storage.local.get(['autoLogin', 'username', 'password'])
+    let username = cfg.username
+    let password = cfg.password
+    if (!username || !password) {
+      const remote = await fetchCredentialsFromJisr()
+      if (remote) { username = remote.username; password = remote.password }
+    }
+    if (!cfg.autoLogin && !(await fetchCredentialsFromJisr())) return
+    if (!username || !password) return
+
     loginAttemptedAt = Date.now()
     console.log('[Jisr] Filling login form')
-    setNativeValue(usr, cfg.username)
-    setNativeValue(pwd, cfg.password)
+    setNativeValue(usr, username)
+    setNativeValue(pwd, password)
     phase = 'filled-creds'
     await new Promise(r => setTimeout(r, 700))
     const btn = findSubmitButton(['دخول', 'login', 'تسجيل الدخول', 'sign in'])

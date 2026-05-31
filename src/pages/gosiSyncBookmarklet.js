@@ -1,27 +1,38 @@
-// GOSI sync bookmarklet — TINY LOADER (~500 chars).
+// GOSI sync bookmarklet — INLINED.
 //
-// The real logic lives in public/gosi-bm.js, which Vite serves as a static
-// asset. The loader saved in the user's bookmarks just:
-//   1) Stashes the syncPersonId on window so the loaded script can read it.
-//   2) Injects <script src="<jisr-origin>/gosi-bm.js?_=now"> with cache-bust.
-// This means after the user drags this loader ONCE, every future update to
-// gosi-bm.js takes effect on the next click — no re-saving needed.
+// Previously this was a tiny loader that fetched /gosi-bm.js from the
+// Jisr origin at click-time. That broke when the bookmarklet was built
+// on http://localhost:5173 (dev) and then clicked on the HTTPS GOSI portal
+// (ameen.gosi.gov.sa) — browsers block HTTP scripts loaded into HTTPS
+// pages (mixed-content), so the script never loaded and the user got
+// "فشل تحميل سكربت جسر من http://localhost:5173".
 //
-// The origin is baked into the loader at render time (window.location.origin
-// when the SbcFacilities page is rendered), so the bookmarklet is "tied" to
-// whichever Jisr instance produced it (localhost in dev, Netlify in prod).
+// Fix: inline the full body of public/gosi-bm.js into the bookmarklet
+// at build time using Vite's `?raw` import, exactly like the SBC / Qiwa
+// / Muqeem bookmarklets do. The bookmarklet is now self-contained and
+// works from any origin against any HTTPS portal.
+//
+// Trade-off: every time we update public/gosi-bm.js the user must re-drag
+// the bookmarklet to pick up the new code (matching SBC/Qiwa/Muqeem
+// behaviour). The on-screen toast prints the version so a stale build
+// is visible at a glance.
+//
+// PERSON is injected via `window._jr_person_id` (set by the prefix below
+// before the script body runs) — this matches the contract gosi-bm.js
+// already expects, so the file itself didn't need any edits.
 
-function loaderBody({ personId, origin }) {
-  // The origin and personId are interpolated as JSON-escaped string literals
-  // to defend against any quote/backslash weirdness in either value.
-  const o = JSON.stringify(origin)
+import gosiBmSource from '../../public/gosi-bm.js?raw'
+
+function loaderBody({ personId }) {
   const p = JSON.stringify(personId || '')
-  return `(function(){window._jr_person_id=${p};var s=document.createElement('script');s.src=${o}+'/gosi-bm.js?_='+Date.now();s.onerror=function(){alert('فشل تحميل سكربت جسر من '+${o});};document.head.appendChild(s);})();`
+  // `window._jr_person_id` must be set BEFORE gosi-bm.js's IIFE runs,
+  // because the IIFE reads it on its first line.
+  return `window._jr_person_id=${p};${gosiBmSource}`
 }
 
-export function buildGosiBookmarklet({ personId, origin }) {
-  // Fall back to a sensible default origin if the caller didn't pass one —
-  // this only happens in tests/SSR, never in the real UI flow.
-  const safeOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173')
-  return 'javascript:' + encodeURIComponent(loaderBody({ personId, origin: safeOrigin }))
+export function buildGosiBookmarklet({ personId, origin: _ignoredOrigin }) {
+  // `origin` is kept in the signature for backwards-compat with the
+  // call-site in SbcFacilities.jsx, but is no longer used — the script
+  // is fully inlined so the originating Jisr URL doesn't matter.
+  return 'javascript:' + encodeURIComponent(loaderBody({ personId }))
 }

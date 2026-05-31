@@ -1,10 +1,19 @@
 /* eslint-disable */
-// Jisr GOSI sync bookmarklet body — loaded dynamically by a tiny loader saved
-// in the user's bookmarks bar. The loader injects <script src=this-file>.
-// Source of truth lives here; the loader stays unchanged forever.
+// Jisr GOSI sync bookmarklet body — INLINED at build-time into the
+// bookmarklet URL by src/pages/gosiSyncBookmarklet.js (`?raw` import).
+// The old loader pattern (fetch this file at click-time) broke when the
+// bookmarklet was built on http://localhost:5173 and clicked on the
+// HTTPS GOSI portal — mixed-content blocked the script load.
+//
+// This file is still served as a static asset by Vite for backwards-compat,
+// but the production code path bakes the body straight into the bookmarklet.
+//
+// Reads PERSON from `window._jr_person_id`, which the bookmarklet sets
+// right before this IIFE runs.
 //
 // Version is shown in the on-screen toast so we can tell at a glance which
-// build is running ("جسر · تأمينات [v5]").
+// build is running ("جسر · تأمينات [v17]"). Bump VERSION below whenever
+// you ship a change so users can confirm they re-dragged the bookmarklet.
 ;(async () => {
   const VERSION = 'v17';
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co';

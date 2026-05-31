@@ -1,9 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import ReactDOM from 'react-dom'
 import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
-import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
-import { buildMuqeemBookmarklet } from './muqeemSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -697,386 +694,6 @@ function MuqeemResidentRow({ r, T }) {
     </div>
   )
 }
-
-// Muqeem progress tracker — mirrors the Qiwa one but joins each MOI to its
-// SBC counterpart (entity name + first partner) so the user can recognize
-// which account to log into next. The headline metric is "synced TODAY"
-// (not all-time) because the user's workflow is "enter each company in
-// Muqeem and click — don't forget any in this session".
-function MuqeemProgressTracker({ sb, T }) {
-  const [open, setOpen] = useState(false)
-  const [rows, setRows] = useState(null)
-  const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('today_pending') // today_pending | today_done | all
-
-  const load = useCallback(async () => {
-    if (!sb) return
-    const { data } = await sb.from('v_facility_sync_status')
-      .select('facility_id, cr_number, cr_national_number, entity_full_name_ar, gosi_unified_national_number, hrsd_labor_office_id, hrsd_sequence_number, managers_names_ar, managers_ids, managers_count, owners_names_ar, owners_ids, owners_count, partners_names_ar, partners_ids, partners_count, muqeem_moi_number, muqeem_name_ar, muqeem_detail_synced_at, muqeem_residents_count, muqeem_subscription_expired, muqeem_latest_expiry_date')
-      .range(0, 1499)
-      .order('muqeem_detail_synced_at', { ascending: true, nullsFirst: true })
-      .order('managers_names_ar', { nullsFirst: false })
-      .order('entity_full_name_ar')
-    setRows(data || [])
-  }, [sb])
-
-  useEffect(() => { if (open) load() }, [open, load])
-  useEffect(() => { load() }, [load])
-
-  // "Today" boundary in the user's local timezone.
-  const todayStartMs = useMemo(() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime()
-  }, [])
-  const isSyncedToday = (iso) => iso && new Date(iso).getTime() >= todayStartMs
-  const total = rows?.length || 0
-  const doneToday = rows?.filter(r => isSyncedToday(r.muqeem_detail_synced_at)).length || 0
-  const pendingToday = total - doneToday
-  const accent = '#f59e0b'
-
-  const visible = useMemo(() => {
-    if (!rows) return []
-    let out = rows
-    if (filter === 'today_done')    out = out.filter(r => isSyncedToday(r.muqeem_detail_synced_at))
-    else if (filter === 'today_pending') out = out.filter(r => !isSyncedToday(r.muqeem_detail_synced_at))
-    const q = query.trim().toLowerCase()
-    if (!q) return out
-    return out.filter(r =>
-      String(r.gosi_unified_national_number || '').includes(q)
-      || String(r.muqeem_moi_number || '').includes(q)
-      || String(r.muqeem_name_ar || '').toLowerCase().includes(q)
-      || String(r.entity_full_name_ar || '').toLowerCase().includes(q)
-      || String(r.cr_number || '').includes(q)
-      || String(r.cr_national_number || '').includes(q)
-      || String(r.managers_names_ar || '').toLowerCase().includes(q)
-      || String(r.managers_ids || '').includes(q)
-      || String(r.owners_names_ar || '').toLowerCase().includes(q)
-      || String(r.owners_ids || '').includes(q)
-      || String(r.partners_names_ar || '').toLowerCase().includes(q)
-      || String(r.partners_ids || '').includes(q)
-    )
-  }, [rows, query, filter, todayStartMs])
-
-  if (total === 0) return null
-
-  return (
-    <>
-      <button onClick={() => setOpen(true)}
-        title={T('تتبع مزامنة مقيم اليوم', 'Track Muqeem sync (today)')}
-        style={{
-          height: 40, padding: '0 12px', borderRadius: 12,
-          background: `${accent}12`, border: `1px solid ${accent}3a`, color: accent,
-          fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = `${accent}22`; e.currentTarget.style.borderColor = accent }}
-        onMouseLeave={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.borderColor = `${accent}3a` }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/>
-        </svg>
-        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{doneToday}/{total}</span>
-        <span style={{ fontWeight: 600, opacity: .7 }}>{T('اليوم', 'today')}</span>
-      </button>
-
-      {open && ReactDOM.createPortal(
-        <div onClick={() => setOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ width: '100%', maxWidth: 820, maxHeight: '88vh', background: 'linear-gradient(180deg,#1d1d1d,#151515)', borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)' }}>{T('تتبع مزامنة مقيم — كل المنشآت', 'Muqeem sync — all facilities')}</div>
-                <div style={{ fontSize: 11, color: 'var(--tx5)', marginTop: 3 }}>
-                  {T(
-                    `كل منشأة تحتاج دخولها في مقيم بحساب مديرها. ${pendingToday} ما تمت اليوم.`,
-                    `Each facility needs its SBC manager's Muqeem login. ${pendingToday} pending today.`)}
-                </div>
-              </div>
-              <button onClick={() => setOpen(false)}
-                style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: 'var(--tx2)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <div style={{ padding: '0 20px 14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--tx4)', marginBottom: 6, fontWeight: 700 }}>
-                <span>{doneToday} / {total} {T('مكتمل اليوم', 'done today')}</span>
-                <span style={{ direction: 'ltr' }}>{total > 0 ? Math.round((doneToday / total) * 100) : 0}%</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${total > 0 ? (doneToday / total) * 100 : 0}%`, background: `linear-gradient(90deg,${accent}99,${accent})`, borderRadius: 999, transition: 'width .3s' }} />
-              </div>
-            </div>
-            <div style={{ padding: '0 20px 12px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {[
-                ['today_pending', T('باقي اليوم', 'Pending today'), pendingToday],
-                ['today_done',    T('مكتمل اليوم', 'Done today'),    doneToday],
-                ['all',           T('الكل', 'All'),                  total],
-              ].map(([k, label, count]) => (
-                <button key={k} onClick={() => setFilter(k)}
-                  style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid ' + (filter === k ? `${accent}55` : 'rgba(255,255,255,.08)'), background: filter === k ? `${accent}14` : 'transparent', color: filter === k ? accent : 'var(--tx3)', cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 700 }}>
-                  {label} <span style={{ opacity: .7 }}>{count}</span>
-                </button>
-              ))}
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder={T('بحث برقم/اسم/مدير…', 'Search by file/name/manager…')}
-                style={{ flex: 1, minWidth: 140, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx)', fontFamily: F, fontSize: 12, outline: 'none' }} />
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
-              {visible.length === 0 ? (
-                <div style={{ padding: 30, textAlign: 'center', color: 'var(--tx5)', fontSize: 12 }}>
-                  {filter === 'today_pending' ? T('🎉 خلصت اليوم!', '🎉 All done today!') : T('لا توجد منشآت تطابق البحث', 'No facilities match')}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {visible.map(r => {
-                    const fileNo = r.hrsd_labor_office_id != null && r.hrsd_sequence_number != null
-                      ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : '—'
-                    return (
-                      <ManagerSyncRow key={r.facility_id} r={r} fileNo={fileNo} synced={isSyncedToday(r.muqeem_detail_synced_at)} T={T} accent={accent} platform="muqeem" />
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </>
-  )
-}
-
-// Qiwa progress tracker — small status pill next to the Qiwa sync button.
-// Lists ALL SBC facilities (not just the current Qiwa account's slice), each
-// labelled by its SBC manager(s) so the user can tell which login is needed
-// for the un-synced ones. Sync status is the per-facility Qiwa detail-sync
-// timestamp pulled in via v_facility_sync_status.
-function QiwaProgressTracker({ sb, T }) {
-  const [open, setOpen] = useState(false)
-  const [rows, setRows] = useState(null)
-  const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('today_pending') // today_pending | today_done | all
-
-  const load = useCallback(async () => {
-    if (!sb) return
-    const { data } = await sb.from('v_facility_sync_status')
-      .select('facility_id, cr_number, cr_national_number, entity_full_name_ar, gosi_unified_national_number, hrsd_labor_office_id, hrsd_sequence_number, managers_names_ar, managers_ids, managers_count, owners_names_ar, owners_ids, owners_count, partners_names_ar, partners_ids, partners_count, qiwa_company_id, qiwa_company_name, qiwa_detail_synced_at, qiwa_soon_expired, qiwa_company_main_branch, qiwa_subscription_expiry_date')
-      .range(0, 1499)
-      .order('qiwa_detail_synced_at', { ascending: true, nullsFirst: true })
-      .order('managers_names_ar', { nullsFirst: false })
-      .order('entity_full_name_ar')
-    setRows(data || [])
-  }, [sb])
-
-  useEffect(() => { if (open) load() }, [open, load])
-  useEffect(() => { load() }, [load]) // also load on mount for the badge
-
-  // "Today" boundary in the user's local timezone.
-  const todayStartMs = useMemo(() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime()
-  }, [])
-  const isSyncedToday = (iso) => iso && new Date(iso).getTime() >= todayStartMs
-  const total = rows?.length || 0
-  const doneToday = rows?.filter(r => isSyncedToday(r.qiwa_detail_synced_at)).length || 0
-  const pendingToday = total - doneToday
-  const accent = '#3b82f6'
-
-  // Filtered + searched list
-  const visible = useMemo(() => {
-    if (!rows) return []
-    let out = rows
-    if (filter === 'today_done')         out = out.filter(r => isSyncedToday(r.qiwa_detail_synced_at))
-    else if (filter === 'today_pending') out = out.filter(r => !isSyncedToday(r.qiwa_detail_synced_at))
-    const q = query.trim().toLowerCase()
-    if (!q) return out
-    return out.filter(r => {
-      const fn = `${r.hrsd_labor_office_id ?? ''}-${r.hrsd_sequence_number ?? ''}`
-      return fn.includes(q)
-        || String(r.cr_number || '').includes(q)
-        || String(r.cr_national_number || '').includes(q)
-        || String(r.gosi_unified_national_number || '').includes(q)
-        || String(r.entity_full_name_ar || '').toLowerCase().includes(q)
-        || String(r.managers_names_ar || '').toLowerCase().includes(q)
-        || String(r.managers_ids || '').includes(q)
-        || String(r.owners_names_ar || '').toLowerCase().includes(q)
-        || String(r.owners_ids || '').includes(q)
-        || String(r.partners_names_ar || '').toLowerCase().includes(q)
-        || String(r.partners_ids || '').includes(q)
-    })
-  }, [rows, query, filter, todayStartMs])
-
-  // Render nothing until at least one SBC sync has populated facilities.
-  if (total === 0) return null
-
-  return (
-    <>
-      <button onClick={() => setOpen(true)}
-        title={T('تتبع مزامنة قوى', 'Track Qiwa sync progress')}
-        style={{
-          height: 40, padding: '0 12px', borderRadius: 12,
-          background: `${accent}12`, border: `1px solid ${accent}3a`, color: accent,
-          fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = `${accent}22`; e.currentTarget.style.borderColor = accent }}
-        onMouseLeave={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.borderColor = `${accent}3a` }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/>
-        </svg>
-        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{doneToday}/{total}</span>
-        <span style={{ fontWeight: 600, opacity: .7 }}>{T('اليوم', 'today')}</span>
-      </button>
-
-      {open && ReactDOM.createPortal(
-        <div onClick={() => setOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ width: '100%', maxWidth: 720, maxHeight: '88vh', background: 'linear-gradient(180deg,#1d1d1d,#151515)', borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            {/* Header */}
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)' }}>{T('تتبع مزامنة قوى — اليوم', 'Qiwa sync — today')}</div>
-                <div style={{ fontSize: 11, color: 'var(--tx5)', marginTop: 3 }}>
-                  {T(`كل منشأة تحتاج دخول قوى بحساب مديرها. ${pendingToday} ما تمت اليوم.`, `Each facility needs its SBC manager's Qiwa login. ${pendingToday} pending today.`)}
-                </div>
-              </div>
-              <button onClick={() => setOpen(false)}
-                style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: 'var(--tx2)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            {/* Progress bar */}
-            <div style={{ padding: '0 20px 14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--tx4)', marginBottom: 6, fontWeight: 700 }}>
-                <span>{doneToday} / {total} {T('مكتمل اليوم', 'done today')}</span>
-                <span style={{ direction: 'ltr' }}>{total > 0 ? Math.round((doneToday / total) * 100) : 0}%</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${total > 0 ? (doneToday / total) * 100 : 0}%`, background: `linear-gradient(90deg,${accent}99,${accent})`, borderRadius: 999, transition: 'width .3s' }} />
-              </div>
-            </div>
-            {/* Filters + search */}
-            <div style={{ padding: '0 20px 12px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {[
-                ['today_pending', T('باقي اليوم', 'Pending today'), pendingToday],
-                ['today_done',    T('مكتمل اليوم', 'Done today'),    doneToday],
-                ['all',           T('الكل', 'All'),                  total],
-              ].map(([k, label, count]) => (
-                <button key={k} onClick={() => setFilter(k)}
-                  style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid ' + (filter === k ? `${accent}55` : 'rgba(255,255,255,.08)'), background: filter === k ? `${accent}14` : 'transparent', color: filter === k ? accent : 'var(--tx3)', cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 700 }}>
-                  {label} <span style={{ opacity: .7 }}>{count}</span>
-                </button>
-              ))}
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder={T('بحث برقم/اسم/مدير…', 'Search by file/name/manager…')}
-                style={{ flex: 1, minWidth: 140, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx)', fontFamily: F, fontSize: 12, outline: 'none' }} />
-            </div>
-            {/* List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
-              {visible.length === 0 ? (
-                <div style={{ padding: 30, textAlign: 'center', color: 'var(--tx5)', fontSize: 12 }}>
-                  {filter === 'today_pending' ? T('🎉 خلصت اليوم!', '🎉 All done today!') : T('لا توجد منشآت تطابق البحث', 'No facilities match the search')}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {visible.map(r => {
-                    const fileNo = r.hrsd_labor_office_id != null && r.hrsd_sequence_number != null
-                      ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : '—'
-                    return (
-                      <ManagerSyncRow key={r.facility_id} r={r} fileNo={fileNo} synced={isSyncedToday(r.qiwa_detail_synced_at)} T={T} accent={accent} platform="qiwa" />
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </>
-  )
-}
-
-// Single row in either the Qiwa or Muqeem progress modal. Shows the SBC
-// manager + owners + corporate partners on three distinct lines so the user
-// can pick the right login when working through un-synced facilities. Copy
-// button hands the platform-specific identifier (file no for Qiwa, MOI for
-// Muqeem) so the user can paste it into the portal's company switcher.
-function ManagerSyncRow({ r, fileNo, synced, T, accent, platform }) {
-  const [copied, setCopied] = useState(false)
-  const copyValue = platform === 'muqeem'
-    ? (r.gosi_unified_national_number || r.muqeem_moi_number || r.cr_national_number || '')
-    : fileNo
-  const copyLabel = platform === 'muqeem'
-    ? (r.gosi_unified_national_number || r.muqeem_moi_number || r.cr_national_number || '—')
-    : fileNo
-  const onCopy = async () => {
-    try { await navigator.clipboard.writeText(copyValue); setCopied(true); setTimeout(() => setCopied(false), 1400) } catch {}
-  }
-  const hasAnyParty = !!(r.managers_names_ar || r.owners_names_ar || r.partners_names_ar)
-  const partyLine = (icon, color, label, value) => value ? (
-    <div style={{ fontSize: 11, color: 'var(--tx2)', display: 'flex', alignItems: 'baseline', gap: 6, overflow: 'hidden' }} title={value}>
-      <span style={{ color, flexShrink: 0 }}>{icon}</span>
-      <span style={{ color: 'var(--tx5)', fontWeight: 700, flexShrink: 0 }}>{label}:</span>
-      <span style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
-    </div>
-  ) : null
-  return (
-    <div style={{
-      padding: '10px 12px', borderRadius: 8,
-      background: synced ? 'rgba(34,197,94,.04)' : 'rgba(255,255,255,.025)',
-      border: `1px solid ${synced ? 'rgba(34,197,94,.18)' : 'rgba(255,255,255,.06)'}`,
-      display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', columnGap: 10,
-    }}>
-      <button onClick={onCopy} title={platform === 'muqeem' ? T('نسخ الرقم الموحد', 'Copy unified MOI number') : T('نسخ رقم الملف', 'Copy file number')}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '6px 10px', borderRadius: 7,
-          background: copied ? '#22c55e22' : `${accent}10`,
-          border: `1px solid ${copied ? '#22c55e88' : `${accent}33`}`,
-          color: copied ? '#22c55e' : accent,
-          fontFamily: 'ui-monospace, monospace', fontSize: 12, fontWeight: 800,
-          cursor: 'pointer', direction: 'ltr',
-        }}>
-        {copied ? (
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        ) : (
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        )}
-        {copyLabel}
-      </button>
-      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-          title={r.entity_full_name_ar || ''}>{r.entity_full_name_ar || '—'}</div>
-        {!hasAnyParty && (
-          <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700 }}>
-            {T('— لا يوجد مدير/ملاك/شركاء —', '— no manager/owner/partner —')}
-          </div>
-        )}
-        {partyLine('👤', '#3b82f6', T('مدير', 'Manager'), r.managers_names_ar)}
-        {partyLine('🏠', '#22c55e', T('ملاك', 'Owners'), r.owners_names_ar)}
-        {partyLine('🤝', '#9b59b6', T('شركاء', 'Partners'), r.partners_names_ar)}
-        {(platform === 'muqeem' && r.muqeem_residents_count != null
-          || platform === 'qiwa' && (r.qiwa_company_main_branch || r.qiwa_soon_expired)
-          || platform === 'muqeem' && r.muqeem_subscription_expired) && (
-          <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {platform === 'muqeem' && r.muqeem_residents_count != null && <span style={{ color: '#22c55e', direction: 'ltr' }}>👥 {r.muqeem_residents_count}</span>}
-            {platform === 'qiwa' && r.qiwa_company_main_branch && <span style={{ color: '#D4A017', fontWeight: 800 }}>★ {T('رئيسي', 'Main')}</span>}
-            {platform === 'qiwa' && r.qiwa_soon_expired && <span style={{ color: '#f59e0b', fontWeight: 800 }}>⏰ {T('قريب الانتهاء', 'Expiring')}</span>}
-            {platform === 'muqeem' && r.muqeem_subscription_expired && <span style={{ color: '#ef4444', fontWeight: 800 }}>⚠ {T('اشتراك منتهي', 'Sub expired')}</span>}
-          </div>
-        )}
-      </div>
-      {synced ? (
-        <span style={{ fontSize: 10, fontWeight: 800, color: '#22c55e', padding: '3px 9px', borderRadius: 6, background: 'rgba(34,197,94,.12)', whiteSpace: 'nowrap' }}>
-          ✓ {T('مزامن اليوم', 'Synced today')}
-        </span>
-      ) : (
-        <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tx4)', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,.04)', whiteSpace: 'nowrap' }}>
-          {T('باقي اليوم', 'Pending today')}
-        </span>
-      )}
-    </div>
-  )
-}
-
 // Qiwa employee-transfer requests — listed inline inside the transfer card
 // when the parent expands. Splits received vs sent visually.
 function QiwaTransferRequestsList({ sb, companyId, T }) {
@@ -3006,50 +2623,6 @@ function GosiSyncBookmarklet({ syncPersonId, T }) {
   )
 }
 
-// Muqeem sync bookmarklet — drags to user's bookmarks bar. When run on
-// muqeem.sa it grabs the account's MOI list + active org's full details +
-// subscription/point/SMS balances into public.muqeem_companies.
-function MuqeemSyncBookmarklet({ syncPersonId, T }) {
-  // Bake our own origin into the bookmarklet so Supabase calls from inside
-  // muqeem.sa (which has a CSP blocking supabase.co) can route through our
-  // Netlify proxy on the same Jisr origin.
-  const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  const dataHref = buildMuqeemBookmarklet({ sourceId: 'muqeem', personId: syncPersonId || '', proxyBaseUrl })
-  return (
-    <DragBookmark
-      href={dataHref}
-      accent="#f59e0b"
-      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح مقيم واضغط لمزامنة المنشآت', 'Drag to bookmarks bar, open Muqeem and click to sync')}
-      label={T('مقيم', 'Muqeem')}
-      icon={(
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/>
-        </svg>
-      )}
-    />
-  )
-}
-
-// Qiwa sync bookmarklet — drags to user's bookmarks bar. When run on any
-// *.qiwa.sa origin, it captures workspaces + active company detail + criteria
-// + indicators + cases + employee-cases + absher into public.qiwa_companies.
-function QiwaSyncBookmarklet({ syncPersonId, T }) {
-  const dataHref = buildQiwaBookmarklet({ sourceId: 'qiwa', personId: syncPersonId || '' })
-  return (
-    <DragBookmark
-      href={dataHref}
-      accent="#3b82f6"
-      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح بوابة قوى واضغط لمزامنة المنشآت', 'Drag to bookmarks bar, open Qiwa portal and click to sync facilities')}
-      label={T('قوى', 'Qiwa')}
-      icon={(
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      )}
-    />
-  )
-}
-
 export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
@@ -4021,14 +3594,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'ltr' }}>
           <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
           <GosiSyncBookmarklet syncPersonId={syncPersonId} T={T} />
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
-            <QiwaSyncBookmarklet syncPersonId={syncPersonId} T={T} />
-            <QiwaProgressTracker sb={sb} T={T} />
-          </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
-            <MuqeemSyncBookmarklet syncPersonId={syncPersonId} T={T} />
-            <MuqeemProgressTracker sb={sb} T={T} />
-          </div>
         </div>
       </div>
 
@@ -4040,12 +3605,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         const SOURCES = [
           { id: 'sbc',    name: T('المركز السعودي', 'SBC'),    accent: '#9b59b6', role: T('الأساس — يبني قائمة المنشآت', 'Base — builds the list'), primary: true,
             icon: <><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></> },
-          { id: 'qiwa',   name: T('قوى', 'Qiwa'),              accent: '#3b82f6', role: T('العمالة والرخص', 'Workforce & permits'),
-            icon: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></> },
           { id: 'gosi',   name: T('التأمينات', 'GOSI'),         accent: '#22c55e', role: T('الاشتراكات والمشتركون', 'Contributors'),
             icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/> },
-          { id: 'muqeem', name: T('مقيم', 'Muqeem'),            accent: '#f59e0b', role: T('الإقامات والمقيمون', 'Iqama & residents'),
-            icon: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></> },
         ]
         return (
         <div style={{
@@ -4082,12 +3643,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           </div>
           <div style={{ position: 'relative', fontSize: 13, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.7, maxWidth: 560 }}>
             {T(
-              'تجمع هذه الصفحة منشآتك وعمّالك من أربع منصات حكومية في مكان واحد — كل قيمة موسومة بمصدرها وآخر تاريخ مزامنة. ابدأ بالمركز السعودي لإنشاء قائمة منشآتك، ثم أثرِها ببيانات قوى والتأمينات ومقيم.',
-              'This page brings your facilities and workers together from four government platforms — every value tagged with its source and last sync. Start with SBC to build your facility list, then enrich it from Qiwa, GOSI and Muqeem.',
+              'تجمع هذه الصفحة منشآتك وعمّالك من المركز السعودي والتأمينات — كل قيمة موسومة بمصدرها وآخر تاريخ مزامنة. ابدأ بالمركز السعودي لإنشاء قائمة منشآتك، ثم أثرِها ببيانات التأمينات.',
+              'This page brings your facilities and workers together from SBC and GOSI — every value tagged with its source and last sync. Start with SBC to build your facility list, then enrich it from GOSI.',
             )}
           </div>
 
-          {/* Sources ecosystem — shows the four platforms this page aggregates,
+          {/* Sources ecosystem — shows the two platforms this page aggregates,
               with SBC marked as the starting point (it seeds the canonical list). */}
           <div style={{ position: 'relative', display: 'flex', gap: 9, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 680, marginTop: 4 }}>
             {SOURCES.map(s => (
@@ -4122,7 +3683,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           <div style={{ position: 'relative', marginTop: 16, display: 'inline-flex', gap: 18, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 720 }}>
             {[
               { n: '1', t: T('ثبّت الإشارة', 'Install bookmark'), s: T('اسحب الزر إلى شريط الإشارات في متصفحك', 'Drag the button to your bookmarks bar') },
-              { n: '2', t: T('افتح المنصة وسجّل بنفاذ', 'Open the portal'), s: T('ابدأ بتيسير، ثم كرّر مع قوى والتأمينات ومقيم', 'Tayseer first, then Qiwa, GOSI, Muqeem') },
+              { n: '2', t: T('افتح المنصة وسجّل بنفاذ', 'Open the portal'), s: T('ابدأ بتيسير، ثم كرّر مع التأمينات', 'Tayseer first, then GOSI') },
               { n: '3', t: T('اضغط الإشارة', 'Click bookmark'), s: T('انتظر «✅» — كل السجلات تنزل هنا تلقائياً', 'Wait for "✅" — records flow in here') },
             ].map(step => (
               <div key={step.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minWidth: 0, flex: '0 1 220px' }}>
