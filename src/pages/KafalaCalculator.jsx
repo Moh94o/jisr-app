@@ -150,7 +150,7 @@ const DAY_ABBR_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'
 const pad2 = n => String(n).padStart(2, '0')
 const fmtDate = (y, m, d) => `${y}-${pad2(m+1)}-${pad2(d)}`
 
-const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
+export const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
   const today = new Date()
   const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split('-').map(Number) : null
   const initial = parsed ? { y: parsed[0], m: parsed[1]-1 } : { y: today.getFullYear(), m: today.getMonth() }

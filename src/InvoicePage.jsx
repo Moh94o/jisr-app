@@ -45,6 +45,16 @@ const fmtShort = (iso) => {
   try { const d = new Date(iso); const y = d.getFullYear() % 100; return String(d.getDate()).padStart(2,'0') + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(y).padStart(2,'0') } catch { return '—' }
 }
 
+// Business "day" boundary = 05:00 AM Riyadh (UTC+3) = 02:00 UTC.
+// Times before 05:00 Riyadh count as the previous business day.
+const riyadhDayStart = () => {
+  const now = new Date()
+  const ry = new Date(now.getTime() + 3 * 3600 * 1000)
+  const Y = ry.getUTCFullYear(), M = ry.getUTCMonth(), D = ry.getUTCDate(), H = ry.getUTCHours()
+  const offset = H < 5 ? -1 : 0
+  return new Date(Date.UTC(Y, M, D + offset, 2, 0, 0))
+}
+
 const SVC_THEME = {
   work_visa:           { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',     label_en: 'Work Visa' },
   work_visa_permanent: { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة دائمة',   label_en: 'Permanent Visa', label_ar_full: 'تأشيرة عمل دائمة', label_en_full: 'Permanent Work Visa' },
@@ -248,7 +258,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
   // Aggregations
   useEffect(() => {
     let alive = true
-    const todayIso = new Date().toISOString().slice(0, 10)
+    const dayStart = riyadhDayStart()
+    const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000)
     Promise.all([
       sb.from('v_invoice_stats').select('*'),
       sb.from('v_invoice_daily').select('*'),
@@ -258,8 +269,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
         .eq('payment_method.code', 'cash')
         .eq('is_valid', true)
         .is('deleted_at', null)
-        .gte('payment_date', todayIso + 'T00:00:00')
-        .lte('payment_date', todayIso + 'T23:59:59'),
+        .gte('payment_date', dayStart.toISOString())
+        .lt('payment_date', dayEnd.toISOString()),
     ]).then(([s, d, a, c, pc]) => {
       if (!alive) return
       const items = s.data || []
@@ -278,8 +289,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
   // Daily + weekly KPI breakdown (cash / bank+pos / cancelled / voided)
   useEffect(() => {
     let alive = true
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 6)
+    const todayStart = riyadhDayStart()
+    const weekStart = new Date(todayStart.getTime() - 6 * 24 * 3600 * 1000)
     const norm = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0 })
     Promise.all([
       sb.rpc('invoice_period_stats', { p_start: todayStart.toISOString() }),
@@ -308,8 +319,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
   // Service distribution — today AND last 7 days (shown as two separate cards)
   useEffect(() => {
     let alive = true
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 6)
+    const todayStart = riyadhDayStart()
+    const weekStart = new Date(todayStart.getTime() - 6 * 24 * 3600 * 1000)
     const norm = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
     Promise.all([
       sb.rpc('invoice_period_stats', { p_start: todayStart.toISOString() }),
@@ -391,17 +402,23 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
     return { total, byService, totalAmt, totalPaid, totalRemaining, sparkline: buckets, aging }
   }, [statsAgg, statsDaily, statsTotalCount, aging])
 
-  // Day grouping
+  // Day grouping — uses 05:00 AM Riyadh business-day boundary
+  const businessDayKey = (iso) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    return new Date(d.getTime() - 2 * 3600 * 1000).toISOString().slice(0, 10)
+  }
   const grouped = useMemo(() => {
     const days = {}; const order = []
     rows.forEach(r => {
-      const k = (r.created_at || '').slice(0, 10) || 'بدون'
+      const k = businessDayKey(r.created_at) || 'بدون'
       if (!days[k]) { days[k] = []; order.push(k) }
       days[k].push(r)
     })
     return { days, order }
   }, [rows])
-  const todayStr = new Date().toISOString().slice(0,10)
+  const todayStr = riyadhDayStart().toISOString().slice(0, 10)
   const dayNames = [T('الأحد','Sun'), T('الاثنين','Mon'), T('الثلاثاء','Tue'), T('الأربعاء','Wed'), T('الخميس','Thu'), T('الجمعة','Fri'), T('السبت','Sat')]
   const monthNames = [T('يناير','Jan'),T('فبراير','Feb'),T('مارس','Mar'),T('أبريل','Apr'),T('مايو','May'),T('يونيو','Jun'),T('يوليو','Jul'),T('أغسطس','Aug'),T('سبتمبر','Sep'),T('أكتوبر','Oct'),T('نوفمبر','Nov'),T('ديسمبر','Dec')]
   const dayLabel = (k) => k === todayStr ? T('اليوم','Today') : (() => { try { const d = new Date(k + 'T12:00:00'); return dayNames[d.getDay()] } catch { return k } })()
@@ -433,7 +450,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
           {/* Top — label with dot */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.ok, boxShadow: `0 0 10px ${C.ok}aa` }} />
-            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدية','Cash')}</span>
+            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدًا','Cash')}</span>
           </div>
           {/* Center — big number with currency */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
@@ -441,7 +458,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
           </div>
           {/* Bottom — count badge */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-            <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد المقبوضات','Receipts')}</span>
+            <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات','Receipts')}</span>
             <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(periodStats.cash.cnt)}</span>
           </div>
         </div>
@@ -503,7 +520,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الخدمات — اليوم','Services — Today')}</span>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                  <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(todayTotal)}</span> {T('تأشيرة','visas')}
+                  <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(todayTotal)}</span> {T(todayTotal >= 3 && todayTotal <= 10 ? 'خدمات' : 'خدمة','services')}
                 </span>
               </div>
               {/* Single stacked bar showing all services */}
@@ -797,21 +814,28 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           {/* Date row */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('الإجمالي','Total')}</span>
+                            <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('الإجمالي','Total')}</span>
                             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{shortDate}</span>
                           </div>
                           {/* Big amount */}
-                          <div style={{ fontSize: 28, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{num(total)}</div>
+                          <div style={{ fontSize: 28, fontWeight: 700, color: C.gold, fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{num(total)}</div>
                           {/* Paid / Remaining structured rows */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,.06)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                              <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('المسدّد','Paid')}</span>
+                              <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المسدّد','Paid')}</span>
                               <span style={{ color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(paid)}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                              <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('المتبقي','Remaining')}</span>
-                              <span style={{ color: remaining > 0 ? C.warn : C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{remaining > 0 ? '− ' + num(remaining) : '✓'}</span>
-                            </div>
+                            {remaining > 0 ? (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                                <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المتبقي','Remaining')}</span>
+                                <span style={{ color: C.red, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{'− ' + num(remaining)}</span>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, fontSize: 11, color: C.ok, fontWeight: 700 }}>
+                                <span>{T('تم السداد بالكامل','Fully Paid')}</span>
+                                <span>✓</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -982,8 +1006,15 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
 
       {/* Header — underlined title + tags */}
       <div style={{ marginBottom: 18, marginTop: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.95)', letterSpacing: '-.3px' }}>{T('تفاصيل الفاتورة','Invoice Details')}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <line x1="10" y1="9" x2="8" y2="9"/>
+          </svg>
+          <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.2px' }}>{T('تفاصيل الفاتورة','Invoice Details')}</div>
           {inv.status?.code === 'cancelled' && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 8, background: 'rgba(232,114,101,.16)', border: '1px solid ' + C.red, color: C.red, fontSize: 13, fontWeight: 800, letterSpacing: '.3px' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
@@ -1024,14 +1055,13 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
             <>
               <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
               <span title={T('المكتب','Branch')} style={{ color: C.gold, fontWeight: 700, fontSize: 13.5, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
                 <span>{inv.branch.branch_code}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
               </span>
             </>
           )}
           <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
           <span style={{ color: 'var(--tx4)', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             <span style={{ direction: 'ltr' }}>{(() => {
               const d = inv.created_at ? new Date(inv.created_at) : null
               if (!d || isNaN(d)) return '—'
@@ -2063,7 +2093,7 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
 /* ─── shared building blocks ─── */
 const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
-const cardTitle  = { fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '.2px' }
+const cardTitle  = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
 const cardSub    = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }
 
 const ActionToolbar = ({ T, onRecordPayment, onRefund, onCancelInv, onPrint }) => {
@@ -2121,7 +2151,10 @@ const ClientRows = ({ inv, T }) => {
             )}
           </span>
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{primary}</div>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
+              <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{primary}</span>
+              <CopyBtn text={primary} />
+            </span>
             {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, marginTop: 2, direction: 'ltr' }}>{secondary}</div>}
           </div>
         </div>
@@ -2175,14 +2208,30 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data }) => {
       )}
       {!data?.loading && det.length > 0 && (
         <>
-          <SectionLabel label={single ? T('بيانات التأشيرة','Visa Info') : T('بيانات التأشيرات','Visa Details')} color={svc.c} />
+          <SectionLabel label={single ? (single.file_number != null ? T('بيانات التأشيرات وتوزيع الملفات','Visa Details & File Distribution') : T('بيانات التأشيرة','Visa Info')) : T('بيانات التأشيرات','Visa Details')} color={single?.file_number != null ? C.cyan : svc.c} />
           {single ? (
-            <>
-              <Row label={T('الجنسية','Nationality')} value={natOf(single)} />
-              <Row label={T('السفارة','Embassy')} value={embOf(single)} />
-              <Row label={T('المهنة','Occupation')} value={occOf(single)} />
-              {genOf(single) && <Row label={T('الجنس','Gender')} value={genOf(single)} />}
-            </>
+            single.file_number != null ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0 2px' }}>
+                  <span style={{ fontSize: 11.5, color: C.cyan, fontWeight: 700 }}>{T('ملف واحد','One File')}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr' }}>1 {T('تأشيرة','visa')}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                  <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, background: svc.c + '1a', border: '1px solid ' + svc.c + '40', color: svc.c, fontSize: 10.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>1</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 700 }}>{natOf(single)}</div>
+                    {(() => { const sub = [embOf(single), occOf(single), genOf(single)].filter(Boolean).join(' · '); return sub ? <div style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, marginTop: 2 }}>{sub}</div> : null })()}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <Row label={T('الجنسية','Nationality')} value={natOf(single)} />
+                <Row label={T('السفارة','Embassy')} value={embOf(single)} />
+                <Row label={T('المهنة','Occupation')} value={occOf(single)} />
+                {genOf(single) && <Row label={T('الجنس','Gender')} value={genOf(single)} />}
+              </>
+            )
           ) : (() => {
             const withFile = det.filter(r => r && r.file_number != null)
             const showFiles = withFile.length > 0
@@ -2369,9 +2418,9 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data }) => {
 const FinancialKPIs = ({ total, paid, remaining, pct, payT, T }) => (
   <>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>
-      <AmountBox label={T('الإجمالي','Total')} value={num(total)} color="#fff" />
+      <AmountBox label={T('الإجمالي','Total')} value={num(total)} color={C.gold} />
       <AmountBox label={T('المسدّد','Paid')} value={num(paid)} color={C.ok} />
-      <AmountBox label={T('المتبقي','Remaining')} value={num(remaining)} color={remaining > 0 ? C.warn : C.ok} />
+      <AmountBox label={T('المتبقي','Remaining')} value={num(remaining)} color={remaining > 0 ? C.red : C.ok} />
     </div>
     <div style={{ padding: '14px 22px 18px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--tx3)' }}>
@@ -2605,10 +2654,7 @@ const printInvoice = (inv, data, printLang = 'ar') => {
 
   const genLabel = g => g === 'female' ? T2('أنثى', 'Female') : g === 'male' ? T2('ذكر', 'Male') : ''
 
-  // Merged visa attributes (nationality · occupation · gender · embassy) shown as one elegant line.
-  const svcAttrs = isVisa ? [localize(det.nationality), localize(det.occupation), genLabel(det.gender), localize(det.embassy)].filter(Boolean) : []
-
-  // File distribution (no heading) — grouped by file_number, aggregated by nationality·occupation·gender.
+  // File distribution (no heading) — grouped by file_number, aggregated by nationality·embassy·occupation·gender.
   let fileDistHtml = ''
   if (isVisa) {
     const visaRows = (data?.det || []).filter(r => r && r.file_number != null)
@@ -2620,7 +2666,7 @@ const printInvoice = (inv, data, printLang = 'ar') => {
       const filesHtml = fileNos.map((fn, idx) => {
         const items = byFile[fn]
         const agg = {}
-        items.forEach(r => { const k = [localize(r.nationality) || '—', localize(r.occupation) || '', genLabel(r.gender)].join('|'); agg[k] = (agg[k] || 0) + 1 })
+        items.forEach(r => { const k = [localize(r.nationality) || '—', localize(r.embassy) || '', localize(r.occupation) || '', genLabel(r.gender)].join('|'); agg[k] = (agg[k] || 0) + 1 })
         const itemsHtml = Object.entries(agg).map(([k, cnt]) => {
           const label = k.split('|').filter(Boolean).join(' · ')
           return `<div class="fd-item"><span>${esc(label)}</span><span class="fd-x">×${cnt}</span></div>`
@@ -2634,21 +2680,30 @@ const printInvoice = (inv, data, printLang = 'ar') => {
   const insts = (data?.insts || []).slice().sort((a, b) => (a.installment_order || 0) - (b.installment_order || 0))
   const pays = (data?.pays || []).slice().sort((a, b) => (b.payment_date || '').localeCompare(a.payment_date || ''))
 
-  // Party (client/agent) shown as: name, then a muted mono "id · phone" line — no field labels.
+  // Party (client/agent) shown as: name, then ID and phone stacked under it (right-aligned in RTL)
+  // with a small icon for each — no field labels.
+  const idIconHtml = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h3M15 12h3M7 16h10"/></svg>`
+  const phoneIconHtml = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`
   const partyMeta = (id, phone) => {
-    const parts = []
-    if (id) parts.push(`<span>${esc(id)}</span>`)
-    if (phone) parts.push(`<span>${esc(fmtPhone(phone))}</span>`)
-    return parts.length ? `<div class="party-meta">${parts.join('<span class="sep">·</span>')}</div>` : ''
+    const lines = []
+    if (id) lines.push(`<div class="meta-line"><span class="meta-icon">${idIconHtml}</span><span class="meta-val">${esc(id)}</span></div>`)
+    if (phone) lines.push(`<div class="meta-line"><span class="meta-icon">${phoneIconHtml}</span><span class="meta-val">${esc(fmtPhone(phone))}</span></div>`)
+    return lines.length ? `<div class="party-meta">${lines.join('')}</div>` : ''
   }
   // Nationality shown as a flag (image, with emoji fallback) next to the name — replaces the text label.
   const flagHtml = nat => nat?.flag_url ? `<img class="flag" src="${esc(nat.flag_url)}" alt="${esc(nat.name_ar || '')}"/>` : (flagEmoji(nat?.code) ? `<span class="flag-emoji">${flagEmoji(nat.code)}</span>` : '')
   const partyName = (name, nat) => `<div class="party-name"><span>${esc(name)}</span>${flagHtml(nat)}</div>`
   const clientHtml = `${partyName(clientName, client?.nationality)}${partyMeta(clientId, client?.phone)}`
-  const svcHtml = `<div class="svc-title"><span class="st">${esc(svcName || '')}</span>${qty > 0 ? `<span class="qty">×${qty}</span>` : ''}</div>${svcAttrs.length ? `<div class="svc-attrs">${svcAttrs.map(esc).join('<span class="sep">·</span>')}</div>` : ''}`
+  const svcHtml = `<div class="svc-title"><span class="st">${esc(svcName || '')}</span>${qty > 0 ? `<span class="qty">×${qty}</span>` : ''}</div>`
 
+  // Permanent work visa has a fixed 3-installment milestone sequence used across all such invoices.
+  const isPermVisa = code === 'work_visa_permanent'
+  const permVisaMilestonesAr = ['إصدار التأشيرة', 'الوكالة', 'إصدار الإقامة']
+  const permVisaMilestonesEn = ['Visa Issuance', 'Wakalah', 'Iqama Issuance']
   const instHtml = insts.map((it, i) => {
-    const milestone = localize(it.payment_milestone) || instOrdLabel(it.installment_order || (i + 1))
+    const ord = it.installment_order || (i + 1)
+    const permLabel = isPermVisa ? (printLang === 'ar' ? permVisaMilestonesAr[ord - 1] : permVisaMilestonesEn[ord - 1]) : null
+    const milestone = permLabel || localize(it.payment_milestone) || instOrdLabel(ord)
     const rem = Math.max(0, Number(it.total_amount || 0) - Number(it.paid_amount || 0))
     return `<tr>
       <td class="name">${esc(milestone)}</td>
@@ -2671,11 +2726,26 @@ const printInvoice = (inv, data, printLang = 'ar') => {
 
   const agentHtml = agent ? `<div class="card"><div class="card-h">${T2('الوسيط', 'Agent')}</div>${partyName(agent.name_ar || agent.name_en, agent.nationality)}${partyMeta(agent.id_number, agent.phone)}</div>` : ''
 
-  // Hero header reused on both pages: HUSSAIN · OFFICES + فاتورة title + service-name subtitle, with invoice no / date corners.
+  // Summary card (Total/Paid/Remaining) — shown at the bottom of every printed page.
+  const totalsHtml = `<div class="dashed-divider"></div>
+<div class="foot">
+<div class="totals">
+<div class="tot grand"><span class="tl">${T2('الإجمالي', 'Total')}</span><span class="tv">${nm(inv.total_amount)}</span></div>
+<div class="tot paid"><span class="tl">${T2('المدفوع', 'Paid')}</span><span class="tv">${nm(inv.paid_amount)}</span></div>
+<div class="tot rem"><span class="tl">${T2('المتبقي', 'Remaining')}</span><span class="tv">${nm(inv.remaining_amount)}</span></div>
+</div>
+</div>`
+  const pageNumHtml = (n, total) => `<div class="page-num"><span class="lbl">${T2('صفحة', 'Page')}</span><span class="cur">${n}</span><span class="sep">/</span><span class="tot">${total}</span></div>`
+
+  // Hero header — top row: centered "HUSSAIN · OFFICES" brand eyebrow only.
+  // Below: 3-column grid with invoice-no (start), centered title/subtitle, date/office (end).
   const headerHtml = `<div class="header">
-<div class="title-center"><div class="eyebrow">HUSSAIN &middot; OFFICES</div><div class="title">${T2('فاتورة', 'Invoice')}</div>${svcName ? `<div class="subtitle">${esc(svcName)}${isVisa && qty > 0 ? `<span class="qty">×${qty}</span>` : ''}</div>` : ''}</div>
-<div class="corner-left"><div class="mini-label">${T2('رقم الفاتورة', 'Invoice No.')}</div><div class="mini-val">${esc(inv.invoice_no || '')}</div></div>
-<div class="corner-right"><div class="mini-label">${T2('التاريخ', 'Date')}</div><div class="mini-val">${fmtD(inv.created_at)}</div>${officeCode ? `<div class="office-line">${T2('المكتب: ', 'Office: ')}<span class="code">${esc(officeCode)}</span></div>` : ''}</div>
+<div class="header-top"><div class="eyebrow">HUSSAIN &middot; OFFICES</div></div>
+<div class="header-row">
+<div class="side-block side-start"><div class="sb-label">${T2('رقم الفاتورة', 'Invoice No.')}</div><div class="sb-value">${esc(inv.invoice_no || '')}</div></div>
+<div class="title-center"><div class="title">${T2('فاتورة', 'Invoice')}</div>${svcName ? `<div class="subtitle">${isVisa && qty > 0 ? `<span class="qty">${qty}×</span>` : ''}${esc(svcName)}</div>` : ''}</div>
+<div class="side-block side-end"><div class="sb-label">${T2('التاريخ', 'Date')}</div><div class="sb-value">${fmtD(inv.created_at)}</div>${officeCode ? `<div class="sb-sub"><span class="sb-sub-l">${T2('المكتب', 'Office')}</span><span class="sb-sub-v">${esc(officeCode)}</span></div>` : ''}</div>
+</div>
 </div>
 <div class="gold-divider"></div>`
   const decorHtml = `<div class="dots-top"></div><div class="dots-bot"></div>`
@@ -2692,12 +2762,23 @@ html,body{width:210mm;background:#f3ecdd;color:#15130e;font-family:'Cairo','Taja
 .dots-top,.dots-bot{position:absolute;left:0;right:0;height:22px;background-image:radial-gradient(circle at 10px 10px,rgba(212,160,23,.32) 1.2px,transparent 1.5px);background-size:20px 20px;opacity:.7;pointer-events:none}
 .dots-top{top:0}.dots-bot{bottom:0}
 .content{position:relative;z-index:2;direction:${rtl ? 'rtl' : 'ltr'};flex:1;display:flex;flex-direction:column}
-.header{position:relative;min-height:54px;margin-bottom:6px}
-.title-center{text-align:center}
-.eyebrow{font-size:22px;letter-spacing:6px;color:#D4A017;font-weight:700;font-family:'Playfair Display',serif}
-.title{font-size:30px;font-weight:500;color:#15130e;font-family:'Playfair Display','Cairo',serif;margin-top:6px;letter-spacing:-.8px}
-.subtitle{font-size:14px;font-weight:600;color:rgba(0,0,0,.55);margin-top:6px;letter-spacing:.3px;font-family:'Cairo','Tajawal',sans-serif}
-.subtitle .qty{display:inline-block;margin-inline-start:10px;font-size:11.5px;font-weight:700;color:#D4A017;border:1px solid rgba(212,160,23,.4);border-radius:6px;padding:2px 9px;font-family:'JetBrains Mono',monospace;vertical-align:middle}
+.header{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+.header-top{text-align:center}
+.header-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:10mm}
+.title-center{text-align:center;align-self:start}
+.eyebrow{font-size:20px;letter-spacing:5px;color:#D4A017;font-weight:700;font-family:'Playfair Display',serif;white-space:nowrap}
+.title{font-size:32px;font-weight:500;color:#15130e;font-family:'Playfair Display','Cairo',serif;letter-spacing:-.8px;line-height:1}
+.subtitle{font-size:13.5px;font-weight:600;color:rgba(0,0,0,.55);margin-top:8px;letter-spacing:.3px;font-family:'Cairo','Tajawal',sans-serif}
+.subtitle .qty{display:inline-block;margin-inline-end:8px;font-size:14px;font-weight:800;color:#15130e;font-family:'JetBrains Mono',monospace;vertical-align:middle;letter-spacing:.3px}
+.side-block{align-self:start;display:flex;flex-direction:column;gap:4px}
+.side-start{justify-self:start;text-align:start}
+.side-end{justify-self:end;text-align:end}
+.sb-label{font-size:10.5px;color:rgba(0,0,0,.55);font-weight:700;letter-spacing:.5px;text-transform:uppercase;font-family:'Cairo','Tajawal',sans-serif}
+.sb-value{font-size:12px;color:#D4A017;font-family:'JetBrains Mono',monospace;font-weight:800;direction:ltr;letter-spacing:.4px;white-space:nowrap}
+.sb-sub{display:inline-flex;align-items:baseline;gap:6px;margin-top:2px;justify-content:flex-end}
+.side-start .sb-sub{justify-content:flex-start}
+.sb-sub-l{font-size:10px;color:rgba(0,0,0,.5);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.sb-sub-v{font-size:11px;color:#D4A017;font-family:'JetBrains Mono',monospace;font-weight:800;direction:ltr;letter-spacing:.4px}
 .cancel-wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-28deg);font-size:130px;font-weight:900;color:rgba(192,57,43,.12);letter-spacing:12px;white-space:nowrap;pointer-events:none;z-index:4;font-family:'Cairo',sans-serif}
 .corner-left{position:absolute;top:0;left:0;text-align:left}
 .corner-right{position:absolute;top:0;right:0;text-align:right}
@@ -2738,8 +2819,12 @@ td .tag{font-size:8.5px;font-weight:700;color:#c0392b;border:1px solid rgba(192,
 .party-name{display:flex;align-items:center;gap:9px;font-size:16px;color:#15130e;font-weight:800;letter-spacing:.2px}
 .flag{width:26px;height:18px;object-fit:cover;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.12);flex-shrink:0}
 .flag-emoji{font-size:18px;line-height:1;flex-shrink:0}
-.party-meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#15130e;font-weight:700;direction:ltr}
-.party-meta .sep,.svc-attrs .sep{color:rgba(212,160,23,.7);font-weight:700}
+.party-meta{display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:16px;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#15130e;font-weight:700}
+.party-meta .meta-line{display:inline-flex;align-items:center;gap:6px}
+.party-meta .meta-icon{display:inline-flex;color:rgba(0,0,0,.5);width:13px;height:13px}
+.party-meta .meta-icon svg{width:13px;height:13px}
+.party-meta .meta-val{direction:ltr;letter-spacing:.3px}
+.svc-attrs .sep{color:rgba(212,160,23,.7);font-weight:700}
 .svc-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .svc-title .st{font-size:18px;font-weight:800;color:#15130e}
 .svc-title .qty{font-size:11.5px;font-weight:700;color:#D4A017;border:1px solid rgba(212,160,23,.4);border-radius:6px;padding:2px 9px;font-family:'JetBrains Mono',monospace}
@@ -2756,6 +2841,10 @@ td .tag{font-size:8.5px;font-weight:700;color:#c0392b;border:1px solid rgba(192,
 .tot.grand .tv{font-size:26px;color:#D4A017}
 .tot.paid .tv{color:#1f8f4d}.tot.rem .tv{color:#c0392b}
 .spacer{flex:1;min-height:2mm}
+.page-num{position:absolute;bottom:8mm;left:18mm;z-index:3;display:inline-flex;align-items:center;gap:6px;direction:ltr}
+.page-num .lbl{font-size:9.5px;color:rgba(0,0,0,.5);font-weight:700;letter-spacing:.6px;font-family:'Cairo','Tajawal',sans-serif;text-transform:uppercase}
+.page-num .cur,.page-num .tot{font-family:'JetBrains Mono',monospace;color:#D4A017;font-weight:800;font-size:12px;line-height:1}
+.page-num .sep{color:rgba(212,160,23,.65);font-weight:700;font-family:'JetBrains Mono',monospace;font-size:12px;margin:0 1px}
 .page1{page-break-after:always}
 @media print{html,body{background:#f3ecdd !important}.page1{page-break-after:always}.page2{page-break-after:auto}}
 </style></head><body>
@@ -2773,15 +2862,9 @@ ${insts.length ? `<div class="sec-head">${T2('الأقساط', 'Installments')} 
 ${pays.length ? `<div class="sec-head">${T2('الدفعات', 'Payments')} <span class="count">(${pays.length})</span></div>
 <table><thead><tr><th style="width:30%">${T2('الطريقة', 'Method')}</th><th class="date" style="width:35%">${T2('التاريخ', 'Date')}</th><th class="num" style="width:35%">${T2('المبلغ', 'Amount')}</th></tr></thead><tbody>${payHtml}</tbody></table>` : ''}
 <div class="spacer"></div>
-<div class="dashed-divider"></div>
-<div class="foot">
-<div class="totals">
-<div class="tot grand"><span class="tl">${T2('الإجمالي', 'Total')}</span><span class="tv">${nm(inv.total_amount)}</span></div>
-<div class="tot paid"><span class="tl">${T2('المدفوع', 'Paid')}</span><span class="tv">${nm(inv.paid_amount)}</span></div>
-<div class="tot rem"><span class="tl">${T2('المتبقي', 'Remaining')}</span><span class="tv">${nm(inv.remaining_amount)}</span></div>
+${totalsHtml}
 </div>
-</div>
-</div>
+${pageNumHtml(1, 2)}
 </div>
 <div class="page page2">
 ${decorHtml}
@@ -2790,7 +2873,9 @@ ${watermarkHtml}
 ${headerHtml}
 <div class="card"><div class="card-h">${T2('الخدمة', 'Service')}</div>${svcHtml}${fileDistHtml}</div>
 <div class="spacer"></div>
+${totalsHtml}
 </div>
+${pageNumHtml(2, 2)}
 </div>
 </body></html>`
 
@@ -2998,7 +3083,7 @@ const ActionGridButton = ({ onClick, color, bg, bd, label, children }) => (
 
 const AmountBox = ({ label, value, color }) => (
   <div style={{ padding: '14px 18px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
-    <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: 1 }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, marginBottom: 6, letterSpacing: 1 }}>{label}</div>
     <div style={{ fontSize: 18, fontWeight: 700, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
   </div>
 )

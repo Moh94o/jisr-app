@@ -49,7 +49,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
 
   // filters
   const [q, setQ] = useState('')
-  const [status, setStatus] = useState('pending')
+  const [status, setStatus] = useState('')
   const [serviceType, setServiceType] = useState('')
   const [feeKind, setFeeKind] = useState('')
   const [from, setFrom] = useState('')
@@ -86,7 +86,10 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
       const todayIso = new Date().toISOString().slice(0, 10)
       const weekStart = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10)
       // Branch-scoping for stats: same rule as the list. Walks through service_request.branch_id.
-      const scope = (qb) => scopeBranchId ? qb.eq('service_request.branch_id', scopeBranchId) : qb
+      // Restrict to fees explicitly sent via the "تأكيد وسداد" flow (marker or known label),
+      // matching the main list filter so stats and rows stay in sync.
+      const explicit = (qb) => qb.or('notes.eq.manual_pay_request,fee_label_ar.eq.اشتراك قوى')
+      const scope = (qb) => { let q2 = explicit(qb); return scopeBranchId ? q2.eq('service_request.branch_id', scopeBranchId) : q2 }
       const baseSel = 'service_request:service_request_id!inner(branch_id)'
       const [pendingHead, pendingSum, paidHead, paidSum, todayPaid, weekPaid, breakdown] = await Promise.all([
         scope(sb.from('transaction_fees').select('id,'+baseSel, { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'pending')),
@@ -126,19 +129,23 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
     let alive = true
     setLoading(true); setErr(null)
     ;(async () => {
+      // Only show fees explicitly sent for payment via the "تأكيد وسداد" flow (Qiwa / GOSI / Muqeem / SADAD).
+      // Auto-generated or legacy rows in transaction_fees are excluded.
       let qb = sb.from('transaction_fees').select(`
         id, fee_label_ar, fee_label_en, amount, paid_amount, status,
         sadad_no, payment_date, expiry_date, reference_no, bank_reference, notes, sort_order, created_at,
         fee_kind:fee_kind_id(code,value_ar,value_en),
         payment_method:payment_method_id(code,value_ar,value_en),
+        creator:created_by(person:person_id(name_ar,name_en)),
         service_request:service_request_id(
           id, request_ref_no, request_date,
           service_type:service_type_id(code,value_ar,value_en),
           status:status_id(code,value_ar,value_en),
           client:client_id(name_ar,name_en,phone,id_number,nationality:nationality_id(code,name_ar,name_en,flag_url)),
-          branch:branch_id(id,branch_code)
+          branch:branch_id(id,branch_code),
+          invoices(invoice_no)
         )
-      `, { count: 'exact' }).is('deleted_at', null)
+      `, { count: 'exact' }).is('deleted_at', null).or('notes.eq.manual_pay_request,fee_label_ar.eq.اشتراك قوى')
       if (status) qb = qb.eq('status', status)
       if (feeKind) qb = qb.eq('fee_kind_id', feeKind)
       if (from) qb = qb.gte('created_at', from)
@@ -153,6 +160,47 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
 
       let list = data || []
       if (serviceType) list = list.filter(r => r.service_request?.service_type?.code === serviceType)
+
+      // Resolve facility + worker for each SR by checking every service-type application table.
+      // Visa apps don't carry worker_id (visa precedes the worker), so the .select() pulls
+      // worker_id only where it exists — Supabase silently ignores the unknown column for visas.
+      const srIds = Array.from(new Set(list.map(r => r.service_request?.id).filter(Boolean)))
+      if (srIds.length) {
+        const APP_TABLES = [
+          { t: 'visa_applications',         sel: 'service_request_id, main_facility_id' },
+          { t: 'transfer_applications',     sel: 'service_request_id, main_facility_id, worker_id' },
+          { t: 'ajeer_applications',        sel: 'service_request_id, main_facility_id, worker_id' },
+          { t: 'iqama_renewal_applications',sel: 'service_request_id, worker_facility_id, worker_id' },
+          { t: 'iqama_issuance_applications',sel:'service_request_id, main_facility_id, worker_id' },
+          { t: 'other_applications',        sel: 'service_request_id, worker_facility_id, worker_id' },
+        ]
+        const appResults = await Promise.all(APP_TABLES.map(({ t, sel }) =>
+          sb.from(t).select(sel).in('service_request_id', srIds)
+        ))
+        const srToFac = {}
+        const srToWorker = {}
+        appResults.forEach(({ data: rows }) => {
+          (rows || []).forEach(r => {
+            const fac = r.main_facility_id || r.worker_facility_id
+            if (fac && !srToFac[r.service_request_id]) srToFac[r.service_request_id] = fac
+            if (r.worker_id && !srToWorker[r.service_request_id]) srToWorker[r.service_request_id] = r.worker_id
+          })
+        })
+        const facIds = Array.from(new Set(Object.values(srToFac)))
+        const workerIds = Array.from(new Set(Object.values(srToWorker)))
+        let facMap = {}, workerMap = {}
+        const facPromise = facIds.length ? sb.from('facilities').select('id,name_ar,name_en,unified_number,gosi_number,hrsd_number').in('id', facIds) : Promise.resolve({ data: [] })
+        const workerPromise = workerIds.length ? sb.from('workers').select('id,name_ar,name_en,iqama_number').in('id', workerIds) : Promise.resolve({ data: [] })
+        const [facRes, workerRes] = await Promise.all([facPromise, workerPromise])
+        ;(facRes.data || []).forEach(f => { facMap[f.id] = f })
+        ;(workerRes.data || []).forEach(w => { workerMap[w.id] = w })
+        list = list.map(r => ({
+          ...r,
+          _facility: facMap[srToFac[r.service_request?.id]] || null,
+          _worker:   workerMap[srToWorker[r.service_request?.id]] || null,
+        }))
+      }
+
       setRows(list); setTotal(count || 0); setLoading(false)
     })()
     return () => { alive = false }
@@ -375,29 +423,15 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
         </div>
       )}
 
-      {!loading && !err && grouped.order.map(dayKey => {
-        const dayRows = grouped.days[dayKey]
-        const dayTotal = dayRows.reduce((s, r) => s + Number(r.amount || 0), 0)
-        const dayPaid = dayRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
-        return (
-          <div key={dayKey} style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: dayKey === todayStr ? C.gold : 'var(--tx2)' }}>{dayLabel(dayKey)}</span>
-                <span style={{ fontSize: 12, color: 'var(--tx4)', fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{dayFull(dayKey)}</span>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 16, fontWeight: 600 }}>
-                <span>{num(dayRows.length)} {T('رسم','fees')}</span>
-                <span style={{ color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(dayTotal)}</span>
-                {dayPaid > 0 && <span style={{ color: C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {fmtAmt(dayPaid)}</span>}
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {dayRows.map(fee => <FeeCard key={fee.id} fee={fee} isAr={isAr} T={T} onPay={() => setModal({ fee, action: 'pay' })} onEdit={() => setModal({ fee, action: 'edit' })} />)}
-            </div>
-          </div>
-        )
-      })}
+      {!loading && !err && rows.length > 0 && (
+        <FeesTable
+          rows={rows}
+          isAr={isAr}
+          T={T}
+          onPay={fee => setModal({ fee, action: 'pay' })}
+          onEdit={fee => setModal({ fee, action: 'edit' })}
+        />
+      )}
 
       {/* Pagination */}
       {!loading && total > PAGE && (() => {
@@ -435,6 +469,148 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
       {/* Pay modal */}
       {modal && <PayModal sb={sb} fee={modal.fee} action={modal.action} payMethods={payMethods} isAr={isAr} T={T} toast={toast} userId={user?.id}
                           onClose={() => setModal(null)} onSaved={() => { setModal(null); setRefreshTick(t => t + 1) }} />}
+    </div>
+  )
+}
+
+// Inline facility-number row with copy-to-clipboard — visually matches the FacilitiesPage chip.
+function FacilityNumRow({ color, label, value, T }) {
+  const [copied, setCopied] = useState(false)
+  const onCopy = async (e) => {
+    e.stopPropagation()
+    if (!value) return
+    try { await navigator.clipboard.writeText(String(value)); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch {}
+  }
+  if (!value) return <div style={{ padding: '3px 0', fontFamily: 'ui-monospace, monospace', fontSize: 11.5, color: 'rgba(255,255,255,.3)' }}>—</div>
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '3px 0' }} title={label}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr', minWidth: 0 }}>
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
+        <button type="button" onClick={onCopy} title={T ? T('نُسخ','Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
+          onMouseEnter={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.7)' }}
+          onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.3)' }}>
+          {copied
+            ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+        </button>
+      </span>
+    </div>
+  )
+}
+
+/* ═════════════ Table view (matches DepositsPage chrome) ═════════════
+   One row per fee. Columns: Office | Payment type | Facility | Invoice | SADAD | Amount | Action. */
+function FeesTable({ rows, isAr, T, onPay, onEdit }) {
+  return (
+    <div style={{ borderRadius: 10, overflow: 'hidden' }}>
+      <style>{`
+.pay-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
+.pay-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 10px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.pay-tbl tbody td{padding:11px 10px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
+.pay-tbl tbody tr{cursor:pointer;transition:background .12s}
+.pay-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.pay-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+.pay-tbl tbody tr:last-child td{border-bottom:none}
+.pay-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-size:10.5px;font-weight:700;white-space:nowrap;line-height:1.5}
+.pay-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+      `}</style>
+      <table className="pay-tbl">
+        <thead>
+          <tr>
+            <th>{T('التاريخ','Date')}</th>
+            <th>{T('المكتب','Branch')}</th>
+            <th>{T('نوع السداد','Payment type')}</th>
+            <th>{T('المنشأة','Facility')}</th>
+            <th>{T('العامل','Worker')}</th>
+            <th>{T('الفاتورة','Invoice')}</th>
+            <th>{T('رقم السداد','SADAD No')}</th>
+            <th>{T('المبلغ','Amount')}</th>
+            <th>{T('الحالة','Status')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(fee => {
+            const sr = fee.service_request
+            const fac = fee._facility
+            const worker = fee._worker
+            const inv = sr?.invoices?.[0]
+            const stT = STATUS_THEME[fee.status] || STATUS_THEME.pending
+            const feeLabel = isAr ? (fee.fee_label_ar || fee.fee_kind?.value_ar) : (fee.fee_label_en || fee.fee_kind?.value_en)
+            const isPaid = fee.status === 'paid'
+            const dateIso = (isPaid && fee.payment_date) ? fee.payment_date : fee.created_at
+            const dateD = dateIso ? new Date(dateIso) : null
+            const dateFmt = dateD && !isNaN(dateD)
+              ? `${dateD.getFullYear()}/${String(dateD.getMonth()+1).padStart(2,'0')}/${String(dateD.getDate()).padStart(2,'0')}`
+              : '—'
+            const timeFmt = dateD && !isNaN(dateD)
+              ? `${String(dateD.getHours()).padStart(2,'0')}:${String(dateD.getMinutes()).padStart(2,'0')}`
+              : ''
+            return (
+              <tr key={fee.id} onClick={() => (isPaid ? onEdit(fee) : onPay(fee))} title={isPaid ? T('تعديل السداد','Edit payment') : T('تسجيل السداد','Record payment')}>
+                <td>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <span style={{ direction: 'ltr', fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{dateFmt}</span>
+                    {timeFmt && <span style={{ direction: 'ltr', fontSize: 10, color: 'var(--tx5)', fontVariantNumeric: 'tabular-nums' }}>{timeFmt}</span>}
+                  </div>
+                </td>
+                <td>
+                  {(() => {
+                    const empName = fee.creator?.person?.name_ar || fee.creator?.person?.name_en
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        {empName && <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }} title={empName}>{empName}</span>}
+                        <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>{sr?.branch?.branch_code || '—'}</span>
+                      </div>
+                    )
+                  })()}
+                </td>
+                <td style={{ fontWeight: 700, color: stT.c }}>{feeLabel || '—'}</td>
+                <td onClick={e => e.stopPropagation()}>
+                  {fac ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <FacilityNumRow color={C.gold} label={T('الموحد','Unified')} value={fac.unified_number} T={T} />
+                      <FacilityNumRow color={C.ok}   label={T('التأمينات','GOSI')}  value={fac.gosi_number}    T={T} />
+                      <FacilityNumRow color={C.blue} label={T('الموارد البشرية','MOL')} value={fac.hrsd_number} T={T} />
+                    </div>
+                  ) : <span style={{ color: 'var(--tx5)' }}>—</span>}
+                </td>
+                <td>
+                  {worker ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }} title={worker.name_ar || worker.name_en || ''}>{worker.name_ar || worker.name_en || '—'}</span>
+                      {worker.iqama_number && <span style={{ fontSize: 10.5, color: 'var(--tx5)', direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{worker.iqama_number}</span>}
+                    </div>
+                  ) : <span style={{ color: 'var(--tx5)' }}>—</span>}
+                </td>
+                <td onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                    {sr?.service_type && (
+                      <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={isAr ? sr.service_type.value_ar : (sr.service_type.value_en || sr.service_type.value_ar)}>
+                        {isAr ? sr.service_type.value_ar : (sr.service_type.value_en || sr.service_type.value_ar)}
+                      </span>
+                    )}
+                    {inv?.invoice_no
+                      ? <FacilityNumRow color={'var(--tx4)'} label={T('الفاتورة','Invoice')} value={inv.invoice_no} T={T} />
+                      : <span style={{ color: 'var(--tx5)' }}>—</span>}
+                  </div>
+                </td>
+                <td>
+                  {fee.sadad_no
+                    ? <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700 }}>{fee.sadad_no}</span>
+                    : <span style={{ color: 'var(--tx5)' }}>—</span>}
+                </td>
+                <td style={{ fontWeight: 900, direction: 'ltr', color: isPaid ? C.ok : '#fff' }}>{fmtAmt(fee.amount)}</td>
+                <td>
+                  <span className="pay-pill" style={{ color: stT.c, background: stT.c + '18', border: '1px solid ' + stT.c + '38' }}>
+                    <span className="pay-dot" style={{ background: stT.c }} />
+                    {isAr ? stT.stamp_ar : stT.stamp_en}
+                  </span>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -560,121 +736,224 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
   )
 }
 
-/* ═════════════ Pay modal (preserved with Invoice-style chrome) ═════════════ */
+/* ═════════════ Pay modal — KafalaCalculator-style chrome ═════════════
+   Two fieldsets:
+   • ملخص السداد (gold)    — read-only: payment type + amount + SADAD with copy
+   • تأكيد السداد (green) — bank account + reference + PDF receipt upload */
 function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose, onSaved }) {
-  const init = {
-    amount: fee.amount || '',
-    sadad_no: fee.sadad_no || '',
-    payment_method_code: fee.payment_method?.code || 'cash',
-    bank_reference: fee.bank_reference || '',
-    payment_date: fee.payment_date ? fee.payment_date.slice(0, 10) : new Date().toISOString().slice(0, 10),
-    expiry_date: fee.expiry_date || '',
-    reference_no: fee.reference_no || '',
-    notes: fee.notes || '',
-  }
-  const [v, setV] = useState(init)
+  const [bankAccounts, setBankAccounts] = useState([])
+  const [selBankAcc, setSelBankAcc] = useState('')
+  const [bankRef, setBankRef] = useState(fee.bank_reference || '')
+  const [receipt, setReceipt] = useState(null)
+  const [receiptDrag, setReceiptDrag] = useState(false)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
-  const set = (k, val) => setV(p => ({ ...p, [k]: val }))
+  const [sadadCopied, setSadadCopied] = useState(false)
+  const [done, setDone] = useState(false)
+
+  // Load bank accounts (any active office account) — same source as ServiceRequestPage.
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data } = await sb.from('bank_accounts')
+        .select('id,bank_name,account_name,account_number,iban,is_primary')
+        .is('deleted_at', null).eq('is_active', true)
+        .order('is_primary', { ascending: false })
+      if (alive) setBankAccounts(data || [])
+    })()
+    return () => { alive = false }
+  }, [sb])
+
+  const copySadad = async () => {
+    if (!fee.sadad_no) return
+    try { await navigator.clipboard.writeText(String(fee.sadad_no)); setSadadCopied(true); setTimeout(() => setSadadCopied(false), 1500) } catch {}
+  }
 
   const submit = async () => {
     setSaving(true); setErr('')
     try {
-      const amt = Number(v.amount) || 0
-      if (amt <= 0) { setErr(T('أدخل المبلغ','Enter the amount')); setSaving(false); return }
-      // Cap at the fee's outstanding balance so a typo can't drive paid_amount above the total.
-      const outstanding = Math.max(0, Number(fee.amount || 0) - Number(fee.paid_amount || 0))
-      if (action !== 'edit' && outstanding > 0 && amt > outstanding + 0.005) {
-        setErr(T(`المبلغ يتجاوز المتبقي (${outstanding.toFixed(2)} ر.س)`,`Amount exceeds outstanding (${outstanding.toFixed(2)} SAR)`))
-        setSaving(false); return
+      if (!selBankAcc) { setErr(T('اختر الحساب البنكي المُستلِم','Pick the receiving bank account')); setSaving(false); return }
+      if (!bankRef.trim()) { setErr(T('أدخل الرقم المرجعي للسداد','Enter the payment reference number')); setSaving(false); return }
+      if (!receipt && action !== 'edit') { setErr(T('أرفق ملف إيصال السداد (PDF)','Attach the payment receipt (PDF)')); setSaving(false); return }
+
+      // Upload the receipt PDF to attachments storage (if a new file was picked).
+      let attachmentUrl = null
+      if (receipt) {
+        const safe = (receipt.name || 'receipt').replace(/[^\w.\-]+/g, '_')
+        const path = `transaction-fees/${fee.id}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${safe}`
+        const { error: upErr } = await sb.storage.from('attachments').upload(path, receipt, { cacheControl: '3600', upsert: false })
+        if (upErr) throw upErr
+        const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+        attachmentUrl = pub?.publicUrl || path
+        await sb.from('attachments').insert({
+          entity_type: 'transaction_fee', entity_id: fee.id,
+          file_name: receipt.name, file_url: attachmentUrl, storage_path: path,
+          mime_type: receipt.type || null, size_bytes: receipt.size || null,
+          notes: 'sadad_receipt',
+        })
       }
-      const pm = payMethods.find(p => p.code === v.payment_method_code) || null
+
+      const pmBank = payMethods.find(p => p.code === 'bank_transfer') || payMethods.find(p => /bank/.test(p.code || ''))
       const upd = {
-        amount: amt, paid_amount: amt, status: 'paid',
-        sadad_no: v.sadad_no || null, bank_reference: v.bank_reference || null,
-        payment_method_id: pm?.id || null,
-        payment_date: v.payment_date ? new Date(v.payment_date).toISOString() : new Date().toISOString(),
-        expiry_date: v.expiry_date || null, reference_no: v.reference_no || null, notes: v.notes || null,
+        paid_amount: Number(fee.amount) || 0,
+        status: 'paid',
+        bank_reference: bankRef.trim() || null,
+        bank_account_id: selBankAcc || null,
+        payment_method_id: pmBank?.id || null,
+        payment_date: new Date().toISOString(),
       }
       const { error } = await sb.from('transaction_fees').update(upd).eq('id', fee.id)
       if (error) throw error
-      toast?.(T('تم تسجيل السداد','Payment recorded'))
-      onSaved()
+      setDone(true)
+      setSaving(false)
     } catch (e) {
       setErr(e.message || T('حدث خطأ','Error'))
       setSaving(false)
     }
   }
 
-  const sr = fee.service_request
-  const svc = SVC_THEME[sr?.service_type?.code || 'general'] || SVC_THEME.general
   const feeLabel = isAr ? (fee.fee_label_ar || fee.fee_kind?.value_ar) : (fee.fee_label_en || fee.fee_kind?.value_en)
-  const fS = { width: '100%', height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', boxSizing: 'border-box' }
+  const fS = { width: '100%', height: 38, padding: '0 12px', borderRadius: 9, border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', boxSizing: 'border-box' }
+  const lbl = { fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16, fontFamily: F, direction: 'rtl' }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        width: 560, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-        border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 24px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06)',
-      }}>
-        <div style={{ height: 3, background: `linear-gradient(90deg,transparent,${C.gold} 30%,${C.goldSoft} 50%,${C.gold} 70%,transparent)` }} />
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{action === 'edit' ? T('تعديل السداد','Edit Payment') : T('تسجيل السداد','Record Payment')}</div>
-            <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 4 }}>
-              <span style={{ color: svc.c, fontWeight: 700 }}>{isAr ? svc.label_ar : svc.label_en}</span>
-              {' · '}<span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{feeLabel}</span>
-              {sr?.client?.name_ar && <> {' · '} {sr.client.name_ar}</>}
-            </div>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--modal-bg)', borderRadius: 16, width: 640, maxWidth: '95vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', fontFamily: F, direction: 'rtl', color: 'rgba(255,255,255,.85)' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 22px 12px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{action === 'edit' ? T('تعديل توثيق السداد','Edit Payment') : T('توثيق عملية السداد','Document Payment')}</div>
           </div>
-          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('المبلغ (ريال)','Amount (SAR)')}<span style={{ color: C.red }}> *</span></div>
-              <input style={{ ...fS, direction: 'ltr', textAlign: 'center' }} type="number" step="0.01" min="0" value={v.amount} onChange={e => set('amount', e.target.value)} placeholder="0.00" />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('طريقة الدفع','Payment Method')}</div>
-              <Sel value={v.payment_method_code} onChange={val => set('payment_method_code', val)} placeholder={T('اختر','Select')} options={payMethods.length ? payMethods.map(p => ({ v: p.code, l: isAr ? p.value_ar : (p.value_en || p.value_ar) })) : [{ v: 'cash', l: T('نقدي','Cash') }]} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('رقم سداد','SADAD No')}</div>
-              <input style={{ ...fS, direction: 'ltr', fontFamily: 'monospace' }} value={v.sadad_no} onChange={e => set('sadad_no', e.target.value)} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('مرجع بنكي','Bank Reference')}</div>
-              <input style={{ ...fS, direction: 'ltr', fontFamily: 'monospace' }} value={v.bank_reference} onChange={e => set('bank_reference', e.target.value)} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('تاريخ الدفع','Payment Date')}</div>
-              <DateField value={v.payment_date} onChange={val => set('payment_date', val)} lang={isAr ? 'ar' : 'en'} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('تاريخ الانتهاء','Expiry')}</div>
-              <DateField value={v.expiry_date} onChange={val => set('expiry_date', val)} lang={isAr ? 'ar' : 'en'} />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('رقم مرجعي (إقامة/كرت)','Reference No (Iqama/WP)')}</div>
-              <input style={{ ...fS, direction: 'ltr', fontFamily: 'monospace' }} value={v.reference_no} onChange={e => set('reference_no', e.target.value)} />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('ملاحظات','Notes')}</div>
-              <textarea rows={3} style={{ ...fS, height: 'auto', padding: 12, resize: 'vertical' }} value={v.notes} onChange={e => set('notes', e.target.value)} />
-            </div>
-          </div>
-        </div>
-
-        {err && <div style={{ padding: '10px 22px', color: C.red, fontSize: 12, fontWeight: 600 }}>{err}</div>}
-
-        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.07)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onClose} style={{ height: 42, padding: '0 18px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{T('إلغاء','Cancel')}</button>
-          <button onClick={submit} disabled={saving} style={{ height: 42, padding: '0 22px', borderRadius: 11, border: '1px solid rgba(46,204,113,.5)', background: 'linear-gradient(180deg,rgba(46,204,113,.22) 0%,rgba(46,204,113,.10) 100%)', color: C.ok, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 700, opacity: saving ? .6 : 1 }}>
-            {saving ? '...' : T('حفظ السداد','Save Payment')}
+          <button onClick={onClose}
+            onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
+            style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'visible', padding: '6px 18px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {done ? (
+            <div style={{ minHeight: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 14px' }}>
+              <div style={{ width: 96, height: 96, borderRadius: '50%', background: `radial-gradient(circle, ${C.ok}33 0%, ${C.ok}00 70%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 70, height: 70, borderRadius: '50%', background: C.ok, color: '#0a0a0a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 8px 24px ${C.ok}55` }}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: C.ok, fontFamily: F, textAlign: 'center' }}>{T('تم توثيق عملية السداد','Payment documented')}</div>
+              <div style={{ fontSize: 13, color: 'var(--tx4)', fontFamily: F, textAlign: 'center', maxWidth: 380 }}>{T('تم تسجيل عملية السداد بنجاح وحفظ الإيصال في النظام.','Payment recorded and the receipt has been saved.')}</div>
+            </div>
+          ) : (<>
+
+          {/* ─── Summary fieldset ─── */}
+          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '14px 18px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>{T('ملخص السداد','Payment Summary')}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 10 }}>
+              <div>
+                <div style={lbl}>{T('نوع السداد','Payment Type')}</div>
+                <div style={{ ...fS, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, fontWeight: 800 }}>{feeLabel || '—'}</div>
+              </div>
+              <div>
+                <div style={lbl}>{T('المبلغ (ريال)','Amount (SAR)')}</div>
+                <div style={{ ...fS, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: '#fff', fontSize: 16, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(fee.amount)}</div>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={lbl}>{T('رقم السداد','SADAD No')}</div>
+                <div style={{ ...fS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, direction: 'ltr', fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
+                  <span>{fee.sadad_no || '—'}</span>
+                  {fee.sadad_no && (
+                    <button type="button" onClick={copySadad} title={T('نسخ','Copy')} style={{ width: 26, height: 26, padding: 0, border: '1px solid rgba(255,255,255,.08)', borderRadius: 6, background: 'transparent', color: sadadCopied ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+                      {sadadCopied
+                        ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── Confirm fieldset ─── */}
+          <div style={{ borderRadius: 12, border: '1.5px solid rgba(46,204,113,.35)', padding: '14px 18px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.ok, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>{T('تأكيد السداد','Confirm Payment')}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <div style={lbl}>{T('الحساب البنكي','Bank Account')}<span style={{ color: C.red }}> *</span></div>
+                <Sel
+                  value={selBankAcc}
+                  onChange={setSelBankAcc}
+                  placeholder={T('اختر الحساب','Choose account')}
+                  options={bankAccounts.map(a => ({
+                    v: a.id,
+                    l: `${a.bank_name || ''} — ${a.account_name || ''}${a.account_number ? ' · ' + a.account_number : ''}`,
+                  }))}
+                />
+              </div>
+              <div>
+                <div style={lbl}>{T('الرقم المرجعي للسداد','Payment Reference No')}<span style={{ color: C.red }}> *</span></div>
+                <input style={{ ...fS, direction: 'ltr', fontFamily: 'monospace', textAlign: 'center' }} value={bankRef} onChange={e => setBankRef(e.target.value)} placeholder="—" />
+              </div>
+              <div>
+                <div style={lbl}>{T('إيصال السداد (PDF)','Receipt (PDF)')}{action !== 'edit' && <span style={{ color: C.red }}> *</span>}</div>
+                <div
+                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(true) }}
+                  onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(false) }}
+                  onDrop={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(false); const f = e.dataTransfer.files?.[0]; if (f) setReceipt(f) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {!receipt ? (
+                    <label htmlFor="payRcptInput" style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 14px', height: 38, borderRadius: 9, border: `1px dashed ${receiptDrag ? C.gold : 'rgba(212,160,23,.3)'}`, background: receiptDrag ? 'rgba(212,160,23,.10)' : 'rgba(212,160,23,.03)', color: C.gold, cursor: 'pointer', transition: '.2s', fontSize: 12.5, fontWeight: 700, boxSizing: 'border-box' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      <span>{T('اختر ملف PDF أو اسحبه هنا','Choose a PDF or drag it here')}</span>
+                    </label>
+                  ) : (
+                    <div style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 14px', height: 38, borderRadius: 9, border: '1px solid rgba(46,160,67,.3)', background: 'rgba(46,160,67,.06)', color: C.ok, fontSize: 12.5, fontWeight: 700, boxSizing: 'border-box' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{receipt.name}</span>
+                      </span>
+                      <button type="button" onClick={() => setReceipt(null)} style={{ width: 22, height: 22, borderRadius: 5, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  )}
+                  <input id="payRcptInput" type="file" accept="application/pdf" onChange={e => setReceipt(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+          </>)}
+        </div>
+
+        {!done && err && <div style={{ padding: '10px 24px', color: C.red, fontSize: 12.5, fontWeight: 600, borderTop: '1px solid rgba(192,57,43,.2)', background: 'rgba(192,57,43,.06)' }}>⚠ {err}</div>}
+
+        {/* Footer */}
+        <style>{`.pm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.pm-nav-btn .pm-nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.pm-nav-btn:hover:not(:disabled) .pm-nav-ico{background:#D4A017;color:#000}.pm-nav-btn:disabled{opacity:.5;cursor:not-allowed}@keyframes pm-spin{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ padding: '12px 18px', display: 'flex', justifyContent: done ? 'center' : 'flex-end' }}>
+          {done ? (
+            <button onClick={onSaved} style={{ height: 42, padding: '0 28px', borderRadius: 11, border: `1px solid ${C.ok}66`, background: `linear-gradient(180deg, ${C.ok}26 0%, ${C.ok}10 100%)`, color: C.ok, fontFamily: F, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = `linear-gradient(180deg, ${C.ok}40 0%, ${C.ok}20 100%)` }}
+              onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(180deg, ${C.ok}26 0%, ${C.ok}10 100%)` }}>
+              {T('إغلاق','Close')}
+            </button>
+          ) : (
+            <button onClick={submit} disabled={saving} className="pm-nav-btn">
+              <span>{saving ? T('جارٍ التوثيق…','Documenting…') : T('توثيق السداد','Document Payment')}</span>
+              <span className="pm-nav-ico">
+                {saving
+                  ? <span style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'pm-spin 0.7s linear infinite' }} />
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </div>

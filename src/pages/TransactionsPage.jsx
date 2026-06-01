@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarPopup } from './KafalaCalculator.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -23,7 +24,7 @@ const fmtGreg = (iso) => {
     const dd = String(d.getDate()).padStart(2, '0')
     const mm = String(d.getMonth() + 1).padStart(2, '0')
     const yyyy = d.getFullYear()
-    return `${yyyy}/${mm}/${dd}`
+    return `${yyyy}-${mm}-${dd}`
   } catch { return '—' }
 }
 const fmtDateTime = (iso, ar = true) => {
@@ -44,7 +45,9 @@ const fmtDateTime = (iso, ar = true) => {
 
 /* ─────── Service-type theme ─────── */
 const SVC_THEME = {
-  work_visa:      { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',  label_en: 'Work Visa' },
+  work_visa:            { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',         label_en: 'Work Visa' },
+  work_visa_permanent:  { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل دائمة',   label_en: 'Permanent Work Visa' },
+  work_visa_temporary:  { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل مؤقتة',   label_en: 'Temporary Work Visa' },
   iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة', label_en: 'Iqama Issuance' },
   transfer:       { c: C.orange, bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',   label_en: 'Transfer' },
   ajeer:          { c: C.purple, bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'أجير',        label_en: 'Ajeer' },
@@ -60,8 +63,11 @@ const STATUS_THEME = {
   on_hold:     { c: C.purple, stamp_ar: 'معلق',         stamp_en: 'ON HOLD' },
 }
 
+const SVC_ICON_WORK_VISA = <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4M14 14h4"/></svg>
 const SVC_ICON = {
-  work_visa: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4M14 14h4"/></svg>,
+  work_visa: SVC_ICON_WORK_VISA,
+  work_visa_permanent: SVC_ICON_WORK_VISA,
+  work_visa_temporary: SVC_ICON_WORK_VISA,
   iqama_issuance: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m17 14 2 2 3-3"/></svg>,
   transfer: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>,
   ajeer: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
@@ -280,7 +286,7 @@ export default function TransactionsPage({ sb, lang, user, branchId, toast, lock
   const dayFull  = (k) => { try { const d = new Date(k + 'T12:00:00'); return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') } catch { return k } }
   const totalPages = Math.max(1, Math.ceil(total / PAGE))
 
-  if (detail) return <TransactionDetailPage sb={sb} sr={detail} onBack={() => setDetail(null)} isAr={isAr} T={T} toast={toast} />
+  if (detail) return <TransactionDetailPage sb={sb} sr={detail} onBack={() => setDetail(null)} isAr={isAr} T={T} toast={toast} user={user} />
 
   /* ─────── Render ─────── */
   return (
@@ -663,7 +669,7 @@ function TransactionCard({ r, isAr, T, onClick }) {
               </span>
               <span style={{ fontSize: 12, color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
-                <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 700 }}>{r.request_ref_no}</span>
+                <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 700 }}>{['TXN', r.branch?.branch_code, String(r.request_ref_no || '').slice(-6)].filter(Boolean).join('-')}</span>
               </span>
               {r.branch?.branch_code && (
                 <span title={T('المكتب','Branch')} style={{ fontSize: 11, color: 'var(--tx3)', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
@@ -714,17 +720,129 @@ function TransactionCard({ r, isAr, T, onClick }) {
 /* ═══════════════════════════════════════════════════════════════════════
    Full-page detail — service-specific details + linked invoice + sidebar
    ═══════════════════════════════════════════════════════════════════════ */
-function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast }) {
+function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
   const [data, setData] = useState({ loading: true })
+  // Facility-picker state — search across name / unified / GOSI / HRSD numbers; selecting one
+  // updates main_facility_id on every visa_application linked to this service request.
+  const [facQuery, setFacQuery] = useState('')
+  const [facResults, setFacResults] = useState([])
+  const [facSearching, setFacSearching] = useState(false)
+  const [facSaving, setFacSaving] = useState(false)
+  const [facEditing, setFacEditing] = useState(false)
+  const [stagedFacility, setStagedFacility] = useState(null)
+  const [visaCardSaving, setVisaCardSaving] = useState({})
+  // Iqama-issuance follow-up (one row in iqama_issuance_applications linked to this visa)
+  const [iqamaRow, setIqamaRow] = useState(null)
+  const [iqamaForm, setIqamaForm] = useState({ worker_name_at_entry: '', work_permit_expiry: '', insurance_expiry: '', iqama_number: '', iqama_expiry: '', iqama_delivery_date: '' })
+  const [iqamaCardSaving, setIqamaCardSaving] = useState({})
+  const [iqamaAttachments, setIqamaAttachments] = useState([])
+  const [iqamaUploading, setIqamaUploading] = useState({})
+  // Visa-issuance + wakalah form state (visa_applications fields + PDF attachments).
+  const [visaForm, setVisaForm] = useState({ visa_number: '', border_number: '', wakalah_office: '', wakalah_date: '' })
+  const [visaAttachments, setVisaAttachments] = useState([])
+  const [uploading, setUploading] = useState({})
+
+  // Hydrate the visa/wakalah form from the first visa_application whenever the data reloads.
+  useEffect(() => {
+    const d = data.det?.[0]
+    if (!d) return
+    setVisaForm({
+      visa_number: d.visa_number || '',
+      border_number: d.border_number || '',
+      wakalah_office: d.wakalah_office || '',
+      wakalah_date: d.wakalah_date || '',
+    })
+  }, [data.det])
+
+  // Load any PDF attachments previously uploaded against the visa_applications of this request.
+  useEffect(() => {
+    const ids = (data.det || []).map(d => d.id).filter(Boolean)
+    if (!ids.length) { setVisaAttachments([]); return }
+    let alive = true
+    ;(async () => {
+      const { data: rows } = await sb.from('attachments')
+        .select('id,entity_id,file_name,file_url,notes,size_bytes,created_at')
+        .eq('entity_type', 'visa_application')
+        .in('entity_id', ids)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+      if (alive) setVisaAttachments(rows || [])
+    })()
+    return () => { alive = false }
+  }, [data.det, sb])
+
+  // Load (if exists) the iqama_issuance_applications row linked to the first visa and hydrate the form.
+  useEffect(() => {
+    const visaId = data.det?.[0]?.id
+    if (!visaId) { setIqamaRow(null); return }
+    let alive = true
+    ;(async () => {
+      const { data: rows } = await sb.from('iqama_issuance_applications')
+        .select('id,worker_name_at_entry,work_permit_expiry,insurance_expiry,iqama_number,iqama_expiry,iqama_delivery_date')
+        .eq('visa_application_id', visaId)
+        .is('deleted_at', null)
+        .limit(1)
+      const row = rows?.[0] || null
+      if (!alive) return
+      setIqamaRow(row)
+      if (row) {
+        setIqamaForm({
+          worker_name_at_entry: row.worker_name_at_entry || '',
+          work_permit_expiry: row.work_permit_expiry || '',
+          insurance_expiry: row.insurance_expiry || '',
+          iqama_number: row.iqama_number || '',
+          iqama_expiry: row.iqama_expiry || '',
+          iqama_delivery_date: row.iqama_delivery_date || '',
+        })
+      }
+    })()
+    return () => { alive = false }
+  }, [data.det, sb])
+
+  // Load attachments scoped to the iqama-issuance row (medical exam, Muqeem file, iqama photo).
+  useEffect(() => {
+    if (!iqamaRow?.id) { setIqamaAttachments([]); return }
+    let alive = true
+    ;(async () => {
+      const { data: rows } = await sb.from('attachments')
+        .select('id,entity_id,file_name,file_url,notes,size_bytes,created_at')
+        .eq('entity_type', 'iqama_issuance_application')
+        .eq('entity_id', iqamaRow.id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+      if (alive) setIqamaAttachments(rows || [])
+    })()
+    return () => { alive = false }
+  }, [iqamaRow?.id, sb])
+
+  useEffect(() => {
+    const q = facQuery.trim()
+    if (q.length < 2) { setFacResults([]); setFacSearching(false); return }
+    setFacSearching(true)
+    const t = setTimeout(async () => {
+      const pattern = `%${q.replace(/[%,]/g, '')}%`
+      const { data: rows } = await sb.from('facilities')
+        .select('id,name_ar,name_en,unified_number,cr_number,gosi_number,hrsd_number')
+        .or(`name_ar.ilike.${pattern},name_en.ilike.${pattern},unified_number.ilike.${pattern},gosi_number.ilike.${pattern},hrsd_number.ilike.${pattern}`)
+        .is('deleted_at', null)
+        .limit(15)
+      setFacResults(rows || [])
+      setFacSearching(false)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [facQuery, sb])
 
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const code = sr.service_type?.code
+      // Normalize work_visa_permanent / work_visa_temporary down to 'work_visa' so the SELECTS/TABLES
+      // lookups hit the same query path for every visa variant.
+      const rawCode = sr.service_type?.code
+      const code = /^work_visa(_|$)/.test(rawCode || '') ? 'work_visa' : rawCode
 
       const SELECTS = {
-        work_visa: `id,visa_number,visa_cost,border_number,wakalah_number,wakalah_date,wakalah_office,wakalah_price_1,wakalah_price_2,visa_used,gender,
-          main_facility:main_facility_id(name_ar,unified_number),
+        work_visa: `id,visa_number,visa_cost,border_number,wakalah_number,wakalah_date,wakalah_office,wakalah_price_1,wakalah_price_2,visa_used,gender,file_number,
+          main_facility:main_facility_id(id,name_ar,name_en,unified_number,cr_number,gosi_number,hrsd_number),
           nationality:nationality_id(name_ar,name_en),
           occupation:occupation_id(name_ar,name_en),
           embassy:embassy_id(name_ar,name_en),
@@ -783,7 +901,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast }) {
   const st  = STATUS_THEME[sr.status?.code || 'new'] || STATUS_THEME.new
 
   return (
-    <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
+    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 60, color: 'var(--tx2)' }}>
       {/* Top bar: back */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
         <button onClick={onBack} title={T('رجوع','Back')} style={{ height: 40, padding: '0 14px', borderRadius: 11, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.78)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 500, transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)'; e.currentTarget.style.color = C.gold }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'rgba(255,255,255,.78)' }}>
@@ -792,43 +910,53 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast }) {
         </button>
       </div>
 
-      {/* Header — title + service tag + ref + branch + date + status */}
+      {/* Header — title + service tag + ref + branch + date + status (matches InvoiceDetailPage header) */}
       <div style={{ marginBottom: 18, marginTop: 6 }}>
-        <div style={{ fontSize: 21, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{T('تفاصيل المعاملة','Transaction Details')}</div>
-        <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)' }}>
-          <span style={{ color: svc.c, fontSize: 12, fontWeight: 700, borderBottom: '1.5px solid ' + svc.c, paddingBottom: 1 }}>{isAr ? svc.label_ar : svc.label_en}</span>
-          <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>
-            <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 600 }}>#{sr.request_ref_no}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.95)', letterSpacing: '-.3px' }}>{T('تفاصيل المعاملة','Transaction Details')}</div>
+        </div>
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 11, flexWrap: 'wrap', fontSize: 13, color: 'var(--tx3)' }}>
+          {(() => {
+            const qty = data.code === 'work_visa' ? ((data.det || []).length || Number(sr.quantity || 0)) : Number(sr.quantity || 0)
+            const showQty = data.code === 'work_visa' && qty > 0
+            return (
+              <span style={{ color: svc.c, fontSize: 14, fontWeight: 800, borderBottom: '2px solid ' + svc.c, paddingBottom: 2, display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+                {showQty && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 800 }}>×{qty}</span>}
+                <span>{isAr ? svc.label_ar : svc.label_en}</span>
+              </span>
+            )
+          })()}
+          <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}>
+            <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 700, fontSize: 14 }}>#{['TXN', sr.branch?.branch_code, String(sr.request_ref_no || '').slice(-6)].filter(Boolean).join('-')}</span>
             <button
               title={T('نسخ رقم الطلب','Copy ref no')}
               onClick={() => { try { navigator.clipboard?.writeText(sr.request_ref_no); toast?.(T('تم نسخ رقم الطلب','Ref no copied')) } catch {} }}
-              style={{ width: 19, height: 19, padding: 0, borderRadius: 4, background: 'transparent', border: 'none', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.18s' }}
+              style={{ width: 22, height: 22, padding: 0, borderRadius: 5, background: 'transparent', border: 'none', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.18s' }}
               onMouseEnter={e => { e.currentTarget.style.color = C.gold }}
               onMouseLeave={e => { e.currentTarget.style.color = 'var(--tx4)' }}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
           </span>
           {sr.branch?.branch_code && (
             <>
-              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
-              <span title={T('المكتب','Branch')} style={{ color: C.gold, fontWeight: 700, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
+              <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
+              <span title={T('المكتب','Branch')} style={{ color: C.gold, fontWeight: 700, fontSize: 13.5, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <span>{sr.branch.branch_code}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
               </span>
             </>
           )}
-          <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
-          <span style={{ color: 'var(--tx4)' }}>{fmtDateTime(sr.request_date, isAr)}</span>
-          <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
-          <span style={{ padding: '3px 10px', borderRadius: 999, border: '1.5px solid ' + st.c, color: st.c, fontSize: 10.5, fontWeight: 800, letterSpacing: '.5px' }}>{isAr ? st.stamp_ar : st.stamp_en}</span>
-          {Number(sr.quantity || 1) > 1 && (
-            <>
-              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
-              <span style={{ color: 'var(--tx3)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>×{sr.quantity}</span>
-            </>
-          )}
+          <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
+          <span style={{ color: 'var(--tx4)', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}>
+            <span style={{ direction: 'ltr' }}>{(() => {
+              const d = sr.request_date ? new Date(sr.request_date) : null
+              if (!d || isNaN(d)) return '—'
+              const p = n => String(n).padStart(2, '0')
+              return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} · ${p(d.getHours())}:${p(d.getMinutes())}`
+            })()}</span>
+          </span>
         </div>
       </div>
 
@@ -856,13 +984,538 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast }) {
             </div>
           </div>
 
-          {/* Application Details card (service-specific) */}
+          {/* Invoice Details card — mirrors InvoicePage's "بيانات الفاتورة" card with service info,
+              quantity and visa file distribution. Shown only for work-visa transactions. */}
+          {!data.loading && data.code === 'work_visa' && data.det.length > 0 && (() => {
+            const det = data.det
+            const qty = det.length || Number(sr.quantity || 0)
+            const natOf = r => (isAr ? r.nationality?.name_ar : (r.nationality?.name_en || r.nationality?.name_ar)) || '—'
+            const occOf = r => (isAr ? r.occupation?.name_ar : (r.occupation?.name_en || r.occupation?.name_ar)) || ''
+            const embOf = r => (isAr ? r.embassy?.name_ar : (r.embassy?.name_en || r.embassy?.name_ar)) || ''
+            const genOf = r => r.gender === 'female' ? T('أنثى','Female') : r.gender === 'male' ? T('ذكر','Male') : ''
+            const single = det.length === 1 ? det[0] : null
+            const renderSingleDist = (s) => {
+              const sub = [embOf(s), occOf(s), genOf(s)].filter(Boolean).join(' · ')
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0 2px' }}>
+                    <span style={{ fontSize: 11.5, color: C.cyan, fontWeight: 700 }}>{T('ملف واحد','One File')}</span>
+                    <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr' }}>1 {T('تأشيرة','visa')}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                    <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, background: svc.c + '1a', border: '1px solid ' + svc.c + '40', color: svc.c, fontSize: 10.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>1</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 700 }}>{natOf(s)}</div>
+                      {sub && <div style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, marginTop: 2 }}>{sub}</div>}
+                    </div>
+                  </div>
+                </>
+              )
+            }
+            return (
+              <div style={cardChrome}>
+                <div style={cardHeader}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: svc.c }} />
+                  <span style={cardTitle}>{T('بيانات الطلب','Request Details')}</span>
+                </div>
+                <div style={{ padding: '14px 22px' }}>
+                  <Row label={T('نوع الخدمة','Service')} value={isAr ? svc.label_ar : svc.label_en} color={svc.c} />
+                  {qty > 0 && <Row label={T('الكمية','Quantity')} value={'×' + qty} mono />}
+                  <SectionLabel label={single && single.file_number != null ? T('بيانات التأشيرات وتوزيع الملفات','Visa Details & File Distribution') : T('بيانات التأشيرات','Visa Details')} color={single?.file_number != null ? C.cyan : svc.c} />
+                  {single ? (
+                    single.file_number != null ? renderSingleDist(single) : (
+                      <>
+                        <Row label={T('الجنسية','Nationality')} value={natOf(single)} />
+                        <Row label={T('السفارة','Embassy')} value={embOf(single)} />
+                        <Row label={T('المهنة','Occupation')} value={occOf(single)} />
+                        {genOf(single) && <Row label={T('الجنس','Gender')} value={genOf(single)} />}
+                      </>
+                    )
+                  ) : (() => {
+                    const withFile = det.filter(r => r && r.file_number != null)
+                    const showFiles = withFile.length > 0
+                    const list = showFiles ? withFile : det
+                    const byFile = {}
+                    list.forEach(r => { const fn = r.file_number != null ? r.file_number : 0; (byFile[fn] = byFile[fn] || []).push(r) })
+                    const fileNos = Object.keys(byFile).map(Number).sort((a, b) => a - b)
+                    const arOrd = ['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر']
+                    const enOrd = ['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth']
+                    const fileLabel = idx => fileNos.length === 1 ? T('ملف واحد','One File') : T(`الملف ${arOrd[idx] || idx + 1}`,`${enOrd[idx] || 'File ' + (idx + 1)} File`)
+                    let n = 0
+                    return fileNos.map((fn, idx) => {
+                      const items = byFile[fn]
+                      return (
+                        <div key={fn} style={{ marginTop: idx === 0 ? 0 : 6 }}>
+                          {showFiles && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0 2px' }}>
+                              <span style={{ fontSize: 11.5, color: C.cyan, fontWeight: 700 }}>{fileLabel(idx)}</span>
+                              <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr' }}>{items.length} {T('تأشيرة','visas')}</span>
+                            </div>
+                          )}
+                          {items.map((r, i) => {
+                            n++
+                            const sub = [embOf(r), occOf(r), genOf(r)].filter(Boolean).join(' · ')
+                            return (
+                              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                                <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, background: svc.c + '1a', border: '1px solid ' + svc.c + '40', color: svc.c, fontSize: 10.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 700 }}>{natOf(r)}</div>
+                                  {sub && <div style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, marginTop: 2 }}>{sub}</div>}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Facility picker — pick the establishment the visa will be issued from. Picking from
+              the search dropdown stages the selection; the user clicks "Save & Confirm" at the
+              bottom of the card to commit (updates main_facility_id on every visa_application). */}
+          {!data.loading && data.code === 'work_visa' && (() => {
+            const current = data.det?.[0]?.main_facility || null
+            const displayed = stagedFacility || current
+            const isStaged = !!stagedFacility && stagedFacility.id !== current?.id
+            const showSearch = !displayed || facEditing
+            const stageFacility = (f) => {
+              if (!f?.id) return
+              // Clicking the current facility while a different one is staged → un-stage.
+              if (current?.id === f.id) { setStagedFacility(null); setFacQuery(''); setFacResults([]); setFacEditing(false); return }
+              setStagedFacility({ id: f.id, name_ar: f.name_ar, name_en: f.name_en, unified_number: f.unified_number, cr_number: f.cr_number, gosi_number: f.gosi_number, hrsd_number: f.hrsd_number })
+              setFacQuery(''); setFacResults([]); setFacEditing(false)
+            }
+            const saveStagedFacility = async () => {
+              if (!stagedFacility?.id || facSaving) return
+              setFacSaving(true)
+              const f = stagedFacility
+              const { error } = await sb.from('visa_applications')
+                .update({ main_facility_id: f.id })
+                .eq('service_request_id', sr.id)
+              setFacSaving(false)
+              if (error) { toast?.(T('تعذر تحديث المنشأة','Could not update facility'), 'error'); return }
+              setData(prev => ({ ...prev, det: (prev.det || []).map(d => ({ ...d, main_facility_id: f.id, main_facility: { ...f } })) }))
+              setStagedFacility(null)
+              toast?.(T('تم حفظ المنشأة','Facility saved'))
+            }
+            const matchLabel = (f) => {
+              const q = facQuery.trim().toLowerCase()
+              if (!q) return null
+              if ((f.unified_number || '').toLowerCase().includes(q)) return T('الرقم الموحد','Unified')
+              if ((f.gosi_number || '').toLowerCase().includes(q)) return T('التأمينات','GOSI')
+              if ((f.hrsd_number || '').toLowerCase().includes(q)) return T('الموارد البشرية','HRSD')
+              return null
+            }
+            const copyVal = (val, label) => {
+              if (!val) return
+              try { navigator.clipboard?.writeText(String(val)); toast?.(T(`تم نسخ ${label}`, `${label} copied`)) } catch {}
+            }
+            const NumRow = ({ label, value }) => value ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+                <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 800, letterSpacing: '.4px', minWidth: 86 }}>{label}</span>
+                <span style={{ flex: 1, fontSize: 12.5, color: 'var(--tx2)', fontFamily: 'monospace', fontWeight: 700, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'end' }}>{value}</span>
+                <button
+                  title={T('نسخ','Copy')}
+                  onClick={() => copyVal(value, label)}
+                  style={{ width: 22, height: 22, padding: 0, borderRadius: 5, background: 'transparent', border: 'none', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.color = C.gold }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--tx4)' }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            ) : null
+            return (
+              <div style={cardChrome}>
+                <style>{`.tx-fac-results{scrollbar-width:none;-ms-overflow-style:none}.tx-fac-results::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
+                <div style={cardHeader}>
+                  <StepBadge n={1} c={C.gold} />
+                  <span style={cardTitle}>{T('تحديد المنشأة','Select Facility')}</span>
+                  {facSaving && <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('جارٍ الحفظ…','Saving…')}</span>}
+                </div>
+                <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {displayed && !facEditing && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 12, background: isStaged ? 'rgba(212,160,23,.10)' : 'rgba(212,160,23,.06)', border: '1px solid ' + (isStaged ? 'rgba(212,160,23,.5)' : 'rgba(212,160,23,.28)') }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                        <div style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, background: C.gold + '22', border: '1px solid ' + C.gold + '55', color: C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {isStaged ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          ) : (
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 10.5, color: isStaged ? C.gold : 'var(--tx4)', fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 3 }}>{isStaged ? T('بانتظار الحفظ','Pending save') : T('المنشأة الحالية','Current Facility')}</div>
+                          <div style={{ fontSize: 14, color: 'var(--tx1)', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(isAr ? displayed.name_ar : (displayed.name_en || displayed.name_ar)) || '—'}</div>
+                        </div>
+                        {isStaged && (
+                        <button
+                          onClick={() => { setFacEditing(true); setFacQuery(''); setFacResults([]) }}
+                          style={{ flexShrink: 0, height: 28, padding: '0 11px', borderRadius: 8, background: 'rgba(0,0,0,.22)', border: '1px solid rgba(212,160,23,.32)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,.22)' }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                          <span>{T('تغيير','Change')}</span>
+                        </button>
+                        )}
+                      </div>
+                      {(displayed.unified_number || displayed.cr_number || displayed.gosi_number || displayed.hrsd_number) && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <NumRow label={T('الرقم الموحد','UN')} value={displayed.unified_number} />
+                          <NumRow label={T('السجل التجاري','CR')} value={displayed.cr_number} />
+                          <NumRow label={T('التأمينات','GOSI')} value={displayed.gosi_number} />
+                          <NumRow label={T('الموارد البشرية','HRSD')} value={displayed.hrsd_number} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {showSearch && (
+                    <>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', top: '50%', insetInlineStart: 12, transform: 'translateY(-50%)', color: 'var(--tx4)', pointerEvents: 'none', display: 'inline-flex' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                        </span>
+                        <input
+                          type="text"
+                          value={facQuery}
+                          onChange={e => setFacQuery(e.target.value)}
+                          autoFocus={facEditing}
+                          placeholder={T('ابحث بالاسم، الرقم الموحد، رقم التأمينات، أو رقم الموارد البشرية…','Search by name, Unified, GOSI, or HRSD number…')}
+                          style={{ width: '100%', height: 40, padding: displayed ? '0 38px 0 38px' : '0 14px 0 38px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }}
+                          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)' }}
+                        />
+                        {displayed && (
+                          <button
+                            onClick={() => { setFacEditing(false); setFacQuery(''); setFacResults([]) }}
+                            title={T('إلغاء','Cancel')}
+                            style={{ position: 'absolute', top: '50%', insetInlineEnd: 8, transform: 'translateY(-50%)', width: 26, height: 26, padding: 0, borderRadius: 6, background: 'transparent', border: 'none', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.18s' }}
+                            onMouseEnter={e => { e.currentTarget.style.color = C.red }}
+                            onMouseLeave={e => { e.currentTarget.style.color = 'var(--tx4)' }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        )}
+                      </div>
+                      {facQuery.trim().length >= 2 && (
+                        <div className="tx-fac-results" style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.18)', maxHeight: 320, overflowY: 'auto' }}>
+                          {facSearching && <div style={{ padding: '14px 16px', fontSize: 12, color: 'var(--tx4)', textAlign: 'center' }}>{T('جارٍ البحث…','Searching…')}</div>}
+                          {!facSearching && facResults.length === 0 && <div style={{ padding: '14px 16px', fontSize: 12, color: 'var(--tx4)', textAlign: 'center' }}>{T('لا توجد نتائج','No results')}</div>}
+                          {!facSearching && facResults.map(f => {
+                            const isCurrent = current?.id === f.id
+                            const isStagedPick = stagedFacility?.id === f.id && !isCurrent
+                            const match = matchLabel(f)
+                            return (
+                              <div
+                                key={f.id}
+                                onClick={() => stageFacility(f)}
+                                style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', cursor: 'pointer', transition: '.15s', background: isStagedPick ? 'rgba(212,160,23,.12)' : (isCurrent ? 'rgba(212,160,23,.06)' : 'transparent'), position: 'relative' }}
+                                onMouseEnter={e => { if (!isCurrent && !isStagedPick) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
+                                onMouseLeave={e => { if (!isCurrent && !isStagedPick) e.currentTarget.style.background = 'transparent' }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 13, color: (isCurrent || isStagedPick) ? C.gold : 'var(--tx2)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{(isAr ? f.name_ar : (f.name_en || f.name_ar)) || '—'}</span>
+                                  {(isCurrent || isStagedPick) && (
+                                    <span style={{ flexShrink: 0, color: C.gold, display: 'inline-flex', alignItems: 'center' }}>
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr' }}>
+                                  {f.unified_number && <span><span style={{ color: 'var(--tx4)' }}>UN </span><span style={{ color: 'var(--tx3)', fontFamily: 'monospace' }}>{f.unified_number}</span></span>}
+                                  {f.gosi_number && <span><span style={{ color: 'var(--tx4)' }}>GOSI </span><span style={{ color: 'var(--tx3)', fontFamily: 'monospace' }}>{f.gosi_number}</span></span>}
+                                  {f.hrsd_number && <span><span style={{ color: 'var(--tx4)' }}>HRSD </span><span style={{ color: 'var(--tx3)', fontFamily: 'monospace' }}>{f.hrsd_number}</span></span>}
+                                  {match && <span style={{ marginInlineStart: 'auto', fontSize: 9.5, color: C.cyan, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'rgba(22,160,133,.12)' }}>{T('مطابقة:','match:')} {match}</span>}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {isStaged
+                    ? <SaveBtn T={T} dirty={isStaged} saving={facSaving} onClick={saveStagedFacility} />
+                    : (displayed && !facEditing && <QiwaSubscriptionBox sb={sb} sr={sr} T={T} toast={toast} user={user} />)}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Visa Issuance + Wakalah cards — collect the post-issuance data and attach the visa
+              PDF / commercial-registry PDF. Text/date inputs only update the form state; the
+              "Save & Confirm" button at the bottom of each card persists them to
+              visa_applications. File uploads still happen on selection. */}
+          {!data.loading && data.code === 'work_visa' && data.det.length > 0 && (() => {
+            const firstId = data.det[0]?.id
+            const uploadPdf = async (file, kind) => {
+              if (!firstId || !file) return
+              if (file.type && !/pdf/i.test(file.type)) { toast?.(T('الملف يجب أن يكون PDF','File must be a PDF'), 'error'); return }
+              setUploading(u => ({ ...u, [kind]: true }))
+              try {
+                const safe = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
+                const path = `visa-applications/${firstId}/${kind}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${safe}`
+                const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+                if (upErr) throw upErr
+                const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+                const { data: row, error: insErr } = await sb.from('attachments').insert({
+                  entity_type: 'visa_application', entity_id: firstId,
+                  file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path,
+                  mime_type: file.type || null, size_bytes: file.size || null,
+                  notes: kind,
+                }).select('id,entity_id,file_name,file_url,notes,size_bytes,created_at').single()
+                if (insErr) throw insErr
+                setVisaAttachments(prev => [row, ...prev])
+                toast?.(T('تم رفع الملف','File uploaded'))
+              } catch (e) { toast?.(T('تعذر رفع الملف','Upload failed'), 'error') }
+              finally { setUploading(u => ({ ...u, [kind]: false })) }
+            }
+            const filesOf = (kind) => visaAttachments.filter(a => a.notes === kind)
+            const setVF = (field, v) => setVisaForm(f => ({ ...f, [field]: v }))
+
+            const visaCardFields = {
+              2: ['visa_number', 'border_number'],
+              3: ['wakalah_office', 'wakalah_date'],
+            }
+            const isVisaCardDirty = (n) => visaCardFields[n].some(f => (visaForm[f] || '') !== (data.det?.[0]?.[f] || ''))
+            const saveVisaCard = async (n) => {
+              if (!firstId) return
+              const dirty = visaCardFields[n].filter(f => (visaForm[f] || '') !== (data.det?.[0]?.[f] || ''))
+              if (dirty.length === 0) return
+              setVisaCardSaving(s => ({ ...s, [n]: true }))
+              try {
+                const updates = {}
+                for (const f of dirty) updates[f] = visaForm[f] || null
+                const { error } = await sb.from('visa_applications').update(updates).eq('service_request_id', sr.id)
+                if (error) { toast?.(T('تعذر الحفظ','Save failed'), 'error'); return }
+                setData(prev => ({ ...prev, det: prev.det.map(d => ({ ...d, ...updates })) }))
+                toast?.(T('تم الحفظ','Saved'))
+              } finally {
+                setVisaCardSaving(s => ({ ...s, [n]: false }))
+              }
+            }
+
+            return (
+              <>
+                <div style={cardChrome}>
+                  <div style={cardHeader}>
+                    <StepBadge n={2} c={C.blue} />
+                    <span style={cardTitle}>{T('إصدار التأشيرة','Visa Issuance')}</span>
+                  </div>
+                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <EditField label={T('رقم التأشيرة','Visa No.')} value={visaForm.visa_number}
+                        onChange={v => setVF('visa_number', v)} mono placeholder="—" />
+                      <EditField label={T('رقم الحدود','Border No.')} value={visaForm.border_number}
+                        onChange={v => setVF('border_number', v)} mono placeholder="—" />
+                    </div>
+                    <AttachField T={T} label={T('ملف التأشيرة (PDF)','Visa file (PDF)')}
+                      files={filesOf('visa_pdf')} isUploading={!!uploading.visa_pdf}
+                      onPick={f => uploadPdf(f, 'visa_pdf')} />
+                    <SaveBtn T={T} dirty={isVisaCardDirty(2)} saving={!!visaCardSaving[2]} onClick={() => saveVisaCard(2)} />
+                  </div>
+                </div>
+
+                <div style={cardChrome}>
+                  <div style={cardHeader}>
+                    <StepBadge n={3} c={C.purple} />
+                    <span style={cardTitle}>{T('الوكالة','Wakalah')}</span>
+                  </div>
+                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <AttachField T={T} label={T('ملف السجل التجاري (PDF)','Commercial Registry (PDF)')}
+                      files={filesOf('cr_pdf')} isUploading={!!uploading.cr_pdf}
+                      onPick={f => uploadPdf(f, 'cr_pdf')} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <EditField label={T('مكتب التوكيل','Wakalah Office')} value={visaForm.wakalah_office}
+                        onChange={v => setVF('wakalah_office', v)} placeholder="—" />
+                      <EditField label={T('تاريخ الوكالة','Wakalah Date')} value={visaForm.wakalah_date}
+                        onChange={v => setVF('wakalah_date', v)} type="date" mono />
+                    </div>
+                    <SaveBtn T={T} dirty={isVisaCardDirty(3)} saving={!!visaCardSaving[3]} onClick={() => saveVisaCard(3)} />
+                  </div>
+                </div>
+              </>
+            )
+          })()}
+
+          {/* Iqama-issuance follow-up cards — populate `iqama_issuance_applications` (linked by
+              visa_application_id). The row is created on first edit (auto-upsert). Each card owns
+              a specific step in the post-visa lifecycle. */}
+          {!data.loading && data.code === 'work_visa' && data.det.length > 0 && (() => {
+            const visa = data.det[0]
+            const visaId = visa?.id
+            if (!visaId) return null
+
+            const ensureRow = async () => {
+              if (iqamaRow?.id) return iqamaRow.id
+              const { data: row, error } = await sb.from('iqama_issuance_applications').insert({
+                visa_application_id: visaId,
+                service_request_id: sr.id,
+                main_facility_id: visa.main_facility_id || null,
+              }).select('id,worker_name_at_entry,work_permit_expiry,insurance_expiry,iqama_number,iqama_expiry,iqama_delivery_date').single()
+              if (error || !row) { toast?.(T('تعذر إنشاء سجل الإقامة','Could not create iqama record'), 'error'); return null }
+              setIqamaRow(row)
+              return row.id
+            }
+
+            // Per-card field map: each step card's manual-entry fields.
+            const cardFields = {
+              4: ['worker_name_at_entry'],
+              5: ['work_permit_expiry'],
+              6: ['insurance_expiry'],
+              7: ['iqama_number', 'iqama_expiry'],
+              8: ['iqama_delivery_date'],
+            }
+            const isCardDirty = (n) => cardFields[n].some(f => (iqamaForm[f] || '') !== (iqamaRow?.[f] || ''))
+            const saveCard = async (n) => {
+              const dirty = cardFields[n].filter(f => (iqamaForm[f] || '') !== (iqamaRow?.[f] || ''))
+              if (dirty.length === 0) return
+              setIqamaCardSaving(s => ({ ...s, [n]: true }))
+              try {
+                const rowId = await ensureRow()
+                if (!rowId) return
+                const updates = {}
+                for (const f of dirty) updates[f] = iqamaForm[f] || null
+                const { error } = await sb.from('iqama_issuance_applications').update(updates).eq('id', rowId)
+                if (error) { toast?.(T('تعذر الحفظ','Save failed'), 'error'); return }
+                setIqamaRow(r => ({ ...(r || { id: rowId }), ...updates }))
+                toast?.(T('تم الحفظ','Saved'))
+              } finally {
+                setIqamaCardSaving(s => ({ ...s, [n]: false }))
+              }
+            }
+
+            const uploadIqamaFile = async (file, kind, allowImage) => {
+              if (!file) return
+              const accept = allowImage ? /(pdf|image)/i : /pdf/i
+              if (file.type && !accept.test(file.type)) {
+                toast?.(allowImage ? T('الملف يجب أن يكون PDF أو صورة','File must be a PDF or image') : T('الملف يجب أن يكون PDF','File must be a PDF'), 'error')
+                return
+              }
+              setIqamaUploading(u => ({ ...u, [kind]: true }))
+              try {
+                const rowId = await ensureRow()
+                if (!rowId) return
+                const safe = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
+                const path = `iqama-issuance/${rowId}/${kind}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${safe}`
+                const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+                if (upErr) throw upErr
+                const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+                const { data: row, error: insErr } = await sb.from('attachments').insert({
+                  entity_type: 'iqama_issuance_application', entity_id: rowId,
+                  file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path,
+                  mime_type: file.type || null, size_bytes: file.size || null,
+                  notes: kind,
+                }).select('id,entity_id,file_name,file_url,notes,size_bytes,created_at').single()
+                if (insErr) throw insErr
+                setIqamaAttachments(prev => [row, ...prev])
+                toast?.(T('تم رفع الملف','File uploaded'))
+              } catch (e) { toast?.(T('تعذر رفع الملف','Upload failed'), 'error') }
+              finally { setIqamaUploading(u => ({ ...u, [kind]: false })) }
+            }
+
+            const filesOf = (kind) => iqamaAttachments.filter(a => a.notes === kind)
+
+            const setF = (field, v) => setIqamaForm(f => ({ ...f, [field]: v }))
+
+            return (
+              <>
+                {/* Medical Exam */}
+                <div style={cardChrome}>
+                  <div style={cardHeader}>
+                    <StepBadge n={4} c={C.cyan} />
+                    <span style={cardTitle}>{T('الفحص الطبي','Medical Exam')}</span>
+                  </div>
+                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <EditField label={T('اسم العامل','Worker Name')} value={iqamaForm.worker_name_at_entry}
+                      onChange={v => setF('worker_name_at_entry', v)} placeholder="—" />
+                    <AttachField T={T} label={T('صورة الفحص الطبي','Medical Exam File')}
+                      files={filesOf('medical_exam')} isUploading={!!iqamaUploading.medical_exam}
+                      onPick={f => uploadIqamaFile(f, 'medical_exam', true)} allowImage />
+                    <SaveBtn T={T} dirty={isCardDirty(4)} saving={!!iqamaCardSaving[4]} onClick={() => saveCard(4)} />
+                  </div>
+                </div>
+
+                {/* Work Permit */}
+                <div style={cardChrome}>
+                  <div style={cardHeader}>
+                    <StepBadge n={5} c={C.blue} />
+                    <span style={cardTitle}>{T('رخصة العمل','Work Permit')}</span>
+                  </div>
+                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <EditField label={T('تاريخ الانتهاء','Expiry Date')} value={iqamaForm.work_permit_expiry}
+                      onChange={v => setF('work_permit_expiry', v)} type="date" mono />
+                    <SaveBtn T={T} dirty={isCardDirty(5)} saving={!!iqamaCardSaving[5]} onClick={() => saveCard(5)} />
+                  </div>
+                </div>
+
+                {/* Medical Insurance */}
+                <div style={cardChrome}>
+                  <div style={cardHeader}>
+                    <StepBadge n={6} c={C.ok} />
+                    <span style={cardTitle}>{T('التأمين الطبي','Medical Insurance')}</span>
+                  </div>
+                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <EditField label={T('تاريخ انتهاء التأمين','Insurance Expiry')} value={iqamaForm.insurance_expiry}
+                      onChange={v => setF('insurance_expiry', v)} type="date" mono />
+                    <SaveBtn T={T} dirty={isCardDirty(6)} saving={!!iqamaCardSaving[6]} onClick={() => saveCard(6)} />
+                  </div>
+                </div>
+
+                {/* Iqama Issuance */}
+                <div style={cardChrome}>
+                  <div style={cardHeader}>
+                    <StepBadge n={7} c={C.gold} />
+                    <span style={cardTitle}>{T('إصدار الإقامة','Iqama Issuance')}</span>
+                  </div>
+                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <EditField label={T('رقم الإقامة','Iqama No.')} value={iqamaForm.iqama_number}
+                        onChange={v => setF('iqama_number', v)} mono placeholder="—" />
+                      <EditField label={T('تاريخ الانتهاء','Expiry Date')} value={iqamaForm.iqama_expiry}
+                        onChange={v => setF('iqama_expiry', v)} type="date" mono />
+                    </div>
+                    <AttachField T={T} label={T('ملف مقيم (PDF)','Muqeem File (PDF)')}
+                      files={filesOf('iqama_pdf')} isUploading={!!iqamaUploading.iqama_pdf}
+                      onPick={f => uploadIqamaFile(f, 'iqama_pdf', false)} />
+                    <SaveBtn T={T} dirty={isCardDirty(7)} saving={!!iqamaCardSaving[7]} onClick={() => saveCard(7)} />
+                  </div>
+                </div>
+
+                {/* Iqama Delivery */}
+                <div style={cardChrome}>
+                  <div style={cardHeader}>
+                    <StepBadge n={8} c={C.purple} />
+                    <span style={cardTitle}>{T('توصيل الإقامة','Iqama Delivery')}</span>
+                  </div>
+                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <EditField label={T('تاريخ الوصول','Arrival Date')} value={iqamaForm.iqama_delivery_date}
+                      onChange={v => setF('iqama_delivery_date', v)} type="date" mono />
+                    <AttachField T={T} label={T('صورة الإقامة','Iqama Photo')}
+                      files={filesOf('iqama_photo')} isUploading={!!iqamaUploading.iqama_photo}
+                      onPick={f => uploadIqamaFile(f, 'iqama_photo', true)} allowImage />
+                    <SaveBtn T={T} dirty={isCardDirty(8)} saving={!!iqamaCardSaving[8]} onClick={() => saveCard(8)} />
+                  </div>
+                </div>
+              </>
+            )
+          })()}
+
+          {/* Application Details card — kept only for non-work-visa services since the work-visa case
+              is already covered by the "بيانات الفاتورة" card above (nationality, embassy, occupation,
+              gender, and file distribution). */}
           {data.loading && (
             <div style={cardChrome}>
               <div style={{ padding: '18px 22px', textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>{T('جاري تحميل التفاصيل…','Loading details…')}</div>
             </div>
           )}
-          {!data.loading && data.det.map((d, idx) => (
+          {!data.loading && data.code !== 'work_visa' && data.det.map((d, idx) => (
             <div key={d.id || idx} style={cardChrome}>
               <div style={cardHeader}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: svc.c }} />
@@ -919,19 +1572,15 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast }) {
               <span style={cardTitle}>{T('حالة الطلب','Request Status')}</span>
             </div>
             <div style={{ padding: '18px 22px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 12, height: 12, borderRadius: '50%', background: st.c, boxShadow: `0 0 12px ${st.c}aa` }} />
                 <span style={{ fontSize: 22, fontWeight: 800, color: st.c, letterSpacing: '-.3px' }}>{isAr ? st.stamp_ar : st.stamp_en}</span>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                {T('آخر تحديث','Last update')} <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(sr.request_date)}</span>
               </div>
             </div>
             <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <Row label={T('نوع الخدمة','Service')} value={isAr ? svc.label_ar : svc.label_en} color={svc.c} />
               <Row label={T('الكمية','Quantity')} value={'×' + Number(sr.quantity || 1)} mono />
-              {sr.branch?.branch_code && <Row label={T('المكتب','Branch')} value={sr.branch.branch_code} mono />}
-              <Row label={T('تاريخ الطلب','Request Date')} value={fmtGreg(sr.request_date)} mono />
+              <Row label={T('آخر تحديث','Last update')} value={fmtGreg(sr.request_date)} mono />
               {sr.paid_date && <Row label={T('تاريخ السداد','Paid Date')} value={fmtGreg(sr.paid_date)} mono color={C.ok} />}
             </div>
           </div>
@@ -963,12 +1612,6 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast }) {
                   <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${payC}, ${payC}dd)`, transition: 'width .3s' }} />
                   </div>
-                  {(iv.payment_plan || iv.installments_count > 0) && (
-                    <div style={{ marginTop: 12, fontSize: 11, color: 'var(--tx4)', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>{iv.payment_plan === 'installment' ? T('أقساط','Installments') : T('نقد','Cash')}</span>
-                      {iv.installments_count > 0 && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{iv.installments_count} {T('قسط','installments')}</span>}
-                    </div>
-                  )}
                 </div>
               </div>
             )
@@ -1092,6 +1735,14 @@ const Row = ({ label, value, mono, color }) => (
   </div>
 )
 
+const SectionLabel = ({ label, color = C.gold }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 0 6px', marginTop: 4 }}>
+    <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}aa` }} />
+    <span style={{ fontSize: 10.5, color: color, fontWeight: 700, letterSpacing: '.6px' }}>{label}</span>
+    <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
+  </div>
+)
+
 const AmountBox = ({ label, value, color }) => (
   <div style={{ padding: '14px 18px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
     <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: 1 }}>{label}</div>
@@ -1099,7 +1750,280 @@ const AmountBox = ({ label, value, color }) => (
   </div>
 )
 
-const cardChrome = { background: 'linear-gradient(180deg,#1f1f1f 0%,#181818 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
+// "Save & Confirm" button used at the bottom of each iqama-issuance step card. The cards
+// no longer auto-save on blur / calendar pick / etc.; the user types or picks, then clicks
+// the button to persist the change.
+function SaveBtn({ T, dirty, saving, onClick }) {
+  const disabled = !dirty || saving
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'rgba(212,160,23,.15)' }}
+      onMouseLeave={e => { if (!disabled) e.currentTarget.style.background = 'transparent' }}
+      style={{
+        height: 38, padding: '0 20px', borderRadius: 9,
+        background: 'transparent',
+        border: '1px solid ' + (disabled ? 'rgba(255,255,255,.08)' : 'rgba(212,160,23,.5)'),
+        color: disabled ? 'var(--tx4)' : C.gold,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: F, fontSize: 12.5, fontWeight: 800,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+        alignSelf: 'flex-end', minWidth: 150,
+        transition: '.15s', boxShadow: 'none',
+      }}
+    >
+      {saving ? (
+        <span>{T('جارٍ الحفظ…','Saving…')}</span>
+      ) : (
+        <>
+          <span>{T('حفظ وتأكيد','Save & Confirm')}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </>
+      )}
+    </button>
+  )
+}
+
+// Qiwa subscription add-on shown after the facility is saved. The checkbox expands the form
+// (SADAD number + amount). Submitting inserts a row in transaction_fees with status='pending'
+// so it appears in the Payments page until the office pays it. The component fetches any
+// existing fee on mount so the pending/paid badge survives reloads.
+function QiwaSubscriptionBox({ sb, sr, T, toast, user }) {
+  const [open, setOpen] = useState(false)
+  const [existing, setExisting] = useState(null) // { status } | null — fee row, if any
+  const [loading, setLoading] = useState(true)
+  const [sadad, setSadad] = useState('')
+  const [amount, setAmount] = useState('')
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data } = await sb.from('transaction_fees')
+        .select('id,status').eq('service_request_id', sr.id).eq('fee_label_ar', 'اشتراك قوى')
+        .is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (!alive) return
+      setExisting(data || null); setLoading(false)
+    })()
+    return () => { alive = false }
+  }, [sb, sr.id])
+  const canSubmit = sadad.trim().length > 0 && Number(amount) > 0 && !saving
+  const submit = async () => {
+    if (!canSubmit) return
+    setSaving(true)
+    try {
+      const { data, error } = await sb.from('transaction_fees').insert({
+        service_request_id: sr.id,
+        fee_label_ar: 'اشتراك قوى',
+        fee_label_en: 'Qiwa Subscription',
+        amount: Number(amount),
+        sadad_no: sadad.trim(),
+        status: 'pending',
+        // Marker so PaymentsPage only lists items explicitly sent for payment via this flow
+        // (and not auto-generated / legacy rows in transaction_fees).
+        notes: 'manual_pay_request',
+        created_by: user?.id || null,
+      }).select('id,status').single()
+      if (error) throw error
+      toast?.(T('تمت إضافة اشتراك قوى للمدفوعات', 'Qiwa subscription added to Payments'))
+      setExisting(data); setOpen(false)
+    } catch (e) {
+      toast?.(T('تعذرت الإضافة: ' + (e.message || ''), 'Could not add: ' + (e.message || '')), 'error')
+    } finally { setSaving(false) }
+  }
+  if (loading) return null
+  if (existing) {
+    const isPaid = existing.status === 'paid'
+    const c = isPaid ? C.ok : C.warn
+    return (
+      <div style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px 14px', borderRadius: 9, background: `${c}1f`, border: `1px solid ${c}66`, color: c, fontFamily: F, fontSize: 12.5, fontWeight: 800 }}>
+        {isPaid
+          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+        <span>{T(isPaid ? 'تم السداد' : 'في انتظار السداد', isPaid ? 'Paid' : 'Pending payment')}</span>
+      </div>
+    )
+  }
+  return (
+    <div style={{ alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <label style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', userSelect: 'none', padding: '10px 14px', borderRadius: 9, background: open ? 'rgba(212,160,23,.10)' : 'transparent', border: '1px solid ' + (open ? 'rgba(212,160,23,.4)' : 'rgba(212,160,23,.25)'), transition: '.15s', boxSizing: 'border-box' }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(212,160,23,.06)' }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent' }}>
+        <span style={{ width: 18, height: 18, borderRadius: 5, border: '1.5px solid ' + (open ? C.gold : 'rgba(212,160,23,.5)'), background: open ? C.gold : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>
+          {open && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+        </span>
+        <input type="checkbox" checked={open} onChange={e => setOpen(e.target.checked)} style={{ display: 'none' }} />
+        <span style={{ fontFamily: F, fontSize: 12.5, fontWeight: 700, color: open ? C.gold : C.gold }}>{T('إضافة اشتراك قوى','Add Qiwa subscription')}</span>
+      </label>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(212,160,23,.25)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px' }}>{T('رقم السداد','SADAD No')}</label>
+              <input type="text" value={sadad} onChange={e => setSadad(e.target.value.replace(/[^\d]/g, ''))} placeholder="—"
+                style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx1)', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, direction: 'ltr', textAlign: 'center', outline: 'none' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px' }}>{T('المبلغ (ريال)','Amount (SAR)')}</label>
+              <input type="text" inputMode="decimal" value={amount}
+                onChange={e => { const v = e.target.value.replace(/[^\d.]/g, ''); if (/^\d*\.?\d*$/.test(v)) setAmount(v) }}
+                placeholder="0.00"
+                style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.08)', color: C.gold, fontFamily: F, fontSize: 14, fontWeight: 800, direction: 'ltr', textAlign: 'center', outline: 'none' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }} />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!canSubmit}
+            onMouseEnter={e => { if (canSubmit) e.currentTarget.style.background = 'rgba(212,160,23,.15)' }}
+            onMouseLeave={e => { if (canSubmit) e.currentTarget.style.background = 'transparent' }}
+            style={{
+              height: 38, padding: '0 20px', borderRadius: 9,
+              background: 'transparent',
+              border: '1px solid ' + (canSubmit ? 'rgba(212,160,23,.5)' : 'rgba(255,255,255,.08)'),
+              color: canSubmit ? C.gold : 'var(--tx4)',
+              cursor: canSubmit ? 'pointer' : 'not-allowed',
+              fontFamily: F, fontSize: 12.5, fontWeight: 800,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+              alignSelf: 'flex-end', minWidth: 160, transition: '.15s', boxShadow: 'none',
+            }}>
+            <span>{saving ? T('جارٍ الإضافة…','Adding…') : T('تأكيد وسداد','Confirm & Pay')}</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Small numbered badge used in card headers to mark the post-payment workflow steps:
+// 1) facility → 2) visa issuance → 3) wakalah → 4) medical exam → 5) work permit →
+// 6) medical insurance → 7) iqama issuance → 8) iqama delivery.
+function StepBadge({ n, c }) {
+  return (
+    <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: '50%', background: c + '1f', border: '1px solid ' + c + '66', color: c, fontSize: 11.5, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: F, fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+  )
+}
+
+// Stable module-scope components for the step cards. Defining these at module scope (rather
+// than inside an IIFE) keeps the function reference stable across re-renders, so inputs don't
+// get remounted and don't lose focus on every keystroke.
+const fmtFileSize = b => !b ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`
+
+function DatePickerInput({ value, onChange }) {
+  const wrapRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [anchor, setAnchor] = useState(null)
+  const [text, setText] = useState(value || '')
+  useEffect(() => { setText(value || '') }, [value])
+  const handleType = t => {
+    let v = t.replace(/[^0-9-]/g, '')
+    if (v.length > 4 && v[4] !== '-') v = v.slice(0,4) + '-' + v.slice(4)
+    if (v.length > 7 && v[7] !== '-') v = v.slice(0,7) + '-' + v.slice(7)
+    v = v.slice(0, 10)
+    if (v.length >= 7) {
+      const m = parseInt(v.slice(5, 7), 10)
+      if (m > 12) v = v.slice(0, 5) + '12' + v.slice(7)
+      else if (m === 0) v = v.slice(0, 5) + '01' + v.slice(7)
+    }
+    if (v.length >= 10) {
+      const d = parseInt(v.slice(8, 10), 10)
+      if (d > 31) v = v.slice(0, 8) + '31'
+      else if (d === 0) v = v.slice(0, 8) + '01'
+    }
+    setText(v)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v) || v === '') onChange(v)
+  }
+  const openPicker = () => {
+    if (!open && wrapRef.current) {
+      const r = wrapRef.current.getBoundingClientRect()
+      setAnchor({ top: r.top, bottom: r.bottom, left: r.left, width: r.width })
+    }
+    setOpen(o => !o)
+  }
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', width: '100%' }}>
+      <input
+        type="text"
+        value={text}
+        onChange={e => handleType(e.target.value)}
+        placeholder="yyyy-mm-dd"
+        style={{ width: '100%', height: 38, padding: '0 38px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx1)', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box', direction: 'ltr', textAlign: 'center', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)' }}
+      />
+      <button
+        type="button"
+        onClick={openPicker}
+        aria-label="calendar"
+        style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28, border: 'none', background: open ? 'rgba(212,160,23,.14)' : 'transparent', cursor: 'pointer', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: 7, transition: '.15s' }}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </button>
+      {open && anchor && (<>
+        <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />
+        <CalendarPopup value={value} onPick={onChange} onClose={() => setOpen(false)} anchor={anchor} lang="ar" />
+      </>)}
+    </div>
+  )
+}
+
+function EditField({ label, value, onChange, type = 'text', mono = false, placeholder = '' }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <span style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px' }}>{label}</span>
+      {type === 'date' ? (
+        <DatePickerInput value={value} onChange={onChange} />
+      ) : (
+        <input
+          type={type}
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx1)', fontFamily: mono ? 'monospace' : F, fontSize: 13, outline: 'none', boxSizing: 'border-box', direction: mono ? 'ltr' : undefined, fontVariantNumeric: mono ? 'tabular-nums' : undefined }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
+          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)' }}
+        />
+      )}
+    </div>
+  )
+}
+
+function AttachField({ T, label, files, isUploading, onPick, allowImage = false, hint }) {
+  const accept = allowImage ? 'application/pdf,image/*,.pdf,.jpg,.jpeg,.png,.webp' : 'application/pdf,.pdf'
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px' }}>{label}</span>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, border: '1px dashed rgba(212,160,23,.32)', background: 'rgba(212,160,23,.04)', cursor: isUploading ? 'wait' : 'pointer', transition: '.15s' }}
+        onMouseEnter={e => { if (!isUploading) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
+        onMouseLeave={e => { if (!isUploading) e.currentTarget.style.background = 'rgba(212,160,23,.04)' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span style={{ fontSize: 12, color: isUploading ? 'var(--tx4)' : C.gold, fontWeight: 700, flex: 1 }}>{isUploading ? T('جارٍ الرفع…','Uploading…') : (hint || (allowImage ? T('انقر لاختيار صورة أو PDF','Click to choose image or PDF') : T('انقر لاختيار ملف PDF','Click to choose a PDF')))}</span>
+        <input type="file" accept={accept} disabled={isUploading} onChange={e => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = '' }} style={{ display: 'none' }} />
+      </label>
+      {files.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {files.map(a => (
+            <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.04)', textDecoration: 'none', transition: '.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.file_name || '—'}</span>
+              {a.size_bytes && <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, fontFamily: 'monospace' }}>{fmtFileSize(a.size_bytes)}</span>}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle  = { fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '.2px' }
 

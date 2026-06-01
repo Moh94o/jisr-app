@@ -1,6 +1,6 @@
 import React,{useState,useEffect,useCallback,useMemo,useRef} from 'react'
 import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Languages,Wallet,Printer,Plane,PlaneTakeoff,TriangleAlert,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Paperclip,Copy,Check,MapPin,Sparkles,TrendingUp} from 'lucide-react'
-import {isServiceActive,isServiceBillable} from './ServiceAdminPage.jsx'
+import {isServiceActive,isServiceBillable,isServiceActiveFor,isServiceBillableFor,getPricingFor} from './ServiceAdminPage.jsx'
 import {DateField, Sel as KafalaSel, OccSelect as KafalaOccSelect} from './pages/KafalaCalculator.jsx'
 const F="'Cairo','Tajawal',sans-serif"
 const C={gold:'#D4A017',red:'#c0392b',ok:'#27a046',blue:'#3483b4',bentoGold:'#D4A017'}
@@ -334,14 +334,17 @@ const openBankAccDropdown=()=>{if(bankAccTriggerRef.current){const r=bankAccTrig
 const[visaInstallments,setVisaInstallments]=useState({issuance:'',authorization:'',residencePerVisa:''})
 // Visa services: total price override (null = use computed pricing.total)
 const[totalOverride,setTotalOverride]=useState(null)
-// Read per-installment minimum pricing config (from localStorage, with defaults)
+// Read per-installment + total minimum pricing config — branch-aware via getPricingFor (falls back to global defaults).
+// Returns per-visa minimums; callers multiply by visa count for absolute thresholds.
 const getVisaMinConfig=(svc)=>{
-const key=svc==='work_visa_temporary'?'visaPricingMin_temporary':'visaPricingMin_permanent'
-try{
-const raw=localStorage.getItem(key)||localStorage.getItem('visaPricingMin')// back-compat with old shared key
-if(raw){const p=JSON.parse(raw);return{issuance:Number(p.issuance)||2000,authorization:Number(p.authorization)||2000,residence:Number(p.residence)||0}}
-}catch(e){}
-return{issuance:2000,authorization:2000,residence:0}
+const branchForPricing=user?.primary_branch_id||branchId||null
+const p=getPricingFor(svc,branchForPricing)||{}
+return{
+  issuance:Number(p.issuance)||0,
+  authorization:Number(p.authorization)||0,
+  residence:Number(p.residence)||0,
+  defaultTotal:Number(p.defaultTotal)||0,
+}
 }
 const[addAdminNote,setAddAdminNote]=useState(false)
 const[addClientNote,setAddClientNote]=useState(false)
@@ -405,7 +408,7 @@ const[r,c,w,b,ci,ba]=await Promise.all([
 sb.from('regions').select('id,name_ar').order('name_ar'),
 sb.from('clients').select('id,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).order('name_ar').limit(500),
 // Worker query with current_facility / current_occupation / nationality joins (new schema)
-sb.from('workers').select('id,name_ar,name_en,phone,iqama_number,birth_date,nationality:nationality_id(id,name_ar,code:code,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,unified_number)').is('deleted_at',null).order('name_ar').limit(50),
+sb.from('workers').select('id,name_ar,name_en,phone,iqama_number,iqama_expiry_date,occupation_ar,nationality_ar,birth_date,nationality:nationality_id(id,name_ar,code:code,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,unified_number,gosi_number,hrsd_number)').is('deleted_at',null).order('name_ar').limit(50),
 sb.from('agents').select('id,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).order('name_ar').limit(50),
 sb.from('cities').select('id,name_ar,region_id').order('name_ar'),
 // Receiving-transfer accounts — junction rows where the bank account is designated
@@ -426,11 +429,11 @@ setClients(c.data||[])
 // Reshape workers to match the legacy `country` / `occupation` / `facility` field names downstream code expects.
 const wRows=(w.data||[]).map(x=>({
 id:x.id,name:x.name_ar||x.name_en,name_ar:x.name_ar,name_en:x.name_en,phone:x.phone,iqama_number:x.iqama_number,
-iqama_expiry_date:null,birth_date:x.birth_date,passport_number:null,passport_expiry:null,
-nationality:x.nationality?.name_ar||null,
-country:x.nationality?{nationality_ar:x.nationality.name_ar,flag_emoji:null,code:x.nationality.code||null,flag_url:x.nationality.flag_url||null}:null,
-occupation:x.current_occupation?{value_ar:x.current_occupation.name_ar}:null,
-facility:x.current_facility?{id:x.current_facility.id,name_ar:x.current_facility.name_ar,unified_national_number:x.current_facility.unified_number,qiwa_unified_number:x.current_facility.unified_number,qiwa_file_number:null,gosi_file_number:null}:null,
+iqama_expiry_date:x.iqama_expiry_date||null,birth_date:x.birth_date,passport_number:null,passport_expiry:null,
+nationality:x.nationality?.name_ar||x.nationality_ar||null,
+country:x.nationality?{nationality_ar:x.nationality.name_ar,flag_emoji:null,code:x.nationality.code||null,flag_url:x.nationality.flag_url||null}:(x.nationality_ar?{nationality_ar:x.nationality_ar,flag_emoji:null,code:null,flag_url:null}:null),
+occupation:x.current_occupation?{value_ar:x.current_occupation.name_ar}:(x.occupation_ar?{value_ar:x.occupation_ar}:null),
+facility:x.current_facility?{id:x.current_facility.id,name_ar:x.current_facility.name_ar,unified_national_number:x.current_facility.unified_number,hrsd_number:x.current_facility.hrsd_number||null,gosi_file_number:x.current_facility.gosi_number||null}:null,
 work_permits:null,worker_insurance:null,
 }))
 setWorkers(wRows)
@@ -455,6 +458,22 @@ const GCC=new Set(['SA','AE','KW','QA','BH','OM'])
 const seen=new Set(),uniq=[]
 for(const c of natRes.data){const code=(c.code||'').toUpperCase();const nat=c.name_ar;if(nat&&!seen.has(nat)&&!GCC.has(code)){seen.add(nat);uniq.push({id:c.id,name_ar:c.country_name_ar||c.name_ar,nationality_ar:c.name_ar,code:c.code,flag_emoji:null,flag_url:c.flag_url||null})}}
 setLkCountries(uniq)
+// Backfill worker country/flag info when the FK join was empty but a denormalized
+// nationality_ar is present (e.g. workers synced from GOSI keep only the name).
+// GOSI spellings vary (نيبالي vs نيبال, بنغلادش vs بنغلاديش) so normalize before
+// matching: strip ال prefix, drop ي everywhere, drop trailing ة/ه/ى. This collapses
+// nationality/country/transliteration variants to a single key.
+const normNat=s=>(s||'').trim().replace(/^ال/,'').replace(/ي/g,'').replace(/[ةىه]$/,'')
+const natByName={}
+for(const c of natRes.data){const data={code:c.code||null,flag_url:c.flag_url||null,nat:c.name_ar};for(const v of [c.name_ar,c.country_name_ar]){if(!v)continue;natByName[v.trim()]=data;const n=normNat(v);if(n)natByName[n]=data}}
+setWorkers(prev=>prev.map(w=>{
+if(w.country&&w.country.flag_url)return w
+const raw=(w.country?.nationality_ar||w.nationality||'').trim()
+if(!raw)return w
+const hit=natByName[raw]||natByName[normNat(raw)]
+if(!hit)return w
+return{...w,country:{nationality_ar:hit.nat||raw,flag_emoji:null,code:hit.code,flag_url:hit.flag_url}}
+}))
 }
 // Reshape embassies (country_id mirrors nationality_id for filtering)
 setLkEmbassies((emRes.data||[]).map((e,i)=>({id:e.id,country_id:e.nationality_id||null,nationality_id:e.nationality_id||null,city_ar:e.name_ar,name_en:e.name_en||null,type:'embassy',sort_order:i})))
@@ -939,18 +958,23 @@ else if(!fields[inp.key]){setErr(`يرجى تعبئة: ${inp.label_ar}`);return 
 }
 }
 }
-// Step 4 (invoice) — block if any installment below its minimum for visa services
+// Step 4 (invoice) — block if total or any installment is below its minimum for visa services
 if(step===4&&VISA_SERVICES.has(selSvc)){
 const cfg=getVisaMinConfig(selSvc)
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
-const total=totalOverride!==null?totalOverride:(pricing.total||0)
-const hasAuth=selSvc!=='work_visa_temporary'
-const defaultEach=total/(hasAuth?3:2)
+const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
+const minTotalAbs=(Number(cfg.defaultTotal)||0)*numVisas
+if(minTotalAbs>0&&total<minTotalAbs){setErr('السعر الإجمالي أقل من الحد الأدنى المسموح');return false}
+// Temporary visa = single payment, only total is enforced. Permanent visa = 3 installments.
+if(selSvc!=='work_visa_temporary'){
+const defaultEach=total/3
 const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
 if(issuanceVal<numVisas*cfg.issuance){setErr('السعر المدخل غير مسموح، يرجى مراجعة الدفعات');return false}
-if(hasAuth){
 const authVal=visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)
 if(authVal<numVisas*cfg.authorization){setErr('السعر المدخل غير مسموح، يرجى مراجعة الدفعات');return false}
+const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
+const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
+if((Number(cfg.residence)||0)>0&&residencePerVisa<Number(cfg.residence)){setErr('السعر المدخل غير مسموح، يرجى مراجعة الدفعات');return false}
 }
 }
 // Step 5 (payment entry) — bank transfer requires a reference number AND a receipt file before proceeding
@@ -1065,6 +1089,32 @@ if(saving)return
 // Branch on every write follows the user's primary branch — falling back to the dashboard filter if absent.
 const userBranchId=user?.primary_branch_id||branchId||null
 if(!userBranchId){setErr('لا يوجد مكتب مرتبط بحسابك — تواصل مع مدير النظام لتعيين مكتبك');return}
+
+// ─── Hard pricing validation — enforce Service Admin minimums BEFORE any DB writes ───
+// The visa flow lets the user override the total and per-installment amounts. Block save
+// if any of them falls under the configured minimum for this service + branch.
+if(VISA_SERVICES.has(selSvc)&&isServiceBillable(selSvc)){
+  const minCfg=getPricingFor(selSvc,userBranchId)||{}
+  const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
+  const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
+  const minTotalAbs=(Number(minCfg.defaultTotal)||0)*numVisas
+  if(minTotalAbs>0&&total<minTotalAbs){setErr('السعر الإجمالي أقل من الحد الأدنى المسموح');return}
+  // Temporary visa is a single payment — only the total is enforced. Permanent visa = 3 installments.
+  if(selSvc!=='work_visa_temporary'){
+  const defaultEach=total/3
+  const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
+  const authVal=visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)
+  const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
+  const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
+  const minIss=(Number(minCfg.issuance)||0)*numVisas
+  const minAuth=(Number(minCfg.authorization)||0)*numVisas
+  const minRes=Number(minCfg.residence)||0
+  if(minIss>0&&issuanceVal<minIss){setErr('دفعة إصدار التأشيرة أقل من الحد الأدنى المسموح');return}
+  if(minAuth>0&&authVal<minAuth){setErr('دفعة توكيل التأشيرة أقل من الحد الأدنى المسموح');return}
+  if(minRes>0&&residencePerVisa<minRes){setErr('دفعة إصدار الإقامة أقل من الحد الأدنى المسموح');return}
+  }
+}
+
 setSaving(true);setErr('')
 try{
 let finalClientId=selClient?.id||null
@@ -1214,14 +1264,16 @@ const paidNum=Math.min(Number(paidAmount)||0,total)
 // Visa services use the visa-specific stages (issuance / authorization / residence) shown in the UI;
 // other services fall back to the generic N-equal-installments split.
 const isVisa=VISA_SERVICES.has(selSvc)
-const visaHasAuth=isVisa&&selSvc!=='work_visa_temporary'
-const visaStageCount=isVisa?(visaHasAuth?3:2):0
+// Permanent visa = 3 installments (issuance + authorization + residence).
+// Temporary visa = single payment (no installment split).
+const visaHasInstallments=isVisa&&selSvc!=='work_visa_temporary'
+const visaStageCount=visaHasInstallments?3:0
 const numVisas=isVisa?(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1):1
-const defaultEachVisa=isVisa?total/(visaHasAuth?3:2):0
-const issuanceVal=isVisa?(visaInstallments.issuance===''?defaultEachVisa:(Number(visaInstallments.issuance)||0)):0
-const authVal=visaHasAuth?(visaInstallments.authorization===''?defaultEachVisa:(Number(visaInstallments.authorization)||0)):0
-const residenceVal=isVisa?Math.max(0,total-issuanceVal-authVal):0
-const planCount=isVisa?visaStageCount:(installmentsCount&&installmentsCount>1?installmentsCount:0)
+const defaultEachVisa=visaHasInstallments?total/3:0
+const issuanceVal=visaHasInstallments?(visaInstallments.issuance===''?defaultEachVisa:(Number(visaInstallments.issuance)||0)):0
+const authVal=visaHasInstallments?(visaInstallments.authorization===''?defaultEachVisa:(Number(visaInstallments.authorization)||0)):0
+const residenceVal=visaHasInstallments?Math.max(0,total-issuanceVal-authVal):0
+const planCount=visaHasInstallments?visaStageCount:(isVisa?0:(installmentsCount&&installmentsCount>1?installmentsCount:0))
 
 const{data:inv,error:invErr}=await sb.from('invoices').insert({
 invoice_no:invNo,
@@ -1252,11 +1304,11 @@ const nowIso=new Date().toISOString()
 
 // 4. Installments — visa stages or generic equal-split, with down-payment consumed in order
 if(planCount>1){
-const amounts=isVisa
-?(visaHasAuth?[issuanceVal,authVal,residenceVal]:[issuanceVal,residenceVal])
+const amounts=visaHasInstallments
+?[issuanceVal,authVal,residenceVal]
 :(()=>{const each=Math.round((total/planCount)*100)/100;const remainder=total-(each*(planCount-1));return Array.from({length:planCount},(_,i)=>i===planCount-1?remainder:each)})()
-const labels=isVisa
-?(visaHasAuth?['عند إصدار التأشيرة','عند توكيل التأشيرة','عند إصدار الإقامة']:['عند إصدار التأشيرة','عند إصدار الإقامة'])
+const labels=visaHasInstallments
+?['عند إصدار التأشيرة','عند توكيل التأشيرة','عند إصدار الإقامة']
 :[]
 // Only attach due dates when the user explicitly picked a first-installment date.
 // Visa stages happen on real events (issuance/authorization/residence) and have no schedulable date upfront,
@@ -1655,7 +1707,7 @@ placeholder="اختر الجنسية"
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 <input value={workerQ} onChange={e=>{setWorkerQ(e.target.value);setWorkerMode('existing');setSelWorker(null)}} placeholder="ابحث بالاسم أو رقم الإقامة أو الجوال..." style={{width:'100%',height:42,padding:'0 40px 0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',background:'var(--modal-input-bg)',outline:'none',textAlign:'right',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}/>
 </div>
-{selSvc==='custom'&&<button onClick={()=>{setWorkerMode('new');setNewWorker(p=>({...p,name:/[\u0600-\u06FF\sA-Za-z]/.test(workerQ)?workerQ:p.name,phone:/^[0-9+]+$/.test(workerQ)?workerQ:p.phone,iqama_number:/^\d{10}$/.test(workerQ)?workerQ:p.iqama_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
+{false&&selSvc==='custom'&&<button onClick={()=>{setWorkerMode('new');setNewWorker(p=>({...p,name:/[\u0600-\u06FF\sA-Za-z]/.test(workerQ)?workerQ:p.name,phone:/^[0-9+]+$/.test(workerQ)?workerQ:p.phone,iqama_number:/^\d{10}$/.test(workerQ)?workerQ:p.iqama_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
 <span>عامل جديد</span>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>}
@@ -1751,8 +1803,8 @@ return<>
 </div>
 <div style={pillBase}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.bentoGold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
-<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم قوى</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.qiwa_file_number||w.facility.qiwa_unified_number||'—'}</span></div>
-{(w.facility.qiwa_file_number||w.facility.qiwa_unified_number)&&<button onClick={e=>{e.stopPropagation();const v=w.facility.qiwa_file_number||w.facility.qiwa_unified_number;navigator.clipboard?.writeText(v);toast&&toast(T('تم النسخ','Copied'))}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم الموارد البشرية</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.hrsd_number||'—'}</span></div>
+{w.facility.hrsd_number&&<button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(w.facility.hrsd_number);toast&&toast(T('تم النسخ','Copied'))}} title="نسخ" style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.color=C.gold;e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.color='var(--tx5)';e.currentTarget.style.background='transparent'}}><Copy size={11}/></button>}
 </div>
 <div style={pillBase}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.bentoGold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z"/></svg>
@@ -1764,13 +1816,8 @@ return<>
 </>})()}
 
 </div>
-:<div style={{padding:14,borderRadius:10,background:'rgba(212,160,23,.05)',border:'1px dashed rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+:<div style={{padding:14,borderRadius:10,background:'rgba(212,160,23,.05)',border:'1px dashed rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
 <div style={{fontSize:12,color:'var(--tx3)',fontWeight:600}}>لا يوجد عامل بهذا البحث</div>
-<button onClick={()=>{setWorkerMode('new');setNewWorker(p=>({...p,name:/^[0-9+]+$/.test(workerQ)||/^\d{10}$/.test(workerQ)?p.name:workerQ,phone:/^[0-9+]+$/.test(workerQ)?workerQ:p.phone,iqama_number:/^\d{10}$/.test(workerQ)?workerQ:p.iqama_number}))}}
-style={{height:34,padding:'0 14px',borderRadius:8,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.35)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-إضافة عامل جديد
-</button>
 </div>}
 </div>}
 
@@ -3580,22 +3627,30 @@ placeholder={auto>0?fmtAmt(auto):'0'} style={{...fS,direction:'ltr',textAlign:'c
 </div>
 })()}
 
-{selSvc!=='kafala_transfer'&&selSvc!=='iqama_renewal'&&!SVC_WITH_PRICING.has(selSvc)&&<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative',marginTop:10}}>
-<div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>الإجمالي</div>
+{selSvc!=='kafala_transfer'&&selSvc!=='iqama_renewal'&&!SVC_WITH_PRICING.has(selSvc)&&(()=>{
+const isVisa=VISA_SERVICES.has(selSvc)
+const numVisasT=isVisa?(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1):1
+const cfgT=isVisa?getVisaMinConfig(selSvc):null
+const minTotalAbs=cfgT?(Number(cfgT.defaultTotal)||0)*numVisasT:0
+const currTotal=totalOverride!=null?Number(totalOverride):Number(pricing.total||0)
+const totalBad=isVisa&&minTotalAbs>0&&currTotal<minTotalAbs
+return<div style={{border:`1.5px solid ${totalBad?'rgba(192,57,43,.55)':'rgba(212,160,23,.35)'}`,borderRadius:12,padding:'18px 14px 14px',position:'relative',marginTop:10}}>
+<div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:totalBad?C.red:C.bentoGold,fontFamily:F}}>الإجمالي</div>
 <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:10}}>
-{VISA_SERVICES.has(selSvc)?
+{isVisa?
 <div style={{display:'flex',alignItems:'center',gap:8}}>
 <input type="text" inputMode="decimal" value={totalOverride==null?'':fmtAmt(totalOverride)} placeholder={fmtAmt(pricing.total.toFixed(2))}
 onChange={e=>{const raw=unfmtAmt(e.target.value);if(raw===''){setTotalOverride(null);return}if(!/^\d*\.?\d*$/.test(raw))return;const n=Number(raw);if(isNaN(n))return;setTotalOverride(n)}}
-style={{width:160,height:42,padding:'0 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',background:'var(--modal-input-bg)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',color:C.gold,fontFamily:F,fontSize:16,fontWeight:900,textAlign:'center',direction:'ltr',outline:'none',boxSizing:'border-box'}}/>
+style={{width:160,height:42,padding:'0 14px',borderRadius:9,border:`1px solid ${totalBad?C.red:'rgba(255,255,255,.05)'}`,background:'var(--modal-input-bg)',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',color:totalBad?C.red:C.gold,fontFamily:F,fontSize:16,fontWeight:900,textAlign:'center',direction:'ltr',outline:'none',boxSizing:'border-box'}}/>
 <span style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.58)',fontFamily:F}}>ريال</span>
 </div>
 :<span style={{fontSize:18,fontWeight:900,color:C.gold}}>{pricing.total.toFixed(2)} ريال</span>}
 </div>
-</div>}
+</div>
+})()}
 
-{/* Installment plan for visa services */}
-{VISA_SERVICES.has(selSvc)&&(()=>{
+{/* Installment plan for permanent visa only — temporary visa is a single payment */}
+{VISA_SERVICES.has(selSvc)&&selSvc!=='work_visa_temporary'&&(()=>{
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?totalOverride:(pricing.total||0)
 const cfg=getVisaMinConfig(selSvc)

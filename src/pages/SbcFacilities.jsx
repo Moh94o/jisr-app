@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
+import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -2623,6 +2624,27 @@ function GosiSyncBookmarklet({ syncPersonId, T }) {
   )
 }
 
+// Qiwa sync bookmarklet — drags to user's bookmarks bar. When run on any
+// *.qiwa.sa origin, captures workspaces + active company detail + criteria
+// + indicators + cases + employee-cases + absher into public.qiwa_companies
+// (plus related sub-tables populated by qiwaSyncBookmarklet.js).
+function QiwaSyncBookmarklet({ syncPersonId, T }) {
+  const dataHref = buildQiwaBookmarklet({ sourceId: 'qiwa', personId: syncPersonId || '' })
+  return (
+    <DragBookmark
+      href={dataHref}
+      accent="#3b82f6"
+      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح بوابة قوى واضغط لمزامنة المنشآت', 'Drag to bookmarks bar, open Qiwa portal and click to sync facilities')}
+      label={T('قوى', 'Qiwa')}
+      icon={(
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      )}
+    />
+  )
+}
+
 export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
@@ -2677,6 +2699,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // (populated by the GOSI bookmarklet). Looked up by gosi_registration_number
   // when the facility detail opens.
   const [gosiEstablishment, setGosiEstablishment] = useState(null)
+  // True while the "نقل إلى المنشآت" button is running its multi-step promote.
+  const [promoting, setPromoting] = useState(false)
   // Qiwa company row — populated by the Qiwa bookmarklet (qiwaSyncBookmarklet.js)
   // and matched here by cr_number when a facility detail opens.
   const [qiwaCompany, setQiwaCompany] = useState(null)
@@ -2856,6 +2880,165 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       setErr(String(e.message || e))
     } finally { setLoading(false) }
   }, [sb])
+
+  // Push the sync-layer facilities + their non-Saudi GOSI contributors into the
+  // canonical `facilities` and `workers` tables (the ones the sidebar pages
+  // read). Idempotent — uses sbc_facility_id and gosi_engagement_id as upsert
+  // keys so re-clicking just refreshes existing rows.
+  const promoteToCanonical = useCallback(async () => {
+    if (!sb || !rows.length || promoting) return
+    setPromoting(true)
+    try {
+      toast?.(T('جاري نقل المنشآت...', 'Promoting facilities...'))
+
+      const crNumbers = rows.map(r => r.cr_number).filter(Boolean)
+      const { data: gosiEsts } = await sb.from('gosi_establishments')
+        .select('registration_no,cr_number,unified_national_number,email_primary,mobile_primary,city_ar')
+        .in('cr_number', crNumbers.length ? crNumbers : ['__none__'])
+      const gosiByCr = {}
+      const gosiByReg = {}
+      for (const g of (gosiEsts || [])) {
+        if (g.cr_number && !gosiByCr[g.cr_number]) gosiByCr[g.cr_number] = g
+        if (g.registration_no) gosiByReg[String(g.registration_no)] = g
+      }
+
+      const facilityPayloads = rows.map(r => {
+        const g = gosiByCr[r.cr_number]
+        const hrsd = (r.hrsd_labor_office_id && r.hrsd_sequence_number)
+          ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : null
+        return {
+          sbc_facility_id: r.id,
+          name_ar: r.entity_full_name_ar || null,
+          name_en: r.entity_full_name_en || null,
+          unified_number: r.gosi_unified_national_number || g?.unified_national_number || null,
+          cr_number: r.cr_number || null,
+          gosi_number: r.gosi_registration_number || g?.registration_no || null,
+          vat_number: r.zakat_tax_number || null,
+          chamber_number: r.coc_chamber_number || null,
+          spl_number: r.spl_national_address_id || null,
+          hrsd_number: hrsd,
+          cr_status: r.cr_status_ar || r.cr_status || null,
+          city_ar: r.headquarter_city_ar || g?.city_ar || null,
+          mobile: r.mobile_no || g?.mobile_primary || null,
+          email: r.email || g?.email_primary || null,
+          workers_total: r.gosi_number_of_contributors ?? null,
+          workers_saudi: r.gosi_number_of_saudi_contributors ?? null,
+          workers_non_saudi: r.gosi_number_of_non_saudi_contributors ?? null,
+          source_synced_at: new Date().toISOString(),
+        }
+      })
+
+      for (let i = 0; i < facilityPayloads.length; i += 100) {
+        const chunk = facilityPayloads.slice(i, i + 100)
+        const { error } = await sb.from('facilities')
+          .upsert(chunk, { onConflict: 'sbc_facility_id' })
+        if (error) throw new Error('facilities: ' + error.message)
+        toast?.(T(`المنشآت ${Math.min(i + 100, facilityPayloads.length)}/${facilityPayloads.length}`,
+                  `Facilities ${Math.min(i + 100, facilityPayloads.length)}/${facilityPayloads.length}`))
+      }
+
+      // Build reg_no → facility_id map after upsert (so we know the canonical ids)
+      const { data: facsAfter } = await sb.from('facilities')
+        .select('id,cr_number,gosi_number')
+        .in('sbc_facility_id', rows.map(r => r.id))
+      const facByCr = {}
+      const facByReg = {}
+      for (const f of (facsAfter || [])) {
+        if (f.cr_number) facByCr[f.cr_number] = f.id
+        if (f.gosi_number) facByReg[String(f.gosi_number)] = f.id
+      }
+      // Fill registrations that only show up in gosi_establishments (branches etc.)
+      for (const reg in gosiByReg) {
+        if (facByReg[reg]) continue
+        const cr = gosiByReg[reg].cr_number
+        if (cr && facByCr[cr]) facByReg[reg] = facByCr[cr]
+      }
+
+      const regNos = Object.keys(facByReg)
+      if (!regNos.length) {
+        toast?.(T(`✅ ${facilityPayloads.length} منشأة (لا توجد بيانات GOSI لنقل عمالها)`,
+                  `✅ ${facilityPayloads.length} facilities (no GOSI worker data)`))
+        return
+      }
+
+      const allContribs = []
+      for (let i = 0; i < regNos.length; i += 100) {
+        const chunk = regNos.slice(i, i + 100)
+        const { data: contribs, error } = await sb.from('gosi_establishment_contributors')
+          .select('registration_no,engagement_id,latest_live_engagement_id,iqama_no,iqama_expiry_date,border_no,passport_no,nationality_ar,occupation_ar,first_name_ar,second_name_ar,third_name_ar,family_name_ar,full_name_en,sex_ar,birth_date,status_type,joining_date,wage_total')
+          .in('registration_no', chunk)
+          .in('status_type', ['ACTIVE', 'INACTIVE', 'active', 'suspended'])
+        if (error) throw new Error('contributors: ' + error.message)
+        allContribs.push(...(contribs || []))
+      }
+
+      // Exclude Saudis. GOSI nationality_ar uses several spellings — with/without
+      // the "ال" prefix and gendered forms. Normalize by stripping ال + matching
+      // both سعودي and سعودية.
+      const isSaudi = (n) => {
+        const s = (n || '').trim().replace(/^ال/, '')
+        return s === 'سعودي' || s === 'سعودية' || s === 'سعوديه'
+      }
+      const nonSaudi = allContribs.filter(c => c.nationality_ar && !isSaudi(c.nationality_ar))
+
+      if (!nonSaudi.length) {
+        toast?.(T(`✅ ${facilityPayloads.length} منشأة · لا يوجد عمال غير سعوديين`,
+                  `✅ ${facilityPayloads.length} facilities · no non-Saudi workers`))
+        return
+      }
+
+      const workerPayloads = []
+      const seenEng = new Set()
+      for (const c of nonSaudi) {
+        const engagementId = c.latest_live_engagement_id || c.engagement_id
+        const facId = facByReg[String(c.registration_no)]
+        if (!facId || !engagementId) continue
+        const key = String(engagementId)
+        if (seenEng.has(key)) continue
+        seenEng.add(key)
+        const nameParts = [c.first_name_ar, c.second_name_ar, c.third_name_ar, c.family_name_ar].filter(Boolean)
+        const st = String(c.status_type || '').toLowerCase()
+        const normStatus = (st === 'active') ? 'active'
+                          : (st === 'inactive' || st === 'suspended') ? 'suspended'
+                          : (c.status_type || null)
+        workerPayloads.push({
+          name_ar: nameParts.length ? nameParts.join(' ') : null,
+          name_en: c.full_name_en || null,
+          iqama_number: c.iqama_no || null,
+          iqama_expiry_date: c.iqama_expiry_date || null,
+          border_number: c.border_no || null,
+          passport_number: c.passport_no || null,
+          nationality_ar: c.nationality_ar || null,
+          occupation_ar: c.occupation_ar || null,
+          worker_status: normStatus,
+          gosi_engagement_id: key,
+          gosi_registration_no: String(c.registration_no),
+          joining_date: c.joining_date || null,
+          wage_total: c.wage_total ?? null,
+          birth_date: c.birth_date || null,
+          gender: c.sex_ar === 'أنثى' ? 'female' : (c.sex_ar === 'ذكر' ? 'male' : null),
+          current_facility_id: facId,
+          source_synced_at: new Date().toISOString(),
+        })
+      }
+
+      for (let i = 0; i < workerPayloads.length; i += 100) {
+        const chunk = workerPayloads.slice(i, i + 100)
+        const { error } = await sb.from('workers')
+          .upsert(chunk, { onConflict: 'gosi_engagement_id' })
+        if (error) throw new Error('workers: ' + error.message)
+        toast?.(T(`العمال ${Math.min(i + 100, workerPayloads.length)}/${workerPayloads.length}`,
+                  `Workers ${Math.min(i + 100, workerPayloads.length)}/${workerPayloads.length}`))
+      }
+
+      toast?.(T(`✅ ${facilityPayloads.length} منشأة · ${workerPayloads.length} عامل`,
+                `✅ ${facilityPayloads.length} facilities · ${workerPayloads.length} workers`))
+    } catch (e) {
+      toast?.(T('خطأ في النقل: ', 'Promote error: ') + (e.message || String(e)), 'error')
+    } finally {
+      setPromoting(false)
+    }
+  }, [sb, rows, toast, promoting])
 
   // Load cross-source provenance for all facilities: which operators have synced
   // each facility from which platforms (SBC, Qiwa, GOSI, Muqeem…). Keyed by
@@ -3583,18 +3766,49 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               </button>
             )}
             <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
-              {T('المنشآت والعمالة', 'Facilities & workforce')}
+              {T('المنشآت', 'Facilities')}
             </div>
           </div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
-            {T('جميع المنشآت والعمّال — كل قيمة تحمل مصدرها وآخر تاريخ مزامنة.',
-               'All facilities and workers — every value carries its source and last sync time.')}
+            {T('سجلّ موحّد لجميع المنشآت التابعة لك، يجمع بياناتها الأساسية وأرقامها الرسمية وحالة سجلاتها التجارية وملّاكها ومدرائها وتواريخها النظامية في مكان واحد.',
+               'A unified registry of all your facilities — gathering core data, official numbers, commercial registration status, owners, managers, and regulatory dates in one place.')}
           </div>
         </div>
+        {syncPersonId && (
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'ltr' }}>
           <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
           <GosiSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+          <QiwaSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+          <button
+            onClick={promoteToCanonical}
+            disabled={promoting || !rows.length}
+            title={T('نقل المنشآت وغير السعوديين من التأمينات إلى صفحات السايد بار', 'Promote facilities + non-Saudi GOSI contributors to the sidebar pages')}
+            style={{
+              height: 40, paddingInline: 14, borderRadius: 12,
+              background: promoting
+                ? 'linear-gradient(180deg, rgba(212,160,23,.10) 0%, rgba(212,160,23,.04) 100%)'
+                : 'linear-gradient(180deg, rgba(212,160,23,.22) 0%, rgba(212,160,23,.10) 100%)',
+              border: '1px solid rgba(212,160,23,.45)',
+              color: '#D4A017',
+              cursor: (promoting || !rows.length) ? 'not-allowed' : 'pointer',
+              fontFamily: F, fontSize: 12.5, fontWeight: 800,
+              direction: 'ltr',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',
+              opacity: (!rows.length) ? 0.5 : 1,
+              transition: 'transform .15s, box-shadow .15s, background .15s',
+            }}
+            onMouseEnter={e => { if (!promoting && rows.length) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 7px 18px rgba(212,160,23,.33), inset 0 1px 0 rgba(212,160,23,.28)' } }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span style={{ whiteSpace: 'nowrap' }}>
+              {promoting ? T('جاري النقل...', 'Promoting...') : T('نقل إلى المنشآت', 'Promote to sidebar')}
+            </span>
+          </button>
         </div>
+        )}
       </div>
 
       {err && <Card style={{ marginBottom: 14, borderColor: 'rgba(192,57,43,.35)', background: 'rgba(192,57,43,.06)' }}>
@@ -6754,6 +6968,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         </div>
         )
       })()}
+
 
     </div>
   )
