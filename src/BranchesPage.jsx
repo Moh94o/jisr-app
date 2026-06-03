@@ -1228,8 +1228,8 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
           </span>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
             {banks.length > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, background: `${C.ok}15`, fontSize: 11, fontWeight: 700, color: C.ok, direction: 'ltr' }}>
-                <TrendingUp size={11} /> {nm(Math.round(totalBalance))}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 9, background: `${C.ok}15`, fontSize: 18, fontWeight: 800, color: C.ok, direction: 'ltr', letterSpacing: '-.3px' }}>
+                <TrendingUp size={16} strokeWidth={2.4} /> {nm(Math.round(totalBalance))}
               </span>
             )}
           </div>

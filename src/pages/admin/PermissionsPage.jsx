@@ -908,7 +908,7 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
 // (gold chevron, search when long, centered value). Used for every
 // select inside NewUserModal so all dropdowns share one style.
 // ═══════════════════════════════════════════════════════════════════
-function Drop({ value, onChange, options, placeholder }) {
+export function Drop({ value, onChange, options, placeholder }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
   const [q, setQ] = useState('')
@@ -970,7 +970,7 @@ function Drop({ value, onChange, options, placeholder }) {
 // trigger shows the selected items as chips; the list stays open while
 // toggling. Used for assigning a user to more than one office.
 // ═══════════════════════════════════════════════════════════════════
-function MultiDrop({ value, onChange, options, placeholder }) {
+export function MultiDrop({ value, onChange, options, placeholder }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
   const [q, setQ] = useState('')

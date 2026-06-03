@@ -1570,41 +1570,13 @@ if(selectedSvc){
       <BackButton onBack={()=>setSelectedSvcId(null)} />
     </div>
 
-    {/* Header — title + tag row */}
+    {/* Header — icon + name title + subtitle (matches ClientDetailPage) */}
     <div style={{marginBottom:18,marginTop:6}}>
       <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
-          <path d="M6 13a6 6 0 0 1 12 0"/>
-          <line x1="2" y1="20" x2="22" y2="20"/>
-          <line x1="2" y1="16" x2="22" y2="16"/>
-          <line x1="12" y1="7" x2="12" y2="4"/>
-          <line x1="10" y1="4" x2="14" y2="4"/>
-        </svg>
-        <div style={{fontSize:22,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.2px'}}>تفاصيل الخدمة</div>
+        <I size={26} color={C.gold} strokeWidth={1.8} style={{flexShrink:0}}/>
+        <div style={{fontSize:22,fontWeight:600,color:C.gold,letterSpacing:'-.2px'}}>{(isAr?(s.name_ar||s.name_en):(s.name_en||s.name_ar))||T('تفاصيل الخدمة','Service details')}</div>
       </div>
-      <div style={{marginTop:18,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',fontSize:11.5,color:'var(--tx3)'}}>
-        <span style={{display:'inline-flex',alignItems:'center',gap:7,color:C.gold,fontWeight:700,borderBottom:`1.5px solid ${C.gold}`,paddingBottom:1}}>
-          <I size={14} strokeWidth={1.8}/>
-          {s.name_ar}
-        </span>
-        <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
-        <span style={{display:'inline-flex',alignItems:'center',gap:5,color:st.active?C.ok:C.red,fontWeight:700}}>
-          <span style={{width:5,height:5,borderRadius:'50%',background:st.active?C.ok:C.red,boxShadow:`0 0 5px ${st.active?C.ok:C.red}`}}/>
-          {st.active?'فعّالة':'معطّلة'}
-        </span>
-        <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
-        <span style={{display:'inline-flex',alignItems:'center',gap:5,color:st.billable?C.gold:C.ok,fontWeight:700}}>
-          {st.billable?<DollarSign size={11} strokeWidth={2.5}/>:<Gift size={11} strokeWidth={2.5}/>}
-          {st.billable?'مفوترة':'مجانية'}
-        </span>
-        {ovs.length>0&&<>
-          <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>
-          <span style={{padding:'3px 10px',borderRadius:999,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:10.5,fontWeight:800,display:'inline-flex',alignItems:'center',gap:5}}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
-            {ovs.length} مكتب مخصّص
-          </span>
-        </>}
-      </div>
+      <div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:10,lineHeight:1.6}}>{T('عرض تفاصيل الخدمة وتسعيرها الافتراضي وتخصيصات المكاتب.','Service details, default pricing and branch overrides.')}</div>
     </div>
 
     <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:14,alignItems:'flex-start'}}>

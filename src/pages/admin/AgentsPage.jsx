@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
+import { Drop } from './PermissionsPage.jsx'
 import {
-  Users, Phone, FileText, Wallet, Activity, Search, SlidersHorizontal,
-  ChevronDown, ArrowRight, AlertCircle, TrendingUp, CheckCircle2,
+  Users, Phone, FileText, Wallet, Search,
+  Calendar, Building2, User, Copy, Check,
+  X, IdCard, Coins,
 } from 'lucide-react'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -12,116 +14,178 @@ const C = {
   ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
 const GOLD = C.gold
+const PAGE = 36
 const num = (v) => Number(v || 0).toLocaleString('en-US')
-const fmtGreg = (iso) => { if (!iso) return '—'; try { return new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }) } catch { return '—' } }
-const initial = (name) => {
-  if (!name) return '?'
-  const w = name.trim().split(/\s+/)
-  return (w[0]?.[0] || '') + (w.length > 1 ? (w[w.length - 1][0] || '') : '')
-}
+const fmtGreg = (iso) => { if (!iso) return '—'; try { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` } catch { return '—' } }
+const fmtPhone = (p) => p ? String(p).replace(/^\+?966/, '0') : p
+const daysAgoLabel = (iso, isAr) => { if (!iso) return null; const dd = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); if (dd <= 0) return isAr ? 'اليوم' : 'today'; return isAr ? `قبل ${dd} يوم` : `${dd}d ago` }
+const initial = (name) => ((name || '—').trim().charAt(0) || '?')
 const colorFor = (s) => {
   let h = 0; for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
-  const palette = ['#5dade2', '#bb8fce', '#16a085', '#f39c12', '#e8c77a', '#2ecc71', '#3498db', '#e74c3c']
+  const palette = ['#5dade2', '#bb8fce', '#16a085', '#f39c12', '#e8c77a', '#2ecc71', '#3498db']
   return palette[h % palette.length]
 }
 const svcColor = (code) => ({
   work_visa: C.blue, iqama_issuance: '#27ae60', transfer: C.orange,
   iqama_renewal: C.cyan, ajeer: C.purple, other: C.gold, general: C.gray,
-}[code] || C.gold)
-const formatRelative = (iso) => {
-  if (!iso) return null
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'الآن'
-  if (s < 3600) return `قبل ${Math.floor(s / 60)} د`
-  if (s < 86400) return `قبل ${Math.floor(s / 3600)} س`
-  if (s < 604800) return `قبل ${Math.floor(s / 86400)} يوم`
-  return new Date(iso).toLocaleDateString('ar-SA')
+}[code] || C.gray)
+const ROLE_PALETTE = [C.gold, C.blue, '#16a085', '#bb8fce', '#f39c12', C.ok, '#e8c77a', '#5dade2', '#27ae60']
+// عمولات الوسيط: لا شيء/الكل مدفوع/جزئي/غير مدفوع — نفس منطق payState في صفحة العملاء
+const payState = (total, paid) => {
+  if (total <= 0) return { code: 'none', c: C.gray }
+  if (paid >= total) return { code: 'paid', c: C.ok }
+  if (paid > 0) return { code: 'partial', c: C.gold }
+  return { code: 'unpaid', c: C.red }
 }
+
+/* ─── Shared chrome (matches the Clients page) ─── */
+const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
+const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
+const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
 
 const Lbl = ({ children }) => (
   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.2px' }}>{children}</div>
 )
-const sF = {
-  width: '100%', height: 42, padding: '0 12px', boxSizing: 'border-box',
-  background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
-  border: '1px solid rgba(255,255,255,.07)', borderRadius: 10,
-  fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)',
-  outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+
+/* ─── KPI hero card — matches the Clients page HeroStat ─── */
+function HeroStat({ tone, label, value, footer }) {
+  return (
+    <div style={{
+      position: 'relative', padding: '18px 22px', borderRadius: 16,
+      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+      border: '1px solid rgba(255,255,255,.05)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+      overflow: 'hidden', minHeight: 150,
+    }}>
+      <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${tone}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone, boxShadow: `0 0 10px ${tone}aa` }} />
+        <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
+      </div>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
+        <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+      </div>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+        <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
+      </div>
+    </div>
+  )
 }
 
-/* ─── Tiny KPI pill (matches ClientsPage Pill) ─── */
-const Pill = ({ color, value, label }) => (
-  <div style={{
-    padding: '7px 12px', borderRadius: 10,
-    background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-    border: '1px solid rgba(255,255,255,.06)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: '0 0 5px ' + color }} />
-      <div style={{ fontSize: 18, fontWeight: 700, color, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{value}</div>
-    </div>
-    <div style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>{label}</div>
-  </div>
-)
-
-/* ─── Generic activity bar chart ─── */
-function ActivityChart({ days, color, label, totalLabel = 'الإجمالي' }) {
-  const max = Math.max(1, ...days.map(d => d.count))
-  const total = days.reduce((s, d) => s + d.count, 0)
+/* ─── Nationality distribution donut card — matches the Clients page ─── */
+function NatDonutCard({ items, totalLabel, title }) {
+  const total = items.reduce((s, r) => s + r.cnt, 0) || 1
+  const topN = items.slice(0, 6)
+  const R = 32, CIRC = 2 * Math.PI * R
+  let offset = 0
   return (
-    <div style={{ padding: '0 4px 8px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, padding: '0 4px' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--tx3)', letterSpacing: '.3px' }}>
-          <Activity size={13} color={color} /> {label}
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>
-          {totalLabel}: <span style={{ color, fontWeight: 700 }}>{total}</span>
+    <div style={{
+      borderRadius: 16,
+      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+      border: '1px solid rgba(255,255,255,.05)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+      padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{title}</span>
+        <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
+          <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{num(total)}</span>{totalLabel}
         </span>
       </div>
-      <div style={{ position: 'relative', height: 130, padding: '4px 2px 10px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${days.length}, 1fr)`, gap: 5, alignItems: 'end', height: '100%', direction: 'ltr' }}>
-          {days.map((d, i) => {
-            const h = (d.count / max) * 100
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
+        <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
+          <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
+          {items.map((r, i) => {
+            const c = r.color || ROLE_PALETTE[i % ROLE_PALETTE.length]
+            const dash = (r.cnt / total) * CIRC
+            const seg = (
+              <circle key={i} r={R} fill="none" stroke={c} strokeWidth="11"
+                strokeDasharray={`${dash} ${CIRC - dash}`} strokeDashoffset={-offset}
+                style={{ transition: 'stroke-dasharray .3s' }}>
+                <title>{`${r.name}: ${r.cnt}`}</title>
+              </circle>
+            )
+            offset += dash
+            return seg
+          })}
+          <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)"
+            style={{ fill: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+            {num(total)}
+          </text>
+        </svg>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr', gap: 6, minWidth: 0 }}>
+          {topN.length ? topN.map((r, i) => {
+            const c = r.color || ROLE_PALETTE[i % ROLE_PALETTE.length]
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: '100%' }}>
-                <div title={`${d.date.toLocaleDateString('ar-SA')} — ${d.count}`}
-                  style={{
-                    width: '70%', minHeight: d.count > 0 ? 3 : 0, height: `${h}%`,
-                    background: d.count > 0 ? `linear-gradient(180deg, ${color} 0%, ${color}88 100%)` : 'rgba(255,255,255,.05)',
-                    borderRadius: '4px 4px 2px 2px',
-                    border: d.count > 0 ? `1px solid ${color}55` : '1px solid rgba(255,255,255,.04)',
-                    boxShadow: d.count > 0 ? `0 0 8px ${color}33` : 'none',
-                    transition: '.2s',
-                  }} />
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, minWidth: 0 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{num(r.cnt)}</span>
               </div>
             )
-          })}
+          }) : <span style={{ fontSize: 12, color: 'var(--tx4)' }}>لا توجد بيانات</span>}
         </div>
       </div>
     </div>
   )
 }
 
-const cardChrome = {
-  background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
-  backdropFilter: 'blur(20px) saturate(160%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-  border: '1px solid rgba(255,255,255,.08)',
-  borderRadius: 16,
-  boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)',
+/* ─── Copyable info row helpers (match the Clients page) ─── */
+function CopyBtn({ value, toast }) {
+  const [done, setDone] = useState(false)
+  const copy = async (e) => {
+    e.stopPropagation()
+    try { await navigator.clipboard.writeText(String(value)); setDone(true); setTimeout(() => setDone(false), 1200) } catch (_) { toast?.('تعذّر النسخ') }
+  }
+  return (
+    <button type="button" onClick={copy} title="نسخ"
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+      {done ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  )
 }
+
+function InfoSectionCard({ title, items, headerAction }) {
+  return (
+    <div style={cardChrome}>
+      <div style={cardHeader}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+        <span style={cardTitle}>{title}</span>
+        {headerAction}
+      </div>
+      <div style={{ padding: '6px 22px 12px' }}>
+        {items.map((f, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+            <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{f.label}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              {f.copy && f.value && <CopyBtn value={f.value} toast={f.toast} />}
+              <span style={{ fontSize: 13, color: f.value ? (f.color || 'var(--tx2)') : 'var(--tx5)', fontWeight: 600, direction: f.mono ? 'ltr' : 'rtl', fontFamily: f.mono ? 'monospace' : 'inherit', textAlign: 'end', overflow: 'hidden', textOverflow: f.wrap ? 'clip' : 'ellipsis', whiteSpace: f.wrap ? 'normal' : 'nowrap', wordBreak: f.wrap ? 'break-word' : 'normal' }} title={f.value || ''}>{f.value || '—'}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const AmountBox = ({ label, value, color }) => (
+  <div style={{ padding: '14px 12px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
+    {label && <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.5px' }}>{label}</div>}
+    <div style={{ fontSize: 17, fontWeight: 700, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
+  </div>
+)
 
 /* ═══════════════════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════ */
-export default function AgentsPage({ sb, lang }) {
+export default function AgentsPage({ sb, lang, user, toast }) {
   const isAr = lang !== 'en'
   const T = (a, e) => isAr ? a : e
 
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(0)
   const [q, setQ] = useState('')
   const [filters, setFilters] = useState({ branch_id: '', nationality_id: '' })
   const [advOpen, setAdvOpen] = useState(false)
@@ -131,16 +195,19 @@ export default function AgentsPage({ sb, lang }) {
   const [stats, setStats] = useState(null)
 
   const [selectedId, setSelectedId] = useState(null)
+  const [refreshTick, setRefreshTick] = useState(0)
 
+  /* ─── Bootstrap: branches, nationalities, agents + commission roll-up ─── */
   useEffect(() => {
     sb.from('branches').select('id,branch_code').order('branch_code').then(({ data }) => setBranches(data || []))
     sb.from('nationalities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar').then(({ data }) => setNationalities(data || []))
 
+    setLoading(true)
     Promise.all([
       sb.from('agents').select(`
         id, name_ar, name_en, id_number, phone, created_at, default_commission_amount, nationality_id, branch_id,
-        nationality:nationality_id(name_ar,name_en),
-        branch:branch_id(id,branch_code)
+        nationality:nationality_id(name_ar,name_en,flag_url),
+        branch:branch_id(branch_code)
       `).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }),
       sb.from('service_request_agents').select('agent_id,commission_amount,commission_paid_at,service_request:service_request_id!inner(request_date,deleted_at)').is('service_request.deleted_at', null),
     ]).then(([aR, cR]) => {
@@ -150,61 +217,40 @@ export default function AgentsPage({ sb, lang }) {
       // Per-agent roll-up
       const byAgent = {}
       links.forEach(x => {
-        if (!byAgent[x.agent_id]) byAgent[x.agent_id] = { count: 0, sum: 0, paid: 0, lastReq: null }
+        if (!byAgent[x.agent_id]) byAgent[x.agent_id] = { count: 0, sum: 0, paid: 0, paidCount: 0, lastReq: null, lastPaid: null }
         const a = byAgent[x.agent_id]
         a.count += 1
         a.sum += Number(x.commission_amount || 0)
-        if (x.commission_paid_at) a.paid += Number(x.commission_amount || 0)
+        if (x.commission_paid_at) { a.paid += Number(x.commission_amount || 0); a.paidCount += 1; if (!a.lastPaid || x.commission_paid_at > a.lastPaid) a.lastPaid = x.commission_paid_at }
         const rd = x.service_request?.request_date
         if (rd && (!a.lastReq || rd > a.lastReq)) a.lastReq = rd
       })
 
-      const grandCount = links.length
-      const grandTotal = links.reduce((s, x) => s + Number(x.commission_amount || 0), 0)
-      const grandPaid = links.reduce((s, x) => s + (x.commission_paid_at ? Number(x.commission_amount || 0) : 0), 0)
-
-      // New this month
+      // Headline distributions
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
       const newThisMonth = ags.filter(a => a.created_at && new Date(a.created_at) >= monthStart).length
-
-      // Activity 14d (agents added per day)
-      const today = new Date(); today.setHours(0, 0, 0, 0)
-      const dayMap = new Map()
-      ags.forEach(a => {
-        if (!a.created_at) return
-        const k = new Date(a.created_at).toISOString().slice(0, 10)
-        dayMap.set(k, (dayMap.get(k) || 0) + 1)
-      })
-      const days14 = Array.from({ length: 14 }, (_, i) => {
-        const d = new Date(today); d.setDate(d.getDate() - (13 - i))
-        return { date: d, count: dayMap.get(d.toISOString().slice(0, 10)) || 0 }
-      })
-
-      // Top branch + nationalities
       const byBranch = {}
-      ags.forEach(a => { const id = a.branch?.id; if (id) byBranch[id] = (byBranch[id] || 0) + 1 })
+      ags.forEach(a => { if (a.branch_id) byBranch[a.branch_id] = (byBranch[a.branch_id] || 0) + 1 })
       const topBranchEntry = Object.entries(byBranch).sort((a, b) => b[1] - a[1])[0]
       const byNat = {}
       ags.forEach(a => { const k = a.nationality?.name_ar || 'غير محدد'; byNat[k] = (byNat[k] || 0) + 1 })
-      const topNats = Object.entries(byNat).sort((a, b) => b[1] - a[1]).slice(0, 4)
+      const topNats = Object.entries(byNat).sort((a, b) => b[1] - a[1])
 
-      setAgents(ags.map(a => ({ ...a, _stats: byAgent[a.id] || { count: 0, sum: 0, paid: 0, lastReq: null } })))
+      setAgents(ags.map(a => ({ ...a, _stats: byAgent[a.id] || { count: 0, sum: 0, paid: 0, paidCount: 0, lastReq: null, lastPaid: null } })))
       setStats({
         total: ags.length,
-        grandCount, grandTotal, grandPaid,
-        newThisMonth, days14,
+        topNats,
+        newThisMonth,
         topBranchId: topBranchEntry?.[0],
         topBranchCount: topBranchEntry?.[1] || 0,
-        topNats,
       })
       setLoading(false)
     })
-  }, [sb])
+  }, [sb, refreshTick])
 
   const hasFilters = filters.branch_id || filters.nationality_id
-  const resetFilters = () => { setFilters({ branch_id: '', nationality_id: '' }); setQ('') }
 
-  const filtered = agents.filter(a => {
+  const filtered = useMemo(() => agents.filter(a => {
     if (filters.branch_id && String(a.branch_id) !== String(filters.branch_id)) return false
     if (filters.nationality_id && String(a.nationality_id) !== String(filters.nationality_id)) return false
     if (!q.trim()) return true
@@ -213,11 +259,31 @@ export default function AgentsPage({ sb, lang }) {
            (a.name_en || '').toLowerCase().includes(s) ||
            (a.id_number || '').includes(s) ||
            (a.phone || '').includes(s)
-  })
+  }), [agents, filters, q])
+
+  // ترتيب الوسطاء حسب آخر عمولة مدفوعة (الأحدث أولاً) — من لا عمولة مدفوعة له في الأسفل
+  const sortedRows = useMemo(() => filtered.slice().sort((a, b) => {
+    const pa = a._stats?.lastPaid || ''
+    const pb = b._stats?.lastPaid || ''
+    if (pa && pb) return pb < pa ? -1 : pb > pa ? 1 : 0
+    if (pa) return -1
+    if (pb) return 1
+    return 0
+  }), [filtered])
+
+  const total = sortedRows.length
+  const totalPages = Math.max(1, Math.ceil(total / PAGE))
+  const pageRows = sortedRows.slice(page * PAGE, page * PAGE + PAGE)
+
+  const natDist = useMemo(() => (stats?.topNats || []).map(([name, cnt], i) => ({ name, cnt, color: ROLE_PALETTE[i % ROLE_PALETTE.length] })), [stats])
 
   const selectedAgent = selectedId ? agents.find(a => a.id === selectedId) : null
   if (selectedAgent) {
-    return <AgentDetailPage sb={sb} agent={selectedAgent} onBack={() => setSelectedId(null)} T={T} isAr={isAr} />
+    return (
+      <AgentDetailPage sb={sb} agent={selectedAgent} agentStats={selectedAgent._stats}
+        toast={toast} onBack={() => setSelectedId(null)} T={T} isAr={isAr}
+        branches={branches} nationalities={nationalities} onReload={() => setRefreshTick(t => t + 1)} />
+    )
   }
 
   const topBranchCode = branches.find(b => b.id === stats?.topBranchId)?.branch_code || '—'
@@ -225,437 +291,548 @@ export default function AgentsPage({ sb, lang }) {
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
-        .clp-hero { display: grid; grid-template-columns: minmax(0, 2.6fr) minmax(0, 1fr); gap: 14px; }
-        .clp-pills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        @media (max-width: 880px) {
-          .clp-hero { grid-template-columns: 1fr; }
-          .clp-pills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
+        .clp-hero { display: grid; grid-template-columns: 1.8fr 1fr; gap: 14px; }
+        .cl-row { transition: all .15s; }
+        .cl-row:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.34) !important; border-color: rgba(212,160,23,.22) !important; }
+        .cl-row-vdiv { width: 1px; align-self: stretch; background: linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%); min-height: 46px; }
+        @media (max-width: 720px) { .clp-hero { grid-template-columns: 1fr; } .cl-row-vdiv { display: none; } }
       `}</style>
 
       {/* Header */}
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
-            {T('الوسطاء', 'Agents')}
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
-            {T('الوسطاء الذين يجلبون العملاء وعمولاتهم على الطلبات', 'Agents who refer clients — with commissions per request')}
-          </div>
-        </div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الوسطاء', 'Agents')}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('قائمة الوسطاء وسجل الطلبات التي جلبوها وعمولاتهم.', 'Agents directory with referred requests and commissions.')}</div>
       </div>
 
-      {/* Hero: KPIs + identity */}
-      <div className="clp-hero" style={{ marginBottom: 14 }}>
-        <div style={{ ...cardChrome, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="clp-pills">
-            <Pill color={C.blue}   value={num(stats?.grandCount || 0)}                   label={T('طلب بوسيط', 'requests')} />
-            <Pill color={GOLD}     value={num(Math.round(stats?.grandTotal || 0))}       label={T('عمولات (ر.س)', 'commissions')} />
-            <Pill color={C.ok}     value={num(Math.round(stats?.grandPaid || 0))}        label={T('مدفوع (ر.س)', 'paid')} />
-            <Pill color={C.purple} value={num(stats?.newThisMonth || 0)}                 label={T('جديد هذا الشهر', 'new this month')} />
-          </div>
-          <ActivityChart days={stats?.days14 || []} color={GOLD}
-            label={T('وسطاء جدد آخر 14 يوم', 'New agents · last 14 days')}
-            totalLabel={T('الإجمالي', 'Total')} />
+      {/* Stats hero — KPI + nationality donut (Clients page style) */}
+      <div className="clp-hero" style={{ marginBottom: 24 }}>
+        <HeroStat tone={GOLD} label={T('الوسطاء', 'Agents')} value={num(stats?.total || 0)}
+          footer={T(`${num(stats?.newThisMonth || 0)} جديد هذا الشهر`, `${num(stats?.newThisMonth || 0)} new this month`)} />
+        <NatDonutCard items={natDist} totalLabel={T('وسيط', 'agents')} title={T('التوزّع حسب الجنسيات', 'By nationality')} />
+      </div>
+
+      {/* Search + filter */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+          <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          <input value={q} onChange={e => { setQ(e.target.value); setPage(0) }} placeholder={T('ابحث بالاسم، رقم الهوية، الجوال…', 'Search by name, ID or phone…')}
+            style={{ width: '100%', height: 44, padding: '0 40px 0 14px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
-        <div style={{ ...cardChrome, padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', letterSpacing: '.3px' }}>{T('الوسطاء', 'Agents')}</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr' }}>
-            <span style={{ fontSize: 32, fontWeight: 700, color: GOLD, letterSpacing: '-.5px', lineHeight: 1 }}>{num(stats?.total || 0)}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx4)' }}>{T('وسيط', 'agents')}</span>
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.5 }}>
-            {stats?.topBranchCount
-              ? T(`أعلى تركّز في ${topBranchCode} (${num(stats.topBranchCount)})`,
-                  `Top branch ${topBranchCode} (${num(stats.topBranchCount)})`)
-              : T('موزّعون على المكاتب', 'Distributed across branches')}
-          </div>
-          {stats?.topNats?.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
-              {stats.topNats.slice(0, 3).map(([nat, cnt]) => (
-                <span key={nat} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999,
-                  background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.05)',
-                  fontSize: 10, fontWeight: 600, color: 'var(--tx3)',
-                }}>
-                  <span style={{ color: GOLD, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{cnt}</span>
-                  <span>{nat}</span>
-                </span>
-              ))}
-            </div>
+        <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
+          {T('تصفية', 'Filter')}
+          {hasFilters ? (
+            <span role="button" tabIndex={0} title={T('مسح الفلاتر', 'Clear filters')}
+              onClick={e => { e.stopPropagation(); setFilters({ branch_id: '', nationality_id: '' }); setPage(0) }}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setFilters({ branch_id: '', nationality_id: '' }); setPage(0) } }}
+              onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
+              onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+              style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </span>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="18" y1="6" x2="20" y2="6" /><circle cx="16" cy="6" r="2" /><line x1="4" y1="12" x2="8" y2="12" /><line x1="12" y1="12" x2="20" y2="12" /><circle cx="10" cy="12" r="2" /><line x1="4" y1="18" x2="16" y2="18" /><line x1="20" y1="18" x2="20" y2="18" /><circle cx="18" cy="18" r="2" /></svg>
           )}
-        </div>
-      </div>
-
-      {/* Search + advanced filter */}
-      <div style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 260px', position: 'relative', minWidth: 200 }}>
-          <Search size={15} color="rgba(255,255,255,.35)"
-            style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
-          <input value={q} onChange={e => setQ(e.target.value)}
-            placeholder={T('ابحث بالاسم، رقم الهوية، الجوال…', 'Search by name, ID or phone…')}
-            style={{
-              width: '100%', height: 40, padding: '0 36px 0 14px',
-              background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
-              border: '1px solid rgba(255,255,255,.06)', borderRadius: 11,
-              fontFamily: F, fontSize: 14, fontWeight: 400, color: 'var(--tx)',
-              outline: 'none',
-              boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-              transition: '.2s', boxSizing: 'border-box',
-            }} />
-        </div>
-        <button onClick={() => setAdvOpen(v => !v)}
-          style={{
-            height: 40, padding: '0 14px', borderRadius: 11,
-            border: `1px solid ${advOpen || hasFilters ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.06)'}`,
-            background: advOpen || hasFilters
-              ? 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)'
-              : 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
-            color: advOpen || hasFilters ? GOLD : 'rgba(255,255,255,.78)',
-            fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
-            boxShadow: advOpen || hasFilters
-              ? '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)'
-              : '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-            transition: '.2s',
-          }}>
-          <SlidersHorizontal size={14} />
-          {T('بحث متقدم', 'Filters')}
-          {hasFilters && <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD, boxShadow: `0 0 6px ${GOLD}99` }} />}
-          <ChevronDown size={12} style={{ transform: advOpen ? 'rotate(180deg)' : '', transition: '.2s' }} />
         </button>
       </div>
 
       {advOpen && (
-        <div style={{ ...cardChrome, marginBottom: 14, padding: '16px 18px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10, marginBottom: 12 }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 12 }}>
             <div>
               <Lbl>{T('المكتب', 'Branch')}</Lbl>
-              <select value={filters.branch_id}
-                onChange={e => setFilters(f => ({ ...f, branch_id: e.target.value }))} style={sF}>
-                <option value="">{T('جميع المكاتب', 'All branches')}</option>
-                {branches.map(b => <option key={b.id} value={b.id}>{b.branch_code}</option>)}
-              </select>
+              <Drop value={filters.branch_id} onChange={v => { setFilters(f => ({ ...f, branch_id: v })); setPage(0) }} placeholder={T('جميع المكاتب', 'All branches')}
+                options={[{ v: '', l: T('جميع المكاتب', 'All branches') }, ...branches.map(b => ({ v: b.id, l: b.branch_code }))]} />
             </div>
             <div>
               <Lbl>{T('الجنسية', 'Nationality')}</Lbl>
-              <select value={filters.nationality_id}
-                onChange={e => setFilters(f => ({ ...f, nationality_id: e.target.value }))} style={sF}>
-                <option value="">{T('كل الجنسيات', 'All nationalities')}</option>
-                {nationalities.map(n => <option key={n.id} value={n.id}>{isAr ? n.name_ar : n.name_en}</option>)}
-              </select>
+              <Drop value={filters.nationality_id} onChange={v => { setFilters(f => ({ ...f, nationality_id: v })); setPage(0) }} placeholder={T('كل الجنسيات', 'All nationalities')}
+                options={[{ v: '', l: T('كل الجنسيات', 'All nationalities') }, ...nationalities.map(n => ({ v: n.id, l: isAr ? n.name_ar : n.name_en }))]} />
             </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.05)' }}>
-            <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 500 }}>
-              <span style={{ fontWeight: 700, color: GOLD }}>{num(filtered.length)}</span> {T('من أصل', 'of')} <span style={{ fontWeight: 700 }}>{num(stats?.total || 0)}</span>
-            </div>
-            {(hasFilters || q) && (
-              <button onClick={resetFilters}
-                style={{
-                  height: 32, padding: '0 14px', borderRadius: 8,
-                  background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
-                  border: '1px solid rgba(255,255,255,.06)',
-                  color: 'var(--tx3)', fontFamily: F, fontSize: 11, fontWeight: 500, cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-                }}>{T('إعادة تعيين', 'Reset')}</button>
-            )}
           </div>
         </div>
       )}
 
-      {/* Grid */}
+      {/* List — flat, ordered by each agent's latest commission payment */}
       {loading ? (
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx5)', fontSize: 13, fontWeight: 500 }}>{T('جاري التحميل…', 'Loading…')}</div>
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <div style={{ ...cardChrome, padding: 60, textAlign: 'center' }}>
           <Users size={36} color={GOLD} style={{ opacity: .55 }} />
-          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>
-            {q || hasFilters ? T('لا توجد نتائج مطابقة', 'No matches') : T('لا يوجد وسطاء بعد', 'No agents yet')}
-          </div>
+          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{q || hasFilters ? T('لا توجد نتائج مطابقة', 'No matches') : T('لا يوجد وسطاء بعد', 'No agents yet')}</div>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(max(320px, calc(50% - 7px)), 1fr))',
-          gap: 14,
-        }}>
-          {filtered.map(a => (
-            <AgentCard key={a.id} agent={a} onClick={() => setSelectedId(a.id)} T={T} isAr={isAr} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
+          {pageRows.map(a => (
+            <AgentRow key={a.id} agent={a} agentStats={a._stats} onClick={() => setSelectedId(a.id)} T={T} isAr={isAr} />
           ))}
         </div>
       )}
-    </div>
-  )
-}
 
-/* ═══════════════════════════════════════════════════════════════
-   Agent card (grid item) — same rhythm as ClientCard
-   ═══════════════════════════════════════════════════════════════ */
-function AgentCard({ agent, onClick, T, isAr }) {
-  const c = agent._stats || { count: 0, sum: 0, paid: 0, lastReq: null }
-  const due = Number(c.sum || 0) - Number(c.paid || 0)
-  const lastActivity = formatRelative(c.lastReq)
-  const accent = colorFor(agent.id)
-
-  const StatRow = ({ Icon, value, label, color }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-      <span style={{
-        fontSize: 14, fontWeight: 700,
-        color: color || 'rgba(255,255,255,.88)',
-        fontFamily: "'JetBrains Mono','Cairo',sans-serif",
-        direction: 'ltr', letterSpacing: '-.2px',
-      }}>{value}</span>
-      <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{label}</span>
-      <Icon size={12} color="rgba(255,255,255,.5)" strokeWidth={2} />
-    </div>
-  )
-
-  return (
-    <div onClick={onClick} style={{
-      ...cardChrome, position: 'relative', cursor: 'pointer',
-      padding: '18px 22px',
-      display: 'flex', gap: 16, alignItems: 'flex-start',
-      minHeight: 140,
-      transition: '.2s',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px ${GOLD}33, inset 0 1px 0 rgba(255,255,255,.08)` }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }}>
-
-      {due > 0 && (
-        <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 2 }}>
-          <span title={T(`عمولة غير مدفوعة ${num(due)} ر.س`, `Unpaid commission ${num(due)} SAR`)}
-            style={{
-              width: 24, height: 24, borderRadius: '50%',
-              background: 'rgba(234,179,8,.12)', border: '1px solid rgba(234,179,8,.35)',
-              color: C.warn,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 8px rgba(234,179,8,.25)',
-            }}>
-            <AlertCircle size={11} />
-          </span>
-        </div>
-      )}
-
-      {/* Right: identity */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            background: accent + '22', border: `1.5px solid ${accent}66`,
-            color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 700, flexShrink: 0,
-          }}>{initial(agent.name_ar || agent.name_en)}</div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {agent.name_ar || agent.name_en || '—'}
-            </div>
-            {agent.id_number && (
-              <div style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace', marginTop: 2 }}>
-                {agent.id_number}
-              </div>
-            )}
+      {/* Pagination */}
+      {!loading && total > PAGE && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24 }}>
+          <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
+            {T('صفحة', 'Page')} <span style={{ color: GOLD, fontWeight: 700 }}>{page + 1}</span> / {totalPages} · {num(total)}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} style={btnPg(page === 0)}>{T('السابق', 'Prev')}</button>
+            <button disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)} style={btnPg(page + 1 >= totalPages)}>{T('التالي', 'Next')}</button>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
 
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--tx2)', fontWeight: 500, marginTop: 12, flexWrap: 'wrap' }}>
-          {agent.phone && (
-            <>
-              <Phone size={12} color="rgba(255,255,255,.5)" />
-              <span style={{ direction: 'ltr', fontFamily: 'monospace', color: C.ok }}>{agent.phone}</span>
-            </>
-          )}
+/* ═══════════════════════════════════════════════════════════════
+   Agent row — mirrors ClientRow (commissions instead of invoices)
+   ═══════════════════════════════════════════════════════════════ */
+function AgentRow({ agent, agentStats, onClick, T, isAr }) {
+  const c = agentStats || { count: 0, sum: 0, paid: 0, paidCount: 0 }
+  const totalCom = Number(c.sum || 0)
+  const paid = Number(c.paid || 0)
+  const due = Math.max(0, totalCom - paid)
+  const ps = payState(totalCom, paid)
+  const accent = colorFor(agent.id)
+  const name = agent.name_ar || agent.name_en || '—'
+  const reqCount = c.count || 0
+  const paidCount = c.paidCount || 0
+  const totalDisp = num(Math.round(totalCom))
+
+  const flagAvatar = (size = 42, radius = 12) => (
+    <div title={agent.nationality?.name_ar || ''} style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.42), fontWeight: 800, flexShrink: 0 }}>
+      {agent.nationality?.flag_url ? <img src={agent.nationality.flag_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial(name)}
+    </div>
+  )
+  const pill = (icon, label, color, bg, bd) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: bg, border: `1px solid ${bd}`, color, fontSize: 10, fontWeight: 700 }}>{icon}{label}</span>
+  )
+  const baseBg = `linear-gradient(135deg, ${accent}0e 0%, #232323 50%, #1f1f1f 100%)`
+
+  const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 700, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+  const idText = agent.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><IdCard size={13} color="rgba(255,255,255,.45)" /><span style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace' }}>{agent.id_number}</span></span> : null
+  const phoneBit = agent.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><Phone size={12} color="rgba(255,255,255,.45)" /><span style={{ fontFamily: 'monospace', color: 'var(--tx4)' }}>{fmtPhone(agent.phone)}</span></span> : null
+  const mline = (children, gap = 12) => <div style={{ display: 'inline-flex', alignItems: 'center', gap, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, flexWrap: 'wrap' }}>{children}</div>
+
+  return (
+    <div onClick={onClick} className="cl-row" style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: baseBg, border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 160px', gap: 16, alignItems: 'center', padding: '14px 18px' }}>
+        {/* Content — avatar + name, then id+phone, then request pills */}
+        <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
+          {flagAvatar(40, 11)}
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{nameText(15)}</div>
+            {mline(<>{idText}{phoneBit}</>, 10)}
+            <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              {pill(<FileText size={11} />, `${num(reqCount)} ${T('طلب', 'req')}`, GOLD, 'rgba(212,160,23,.10)', 'rgba(212,160,23,.28)')}
+              {paidCount > 0 && pill(<Check size={11} />, `${num(paidCount)} ${T('مدفوعة', 'paid')}`, C.ok, 'rgba(46,204,113,.10)', 'rgba(46,204,113,.28)')}
+            </div>
+          </div>
         </div>
-
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--tx2)', fontWeight: 500, marginTop: 6, flexWrap: 'wrap' }}>
-          {agent.branch?.branch_code && (
-            <span style={{ padding: '2px 8px', borderRadius: 6, background: 'rgba(212,160,23,.10)', color: GOLD, border: '1px solid rgba(212,160,23,.25)', fontSize: 10, fontWeight: 700, direction: 'ltr' }}>
-              {agent.branch.branch_code}
-            </span>
-          )}
-          {agent.nationality?.name_ar && (
-            <span style={{ color: 'var(--tx3)' }}>{isAr ? agent.nationality.name_ar : (agent.nationality.name_en || agent.nationality.name_ar)}</span>
-          )}
-          {lastActivity && (
-            <>
-              <span style={{ color: 'rgba(255,255,255,.35)' }}>•</span>
-              <span style={{ color: 'var(--tx4)' }}>{lastActivity}</span>
-            </>
-          )}
+        <div className="cl-row-vdiv" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', borderRadius: 10, background: `linear-gradient(160deg, ${ps.c}14 0%, rgba(0,0,0,.25) 100%)`, border: `1px solid ${ps.c}26` }}>
+          <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.4px' }}>{T('إجمالي العمولات', 'Commissions')}</span>
+          <span style={{ fontSize: 24, fontWeight: 800, color: ps.c, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{totalDisp}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, direction: 'ltr', color: due > 0 ? C.warn : C.ok }}>{due > 0 ? `− ${num(Math.round(due))}` : (totalCom > 0 ? `✓ ${T('مدفوعة بالكامل', 'fully paid')}` : '—')}</span>
         </div>
-      </div>
-
-      {/* Left: stats */}
-      <div style={{ width: 130, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
-        <StatRow Icon={FileText} value={num(c.count || 0)}                label={T('طلب', 'req')} />
-        <StatRow Icon={Wallet}   value={num(Math.round(c.sum || 0))}      label={T('عمولة', 'comm')} color={GOLD} />
-        <StatRow Icon={TrendingUp} value={num(Math.round(c.paid || 0))}   label={T('مدفوع', 'paid')} color={C.ok} />
       </div>
     </div>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Detail page — replaces list when an agent is selected
+   Detail page — mirrors ClientDetailPage
    ═══════════════════════════════════════════════════════════════ */
-function AgentDetailPage({ sb, agent, onBack, T, isAr }) {
+function AgentDetailPage({ sb, agent, agentStats, toast, onBack, T, isAr, branches = [], nationalities = [], onReload }) {
   const [links, setLinks] = useState(null)
-  const [months12, setMonths12] = useState([])
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     sb.from('service_request_agents').select(`
       commission_amount, commission_paid_at,
       service_request:service_request_id!inner(
-        id, request_ref_no, request_date, deleted_at,
+        id, request_ref_no, request_date, quantity, deleted_at,
         client:client_id(name_ar,name_en),
         service_type:service_type_id(code,value_ar,value_en),
         status:status_id(code,value_ar,value_en),
-        branch:branch_id(branch_code)
+        branch:branch_id(branch_code),
+        invoice:invoices(id,invoice_no,total_amount,paid_amount,remaining_amount,created_at)
       )
     `).eq('agent_id', agent.id).is('service_request.deleted_at', null)
       .then(({ data }) => {
         const rows = (data || []).filter(r => r.service_request)
         rows.sort((a, b) => (b.service_request?.request_date || '').localeCompare(a.service_request?.request_date || ''))
         setLinks(rows)
-        // 12-month chart by request date
-        const now = new Date()
-        const months = Array.from({ length: 12 }, (_, i) => {
-          const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1)
-          return { date: d, key: d.toISOString().slice(0, 7), count: 0 }
-        })
-        const monthMap = new Map(months.map(m => [m.key, m]))
-        rows.forEach(r => {
-          const rd = r.service_request?.request_date
-          if (!rd) return
-          const m = monthMap.get(new Date(rd).toISOString().slice(0, 7)); if (m) m.count += 1
-        })
-        setMonths12(months)
       })
   }, [sb, agent.id])
 
-  const accent = colorFor(agent.id)
+  const name = agent.name_ar || agent.name_en || '—'
   const totalCom = links?.reduce((s, r) => s + Number(r.commission_amount || 0), 0) || 0
-  const paidCom = links?.reduce((s, r) => s + (r.commission_paid_at ? Number(r.commission_amount || 0) : 0), 0) || 0
-  const due = totalCom - paidCom
+  const reqCount = links?.length || 0
+
+  // الفواتير المرتبطة بطلبات الوسيط — كل طلب يحمل فاتورته
+  const invoiceRows = (links || [])
+    .map(r => { const sr = r.service_request; const inv = sr?.invoice?.[0]; return inv ? { ...inv, service_type: sr.service_type, quantity: sr.quantity, branch: sr.branch } : null })
+    .filter(Boolean)
+  const openInvoice = (id) => { if (id) window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) }
+  const invTotal = invoiceRows.reduce((s, r) => s + Number(r.total_amount || 0), 0)
+  const invPaid = invoiceRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
+  const invDue = Math.max(0, invTotal - invPaid)
+  const invPct = invTotal > 0 ? Math.min(100, Math.round((invPaid / invTotal) * 100)) : 0
+  const invPs = payState(invTotal, invPaid)
+  const lastInvoiceIso = (() => { const ds = invoiceRows.map(r => r.created_at).filter(Boolean); return ds.length ? ds.slice().sort().slice(-1)[0] : null })()
+
+  const branchCode = agent.branch?.branch_code || branches.find(b => b.id === agent.branch_id)?.branch_code
+
+  const infoItems = [
+    { label: T('الاسم', 'Name'), value: agent.name_ar || agent.name_en },
+    agent.name_en && agent.name_ar ? { label: T('الاسم بالإنجليزية', 'Name (EN)'), value: agent.name_en, mono: true } : null,
+    { label: T('رقم الهوية', 'ID number'), value: agent.id_number, mono: true, copy: true },
+    { label: T('الجوال', 'Phone'), value: fmtPhone(agent.phone), mono: true, copy: true },
+    { label: T('الجنسية', 'Nationality'), value: agent.nationality?.name_ar },
+    { label: T('المكتب', 'Branch'), value: branchCode, mono: true },
+    Number(agent.default_commission_amount || 0) > 0 ? { label: T('العمولة الافتراضية', 'Default commission'), value: num(agent.default_commission_amount), mono: true, color: GOLD } : null,
+    { label: T('تاريخ الإضافة', 'Joined'), value: fmtGreg(agent.created_at), mono: true },
+  ].filter(Boolean).map(f => ({ ...f, toast }))
 
   return (
-    <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24, textAlign: 'center' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: '50%',
-            background: accent + '22', border: `2px solid ${accent}88`,
-            color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, fontWeight: 700,
-          }}>{initial(agent.name_ar || agent.name_en)}</div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.95)', letterSpacing: '-.3px' }}>
-              {agent.name_ar || agent.name_en}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--tx4)', marginTop: 4, display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-              {agent.id_number && <span style={{ direction: 'ltr', fontFamily: 'monospace' }}>{agent.id_number}</span>}
-              {agent.phone && <><span>•</span><span style={{ direction: 'ltr', fontFamily: 'monospace', color: C.ok }}>{agent.phone}</span></>}
-              {agent.nationality?.name_ar && <><span>•</span><span>{agent.nationality.name_ar}</span></>}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 16 }}>
-          <BackButton onBack={onBack} label={T('رجوع', 'Back')} />
-          {agent.branch?.branch_code && (
-            <span style={{
-              padding: '6px 14px', borderRadius: 999,
-              background: 'rgba(212,160,23,.12)', color: GOLD,
-              border: '1px solid rgba(212,160,23,.3)', fontSize: 12, fontWeight: 700, direction: 'ltr',
-            }}>{agent.branch.branch_code}</span>
-          )}
-        </div>
+    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>
+      {/* Back */}
+      <div style={{ marginBottom: 4 }}>
+        <BackButton onBack={onBack} label={T('رجوع', 'Back')} />
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* KPI row + activity */}
-        <div className="clp-hero">
-          <div style={{ ...cardChrome, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div className="clp-pills">
-              <Pill color={C.blue} value={links === null ? '…' : num(links.length)} label={T('عدد الطلبات', 'requests')} />
-              <Pill color={GOLD}   value={num(Math.round(totalCom))}                  label={T('عمولة (ر.س)', 'commission')} />
-              <Pill color={C.ok}   value={num(Math.round(paidCom))}                   label={T('مدفوع (ر.س)', 'paid')} />
-              <Pill color={due > 0 ? C.warn : '#666'} value={num(Math.round(due))}    label={T('مستحق (ر.س)', 'due')} />
+      {/* Header — icon + name title */}
+      <div style={{ marginBottom: 18, marginTop: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          <div style={{ fontSize: 22, fontWeight: 600, color: GOLD, letterSpacing: '-.2px' }}>{name}</div>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>{T('عرض بيانات الوسيط وسجل الطلبات التي جلبها وعمولاته.', 'Agent profile, referred requests and commissions.')}</div>
+      </div>
+
+      <div className="cld-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+        <style>{`@media (max-width:900px){.cld-grid{grid-template-columns:1fr !important}.cld-side,.cld-main{grid-column:auto !important;position:static !important}}`}</style>
+
+        {/* Right column — agent info + commissions */}
+        <div className="cld-main" style={{ gridColumn: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <InfoSectionCard title={T('بيانات الوسيط', 'Agent')} items={infoItems}
+            headerAction={
+              <button onClick={() => setEditing(true)}
+                onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+                style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+                {T('تعديل', 'Edit')}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+              </button>
+            } />
+
+          {/* Invoices log — فواتير الطلبات التي جلبها الوسيط */}
+          <div style={cardChrome}>
+            <div style={cardHeader}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD }} />
+              <span style={cardTitle}>{T('سجل الفواتير', 'Invoices')}</span>
+              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{invoiceRows.length}</span>
             </div>
-            <ActivityChart days={months12.map(m => ({ date: m.date, count: m.count }))} color={GOLD}
-              label={T('طلبات آخر 12 شهر', 'Requests · last 12 months')}
-              totalLabel={T('الإجمالي', 'Total')} />
-          </div>
-          <div style={{ ...cardChrome, padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', letterSpacing: '.3px' }}>{T('متوسط العمولة', 'Avg commission')}</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr' }}>
-              <span style={{ fontSize: 32, fontWeight: 700, color: GOLD, letterSpacing: '-.5px', lineHeight: 1 }}>
-                {links?.length ? num(Math.round(totalCom / links.length)) : '—'}
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx4)' }}>{T('ر.س', 'SAR')}</span>
+            <div style={{ padding: '14px 18px' }}>
+              {links === null && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 16, textAlign: 'center' }}>{T('جاري التحميل…', 'Loading…')}</div>}
+              {links !== null && invoiceRows.length === 0 && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 16, textAlign: 'center' }}>{T('لا توجد فواتير بعد', 'No invoices yet')}</div>}
+              {invoiceRows.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {invoiceRows.map(invoice => (
+                    <InvoiceRow key={invoice.id} invoice={invoice} openInvoice={openInvoice} T={T} isAr={isAr} />
+                  ))}
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.5 }}>
-              {due > 0
-                ? T(`عمولة مستحقة ${num(Math.round(due))} ر.س`, `${num(Math.round(due))} SAR commission due`)
-                : (totalCom > 0 ? T('جميع العمولات مدفوعة', 'All commissions paid') : T('لا توجد عمولات بعد', 'No commissions yet'))}
-            </div>
-            {Number(agent.default_commission_amount || 0) > 0 && (
-              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)', display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                <span>{T('العمولة الافتراضية', 'Default commission')}</span>
-                <span style={{ color: GOLD, fontWeight: 700, direction: 'ltr' }}>{num(agent.default_commission_amount)}</span>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Requests list */}
-        <div style={{ ...cardChrome, padding: '18px 22px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.9)', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileText size={14} color={GOLD} /> {T('الطلبات والعمولات', 'Requests & commissions')}
-            <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx4)', fontWeight: 500 }}>{links?.length || 0}</span>
-          </div>
-          {links === null && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 20, textAlign: 'center' }}>{T('جاري التحميل…', 'Loading…')}</div>}
-          {links?.length === 0 && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 20, textAlign: 'center' }}>{T('لا توجد طلبات بعد', 'No requests yet')}</div>}
-          {links?.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {links.map((r, i) => {
-                const sr = r.service_request
-                const stClr = sr.status?.code === 'done' ? C.ok : (sr.status?.code === 'cancelled' ? C.red : GOLD)
-                const sClr = svcColor(sr.service_type?.code)
-                const paid = !!r.commission_paid_at
-                return (
-                  <div key={i} style={{
-                    padding: '12px 14px', borderRadius: 10,
-                    background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-                  }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx1)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {sr.client?.name_ar || sr.client?.name_en || T('— بدون عميل —', '— no client —')}
-                      </div>
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 12, color: GOLD, fontFamily: 'monospace', fontWeight: 700, direction: 'ltr' }}>{sr.request_ref_no}</span>
-                        {sr.status && <span style={{ fontSize: 11, color: stClr, fontWeight: 700 }}>· {isAr ? sr.status?.value_ar : (sr.status?.value_en || sr.status?.value_ar)}</span>}
-                        {sr.service_type && <span style={{ fontSize: 10, color: sClr, fontWeight: 600 }}>{isAr ? sr.service_type?.value_ar : (sr.service_type?.value_en || sr.service_type?.value_ar)}</span>}
-                      </div>
-                      <div style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr' }}>
-                        {fmtGreg(sr.request_date)}{sr.branch?.branch_code ? ` · ${sr.branch.branch_code}` : ''}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontSize: 13, color: paid ? C.ok : GOLD, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(r.commission_amount)}</div>
-                      <div style={{ fontSize: 10, color: paid ? C.ok : 'var(--tx4)', direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                        {paid && <CheckCircle2 size={10} />}{paid ? T('مدفوعة', 'paid') : T('غير مدفوعة', 'unpaid')}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+        {/* Left column — commission summary + stats (sticky) */}
+        <div className="cld-side" style={{ gridColumn: 2, position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Financial summary */}
+          <div style={cardChrome}>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('الملخص المالي', 'Financial Summary')}</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>
+              <AmountBox label={T('الفوترة', 'Invoiced')} value={num(Math.round(invTotal))} color={GOLD} />
+              <AmountBox label={T('المسدّد', 'Paid')} value={num(Math.round(invPaid))} color={C.ok} />
+              <AmountBox label={T('المتبقي', 'Remaining')} color={invDue > 0 ? C.red : 'var(--tx)'} value={num(Math.round(invDue))} />
             </div>
-          )}
+            <div style={{ padding: '14px 22px 18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--tx3)' }}>
+                <span>{T('نسبة السداد', 'Paid')}</span>
+                <span style={{ color: invPs.c, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{invPct}%</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${invPct}%`, background: `linear-gradient(90deg, ${invPs.c}, ${invPs.c}dd)`, transition: 'width .3s' }} />
+              </div>
+            </div>
+          </div>
+          <div style={cardChrome}>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={cardTitle}>{T('إحصاءات', 'Stats')}</span></div>
+            <div style={{ padding: '6px 22px 12px' }}>
+              {[
+                { Icon: FileText, label: T('عدد الطلبات', 'Requests'), value: links === null ? '…' : num(reqCount) },
+                { Icon: Wallet, label: T('عدد الفواتير', 'Invoices'), value: links === null ? '…' : num(invoiceRows.length) },
+                { Icon: Coins, label: T('إجمالي العمولات', 'Commissions'), value: links === null ? '…' : num(Math.round(totalCom)), color: GOLD },
+                { Icon: Coins, label: T('العمولة الافتراضية', 'Default commission'), value: Number(agent.default_commission_amount || 0) > 0 ? num(agent.default_commission_amount) : '—' },
+                { Icon: Calendar, label: T('آخر فاتورة', 'Last invoice'), value: lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—', color: GOLD },
+              ].map((row, i, arr) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+                  <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><row.Icon size={13} color="rgba(255,255,255,.4)" />{row.label}</span>
+                  <span style={{ fontSize: 13, color: row.color || 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      {editing && (
+        <AgentEditModal sb={sb} agent={agent} branches={branches} nationalities={nationalities} toast={toast}
+          onClose={() => setEditing(false)} onSaved={() => { setEditing(false); onReload?.() }} />
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Invoice row — identical to the Clients page invoice log
+   ═══════════════════════════════════════════════════════════════ */
+function InvoiceRow({ invoice, openInvoice, T, isAr }) {
+  const total = Number(invoice.total_amount || 0)
+  const paid = Number(invoice.paid_amount || 0)
+  const remaining = Number(invoice.remaining_amount || 0)
+  const ps = payState(total, paid)
+  const sClr = svcColor(invoice.service_type?.code)
+  const invNo = invoice.invoice_no || `#${String(invoice.id).slice(0, 8)}`
+  const svcName = isAr ? invoice.service_type?.value_ar : (invoice.service_type?.value_en || invoice.service_type?.value_ar)
+
+  const noBtn = (size = 13) => (
+    <button type="button" onClick={() => openInvoice(invoice.id)} title={T('فتح تفاصيل الفاتورة', 'Open invoice')}
+      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: size, color: GOLD, fontFamily: 'monospace', fontWeight: 700, direction: 'ltr', textDecoration: 'underline', textUnderlineOffset: 3 }}>{invNo}</button>
+  )
+  const isVisa = (invoice.service_type?.code || '').includes('work_visa')
+  const serviceChip = invoice.service_type ? (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: sClr, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: sClr + '1a', border: `1px solid ${sClr}40` }}>
+      {isVisa && invoice.quantity > 0 && <>
+        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 800 }}>×{num(invoice.quantity)}</span>
+        <span style={{ width: 1, height: 12, background: `${sClr}80`, flexShrink: 0 }} />
+      </>}
+      {svcName}
+    </span>
+  ) : null
+  const branchChip = invoice.branch?.branch_code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: GOLD, direction: 'ltr' }}><Building2 size={10} />{invoice.branch.branch_code}</span> : null
+  const paidLabel = <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: C.ok, fontWeight: 700 }}>{T('تم السداد بالكامل', 'Fully paid')}<Check size={11} /></span>
+
+  const amtPill = (label, value, color) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)' }}>
+      {label}<b style={{ color, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</b>
+    </span>
+  )
+
+  return (
+    <div style={{ padding: '12px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+      <div style={{ display: 'flex' }}>
+        <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: ps.c, marginInlineEnd: 12 }} />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>{noBtn()}<div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{serviceChip}</div></div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+              <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('الإجمالي', 'Total')}</span>
+              <b style={{ fontSize: 18, lineHeight: 1, color: GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</b>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            {branchChip || <span />}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {remaining > 0
+                ? <>{amtPill(T('المدفوع', 'Paid'), paid, C.ok)}{amtPill(T('المتبقي', 'Remaining'), remaining, C.red)}</>
+                : paidLabel}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Agent edit modal — mirrors ClientEditModal
+   ═══════════════════════════════════════════════════════════════ */
+function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, onSaved }) {
+  const [f, setF] = useState({
+    name_ar: agent.name_ar || agent.name_en || '',
+    id_number: agent.id_number || '',
+    phone: String(agent.phone || '').replace(/^\+?966/, '').replace(/^0/, '').replace(/\D/g, '').slice(0, 9),
+    nationality_id: agent.nationality_id || '',
+    branch_id: agent.branch_id || '',
+    default_commission_amount: agent.default_commission_amount != null ? String(agent.default_commission_amount) : '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(null)
+  const [errMsg, setErrMsg] = useState('')
+  const set = (k, v) => { setErrMsg(''); setF(p => ({ ...p, [k]: v })) }
+
+  // Core fields are required — the «تعديل» button stays disabled until every input is valid.
+  const idDigits = (f.id_number || '').replace(/\D/g, '')
+  const phoneDigits = (f.phone || '').replace(/\D/g, '')
+  const valid = !!(f.name_ar.trim() && idDigits.length === 10 && phoneDigits.length === 9 && f.nationality_id && f.branch_id)
+  const reqStar = <span style={{ color: C.red }}>*</span>
+
+  const accent = 'rgba(212,160,23,.4)'
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1500, padding: 16, fontFamily: F, direction: 'rtl' }
+  const box = { background: 'var(--modal-bg)', borderRadius: 16, width: 560, maxWidth: '95vw', minHeight: 430, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)' }
+  const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid ' + accent, padding: '20px 22px' }
+  const legend = { position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
+  const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
+  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
+
+  const save = async () => {
+    if (!f.name_ar.trim()) { setErrMsg('الاسم مطلوب'); return }
+    if (idDigits.length !== 10) { setErrMsg('رقم الهوية يجب أن يكون 10 أرقام'); return }
+    const phone9 = phoneDigits
+    if (phone9.length !== 9) { setErrMsg('رقم الجوال يجب أن يكون 9 أرقام بعد +966'); return }
+    if (!f.nationality_id) { setErrMsg('الجنسية مطلوبة'); return }
+    if (!f.branch_id) { setErrMsg('المكتب مطلوب'); return }
+    setSaving(true)
+    const newPhone = phone9 ? '966' + phone9 : null
+    const commission = f.default_commission_amount === '' ? null : Number(f.default_commission_amount)
+    const { data, error } = await sb.from('agents').update({
+      name_ar: f.name_ar.trim() || null,
+      id_number: f.id_number.trim() || null,
+      phone: newPhone,
+      nationality_id: f.nationality_id || null,
+      branch_id: f.branch_id || null,
+      default_commission_amount: commission,
+      updated_at: new Date().toISOString(),
+    }).eq('id', agent.id).select()
+    if (error) { setErrMsg(error.message.slice(0, 100)); setSaving(false); return }
+    if ((data || []).length === 0) { setErrMsg('لم يتم الحفظ — ليست لديك صلاحية كافية'); setSaving(false); return }
+    setSaving(false)
+
+    const natName = id => nationalities.find(n => n.id === id)?.name_ar || '—'
+    const brName = id => branches.find(b => b.id === id)?.branch_code || '—'
+    const phoneDisp = p => p ? String(p).replace(/^\+?966/, '0') : '—'
+    const rows = []
+    if ((agent.name_ar || '') !== f.name_ar.trim()) rows.push({ label: 'الاسم', from: agent.name_ar || '—', to: f.name_ar.trim() || '—' })
+    if ((agent.id_number || '') !== f.id_number.trim()) rows.push({ label: 'رقم الهوية', from: agent.id_number || '—', to: f.id_number.trim() || '—', mono: true })
+    if ((agent.phone || '') !== (newPhone || '')) rows.push({ label: 'رقم الجوال', from: phoneDisp(agent.phone), to: phoneDisp(newPhone), mono: true })
+    if ((agent.nationality_id || '') !== (f.nationality_id || '')) rows.push({ label: 'الجنسية', from: natName(agent.nationality_id), to: natName(f.nationality_id) })
+    if ((agent.branch_id || '') !== (f.branch_id || '')) rows.push({ label: 'المكتب', from: brName(agent.branch_id), to: brName(f.branch_id), mono: true })
+    if (Number(agent.default_commission_amount || 0) !== Number(commission || 0)) rows.push({ label: 'العمولة الافتراضية', from: agent.default_commission_amount != null ? num(agent.default_commission_amount) : '—', to: commission != null ? num(commission) : '—', mono: true })
+    setDone({ rows })
+  }
+
+  return (
+    <div style={overlay}>
+      <div onClick={e => e.stopPropagation()} style={box}>
+        <style>{`.cm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${GOLD};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.cm-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${GOLD}}.cm-nav-btn:hover:not(:disabled) .nav-ico{background:${GOLD};color:#000}.cm-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
+        {done ? (
+          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 28px', gap: 16, textAlign: 'center' }}>
+            <button onClick={() => onSaved?.()} aria-label="إغلاق"
+              style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
+              <X size={14} />
+            </button>
+            <div style={{ width: 74, height: 74, borderRadius: '50%', background: C.ok + '2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok, boxShadow: '0 0 0 8px ' + C.ok + '14' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            </div>
+            <div style={{ fontSize: 19, fontWeight: 700, color: C.ok }}>تم تعديل البيانات بنجاح</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 1.7, maxWidth: 380 }}>{done.rows.length ? 'تم تحديث الحقول التالية:' : 'لم تتغيّر أي بيانات.'}</div>
+            {done.rows.length > 0 && (
+              <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                {done.rows.map((r, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--tx3)', fontWeight: 600, textAlign: 'start' }}>{r.label}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, direction: r.mono ? 'ltr' : 'rtl' }}>
+                      <span style={{ fontSize: 12.5, color: 'var(--tx5)', fontWeight: 600, textDecoration: 'line-through', fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.from}>{r.from}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                      <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.to}>{r.to}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Top bar */}
+            <div style={{ padding: '20px 24px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <span style={{ color: GOLD, flexShrink: 0, display: 'inline-flex' }}><User size={28} /></span>
+                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>تعديل بيانات الوسيط</div>
+              </div>
+              <button onClick={onClose} aria-label="إغلاق"
+                onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
+                style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '8px 24px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+              <div style={fieldset}>
+                <div style={legend}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
+                  <span>بيانات الوسيط</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 14, rowGap: 14 }}>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={lbl}>الاسم {reqStar}</div>
+                    <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} placeholder="اسم الوسيط" style={inp} />
+                  </div>
+                  <div>
+                    <div style={lbl}>رقم الهوية {reqStar}</div>
+                    <input value={f.id_number} onChange={e => set('id_number', e.target.value.replace(/\D/g, '').slice(0, 10))} dir="ltr" inputMode="numeric" maxLength={10} placeholder="0000000000" style={{ ...inp, direction: 'ltr', fontFamily: 'monospace' }} />
+                  </div>
+                  <div>
+                    <div style={lbl}>رقم الجوال {reqStar}</div>
+                    <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)' }}>
+                      <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: GOLD, flexShrink: 0 }}>+966</div>
+                      <input value={(d => !d ? '' : d.length <= 2 ? d : d.length <= 5 ? d.slice(0, 2) + ' ' + d.slice(2) : d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5))(f.phone)} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} dir="ltr" inputMode="numeric" maxLength={11} placeholder="5X XXX XXXX"
+                        style={{ flex: 1, width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div style={lbl}>الجنسية {reqStar}</div>
+                    <Drop value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder="— اختر —"
+                      options={nationalities.map(n => ({ v: n.id, l: n.name_ar }))} />
+                  </div>
+                  <div>
+                    <div style={lbl}>المكتب {reqStar}</div>
+                    <Drop value={f.branch_id} onChange={v => set('branch_id', v)} placeholder="— اختر —"
+                      options={branches.map(b => ({ v: b.id, l: b.branch_code }))} />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={lbl}>العمولة الافتراضية <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>(ر.س — اختياري)</span></div>
+                    <input value={f.default_commission_amount} onChange={e => set('default_commission_amount', e.target.value.replace(/[^\d.]/g, ''))} dir="ltr" inputMode="decimal" placeholder="0" style={{ ...inp, direction: 'ltr', fontFamily: 'monospace' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom bar */}
+            <div style={{ padding: '12px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
+              <div style={{ flex: 1, minHeight: 16, textAlign: 'start' }}>
+                {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                  {errMsg}
+                </span>}
+              </div>
+              <button onClick={save} disabled={saving || !valid} className="cm-nav-btn">
+                <span>{saving ? 'جارٍ التعديل…' : 'تعديل'}</span>
+                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? GOLD : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : GOLD, fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

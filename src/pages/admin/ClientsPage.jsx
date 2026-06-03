@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
+import { Drop, MultiDrop } from './PermissionsPage.jsx'
 import {
-  Users, Phone, FileText, Wallet, Search, SlidersHorizontal, ChevronDown,
-  AlertCircle, Hash, Calendar, Building2, Globe, TrendingUp, User,
+  Users, Phone, FileText, Wallet, Search,
+  AlertCircle, Hash, Calendar, Building2, Globe, TrendingUp, User, Copy, Check,
+  ArrowLeftRight, StickyNote, X, IdCard,
 } from 'lucide-react'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -14,12 +16,10 @@ const C = {
 const GOLD = C.gold
 const PAGE = 36
 const num = (v) => Number(v || 0).toLocaleString('en-US')
-const fmtGreg = (iso) => { if (!iso) return '—'; try { const d = new Date(iso); return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}` } catch { return '—' } }
-const initial = (name) => {
-  if (!name) return '?'
-  const w = name.trim().split(/\s+/)
-  return (w[0]?.[0] || '') + (w.length > 1 ? (w[w.length - 1][0] || '') : '')
-}
+const fmtGreg = (iso) => { if (!iso) return '—'; try { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` } catch { return '—' } }
+const fmtPhone = (p) => p ? String(p).replace(/^\+?966/, '0') : p
+const daysAgoLabel = (iso, isAr) => { if (!iso) return null; const dd = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); if (dd <= 0) return isAr ? 'اليوم' : 'today'; return isAr ? `قبل ${dd} يوم` : `${dd}d ago` }
+const initial = (name) => ((name || '—').trim().charAt(0) || '?')
 const colorFor = (s) => {
   let h = 0; for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
   const palette = ['#5dade2', '#bb8fce', '#16a085', '#f39c12', '#e8c77a', '#2ecc71', '#3498db']
@@ -29,7 +29,7 @@ const svcColor = (code) => ({
   work_visa: C.blue, iqama_issuance: '#27ae60', transfer: C.orange,
   iqama_renewal: C.cyan, ajeer: C.purple, other: C.gold, general: C.gray,
 }[code] || C.gray)
-const DIST_PALETTE = [C.blue, C.gold, C.purple, C.cyan, C.orange, C.ok, '#3498db', C.gray]
+const ROLE_PALETTE = [C.gold, C.blue, '#16a085', '#bb8fce', '#f39c12', C.ok, '#e8c77a', '#5dade2', '#27ae60']
 const formatRelative = (iso) => {
   if (!iso) return null
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -46,145 +46,141 @@ const payState = (invoiced, paid) => {
   return { code: 'unpaid', c: C.red }
 }
 
-/* ─── Shared chrome (matches Invoices) ─── */
-const cardChrome = { background: 'linear-gradient(180deg,#1f1f1f 0%,#181818 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
+/* ─── Shared chrome (matches the Users page) ─── */
+const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
-const cardTitle = { fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '.2px' }
+const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
 
 const Lbl = ({ children }) => (
   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.2px' }}>{children}</div>
 )
-const sF = {
-  width: '100%', height: 42, padding: '0 12px', boxSizing: 'border-box',
-  background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
-  border: '1px solid rgba(255,255,255,.07)', borderRadius: 10,
-  fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)',
-  outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-}
 
-/* ─── Big glowing stat card (matches Invoices StatCard) ─── */
-const StatCard = ({ label, value, sup, sub, color, big, footer }) => {
-  const c = color || C.gold
+/* ─── KPI hero card — matches the Users page HeroStat ─── */
+function HeroStat({ tone, label, value, footer }) {
   return (
     <div style={{
-      position: 'relative', overflow: 'hidden', minHeight: 150,
-      padding: '18px 22px', borderRadius: 16,
+      position: 'relative', padding: '18px 22px', borderRadius: 16,
       background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
       border: '1px solid rgba(255,255,255,.05)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+      overflow: 'hidden', minHeight: 150,
     }}>
-      <div style={{ position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, height: 2, background: `linear-gradient(90deg, ${c}66, transparent 70%)` }} />
-      <div style={{ position: 'absolute', insetInlineStart: -55, top: -55, width: 175, height: 175, borderRadius: '50%', background: `radial-gradient(circle, ${c}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: c, boxShadow: `0 0 10px ${c}aa` }} />
-        <span style={{ fontSize: big ? 18 : 13, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
+      <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${tone}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone, boxShadow: `0 0 10px ${tone}aa` }} />
+        <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 6, justifyContent: 'flex-start', direction: 'ltr', padding: '6px 0' }}>
-        <span style={{ fontSize: big ? 42 : 32, fontWeight: 800, color: c, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
-        {sup && <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{sup}</span>}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
+        <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
-      {footer
-        ? <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>{footer}</div>
-        : (sub && <div style={{ position: 'relative', fontSize: 11, color: 'var(--tx3)', fontWeight: 500 }}>{sub}</div>)}
-    </div>
-  )
-}
-
-const AmountBox = ({ label, value, color }) => (
-  <div style={{ padding: '14px 12px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
-    <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.5px' }}>{label}</div>
-    <div style={{ fontSize: 17, fontWeight: 700, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
-  </div>
-)
-
-const Row = ({ icon: Icon, label, value, mono, color }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', alignItems: 'center', minHeight: 28, gap: 10 }}>
-    <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-      {Icon && <Icon size={13} color="rgba(255,255,255,.4)" />}{label}
-    </span>
-    <span style={{ fontSize: 13, color: color || 'var(--tx2)', fontVariantNumeric: mono ? 'tabular-nums' : undefined, fontFamily: mono ? 'monospace' : F, direction: mono ? 'ltr' : undefined, fontWeight: 600 }}>{value || '—'}</span>
-  </div>
-)
-
-/* ─── Donut chart ─── */
-function Donut({ items, total, size = 128, thickness = 14, centerLabel }) {
-  const r = (size - thickness) / 2
-  const cx = size / 2, cy = size / 2
-  const circ = 2 * Math.PI * r
-  const raw = items.filter(i => i.count > 0)
-  const gap = raw.length > 1 ? 6 : 0
-  let acc = 0
-  const segs = raw.map(i => {
-    const len = total > 0 ? (i.count / total) * circ : 0
-    const vis = Math.max(0.5, len - gap)
-    const seg = { color: i.color, dash: `${vis} ${circ - vis}`, off: -acc }
-    acc += len
-    return seg
-  })
-  return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,.05)" strokeWidth={thickness} />
-        {segs.map((s, i) => (
-          <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth={thickness}
-            strokeDasharray={s.dash} strokeDashoffset={s.off} strokeLinecap={raw.length > 1 ? 'round' : 'butt'}
-            style={{ transition: 'stroke-dasharray .5s', filter: `drop-shadow(0 0 3px ${s.color}88)` }} />
-        ))}
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-        <span style={{ fontSize: 28, fontWeight: 800, color: '#fff', lineHeight: 1, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{num(total)}</span>
-        {centerLabel && <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{centerLabel}</span>}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+        <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
       </div>
     </div>
   )
 }
 
-/* ─── Distribution breakdown card — donut + legend ─── */
-function Breakdown({ title, items, totalLabel, T }) {
-  const total = items.reduce((s, x) => s + x.count, 0)
-  const shown = items.length ? items.slice(0, 6) : []
-  const c = GOLD
+/* ─── Nationality distribution donut card — matches the Users page ─── */
+function NatDonutCard({ items, totalLabel, title }) {
+  const total = items.reduce((s, r) => s + r.cnt, 0) || 1
+  const topN = items.slice(0, 6)
+  const R = 32, CIRC = 2 * Math.PI * R
+  let offset = 0
   return (
     <div style={{
-      position: 'relative', overflow: 'hidden', borderRadius: 16, minHeight: 150,
+      borderRadius: 16,
       background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
       border: '1px solid rgba(255,255,255,.05)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
-      padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14,
+      padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
     }}>
-      <div style={{ position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, height: 2, background: `linear-gradient(90deg, ${c}66, transparent 70%)` }} />
-      <div style={{ position: 'absolute', insetInlineStart: -50, top: -50, width: 160, height: 160, borderRadius: '50%', background: `radial-gradient(circle, ${c}14 0%, transparent 70%)`, pointerEvents: 'none' }} />
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, boxShadow: `0 0 8px ${c}aa` }} />{title}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{title}</span>
+        <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
+          <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{num(total)}</span>{totalLabel}
         </span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 20, flex: 1 }}>
-        <Donut items={items} total={total} centerLabel={totalLabel} />
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {shown.length ? shown.map((i, idx) => {
-            const pctv = total > 0 ? Math.round((i.count / total) * 100) : 0
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
+        <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
+          <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
+          {items.map((r, i) => {
+            const c = r.color || ROLE_PALETTE[i % ROLE_PALETTE.length]
+            const dash = (r.cnt / total) * CIRC
+            const seg = (
+              <circle key={i} r={R} fill="none" stroke={c} strokeWidth="11"
+                strokeDasharray={`${dash} ${CIRC - dash}`} strokeDashoffset={-offset}
+                style={{ transition: 'stroke-dasharray .3s' }}>
+                <title>{`${r.name}: ${r.cnt}`}</title>
+              </circle>
+            )
+            offset += dash
+            return seg
+          })}
+          <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)"
+            style={{ fill: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+            {num(total)}
+          </text>
+        </svg>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr', gap: 6, minWidth: 0 }}>
+          {topN.length ? topN.map((r, i) => {
+            const c = r.color || ROLE_PALETTE[i % ROLE_PALETTE.length]
             return (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '6px 10px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.04)' }}>
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: i.color, flexShrink: 0, boxShadow: `0 0 6px ${i.color}88` }} />
-                <span style={{ color: 'var(--tx1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}>{i.label}</span>
-                <span style={{ color: 'var(--tx3)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', fontSize: 11.5, fontWeight: 700 }}>{num(i.count)}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: i.color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', padding: '2px 7px', borderRadius: 999, background: `${i.color}1a`, border: `1px solid ${i.color}33`, minWidth: 42, textAlign: 'center' }}>{pctv}%</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, minWidth: 0 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{num(r.cnt)}</span>
               </div>
             )
-          }) : <span style={{ fontSize: 12, color: 'var(--tx4)' }}>{T('لا توجد بيانات', 'No data')}</span>}
+          }) : <span style={{ fontSize: 12, color: 'var(--tx4)' }}>لا توجد بيانات</span>}
         </div>
       </div>
     </div>
   )
 }
 
-const Search_ = ({ value, onChange, placeholder }) => (
-  <div style={{ flex: '1 1 280px', position: 'relative' }}>
-    <Search size={15} color="var(--tx4)" style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-    <input value={value} onChange={onChange} placeholder={placeholder}
-      style={{ width: '100%', height: 44, padding: '0 40px 0 14px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
+/* ─── Copyable info row helpers (match the Users page) ─── */
+function CopyBtn({ value, toast }) {
+  const [done, setDone] = useState(false)
+  const copy = async (e) => {
+    e.stopPropagation()
+    try { await navigator.clipboard.writeText(String(value)); setDone(true); setTimeout(() => setDone(false), 1200) } catch (_) { toast?.('تعذّر النسخ') }
+  }
+  return (
+    <button type="button" onClick={copy} title="نسخ"
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+      {done ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  )
+}
+
+function InfoSectionCard({ title, items, headerAction }) {
+  return (
+    <div style={cardChrome}>
+      <div style={cardHeader}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+        <span style={cardTitle}>{title}</span>
+        {headerAction}
+      </div>
+      <div style={{ padding: '6px 22px 12px' }}>
+        {items.map((f, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+            <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{f.label}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              {f.copy && f.value && <CopyBtn value={f.value} toast={f.toast} />}
+              <span style={{ fontSize: 13, color: f.value ? (f.color || 'var(--tx2)') : 'var(--tx5)', fontWeight: 600, direction: f.mono ? 'ltr' : 'rtl', fontFamily: f.mono ? 'monospace' : 'inherit', textAlign: 'end', overflow: 'hidden', textOverflow: f.wrap ? 'clip' : 'ellipsis', whiteSpace: f.wrap ? 'normal' : 'nowrap', wordBreak: f.wrap ? 'break-word' : 'normal' }} title={f.value || ''}>{f.value || '—'}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const AmountBox = ({ label, value, color }) => (
+  <div style={{ padding: '14px 12px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
+    {label && <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.5px' }}>{label}</div>}
+    <div style={{ fontSize: 17, fontWeight: 700, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
   </div>
 )
 
@@ -209,6 +205,7 @@ export default function ClientsPage({ sb, lang, user, toast }) {
   const [perClientStats, setPerClientStats] = useState({})
 
   const [selectedId, setSelectedId] = useState(null)
+  const [refreshTick, setRefreshTick] = useState(0)
 
   /* ─── Bootstrap: branches, nationalities, headline stats ─── */
   useEffect(() => {
@@ -217,12 +214,14 @@ export default function ClientsPage({ sb, lang, user, toast }) {
 
     Promise.all([
       sb.from('clients').select('id,branch_id,created_at,nationality:nationality_id(name_ar,name_en)', { count: 'exact' }).is('deleted_at', null),
-      sb.from('service_requests').select('id,client_id,request_date,branch_id').is('deleted_at', null),
+      sb.from('service_requests').select('id,client_id,request_date,branch_id,quantity').is('deleted_at', null),
       sb.from('invoices').select('total_amount,paid_amount,service_request_id').is('deleted_at', null),
-    ]).then(([cR, srR, invR]) => {
+      sb.from('payments').select('service_request_id,payment_date').is('deleted_at', null),
+    ]).then(([cR, srR, invR, payR]) => {
       const cs = cR.data || []
       const srs = srR.data || []
       const invs = invR.data || []
+      const pays = payR.data || []
       const byNat = {}
       cs.forEach(c => { const k = c.nationality?.name_ar || 'غير محدد'; byNat[k] = (byNat[k] || 0) + 1 })
       const topNats = Object.entries(byNat).sort((a, b) => b[1] - a[1])
@@ -239,8 +238,9 @@ export default function ClientsPage({ sb, lang, user, toast }) {
       srs.forEach(sr => {
         if (!sr.client_id) return
         srToClient[sr.id] = sr.client_id
-        if (!srByClient[sr.client_id]) srByClient[sr.client_id] = { count: 0, lastReq: null }
+        if (!srByClient[sr.client_id]) srByClient[sr.client_id] = { count: 0, lastReq: null, workerCount: 0 }
         srByClient[sr.client_id].count += 1
+        srByClient[sr.client_id].workerCount += Number(sr.quantity || 0)
         if (sr.request_date && (!srByClient[sr.client_id].lastReq || sr.request_date > srByClient[sr.client_id].lastReq)) {
           srByClient[sr.client_id].lastReq = sr.request_date
         }
@@ -249,12 +249,23 @@ export default function ClientsPage({ sb, lang, user, toast }) {
       invs.forEach(inv => {
         const cid = srToClient[inv.service_request_id]
         if (!cid) return
-        if (!invByClient[cid]) invByClient[cid] = { invoiced: 0, paid: 0 }
-        invByClient[cid].invoiced += Number(inv.total_amount || 0)
-        invByClient[cid].paid += Number(inv.paid_amount || 0)
+        if (!invByClient[cid]) invByClient[cid] = { invoiced: 0, paid: 0, invCount: 0, paidCount: 0, dueCount: 0 }
+        const t = Number(inv.total_amount || 0), p = Number(inv.paid_amount || 0)
+        invByClient[cid].invoiced += t
+        invByClient[cid].paid += p
+        invByClient[cid].invCount += 1
+        if (t > 0 && p >= t) invByClient[cid].paidCount += 1
+        else if (t > p) invByClient[cid].dueCount += 1
+      })
+      // آخر دفعة لكل عميل — من جدول المدفوعات عبر ربط الطلب بالعميل
+      const lastPayByClient = {}
+      pays.forEach(p => {
+        const cid = srToClient[p.service_request_id]
+        if (!cid || !p.payment_date) return
+        if (!lastPayByClient[cid] || p.payment_date > lastPayByClient[cid]) lastPayByClient[cid] = p.payment_date
       })
       const merged = {}
-      Object.keys(srByClient).forEach(cid => { merged[cid] = { ...srByClient[cid], ...(invByClient[cid] || {}) } })
+      Object.keys(srByClient).forEach(cid => { merged[cid] = { ...srByClient[cid], ...(invByClient[cid] || {}), lastPayment: lastPayByClient[cid] || null } })
 
       setStats({
         total: cR.count || 0,
@@ -275,8 +286,8 @@ export default function ClientsPage({ sb, lang, user, toast }) {
   useEffect(() => {
     let alive = true; setLoading(true)
     let qb = sb.from('clients').select(`
-      id, name_ar, name_en, id_number, phone, created_at,
-      nationality:nationality_id(name_ar,name_en),
+      id, name_ar, name_en, id_number, phone, created_at, nationality_id, branch_id, branch_ids,
+      nationality:nationality_id(name_ar,name_en,flag_url),
       branch:branch_id(branch_code)
     `, { count: 'exact' })
       .is('deleted_at', null)
@@ -290,30 +301,45 @@ export default function ClientsPage({ sb, lang, user, toast }) {
     }
     qb.then(({ data, count }) => { if (alive) { setRows(data || []); setTotal(count || 0); setLoading(false) } })
     return () => { alive = false }
-  }, [sb, page, q, filters])
+  }, [sb, page, q, filters, refreshTick])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE))
   const hasFilters = filters.branch_id || filters.nationality_id
-  const resetFilters = () => { setFilters({ branch_id: '', nationality_id: '' }); setQ(''); setPage(0) }
 
   const selectedClient = selectedId ? rows.find(r => r.id === selectedId) : null
+
+  // Nationality donut data (matches Users page shape)
+  const natDist = useMemo(() => (stats?.topNats || []).map(([name, cnt], i) => ({ name, cnt, color: ROLE_PALETTE[i % ROLE_PALETTE.length] })), [stats])
+
+  // ترتيب العملاء حسب آخر دفعة لفاتورة العميل (الأحدث أولاً) — العملاء بلا مدفوعات في الأسفل
+  const sortedRows = useMemo(() => {
+    return rows.slice().sort((a, b) => {
+      const pa = perClientStats[a.id]?.lastPayment || ''
+      const pb = perClientStats[b.id]?.lastPayment || ''
+      if (pa && pb) return pb < pa ? -1 : pb > pa ? 1 : 0
+      if (pa) return -1
+      if (pb) return 1
+      return 0
+    })
+  }, [rows, perClientStats])
+
   if (selectedClient) {
     return (
       <ClientDetailPage sb={sb} client={selectedClient} clientStats={perClientStats[selectedClient.id]}
-        onBack={() => setSelectedId(null)} T={T} isAr={isAr} />
+        toast={toast} onBack={() => setSelectedId(null)} T={T} isAr={isAr}
+        branches={branches} nationalities={nationalities} onReload={() => setRefreshTick(t => t + 1)} />
     )
   }
-
-  const branchName = (id) => branches.find(b => b.id === id)?.branch_code || '—'
-  const natItems = (stats?.topNats || []).map(([label, count], i) => ({ label, count, color: DIST_PALETTE[i % DIST_PALETTE.length] }))
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
-        .clp-hero { display: grid; grid-template-columns: 1fr 1.4fr; gap: 14px; }
-        .clp-detail { display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: flex-start; }
-        @media (max-width: 1040px) { .clp-detail { grid-template-columns: 1fr; } }
-        @media (max-width: 720px) { .clp-hero { grid-template-columns: 1fr; } }
+        .clp-hero { display: grid; grid-template-columns: 1.8fr 1fr; gap: 14px; }
+        .cl-row { transition: all .15s; }
+        .cl-row:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.34) !important; border-color: rgba(212,160,23,.22) !important; }
+        .cl-row-grid { display: grid; grid-template-columns: auto 1px 1fr auto; gap: 18px; align-items: center; }
+        @media (max-width: 720px) { .clp-hero { grid-template-columns: 1fr; } .cl-row-grid { grid-template-columns: 1fr; gap: 12px; } .cl-row-vdiv { display: none; } }
+        .cl-row-vdiv { width: 1px; align-self: stretch; background: linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%); min-height: 46px; }
       `}</style>
 
       {/* Header */}
@@ -322,24 +348,34 @@ export default function ClientsPage({ sb, lang, user, toast }) {
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('قائمة العملاء وسجل طلباتهم وفواتيرهم', 'Clients directory with service requests and invoices')}</div>
       </div>
 
-      {/* Stats hero */}
-      <div className="clp-hero" style={{ marginBottom: 22 }}>
-        <StatCard big label={T('العملاء', 'Clients')} value={num(stats?.total || 0)} color={GOLD}
-          footer={<>
-            <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('جديد هذا الشهر', 'New this month')}</span>
-            <span style={{ fontSize: 13, color: C.purple, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(stats?.newThisMonth || 0)}</span>
-          </>} />
-        <Breakdown title={T('التوزيع حسب الجنسية', 'By nationality')} items={natItems} totalLabel={T('عميل', 'clients')} T={T} />
+      {/* Stats hero — KPI + nationality donut (Users page style) */}
+      <div className="clp-hero" style={{ marginBottom: 24 }}>
+        <HeroStat tone={GOLD} label={T('العملاء', 'Clients')} value={num(stats?.total || 0)}
+          footer={T(`${num(stats?.newThisMonth || 0)} جديد هذا الشهر`, `${num(stats?.newThisMonth || 0)} new this month`)} />
+        <NatDonutCard items={natDist} totalLabel={T('عميل', 'clients')} title={T('التوزّع حسب الجنسيات', 'By nationality')} />
       </div>
 
       {/* Search + filter */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Search_ value={q} onChange={e => { setQ(e.target.value); setPage(0) }} placeholder={T('ابحث بالاسم، رقم الهوية، الجوال…', 'Search by name, ID or phone…')} />
+        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+          <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          <input value={q} onChange={e => { setQ(e.target.value); setPage(0) }} placeholder={T('ابحث بالاسم، رقم الهوية، الجوال…', 'Search by name, ID or phone…')}
+            style={{ width: '100%', height: 44, padding: '0 40px 0 14px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
+        </div>
         <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
-          <SlidersHorizontal size={14} />
           {T('تصفية', 'Filter')}
-          {hasFilters && <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD, boxShadow: `0 0 6px ${GOLD}99` }} />}
-          <ChevronDown size={12} style={{ transform: advOpen ? 'rotate(180deg)' : '', transition: '.2s' }} />
+          {hasFilters ? (
+            <span role="button" tabIndex={0} title={T('مسح الفلاتر', 'Clear filters')}
+              onClick={e => { e.stopPropagation(); setFilters({ branch_id: '', nationality_id: '' }); setPage(0) }}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setFilters({ branch_id: '', nationality_id: '' }); setPage(0) } }}
+              onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
+              onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+              style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </span>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="18" y1="6" x2="20" y2="6" /><circle cx="16" cy="6" r="2" /><line x1="4" y1="12" x2="8" y2="12" /><line x1="12" y1="12" x2="20" y2="12" /><circle cx="10" cy="12" r="2" /><line x1="4" y1="18" x2="16" y2="18" /><line x1="20" y1="18" x2="20" y2="18" /><circle cx="18" cy="18" r="2" /></svg>
+          )}
         </button>
       </div>
 
@@ -348,31 +384,19 @@ export default function ClientsPage({ sb, lang, user, toast }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 12 }}>
             <div>
               <Lbl>{T('المكتب', 'Branch')}</Lbl>
-              <select value={filters.branch_id} onChange={e => { setFilters(f => ({ ...f, branch_id: e.target.value })); setPage(0) }} style={sF}>
-                <option value="">{T('جميع المكاتب', 'All branches')}</option>
-                {branches.map(b => <option key={b.id} value={b.id}>{b.branch_code}</option>)}
-              </select>
+              <Drop value={filters.branch_id} onChange={v => { setFilters(f => ({ ...f, branch_id: v })); setPage(0) }} placeholder={T('جميع المكاتب', 'All branches')}
+                options={[{ v: '', l: T('جميع المكاتب', 'All branches') }, ...branches.map(b => ({ v: b.id, l: b.branch_code }))]} />
             </div>
             <div>
               <Lbl>{T('الجنسية', 'Nationality')}</Lbl>
-              <select value={filters.nationality_id} onChange={e => { setFilters(f => ({ ...f, nationality_id: e.target.value })); setPage(0) }} style={sF}>
-                <option value="">{T('كل الجنسيات', 'All nationalities')}</option>
-                {nationalities.map(n => <option key={n.id} value={n.id}>{isAr ? n.name_ar : n.name_en}</option>)}
-              </select>
+              <Drop value={filters.nationality_id} onChange={v => { setFilters(f => ({ ...f, nationality_id: v })); setPage(0) }} placeholder={T('كل الجنسيات', 'All nationalities')}
+                options={[{ v: '', l: T('كل الجنسيات', 'All nationalities') }, ...nationalities.map(n => ({ v: n.id, l: isAr ? n.name_ar : n.name_en }))]} />
             </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.05)' }}>
-            <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 500 }}>
-              <span style={{ fontWeight: 700, color: GOLD }}>{num(total)}</span> {T('من أصل', 'of')} <span style={{ fontWeight: 700 }}>{num(stats?.total || 0)}</span>
-            </div>
-            {(hasFilters || q) && (
-              <button onClick={resetFilters} style={{ height: 32, padding: '0 14px', borderRadius: 8, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx3)', fontFamily: F, fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة تعيين', 'Reset')}</button>
-            )}
           </div>
         </div>
       )}
 
-      {/* List */}
+      {/* List — flat, ordered by each client's latest invoice payment */}
       {loading ? (
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx5)', fontSize: 13, fontWeight: 500 }}>{T('جاري التحميل…', 'Loading…')}</div>
       ) : rows.length === 0 ? (
@@ -381,9 +405,9 @@ export default function ClientsPage({ sb, lang, user, toast }) {
           <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{q || hasFilters ? T('لا توجد نتائج مطابقة', 'No matches') : T('لا يوجد عملاء بعد', 'No clients yet')}</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {rows.map(r => (
-            <ClientRow key={r.id} client={r} clientStats={perClientStats[r.id]} branchName={branchName} onClick={() => setSelectedId(r.id)} T={T} isAr={isAr} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
+          {sortedRows.map(r => (
+            <ClientRow key={r.id} client={r} clientStats={perClientStats[r.id]} onClick={() => setSelectedId(r.id)} T={T} isAr={isAr} />
           ))}
         </div>
       )}
@@ -405,104 +429,70 @@ export default function ClientsPage({ sb, lang, user, toast }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Client row — invoice-style full-width card with progress strip
+   Client row — 10 selectable layouts (pick via the design switcher)
    ═══════════════════════════════════════════════════════════════ */
-function ClientRow({ client, clientStats, branchName, onClick, T, isAr }) {
+function ClientRow({ client, clientStats, onClick, T, isAr }) {
   const c = clientStats || { count: 0, invoiced: 0, paid: 0, lastReq: null }
   const invoiced = Number(c.invoiced || 0)
   const paid = Number(c.paid || 0)
   const due = Math.max(0, invoiced - paid)
-  const pct = invoiced > 0 ? Math.min(100, Math.round((paid / invoiced) * 100)) : 0
   const ps = payState(invoiced, paid)
   const accent = colorFor(client.id)
-  const lastActivity = formatRelative(c.lastReq)
+  const name = client.name_ar || client.name_en || '—'
+  const invCount = c.invCount || 0
+  const workerCount = c.workerCount || 0
+  const inv = num(Math.round(invoiced))
 
-  return (
-    <div onClick={onClick} className="cl-card" style={{
-      position: 'relative', cursor: 'pointer', borderRadius: 14,
-      background: 'radial-gradient(ellipse at top, rgba(212,160,23,.06) 0%, #222 60%)',
-      border: '1px solid rgba(255,255,255,.05)', boxShadow: '0 4px 14px rgba(0,0,0,.22)',
-      transition: 'all .15s', overflow: 'hidden',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = ps.c + '55' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
-      <div style={{ padding: '16px 22px 14px 18px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 210px', gap: 18, alignItems: 'center' }}>
-          {/* Right (identity) */}
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <div style={{ width: 42, height: 42, borderRadius: '50%', background: accent + '22', border: `1.5px solid ${accent}66`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>{initial(client.name_ar || client.name_en)}</div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-.2px' }}>{client.name_ar || client.name_en || '—'}</span>
-                  {due > 0 && (
-                    <span title={T(`متبقي ${num(due)} ر.س`, `Due ${num(due)} SAR`)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5, background: 'rgba(234,179,8,.12)', border: '1px solid rgba(234,179,8,.35)', color: C.warn, fontSize: 10, fontWeight: 700 }}>
-                      <AlertCircle size={10} /> {num(due)}
-                    </span>
-                  )}
-                </div>
-                {client.id_number && <div style={{ fontSize: 11, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace', marginTop: 3 }}>{client.id_number}</div>}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>
-              {client.phone && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}>
-                  <Phone size={12} color="rgba(255,255,255,.45)" />
-                  <span style={{ fontFamily: 'monospace', color: C.ok }}>{client.phone}</span>
-                </span>
-              )}
-              {client.nationality?.name_ar && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Globe size={12} color="rgba(255,255,255,.45)" />{isAr ? client.nationality.name_ar : (client.nationality.name_en || client.nationality.name_ar)}
-                </span>
-              )}
-              {client.branch?.branch_code && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 6, background: 'rgba(212,160,23,.10)', color: GOLD, border: '1px solid rgba(212,160,23,.25)', fontSize: 10, fontWeight: 700, direction: 'ltr' }}>
-                  <Building2 size={11} />{client.branch.branch_code}
-                </span>
-              )}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: 'rgba(93,173,226,.10)', border: '1px solid rgba(93,173,226,.25)', color: C.blue, fontSize: 10, fontWeight: 700 }}>
-                <FileText size={11} />{num(c.count || 0)} {T('طلب', 'req')}
-              </span>
-              {lastActivity && <span style={{ color: 'var(--tx4)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Calendar size={11} />{lastActivity}</span>}
-            </div>
-          </div>
+  /* ── reusable pieces ── */
+  const flagAvatar = (size = 42, radius = 12) => (
+    <div title={client.nationality?.name_ar || ''} style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.42), fontWeight: 800, flexShrink: 0 }}>
+      {client.nationality?.flag_url ? <img src={client.nationality.flag_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial(name)}
+    </div>
+  )
+  const pill = (icon, label, color, bg, bd) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: bg, border: `1px solid ${bd}`, color, fontSize: 10, fontWeight: 700 }}>{icon}{label}</span>
+  )
+  const baseBg = `linear-gradient(135deg, ${accent}0e 0%, #232323 50%, #1f1f1f 100%)`
+  const card = (children, extra = {}) => (
+    <div onClick={onClick} className="cl-row" style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: baseBg, border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden', ...extra }}>{children}</div>
+  )
 
-          {/* Divider */}
-          <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,.06)', minHeight: 56 }} />
+  /* ── granular pieces for the content-layout variants ── */
+  const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 700, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+  const idText = client.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><IdCard size={13} color="rgba(255,255,255,.45)" /><span style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace' }}>{client.id_number}</span></span> : null
+  const phoneBit = client.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><Phone size={12} color="rgba(255,255,255,.45)" /><span style={{ fontFamily: 'monospace', color: 'var(--tx4)' }}>{fmtPhone(client.phone)}</span></span> : null
+  const mline = (children, gap = 12) => <div style={{ display: 'inline-flex', alignItems: 'center', gap, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, flexWrap: 'wrap' }}>{children}</div>
 
-          {/* Left (financial) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('إجمالي الفوترة', 'Invoiced')}</span>
-              <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{fmtGreg(client.created_at)}</span>
-            </div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{num(Math.round(invoiced))}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('المسدّد', 'Paid')}</span>
-                <span style={{ color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(Math.round(paid))}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('المتبقي', 'Remaining')}</span>
-                <span style={{ color: due > 0 ? C.warn : C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{due > 0 ? '− ' + num(Math.round(due)) : '✓'}</span>
-              </div>
-            </div>
+  return card(
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 160px', gap: 16, alignItems: 'center', padding: '14px 18px' }}>
+      {/* Content — عمودي: avatar + name/branch, then id+phone, then invoice pills */}
+      <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
+        {flagAvatar(40, 11)}
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{nameText(15)}</div>
+          {mline(<>{idText}{phoneBit}</>, 10)}
+          <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            {pill(<Wallet size={11} />, `${num(invCount)} ${T('فاتورة', 'inv')}`, GOLD, 'rgba(212,160,23,.10)', 'rgba(212,160,23,.28)')}
+            {workerCount > 0 && pill(<Users size={11} />, `${num(workerCount)} ${T('عامل', 'workers')}`, C.blue, 'rgba(52,152,219,.10)', 'rgba(52,152,219,.28)')}
           </div>
         </div>
       </div>
-      <div style={{ height: 5, background: 'rgba(255,255,255,.05)' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: ps.c, transition: 'width .3s' }} />
+      <div className="cl-row-vdiv" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', borderRadius: 10, background: `linear-gradient(160deg, ${ps.c}14 0%, rgba(0,0,0,.25) 100%)`, border: `1px solid ${ps.c}26` }}>
+        <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.4px' }}>{T('إجمالي الفوترة', 'Invoiced')}</span>
+        <span style={{ fontSize: 24, fontWeight: 800, color: ps.c, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{inv}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, direction: 'ltr', color: due > 0 ? C.warn : C.ok }}>{due > 0 ? `− ${num(Math.round(due))}` : (invoiced > 0 ? `✓ ${T('مسدّد بالكامل', 'fully paid')}` : '—')}</span>
       </div>
     </div>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Detail page — invoice-style two-column layout
+   Detail page — Users-page UserDetailPage layout
    ═══════════════════════════════════════════════════════════════ */
-function ClientDetailPage({ sb, client, clientStats, onBack, T, isAr }) {
+function ClientDetailPage({ sb, client, clientStats, toast, onBack, T, isAr, branches = [], nationalities = [], onReload }) {
   const [requests, setRequests] = useState(null)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     sb.from('service_requests').select(`
@@ -510,113 +500,106 @@ function ClientDetailPage({ sb, client, clientStats, onBack, T, isAr }) {
       service_type:service_type_id(code,value_ar,value_en),
       status:status_id(code,value_ar,value_en),
       branch:branch_id(branch_code),
-      invoice:invoices(id,invoice_no,total_amount,paid_amount,remaining_amount)
+      invoice:invoices(id,invoice_no,total_amount,paid_amount,remaining_amount,created_at)
     `).eq('client_id', client.id).is('deleted_at', null).order('request_date', { ascending: false })
       .then(({ data }) => setRequests(data || []))
   }, [sb, client.id])
 
   const accent = colorFor(client.id)
+  const name = client.name_ar || client.name_en || '—'
   const totalAmt = requests?.reduce((s, r) => s + (r.invoice?.[0] ? Number(r.invoice[0].total_amount || 0) : 0), 0) || 0
   const paidAmt = requests?.reduce((s, r) => s + (r.invoice?.[0] ? Number(r.invoice[0].paid_amount || 0) : 0), 0) || 0
   const due = Math.max(0, totalAmt - paidAmt)
   const pct = totalAmt > 0 ? Math.min(100, Math.round((paidAmt / totalAmt) * 100)) : 0
   const ps = payState(totalAmt, paidAmt)
   const invCount = requests?.filter(r => r.invoice?.[0]).length || 0
+  // عدد العمال = مجموع الكميات في الطلبات؛ التأشيرات ونقل الكفالة من نوع الخدمة
+  const workerCount = requests?.reduce((s, r) => s + Number(r.quantity || 0), 0) || 0
+  const visaCount = requests?.filter(r => (r.service_type?.code || '').includes('work_visa')).length || 0
+  const kafalaCount = requests?.filter(r => { const code = r.service_type?.code || ''; return code.includes('kafala') || code === 'transfer' }).length || 0
+  const lastInvoiceIso = (() => { const ds = (requests || []).map(r => r.invoice?.[0]?.created_at).filter(Boolean); return ds.length ? ds.slice().sort().slice(-1)[0] : null })()
+  // Invoices derived from the client's requests (each request carries its invoice).
+  const invoiceRows = (requests || [])
+    .filter(r => r.invoice?.[0])
+    .map(r => ({ ...r.invoice[0], service_type: r.service_type, quantity: r.quantity, branch: r.branch }))
+  const openInvoice = (id) => { if (id) window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) }
+
+  const infoItems = [
+    { label: T('الاسم', 'Name'), value: client.name_ar || client.name_en },
+    client.name_en && client.name_ar ? { label: T('الاسم بالإنجليزية', 'Name (EN)'), value: client.name_en, mono: true } : null,
+    { label: T('رقم الهوية', 'ID number'), value: client.id_number, mono: true, copy: true },
+    { label: T('الجوال', 'Phone'), value: fmtPhone(client.phone), mono: true, copy: true },
+    { label: T('الجنسية', 'Nationality'), value: client.nationality?.name_ar },
+    { label: T('المكتب', 'Branch'), value: ((client.branch_ids && client.branch_ids.length) ? client.branch_ids.map(id => branches.find(b => b.id === id)?.branch_code).filter(Boolean).join('، ') : '') || client.branch?.branch_code, mono: true, wrap: true },
+    { label: T('تاريخ الإضافة', 'Joined'), value: fmtGreg(client.created_at), mono: true },
+  ].filter(Boolean).map(f => ({ ...f, toast }))
 
   return (
-    <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
-      <style>{`
-        .clp-detail { display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: flex-start; }
-        @media (max-width: 1040px) { .clp-detail { grid-template-columns: 1fr; } }
-      `}</style>
-
-      {/* Top bar: back */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>
+      {/* Back */}
+      <div style={{ marginBottom: 4 }}>
         <BackButton onBack={onBack} label={T('رجوع', 'Back')} />
       </div>
 
-      {/* Identity header */}
-      <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <div style={{ width: 52, height: 52, borderRadius: '50%', background: accent + '22', border: `2px solid ${accent}88`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 700, flexShrink: 0 }}>{initial(client.name_ar || client.name_en)}</div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 21, fontWeight: 700, color: 'rgba(255,255,255,.95)', letterSpacing: '-.3px' }}>{client.name_ar || client.name_en}</div>
-          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>
-            {client.id_number && <span style={{ direction: 'ltr', fontFamily: 'monospace' }}>{client.id_number}</span>}
-            {client.phone && <><span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} /><span style={{ direction: 'ltr', fontFamily: 'monospace', color: C.ok }}>{client.phone}</span></>}
-            {client.nationality?.name_ar && <><span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} /><span>{client.nationality.name_ar}</span></>}
-            {client.branch?.branch_code && <span style={{ marginInlineStart: 4, padding: '3px 10px', borderRadius: 999, background: 'rgba(212,160,23,.12)', color: GOLD, border: '1px solid rgba(212,160,23,.3)', fontSize: 11, fontWeight: 700, direction: 'ltr' }}>{client.branch.branch_code}</span>}
-          </div>
+      {/* Header — icon + name title (matches UserDetailPage) */}
+      <div style={{ marginBottom: 18, marginTop: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          <div style={{ fontSize: 22, fontWeight: 600, color: GOLD, letterSpacing: '-.2px' }}>{name}</div>
         </div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>{T('عرض بيانات العميل وسجل طلباته وفواتيره.', 'Client profile, service requests and invoices.')}</div>
       </div>
 
-      {/* Two-column layout */}
-      <div className="clp-detail">
-        {/* Main */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Client info */}
-          <div style={cardChrome}>
-            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={cardTitle}>{T('بيانات العميل', 'Client')}</span></div>
-            <div style={{ padding: '8px 22px 14px' }}>
-              <Row icon={User} label={T('الاسم', 'Name')} value={client.name_ar || client.name_en} />
-              {client.name_en && client.name_ar && <Row label={T('الاسم بالإنجليزية', 'Name (EN)')} value={client.name_en} />}
-              <Row icon={Hash} label={T('رقم الهوية', 'ID number')} value={client.id_number} mono />
-              <Row icon={Phone} label={T('الجوال', 'Phone')} value={client.phone} mono color={client.phone ? C.ok : undefined} />
-              <Row icon={Globe} label={T('الجنسية', 'Nationality')} value={client.nationality?.name_ar} />
-              <Row icon={Building2} label={T('المكتب', 'Branch')} value={client.branch?.branch_code} />
-              <Row icon={Calendar} label={T('تاريخ الإضافة', 'Joined')} value={fmtGreg(client.created_at)} mono />
-            </div>
-          </div>
+      <div className="cld-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+        <style>{`@media (max-width:900px){.cld-grid{grid-template-columns:1fr !important}.cld-side,.cld-main{grid-column:auto !important;position:static !important}}`}</style>
 
-          {/* Requests */}
+        {/* Right column — client info + requests */}
+        <div className="cld-main" style={{ gridColumn: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <InfoSectionCard title={T('بيانات العميل', 'Client')} items={infoItems}
+            headerAction={
+              <button onClick={() => setEditing(true)}
+                onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+                style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+                {T('تعديل', 'Edit')}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+              </button>
+            } />
+
+          {/* Invoices log */}
           <div style={cardChrome}>
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD }} />
-              <span style={cardTitle}>{T('سجل الطلبات', 'Service requests')}</span>
-              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{requests?.length || 0}</span>
+              <span style={cardTitle}>{T('سجل الفواتير', 'Invoices')}</span>
+              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{invoiceRows.length}</span>
             </div>
             <div style={{ padding: '14px 18px' }}>
               {requests === null && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 16, textAlign: 'center' }}>{T('جاري التحميل…', 'Loading…')}</div>}
-              {requests?.length === 0 && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 16, textAlign: 'center' }}>{T('لا توجد طلبات بعد', 'No requests yet')}</div>}
-              {requests?.length > 0 && (
+              {requests !== null && invoiceRows.length === 0 && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 16, textAlign: 'center' }}>{T('لا توجد فواتير بعد', 'No invoices yet')}</div>}
+              {invoiceRows.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {requests.map(r => {
-                    const inv = r.invoice?.[0]
-                    const remaining = inv ? Number(inv.remaining_amount || 0) : 0
-                    const stClr = r.status?.code === 'done' ? C.ok : (r.status?.code === 'cancelled' ? C.red : GOLD)
-                    const sClr = svcColor(r.service_type?.code)
-                    return (
-                      <div key={r.id} style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 5, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 12, color: GOLD, fontFamily: 'monospace', fontWeight: 700, direction: 'ltr' }}>{r.request_ref_no}</span>
-                            {r.status && <span style={{ fontSize: 11, color: stClr, fontWeight: 700 }}>· {isAr ? r.status?.value_ar : (r.status?.value_en || r.status?.value_ar)}</span>}
-                            {r.service_type && <span style={{ fontSize: 10, color: sClr, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: sClr + '1a', border: `1px solid ${sClr}40` }}>{isAr ? r.service_type?.value_ar : (r.service_type?.value_en || r.service_type?.value_ar)}</span>}
-                          </div>
-                          <div style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr' }}>{fmtGreg(r.request_date)}{r.branch?.branch_code ? ` · ${r.branch.branch_code}` : ''}</div>
-                        </div>
-                        {inv && (
-                          <div style={{ textAlign: 'left' }}>
-                            <div style={{ fontSize: 13, color: GOLD, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(inv.total_amount)}</div>
-                            {remaining > 0 && <div style={{ fontSize: 10, color: C.warn, direction: 'ltr', marginTop: 2 }}>{T('متبقي', 'rem')} {num(remaining)}</div>}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+                  {invoiceRows.map(invoice => (
+                    <InvoiceRow key={invoice.id} invoice={invoice} openInvoice={openInvoice} T={T} isAr={isAr} />
+                  ))}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Left column — financial summary + stats (sticky) */}
+        <div className="cld-side" style={{ gridColumn: 2, position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Financial summary */}
           <div style={cardChrome}>
-            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD }} /><span style={cardTitle}>{T('الملخص المالي', 'Financial Summary')}</span></div>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('الملخص المالي', 'Financial Summary')}</span></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>
-              <AmountBox label={T('الفوترة', 'Invoiced')} value={num(Math.round(totalAmt))} color="#fff" />
+              <AmountBox label={T('الفوترة', 'Invoiced')} value={num(Math.round(totalAmt))} color={GOLD} />
               <AmountBox label={T('المسدّد', 'Paid')} value={num(Math.round(paidAmt))} color={C.ok} />
-              <AmountBox label={T('المتبقي', 'Remaining')} value={num(Math.round(due))} color={due > 0 ? C.warn : C.ok} />
+              <AmountBox label={T('المتبقي', 'Remaining')} color={due > 0 ? C.red : 'var(--tx)'}
+                value={num(Math.round(due))} />
             </div>
             <div style={{ padding: '14px 22px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--tx3)' }}>
@@ -627,13 +610,264 @@ function ClientDetailPage({ sb, client, clientStats, onBack, T, isAr }) {
                 <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${ps.c}, ${ps.c}dd)`, transition: 'width .3s' }} />
               </div>
             </div>
-            <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Row icon={FileText} label={T('عدد الطلبات', 'Requests')} value={requests === null ? '…' : num(requests.length)} mono />
-              <Row icon={Wallet} label={T('عدد الفواتير', 'Invoices')} value={num(invCount)} mono />
-              <Row icon={TrendingUp} label={T('متوسط الفاتورة', 'Avg invoice')} value={invCount ? num(Math.round(totalAmt / invCount)) : '—'} mono color={GOLD} />
+          </div>
+          <div style={cardChrome}>
+            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={cardTitle}>{T('إحصاءات', 'Stats')}</span></div>
+            <div style={{ padding: '6px 22px 12px' }}>
+              {[
+                { Icon: Users, label: T('عدد العمال', 'Workers'), value: requests === null ? '…' : num(workerCount) },
+                { Icon: StickyNote, label: T('عدد التأشيرات', 'Visas'), value: requests === null ? '…' : num(visaCount) },
+                { Icon: ArrowLeftRight, label: T('نقل الكفالة', 'Kafala transfers'), value: requests === null ? '…' : num(kafalaCount) },
+                { Icon: Wallet, label: T('عدد الفواتير', 'Invoices'), value: num(invCount) },
+                { Icon: Calendar, label: T('آخر فاتورة', 'Last invoice'), value: lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—', color: GOLD },
+              ].map((row, i, arr) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+                  <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><row.Icon size={13} color="rgba(255,255,255,.4)" />{row.label}</span>
+                  <span style={{ fontSize: 13, color: row.color || 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+      </div>
+      {editing && (
+        <ClientEditModal sb={sb} client={client} branches={branches} nationalities={nationalities} toast={toast}
+          onClose={() => setEditing(false)} onSaved={() => { setEditing(false); onReload?.() }} />
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Invoice row — 8 selectable layouts for the client's invoice log
+   ═══════════════════════════════════════════════════════════════ */
+function InvoiceRow({ invoice, openInvoice, T, isAr }) {
+  const total = Number(invoice.total_amount || 0)
+  const paid = Number(invoice.paid_amount || 0)
+  const remaining = Number(invoice.remaining_amount || 0)
+  const ps = payState(total, paid)
+  const sClr = svcColor(invoice.service_type?.code)
+  const invNo = invoice.invoice_no || `#${String(invoice.id).slice(0, 8)}`
+  const svcName = isAr ? invoice.service_type?.value_ar : (invoice.service_type?.value_en || invoice.service_type?.value_ar)
+
+  const noBtn = (size = 13) => (
+    <button type="button" onClick={() => openInvoice(invoice.id)} title={T('فتح تفاصيل الفاتورة', 'Open invoice')}
+      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: size, color: GOLD, fontFamily: 'monospace', fontWeight: 700, direction: 'ltr', textDecoration: 'underline', textUnderlineOffset: 3 }}>{invNo}</button>
+  )
+  // Quantity (as ×N inside the chip) is only shown for work-visa services.
+  const isVisa = (invoice.service_type?.code || '').includes('work_visa')
+  const serviceChip = invoice.service_type ? (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: sClr, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: sClr + '1a', border: `1px solid ${sClr}40` }}>
+      {isVisa && invoice.quantity > 0 && <>
+        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 800 }}>×{num(invoice.quantity)}</span>
+        <span style={{ width: 1, height: 12, background: `${sClr}80`, flexShrink: 0 }} />
+      </>}
+      {svcName}
+    </span>
+  ) : null
+  const branchChip = invoice.branch?.branch_code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: GOLD, direction: 'ltr' }}><Building2 size={10} />{invoice.branch.branch_code}</span> : null
+  const paidLabel = <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: C.ok, fontWeight: 700 }}>{T('تم السداد بالكامل', 'Fully paid')}<Check size={11} /></span>
+
+  // compact amount text: label value
+  const amtPill = (label, value, color) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)' }}>
+      {label}<b style={{ color, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</b>
+    </span>
+  )
+
+  // شريط حالة — colored pay-status rail + prominent total, paid/remaining as pills
+  return (
+    <div style={{ padding: '12px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+      <div style={{ display: 'flex' }}>
+        <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: ps.c, marginInlineEnd: 12 }} />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>{noBtn()}<div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{serviceChip}</div></div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+              <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('الإجمالي', 'Total')}</span>
+              <b style={{ fontSize: 18, lineHeight: 1, color: GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</b>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            {branchChip || <span />}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {remaining > 0
+                ? <>{amtPill(T('المدفوع', 'Paid'), paid, C.ok)}{amtPill(T('المتبقي', 'Remaining'), remaining, C.red)}</>
+                : paidLabel}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Client edit modal — same design as the user "تعديل بيانات المستخدم"
+   ═══════════════════════════════════════════════════════════════ */
+function ClientEditModal({ sb, client, branches, nationalities, toast, onClose, onSaved }) {
+  const [f, setF] = useState({
+    name_ar: client.name_ar || client.name_en || '',
+    id_number: client.id_number || '',
+    phone: String(client.phone || '').replace(/^\+?966/, '').replace(/^0/, '').replace(/\D/g, '').slice(0, 9),
+    nationality_id: client.nationality_id || '',
+    branch_ids: (client.branch_ids && client.branch_ids.length) ? client.branch_ids : (client.branch_id ? [client.branch_id] : []),
+  })
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(null)
+  const [errMsg, setErrMsg] = useState('')
+  const set = (k, v) => { setErrMsg(''); setF(p => ({ ...p, [k]: v })) }
+
+  // All fields are required — the «تعديل» button stays disabled until every input is valid.
+  const idDigits = (f.id_number || '').replace(/\D/g, '')
+  const phoneDigits = (f.phone || '').replace(/\D/g, '')
+  const valid = !!(f.name_ar.trim() && idDigits.length === 10 && phoneDigits.length === 9 && f.nationality_id && (f.branch_ids || []).length > 0)
+  const reqStar = <span style={{ color: C.red }}>*</span>
+
+  const accent = 'rgba(212,160,23,.4)'
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1500, padding: 16, fontFamily: F, direction: 'rtl' }
+  const box = { background: 'var(--modal-bg)', borderRadius: 16, width: 560, maxWidth: '95vw', minHeight: 430, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)' }
+  const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid ' + accent, padding: '20px 22px' }
+  const legend = { position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
+  const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
+  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
+
+  const save = async () => {
+    if (!f.name_ar.trim()) { setErrMsg('الاسم مطلوب'); return }
+    if (idDigits.length !== 10) { setErrMsg('رقم الهوية يجب أن يكون 10 أرقام'); return }
+    const phone9 = phoneDigits
+    if (phone9.length !== 9) { setErrMsg('رقم الجوال يجب أن يكون 9 أرقام بعد +966'); return }
+    if (!f.nationality_id) { setErrMsg('الجنسية مطلوبة'); return }
+    if (!(f.branch_ids || []).length) { setErrMsg('يجب اختيار مكتب واحد على الأقل'); return }
+    setSaving(true)
+    const newPhone = phone9 ? '966' + phone9 : null
+    const branchIds = f.branch_ids || []
+    const { data, error } = await sb.from('clients').update({
+      name_ar: f.name_ar.trim() || null,
+      id_number: f.id_number.trim() || null,
+      phone: newPhone,
+      nationality_id: f.nationality_id || null,
+      branch_id: branchIds[0] || null,
+      branch_ids: branchIds,
+      updated_at: new Date().toISOString(),
+    }).eq('id', client.id).select()
+    if (error) { setErrMsg(error.message.slice(0, 100)); setSaving(false); return }
+    if ((data || []).length === 0) { setErrMsg('لم يتم الحفظ — ليست لديك صلاحية كافية'); setSaving(false); return }
+    setSaving(false)
+
+    const natName = id => nationalities.find(n => n.id === id)?.name_ar || '—'
+    const brName = id => branches.find(b => b.id === id)?.branch_code || '—'
+    const phoneDisp = p => p ? String(p).replace(/^\+?966/, '0') : '—'
+    const rows = []
+    if ((client.name_ar || '') !== f.name_ar.trim()) rows.push({ label: 'الاسم', from: client.name_ar || '—', to: f.name_ar.trim() || '—' })
+    if ((client.id_number || '') !== f.id_number.trim()) rows.push({ label: 'رقم الهوية', from: client.id_number || '—', to: f.id_number.trim() || '—', mono: true })
+    if ((client.phone || '') !== (newPhone || '')) rows.push({ label: 'رقم الجوال', from: phoneDisp(client.phone), to: phoneDisp(newPhone), mono: true })
+    if ((client.nationality_id || '') !== (f.nationality_id || '')) rows.push({ label: 'الجنسية', from: natName(client.nationality_id), to: natName(f.nationality_id) })
+    const brCodes = ids => (ids || []).map(id => branches.find(b => b.id === id)?.branch_code).filter(Boolean).join('، ')
+    const oldBranchIds = (client.branch_ids && client.branch_ids.length) ? client.branch_ids : (client.branch_id ? [client.branch_id] : [])
+    if (brCodes(oldBranchIds) !== brCodes(branchIds)) rows.push({ label: 'المكتب', from: brCodes(oldBranchIds) || '—', to: brCodes(branchIds) || '—', mono: true })
+    setDone({ rows })
+  }
+
+  return (
+    <div style={overlay}>
+      <div onClick={e => e.stopPropagation()} style={box}>
+        <style>{`.cm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${GOLD};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.cm-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${GOLD}}.cm-nav-btn:hover:not(:disabled) .nav-ico{background:${GOLD};color:#000}.cm-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
+        {done ? (
+          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 28px', gap: 16, textAlign: 'center' }}>
+            <button onClick={() => onSaved?.()} aria-label="إغلاق"
+              style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
+              <X size={14} />
+            </button>
+            <div style={{ width: 74, height: 74, borderRadius: '50%', background: C.ok + '2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok, boxShadow: '0 0 0 8px ' + C.ok + '14' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            </div>
+            <div style={{ fontSize: 19, fontWeight: 700, color: C.ok }}>تم تعديل البيانات بنجاح</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 1.7, maxWidth: 380 }}>{done.rows.length ? 'تم تحديث الحقول التالية:' : 'لم تتغيّر أي بيانات.'}</div>
+            {done.rows.length > 0 && (
+              <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                {done.rows.map((r, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--tx3)', fontWeight: 600, textAlign: 'start' }}>{r.label}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, direction: r.mono ? 'ltr' : 'rtl' }}>
+                      <span style={{ fontSize: 12.5, color: 'var(--tx5)', fontWeight: 600, textDecoration: 'line-through', fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.from}>{r.from}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                      <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.to}>{r.to}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Top bar */}
+            <div style={{ padding: '20px 24px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <span style={{ color: GOLD, flexShrink: 0, display: 'inline-flex' }}><User size={28} /></span>
+                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>تعديل بيانات العميل</div>
+              </div>
+              <button onClick={onClose} aria-label="إغلاق"
+                onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
+                style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '8px 24px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+              <div style={fieldset}>
+                <div style={legend}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
+                  <span>بيانات العميل</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 14, rowGap: 14 }}>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={lbl}>الاسم {reqStar}</div>
+                    <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} placeholder="اسم العميل" style={inp} />
+                  </div>
+                  <div>
+                    <div style={lbl}>رقم الهوية {reqStar}</div>
+                    <input value={f.id_number} onChange={e => set('id_number', e.target.value.replace(/\D/g, '').slice(0, 10))} dir="ltr" inputMode="numeric" maxLength={10} placeholder="0000000000" style={{ ...inp, direction: 'ltr', fontFamily: 'monospace' }} />
+                  </div>
+                  <div>
+                    <div style={lbl}>رقم الجوال {reqStar}</div>
+                    <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)' }}>
+                      <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: GOLD, flexShrink: 0 }}>+966</div>
+                      <input value={(d => !d ? '' : d.length <= 2 ? d : d.length <= 5 ? d.slice(0, 2) + ' ' + d.slice(2) : d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5))(f.phone)} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} dir="ltr" inputMode="numeric" maxLength={11} placeholder="5X XXX XXXX"
+                        style={{ flex: 1, width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div style={lbl}>الجنسية {reqStar}</div>
+                    <Drop value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder="— اختر —"
+                      options={nationalities.map(n => ({ v: n.id, l: n.name_ar }))} />
+                  </div>
+                  <div>
+                    <div style={lbl}>المكتب {reqStar} <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>(يمكن اختيار أكثر من مكتب)</span></div>
+                    <MultiDrop value={f.branch_ids} onChange={v => set('branch_ids', v)} placeholder="— اختر —"
+                      options={branches.map(b => ({ v: b.id, l: b.branch_code }))} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom bar */}
+            <div style={{ padding: '12px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
+              <div style={{ flex: 1, minHeight: 16, textAlign: 'start' }}>
+                {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                  {errMsg}
+                </span>}
+              </div>
+              <button onClick={save} disabled={saving || !valid} className="cm-nav-btn">
+                <span>{saving ? 'جارٍ التعديل…' : 'تعديل'}</span>
+                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

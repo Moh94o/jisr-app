@@ -673,6 +673,7 @@ const[natCache,setNatCache]=useState(null);
 const[subCrumbs,setSubCrumbs]=useState([]);
 useEffect(()=>{const handler=(e)=>setSubCrumbs(Array.isArray(e.detail)?e.detail:[]);window.addEventListener('topbar-breadcrumbs',handler);return()=>window.removeEventListener('topbar-breadcrumbs',handler)},[]);
 useEffect(()=>{const handler=(e)=>{setPg('sync_hub');setTimeout(()=>window.dispatchEvent(new CustomEvent('sync-focus-source',{detail:e.detail})),50)};window.addEventListener('app-navigate-sync',handler);return()=>window.removeEventListener('app-navigate-sync',handler)},[]);
+useEffect(()=>{const handler=(e)=>{setPg('invoices');setTimeout(()=>window.dispatchEvent(new CustomEvent('invoice-open',{detail:e.detail})),80)};window.addEventListener('app-navigate-invoice',handler);return()=>window.removeEventListener('app-navigate-invoice',handler)},[]);
 useEffect(()=>{const natId=user?.person?.nationality_id;if(!sb||!natId)return;sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').eq('id',natId).maybeSingle().then(({data})=>{if(data)setNatCache(data)})},[sb,user?.person?.nationality_id]);
 const[visibility,setVisibility]=useState(()=>getVisibility());
 const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visibility',JSON.stringify(cfg))};

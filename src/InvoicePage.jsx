@@ -169,6 +169,27 @@ function Sparkline({ points, width = 360, height = 90 }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
+// Full invoice row shape used by the list and by deep-link open-by-id.
+const INVOICE_SELECT = `
+        id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, created_at,
+        note_public, note_private,
+        creator:created_by(person:person_id(name_ar,name_en)),
+        payments(amount,is_valid,deleted_at),
+        service_type:service_type_id(code,value_ar,value_en),
+        status:status_id(code,value_ar,value_en),
+        branch:branch_id(id,branch_code),
+        agent:agent_id(name_ar,name_en,id_number,phone,nationality:nationality_id(code,name_ar,flag_url)),
+        service_request:service_request_id(
+          id, request_ref_no, request_date, quantity,
+          client:client_id(name_ar,name_en,phone,id_number,nationality:nationality_id(code,name_ar,flag_url)),
+          visa_applications(visa_type:visa_type_id(code,value_ar,value_en)),
+          transfer_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
+          ajeer_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
+          iqama_renewal_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
+          other_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
+          service_request_agents(agent:agent_id(name_ar,name_en,id_number,phone,nationality:nationality_id(code,name_ar,flag_url)))
+        )
+      `
 export default function InvoicePage({ sb, lang, user, branchId, toast }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
@@ -233,6 +254,18 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
       setCancelledStatusId(st.data?.[0]?.id || null)
     })
     return () => { alive = false }
+  }, [sb])
+
+  // Deep-link: open a specific invoice's detail when navigated here from elsewhere.
+  useEffect(() => {
+    const handler = async (e) => {
+      const id = e?.detail?.id
+      if (!id || !sb) return
+      const { data } = await sb.from('invoices').select(INVOICE_SELECT).eq('id', id).is('deleted_at', null).maybeSingle()
+      if (data) setDetail(data)
+    }
+    window.addEventListener('invoice-open', handler)
+    return () => window.removeEventListener('invoice-open', handler)
   }, [sb])
 
   const cancelInvoice = async (inv) => {
@@ -340,26 +373,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
     setLoading(true); setErr(null)
     let qb = sb
       .from('invoices')
-      .select(`
-        id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, created_at,
-        note_public, note_private,
-        creator:created_by(person:person_id(name_ar,name_en)),
-        payments(amount,is_valid,deleted_at),
-        service_type:service_type_id(code,value_ar,value_en),
-        status:status_id(code,value_ar,value_en),
-        branch:branch_id(id,branch_code),
-        agent:agent_id(name_ar,name_en,id_number,phone,nationality:nationality_id(code,name_ar,flag_url)),
-        service_request:service_request_id(
-          id, request_ref_no, request_date, quantity,
-          client:client_id(name_ar,name_en,phone,id_number,nationality:nationality_id(code,name_ar,flag_url)),
-          visa_applications(visa_type:visa_type_id(code,value_ar,value_en)),
-          transfer_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
-          ajeer_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
-          iqama_renewal_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
-          other_applications(worker:worker_id(name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url))),
-          service_request_agents(agent:agent_id(name_ar,name_en,id_number,phone,nationality:nationality_id(code,name_ar,flag_url)))
-        )
-      `, { count: 'exact' })
+      .select(INVOICE_SELECT, { count: 'exact' })
       .is('deleted_at', null)
       .order('created_at', { ascending: false, nullsFirst: false })
       .range(page * PAGE, page * PAGE + PAGE - 1)
