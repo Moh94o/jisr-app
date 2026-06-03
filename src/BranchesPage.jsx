@@ -980,6 +980,31 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
       account_purpose: j.account_purpose,
     })))
   }, [sb, branch?.id])
+  // Live balances computed server-side from real money movements
+  // (payments in + cash deposits in − fees paid out). See v_bank_account_balances.
+  const bankIds = useMemo(() => banks.map(b => b.id).filter(Boolean).sort().join(','), [banks])
+  useEffect(() => {
+    const ids = bankIds ? bankIds.split(',') : []
+    if (!sb || ids.length === 0) return
+    let alive = true
+    ;(async () => {
+      const { data } = await sb.from('v_bank_account_balances').select('*').in('bank_account_id', ids)
+      if (!alive || !data) return
+      const map = Object.fromEntries(data.map(r => [r.bank_account_id, r]))
+      setBanks(prev => {
+        let changed = false
+        const next = prev.map(b => {
+          const r = map[b.id]
+          if (!r) return b
+          if (b._bal && Number(b.current_balance) === Number(r.balance)) return b
+          changed = true
+          return { ...b, current_balance: r.balance, _bal: r }
+        })
+        return changed ? next : prev
+      })
+    })()
+    return () => { alive = false }
+  }, [sb, bankIds])
   const totalBalance = banks.reduce((s, a) => s + Number(a.current_balance || 0), 0)
 
   // Bank-account add modal
@@ -2046,7 +2071,8 @@ function BankRow({ account, sb, toast, onEdit, onReload }) {
                 {account.account_name && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{account.account_name}</span>}
               </span>
             </div>
-            <div style={{ fontSize: 30, fontWeight: 800, color: c, fontFamily: MONO_F, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1.05 }}>{nm(account.current_balance || 0)}</div>
+            <div title={account._bal ? `الرصيد = الإيداعات − المدفوعات\n+ تحويلات واردة: ${nm(account._bal.in_payments)}\n+ إيداعات نقدية: ${nm(account._bal.in_cash_deposits)}\n− المدفوعات: ${nm(account._bal.out_fees)}` : undefined}
+              style={{ fontSize: 30, fontWeight: 800, color: c, fontFamily: MONO_F, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1.05, cursor: account._bal ? 'help' : 'default' }}>{nm(account.current_balance || 0)}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>{primaryBadge}{purposeBadges}</div>
             {toggle}
           </div>
@@ -2128,10 +2154,6 @@ function BankCardModal({ sb, accountId, bankName, card, toast, onClose, onSaved 
 
           {/* Body */}
           <div style={{ padding: '14px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 11, color: '#e6a23c', background: 'rgba(230,162,60,.1)', border: '1px solid rgba(230,162,60,.25)', borderRadius: 8, padding: '8px 11px', lineHeight: 1.6 }}>
-              تنبيه: تخزين الرقم السري وCVV غير آمن — احفظهما على مسؤوليتك. البطاقة مربوطة بحساب «{bankName}».
-            </div>
-
             <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 18px 16px', position: 'relative', marginTop: 6 }}>
               <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <CreditCard size={12} strokeWidth={2.2} />
