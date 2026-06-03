@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import BackButton from '../components/BackButton'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -182,11 +183,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
     return (
       <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
         <div style={{ marginBottom: 14 }}>
-          <button onClick={() => setDetail(null)}
-            style={{ height: 40, padding: '0 14px', borderRadius: 11, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.78)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 500 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            <span>{T('رجوع', 'Back')}</span>
-          </button>
+          <BackButton onBack={() => setDetail(null)} label={T('رجوع', 'Back')} />
         </div>
 
         {/* Header card — request meta */}

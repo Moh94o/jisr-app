@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import BackButton from '../../components/BackButton'
 import {
   Users, Phone, FileText, Wallet, Activity, Search, SlidersHorizontal,
   ChevronDown, ArrowRight, AlertCircle, TrendingUp, CheckCircle2,
@@ -561,19 +562,7 @@ function AgentDetailPage({ sb, agent, onBack, T, isAr }) {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 16 }}>
-          <button onClick={onBack}
-            style={{
-              height: 40, padding: '0 14px', borderRadius: 11,
-              border: '1px solid rgba(255,255,255,.06)',
-              background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
-              color: 'rgba(255,255,255,.78)', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              fontFamily: F, fontSize: 12, fontWeight: 500,
-              boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-              transition: '.2s',
-            }}>
-            <ArrowRight size={13} /> {T('رجوع', 'Back')}
-          </button>
+          <BackButton onBack={onBack} label={T('رجوع', 'Back')} />
           {agent.branch?.branch_code && (
             <span style={{
               padding: '6px 14px', borderRadius: 999,

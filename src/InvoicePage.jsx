@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { DateField, Sel } from './pages/KafalaCalculator.jsx'
+import BackButton from './components/BackButton'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -446,20 +447,20 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           overflow: 'hidden', minHeight: 150,
         }}>
-          <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.ok}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
           {/* Top — label with dot */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.ok, boxShadow: `0 0 10px ${C.ok}aa` }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
             <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدًا','Cash')}</span>
           </div>
           {/* Center — big number with currency */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: C.ok, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(periodStats.cash.sum)}</span>
+            <span style={{ fontSize: 42, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(periodStats.cash.sum)}</span>
           </div>
           {/* Bottom — count badge */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
             <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات','Receipts')}</span>
-            <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(periodStats.cash.cnt)}</span>
+            <span style={{ fontSize: 13, color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(periodStats.cash.cnt)}</span>
           </div>
         </div>
 
@@ -529,7 +530,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
                   {todaySvcs.filter(s => s.cnt > 0).map(s => {
                     const theme = SVC_THEME[s.code] || SVC_THEME.general
                     const pct = (s.cnt / todayTotal) * 100
-                    return <div key={s.code} title={`${theme.label_ar}: ${s.cnt}`} style={{ width: pct + '%', background: theme.c, transition: 'width .3s' }} />
+                    return <div key={s.code} title={`${theme.label_ar}: ${s.cnt}`} style={{ width: pct + '%', background: theme.c }} />
                   })}
                 </div>
               )}
@@ -998,10 +999,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
       {/* Top bar: back */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-        <button onClick={onBack} title={T('رجوع','Back')} style={{ height: 40, padding: '0 14px', borderRadius: 11, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.78)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 500, transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)'; e.currentTarget.style.color = C.gold }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'rgba(255,255,255,.78)' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-          <span>{T('رجوع','Back')}</span>
-        </button>
+        <BackButton onBack={onBack} label={T('رجوع','Back')} />
       </div>
 
       {/* Header — underlined title + tags */}
@@ -1616,7 +1614,8 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
       if (!alive) return
       const pmMap = {}
       ;(pm.data || []).forEach(r => { pmMap[r.code] = r.id })
-      setPayMethodIds({ cash: pmMap.cash || null, bank: pmMap.bank || null })
+      // The bank method's lookup code is 'bank_transfer' (older data may use 'bank').
+      setPayMethodIds({ cash: pmMap.cash || null, bank: pmMap.bank_transfer || pmMap.bank || null })
       const stMap = {}
       ;(statuses.data || []).forEach(r => { stMap[r.code] = r.id })
       setCancelledStatusId(stMap.cancelled || null)
@@ -1726,7 +1725,7 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
         //        payment spans multiple installments we still record it as one
         //        row — that's a simplification matching the current UI.
         const firstInstId = allocations[0]?.id || null
-        const { error: e2 } = await sb.from('payments').insert({
+        const { data: payRow, error: e2 } = await sb.from('payments').insert({
           invoice_id: inv.id,
           installment_id: firstInstId,
           service_request_id: inv.service_request?.id || null,
@@ -1737,8 +1736,28 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
           bank_account_id: paymentMethod === 'bank' ? (paySelBankAccId || null) : null,
           is_valid: true,
           created_by: user?.id || null,
-        })
+        }).select('id').single()
         if (e2) throw e2
+
+        // Persist the bank-transfer receipt (was previously collected but never saved),
+        // linking it to the payment so it shows in the deposits/verification view.
+        if (paymentMethod === 'bank' && payTransferReceipt && payRow?.id) {
+          try {
+            const f = payTransferReceipt
+            const safe = (f.name || 'file').replace(/[^\w.\-]+/g, '_')
+            const path = `payments/${payRow.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`
+            const { error: upErr } = await sb.storage.from('attachments').upload(path, f, { cacheControl: '3600', upsert: false })
+            if (!upErr) {
+              const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+              await sb.from('attachments').insert({
+                entity_type: 'payment', entity_id: payRow.id,
+                file_name: f.name, file_url: pub?.publicUrl || path, storage_path: path,
+                mime_type: f.type || null, size_bytes: f.size || null,
+                notes: 'bank_transfer_receipt', uploaded_by: user?.id || null,
+              })
+            }
+          } catch { /* receipt upload is best-effort — never block the payment */ }
+        }
 
         // ─── 4. Update each touched installment. (remaining_amount is generated.)
         const nowIso = new Date().toISOString()

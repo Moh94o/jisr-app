@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 // Forced reparse marker — InvoicePage-styled detail page
 import ReactDOM from 'react-dom'
+import BackButton from './components/BackButton'
 import {
   Building2, Users, Wallet, Activity, MapPin, Phone, User, Edit2, Plus, X, Save,
   Trash2, Search, ChevronDown, Check, AlertCircle, TrendingUp,
   CreditCard, FileText, Home, Hash, Briefcase, ArrowRight,
-  Banknote, ArrowDownToLine, ArrowUpFromLine, Receipt, Copy,
+  Banknote, ArrowDownToLine, ArrowUpFromLine, Receipt, Copy, Landmark,
 } from 'lucide-react'
 import { KCard, KV, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, C } from './pages/admin/roles/RoleUI.jsx'
 
@@ -77,7 +78,7 @@ function MissingBadge() {
   )
 }
 
-function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect }) {
+function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect, big }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
   const [q, setQ] = useState('')
@@ -97,9 +98,11 @@ function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect }) {
   }, [open])
   return (
     <div style={{ gridColumn: w === true ? '1/-1' : undefined }}>
-      <Lbl req={r}>{l}</Lbl>
+      {big
+        ? <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>{l}{r && <span style={{ color: C.red }}> *</span>}</div>
+        : <Lbl req={r}>{l}</Lbl>}
       <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
-        style={{ ...sF, cursor: 'pointer', color: selected ? 'var(--tx)' : 'var(--tx5)',
+        style={{ ...sF, ...(big ? { fontSize: 14, fontWeight: 500 } : {}), cursor: 'pointer', color: selected ? 'var(--tx)' : 'var(--tx5)',
           border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.07)'}`,
           borderRadius: 10,
           background: 'var(--modal-input-bg)',
@@ -154,6 +157,63 @@ function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect }) {
           </div>
         </>, document.body)}
     </div>
+  )
+}
+
+// Multi-select dropdown for a bank account's purposes (value is a ' · '-joined string).
+const PURPOSE_OPTS = [
+  { v: 'الإيداعات النقدية', Icon: Banknote, hue: '#27a046' },
+  { v: 'التحويلات الواردة', Icon: ArrowDownToLine, hue: '#3483b4' },
+  { v: 'التحويلات الصادرة', Icon: ArrowUpFromLine, hue: '#e6a23c' },
+  { v: 'سداد المدفوعات', Icon: Receipt, hue: '#bb8fce' },
+]
+function PurposeMultiSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState(null)
+  const btnRef = useRef(null)
+  const selected = (value || '').split('·').map(s => s.trim()).filter(Boolean)
+  const toggle = p => { const next = selected.includes(p) ? selected.filter(x => x !== p) : [...selected, p]; onChange(next.join(' · ')) }
+  useEffect(() => {
+    if (!open || !btnRef.current) return
+    const r = btnRef.current.getBoundingClientRect()
+    const below = window.innerHeight - r.bottom - 16
+    setPos({ top: r.bottom + 4, left: r.left, width: r.width, maxH: Math.max(160, Math.min(300, below)) })
+  }, [open])
+  const label = selected.length ? (selected.length === 1 ? selected[0] : `${selected[0]} +${selected.length - 1}`) : ''
+  return (
+    <>
+      <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
+        style={{ ...sF, fontSize: 14, fontWeight: 500, cursor: 'pointer', color: selected.length ? 'var(--tx)' : 'var(--tx5)',
+          border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.07)'}`, borderRadius: 10,
+          background: 'var(--modal-input-bg)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+          display: 'flex', alignItems: 'center', gap: 8, padding: '0 32px', position: 'relative' }}>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label || 'اختر الغرض...'}</span>
+        <ChevronDown size={12} color={GOLD} strokeWidth={2.5} style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
+      </button>
+      {open && pos && ReactDOM.createPortal(
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
+          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, zIndex: 9999, overflow: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F }}>
+            {PURPOSE_OPTS.map(p => {
+              const sel = selected.includes(p.v)
+              return (
+                <div key={p.v} onClick={() => toggle(p.v)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.03)', background: sel ? `${p.hue}14` : 'transparent' }}
+                  onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = sel ? `${p.hue}14` : 'transparent' }}>
+                  <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: sel ? `${p.hue}2e` : 'rgba(255,255,255,.04)', border: `1px solid ${sel ? `${p.hue}50` : 'rgba(255,255,255,.06)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <p.Icon size={14} color={sel ? p.hue : 'var(--tx4)'} strokeWidth={2.2} />
+                  </span>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? '#fff' : 'var(--tx2)' }}>{p.v}</span>
+                  <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${sel ? p.hue : 'rgba(255,255,255,.18)'}`, background: sel ? p.hue : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {sel && <Check size={11} color="#000" strokeWidth={3.5} />}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </>, document.body)}
+    </>
   )
 }
 
@@ -307,19 +367,20 @@ export default function BranchesPage({ sb, toast, user, lang }) {
       else { d.created_by = user?.id; const { error } = await sb.from('branches').insert(d); if (error) throw error }
       setSuccess(true)
       setTimeout(() => { setSuccess(false); setPop(false); load() }, 1300)
+      return null
     } catch (e) {
       const msg = (e.message || '').toLowerCase()
+      // Return the error string so the modal can show it inline in its footer (no toast).
       if (e.code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
-        toast?.('كود المكتب "' + (d.branch_code || '') + '" مستخدم بالفعل — اختر كوداً آخر', 'error')
+        return 'كود المكتب "' + (d.branch_code || '') + '" مستخدم بالفعل — اختر كوداً آخر'
       } else if (e.code === '42501' || msg.includes('row-level security') || msg.includes('violates row level')) {
-        toast?.('لا تملك صلاحية إضافة مكتب جديد — تواصل مع مدير النظام لتفعيل الصلاحية', 'error')
+        return 'لا تملك صلاحية إضافة مكتب جديد — تواصل مع مدير النظام لتفعيل الصلاحية'
       } else if (e.code === '23502' || msg.includes('null value')) {
-        toast?.('تنقص بيانات مطلوبة لحفظ المكتب — تأكد من تعبئة كل الحقول الأساسية', 'error')
+        return 'تنقص بيانات مطلوبة لحفظ المكتب — تأكد من تعبئة كل الحقول الأساسية'
       } else if (e.code === '23503' || msg.includes('foreign key')) {
-        toast?.('قيمة مرتبطة غير صحيحة (منطقة/مدينة/حي) — أعد اختيارها وحاول مرة أخرى', 'error')
-      } else {
-        toast?.('تعذّر حفظ المكتب: ' + (e.message || '').slice(0, 80), 'error')
+        return 'قيمة مرتبطة غير صحيحة (منطقة/مدينة/حي) — أعد اختيارها وحاول مرة أخرى'
       }
+      return 'تعذّر حفظ المكتب: ' + (e.message || '').slice(0, 80)
     } finally {
       setSaving(false)
     }
@@ -338,13 +399,17 @@ export default function BranchesPage({ sb, toast, user, lang }) {
     // Read current max suffix straight from DB rather than local state, so two users
     // adding to the same city won't both land on the same generated code. The DB UNIQUE
     // constraint on branch_code is the real guard; this just makes the default sensible.
-    const { data } = await sb.from('branches').select('branch_code').like('branch_code', city.code + '-%')
+    // Codes are now joined (no hyphen) e.g. SHR01 — but match legacy hyphenated codes too.
+    const { data } = await sb.from('branches').select('branch_code').like('branch_code', city.code + '%')
+    const esc = city.code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const re = new RegExp('^' + esc + '-?(\\d+)$')
     const maxNum = (data || []).reduce((m, r) => {
-      const n = parseInt((r.branch_code || '').split('-').pop(), 10)
+      const mt = re.exec(r.branch_code || '')
+      const n = mt ? parseInt(mt[1], 10) : NaN
       return Number.isFinite(n) && n > m ? n : m
     }, 0)
     const num = String(maxNum + 1).padStart(2, '0')
-    setForm(p => ({ ...p, city_id: cityId, branch_code: city.code + '-' + num, district_id: '' }))
+    setForm(p => ({ ...p, city_id: cityId, branch_code: city.code + num, district_id: '' }))
   }
 
   const openAdd = () => {
@@ -495,7 +560,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
         .brs-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%);min-height:46px}
         .brs-staff-box{background:linear-gradient(160deg,rgba(52,131,180,.12) 0%,rgba(52,131,180,.04) 100%);border:1px solid rgba(52,131,180,.24);border-radius:12px;padding:8px 16px;display:flex;align-items:center;gap:10px;transition:.2s}
         .brs-row:hover .brs-staff-box{background:linear-gradient(160deg,rgba(52,131,180,.20) 0%,rgba(52,131,180,.08) 100%);border-color:rgba(52,131,180,.42)}
-        .brs-code-block{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:80px}
+        .brs-code-block{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:80px}
         .brs-meta-row{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--tx3);font-weight:600}
       `}</style>
 
@@ -504,16 +569,13 @@ export default function BranchesPage({ sb, toast, user, lang }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>المكاتب</div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة المكاتب والفروع ومتابعة موظفيها وأرصدتها ونشاطها</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة المكاتب والفروع ومتابعة مستخدميها وأرصدتها ونشاطها</div>
           </div>
-          <button onClick={openAdd} className="brs-add-btn"
-            style={{ height: 40, padding: '0 18px', borderRadius: 11,
-              border: '1px solid rgba(212,160,23,.45)',
-              background: 'transparent',
-              color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              transition: '.2s' }}>
-            إضافة مكتب <Plus size={14} strokeWidth={2.5} />
+          <button onClick={openAdd}
+            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+            style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+            مكتب جديد <Plus size={16} strokeWidth={2.2} />
           </button>
         </div>
       </div>
@@ -563,7 +625,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
                 <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.blue}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, boxShadow: `0 0 10px ${C.blue}aa` }} />
-                  <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>الموظفون</span>
+                  <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>المستخدمون</span>
                 </div>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
                   <span style={{ fontSize: 42, fontWeight: 800, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{nm(topStats.totalStaff)}</span>
@@ -739,8 +801,6 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
         overflow: 'hidden',
         opacity: isActive ? 1 : .7,
       }}>
-      {/* Side accent bar */}
-      <div style={{ position: 'absolute', insetInlineEnd: 0, top: 0, bottom: 0, width: 3, background: tone, opacity: .7 }} />
 
       {/* Padded content */}
       <div style={{ padding: '14px 26px 14px 18px' }}>
@@ -819,7 +879,7 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
             <Users size={16} color={C.blue} strokeWidth={2.2} />
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
               <span style={{ fontSize: 20, fontWeight: 800, color: C.blue, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{nm(staff)}</span>
-              <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginTop: 2 }}>موظف</span>
+              <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginTop: 2 }}>مستخدم</span>
             </div>
           </div>
         </div>
@@ -895,7 +955,6 @@ function BranchActivityChart({ days, color, label }) {
    ═══════════════════════════════════════════════════════════════ */
 
 function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, docs, roles, onReload, onBack, onEdit, onDelete, toast }) {
-  const [permUser, setPermUser] = useState(null)  // selected user for permissions modal
   const isActive = branch.is_active === true
   const tone = isActive ? C.ok : '#777'
   const activeStaff = users.filter(u => u.is_active).length
@@ -929,14 +988,56 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
   const [bankSaving, setBankSaving] = useState(false)
   const [bankSuccess, setBankSuccess] = useState(false)
   const openAddBank = () => { setBankForm({ mode: 'new', is_primary: false, current_balance: 0 }); setBankPop(true) }
+  const openEditBank = (account) => {
+    setBankForm({
+      mode: 'edit', _edit_account_id: account.id, _junction_id: account._junction_id,
+      bank_name: account.bank_name, account_name: account.account_name,
+      account_number: account.account_number, iban: account.iban, swift_code: account.swift_code,
+      account_purpose: account.account_purpose, is_primary: !!account.is_primary,
+    })
+    setBankPop(true)
+  }
   const saveBankAccount = async () => {
     setBankSaving(true)
+    // Upload the optional IBAN document to the shared `attachments` bucket + table.
+    const uploadIban = async (accountId) => {
+      const file = bankForm._ibanFile
+      if (!file || !accountId) return
+      const safe = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
+      const path = `bank_accounts/${accountId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`
+      const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (upErr) throw upErr
+      const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+      const { error: insErr } = await sb.from('attachments').insert({
+        entity_type: 'bank_account', entity_id: accountId,
+        file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path,
+        mime_type: file.type || null, size_bytes: file.size || null, notes: 'ملف الآيبان',
+      })
+      if (insErr) throw insErr
+    }
     try {
+      // Edit mode: update the existing account + its branch-junction purpose.
+      if (bankForm.mode === 'edit') {
+        const upd = {
+          bank_name: bankForm.bank_name || null, account_name: bankForm.account_name || null,
+          account_number: bankForm.account_number || null, iban: bankForm.iban || null,
+          swift_code: bankForm.swift_code || null, is_primary: !!bankForm.is_primary,
+        }
+        const { error } = await sb.from('bank_accounts').update(upd).eq('id', bankForm._edit_account_id)
+        if (error) throw error
+        if (bankForm._junction_id) {
+          await sb.from('bank_account_branches').update({ account_purpose: bankForm.account_purpose || null }).eq('id', bankForm._junction_id)
+        }
+        await uploadIban(bankForm._edit_account_id)
+        setBankSuccess(true)
+        setTimeout(() => { setBankSuccess(false); setBankPop(false); reloadBanks() }, 1100)
+        return null
+      }
       let bankAccountId = bankForm._link_account_id
       // Mode "new" creates the bank account first; "link" reuses an existing one.
       if (!bankAccountId) {
         const d = { ...bankForm, branch_id: branch.id }
-        delete d.mode; delete d._link_account_id; delete d._link_account; delete d.account_purpose
+        delete d.mode; delete d._link_account_id; delete d._link_account; delete d.account_purpose; delete d._ibanFile
         Object.keys(d).forEach(k => { if (d[k] === '') d[k] = null })
         const { data, error } = await sb.from('bank_accounts').insert(d).select('id').single()
         if (error) throw error
@@ -949,19 +1050,21 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         account_purpose: bankForm.account_purpose || null,
       })
       if (jErr) throw jErr
+      await uploadIban(bankAccountId)
       setBankSuccess(true)
       setTimeout(() => { setBankSuccess(false); setBankPop(false); reloadBanks() }, 1100)
+      return null
     } catch (e) {
       const msg = (e.message || '').toLowerCase()
+      // Return the error string so the modal shows it inline in its footer (no toast).
       if (e.code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
-        toast?.('هذا الحساب مربوط بالفعل بهذا المكتب', 'error')
+        return 'هذا الحساب مربوط بالفعل بهذا المكتب'
       } else if (e.code === '42501' || msg.includes('row-level security')) {
-        toast?.('لا تملك صلاحية إضافة حساب بنكي', 'error')
+        return 'لا تملك صلاحية إضافة حساب بنكي'
       } else if (e.code === '23502' || msg.includes('null value')) {
-        toast?.('تنقص بيانات مطلوبة — تأكد من تعبئة كل الحقول الأساسية', 'error')
-      } else {
-        toast?.('تعذّر حفظ الحساب: ' + (e.message || '').slice(0, 80), 'error')
+        return 'تنقص بيانات مطلوبة — تأكد من تعبئة كل الحقول الأساسية'
       }
+      return 'تعذّر حفظ الحساب: ' + (e.message || '').slice(0, 80)
     } finally { setBankSaving(false) }
   }
 
@@ -978,60 +1081,61 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
       .then(({ data }) => setInvoices14(data || []))
   }, [sb, branch?.id])
 
+  // Activate / deactivate the office from the overview card header.
+  const [activeBusy, setActiveBusy] = useState(false)
+  const toggleBranchActive = async () => {
+    const next = !isActive
+    setActiveBusy(true)
+    const { error } = await sb.from('branches').update({ is_active: next }).eq('id', branch.id)
+    setActiveBusy(false)
+    if (error) { toast?.('تعذّر تحديث الحالة: ' + (error.message || '').slice(0, 60), 'error'); return }
+    toast?.(next ? 'تم تفعيل المكتب' : 'تم تعطيل المكتب')
+    onReload?.()
+  }
+
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
         .brd-hero{display:grid;grid-template-columns:2.2fr 1fr 1.5fr;gap:14px;margin-bottom:24px}
         @media (max-width: 1100px){.brd-hero{grid-template-columns:1fr 1fr}.brd-hero > :nth-child(3){grid-column:1/-1}}
         @media (max-width: 720px){.brd-hero{grid-template-columns:1fr}}
-        /* Card chrome — same as InvoiceDetailPage cardChrome */
-        .brd-section{background:linear-gradient(180deg,#1f1f1f 0%,#181818 100%);border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;margin-bottom:14px}
+        /* Card chrome — unified with UserDetailPage cardChrome/cardHeader/cardTitle */
+        .brd-section{background:linear-gradient(180deg,#2A2A2A 0%,#222 100%);border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden}
         .brd-section-head{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;gap:10px}
-        .brd-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:#fff;letter-spacing:.2px}
+        .brd-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:#fff;letter-spacing:.2px}
         .brd-section-body{padding:14px 22px}
         .brd-section-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
         .brd-section-count{padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:10px;font-weight:700;color:var(--tx3)}
+        /* Two-column detail layout — matches UserDetailPage .usrd-grid */
+        .brd-grid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:flex-start}
+        @media (max-width:900px){.brd-grid{grid-template-columns:1fr}.brd-side,.brd-main{grid-column:auto !important;position:static !important}}
+        .brd-irow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.07)}
+        .brd-irow:last-child{border-bottom:none}
+        .brd-irow-l{font-size:12px;color:var(--tx4);font-weight:600;flex-shrink:0}
+        .brd-irow-v{font-size:13px;font-weight:600;text-align:end;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
       `}</style>
 
-      {/* Top bar — back + edit (matches InvoiceDetailPage) */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-        <button onClick={onBack} title="رجوع"
-          style={{ height: 40, padding: '0 14px', borderRadius: 11, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.78)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 500, transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)'; e.currentTarget.style.color = GOLD }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'rgba(255,255,255,.78)' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-          <span>رجوع</span>
-        </button>
-        <button onClick={onEdit} className="brs-add-btn"
-          style={{ height: 40, padding: '0 18px', borderRadius: 11, border: '1px solid rgba(212,160,23,.45)', background: 'transparent', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.2s' }}>
-          تعديل <Edit2 size={14} strokeWidth={2.5} />
-        </button>
+      {/* Back (matches UserDetailPage) */}
+      <div style={{ marginBottom: 4 }}>
+        <BackButton onBack={onBack} />
       </div>
 
-      {/* Header — title + tag row */}
+      {/* Header — icon + code title + status + subtitle (matches UserDetailPage) */}
       <div style={{ marginBottom: 18, marginTop: 6 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-          {/* Icon */}
-          <Building2 size={36} color={GOLD} strokeWidth={1.7} style={{ flexShrink: 0, marginBottom: -2 }} />
-
-          {/* Title block */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.4px' }}>تفاصيل المكتب</div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 18, fontWeight: 700, color: GOLD, fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.4px', direction: 'ltr', unicodeBidi: 'isolate', lineHeight: 1 }}>{branch.branch_code || '—'}</span>
-              <span style={{
-                fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
-                background: `linear-gradient(135deg, ${tone}22 0%, ${tone}10 100%)`,
-                color: tone, border: `1px solid ${tone}40`,
-                boxShadow: `0 1px 3px ${tone}14, inset 0 1px 0 rgba(255,255,255,.04)`,
-                display: 'inline-flex', alignItems: 'center', gap: 5, lineHeight: 1,
-              }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: tone, boxShadow: `0 0 5px ${tone}` }} />
-                {isActive ? 'نشط' : 'معطّل'}
-              </span>
-            </div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Building2 size={26} color={GOLD} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+          <div style={{ fontSize: 22, fontWeight: 600, color: GOLD, fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.2px', direction: 'ltr', unicodeBidi: 'isolate', lineHeight: 1 }}>{branch.branch_code || '—'}</div>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: `${tone}20`, color: tone }}>
+            {isActive ? 'نشط' : 'معطّل'}
+          </span>
+          <button onClick={openAddBank}
+            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+            style={{ marginInlineStart: 'auto', height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+            حساب بنكي جديد <Plus size={16} strokeWidth={2.2} />
+          </button>
         </div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>عرض تفاصيل المكتب وحساباته البنكية ومستخدميه والمستندات.</div>
         {(branch.phone || lastActivity || alerts > 0) && (
           <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)' }}>
             {branch.phone && (
@@ -1057,120 +1161,45 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         )}
       </div>
 
-      {/* 3-col hero — Big primary KPI + Stacked + Distribution */}
-      <div className="brd-hero">
-        {/* Staff count — primary */}
-        <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
-          <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.blue}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, boxShadow: `0 0 10px ${C.blue}aa` }} />
-            <span style={{ fontSize: 22, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>الموظفون</span>
-          </div>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-            <span style={{ fontSize: 13, color: 'var(--tx4)', fontWeight: 600 }}>{users.length > 0 ? `/ ${users.length}` : ''}</span>
-            <span style={{ fontSize: 42, fontWeight: 800, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{activeStaff}</span>
-          </div>
-          {branch.manager_user_name && (
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-              <span style={{ fontSize: 11, color: GOLD, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <User size={11} /> {branch.manager_user_name}
+      {/* ═══ Two-column layout — main (operations) + sticky side (location) ═══ */}
+      <div className="brd-grid">
+        <div className="brd-main" style={{ order: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Location card — right column, above the operations */}
+          <div className="brd-section">
+            <div className="brd-section-head">
+              <span className="brd-section-head-l">
+                <span className="brd-section-dot" style={{ background: GOLD }} />
+                العنوان والموقع
               </span>
+              <button onClick={onEdit}
+                onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+                style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+                تعديل
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+              </button>
             </div>
-          )}
-        </div>
-
-        {/* Balance — mirrors staff card style */}
-        <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
-          <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${GOLD}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: GOLD, boxShadow: `0 0 10px ${GOLD}aa` }} />
-            <span style={{ fontSize: 22, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>الرصيد</span>
-          </div>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: GOLD, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{nm(Math.round(totalBalance))}</span>
-          </div>
-          {banks.length > 0 && (
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-              <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>
-                {nm(banks.length)} حساب نشط
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Invoices sparkline */}
-        {(() => {
-          const map = new Map()
-          invoices14.forEach(inv => {
-            const k = String(inv.created_at).slice(0, 10)
-            map.set(k, (map.get(k) || 0) + 1)
-          })
-          const today = new Date()
-          const days14 = Array.from({ length: 14 }, (_, i) => {
-            const d = new Date(today); d.setDate(d.getDate() - (13 - i))
-            const key = d.toISOString().slice(0, 10)
-            return { date: d, count: map.get(key) || 0 }
-          })
-          const total = days14.reduce((s, d) => s + d.count, 0)
-          const max = Math.max(1, ...days14.map(d => d.count))
-          return (
-            <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>نشاط الفواتير — آخر 14 يوم</span>
-                <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                  <span style={{ color: GOLD, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(total)}</span> فاتورة
-                </span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(14, 1fr)`, gap: 4, alignItems: 'end', height: 90, direction: 'ltr', flex: 1 }}>
-                {days14.map((d, i) => {
-                  const h = (d.count / max) * 100
-                  return (
-                    <div key={i} title={`${d.date.toLocaleDateString('ar-SA')} — ${d.count} فاتورة`}
-                      style={{ height: `${h}%`, minHeight: d.count > 0 ? 3 : 0, background: d.count > 0 ? `linear-gradient(180deg, ${GOLD} 0%, ${GOLD}88 100%)` : 'rgba(255,255,255,.05)', borderRadius: '3px 3px 1px 1px', border: d.count > 0 ? `1px solid ${GOLD}55` : '1px solid rgba(255,255,255,.04)', boxShadow: d.count > 0 ? `0 0 6px ${GOLD}33` : 'none' }} />
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })()}
-      </div>
-
-      {/* Address details (only if any has data) */}
-      {(branch.postal_code || branch.street || branch.building_number || branch.district_name || branch.city_name || branch.region_name) && (
-        <div className="brd-section">
-          <div className="brd-section-head">
-            <span className="brd-section-head-l">
-              <span className="brd-section-dot" style={{ background: GOLD }} />
-              <MapPin size={13} color={GOLD} /> العنوان التفصيلي
-            </span>
-          </div>
-          <div className="brd-section-body">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
+            <div className="brd-section-body" style={{ paddingTop: 6, paddingBottom: 12 }}>
               {[
-                ['المنطقة', branch.region_name],
-                ['المدينة', branch.city_name],
-                ['الحي', branch.district_name],
-                ['الشارع', branch.street],
-                ['رقم المبنى', branch.building_number],
-                ['الرمز البريدي', branch.postal_code],
-              ].filter(([, v]) => v).map(([l, v]) => (
-                <div key={l} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
-                  <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: GOLD, direction: 'ltr', textAlign: 'start' }}>{v}</div>
+                ['المنطقة', branch.region_name, 'rtl'],
+                ['المدينة', branch.city_name, 'rtl'],
+                ['الحي', branch.district_name, 'rtl'],
+              ].map(([l, v, dir]) => (
+                <div key={l} className="brd-irow">
+                  <span className="brd-irow-l">{l}</span>
+                  <span className="brd-irow-v" style={{ direction: dir, color: v ? 'var(--tx2)' : 'var(--tx5)' }} title={v || ''}>{v || '—'}</span>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
 
       {/* Bank accounts section */}
       <div className="brd-section">
         <div className="brd-section-head">
           <span className="brd-section-head-l">
             <span className="brd-section-dot" style={{ background: GOLD }} />
-            <Wallet size={13} color={GOLD} /> الحسابات البنكية
-            <span className="brd-section-count">{banks.length}</span>
+            الحسابات البنكية
           </span>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
             {banks.length > 0 && (
@@ -1178,13 +1207,6 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                 <TrendingUp size={11} /> {nm(Math.round(totalBalance))}
               </span>
             )}
-            <button onClick={openAddBank} className="brs-add-btn"
-              style={{ height: 32, padding: '0 12px', borderRadius: 8,
-                border: '1px solid rgba(212,160,23,.45)', background: 'transparent',
-                color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.2s' }}>
-              إضافة حساب <Plus size={12} strokeWidth={2.5} />
-            </button>
           </div>
         </div>
         <div className="brd-section-body">
@@ -1194,7 +1216,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {banks.map(a => <BankRow key={a.id} account={a} toast={toast} />)}
+              {banks.map(a => <BankRow key={a.id} account={a} sb={sb} toast={toast} onEdit={openEditBank} onReload={reloadBanks} />)}
             </div>
           )}
         </div>
@@ -1205,8 +1227,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         <div className="brd-section-head">
           <span className="brd-section-head-l">
             <span className="brd-section-dot" style={{ background: C.blue }} />
-            <Users size={13} color={C.blue} /> الموظفون
-            <span className="brd-section-count">{users.length}</span>
+            المستخدمون
           </span>
           {users.length > 0 && (
             <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
@@ -1283,16 +1304,6 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                             </span>
                           )}
                         </div>
-                        {u.role_name && (
-                          <span style={{
-                            fontSize: 10, fontWeight: 700, padding: '2.5px 8px', borderRadius: 5,
-                            background: `${roleColor}1c`, color: roleColor, border: `1px solid ${roleColor}38`,
-                            display: 'inline-flex', alignItems: 'center', gap: 5, letterSpacing: '.2px',
-                          }}>
-                            <span style={{ width: 4, height: 4, borderRadius: '50%', background: roleColor }} />
-                            {u.role_name}
-                          </span>
-                        )}
                       </div>
                       {/* Active toggle — corner */}
                       <button type="button" onClick={toggleActive}
@@ -1314,37 +1325,14 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                       </button>
                     </div>
 
-                    {/* Meta rows: id + phone + email — each with copy */}
-                    {(u.id_number || u.phone || u.email) && (
+                    {/* Meta rows: id + phone + role — unified design */}
+                    {(u.id_number || u.phone || u.role_name) && (
                       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        {u.id_number && <CopyMetaRow Icon={Hash} value={u.id_number} label="الهوية" mono toast={toast} />}
-                        {u.phone && <CopyMetaRow Icon={Phone} value={String(u.phone).replace(/^\+?966/, '0')} label="الجوال" mono color={C.ok} toast={toast} />}
-                        {u.email && <CopyMetaRow Icon={null} value={u.email} label="الإيميل" mono toast={toast}
-                          prefix={<span style={{ width: 5, height: 5, borderRadius: '50%', background: C.blue, flexShrink: 0 }} />} />}
+                        {u.id_number && <MetaRow Icon={Hash} value={u.id_number} label="الهوية" mono />}
+                        {u.phone && <MetaRow Icon={Phone} value={String(u.phone).replace(/^\+?966/, '0')} label="الجوال" mono color={C.ok} />}
+                        {u.role_name && <MetaRow dot={roleColor} value={u.role_name} label="الدور" />}
                       </div>
                     )}
-
-                    {/* Bottom: permissions button */}
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button type="button" onClick={() => setPermUser(u)}
-                        title="إدارة الصلاحيات"
-                        style={{
-                          flex: 1,
-                          height: 32, padding: '0 12px', borderRadius: 9,
-                          border: '1px solid rgba(255,255,255,.07)',
-                          background: 'linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.02) 100%)',
-                          color: 'var(--tx2)',
-                          fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04)',
-                          transition: '.18s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}55`; e.currentTarget.style.color = GOLD; e.currentTarget.style.background = `${GOLD}10` }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.02) 100%)' }}>
-                        <Hash size={12} strokeWidth={2.4} />
-                        إدارة الصلاحيات
-                      </button>
-                    </div>
                   </div>
                 )
               })}
@@ -1359,8 +1347,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
           <div className="brd-section-head">
             <span className="brd-section-head-l">
               <span className="brd-section-dot" style={{ background: GOLD }} />
-              <FileText size={13} color={GOLD} /> المستندات
-              <span className="brd-section-count">{docs.length}</span>
+              المستندات
             </span>
           </div>
           <div className="brd-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1391,6 +1378,68 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
           </div>
         </div>
       )}
+        </div>{/* /brd-main */}
+
+        {/* Left column — overview stats, sticky and alone */}
+        <div className="brd-side" style={{ order: 2, position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Overview stats — relocated from the KPI hero cards */}
+          <div className="brd-section">
+            <div className="brd-section-head">
+              <span className="brd-section-head-l">
+                <span className="brd-section-dot" style={{ background: C.blue }} />
+                نظرة عامة
+              </span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? C.ok : 'var(--tx5)' }}>{isActive ? 'نشط' : 'معطّل'}</span>
+                <button type="button" disabled={activeBusy} onClick={toggleBranchActive} title={isActive ? 'تعطيل المكتب' : 'تفعيل المكتب'}
+                  style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: isActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'linear-gradient(180deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.10) 100%)', cursor: activeBusy ? 'not-allowed' : 'pointer', opacity: activeBusy ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: isActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
+                  <span style={{ position: 'absolute', width: 18, height: 18, borderRadius: '50%', background: '#fff', top: 3, right: isActive ? 3 : 23, transition: '.2s', boxShadow: '0 2px 4px rgba(0,0,0,.3)' }} />
+                </button>
+              </div>
+            </div>
+            <div className="brd-section-body" style={{ paddingTop: 6, paddingBottom: 12 }}>
+              {[
+                { l: 'المستخدمون', v: users.length > activeStaff ? `${nm(activeStaff)} / ${nm(users.length)}` : nm(activeStaff), c: C.blue },
+                { l: 'الحسابات البنكية', v: nm(banks.length), c: GOLD },
+                { l: 'الرصيد', v: nm(Math.round(totalBalance)), c: GOLD },
+              ].map(({ l, v, c }) => (
+                <div key={l} className="brd-irow">
+                  <span className="brd-irow-l">{l}</span>
+                  <span className="brd-irow-v" style={{ direction: 'ltr', color: c, fontWeight: 800, fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>{v}</span>
+                </div>
+              ))}
+              {/* Invoice activity — 14-day sparkline, at the bottom of the overview card */}
+              {(() => {
+                const map = new Map()
+                invoices14.forEach(inv => { const k = String(inv.created_at).slice(0, 10); map.set(k, (map.get(k) || 0) + 1) })
+                const today = new Date()
+                const days14 = Array.from({ length: 14 }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() - (13 - i)); const key = d.toISOString().slice(0, 10); return { date: d, count: map.get(key) || 0 } })
+                const total = days14.reduce((s, d) => s + d.count, 0)
+                const max = Math.max(1, ...days14.map(d => d.count))
+                return (
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>نشاط الفواتير — آخر 14 يوم</span>
+                      <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
+                        <span style={{ color: GOLD, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(total)}</span> فاتورة
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3, alignItems: 'end', height: 70, direction: 'rtl' }}>
+                      {days14.map((d, i) => {
+                        const h = (d.count / max) * 100
+                        return (
+                          <div key={i} title={`${d.date.toLocaleDateString('ar-SA')} — ${d.count} فاتورة`}
+                            style={{ height: `${h}%`, minHeight: d.count > 0 ? 3 : 0, background: d.count > 0 ? `linear-gradient(180deg, ${GOLD} 0%, ${GOLD}88 100%)` : 'rgba(255,255,255,.05)', borderRadius: '3px 3px 1px 1px', border: d.count > 0 ? `1px solid ${GOLD}55` : '1px solid rgba(255,255,255,.04)', boxShadow: d.count > 0 ? `0 0 6px ${GOLD}33` : 'none' }} />
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        </div>{/* /brd-side */}
+      </div>{/* /brd-grid */}
 
       {bankPop && (
         <BankAccountFormModal
@@ -1399,17 +1448,6 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
           form={bankForm} setForm={setBankForm}
           saving={bankSaving} success={bankSuccess}
           onSave={saveBankAccount} />
-      )}
-
-      {permUser && (
-        <UserPermissionsModal
-          sb={sb}
-          user={permUser}
-          branch={branch}
-          roles={roles}
-          onClose={() => setPermUser(null)}
-          onSaved={() => { setPermUser(null); onReload?.() }}
-          toast={toast} />
       )}
     </div>
   )
@@ -1440,7 +1478,7 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
   useEffect(() => {
     if (mode !== 'link' || !sb) return
     const q = searchQ.trim()
-    if (q.length < 2) { setSearchResults([]); return }
+    if (q.length < 1) { setSearchResults([]); return }
     setSearching(true)
     const t = setTimeout(async () => {
       const { data } = await sb.from('bank_accounts')
@@ -1455,9 +1493,19 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
   }, [sb, mode, searchQ])
   useEffect(() => { if (!open) { setSearchQ(''); setSearchResults([]) } }, [open])
 
+  // Inline footer error (no toast) + mandatory-field gating — mirrors BranchFormModal.
+  const [errMsg, setErrMsg] = useState('')
+  const [ibanDrag, setIbanDrag] = useState(false)
+  useEffect(() => { if (!open) { setErrMsg(''); setIbanDrag(false) } }, [open])
+  const hasPurpose = !!(form.account_purpose || '').trim()
+  const canSave = mode === 'link'
+    ? (!!form._link_account_id && hasPurpose)
+    : (!!form.bank_name && !!(form.account_name || '').trim() && !!(form.account_number || '').trim() && !!(form.iban || '').trim() && hasPurpose && (mode === 'edit' || !!form._ibanFile))
+  const handleSave = async () => { setErrMsg(''); const err = await onSave(); if (err) setErrMsg(err) }
+
   if (success) {
     return ReactDOM.createPortal(
-      <div onClick={onClose} style={{
+      <div style={{
         position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
       }}>
@@ -1474,7 +1522,7 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
             <Check size={36} color="#27a046" strokeWidth={3} />
           </div>
           <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,.93)', fontFamily: F }}>
-            تمت إضافة الحساب
+            {mode === 'edit' ? 'تم تحديث الحساب' : 'تمت إضافة الحساب'}
           </div>
         </div>
       </div>, document.body
@@ -1482,22 +1530,22 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
   }
   if (!open) return null
   return ReactDOM.createPortal(
-    <div onClick={onClose} style={{
+    <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         background: 'var(--modal-bg)', borderRadius: 16, width: 600, maxWidth: '95vw',
-        height: 660, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible',
+        maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible',
         boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)',
       }}>
         <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)',
           display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           {/* Header */}
-          <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ padding: '20px 24px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Wallet size={22} strokeWidth={1.8} color={GOLD} />
-              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>حساب بنكي جديد</div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{mode === 'edit' ? 'تعديل الحساب البنكي' : 'حساب بنكي جديد'}</div>
             </div>
             <button onClick={onClose} aria-label="إغلاق"
               style={{ width: 34, height: 34, borderRadius: 9,
@@ -1510,100 +1558,34 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
           </div>
 
           {/* Body */}
-          <style>{`.bafm-scroll::-webkit-scrollbar{width:0;display:none}.bafm-scroll{scrollbar-width:none}`}</style>
-          <div className="bafm-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '4px 24px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <style>{`.bafm-scroll::-webkit-scrollbar{width:0;display:none}.bafm-scroll{scrollbar-width:none}
+            .bafm-search-ico{color:var(--tx4);transition:.2s}
+            .bafm-search:focus-within .bafm-search-ico{color:#D4A017}
+            .bafm-search:focus-within input{border-color:rgba(212,160,23,.6)!important}`}</style>
+          <div className="bafm-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '18px 24px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-            {/* Mode tabs — segmented control */}
-            <div style={{
-              display: 'flex', gap: 6, padding: 5, boxSizing: 'border-box',
-              background: 'linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.18) 100%)',
-              borderRadius: 12, border: '1px solid rgba(255,255,255,.06)',
-              boxShadow: 'inset 0 2px 6px rgba(0,0,0,.32)',
-            }}>
+            {/* Mode tabs — underline segmented control */}
+            {mode !== 'edit' && <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(255,255,255,.08)', marginBottom: 14 }}>
               {[
                 { v: 'new', label: 'حساب جديد', Icon: Plus },
-                { v: 'link', label: 'ربط حساب موجود', Icon: Search },
+                { v: 'link', label: 'ربط بحساب موجود', Icon: Search },
               ].map(t => {
                 const sel = mode === t.v
                 return (
                   <button key={t.v} type="button"
-                    onClick={() => { setForm(p => ({ ...p, mode: t.v, _link_account_id: undefined, _link_account: undefined })) }}
-                    style={{
-                      flex: 1, height: 42, borderRadius: 9, border: 'none', cursor: 'pointer',
-                      fontFamily: F, fontSize: 13, fontWeight: sel ? 700 : 600, letterSpacing: '.1px',
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9,
-                      background: sel ? 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)' : 'transparent',
-                      color: sel ? GOLD : 'var(--tx3)',
-                      boxShadow: sel ? `0 0 0 1px ${GOLD}40 inset, 0 2px 6px rgba(0,0,0,.32), 0 1px 0 rgba(255,255,255,.05) inset` : 'none',
-                      transition: '.22s',
-                    }}
-                    onMouseEnter={e => { if (!sel) { e.currentTarget.style.background = 'rgba(255,255,255,.04)'; e.currentTarget.style.color = 'var(--tx2)' } }}
-                    onMouseLeave={e => { if (!sel) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--tx3)' } }}>
-                    <t.Icon size={15} strokeWidth={sel ? 2.6 : 2.2} />
+                    onClick={() => setForm(p => ({ ...p, mode: t.v, _link_account_id: undefined, _link_account: undefined }))}
+                    style={{ flex: 1, height: 42, border: 'none', borderBottom: `2px solid ${sel ? GOLD : 'transparent'}`, background: 'transparent', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? GOLD : 'var(--tx4)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: -1, transition: '.2s' }}
+                    onMouseEnter={e => { if (!sel) e.currentTarget.style.color = 'var(--tx2)' }}
+                    onMouseLeave={e => { if (!sel) e.currentTarget.style.color = 'var(--tx4)' }}>
                     {t.label}
+                    <t.Icon size={15} strokeWidth={2.2} />
                   </button>
                 )
               })}
-            </div>
+            </div>}
 
             {(() => {
-              const kafalaInput = { ...sF, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
-              const PurposePicker = () => {
-                const PURPOSES = ['الإيداعات النقدية', 'التحويلات الواردة', 'التحويلات الصادرة', 'سداد المدفوعات']
-                const PURPOSE_META = {
-                  'الإيداعات النقدية':   { Icon: Banknote,         hue: '#27a046' },
-                  'التحويلات الواردة':   { Icon: ArrowDownToLine,  hue: '#3483b4' },
-                  'التحويلات الصادرة':  { Icon: ArrowUpFromLine,  hue: '#e6a23c' },
-                  'سداد المدفوعات':      { Icon: Receipt,          hue: '#bb8fce' },
-                }
-                const selected = (form.account_purpose || '').split('·').map(s => s.trim()).filter(Boolean)
-                const toggle = (p) => {
-                  const next = selected.includes(p) ? selected.filter(x => x !== p) : [...selected, p]
-                  setForm(prev => ({ ...prev, account_purpose: next.join(' · ') }))
-                }
-                return (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                    {PURPOSES.map(p => {
-                      const sel = selected.includes(p)
-                      const { Icon, hue } = PURPOSE_META[p] || { Icon: Check, hue: GOLD }
-                      return (
-                        <button key={p} type="button" onClick={() => toggle(p)}
-                          style={{
-                            padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                            fontFamily: F, fontSize: 12.5, fontWeight: sel ? 700 : 600,
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            background: sel ? `linear-gradient(135deg, ${hue}24 0%, ${hue}10 100%)` : 'var(--modal-input-bg)',
-                            color: sel ? '#fff' : 'var(--tx3)',
-                            border: `1px solid ${sel ? `${hue}55` : 'rgba(255,255,255,.08)'}`,
-                            boxShadow: sel ? `0 4px 12px ${hue}24, inset 0 1px 0 rgba(255,255,255,.06)` : '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-                            transition: '.18s',
-                            textAlign: 'start',
-                          }}>
-                          <span style={{
-                            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                            background: sel ? `linear-gradient(135deg, ${hue}38 0%, ${hue}15 100%)` : 'rgba(255,255,255,.04)',
-                            border: `1px solid ${sel ? `${hue}50` : 'rgba(255,255,255,.06)'}`,
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            transition: '.18s',
-                          }}>
-                            <Icon size={15} color={sel ? hue : 'var(--tx4)'} strokeWidth={2.2} />
-                          </span>
-                          <span style={{ flex: 1 }}>{p}</span>
-                          <span style={{
-                            width: 16, height: 16, borderRadius: 5,
-                            border: `1.5px solid ${sel ? hue : 'rgba(255,255,255,.18)'}`,
-                            background: sel ? hue : 'transparent',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            flexShrink: 0, transition: '.18s',
-                          }}>
-                            {sel && <Check size={11} color="#000" strokeWidth={3.5} />}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )
-              }
+              const kafalaInput = { ...sF, fontSize: 14, fontWeight: 500, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
 
               if (mode === 'link') {
                 const acc = form._link_account
@@ -1617,35 +1599,31 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
 
                     {!acc ? (
                       <>
-                        <div style={{ position: 'relative' }}>
-                          <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', insetInlineStart: 14, transform: 'translateY(-50%)' }} />
+                        <div className="bafm-search" style={{ position: 'relative' }}>
+                          <Search size={15} strokeWidth={2.2} className="bafm-search-ico" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                           <input autoFocus value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                            placeholder="رقم الحساب أو الآيبان (حرفين أو أكثر)…" dir="ltr"
-                            style={{ ...kafalaInput, paddingInlineStart: 38, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif", textAlign: 'start' }} />
+                            placeholder="رقم الحساب أو الآيبان (حرف أو أكثر)…" dir="ltr"
+                            style={{ ...kafalaInput, paddingLeft: 40, paddingRight: 14, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif", textAlign: 'right' }} />
                         </div>
                         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
                           {searching && <div style={{ padding: 14, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>جاري البحث…</div>}
-                          {!searching && searchQ.trim().length >= 2 && searchResults.length === 0 && (
+                          {!searching && searchQ.trim().length >= 1 && searchResults.length === 0 && (
                             <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد نتائج</div>
                           )}
                           {searchResults.map(r => (
                             <button key={r.id} type="button"
                               onClick={() => setForm(p => ({ ...p, _link_account_id: r.id, _link_account: r, account_purpose: '' }))}
-                              style={{
-                                textAlign: 'start', cursor: 'pointer', fontFamily: F,
-                                padding: '12px 14px', borderRadius: 10,
-                                background: 'var(--modal-input-bg)', color: 'var(--tx)',
-                                border: '1px solid rgba(255,255,255,.08)',
-                                boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-                                transition: '.18s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}55` }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                                <span style={{ fontWeight: 700, color: '#fff' }}>{r.bank_name}</span>
-                                <span style={{ fontSize: 11, color: 'var(--tx4)', direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }}>{r.iban || r.account_number || '—'}</span>
-                              </div>
+                              style={{ width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, color: 'var(--tx)', border: `1px solid ${GOLD}33`, transition: '.18s' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}66` }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = `${GOLD}33` }}>
+                              <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{r.bank_name}</span>
                               {r.account_name && <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 3 }}>{r.account_name}</div>}
+                              {(r.account_number || r.iban) && (
+                                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--tx4)' }}>
+                                  {r.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: "'JetBrains Mono','Cairo',sans-serif", color: 'var(--tx3)' }}>{r.account_number}</span></div>}
+                                  {r.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: "'JetBrains Mono','Cairo',sans-serif", color: 'var(--tx3)' }}>{r.iban}</span></div>}
+                                </div>
+                              )}
                               {(r.bank_account_branches || []).length > 0 && (
                                 <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                   {r.bank_account_branches.map((bb, i) => (
@@ -1661,16 +1639,21 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
                       </>
                     ) : (
                       <>
-                        <div style={{ padding: '14px 16px', borderRadius: 10, background: 'var(--modal-input-bg)', border: `1px solid ${GOLD}40`, boxShadow: `0 2px 8px ${GOLD}18, inset 0 1px 0 rgba(255,255,255,.05)`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, border: `1px solid ${GOLD}33`, display: 'flex', flexDirection: 'column', gap: 8 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                             <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{acc.bank_name}</span>
                             <button type="button" onClick={() => setForm(p => ({ ...p, _link_account_id: undefined, _link_account: undefined }))}
-                              style={{ background: 'transparent', border: 'none', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
+                              style={{ background: 'transparent', border: 'none', color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
                               تغيير
                             </button>
                           </div>
-                          <div style={{ fontSize: 12, color: 'var(--tx3)', direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }}>{acc.iban || acc.account_number || '—'}</div>
-                          {acc.account_name && <div style={{ fontSize: 11, color: 'var(--tx4)' }}>{acc.account_name}</div>}
+                          {acc.account_name && <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{acc.account_name}</div>}
+                          {(acc.account_number || acc.iban) && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--tx4)' }}>
+                              {acc.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: "'JetBrains Mono','Cairo',sans-serif", color: 'var(--tx3)' }}>{acc.account_number}</span></div>}
+                              {acc.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: "'JetBrains Mono','Cairo',sans-serif", color: 'var(--tx3)' }}>{acc.iban}</span></div>}
+                            </div>
+                          )}
                           {(acc.bank_account_branches || []).length > 0 && (
                             <div style={{ marginTop: 4, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
                               <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 700, marginBottom: 5 }}>مكاتب مرتبطة:</div>
@@ -1685,8 +1668,8 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
                           )}
                         </div>
                         <div style={{ marginTop: 16 }}>
-                          <Lbl req>غرض هذا الحساب لهذا المكتب</Lbl>
-                          <PurposePicker />
+                          <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>غرض هذا الحساب لهذا المكتب<span style={{ color: C.red }}> *</span></div>
+                          <PurposeMultiSelect value={form.account_purpose} onChange={v => setForm(p => ({ ...p, account_purpose: v }))} />
                         </div>
                       </>
                     )}
@@ -1696,39 +1679,55 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
 
               // mode === 'new'
               return (
-                <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
+                <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '16px 18px 14px', position: 'relative' }}>
                   <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px',
                     fontSize: 13, fontWeight: 600, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <Wallet size={12} strokeWidth={2.2} />
                     <span>بيانات الحساب</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 16 }}>
-                    <CustomSel k="bank_name" l="البنك" r
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 10 }}>
+                    <CustomSel k="bank_name" l="البنك" r big
                       opts={saudiBanks.map(b => ({ v: b.value_ar, l: b.value_ar }))}
                       ph="اختر البنك..." form={form} setForm={setForm} />
                     <div>
-                      <Lbl req>اسم الحساب</Lbl>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>اسم الحساب<span style={{ color: C.red }}> *</span></div>
                       <input value={form.account_name || ''}
                         onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))}
                         placeholder="اسم صاحب الحساب" style={kafalaInput} />
                     </div>
                     <div>
-                      <Lbl req>رقم الحساب</Lbl>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>رقم الحساب<span style={{ color: C.red }}> *</span></div>
                       <input value={form.account_number || ''}
                         onChange={e => setForm(p => ({ ...p, account_number: e.target.value }))}
                         placeholder="000000000000" dir="ltr"
                         style={{ ...kafalaInput, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }} />
                     </div>
                     <div>
-                      <Lbl req>الآيبان (IBAN)</Lbl>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>الآيبان (IBAN)<span style={{ color: C.red }}> *</span></div>
                       <input value={form.iban || ''}
                         onChange={e => setForm(p => ({ ...p, iban: e.target.value.toUpperCase() }))}
                         placeholder="SA00 0000 0000 0000 0000 0000" dir="ltr"
                         style={{ ...kafalaInput, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }} />
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <Lbl req>الغرض</Lbl>
-                      <PurposePicker />
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>الغرض<span style={{ color: C.red }}> *</span></div>
+                      <PurposeMultiSelect value={form.account_purpose} onChange={v => setForm(p => ({ ...p, account_purpose: v }))} />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>ملف الآيبان<span style={{ color: C.red }}> *</span></div>
+                      <label
+                        onDragOver={e => { e.preventDefault(); if (!ibanDrag) setIbanDrag(true) }}
+                        onDragLeave={e => { e.preventDefault(); setIbanDrag(false) }}
+                        onDrop={e => { e.preventDefault(); setIbanDrag(false); const f = e.dataTransfer?.files?.[0]; if (f) setForm(p => ({ ...p, _ibanFile: f })) }}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 62, padding: '10px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'center', fontFamily: F, fontSize: 12.5, fontWeight: 700, color: GOLD, transition: '.2s', border: `1px dashed ${ibanDrag ? GOLD : 'rgba(212,160,23,.4)'}`, background: ibanDrag ? 'rgba(212,160,23,.12)' : 'rgba(212,160,23,.05)' }}>
+                        <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
+                          onChange={e => setForm(p => ({ ...p, _ibanFile: e.target.files?.[0] || null }))} />
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                        <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {form._ibanFile ? form._ibanFile.name : (ibanDrag ? 'أفلت الملف هنا…' : 'إرفاق ملف الآيبان أو اسحبه هنا (صورة أو PDF)')}
+                        </span>
+                        {form._ibanFile && <span onClick={e => { e.preventDefault(); setForm(p => ({ ...p, _ibanFile: null })) }} style={{ color: '#e87265', cursor: 'pointer', fontSize: 11.5, fontWeight: 700 }}>إزالة</span>}
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -1736,527 +1735,22 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
             })()}
           </div>
 
-          {/* Footer */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+          {/* Footer — inline error (no toast) + save gated until all fields complete */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             padding: '12px 24px 16px', flexShrink: 0, gap: 12 }}>
-            <SaveBtn onClick={onSave}
-              disabled={saving || (mode === 'new' ? !form.bank_name : !form._link_account_id)}
-              label={saving ? 'جاري الحفظ...' : (mode === 'link' ? 'ربط' : 'إضافة')} />
-          </div>
-        </div>
-      </div>
-    </div>, document.body
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   User permissions modal — manage role + per-permission overrides
-   for a single user, scoped to the current branch.
-   ═══════════════════════════════════════════════════════════════ */
-
-// Service types the employee can be assigned to handle (mirrors ServiceRequestPage MAIN+OTHER)
-const SERVICE_TYPES = [
-  { code: 'work_visa_permanent',   name_ar: 'تأشيرة عمل (دائمة)' },
-  { code: 'work_visa_temporary',   name_ar: 'تأشيرة عمل (مؤقتة)' },
-  { code: 'kafala_transfer',       name_ar: 'نقل كفالة' },
-  { code: 'iqama_renewal',         name_ar: 'تجديد الإقامة' },
-  { code: 'ajeer_contract',        name_ar: 'عقد أجير' },
-  { code: 'chamber_certification', name_ar: 'الغرفة التجارية' },
-  { code: 'medical_insurance',     name_ar: 'تأمين طبي' },
-  { code: 'profession_change',     name_ar: 'تغيير المهنة' },
-  { code: 'name_translation',      name_ar: 'تعديل الراتب' },
-  { code: 'exit_reentry_visa',     name_ar: 'إصدار / تمديد تأشيرة خروج وعودة' },
-  { code: 'final_exit_visa',       name_ar: 'خروج نهائي / بلاغ تغيب' },
-  { code: 'passport_update',       name_ar: 'تحديث بيانات الجواز' },
-  { code: 'iqama_print',           name_ar: 'طباعة الإقامة' },
-  { code: 'documents',             name_ar: 'مستندات' },
-  { code: 'custom',                name_ar: 'عام' },
-]
-
-function UserPermissionsModal({ sb, user, branch, roles, onClose, onSaved, toast }) {
-  const [permissions, setPermissions] = useState([])
-  const [rolePerms, setRolePerms] = useState(new Set())
-  const [userOverrides, setUserOverrides] = useState(new Map())
-  const [serviceAssignments, setServiceAssignments] = useState(new Set()) // service_codes
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [search, setSearch] = useState('')
-  const [tab, setTab] = useState('visibility')  // visibility | actions | services
-
-  const roleName = roles.find(r => r.id === user.role_id)?.name_ar || ''
-  const roleColor = roles.find(r => r.id === user.role_id)?.color || '#777'
-
-  // Load permissions + role grants + user overrides + service assignments
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      const [pAll, rpAll, upAll, saAll] = await Promise.all([
-        sb.from('permissions').select('id, module, module_label_ar, module_icon, action, label_ar, sort_order').is('is_active', true).order('module_sort').order('sort_order'),
-        user.role_id ? sb.from('role_permissions').select('permission_id').eq('role_id', user.role_id) : Promise.resolve({ data: [] }),
-        sb.from('user_permissions').select('permission_id, is_granted, branch_id').eq('user_id', user.id),
-        sb.from('user_service_assignments').select('service_code, branch_id').eq('user_id', user.id),
-      ])
-      if (cancelled) return
-      setPermissions(pAll.data || [])
-      setRolePerms(new Set((rpAll.data || []).map(r => r.permission_id)))
-      const map = new Map()
-      ;(upAll.data || []).forEach(r => {
-        if (r.branch_id === branch.id || r.branch_id == null) map.set(r.permission_id, r.is_granted)
-      })
-      setUserOverrides(map)
-      setServiceAssignments(new Set(
-        (saAll.data || []).filter(r => r.branch_id === branch.id || r.branch_id == null).map(r => r.service_code)
-      ))
-      setLoading(false)
-    })()
-    return () => { cancelled = true }
-  }, [sb, user.id, branch.id, user.role_id])
-
-  // Split permissions into visibility (view/access) vs actions
-  const isVisibility = (p) => p.action === 'view' || p.action === 'access'
-  const grouped = useMemo(() => {
-    const q = search.trim()
-    const wanted = tab === 'visibility' ? permissions.filter(isVisibility)
-                  : tab === 'actions' ? permissions.filter(p => !isVisibility(p))
-                  : []
-    const filtered = q ? wanted.filter(p => (p.label_ar || '').includes(q) || (p.module_label_ar || '').includes(q)) : wanted
-    const m = new Map()
-    filtered.forEach(p => {
-      const k = p.module
-      if (!m.has(k)) m.set(k, { module: k, label: p.module_label_ar || k, items: [] })
-      m.get(k).items.push(p)
-    })
-    return Array.from(m.values())
-  }, [permissions, search, tab])
-
-  const filteredServices = useMemo(() => {
-    const q = search.trim()
-    return q ? SERVICE_TYPES.filter(s => s.name_ar.includes(q)) : SERVICE_TYPES
-  }, [search])
-
-  const isEffective = (pid) => userOverrides.has(pid) ? userOverrides.get(pid) : rolePerms.has(pid)
-  const togglePerm = (pid) => {
-    const roleDefault = rolePerms.has(pid)
-    const current = isEffective(pid)
-    const next = !current
-    setUserOverrides(prev => {
-      const m = new Map(prev)
-      if (next === roleDefault) m.delete(pid); else m.set(pid, next)
-      return m
-    })
-  }
-  const toggleService = (code) => {
-    setServiceAssignments(prev => {
-      const s = new Set(prev)
-      if (s.has(code)) s.delete(code); else s.add(code)
-      return s
-    })
-  }
-
-  const save = async () => {
-    setSaving(true)
-    try {
-      // Permission overrides — replace branch-scoped set
-      const { error: dErr } = await sb.from('user_permissions').delete()
-        .eq('user_id', user.id).eq('branch_id', branch.id)
-      if (dErr) throw dErr
-      const rows = []
-      userOverrides.forEach((is_granted, permission_id) => {
-        rows.push({ user_id: user.id, permission_id, is_granted, branch_scope: 'branch', branch_id: branch.id })
-      })
-      if (rows.length > 0) {
-        const { error: iErr } = await sb.from('user_permissions').insert(rows)
-        if (iErr) throw iErr
-      }
-      // Service assignments — replace branch-scoped set
-      const { error: dsErr } = await sb.from('user_service_assignments').delete()
-        .eq('user_id', user.id).eq('branch_id', branch.id)
-      if (dsErr) throw dsErr
-      const srows = [...serviceAssignments].map(code => ({ user_id: user.id, service_code: code, branch_id: branch.id }))
-      if (srows.length > 0) {
-        const { error: isErr } = await sb.from('user_service_assignments').insert(srows)
-        if (isErr) throw isErr
-      }
-      toast?.('تم حفظ الصلاحيات')
-      onSaved?.()
-    } catch (e) {
-      const msg = (e.message || '').toLowerCase()
-      if (e.code === '42501' || msg.includes('row-level security')) {
-        toast?.('لا تملك صلاحية تعديل الصلاحيات', 'error')
-      } else {
-        toast?.('تعذّر الحفظ: ' + (e.message || '').slice(0, 80), 'error')
-      }
-    } finally { setSaving(false) }
-  }
-
-  return ReactDOM.createPortal(
-    <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--modal-bg)', borderRadius: 16, width: 760, maxWidth: '95vw',
-        height: 720, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)',
-      }}>
-        <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)',
-          display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-
-          {/* Header */}
-          <div style={{ padding: '20px 24px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-              <div style={{
-                width: 42, height: 42, borderRadius: 11, flexShrink: 0,
-                background: `linear-gradient(135deg, ${C.blue}24 0%, ${C.blue}10 100%)`,
-                border: `1px solid ${C.blue}38`,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, fontWeight: 700, color: C.blue,
-              }}>
-                {(user.name_ar || user.email || '?').trim()[0] || '?'}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name_ar || user.email || '—'}</span>
-                  {roleName && (
-                    <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 6,
-                      background: `${roleColor}1c`, color: roleColor, border: `1px solid ${roleColor}38`,
-                      display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: roleColor }} />
-                      {roleName}
-                    </span>
-                  )}
-                </div>
-                {user.email && <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 500, marginTop: 3, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }}>{user.email}</div>}
-              </div>
-            </div>
-            <button onClick={onClose} aria-label="إغلاق"
-              style={{ width: 34, height: 34, borderRadius: 9,
-                background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
-                border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
-              <X size={14} strokeWidth={2} />
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div style={{ padding: '0 24px 12px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', gap: 6, padding: 5, boxSizing: 'border-box',
-              background: 'linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.18) 100%)',
-              borderRadius: 12, border: '1px solid rgba(255,255,255,.06)',
-              boxShadow: 'inset 0 2px 6px rgba(0,0,0,.32)' }}>
-              {[
-                { v: 'visibility', label: 'رؤية الأقسام', Icon: Search,    cnt: permissions.filter(isVisibility).length },
-                { v: 'actions',    label: 'الصلاحيات',    Icon: Check,     cnt: permissions.filter(p => !isVisibility(p)).length },
-                { v: 'services',   label: 'المعاملات',    Icon: FileText,  cnt: SERVICE_TYPES.length },
-              ].map(t => {
-                const sel = tab === t.v
-                return (
-                  <button key={t.v} type="button" onClick={() => setTab(t.v)}
-                    style={{
-                      flex: 1, height: 38, borderRadius: 9, border: 'none', cursor: 'pointer',
-                      fontFamily: F, fontSize: 12.5, fontWeight: sel ? 700 : 600,
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                      background: sel ? 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)' : 'transparent',
-                      color: sel ? GOLD : 'var(--tx3)',
-                      boxShadow: sel ? `0 0 0 1px ${GOLD}40 inset, 0 2px 6px rgba(0,0,0,.32)` : 'none',
-                      transition: '.2s',
-                    }}>
-                    <t.Icon size={13} strokeWidth={2.4} />
-                    {t.label}
-                    <span style={{ fontSize: 9.5, padding: '1px 6px', borderRadius: 5, background: sel ? `${GOLD}22` : 'rgba(255,255,255,.06)', color: sel ? GOLD : 'var(--tx4)' }}>{t.cnt}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Body */}
-          <style>{`.upm-body{scrollbar-width:thin;scrollbar-color:rgba(212,160,23,.35) transparent}.upm-body::-webkit-scrollbar{width:8px}.upm-body::-webkit-scrollbar-track{background:transparent}.upm-body::-webkit-scrollbar-thumb{background:rgba(212,160,23,.35);border-radius:8px;border:2px solid transparent;background-clip:padding-box}.upm-body::-webkit-scrollbar-thumb:hover{background:rgba(212,160,23,.55);background-clip:padding-box}`}</style>
-          <div className="upm-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '4px 24px 14px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>جاري التحميل…</div>
-            ) : tab === 'visibility' ? (
-              // Visibility tab — flat list of module visibility (one item per module).
-              (() => {
-                const visItems = permissions.filter(isVisibility)
-                const q = search.trim()
-                const filtered = q ? visItems.filter(p => (p.module_label_ar || '').includes(q) || (p.label_ar || '').includes(q)) : visItems
-                if (filtered.length === 0) {
-                  return <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>لا توجد نتائج</div>
-                }
-                const allOn = filtered.every(p => isEffective(p.id))
-                const toggleAllVis = () => {
-                  filtered.forEach(p => {
-                    const cur = isEffective(p.id)
-                    if (cur !== !allOn) togglePerm(p.id)
-                  })
-                }
-                const enabled = filtered.filter(p => isEffective(p.id)).length
-                return (
-                  <div style={{
-                    borderRadius: 12, border: '1px solid rgba(255,255,255,.07)',
-                    background: 'linear-gradient(180deg, rgba(255,255,255,.018) 0%, rgba(0,0,0,.12) 100%)',
-                    overflow: 'hidden',
-                    boxShadow: '0 2px 8px rgba(0,0,0,.2)',
-                  }}>
-                    <div style={{
-                      padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      background: `linear-gradient(180deg, ${GOLD}10 0%, ${GOLD}04 100%)`,
-                      borderBottom: `1px solid ${GOLD}24`,
-                    }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 4, height: 18, borderRadius: 2, background: GOLD, boxShadow: `0 0 6px ${GOLD}88` }} />
-                        <span style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>الأقسام التي يمكن للموظف رؤيتها في القائمة الجانبية</span>
-                      </span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{
-                          fontSize: 10.5, color: allOn ? C.ok : enabled === 0 ? 'var(--tx5)' : GOLD,
-                          fontWeight: 700, padding: '2px 8px', borderRadius: 5,
-                          background: allOn ? `${C.ok}1c` : enabled === 0 ? 'rgba(255,255,255,.04)' : `${GOLD}18`,
-                          border: `1px solid ${allOn ? `${C.ok}38` : enabled === 0 ? 'rgba(255,255,255,.06)' : `${GOLD}38`}`,
-                        }}>{enabled} / {filtered.length}</span>
-                        <button type="button" onClick={toggleAllVis}
-                          style={{
-                            fontSize: 10, padding: '3px 9px', borderRadius: 5, cursor: 'pointer',
-                            background: 'transparent', color: 'var(--tx3)',
-                            border: '1px solid rgba(255,255,255,.08)', fontFamily: F, fontWeight: 600,
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}55`; e.currentTarget.style.color = GOLD }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.color = 'var(--tx3)' }}>
-                          {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
-                        </button>
-                      </span>
-                    </div>
-                    <div style={{ padding: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 6 }}>
-                      {filtered.map(p => {
-                        const checked = isEffective(p.id)
-                        const isOverride = userOverrides.has(p.id)
-                        return (
-                          <button key={p.id} type="button" onClick={() => togglePerm(p.id)}
-                            style={{
-                              padding: '10px 12px', borderRadius: 9, cursor: 'pointer',
-                              fontFamily: F, fontSize: 13, fontWeight: checked ? 600 : 500,
-                              display: 'inline-flex', alignItems: 'center', gap: 10,
-                              background: checked ? `${C.blue}10` : 'rgba(255,255,255,.02)',
-                              color: checked ? 'rgba(255,255,255,.96)' : 'rgba(255,255,255,.65)',
-                              border: `1px solid ${checked ? `${C.blue}48` : 'rgba(255,255,255,.07)'}`,
-                              boxShadow: checked ? `0 2px 6px ${C.blue}1a, inset 0 1px 0 rgba(255,255,255,.04)` : 'inset 0 1px 0 rgba(255,255,255,.02)',
-                              textAlign: 'start', transition: '.18s',
-                            }}>
-                            <span style={{
-                              width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-                              border: `1.5px solid ${checked ? C.blue : 'rgba(255,255,255,.22)'}`,
-                              background: checked ? C.blue : 'transparent',
-                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              boxShadow: checked ? `0 0 6px ${C.blue}66` : 'none',
-                            }}>
-                              {checked && <Check size={12} color="#000" strokeWidth={3.5} />}
-                            </span>
-                            <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.module_label_ar || p.label_ar}</span>
-                            {isOverride && (
-                              <span title="مخصّص — مختلف عن الدور" style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD, boxShadow: `0 0 5px ${GOLD}`, flexShrink: 0 }} />
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })()
-            ) : tab === 'services' ? (
-              filteredServices.length === 0 ? (
-                <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>لا توجد نتائج</div>
-              ) : (
-                <div style={{
-                  borderRadius: 12, border: '1px solid rgba(255,255,255,.07)',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,.018) 0%, rgba(0,0,0,.12) 100%)',
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,.2)',
-                }}>
-                  <div style={{
-                    padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    background: `linear-gradient(180deg, ${GOLD}10 0%, ${GOLD}04 100%)`,
-                    borderBottom: `1px solid ${GOLD}24`,
-                  }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 4, height: 18, borderRadius: 2, background: GOLD, boxShadow: `0 0 6px ${GOLD}88` }} />
-                      <span style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>المعاملات المسؤول عنها</span>
-                    </span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        fontSize: 10.5, color: serviceAssignments.size === SERVICE_TYPES.length ? C.ok : serviceAssignments.size === 0 ? 'var(--tx5)' : GOLD,
-                        fontWeight: 700, padding: '2px 8px', borderRadius: 5,
-                        background: serviceAssignments.size === SERVICE_TYPES.length ? `${C.ok}1c` : serviceAssignments.size === 0 ? 'rgba(255,255,255,.04)' : `${GOLD}18`,
-                        border: `1px solid ${serviceAssignments.size === SERVICE_TYPES.length ? `${C.ok}38` : serviceAssignments.size === 0 ? 'rgba(255,255,255,.06)' : `${GOLD}38`}`,
-                      }}>{serviceAssignments.size} / {SERVICE_TYPES.length}</span>
-                      <button type="button" onClick={() => {
-                        const allOn = serviceAssignments.size === SERVICE_TYPES.length
-                        setServiceAssignments(new Set(allOn ? [] : SERVICE_TYPES.map(s => s.code)))
-                      }}
-                        style={{
-                          fontSize: 10, padding: '3px 9px', borderRadius: 5, cursor: 'pointer',
-                          background: 'transparent', color: 'var(--tx3)',
-                          border: '1px solid rgba(255,255,255,.08)', fontFamily: F, fontWeight: 600,
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}55`; e.currentTarget.style.color = GOLD }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.color = 'var(--tx3)' }}>
-                        {serviceAssignments.size === SERVICE_TYPES.length ? 'إلغاء الكل' : 'تحديد الكل'}
-                      </button>
-                    </span>
-                  </div>
-                  <div style={{ padding: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 6 }}>
-                    {filteredServices.map(s => {
-                      const checked = serviceAssignments.has(s.code)
-                      return (
-                        <button key={s.code} type="button" onClick={() => toggleService(s.code)}
-                          style={{
-                            padding: '10px 12px', borderRadius: 9, cursor: 'pointer',
-                            fontFamily: F, fontSize: 13, fontWeight: checked ? 600 : 500,
-                            display: 'inline-flex', alignItems: 'center', gap: 10,
-                            background: checked ? `${C.blue}12` : 'rgba(255,255,255,.02)',
-                            color: checked ? 'rgba(255,255,255,.96)' : 'rgba(255,255,255,.65)',
-                            border: `1px solid ${checked ? `${C.blue}48` : 'rgba(255,255,255,.07)'}`,
-                            boxShadow: checked ? `0 2px 6px ${C.blue}1a, inset 0 1px 0 rgba(255,255,255,.04)` : 'inset 0 1px 0 rgba(255,255,255,.02)',
-                            textAlign: 'start', transition: '.18s',
-                          }}>
-                          <span style={{
-                            width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-                            border: `1.5px solid ${checked ? C.blue : 'rgba(255,255,255,.22)'}`,
-                            background: checked ? C.blue : 'transparent',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: checked ? `0 0 6px ${C.blue}66` : 'none',
-                          }}>
-                            {checked && <Check size={12} color="#000" strokeWidth={3.5} />}
-                          </span>
-                          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name_ar}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            ) : grouped.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>لا توجد نتائج</div>
-            ) : grouped.map(g => {
-              // Color-code permissions by their action type for visual clarity.
-              const actionMeta = (action) => {
-                if (['view', 'access'].includes(action)) return { hue: C.blue, label: 'عرض' }
-                if (['create', 'invoice'].includes(action)) return { hue: C.ok, label: 'إنشاء' }
-                if (['edit', 'manage', 'settings.manage', 'template.manage'].includes(action) || action.endsWith('.manage')) return { hue: '#e6a23c', label: 'تعديل' }
-                if (action === 'delete') return { hue: C.red, label: 'حذف' }
-                if (['approve', 'price', 'review_uploads', 'invoice.submit'].includes(action)) return { hue: '#bb8fce', label: 'اعتماد' }
-                if (action === 'record_payment') return { hue: '#16a085', label: 'مالي' }
-                if (action === 'sync') return { hue: '#5dade2', label: 'مزامنة' }
-                if (['manage_permissions', 'manage_roles', 'manage_users', 'invite'].includes(action)) return { hue: GOLD, label: 'إدارة' }
-                return { hue: 'rgba(255,255,255,.45)', label: '' }
-              }
-              const enabled = g.items.filter(p => isEffective(p.id)).length
-              const allOn = enabled === g.items.length
-              const noneOn = enabled === 0
-              const toggleAll = () => {
-                g.items.forEach(p => {
-                  const cur = isEffective(p.id)
-                  const next = !allOn
-                  if (cur !== next) togglePerm(p.id)
-                })
-              }
-              return (
-                <div key={g.module} style={{
-                  borderRadius: 12, border: '1px solid rgba(255,255,255,.07)',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,.018) 0%, rgba(0,0,0,.12) 100%)',
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,.2)',
-                }}>
-                  <div style={{
-                    padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    background: `linear-gradient(180deg, ${GOLD}10 0%, ${GOLD}04 100%)`,
-                    borderBottom: `1px solid ${GOLD}24`,
-                  }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 4, height: 18, borderRadius: 2, background: GOLD, boxShadow: `0 0 6px ${GOLD}88` }} />
-                      <span style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', letterSpacing: '.1px' }}>{g.label}</span>
-                    </span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        fontSize: 10.5, color: allOn ? C.ok : noneOn ? 'var(--tx5)' : GOLD,
-                        fontWeight: 700, padding: '2px 8px', borderRadius: 5,
-                        background: allOn ? `${C.ok}1c` : noneOn ? 'rgba(255,255,255,.04)' : `${GOLD}18`,
-                        border: `1px solid ${allOn ? `${C.ok}38` : noneOn ? 'rgba(255,255,255,.06)' : `${GOLD}38`}`,
-                      }}>{enabled} / {g.items.length}</span>
-                      {g.items.length > 1 && (
-                        <button type="button" onClick={toggleAll}
-                          style={{
-                            fontSize: 10, padding: '3px 9px', borderRadius: 5, cursor: 'pointer',
-                            background: 'transparent', color: 'var(--tx3)',
-                            border: '1px solid rgba(255,255,255,.08)', fontFamily: F, fontWeight: 600,
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}55`; e.currentTarget.style.color = GOLD }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.color = 'var(--tx3)' }}>
-                          {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
-                        </button>
-                      )}
-                    </span>
-                  </div>
-                  <div style={{ padding: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 6 }}>
-                    {g.items.map(p => {
-                      const checked = isEffective(p.id)
-                      const isOverride = userOverrides.has(p.id)
-                      const meta = actionMeta(p.action)
-                      return (
-                        <button key={p.id} type="button" onClick={() => togglePerm(p.id)}
-                          style={{
-                            padding: '10px 12px', borderRadius: 9, cursor: 'pointer',
-                            fontFamily: F, fontSize: 13, fontWeight: checked ? 600 : 500,
-                            display: 'inline-flex', alignItems: 'center', gap: 10,
-                            background: checked ? `${meta.hue}12` : 'rgba(255,255,255,.02)',
-                            color: checked ? 'rgba(255,255,255,.96)' : 'rgba(255,255,255,.65)',
-                            border: `1px solid ${checked ? `${meta.hue}48` : 'rgba(255,255,255,.07)'}`,
-                            boxShadow: checked ? `0 2px 6px ${meta.hue}1a, inset 0 1px 0 rgba(255,255,255,.04)` : 'inset 0 1px 0 rgba(255,255,255,.02)',
-                            textAlign: 'start', transition: '.18s', position: 'relative',
-                          }}>
-                          <span style={{
-                            width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-                            border: `1.5px solid ${checked ? meta.hue : 'rgba(255,255,255,.22)'}`,
-                            background: checked ? meta.hue : 'transparent',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: checked ? `0 0 6px ${meta.hue}66` : 'none',
-                          }}>
-                            {checked && <Check size={12} color="#000" strokeWidth={3.5} />}
-                          </span>
-                          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {p.label_ar || p.action}
-                          </span>
-                          {meta.label && (
-                            <span style={{
-                              fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-                              background: `${meta.hue}1c`, color: meta.hue, border: `1px solid ${meta.hue}38`,
-                              letterSpacing: '.2px', flexShrink: 0,
-                            }}>{meta.label}</span>
-                          )}
-                          {isOverride && (
-                            <span title="مخصّص — مختلف عن الدور" style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD, boxShadow: `0 0 5px ${GOLD}`, flexShrink: 0 }} />
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div style={{ padding: '12px 24px 16px', flexShrink: 0, borderTop: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD }} />
-              <span>نقطة ذهبية = استثناء عن الدور الافتراضي</span>
+            <span style={{ flex: 1, minHeight: 16 }}>
+              {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                {errMsg}
+              </span>}
             </span>
-            <SaveBtn onClick={save} disabled={saving || loading}
-              label={saving ? 'جاري الحفظ...' : 'حفظ'} />
+            <SaveBtn onClick={handleSave}
+              disabled={saving || !canSave}
+              label={saving ? 'جاري الحفظ...' : (mode === 'link' ? 'ربط' : (mode === 'edit' ? 'تعديل' : 'إضافة'))}
+              icon={mode === 'new' ? <Plus size={15} strokeWidth={2.8} />
+                : mode === 'edit' ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                : mode === 'link' ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" x2="16" y1="12" y2="12" /></svg>
+                : undefined} />
           </div>
         </div>
       </div>
@@ -2305,124 +1799,389 @@ const EmptyLine = ({ text, Icon }) => (
   </div>
 )
 
-function BankRow({ account, toast }) {
+function BankRow({ account, sb, toast, onEdit, onReload }) {
   const lowBal = account.min_balance_alert != null &&
     Number(account.current_balance || 0) <= Number(account.min_balance_alert)
   const c = lowBal ? '#e6a23c' : C.ok
 
   const copy = (v) => { if (!v) return; navigator.clipboard?.writeText(String(v)); toast?.('تم النسخ') }
 
-  return (
-    <div style={{
-      padding: '12px 14px', borderRadius: 10,
-      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-      border: `1px solid ${lowBal ? 'rgba(230,162,60,.3)' : 'rgba(255,255,255,.06)'}`,
-      borderInlineStart: `3px solid ${c}`,
-      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(0,0,0,.2)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <CreditCard size={14} color={c} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{account.bank_name}</span>
-          {account.is_primary && (
-            <span style={{
-              fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-              background: `${GOLD}15`, color: GOLD,
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-            }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: GOLD }} />
-              رئيسي
-            </span>
-          )}
-          {account.account_purpose && (() => {
-            const PURPOSE_META = {
-              'الإيداعات النقدية':   { Icon: Banknote,         hue: '#27a046' },
-              'التحويلات الواردة':   { Icon: ArrowDownToLine,  hue: '#3483b4' },
-              'التحويلات الصادرة':  { Icon: ArrowUpFromLine,  hue: '#e6a23c' },
-              'سداد المدفوعات':      { Icon: Receipt,          hue: '#bb8fce' },
-            }
-            const parts = account.account_purpose.split('·').map(s => s.trim()).filter(Boolean)
-            return parts.map((p, i) => {
-              const { Icon, hue } = PURPOSE_META[p] || { Icon: CreditCard, hue: GOLD }
-              return (
-                <span key={i} style={{
-                  fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 7,
-                  background: `linear-gradient(135deg, ${hue}26 0%, ${hue}12 100%)`,
-                  color: hue, border: `1px solid ${hue}45`,
-                  boxShadow: `0 1px 4px ${hue}1a, inset 0 1px 0 rgba(255,255,255,.04)`,
-                  display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0,
-                }}>
-                  <Icon size={11} strokeWidth={2.4} />
-                  {p}
-                </span>
-              )
-            })
-          })()}
-        </div>
-        <div style={{ direction: 'ltr', fontSize: 16, fontWeight: 700, color: c,
-          fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.3px' }}>
-          {nm(account.current_balance || 0)}
-        </div>
-      </div>
-      {lowBal && (
-        <div style={{
-          fontSize: 10, fontWeight: 600, color: '#e6a23c',
-          background: 'rgba(230,162,60,.12)', padding: '5px 10px', borderRadius: 6,
-          marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 5,
-        }}>
-          <AlertCircle size={10} /> الحد الأدنى: {nm(account.min_balance_alert)}
-        </div>
-      )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 6, fontSize: 10.5 }}>
-        {account.account_number && (
-          <CopyRow label="رقم الحساب" value={account.account_number} onCopy={() => copy(account.account_number)} />
-        )}
-        {account.iban && (
-          <CopyRow label="الآيبان" value={account.iban} onCopy={() => copy(account.iban)} />
-        )}
-        {account.swift_code && (
-          <CopyRow label="سويفت" value={account.swift_code} onCopy={() => copy(account.swift_code)} />
-        )}
-      </div>
+  const [cards, setCards] = useState([])
+  const [confirmDel, setConfirmDel] = useState(false)
+  const [showCardModal, setShowCardModal] = useState(false)
+  const [editCard, setEditCard] = useState(null)
+  const [reveal, setReveal] = useState({})
+  const [deleting, setDeleting] = useState(false)
+
+  const loadCards = useCallback(async () => {
+    if (!sb) return
+    const { data } = await sb.from('bank_cards').select('*').eq('bank_account_id', account.id).is('deleted_at', null).order('created_at', { ascending: true })
+    setCards(data || [])
+  }, [sb, account.id])
+  useEffect(() => { loadCards() }, [loadCards])
+
+  // All offices this account is linked to (with their purpose), across branches.
+  const [links, setLinks] = useState([])
+  const loadLinks = useCallback(async () => {
+    if (!sb) return
+    const { data } = await sb.from('bank_account_branches')
+      .select('id, account_purpose, is_active, branches(branch_code)')
+      .eq('bank_account_id', account.id).eq('is_active', true).is('deleted_at', null)
+    setLinks(data || [])
+  }, [sb, account.id])
+  useEffect(() => { loadLinks() }, [loadLinks])
+
+  const delAccount = async () => {
+    setDeleting(true)
+    try {
+      const { error } = await sb.from('bank_accounts').update({ deleted_at: new Date().toISOString() }).eq('id', account.id)
+      if (error) throw error
+      if (account._junction_id) await sb.from('bank_account_branches').update({ deleted_at: new Date().toISOString() }).eq('id', account._junction_id)
+      toast?.('تم حذف الحساب البنكي')
+      onReload?.()
+    } catch (e) {
+      const msg = (e.message || '').toLowerCase()
+      toast?.(msg.includes('row-level security') || e.code === '42501' ? 'لا تملك صلاحية حذف الحساب' : 'تعذّر الحذف: ' + (e.message || '').slice(0, 80), 'error')
+      setDeleting(false); setConfirmDel(false)
+    }
+  }
+  const delCard = async (id) => {
+    const { error } = await sb.from('bank_cards').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    if (error) { toast?.('تعذّر حذف البطاقة', 'error'); return }
+    toast?.('تم حذف البطاقة'); loadCards()
+  }
+  // Activate / deactivate the bank account (for this branch) and individual cards.
+  const accActive = account.is_active !== false
+  const toggleAccount = async () => {
+    const { error } = await sb.from('bank_accounts').update({ is_active: !accActive }).eq('id', account.id)
+    if (error) { toast?.('تعذّر تحديث حالة الحساب', 'error'); return }
+    toast?.(!accActive ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب'); onReload?.()
+  }
+  const toggleCard = async (cd) => {
+    const { error } = await sb.from('bank_cards').update({ is_active: cd.is_active === false }).eq('id', cd.id)
+    if (error) { toast?.('تعذّر تحديث حالة البطاقة', 'error'); return }
+    loadCards()
+  }
+  const switchBtn = (on, onClick, title) => (
+    <button type="button" onClick={onClick} title={title}
+      style={{ width: 40, height: 22, borderRadius: 999, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 0, position: 'relative', transition: '.2s', background: on ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'rgba(255,255,255,.14)', boxShadow: on ? `0 0 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 2px rgba(0,0,0,.3)' }}>
+      <span style={{ position: 'absolute', width: 16, height: 16, borderRadius: '50%', background: '#fff', top: 3, right: on ? 3 : 21, transition: '.2s', boxShadow: '0 1px 3px rgba(0,0,0,.4)' }} />
+    </button>
+  )
+  const maskNum = (v) => { const s = String(v || '').replace(/\s+/g, ''); return s.length > 4 ? '•••• ' + s.slice(-4) : s }
+  const aBtn = (clr) => ({ height: 28, padding: '0 10px', borderRadius: 7, background: clr + '14', border: `1px solid ${clr}40`, color: clr, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' })
+
+  // ── Build reusable UI pieces, then arrange them in a two-column layout. ──────
+  const PURPOSE_META = {
+    'الإيداعات النقدية':   { Icon: Banknote,         hue: '#27a046' },
+    'التحويلات الواردة':   { Icon: ArrowDownToLine,  hue: '#3483b4' },
+    'التحويلات الصادرة':  { Icon: ArrowUpFromLine,  hue: '#e6a23c' },
+    'سداد المدفوعات':      { Icon: Receipt,          hue: '#bb8fce' },
+  }
+  const purposeParts = account.account_purpose
+    ? account.account_purpose.split('·').map(s => s.trim()).filter(Boolean) : []
+
+  const primaryBadge = account.is_primary ? (
+    <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: `${GOLD}15`, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: GOLD }} />
+      رئيسي
+    </span>
+  ) : null
+  const purposeBadges = purposeParts.length ? purposeParts.map((p, i) => {
+    const { Icon, hue } = PURPOSE_META[p] || { Icon: CreditCard, hue: GOLD }
+    return (
+      <span key={i} style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 7, background: `linear-gradient(135deg, ${hue}26 0%, ${hue}12 100%)`, color: hue, border: `1px solid ${hue}45`, boxShadow: `0 1px 4px ${hue}1a, inset 0 1px 0 rgba(255,255,255,.04)`, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+        <Icon size={11} strokeWidth={2.4} />{p}
+      </span>
+    )
+  }) : null
+
+  const editBtn = (
+    <button type="button" onClick={() => onEdit?.(account)}
+      onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+      onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+      style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+      تعديل
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+    </button>
+  )
+  const toggle = switchBtn(accActive, toggleAccount, accActive ? 'تعطيل الحساب' : 'تفعيل الحساب')
+
+  const lowBalAlert = lowBal ? (
+    <div style={{ fontSize: 10, fontWeight: 600, color: '#e6a23c', background: 'rgba(230,162,60,.12)', padding: '5px 10px', borderRadius: 6, marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <AlertCircle size={10} /> الحد الأدنى: {nm(account.min_balance_alert)}
     </div>
+  ) : null
+
+  const copyItems = [
+    account.account_number && { key: 'acc', label: 'رقم الحساب', value: account.account_number, node: <CopyRow key="acc" label="رقم الحساب" value={account.account_number} onCopy={() => copy(account.account_number)} /> },
+    account.iban && { key: 'iban', label: 'الآيبان', value: account.iban, node: <CopyRow key="iban" label="الآيبان" value={account.iban} onCopy={() => copy(account.iban)} /> },
+    account.swift_code && { key: 'swift', label: 'سويفت', value: account.swift_code, node: <CopyRow key="swift" label="سويفت" value={account.swift_code} onCopy={() => copy(account.swift_code)} /> },
+  ].filter(Boolean)
+
+  const linksInner = links.length ? (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {links.map(l => (
+        <span key={l.id} style={{ fontSize: 10, padding: '3px 9px', borderRadius: 5, background: `${C.blue}15`, color: C.blue, border: `1px solid ${C.blue}33`, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {l.branches?.branch_code}{l.account_purpose ? ` · ${l.account_purpose}` : ''}
+        </span>
+      ))}
+    </div>
+  ) : null
+  const linksNode = links.length ? (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 700, marginBottom: 6 }}>المكاتب المرتبطة بهذا الحساب:</div>
+      {linksInner}
+    </div>
+  ) : null
+
+  const MONO_F = "'JetBrains Mono','Cairo',sans-serif"
+  const cardBtn = (extra = {}) => ({ width: 26, height: 26, borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backdropFilter: 'blur(4px)', ...extra })
+  const cardsInner = cards.length ? (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {cards.map(card => {
+        const shown = !!reveal[card.id]
+        const inactive = card.is_active === false
+        return (
+          <div key={card.id} style={{
+            position: 'relative', width: '100%', minHeight: 168,
+            borderRadius: 14, padding: '15px 17px', overflow: 'hidden',
+            background: 'linear-gradient(135deg, #313131 0%, #1d1d1d 52%, #151515 100%)',
+            border: `1px solid ${GOLD}33`,
+            boxShadow: `0 10px 26px rgba(0,0,0,.42), inset 0 1px 0 ${GOLD}1f`,
+            display: 'flex', flexDirection: 'column',
+            opacity: inactive ? .5 : 1, transition: 'opacity .2s',
+          }}>
+            {/* sheen + glow */}
+            <div style={{ position: 'absolute', insetInlineEnd: -34, top: -34, width: 130, height: 130, borderRadius: '50%', background: `radial-gradient(circle, ${GOLD}26 0%, transparent 70%)`, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', insetInlineStart: -60, bottom: -70, width: 150, height: 150, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+            {/* Top: bank label + reveal / edit */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 800, color: GOLD, letterSpacing: '.4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.bank_name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <button type="button" onClick={() => setReveal(p => ({ ...p, [card.id]: !p[card.id] }))} title={shown ? 'إخفاء' : 'إظهار'} style={cardBtn({ border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' })}>
+                  {shown
+                    ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" /><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><line x1="2" y1="2" x2="22" y2="22" /></svg>
+                    : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>}
+                </button>
+                <button type="button" onClick={() => { setEditCard(card); setShowCardModal(true) }} title="تعديل البطاقة" style={cardBtn({ border: `1px solid ${GOLD}40`, background: `${GOLD}1f`, color: GOLD })}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Chip */}
+            <div style={{ position: 'relative', width: 38, height: 28, borderRadius: 6, margin: '16px 0 14px', background: 'linear-gradient(135deg,#e9d089 0%,#b5903a 50%,#8c6c25 100%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.3)' }}>
+              <div style={{ position: 'absolute', inset: '6px 5px', borderRadius: 3, border: '1px solid rgba(0,0,0,.22)' }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(0,0,0,.2)' }} />
+            </div>
+
+            {/* Card number */}
+            <div style={{ position: 'relative', fontSize: 16.5, fontWeight: 700, color: 'rgba(255,255,255,.93)', direction: 'ltr', fontFamily: MONO_F, letterSpacing: '2.5px' }}>
+              {shown ? (card.card_number || '—') : maskNum(card.card_number)}
+            </div>
+
+            {/* Bottom: holder + toggle */}
+            <div style={{ position: 'relative', marginTop: 'auto', paddingTop: 13, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 7.5, fontWeight: 800, color: 'var(--tx5)', letterSpacing: '.6px', marginBottom: 2 }}>حامل البطاقة</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.86)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{card.holder_name || '—'}</div>
+              </div>
+              {switchBtn(card.is_active !== false, () => toggleCard(card), card.is_active !== false ? 'تعطيل البطاقة' : 'تفعيل البطاقة')}
+            </div>
+
+            {/* Revealed PIN / CVV */}
+            {shown && (card.pin || card.cvv) && (
+              <div style={{ position: 'relative', marginTop: 11, paddingTop: 9, borderTop: '1px solid rgba(255,255,255,.09)', display: 'flex', gap: 16, fontSize: 11, color: 'var(--tx3)', direction: 'ltr', fontFamily: MONO_F }}>
+                {card.pin && <span>PIN: <b style={{ color: 'var(--tx2)' }}>{card.pin}</b></span>}
+                {card.cvv && <span>CVV: <b style={{ color: 'var(--tx2)' }}>{card.cvv}</b></span>}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  ) : null
+  const cardsNode = cards.length ? <div style={{ marginTop: 10 }}>{cardsInner}</div> : null
+
+  const footerActions = (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {confirmDel ? (
+        <>
+          <span style={{ fontSize: 11.5, color: '#e87265', fontWeight: 700 }}>حذف الحساب نهائياً؟</span>
+          <button type="button" disabled={deleting} onClick={delAccount} style={{ ...aBtn('#e87265'), opacity: deleting ? 0.6 : 1 }}>{deleting ? '...' : 'تأكيد'}</button>
+          <button type="button" onClick={() => setConfirmDel(false)} style={aBtn('#95a5a6')}>إلغاء</button>
+        </>
+      ) : (
+        <>
+          <button type="button" onClick={() => { setEditCard(null); setShowCardModal(true) }}
+            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+            style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+            بطاقة بنكية جديدة <Plus size={13} strokeWidth={2.2} />
+          </button>
+        </>
+      )}
+    </div>
+  )
+
+  return (
+    <>
+      <div style={{
+        padding: '12px 14px', borderRadius: 10,
+        background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+        border: `1px solid ${lowBal ? 'rgba(230,162,60,.3)' : 'rgba(255,255,255,.06)'}`,
+        borderInlineStart: `3px solid ${lowBal ? c : GOLD}`,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 6px rgba(0,0,0,.2)',
+        opacity: accActive ? 1 : .6, transition: 'opacity .2s',
+      }}>
+        {/* Two-column layout: identity + balance | account numbers + offices */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px,.9fr) 1.4fr', gap: 12, alignItems: 'stretch' }}>
+          <div style={{ padding: 12, borderRadius: 9, background: `linear-gradient(160deg, ${c}14 0%, rgba(0,0,0,.25) 100%)`, border: `1px solid ${c}26`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 11, textAlign: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'center', minWidth: 0 }}>
+              <Landmark size={22} color={c} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+              <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 1, minWidth: 0, textAlign: 'center' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{account.bank_name}</span>
+                {account.account_name && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{account.account_name}</span>}
+              </span>
+            </div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: c, fontFamily: MONO_F, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1.05 }}>{nm(account.current_balance || 0)}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>{primaryBadge}{purposeBadges}</div>
+            {toggle}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{editBtn}</div>
+            {lowBalAlert}
+            {copyItems.map(it => it.node)}
+            {linksNode}
+          </div>
+        </div>
+        {cardsNode}
+        {footerActions}
+      </div>
+      {showCardModal && (
+        <BankCardModal sb={sb} accountId={account.id} bankName={account.bank_name} card={editCard} toast={toast}
+          onClose={() => { setShowCardModal(false); setEditCard(null) }}
+          onSaved={() => { setShowCardModal(false); setEditCard(null); loadCards() }} />
+      )}
+    </>
   )
 }
 
-const CopyMetaRow = ({ Icon, prefix, value, label, mono, color, toast }) => {
-  const [copied, setCopied] = useState(false)
-  const handleCopy = (e) => {
-    e?.stopPropagation()
-    if (!value) return
-    navigator.clipboard?.writeText(String(value))
-    toast?.(`تم نسخ ${label}`)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1400)
+function BankCardModal({ sb, accountId, bankName, card, toast, onClose, onSaved }) {
+  const [f, setF] = useState({ card_number: card?.card_number || '', holder_name: card?.holder_name || '', pin: card?.pin || '', cvv: card?.cvv || '' })
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  const isEdit = !!card?.id
+  const kafalaInput = { ...sF, fontSize: 14, fontWeight: 500, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
+  const monoInput = { ...kafalaInput, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }
+  const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
+  const canSave = !!f.card_number.trim() && !!f.holder_name.trim() && !!f.pin.trim() && !!f.cvv.trim()
+  const save = async () => {
+    if (!canSave) { toast?.('جميع الحقول إلزامية', 'error'); return }
+    setBusy(true)
+    try {
+      const payload = { card_number: f.card_number.trim() || null, holder_name: f.holder_name.trim() || null, pin: f.pin.trim() || null, cvv: f.cvv.trim() || null }
+      const res = card?.id
+        ? await sb.from('bank_cards').update(payload).eq('id', card.id)
+        : await sb.from('bank_cards').insert({ bank_account_id: accountId, ...payload })
+      if (res.error) throw res.error
+      setBusy(false); setDone(true)
+    } catch (e) {
+      const msg = (e.message || '').toLowerCase()
+      toast?.(msg.includes('row-level security') || e.code === '42501' ? 'لا تملك صلاحية إضافة بطاقة' : 'تعذّر الحفظ: ' + (e.message || '').slice(0, 80), 'error')
+      setBusy(false)
+    }
   }
+  if (done) {
+    return ReactDOM.createPortal(
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
+        <div style={{ position: 'relative', background: 'var(--modal-bg)', borderRadius: 16, width: 420, maxWidth: '95vw', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', fontFamily: F, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', gap: 16, textAlign: 'center' }}>
+          <button onClick={onSaved} aria-label="إغلاق"
+            style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
+            <X size={14} />
+          </button>
+          <div style={{ width: 74, height: 74, borderRadius: '50%', background: C.ok + '2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok, boxShadow: '0 0 0 8px ' + C.ok + '14' }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+          </div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: C.ok }}>{isEdit ? 'تم تحديث البطاقة بنجاح' : 'تمت إضافة البطاقة بنجاح'}</div>
+        </div>
+      </div>, document.body
+    )
+  }
+  return ReactDOM.createPortal(
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
+      <div style={{ background: 'var(--modal-bg)', borderRadius: 16, width: 560, maxWidth: '95vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column' }}>
+          {/* Header */}
+          <div style={{ padding: '20px 24px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <CreditCard size={22} strokeWidth={1.8} color={GOLD} />
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{isEdit ? 'تعديل البطاقة البنكية' : 'بطاقة بنكية جديدة'}</div>
+            </div>
+            <button onClick={onClose} aria-label="إغلاق"
+              style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
+              <X size={14} strokeWidth={2} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div style={{ padding: '14px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 11, color: '#e6a23c', background: 'rgba(230,162,60,.1)', border: '1px solid rgba(230,162,60,.25)', borderRadius: 8, padding: '8px 11px', lineHeight: 1.6 }}>
+              تنبيه: تخزين الرقم السري وCVV غير آمن — احفظهما على مسؤوليتك. البطاقة مربوطة بحساب «{bankName}».
+            </div>
+
+            <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 18px 16px', position: 'relative', marginTop: 6 }}>
+              <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <CreditCard size={12} strokeWidth={2.2} />
+                <span>بيانات البطاقة</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 12 }}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={lbl}>رقم البطاقة<span style={{ color: C.red }}> *</span></div>
+                  <input value={f.card_number} onChange={e => setF(p => ({ ...p, card_number: e.target.value.replace(/[^\d ]/g, '') }))} placeholder="0000 0000 0000 0000" inputMode="numeric" dir="ltr" style={monoInput} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={lbl}>اسم حامل البطاقة<span style={{ color: C.red }}> *</span></div>
+                  <input value={f.holder_name} onChange={e => setF(p => ({ ...p, holder_name: e.target.value }))} placeholder="الاسم كما في البطاقة" style={kafalaInput} />
+                </div>
+                <div>
+                  <div style={lbl}>الرقم السري<span style={{ color: C.red }}> *</span></div>
+                  <input value={f.pin} onChange={e => setF(p => ({ ...p, pin: e.target.value.replace(/[^\d]/g, '') }))} placeholder="****" inputMode="numeric" dir="ltr" style={monoInput} />
+                </div>
+                <div>
+                  <div style={lbl}>CVV<span style={{ color: C.red }}> *</span></div>
+                  <input value={f.cvv} onChange={e => setF(p => ({ ...p, cvv: e.target.value.replace(/[^\d]/g, '') }))} placeholder="***" inputMode="numeric" maxLength={4} dir="ltr" style={monoInput} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '4px 24px 18px', flexShrink: 0, gap: 12 }}>
+            <SaveBtn onClick={save} disabled={busy || !canSave}
+              label={busy ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'إضافة')}
+              icon={isEdit ? undefined : <Plus size={15} strokeWidth={2.8} />} />
+          </div>
+        </div>
+      </div>
+    </div>, document.body
+  )
+}
+
+// Unified info row (id / phone / role) — display only, no copy.
+const MetaRow = ({ Icon, dot, value, label, mono, color }) => {
   return (
-    <div onClick={handleCopy} className="brs-mini-copy" style={{
+    <div style={{
       display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7,
       background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.04)',
       fontSize: 11, color: 'rgba(255,255,255,.78)', fontWeight: 600,
-      fontFamily: mono ? "'JetBrains Mono','Cairo',sans-serif" : F,
-      cursor: 'pointer', transition: '.16s', direction: 'ltr',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}40` }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)' }}>
-      <style>{`.brs-mini-copy:hover .brs-mini-copy-ico{opacity:1!important}`}</style>
+    }}>
+      <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 700, flexShrink: 0 }}>{label}</span>
+      <span style={{ marginInlineStart: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? "'JetBrains Mono','Cairo',sans-serif" : F }}>{value}</span>
       {Icon && <Icon size={11} color={color || 'var(--tx4)'} strokeWidth={2.3} style={{ flexShrink: 0 }} />}
-      {prefix}
-      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
-      <span className="brs-mini-copy-ico" style={{
-        flexShrink: 0, width: 20, height: 20, borderRadius: 5,
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        background: copied ? `${C.ok}22` : 'rgba(255,255,255,.04)',
-        border: `1px solid ${copied ? `${C.ok}55` : 'rgba(255,255,255,.06)'}`,
-        color: copied ? C.ok : GOLD,
-        opacity: copied ? 1 : .5,
-        transition: '.16s',
-      }}>
-        {copied ? <Check size={11} strokeWidth={2.6} /> : <Copy size={11} strokeWidth={2.2} />}
-      </span>
+      {dot && <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0 }} />}
     </div>
   )
 }
@@ -2484,10 +2243,19 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
   // because the next openAdd/openEdit resets `form`, which resets this flag too.
   const [codeEditing, setCodeEditing] = useState(false)
   useEffect(() => { if (!open) setCodeEditing(false) }, [open])
+  // Inline footer error (no toast) + mandatory-field gating — mirrors NewUserModal.
+  const [errMsg, setErrMsg] = useState('')
+  useEffect(() => { if (!open) setErrMsg('') }, [open])
+  const canSave = !!form.region_id && !!form.city_id && !!form.district_id && !!(form.branch_code || '').trim()
+  const handleSave = async () => {
+    setErrMsg('')
+    const err = await onSave()
+    if (err) setErrMsg(err)
+  }
 
   if (success) {
     return ReactDOM.createPortal(
-      <div onClick={onClose} style={{
+      <div style={{
         position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
       }}>
@@ -2536,7 +2304,7 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
 
   if (!open) return null
   return ReactDOM.createPortal(
-    <div onClick={onClose} style={{
+    <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16
     }}>
@@ -2553,10 +2321,10 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
           <div style={{ padding: '20px 24px 16px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                <Building2 size={22} strokeWidth={1.8} color={GOLD} style={{ flexShrink: 0 }} />
+                <Building2 size={28} strokeWidth={1.8} color={GOLD} style={{ flexShrink: 0 }} />
                 <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)',
                   fontFamily: F, lineHeight: 1.2 }}>
-                  {isEdit ? 'تعديل مكتب' : 'مكتب جديد'}
+                  {isEdit ? 'تعديل بيانات المكتب' : 'مكتب جديد'}
                 </div>
               </div>
               <button onClick={onClose}
@@ -2588,25 +2356,25 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
           <span>بيانات المكتب</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 16 }}>
-          <CustomSel k="region_id" l="المنطقة" r
+          <CustomSel k="region_id" l="المنطقة" r big
             opts={regions.map(r => ({ v: r.id, l: r.name_ar }))} ph="اختر المنطقة..."
             form={form} setForm={setForm} />
-          <CustomSel k="city_id" l="المدينة" r
+          <CustomSel k="city_id" l="المدينة" r big
             opts={cities.filter(c => !form.region_id || c.region_id === form.region_id)
               .map(c => ({ v: c.id, l: c.name_ar }))}
             ph="اختر المدينة..." onSelect={updateCode}
             form={form} setForm={setForm} />
-          <CustomSel k="district_id" l="الحي" r
+          <CustomSel k="district_id" l="الحي" r big
             opts={distOpts} ph="اختر الحي..." form={form} setForm={setForm} />
           <div>
-            <Lbl req>كود المكتب</Lbl>
+            <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>كود المكتب<span style={{ color: C.red }}> *</span></div>
             {codeEditing ? (
               <input value={form.branch_code || ''} autoFocus
-                onChange={e => setForm(p => ({ ...p, branch_code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '') }))}
+                onChange={e => setForm(p => ({ ...p, branch_code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }))}
                 onBlur={() => setCodeEditing(false)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setCodeEditing(false) } }}
-                placeholder="RYD-01" dir="ltr"
-                style={{ ...sF, direction: 'ltr', textAlign: 'center',
+                placeholder="RYD01" dir="ltr"
+                style={{ ...sF, direction: 'ltr', textAlign: 'center', fontSize: 14,
                   fontFamily: "'JetBrains Mono','Cairo',sans-serif", fontWeight: 700 }} />
             ) : (
               <div style={{
@@ -2617,12 +2385,12 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
                 overflow: 'hidden',
               }}>
                 <span style={{
-                  fontSize: 13, fontFamily: "'JetBrains Mono','Cairo',sans-serif",
+                  fontSize: 14, fontFamily: "'JetBrains Mono','Cairo',sans-serif",
                   fontWeight: 600, direction: 'ltr', flex: 1, textAlign: 'center',
                   color: form.branch_code ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.3)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
-                  {form.branch_code || '— الكود —'}
+                  {form.branch_code || 'الكود'}
                 </span>
                 <button type="button" onClick={() => setCodeEditing(true)} title="تعديل"
                   style={{
@@ -2639,54 +2407,24 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
               </div>
             )}
           </div>
-          {isEdit && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <Lbl req>الحالة</Lbl>
-              <div style={{
-                display: 'flex', gap: 4, padding: 4, height: 42, boxSizing: 'border-box',
-                background: 'rgba(0,0,0,.22)',
-                borderRadius: 11, border: '1px solid rgba(255,255,255,.06)',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,.28)',
-              }}>
-                {[
-                  { v: true, label: 'نشط', c: C.ok },
-                  { v: false, label: 'معطّل', c: C.red },
-                ].map(opt => {
-                  const sel = form.is_active === opt.v
-                  return (
-                    <button key={String(opt.v)} type="button"
-                      onClick={() => setForm(p => ({ ...p, is_active: opt.v }))}
-                      style={{
-                        flex: 1, borderRadius: 8, border: 'none', cursor: 'pointer',
-                        fontFamily: F, fontSize: 12, fontWeight: sel ? 700 : 600,
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        background: sel ? `linear-gradient(180deg, ${opt.c}2e 0%, ${opt.c}18 100%)` : 'transparent',
-                        color: sel ? opt.c : 'var(--tx5)',
-                        boxShadow: sel ? `inset 0 0 0 1px ${opt.c}55, 0 2px 8px ${opt.c}28` : 'none',
-                        transition: '.18s',
-                      }}>
-                      <span style={{
-                        width: 7, height: 7, borderRadius: '50%',
-                        background: sel ? opt.c : 'rgba(255,255,255,.18)',
-                        boxShadow: sel ? `0 0 7px ${opt.c}` : 'none',
-                        transition: '.18s',
-                      }} />
-                      {opt.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </div>
           </div>
 
-          {/* Footer */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+          {/* Footer — inline error (no toast) + save gated until all fields complete */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             padding: '12px 24px 16px', flexShrink: 0, gap: 12 }}>
-            <SaveBtn onClick={onSave} disabled={saving}
-              label={saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'إضافة')} />
+            <span style={{ flex: 1, minHeight: 16 }}>
+              {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                {errMsg}
+              </span>}
+            </span>
+            <SaveBtn onClick={handleSave} disabled={saving || !canSave}
+              label={saving ? (isEdit ? 'جارٍ التعديل…' : 'جاري الحفظ...') : (isEdit ? 'تعديل' : 'إضافة')}
+              icon={isEdit
+                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                : <Plus size={15} strokeWidth={2.8} />} />
           </div>
         </div>
       </div>

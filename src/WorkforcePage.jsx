@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { DateField, Sel, OccSelect } from './pages/KafalaCalculator.jsx'
+import BackButton from './components/BackButton'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -857,11 +858,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack }) {
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       {/* Header with back + name + status badge */}
       <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button onClick={onBack} title={T('رجوع','Back')} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {isAr ? (<><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></>) : (<><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></>)}
-          </svg>
-        </button>
+        <BackButton onBack={onBack} label={T('رجوع','Back')} />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
           <NatFlag nationality={w.nationality_ar} size={28} />
           <div>

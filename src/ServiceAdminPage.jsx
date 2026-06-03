@@ -1,5 +1,6 @@
 import React,{useState,useEffect,useRef} from 'react'
 import ReactDOM from 'react-dom'
+import BackButton from './components/BackButton'
 import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,HeartPulse,UserCog,Wallet,Plane,PlaneTakeoff,IdCard,Printer,FileStack,Sparkles,Power,PowerOff,Gift,DollarSign,Edit3,ChevronDown,ChevronUp,X,Calendar as CalendarIcon} from 'lucide-react'
 import {getSupabase} from './lib/supabase.js'
 import {hydrateSvcAdminFromDb,saveSvcAdminSetting} from './lib/serviceAdminSync.js'
@@ -1566,13 +1567,7 @@ if(selectedSvc){
 
     {/* Top bar — back button */}
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
-      <button type="button" onClick={()=>setSelectedSvcId(null)}
-        style={{height:40,padding:'0 14px',borderRadius:11,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'rgba(255,255,255,.78)',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,fontFamily:F,fontSize:12,fontWeight:500,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}
-        onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(212,160,23,.45)';e.currentTarget.style.color=C.gold}}
-        onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.06)';e.currentTarget.style.color='rgba(255,255,255,.78)'}}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        <span>رجوع</span>
-      </button>
+      <BackButton onBack={()=>setSelectedSvcId(null)} />
     </div>
 
     {/* Header — title + tag row */}

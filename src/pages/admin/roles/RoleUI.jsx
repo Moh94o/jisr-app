@@ -335,7 +335,7 @@ export const FacilityPicker = ({ value, onChange, options, placeholder = 'اخت
 }
 
 // Save button matching PersonFormModal footer style.
-export const SaveBtn = ({ onClick, disabled, label = 'حفظ' }) => (
+export const SaveBtn = ({ onClick, disabled, label = 'حفظ', icon }) => (
   <>
     <style>{`
       .kc-nav-btn { height: 40px; padding: 0 6px; background: transparent; border: none; color: #D4A017;
@@ -349,7 +349,7 @@ export const SaveBtn = ({ onClick, disabled, label = 'حفظ' }) => (
     `}</style>
     <button onClick={onClick} disabled={disabled} className="kc-nav-btn">
       <span>{label}</span>
-      <span className="nav-ico"><Save size={14} strokeWidth={2.5} /></span>
+      <span className="nav-ico">{icon || <Save size={14} strokeWidth={2.5} />}</span>
     </button>
   </>
 )

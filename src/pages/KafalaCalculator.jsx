@@ -196,8 +196,8 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
         })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-        <button type="button" onClick={() => { const t = new Date(); onPick(fmtDate(t.getFullYear(), t.getMonth(), t.getDate())); onClose() }} style={{ fontSize: 12, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Today' : 'اليوم'}</button>
         <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Clear' : 'مسح'}</button>
+        <button type="button" onClick={() => { const t = new Date(); onPick(fmtDate(t.getFullYear(), t.getMonth(), t.getDate())); onClose() }} style={{ fontSize: 12, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Today' : 'اليوم'}</button>
       </div>
     </div>
   )
@@ -334,7 +334,8 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
       if (picks.length === 1) return picks[0].l
       return `${picks[0].l} +${picks.length - 1}`
     }
-    return (opts.find(o => !o.divider && o.v === value) || {}).l || ''
+    const f = opts.find(o => !o.divider && o.v === value) || {}
+    return f.display || f.l || ''
   })()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 380 })
@@ -348,7 +349,7 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
     if (!searchable || !q) return opts
     const matched = opts.map(o => {
       if (o.divider) return o
-      const hay = `${o.l || ''} ${o.sub || ''}`.toLowerCase()
+      const hay = `${o.l || ''} ${o.search != null ? o.search : (typeof o.sub === 'string' ? o.sub : '')}`.toLowerCase()
       return hay.includes(q) ? o : null
     })
     // Walk through and only keep dividers that have at least one match on each side
@@ -371,7 +372,7 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
     if (!btnRef.current) return
     const r = btnRef.current.getBoundingClientRect()
     const visibleCount = maxVisible ? Math.min(visibleOpts.length, maxVisible) : visibleOpts.length
-    const multilineSub = visibleOpts.some(o => typeof o.sub === 'string' && o.sub.includes('\n'))
+    const multilineSub = visibleOpts.some(o => (typeof o.sub === 'string' && o.sub.includes('\n')) || (o.sub && typeof o.sub !== 'string'))
     const rowH = multilineSub ? 74 : (visibleOpts.some(o => o.sub) ? 56 : 42)
     const listH = visibleCount * rowH + 4
     const searchH = searchable ? 48 : 0
@@ -454,7 +455,7 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                     <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.l}</span>
-                    {o.sub && <span style={{ fontSize: 11, fontWeight: 500, color: isSel ? 'rgba(212,160,23,.7)' : 'var(--tx4)', textAlign: 'center', width: '100%', direction: 'ltr', fontVariantNumeric: 'tabular-nums', whiteSpace: 'pre-line', lineHeight: 1.4 }}>{o.sub}</span>}
+                    {o.sub && <span style={{ fontSize: 11, fontWeight: 500, color: isSel ? 'rgba(212,160,23,.7)' : 'var(--tx4)', textAlign: 'center', width: '100%', direction: 'ltr', fontVariantNumeric: 'tabular-nums', whiteSpace: 'pre-line', lineHeight: 1.4 }}>{typeof o.sub === 'function' ? o.sub(isSel) : o.sub}</span>}
                   </div>
                   {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </div>

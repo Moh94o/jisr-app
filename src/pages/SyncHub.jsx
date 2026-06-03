@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
+import BackButton from '../components/BackButton'
 import SbcFacilities from './SbcFacilities.jsx'
 import { buildBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildNafathBookmarklet } from './nafathSyncBookmarklet.js'
@@ -362,19 +363,7 @@ function Header({ T, lang, focusedSource, runs, changes, onSync, bookmarkletUrl,
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
-            <button onClick={onBack} title={T('رجوع', 'Back')}
-              style={{ height: 34, padding: '0 12px', borderRadius: 8,
-                background: '#141414', border: '1px solid rgba(255,255,255,.06)',
-                color: 'var(--tx2)', cursor: 'pointer',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = C.gold }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
-              </svg>
-              {T('رجوع', 'Back')}
-            </button>
+            <BackButton onBack={onBack} label={T('رجوع', 'Back')} />
             {bookmarkletUrl ? (
               <HeaderBookmarklet
                 url={bookmarkletUrl}
