@@ -17,6 +17,9 @@ import ClientsPage from './pages/admin/ClientsPage.jsx'
 import AgentsPage from './pages/admin/AgentsPage.jsx'
 import PermissionsPage from './pages/admin/PermissionsPage.jsx'
 import TransactionsPage from './pages/TransactionsPage.jsx'
+import DepartmentsPage from './pages/DepartmentsPage.jsx'
+import SbcCenterPage from './pages/SbcCenterPage.jsx'
+import SectionStub from './pages/SectionStub.jsx'
 import PaymentsPage from './pages/PaymentsPage.jsx'
 import DepositsPage from './pages/DepositsPage.jsx'
 import StampBadge from './components/ui/StampBadge.jsx'
@@ -661,6 +664,39 @@ const TX_TYPES=[
 {id:'tx_saudization',code:'saudization',ar:'سعودة',en:'Saudization',i:'chart'},
 ]
 
+// Transaction sections shown under the المعاملات hub (replaces the old flat TX_TYPES list).
+// `page:'sbc'` → SbcCenterPage. `code` → existing TransactionsPage filtered by that
+// service_type. No code & not sbc → SectionStub (built out SBC-style on demand).
+// Ordered by workflow: setup/licensing → labor & visas → compliance → financial/admin.
+const TXN_SECTIONS=[
+// — التأسيس والتراخيص —
+{id:'sbc',                  ar:'المركز السعودي',        en:'Saudi Business Center', i:'branch',      page:'sbc'},
+{id:'chamber',              ar:'الغرفة التجارية',        en:'Chamber of Commerce',   i:'facility',    code:'other'},
+{id:'baladi',               ar:'الرخص البلدية',          en:'Municipal Licenses',    i:'role'},
+{id:'najiz',                ar:'وكالات ناجز',            en:'Najiz Agencies',        i:'alert'},
+// — العمالة والتأشيرات —
+{id:'work-visas',           ar:'تأشيرات العمل',          en:'Work Visas',            i:'calendar',    code:'work_visa_permanent'},
+{id:'passports',            ar:'خدمات الجوازات',         en:'Passport Services',     i:'client',      code:'passport_update'},
+{id:'medical',              ar:'الفحص والتأمين الطبي',    en:'Medical Exam & Insurance',i:'alert',     code:'medical_insurance'},
+{id:'iqama',                ar:'إصدار وتجديد الإقامات',   en:'Iqama Issue & Renewal', i:'role',        code:'iqama_renewal'},
+{id:'iqama-print',          ar:'طباعة وتوصيل الإقامات',   en:'Iqama Print & Delivery',i:'notes',       code:'iqama_print'},
+{id:'profession-change',    ar:'تغيير المهن',            en:'Profession Change',     i:'worker',      code:'profession_change'},
+{id:'sponsorship-transfer', ar:'نقل الكفالة',            en:'Sponsorship Transfer',  i:'broker',      code:'transfer'},
+{id:'ajeer',                ar:'عقود أجير',              en:'Ajeer Contracts',       i:'users',       code:'ajeer'},
+{id:'work-cards',           ar:'كروت العمل',             en:'Work Cards',            i:'role'},
+// — الالتزام والتوطين —
+{id:'saudization',          ar:'السعودة',                en:'Saudization',           i:'chart',       code:'saudization'},
+{id:'gosi-salaries',        ar:'رواتب التأمينات',        en:'GOSI Salaries',         i:'payment'},
+{id:'wps-mudad',            ar:'حماية الأجور',           en:'WPS (Mudad)',           i:'invoice'},
+{id:'zatca',                ar:'الزكاة والدخل',          en:'ZATCA',                 i:'invoice'},
+{id:'violations-fees',      ar:'المخالفات والرسوم',      en:'Violations & Fees',     i:'alert'},
+// — مالية وإدارية —
+{id:'financials',           ar:'القوائم المالية',        en:'Financial Statements',  i:'chart'},
+{id:'documents',            ar:'استخراج الوثائق',        en:'Document Issuance',      i:'notes'},
+{id:'subscriptions',        ar:'الاشتراكات والتجديدات',   en:'Subscriptions & Renewals',i:'calendar'},
+{id:'general',              ar:'عام',                    en:'General',               i:'transaction', code:'general'},
+]
+
 function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState('home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),2500)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[emailConfirmStep,setEmailConfirmStep]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[profilePerf,setProfilePerf]=useState(null);const[profileAtt,setProfileAtt]=useState([]);const[profileTasks,setProfileTasks]=useState([]);const[profileSalary,setProfileSalary]=useState([]);const[profileLoans,setProfileLoans]=useState([]);const[profileLogins,setProfileLogins]=useState([]);const[stats,setStats]=useState(null);const[showUserMenu,setShowUserMenu]=useState(false);useEffect(()=>{document.documentElement.setAttribute('data-theme','dark');localStorage.setItem('jisr_theme','dark');const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content','#171717');document.body.style.background='#171717'},[]);
 // Pull service-admin config (pricing minimums, overrides, etc.) from system_settings on login —
 // otherwise pages that read these synchronously from localStorage (ServiceRequestPage, InvoicePage…)
@@ -674,6 +710,7 @@ const[subCrumbs,setSubCrumbs]=useState([]);
 useEffect(()=>{const handler=(e)=>setSubCrumbs(Array.isArray(e.detail)?e.detail:[]);window.addEventListener('topbar-breadcrumbs',handler);return()=>window.removeEventListener('topbar-breadcrumbs',handler)},[]);
 useEffect(()=>{const handler=(e)=>{setPg('sync_hub');setTimeout(()=>window.dispatchEvent(new CustomEvent('sync-focus-source',{detail:e.detail})),50)};window.addEventListener('app-navigate-sync',handler);return()=>window.removeEventListener('app-navigate-sync',handler)},[]);
 useEffect(()=>{const handler=(e)=>{setPg('invoices');setTimeout(()=>window.dispatchEvent(new CustomEvent('invoice-open',{detail:e.detail})),80)};window.addEventListener('app-navigate-invoice',handler);return()=>window.removeEventListener('app-navigate-invoice',handler)},[]);
+useEffect(()=>{const handler=()=>setPg('payments');window.addEventListener('app-navigate-payments',handler);return()=>window.removeEventListener('app-navigate-payments',handler)},[]);
 useEffect(()=>{const natId=user?.person?.nationality_id;if(!sb||!natId)return;sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').eq('id',natId).maybeSingle().then(({data})=>{if(data)setNatCache(data)})},[sb,user?.person?.nationality_id]);
 const[visibility,setVisibility]=useState(()=>getVisibility());
 const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visibility',JSON.stringify(cfg))};
@@ -688,7 +725,7 @@ const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matc
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
 useEffect(()=>{const h=e=>{e.preventDefault();setInstallPrompt(e);if(!isStandalone&&!localStorage.getItem('jisr_install_dismissed'))setShowInstallBanner(true)};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h)},[isStandalone]);
-const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',finance_hub:'invoices',transactions_hub:'tx_transfer',admin_hub:'admin_offices',settings:'settings_general'};// Pages with inner hash routing land on this canonical hash so they reset
+const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',finance_hub:'invoices',transactions_hub:'sbc',admin_hub:'admin_offices',settings:'settings_general'};// Pages with inner hash routing land on this canonical hash so they reset
 // to their list/home view.
 const pageHashes={};
 // Bumped when the user taps a sidebar entry while already on that page.
@@ -715,8 +752,8 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'}],
-  transactions_hub:TX_TYPES.map(t=>({id:t.id,l:T(t.ar,t.en),i:t.i})),
-  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_clients',l:T('العملاء','Clients'),i:'client'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'role'},{id:'admin_services',l:T('إدارة الخدمات','Services'),i:'settings'},{id:'admin_permissions',l:T('المستخدمين','Users'),i:'role'}],
+  transactions_hub:TXN_SECTIONS.map(t=>({id:t.id,l:T(t.ar,t.en),i:t.i})),
+  admin_hub:[{id:'admin_transactions',l:T('المعاملات','Transactions'),i:'transaction'},{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_clients',l:T('العملاء','Clients'),i:'client'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'role'},{id:'admin_services',l:T('الخدمات','Services'),i:'settings'},{id:'admin_permissions',l:T('المستخدمين','Users'),i:'role'}],
   settings:[{id:'settings_general',l:T('الإعدادات العامة','General Settings'),i:'settings'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
@@ -1163,8 +1200,11 @@ return<div><div>
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='deposits'&&<DepositsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
-{TX_TYPES.filter(t=>t.id===pg).map(t=><TransactionsPage key={t.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={t.code} lockedLabel={T(t.ar,t.en)}/>)}
+{pg==='sbc'&&<SbcCenterPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{TXN_SECTIONS.filter(s=>s.code&&s.id===pg).map(s=><TransactionsPage key={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)}/>)}
+{TXN_SECTIONS.filter(s=>!s.code&&!s.page&&s.id===pg).map(s=><SectionStub key={s.id} title={T(s.ar,s.en)} lang={lang}/>)}
 {/* الإدارة */}
+{pg==='admin_transactions'&&<DepartmentsPage lang={lang} user={user}/>}
 {pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_clients'&&<ClientsPage sb={sb} user={user} toast={tt} lang={lang}/>}
 {pg==='admin_agents'&&<AgentsPage sb={sb} user={user} toast={tt} lang={lang}/>}

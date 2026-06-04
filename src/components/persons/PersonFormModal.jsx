@@ -7,7 +7,7 @@ const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
 
 // Shared input style — borderless, uses subtle inset shadow instead
-const sF = {
+export const sF = {
   width: '100%', height: 42, padding: '0 14px',
   border: '1px solid transparent', borderRadius: 9,
   fontFamily: F, fontSize: 13, fontWeight: 600,
@@ -18,7 +18,7 @@ const sF = {
 }
 
 // Label component — identical to KafalaCalculator's Lbl
-const Lbl = ({ children, req }) => (
+export const Lbl = ({ children, req }) => (
   <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>
     {children}{req && <span style={{ color: C.red }}> *</span>}
   </div>
@@ -31,7 +31,7 @@ const countWords = s => String(s || '').trim().split(/\s+/).filter(Boolean).leng
 
 // Calendar constants (matches KafalaCalculator's DateField)
 const MONTH_NAMES_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
-const DAY_ABBR_AR = ['أحد','اثن','ثلا','أرب','خمي','جمع','سبت']
+const DAY_ABBR_AR = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
 const pad2 = n => String(n).padStart(2, '0')
 const fmtCalendarDate = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`
 
@@ -96,7 +96,7 @@ const CalendarPopup = ({ value, onPick, onClose, anchor }) => {
 }
 
 // DateField — single text input (yyyy-mm-dd typable) with a calendar icon that opens CalendarPopup
-const DateField = ({ value, onChange, error }) => {
+export const DateField = ({ value, onChange, error }) => {
   const wrapRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)

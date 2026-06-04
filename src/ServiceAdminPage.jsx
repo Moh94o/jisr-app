@@ -1,7 +1,7 @@
 import React,{useState,useEffect,useRef} from 'react'
 import ReactDOM from 'react-dom'
 import BackButton from './components/BackButton'
-import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,HeartPulse,UserCog,Wallet,Plane,PlaneTakeoff,IdCard,Printer,FileStack,Sparkles,Power,PowerOff,Gift,DollarSign,Edit3,ChevronDown,ChevronUp,X,Calendar as CalendarIcon} from 'lucide-react'
+import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,HeartPulse,UserCog,Wallet,Plane,PlaneTakeoff,IdCard,Printer,FileStack,Sparkles,Power,PowerOff,Gift,DollarSign,Edit3,ChevronDown,ChevronUp,X,Search,Calendar as CalendarIcon} from 'lucide-react'
 import {getSupabase} from './lib/supabase.js'
 import {hydrateSvcAdminFromDb,saveSvcAdminSetting} from './lib/serviceAdminSync.js'
 
@@ -332,9 +332,11 @@ const [overrideEditor,setOverrideEditor]=useState(null)
 const [searchQ,setSearchQ]=useState('')
 const [isPriceEditable,setIsPriceEditable]=useState(false)
 const [priceSnapshot,setPriceSnapshot]=useState(null)
+// When non-null, the pricing editor edits a per-branch override (applied to these branchIds) instead of the global default.
+const [priceBranchCtx,setPriceBranchCtx]=useState(null)
 const startEditPrice=()=>{setPriceSnapshot({...priceState});setIsPriceEditable(true)}
 const cancelEditPrice=()=>{if(priceSnapshot)setPriceState(priceSnapshot);setPriceSnapshot(null);setIsPriceEditable(false)}
-const savePriceAndLock=(id)=>{savePrice(id);setPriceSnapshot(null);setIsPriceEditable(false)}
+const savePriceAndLock=(id)=>{savePrice(id);setPriceSnapshot(null);if(!priceBranchCtx)setIsPriceEditable(false)}
 // Format integer-like value with thousands separators; preserves trailing decimals during typing.
 const fmtThousands=(v)=>{
   if(v===''||v==null)return ''
@@ -378,12 +380,36 @@ const removeBranchOverride=(branchId,svcId)=>{
 }
 const openOverrideEditor=(svcId,branchId=null)=>{
   const existing=branchId?(branchOverrides[branchId]?.[svcId]||{}):{}
+  // Seed the shared pricing editor with the branch's effective values (default + its override).
+  setPriceState((branchId?getPricingFor(svcId,branchId):getPricing(svcId))||{})
+  setPriceBranchCtx({branchIds:branchId?[branchId]:[]})
+  setCollapsed(Object.fromEntries(ALL_KAFALA_SECTIONS.map(t=>[t,true])))
+  setEditing({})
+  setIsPriceEditable(svcId!=='kafala_transfer') // non-kafala: editable inline (its external "تعديل" is hidden in override mode)
   setOverrideEditor({svcId,branchIds:branchId?[branchId]:[],draft:{
     active:existing.active,
     billable:existing.billable,
-    pricing:existing.pricing||{},
   }})
 }
+const closeOverrideEditor=()=>{
+  const svc=overrideEditor?.svcId
+  setOverrideEditor(null)
+  setPriceBranchCtx(null)
+  setEditing({})
+  setIsPriceEditable(false)
+  if(svc)setPriceState(getPricing(svc)||{})
+}
+// Re-seed the shared editor when the selected branch(es) change.
+// Exactly 1 branch → its effective values (edit existing override); 0 or ≥2 → default (applied to all selected).
+useEffect(()=>{
+  if(!overrideEditor)return
+  const ids=overrideEditor.branchIds||[]
+  setPriceBranchCtx({branchIds:ids})
+  setPriceState((ids.length===1?getPricingFor(overrideEditor.svcId,ids[0]):getPricing(overrideEditor.svcId))||{})
+  setEditing({})
+  setIsPriceEditable(overrideEditor.svcId!=='kafala_transfer')
+// eslint-disable-next-line react-hooks/exhaustive-deps
+},[overrideEditor?.branchIds?.join(','),overrideEditor?.svcId])
 
 // Inline override editor — renders inside the per-branch overrides section card
 // (no modal overlay). Active iff overrideEditor.svcId matches the current svc.
@@ -406,24 +432,18 @@ const renderInlineOverrideEditor=(svc)=>{
   const availableBranches=branches.filter(b=>!usedBranchIds.has(b.id))
   const toggleBranch=(id)=>setOverrideEditor(p=>{const cur=p.branchIds||[];const next=cur.includes(id)?cur.filter(x=>x!==id):[...cur,id];return{...p,branchIds:next}})
   const canSave=(overrideEditor.branchIds||[]).length>0
+  // Pricing is saved by the per-section buttons inside renderPriceEditor (→ saveSectionToBranches).
+  // This footer button persists only the active/billable state for the selected branches, then closes.
   const onSave=()=>{
     if(!canSave){toast(T('اختر مكتباً واحداً على الأقل','Pick at least one branch'));return}
-    const patch={}
-    if(typeof draft.active==='boolean'&&draft.active!==baseActive)patch.active=draft.active
-    else patch.active=undefined
-    if(typeof draft.billable==='boolean'&&draft.billable!==baseBillable)patch.billable=draft.billable
-    else patch.billable=undefined
-    const cleanPricing={}
-    Object.entries(draft.pricing||{}).forEach(([k,v])=>{
-      if(v===''||v===null||v===undefined)return
-      const n=typeof v==='string'&&/^\d+(\.\d+)?$/.test(v)?Number(v):v
-      cleanPricing[k]=n
-    })
-    patch.pricing=Object.keys(cleanPricing).length?cleanPricing:undefined
+    const patch={
+      active:(typeof draft.active==='boolean'&&draft.active!==baseActive)?draft.active:undefined,
+      billable:(typeof draft.billable==='boolean'&&draft.billable!==baseBillable)?draft.billable:undefined,
+    }
     overrideEditor.branchIds.forEach(bid=>upsertBranchOverride(bid,svc.id,patch))
     const n=overrideEditor.branchIds.length
     toast(T(n===1?'تم حفظ التخصيص':`تم حفظ التخصيص لـ ${n} مكاتب`,n===1?'Override saved':`Override saved for ${n} branches`))
-    setOverrideEditor(null)
+    closeOverrideEditor()
   }
   const labelS={fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:6,display:'block',textAlign:'right'}
   const compactInp={width:'100%',height:36,padding:'0 12px',border:'1px solid rgba(255,255,255,.07)',borderRadius:9,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',boxSizing:'border-box',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}
@@ -484,106 +504,46 @@ const renderInlineOverrideEditor=(svc)=>{
           {typeof draft.billable==='boolean'&&<button type="button" onClick={()=>setDraft({billable:undefined})} style={{marginInlineStart:8,fontSize:10,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
         </div>
       </div>
-      {/* Pricing — مطابق لتصميم كرت التسعير الافتراضي */}
-      {(()=>{
-        const totalField=sch?.fields?.find(f=>f._footer&&f.k==='defaultTotal')
-        const gridFields=fields
-        if(!totalField&&!gridFields.length)return null
-        return(
-          <div style={{display:'flex',flexDirection:'column',gap:16}}>
-            {/* Hero — override total */}
-            {totalField&&(()=>{
-              const ov=draft.pricing?.[totalField.k]
-              const has=ov!==undefined&&ov!==''
-              const defVal=def[totalField.k]??totalField.d
-              return(
-                <div style={{display:'flex',flexDirection:'column',gap:10,padding:'14px 16px',borderRadius:12,background:'linear-gradient(180deg, rgba(212,160,23,.10) 0%, rgba(212,160,23,.03) 100%)',border:'1px solid rgba(212,160,23,.28)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 10px rgba(0,0,0,.18)'}}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-                    <span style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:12,color:'#fff',fontWeight:700,letterSpacing:'.2px'}}>
-                      <DollarSign size={13} color={C.gold}/>
-                      {totalField.l}
-                    </span>
-                    <div style={{display:'inline-flex',alignItems:'center',gap:6}}>
-                      {has&&<button type="button" onClick={()=>clearPricingField(totalField.k)} title="إزالة التخصيص" style={{fontSize:9,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
-                      <span style={{fontSize:10,color:C.gold,fontWeight:800,padding:'3px 8px',borderRadius:5,background:'rgba(212,160,23,.10)',border:'1px solid rgba(212,160,23,.30)',letterSpacing:'.3px'}}>أساسي</span>
-                    </div>
-                  </div>
-                  <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <input type="text" inputMode="decimal"
-                      value={fmtThousands(ov??'')}
-                      onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPricingField(totalField.k,v)}}
-                      placeholder={fmtThousands(defVal)}
-                      style={{flex:1,height:46,padding:'0 14px',border:`1px solid ${has?C.gold+'66':'rgba(212,160,23,.30)'}`,borderRadius:10,fontFamily:F,fontSize:20,fontWeight:800,color:C.gold,outline:'none',background:'rgba(0,0,0,.28)',textAlign:'center',boxSizing:'border-box',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04)',direction:'ltr',fontVariantNumeric:'tabular-nums',transition:'.18s',letterSpacing:'-.5px'}}/>
-                    <span style={{fontSize:11,color:'var(--tx4)',fontWeight:700,minWidth:60,textAlign:'center'}}>{totalField.sfx}</span>
-                  </div>
-                </div>
-              )
-            })()}
-
-            {/* Note + Vertical fields */}
-            {gridFields.length>0&&(
-              <div style={{display:'flex',flexDirection:'column',gap:10}}>
-                <div style={{display:'flex',alignItems:'center',gap:10}}>
-                  <span style={{fontSize:11,color:'rgba(255,255,255,.7)',fontWeight:700,letterSpacing:'.2px',whiteSpace:'nowrap'}}>{sch?.note||'الحدود الدنيا لدفعات هذا التخصيص'}</span>
-                  <div style={{flex:1,height:1,background:'rgba(255,255,255,.06)'}}/>
-                  <span style={{fontSize:9,color:'var(--tx5)',fontWeight:500,whiteSpace:'nowrap'}}>اترك فارغاً للسعر الافتراضي</span>
-                </div>
-                <div style={{display:'flex',flexDirection:'column'}}>
-                  {gridFields.map((f,idx)=>{
-                    const ov=draft.pricing?.[f.k]
-                    const has=ov!==undefined&&ov!==''
-                    const defVal=def[f.k]??f.d
-                    return(<div key={f.k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'10px 4px',borderTop:idx===0?'none':'1px solid rgba(255,255,255,.04)'}}>
-                      <label style={{display:'flex',alignItems:'center',gap:6,margin:0}}>
-                        <span style={{fontSize:12,fontWeight:500,color:'var(--tx3)'}}>{f.l}</span>
-                        {has&&<button type="button" onClick={()=>clearPricingField(f.k)} title="إزالة التخصيص" style={{fontSize:9,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F,padding:0}}>← الافتراضي</button>}
-                      </label>
-                      <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <input type="text" inputMode="decimal"
-                          value={fmtThousands(ov??'')}
-                          onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPricingField(f.k,v)}}
-                          placeholder={fmtThousands(defVal)}
-                          style={{width:130,height:36,padding:'0 12px',border:`1px solid ${has?C.gold+'66':'rgba(255,255,255,.10)'}`,borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',textAlign:'center',boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}/>
-                        <span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',minWidth:60,textAlign:'center'}}>{f.sfx}</span>
-                      </div>
-                    </div>)
-                  })}
-                </div>
-              </div>
-            )}
+      {/* Pricing — full default-card UI, bound to the selected branch override(s) */}
+      {canSave?(
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:11,color:C.gold,fontWeight:800,letterSpacing:'.2px',whiteSpace:'nowrap'}}>تخصيص التسعير للمكتب المحدد</span>
+            <div style={{flex:1,height:1,background:'rgba(212,160,23,.2)'}}/>
+            <span style={{fontSize:9,color:'var(--tx5)',fontWeight:500,whiteSpace:'nowrap'}}>كل قسم يُحفظ بزره المستقل</span>
           </div>
-        )
-      })()}
+          {(overrideEditor.branchIds||[]).length!==1&&(
+            <div style={{fontSize:10.5,color:'#3483b4',background:'rgba(52,131,180,.07)',border:'1px solid rgba(52,131,180,.25)',padding:'7px 11px',borderRadius:8,fontWeight:600,lineHeight:1.6}}>
+              عند تحديد عدة مكاتب، تُحرَّر القيم انطلاقًا من الافتراضي وتُطبَّق على كل المكاتب المحددة. القيم المطابقة للافتراضي تبقى موروثة (لا تُخزَّن).
+            </div>
+          )}
+          {renderPriceEditor(svc)}
+        </div>
+      ):(
+        <div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'14px 0'}}>اختر مكتباً لعرض وتعديل التسعير</div>
+      )}
       {/* Footer — نفس أزرار كرت التسعير الافتراضي */}
       {(()=>{
-        const ghostBtnStyle=(color,enabled=true)=>({height:42,padding:'0 20px',borderRadius:11,border:`1px solid ${enabled?color+'59':'rgba(255,255,255,.06)'}`,background:'transparent',color:enabled?color:'var(--tx5)',fontFamily:F,fontSize:13,fontWeight:700,cursor:enabled?'pointer':'not-allowed',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'none',transition:'.2s',letterSpacing:'.2px',direction:'rtl'})
-        const onHover=(e,color)=>{e.currentTarget.style.background=`linear-gradient(180deg, ${color}38 0%, ${color}1a 100%)`;e.currentTarget.style.borderColor=`${color}8c`;e.currentTarget.style.boxShadow=`0 2px 10px ${color}30, inset 0 1px 0 rgba(255,255,255,.08)`}
-        const offHover=(e,color)=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor=`${color}59`;e.currentTarget.style.boxShadow='none'}
+        const ghostBtnStyle=(color,enabled=true)=>({height:32,padding:'0 14px',borderRadius:9,border:`1px dashed ${enabled?color+'80':'rgba(255,255,255,.10)'}`,background:'transparent',color:enabled?color:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:700,cursor:enabled?'pointer':'not-allowed',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'none',transition:'background .15s ease, border-color .15s ease',letterSpacing:'.2px',direction:'rtl'})
+        const onHover=(e,color)=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background=`${color}1f`}
+        const offHover=(e,color)=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}
         const singleSelected=(overrideEditor.branchIds||[]).length===1?overrideEditor.branchIds[0]:null
         const hasExisting=singleSelected&&getOverridesForSvc(svc.id).some(o=>o.branchId===singleSelected)
         return(
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.06)',flexWrap:'wrap'}}>
-            <div style={{fontSize:10,color:'var(--tx5)',fontWeight:500}}>القيم الفارغة = استعمال الافتراضي</div>
+            <div style={{fontSize:10,color:'var(--tx5)',fontWeight:500}}>الأسعار تُحفظ بزر كل قسم · القيم المطابقة للافتراضي تبقى موروثة</div>
             <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              {hasExisting&&(
-                <button type="button" onClick={()=>{removeBranchOverride(singleSelected,svc.id);setOverrideEditor(null)}}
-                  onMouseEnter={e=>onHover(e,'#c0392b')} onMouseLeave={e=>offHover(e,'#c0392b')}
-                  style={ghostBtnStyle('#c0392b')}>
-                  <span>حذف التخصيص</span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                </button>
-              )}
-              <button type="button" onClick={()=>setOverrideEditor(null)}
+              <button type="button" onClick={()=>closeOverrideEditor()}
                 onMouseEnter={e=>onHover(e,'#c0392b')} onMouseLeave={e=>offHover(e,'#c0392b')}
                 style={ghostBtnStyle('#c0392b')}>
                 <span>إلغاء</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
               <button type="button" onClick={canSave?onSave:undefined} disabled={!canSave}
                 onMouseEnter={e=>{if(canSave)onHover(e,C.gold)}} onMouseLeave={e=>{if(canSave)offHover(e,C.gold)}}
                 style={ghostBtnStyle(C.gold,canSave)}>
                 <span>حفظ التخصيص</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </button>
             </div>
           </div>
@@ -671,6 +631,7 @@ Object.entries(priceState).forEach(([k,v])=>{
   if(typeof v==='string'&&v!==''&&/^\d+(\.\d+)?$/.test(v))normalized[k]=Number(v)
   else normalized[k]=v
 })
+if(priceBranchCtx){saveSectionToBranches(id,normalized);toast(T('تم حفظ التخصيص','Override saved'));return}
 setPricing(id,normalized)
 setExpanded(null)
 toast(T('تم حفظ التسعير','Pricing saved'))
@@ -689,13 +650,25 @@ const clampField=(f,val)=>{
   if(f.max!=null&&n>f.max)return String(f.max)
   return val
 }
-const renderField=(f,readOnly)=>{
+const renderField=(f,readOnly,big=true)=>{
   const rawVal=priceState[f.k]
   const parts=[]
   if(f.min!=null&&f.min!==0)parts.push(`الأدنى ${f.min}`)
   if(f.max!=null)parts.push(`الأعلى ${f.max}`)
   const hint=parts.length?parts.join(' · '):null
   const roStyle=readOnly?{background:'rgba(255,255,255,.03)',borderColor:'rgba(255,255,255,.04)',color:'rgba(255,255,255,.78)',cursor:'default'}:{}
+  // "Giant number" tile (design 5) — centered label + big gold value + unit. Numeric fields only.
+  if(big&&f.t!=='date'){
+    return(<div key={f.k} style={{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'16px 6px 11px',borderRadius:11,background:'#1e1e1e',border:'1px solid rgba(255,255,255,.06)',textAlign:'center'}}>
+      <span style={{fontSize:10.5,fontWeight:800,color:'rgba(255,255,255,.82)',lineHeight:1.25,maxWidth:'100%'}}>{f.l}</span>
+      <input type="text" inputMode="decimal" className="svc-fee-num" disabled={readOnly} readOnly={readOnly} value={rawVal??''}
+        onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[f.k]:v}))}}
+        onBlur={e=>{const cl=clampField(f,e.target.value); if(cl!==e.target.value)setPriceState(p=>({...p,[f.k]:cl}))}}
+        placeholder={String(f.d)}
+        style={{width:'100%',minWidth:0,border:readOnly?'none':`1px solid ${C.gold}66`,borderRadius:8,background:readOnly?'transparent':'rgba(0,0,0,.3)',color:C.gold,fontFamily:F,fontSize:20,fontWeight:900,textAlign:'center',outline:'none',padding:readOnly?0:'3px 2px',marginTop:1,letterSpacing:'-.5px',fontVariantNumeric:'tabular-nums',direction:'ltr',lineHeight:1,whiteSpace:'nowrap',boxSizing:'border-box'}}/>
+      {f.sfx&&<span style={{fontSize:8.5,fontWeight:700,color:'var(--tx5)'}}>{f.sfx}</span>}
+    </div>)
+  }
   return(<div key={f.k}>
     <label style={lbl}>{f.l}</label>
     <div style={{display:'flex',alignItems:'center',gap:6}}>
@@ -731,15 +704,55 @@ const saveSection=(svcId,fields,label,extraKeys=[])=>{
     else if(v!==undefined)vals[f.k]=v
   })
   extraKeys.forEach(k=>{if(priceState[k]!==undefined)vals[k]=priceState[k]})
+  if(priceBranchCtx){saveSectionToBranches(svcId,vals);toast(T('تم حفظ التخصيص','Override saved'));return}
   setPricing(svcId,vals)
   toast(isAr?`تم حفظ ${label||'القسم'}`:`Saved ${label||'section'}`)
 }
 // Save medical brackets only.
 const saveMedicalBrackets=(svcId)=>{
   const b=Array.isArray(priceState.medicalBrackets)?priceState.medicalBrackets:[]
+  if(priceBranchCtx){saveSectionToBranches(svcId,{medicalBrackets:b});toast(T('تم حفظ التخصيص','Override saved'));return}
   setPricing(svcId,{medicalBrackets:b})
   toast(T('تم حفظ الفئات العمرية','Age brackets saved'))
 }
+// Keep only values that differ from the global default — sparse override preserves inheritance.
+const diffFromDefault=(svcId,vals)=>{
+  const def=getPricing(svcId)||{}
+  const out={}
+  Object.entries(vals||{}).forEach(([k,v])=>{
+    if(k.startsWith('__'))return // transient UI state (search queries)
+    if(v===''||v===undefined||v===null)return // empty = inherit default
+    const dv=def[k]
+    const eq=(Array.isArray(v)||Array.isArray(dv))?JSON.stringify(v)===JSON.stringify(dv):String(v)===String(dv??'')
+    if(!eq)out[k]=v
+  })
+  return out
+}
+// Merge a section's values into each selected branch's pricing override (diffed vs default).
+const saveSectionToBranches=(svcId,sectionVals)=>{
+  const ids=priceBranchCtx?.branchIds||[]
+  if(!ids.length)return
+  setBranchOverridesState(p=>{
+    const next={...p}
+    ids.forEach(bid=>{
+      next[bid]={...(next[bid]||{})}
+      const cur=next[bid][svcId]||{}
+      const pricing=diffFromDefault(svcId,{...(cur.pricing||{}),...sectionVals})
+      const merged={...cur}
+      if(Object.keys(pricing).length)merged.pricing=pricing; else delete merged.pricing
+      Object.keys(merged).forEach(k=>{if(merged[k]===undefined||merged[k]===null)delete merged[k]})
+      if(Object.keys(merged).length===0)delete next[bid][svcId]; else next[bid][svcId]=merged
+      if(Object.keys(next[bid]||{}).length===0)delete next[bid]
+    })
+    return next
+  })
+}
+// Shared shell for each pricing section card — "thick gold spine" look (design 2):
+// dark gradient body with a thick gold bar on the inline-end edge + asymmetric corners.
+const secCardProps=(isCol)=>(isCol
+  ? {style:{position:'relative',display:'flex',flexDirection:'column',gap:6,padding:'7px 12px',borderRadius:'7px 12px 12px 7px',background:'rgba(255,255,255,.022)',border:'1px solid rgba(255,255,255,.06)',borderInlineEnd:'4px solid rgba(212,160,23,.55)',transition:'.18s'}}
+  : {style:{position:'relative',display:'flex',flexDirection:'column',gap:11,padding:'16px 16px 16px 14px',borderRadius:'7px 16px 16px 7px',background:'linear-gradient(180deg,#242424 0%,#191919 100%)',border:'1px solid rgba(255,255,255,.05)',borderInlineEnd:'6px solid #D4A017',boxShadow:'0 8px 22px rgba(0,0,0,.34)',transition:'.18s'}}
+)
 const SectionHead=({title,badge,isCollapsed,onToggle})=>(
   <div onClick={onToggle} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 8px',marginBottom:2,cursor:'pointer',userSelect:'none'}}>
     <span style={{fontSize:isCollapsed?12:13,fontWeight:600,color:C.gold,display:'inline-flex',alignItems:'center',gap:8,transition:'font-size .15s',letterSpacing:'-.2px'}}>
@@ -802,7 +815,7 @@ const isKafala=s.id==='kafala_transfer'
 const secHead={fontSize:11,fontWeight:800,color:C.gold,padding:'4px 8px',borderRight:`2px solid ${C.gold}55`,marginBottom:2}
 const secNote={fontSize:10,color:'rgba(255,255,255,.5)',marginBottom:6,paddingRight:12}
 return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'column',gap:22}}>
-<style>{`.svc-admin-pricing input:focus, .svc-admin-pricing input:not(:placeholder-shown):not([type=checkbox]):not([type=radio]) { border-color: rgba(255,255,255,.08)!important }`}</style>
+<style>{`.svc-admin-pricing input:focus, .svc-admin-pricing input:not(:placeholder-shown):not([type=checkbox]):not([type=radio]) { border-color: rgba(255,255,255,.08)!important } .svc-admin-pricing input.svc-fee-num { font-size:20px!important } .svc-admin-pricing input.svc-fee-num:disabled:not([type=checkbox]):not([type=radio]), .svc-admin-pricing input.svc-fee-num:read-only:not([type=checkbox]):not([type=radio]) { border-color:transparent!important } .svc-occ-search-ico{color:var(--tx4);transition:.2s} .svc-occ-search:focus-within .svc-occ-search-ico{color:#D4A017} .svc-admin-pricing .svc-occ-search:focus-within input:not([type=checkbox]):not([type=radio]){border-color:rgba(212,160,23,.6)!important} .svc-occ-list{scrollbar-width:none;-ms-overflow-style:none} .svc-occ-list::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
 {sch.note&&!isKafala&&!sch.fields.some(f=>f._footer)&&<div style={{fontSize:10,color:'rgba(255,255,255,.55)',background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)',padding:'6px 10px',borderRadius:6,fontWeight:600}}>ℹ {sch.note}</div>}
 {isKafala
   ? <>
@@ -831,7 +844,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
         }
         const isCol=!!collapsed[sec.title]
         const isEdit=!!editing[sec.title]
-        return(<div key={sec.title} style={{position:'relative',display:'flex',flexDirection:'column',gap:6,padding:isCol?'6px 10px':'14px 12px 12px',borderRadius:10,background:'rgba(255,255,255,.015)',border:`1px solid ${isCol?'rgba(255,255,255,.05)':'rgba(212,160,23,.35)'}`,transition:'.18s'}}>
+        return(<div key={sec.title} {...secCardProps(isCol)}>
           {!isCol&&!isEdit&&<EditTab onClick={()=>startEdit(sec.title)}/>}
           {!isCol&&isEdit&&<EditActionTabs onSave={()=>{const extras=sec.title==='رسوم تغيير المهنة'?['profChangeFreeOccupations']:sec.title==='رسوم نقل الكفالة'?['transferBumpOccupations']:[];saveSection(s.id,sec.fields,sec.title,extras);finishEdit(sec.title)}} onCancel={()=>cancelEdit(sec.title)}/>}
           <SectionHead title={sec.title} isEditing={isEdit} isCollapsed={isCol} onToggle={()=>toggleSection(sec.title)}/>
@@ -847,22 +860,15 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
                       {sec.fields.map(f=>{
                         const rawVal=priceState[f.k]
-                        return(<div key={f.k} style={{display:'flex',flexDirection:'column',gap:6,padding:'10px 10px 9px',borderRadius:9,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)'}}>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <span style={{width:26,height:26,borderRadius:'50%',background:'rgba(212,160,23,.12)',border:`1px solid ${C.gold}55`,color:C.gold,fontFamily:F,fontSize:11,fontWeight:800,display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0,direction:'ltr'}}>{f.badge}</span>
-                            <div style={{display:'flex',flexDirection:'column',minWidth:0}}>
-                              <span style={{fontSize:11,fontWeight:800,color:'rgba(255,255,255,.82)',lineHeight:1.2}}>{f.l}</span>
-                              <span style={{fontSize:9.5,fontWeight:700,color:'rgba(255,255,255,.4)',lineHeight:1.3,marginTop:2}}>{f.hint}</span>
-                            </div>
-                          </div>
-                          <div style={{display:'flex',alignItems:'center',gap:5}}>
-                            <input type="text" inputMode="decimal" disabled={!isEdit} readOnly={!isEdit}
-                              value={rawVal??''}
-                              onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[f.k]:v}))}}
-                              placeholder={String(f.d)}
-                              style={{...inpS,flex:1,...(isEdit?{}:{background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.04)',color:'rgba(255,255,255,.78)',cursor:'default'})}}/>
-                            <span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',flexShrink:0}}>{f.sfx}</span>
-                          </div>
+                        return(<div key={f.k} style={{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'18px 6px 11px',borderRadius:11,background:'#1e1e1e',border:'1px solid rgba(255,255,255,.06)',textAlign:'center'}}>
+                          <span style={{position:'absolute',top:7,insetInlineStart:7,minWidth:18,height:18,padding:'0 4px',borderRadius:9,background:C.gold,color:'#1a1400',fontFamily:F,fontSize:8.5,fontWeight:900,display:'inline-flex',alignItems:'center',justifyContent:'center',direction:'ltr'}}>{f.badge}</span>
+                          <span style={{fontSize:10.5,fontWeight:800,color:'rgba(255,255,255,.82)',lineHeight:1.25,maxWidth:'100%'}}>{f.l}</span>
+                          <input type="text" inputMode="decimal" className="svc-fee-num" disabled={!isEdit} readOnly={!isEdit}
+                            value={rawVal??''}
+                            onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[f.k]:v}))}}
+                            placeholder={String(f.d)}
+                            style={{width:'100%',minWidth:0,border:isEdit?`1px solid ${C.gold}66`:'none',borderRadius:8,background:isEdit?'rgba(0,0,0,.3)':'transparent',color:C.gold,fontFamily:F,fontSize:20,fontWeight:900,textAlign:'center',outline:'none',padding:isEdit?'3px 2px':0,marginTop:1,letterSpacing:'-.5px',fontVariantNumeric:'tabular-nums',direction:'ltr',lineHeight:1,whiteSpace:'nowrap',boxSizing:'border-box'}}/>
+                          <span style={{fontSize:8.5,fontWeight:700,color:'var(--tx5)'}}>{f.sfx}</span>
                         </div>)
                       })}
                     </div>
@@ -878,8 +884,11 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                         const setQ=v=>setPriceState(p=>({...p,__bumpQuery:v}))
                         const filtered=occupations.filter(o=>!bumpSet.has(o.id)&&(q?((o.name_ar||'').includes(q)||(o.name_en||'').toLowerCase().includes(q.toLowerCase())):true))
                         return(<div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                          <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder={`ابحث بالاسم (${occupations.length} مهنة متاحة)…`} style={{...inpS,height:34,textAlign:'right',direction:'rtl'}}/>
-                          <div style={{maxHeight:220,overflowY:'auto',border:'1px solid rgba(255,255,255,.06)',borderRadius:7,background:'rgba(0,0,0,.25)'}}>
+                          <div className="svc-occ-search" style={{position:'relative'}}>
+                            <Search size={15} strokeWidth={2.2} className="svc-occ-search-ico" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none'}}/>
+                            <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder={`ابحث بالاسم (${occupations.length} مهنة متاحة)…`} style={{...inpS,height:38,textAlign:'right',direction:'rtl',paddingLeft:40,paddingRight:14,background:'rgba(0,0,0,.3)'}}/>
+                          </div>
+                          <div className="svc-occ-list" style={{maxHeight:220,overflowY:'auto',border:'1px solid rgba(255,255,255,.06)',borderRadius:7,background:'rgba(0,0,0,.25)'}}>
                             {filtered.length>0?filtered.slice(0,300).map(o=>(
                               <div key={o.id} onClick={()=>setPriceState(p=>({...p,transferBumpOccupations:[...bumpIds,o.id]}))} style={{padding:'7px 10px',cursor:'pointer',fontSize:11.5,fontWeight:700,color:'var(--tx)',borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(52,131,180,.08)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>
                                 <span>{o.name_ar}</span>
@@ -924,7 +933,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                       <div style={{fontSize:10.5,color:'rgba(255,255,255,.65)',lineHeight:1.7,paddingRight:28}}>{formula}</div>
                       <div style={{fontSize:10.5,color:'#3483b4',background:'rgba(52,131,180,.07)',border:'1px solid rgba(52,131,180,.25)',padding:'6px 10px',borderRadius:6,fontWeight:600}}>{example}</div>
                       <div style={{display:'grid',gridTemplateColumns:fields.length>=2?'1fr 1fr':'1fr',gap:8,marginTop:4,paddingTop:6,borderTop:'1px dashed rgba(255,255,255,.06)'}}>
-                        {fields.map(f=>renderField(f,!isEdit))}
+                        {fields.map(f=>renderField(f,!isEdit,true))}
                       </div>
                     </div>
                   )
@@ -940,8 +949,8 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                         <br/><b>الحد الأدنى للمتبقي لإتاحة «نقل فقط»</b>: إذا كان المتبقي في الإقامة أقل من <b>{transferMin} يوم</b> أو منتهية ← يُخفى زر «نقل فقط» ويُفرض اختيار فترة تجديد.
                       </div>
                       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:2}}>
-                        {renderField(fGrace,!isEdit)}
-                        {renderField(fTransferMin,!isEdit)}
+                        {renderField(fGrace,!isEdit,true)}
+                        {renderField(fTransferMin,!isEdit,true)}
                       </div>
                     </div>
                     {caseBox(1,'إقامة سارية — بعيدة عن الانتهاء',
@@ -1058,8 +1067,11 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                         const setQ=v=>setPriceState(p=>({...p,__profChangeFreeQuery:v}))
                         const filtered=occupations.filter(o=>!selectedSet.has(o.id)&&(q?((o.name_ar||'').includes(q)||(o.name_en||'').toLowerCase().includes(q.toLowerCase())):true))
                         return(<div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                          <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder={`ابحث بالاسم (${occupations.length} مهنة متاحة)…`} style={{...inpS,height:34,textAlign:'right',direction:'rtl'}}/>
-                          <div style={{maxHeight:220,overflowY:'auto',border:'1px solid rgba(255,255,255,.06)',borderRadius:7,background:'rgba(0,0,0,.25)'}}>
+                          <div className="svc-occ-search" style={{position:'relative'}}>
+                            <Search size={15} strokeWidth={2.2} className="svc-occ-search-ico" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none'}}/>
+                            <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder={`ابحث بالاسم (${occupations.length} مهنة متاحة)…`} style={{...inpS,height:38,textAlign:'right',direction:'rtl',paddingLeft:40,paddingRight:14,background:'rgba(0,0,0,.3)'}}/>
+                          </div>
+                          <div className="svc-occ-list" style={{maxHeight:220,overflowY:'auto',border:'1px solid rgba(255,255,255,.06)',borderRadius:7,background:'rgba(0,0,0,.25)'}}>
                             {filtered.length>0?filtered.slice(0,300).map(o=>(
                               <div key={o.id} onClick={()=>setPriceState(p=>({...p,profChangeFreeOccupations:[...selectedIds,o.id]}))} style={{padding:'7px 10px',cursor:'pointer',fontSize:11.5,fontWeight:700,color:'var(--tx)',borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(39,160,70,.08)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>
                                 <span>{o.name_ar}</span>
@@ -1118,7 +1130,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
           </div>
         )
         return(
-          <div style={{position:'relative',display:'flex',flexDirection:'column',gap:6,padding:isCol?'6px 10px':'14px 12px 12px',borderRadius:10,background:'rgba(255,255,255,.015)',border:`1px solid ${isCol?'rgba(255,255,255,.05)':'rgba(212,160,23,.35)'}`,transition:'.18s'}}>
+          <div {...secCardProps(isCol)}>
             {!isCol&&!isEdit&&<EditTab onClick={()=>startEdit(title)}/>}
             {!isCol&&isEdit&&<EditActionTabs onSave={()=>{saveSection(s.id,allFields,title);finishEdit(title)}} onCancel={()=>cancelEdit(title)}/>}
             <SectionHead title={title} isEditing={isEdit} isCollapsed={isCol} onToggle={()=>toggleSection(title)}/>
@@ -1172,7 +1184,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
           </div>
         )
         return(
-          <div style={{position:'relative',display:'flex',flexDirection:'column',gap:6,padding:isCol?'6px 10px':'14px 12px 12px',borderRadius:10,background:'rgba(255,255,255,.015)',border:`1px solid ${isCol?'rgba(255,255,255,.05)':'rgba(212,160,23,.35)'}`,transition:'.18s'}}>
+          <div {...secCardProps(isCol)}>
             {!isCol&&!isEdit&&<EditTab onClick={()=>startEdit(title)}/>}
             {!isCol&&isEdit&&<EditActionTabs onSave={()=>{saveSection(s.id,medFields,title);saveMedicalBrackets(s.id);finishEdit(title)}} onCancel={()=>cancelEdit(title)}/>}
             <SectionHead title={title} isEditing={isEdit} isCollapsed={isCol} onToggle={()=>toggleSection(title)}/>
@@ -1190,35 +1202,45 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                 {caseBox(2,'تأمين غير ساري — احتساب حسب الفئة العمرية',
                   `تُحتسب الرسوم من تاريخ ميلاد العامل بناء على جدول الفئات العمرية أدناه.`,
                   sample?`مثال: عمر 35 سنة ← فئة ${sample.min}-${sample.max} = ${fmtNum(sample.rate)} ريال`:'أضِف فئات عمرية للاحتساب',
-                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
                     {brackets.length===0&&<div style={{fontSize:10.5,color:'var(--tx5)',textAlign:'center',padding:'10px 0'}}>لا توجد فئات عمرية — {isEdit?'اضغط «إضافة فئة» أدناه':'ادخل وضع التعديل لإضافة فئات'}</div>}
-                    {brackets.map((b,i)=>{
-                      const ageRange=`${b.min??'—'}-${b.max??'—'} سنة`
-                      return(<div key={i} style={{display:'grid',gridTemplateColumns:isEdit?'70px 1fr 1fr 1fr auto':'100px 1fr',gap:8,alignItems:'center',padding:'6px 8px',borderRadius:7,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.05)'}}>
-                        <span style={{fontSize:10.5,fontWeight:800,color:C.gold,background:'rgba(212,160,23,.12)',border:`1px solid ${C.gold}55`,borderRadius:999,padding:'3px 8px',textAlign:'center',whiteSpace:'nowrap',direction:isEdit?'ltr':'rtl'}}>{isEdit?`#${i+1}`:ageRange}</span>
-                        {isEdit?<>
+                    {isEdit?<>
+                      {brackets.map((b,i)=>(
+                        <div key={i} style={{display:'grid',gridTemplateColumns:'70px 1fr 1fr 1fr auto',gap:8,alignItems:'center',padding:'6px 8px',borderRadius:7,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.05)'}}>
+                          <span style={{fontSize:10.5,fontWeight:800,color:C.gold,background:'rgba(212,160,23,.12)',border:`1px solid ${C.gold}55`,borderRadius:999,padding:'3px 8px',textAlign:'center',whiteSpace:'nowrap',direction:'ltr'}}>{`#${i+1}`}</span>
                           <div>
                             <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,.45)',marginBottom:3,textAlign:'center'}}>من عمر</div>
-                            <input type="text" inputMode="numeric" value={b.min??''} onChange={e=>updateBracket(i,'min',e.target.value===''?'':Number(e.target.value.replace(/[^0-9]/g,'')))} placeholder="20" style={{...inpS,height:32,fontSize:12}}/>
+                            <input type="text" inputMode="numeric" value={b.min??''} onChange={e=>updateBracket(i,'min',e.target.value===''?'':Number(e.target.value.replace(/[^0-9]/g,'')))} placeholder="20" style={{...inpS,height:32,fontSize:12,background:'rgba(0,0,0,.3)'}}/>
                           </div>
                           <div>
                             <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,.45)',marginBottom:3,textAlign:'center'}}>إلى عمر</div>
-                            <input type="text" inputMode="numeric" value={b.max??''} onChange={e=>updateBracket(i,'max',e.target.value===''?'':Number(e.target.value.replace(/[^0-9]/g,'')))} placeholder="30" style={{...inpS,height:32,fontSize:12}}/>
+                            <input type="text" inputMode="numeric" value={b.max??''} onChange={e=>updateBracket(i,'max',e.target.value===''?'':Number(e.target.value.replace(/[^0-9]/g,'')))} placeholder="30" style={{...inpS,height:32,fontSize:12,background:'rgba(0,0,0,.3)'}}/>
                           </div>
                           <div>
                             <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,.45)',marginBottom:3,textAlign:'center'}}>السعر (ريال)</div>
-                            <input type="text" inputMode="decimal" value={b.rate??''} onChange={e=>updateBracket(i,'rate',e.target.value===''?'':Number(e.target.value.replace(/[^0-9.]/g,'')))} placeholder="400" style={{...inpS,height:32,fontSize:12}}/>
+                            <input type="text" inputMode="decimal" value={b.rate??''} onChange={e=>updateBracket(i,'rate',e.target.value===''?'':Number(e.target.value.replace(/[^0-9.]/g,'')))} placeholder="400" style={{...inpS,height:32,fontSize:12,background:'rgba(0,0,0,.3)'}}/>
                           </div>
                           <button type="button" onClick={()=>removeBracket(i)} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.25)',background:'rgba(192,57,43,.08)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0,alignSelf:'end'}} title="حذف الفئة">
                             <X size={12} strokeWidth={2.5}/>
                           </button>
-                        </>:<span style={{fontSize:12,fontWeight:800,color:'var(--tx)',textAlign:'start',display:'inline-flex',alignItems:'baseline',gap:5}}><span style={{direction:'ltr'}}>{fmtNum(b.rate)}</span><span style={{fontSize:10,fontWeight:700,color:'var(--tx5)'}}>ريال</span></span>}
-                      </div>)
-                    })}
-                    {isEdit&&<button type="button" onClick={addBracket} style={{height:32,marginTop:2,borderRadius:8,border:'1px dashed rgba(212,160,23,.35)',background:'transparent',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5}}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      <span>إضافة فئة عمرية</span>
-                    </button>}
+                        </div>
+                      ))}
+                      <button type="button" onClick={addBracket} style={{height:32,marginTop:2,borderRadius:8,border:'1px dashed rgba(212,160,23,.35)',background:'transparent',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>إضافة فئة عمرية</span>
+                      </button>
+                    </>:(
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+                        {brackets.map((b,i)=>{
+                          const ageRange=`${b.min??'—'}-${b.max??'—'} سنة`
+                          return(<div key={i} style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,padding:'14px 6px 11px',borderRadius:11,background:'#1e1e1e',border:'1px solid rgba(255,255,255,.06)',textAlign:'center'}}>
+                            <span style={{fontSize:10,fontWeight:800,color:C.gold,background:'rgba(212,160,23,.12)',border:`1px solid ${C.gold}55`,borderRadius:999,padding:'2px 8px',whiteSpace:'nowrap',direction:'rtl'}}>{ageRange}</span>
+                            <span style={{fontSize:20,fontWeight:900,color:C.gold,fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px',direction:'ltr',lineHeight:1,marginTop:2}}>{fmtNum(b.rate)}</span>
+                            <span style={{fontSize:8.5,fontWeight:700,color:'var(--tx5)'}}>ريال</span>
+                          </div>)
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1232,33 +1254,37 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
       const gridFields=sch.fields.filter(f=>!f._footer)
       if(totalField){
         const tv=priceState[totalField.k]
+        const onPriceChange=e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[totalField.k]:v}))}
+        const heroUnit=<span style={{fontSize:12,color:'var(--tx4)',fontWeight:700,minWidth:64,textAlign:'center'}}>{totalField.sfx}</span>
+        const heroValue=(fs,h,align)=>isPriceEditable
+          ?<input type="text" inputMode="decimal" value={fmtThousands(tv??'')} onChange={onPriceChange} placeholder={String(totalField.d)}
+            style={{flex:1,minWidth:0,height:h,padding:'0 14px',border:'1px solid rgba(212,160,23,.35)',borderRadius:11,fontFamily:F,fontSize:Math.min(fs,22),fontWeight:800,color:C.gold,outline:'none',background:'rgba(0,0,0,.30)',textAlign:align==='start'?'left':align,boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}/>
+          :<div style={{flex:1,minWidth:0,height:h,display:'flex',alignItems:'center',justifyContent:align==='center'?'center':align==='start'?'flex-start':'flex-end',fontSize:fs,fontWeight:800,color:C.gold,fontVariantNumeric:'tabular-nums',direction:'ltr',letterSpacing:'-.5px'}}>{fmtThousands(tv??totalField.d)}</div>
+        const minOnChange=(k)=>e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[k]:v}))}
+        const minInput=(f,fs,wide)=><input type="text" inputMode="decimal" value={fmtThousands(priceState[f.k]??'')} onChange={minOnChange(f.k)} placeholder={String(f.d)} style={{...(wide?{flex:1,minWidth:0}:{width:140}),height:40,padding:'0 14px',border:'1px solid rgba(212,160,23,.35)',borderRadius:11,fontFamily:F,fontSize:15,fontWeight:800,color:C.gold,outline:'none',background:'rgba(0,0,0,.30)',textAlign:'center',boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}/>
+        const minNum=(f,fs,color)=><span style={{fontSize:fs,fontWeight:fs>=16?800:700,color:color||'var(--tx)',fontVariantNumeric:'tabular-nums',direction:'ltr'}}>{fmtThousands(priceState[f.k]??f.d)}</span>
+        const renderMinimums=()=>(
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {gridFields.map(f=>(
+              <div key={f.k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'10px 14px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.06)'}}>
+                <label style={{fontSize:12,fontWeight:600,color:'var(--tx3)',margin:0}}>{f.l}</label>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>{isPriceEditable?minInput(f,13,false):minNum(f,14,C.gold)}<span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',minWidth:60,textAlign:'center'}}>{f.sfx}</span></div>
+              </div>
+            ))}
+          </div>
+        )
         return <div style={{display:'flex',flexDirection:'column',gap:18}}>
-          {/* Hero — default total at top */}
-          <div style={{display:'flex',flexDirection:'column',gap:10,padding:'16px 18px',borderRadius:13,background:'linear-gradient(180deg, rgba(212,160,23,.10) 0%, rgba(212,160,23,.03) 100%)',border:'1px solid rgba(212,160,23,.28)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 10px rgba(0,0,0,.18)'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-              <span style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#fff',fontWeight:700,letterSpacing:'.2px'}}>
-                <DollarSign size={14} color={C.gold}/>
-                {totalField.l}
-              </span>
-              <span style={{fontSize:10,color:C.gold,fontWeight:800,padding:'3px 8px',borderRadius:5,background:'rgba(212,160,23,.10)',border:'1px solid rgba(212,160,23,.30)',letterSpacing:'.3px'}}>أساسي</span>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              {isPriceEditable?(
-                <input type="text" inputMode="decimal"
-                  value={fmtThousands(tv??'')}
-                  onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[totalField.k]:v}))}}
-                  placeholder={String(totalField.d)}
-                  style={{flex:1,height:50,padding:'0 16px',border:'1px solid rgba(212,160,23,.35)',borderRadius:11,fontFamily:F,fontSize:22,fontWeight:800,color:C.gold,outline:'none',background:'rgba(0,0,0,.30)',textAlign:'center',boxSizing:'border-box',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04)',direction:'ltr',fontVariantNumeric:'tabular-nums',transition:'.18s',letterSpacing:'-.5px'}}/>
-              ):(
-                <div style={{flex:1,height:50,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,fontWeight:800,color:C.gold,fontVariantNumeric:'tabular-nums',direction:'ltr',letterSpacing:'-.5px'}}>
-                  {fmtThousands(tv??totalField.d)}
-                </div>
-              )}
-              <span style={{fontSize:12,color:'var(--tx4)',fontWeight:700,minWidth:64,textAlign:'center'}}>{totalField.sfx}</span>
+          {/* Hero — default total (accent-rail design) */}
+          <div style={{display:'flex',borderRadius:11,overflow:'hidden',background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.06)'}}>
+            <div style={{width:5,background:`linear-gradient(180deg,${C.gold},${C.gold}88)`,flexShrink:0}}/>
+            <div style={{flex:1,minWidth:0,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
+              <span style={{fontSize:13.5,color:'var(--tx2)',fontWeight:700,letterSpacing:'.3px'}}>{totalField.l}</span>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>{heroValue(30,46,'start')}{heroUnit}</div>
             </div>
           </div>
 
-          {/* Minimums section — note + stacked fields */}
+          {/* Minimums section — note + boxed fields (only when there are fields) */}
+          {gridFields.length>0&&(
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             {sch.note&&(
               <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -1266,29 +1292,9 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                 <div style={{flex:1,height:1,background:'rgba(255,255,255,.06)'}}/>
               </div>
             )}
-            <div style={{display:'flex',flexDirection:'column'}}>
-              {gridFields.map((f,idx)=>{
-                const rv=priceState[f.k]
-                return(<div key={f.k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'12px 4px',borderTop:idx===0?'none':'1px solid rgba(255,255,255,.04)'}}>
-                  <label style={{fontSize:12,fontWeight:500,color:'var(--tx3)',margin:0}}>{f.l}</label>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    {isPriceEditable?(
-                      <input type="text" inputMode="decimal"
-                        value={fmtThousands(rv??'')}
-                        onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[f.k]:v}))}}
-                        placeholder={String(f.d)}
-                        style={{width:130,height:36,padding:'0 12px',border:'1px solid rgba(255,255,255,.10)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',textAlign:'center',boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}/>
-                    ):(
-                      <span style={{minWidth:130,fontSize:14,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums',direction:'ltr',textAlign:'center'}}>
-                        {fmtThousands(rv??f.d)}
-                      </span>
-                    )}
-                    <span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',minWidth:60,textAlign:'center'}}>{f.sfx}</span>
-                  </div>
-                </div>)
-              })}
-            </div>
+            {renderMinimums()}
           </div>
+          )}
         </div>
       }
       return <div style={{display:'grid',gridTemplateColumns:gridFields.length>=3?'1fr 1fr':'1fr',gap:10}}>
@@ -1297,35 +1303,28 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
     })()
 }
 {(() => {
-  const ghostBtnStyle=(color)=>({height:42,padding:'0 20px',borderRadius:11,border:`1px solid ${color}59`,background:'transparent',color,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'none',transition:'.2s',letterSpacing:'.2px',direction:'rtl'})
-  const onHover=(e,color)=>{e.currentTarget.style.background=`${color}26`}
-  const offHover=(e,color)=>{e.currentTarget.style.background='transparent'}
-  return (
+  const ghostBtnStyle=(color)=>({height:32,padding:'0 14px',borderRadius:9,border:`1px dashed ${color}80`,background:'transparent',color,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'none',transition:'background .15s ease, border-color .15s ease',letterSpacing:'.2px',direction:'rtl'})
+  const onHover=(e,color)=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background=`${color}1f`}
+  const offHover=(e,color)=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}
+  return (isKafala||isPriceEditable) ? (
     <div style={{display:'flex',gap:10,justifyContent:'space-between',alignItems:'center',paddingTop:14,borderTop:'1px solid rgba(255,255,255,.06)',marginTop:8,flexWrap:'wrap'}}>
       <span style={{fontSize:11,color:'var(--tx5)',fontWeight:500}}>{isKafala?'كل قسم له زر حفظ مستقل — اضغط "حفظ" عند كل قسم لحفظ تعديلاته':''}</span>
-      {!isKafala&&<div style={{display:'flex',gap:8}}>
-        {isPriceEditable?<>
-          <button type="button" onClick={cancelEditPrice}
-            onMouseEnter={e=>onHover(e,'#c0392b')} onMouseLeave={e=>offHover(e,'#c0392b')}
-            style={ghostBtnStyle('#c0392b')}>
-            <span>إلغاء</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-          <button type="button" onClick={()=>savePriceAndLock(s.id)}
-            onMouseEnter={e=>onHover(e,C.gold)} onMouseLeave={e=>offHover(e,C.gold)}
-            style={ghostBtnStyle(C.gold)}>
-            <span>حفظ التسعيرة</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-        </>:<button type="button" onClick={startEditPrice}
+      {!isKafala&&isPriceEditable&&<div style={{display:'flex',gap:8}}>
+        <button type="button" onClick={cancelEditPrice}
+          onMouseEnter={e=>onHover(e,'#c0392b')} onMouseLeave={e=>offHover(e,'#c0392b')}
+          style={ghostBtnStyle('#c0392b')}>
+          <span>إلغاء</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <button type="button" onClick={()=>savePriceAndLock(s.id)}
           onMouseEnter={e=>onHover(e,C.gold)} onMouseLeave={e=>offHover(e,C.gold)}
           style={ghostBtnStyle(C.gold)}>
-          <span>تعديل</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </button>}
+          <span>حفظ التسعيرة</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
       </div>}
     </div>
-  )
+  ) : null
 })()}
 </div>
 }
@@ -1363,10 +1362,6 @@ const renderRow=(s)=>{
                 {!st.billable&&<span style={{fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:6,background:`${C.ok}18`,color:C.ok,border:`1px solid ${C.ok}38`,display:'inline-flex',alignItems:'center',gap:4,flexShrink:0}}>
                   <Gift size={9} strokeWidth={2.8}/> مجانية
                 </span>}
-                {ovs.length>0&&<span style={{fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:6,background:'rgba(212,160,23,.12)',color:C.gold,border:'1px solid rgba(212,160,23,.35)',display:'inline-flex',alignItems:'center',gap:4,flexShrink:0}}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
-                  {ovs.length} مكتب
-                </span>}
               </div>
             </div>
           </div>
@@ -1387,13 +1382,6 @@ const renderRow=(s)=>{
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11}}>
                 <span style={{color:'var(--tx4)',fontWeight:600}}>تخصيصات</span>
                 <span style={{color:ovs.length?C.gold:'var(--tx5)',fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{ovs.length}</span>
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11}}>
-                <span style={{color:'var(--tx4)',fontWeight:600}}>الفوترة</span>
-                <span style={{color:st.billable?C.gold:C.ok,fontWeight:700,display:'inline-flex',alignItems:'center',gap:4}}>
-                  {st.billable?<DollarSign size={11} strokeWidth={2.5}/>:<Gift size={11} strokeWidth={2.5}/>}
-                  {st.billable?'مفوترة':'مجانية'}
-                </span>
               </div>
             </div>
           </div>
@@ -1583,19 +1571,29 @@ if(selectedSvc){
     {/* Main column (right in RTL) — scrolling content: pricing + overrides */}
     <div>
 
-    {/* Section: Default pricing editor (full editor inline) */}
-    {hasPrice&&st.billable&&(()=>{
-      // Lazy-init priceState for this service so the editor renders correctly
-      if(expanded!==s.id){setTimeout(()=>{setExpanded(s.id);setPriceState(getPricing(s.id)||{});setCollapsed(Object.fromEntries(ALL_KAFALA_SECTIONS.map(t=>[t,true])));setEditing({})},0)}
+    {/* Section: Default pricing editor (full editor inline) — hidden while a branch-override editor for this service is open (single-mount: it reuses the same priceState). */}
+    {hasPrice&&st.billable&&!(priceBranchCtx&&overrideEditor?.svcId===s.id)&&(()=>{
+      // Lazy-init priceState for this service so the editor renders correctly (skip while in override mode).
+      if(expanded!==s.id&&!priceBranchCtx){setTimeout(()=>{setExpanded(s.id);setPriceState(getPricing(s.id)||{});setCollapsed(Object.fromEntries(ALL_KAFALA_SECTIONS.map(t=>[t,true])));setEditing({})},0)}
       return(
         <div className="svc-section">
           <div className="svc-section-head">
             <span className="svc-section-head-l">
-              <DollarSign size={14} color={C.gold}/> التسعير الافتراضي (لكل المكاتب)
+              <span style={{width:6,height:6,borderRadius:'50%',background:C.gold,flexShrink:0}}/> التسعير الافتراضي (لكل المكاتب)
             </span>
-            <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600}}>{PRICING_SCHEMA[s.id].fields.length} حقل</span>
+            <span style={{display:'inline-flex',alignItems:'center',gap:12}}>
+              {s.id!=='kafala_transfer'&&!isPriceEditable&&(
+                <button type="button" onClick={startEditPrice}
+                  onMouseEnter={e=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background='rgba(212,160,23,.12)'}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}}
+                  style={{height:32,padding:'0 14px',borderRadius:9,background:'transparent',border:'1px dashed rgba(212,160,23,.5)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,transition:'background .15s ease, border-color .15s ease'}}>
+                  تعديل
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button>
+              )}
+            </span>
           </div>
-          <div className="svc-section-body" style={{padding:'18px 22px',background:'rgba(0,0,0,.10)'}}>
+          <div className="svc-section-body" style={{padding:'18px 22px'}}>
             {renderPriceEditor(s)}
           </div>
         </div>
@@ -1606,14 +1604,16 @@ if(selectedSvc){
     <div className="svc-section">
       <div className="svc-section-head">
         <span className="svc-section-head-l">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+          <span style={{width:6,height:6,borderRadius:'50%',background:C.gold,flexShrink:0}}/>
           التخصيصات حسب المكتب
           <span className="svc-section-count">{ovs.length}</span>
         </span>
         <button type="button" onClick={()=>openOverrideEditor(s.id,null)}
-          style={{height:32,padding:'0 12px',borderRadius:9,border:'1px dashed rgba(212,160,23,.45)',background:'rgba(212,160,23,.06)',color:C.gold,fontFamily:F,fontSize:11.5,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5}}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          onMouseEnter={e=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background='rgba(212,160,23,.12)'}}
+          onMouseLeave={e=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}}
+          style={{height:32,padding:'0 14px',borderRadius:9,border:'1px dashed rgba(212,160,23,.5)',background:'transparent',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,transition:'background .15s ease, border-color .15s ease'}}>
           إضافة تخصيص
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
       </div>
       <div className="svc-section-body" style={{display:'flex',flexDirection:'column',gap:14}}>
@@ -1628,10 +1628,14 @@ if(selectedSvc){
               const code=br?.branch_code||'—'
               const aOff=o.active===false
               const bDiff=typeof o.billable==='boolean'&&o.billable!==baseBillable
-              const priceEntries=Object.entries(o.pricing||{}).filter(([,v])=>v!==undefined&&v!==null&&v!=='')
+              const ovTotalField=sch?.fields?.find(f=>f._footer&&f.k==='defaultTotal')
+              const ovGridFields=sch?.fields?.filter(f=>(!f.t||f.t==='text')&&!f._footer)||[]
+              const allPriceFields=[...(ovTotalField?[ovTotalField]:[]),...ovGridFields]
+              const fmtV=(x)=>x===undefined||x===null||x===''?'—':((typeof x==='number'||/^\d+(\.\d+)?$/.test(String(x)))?fmtNum(x):String(x))
+              const pf=allPriceFields.map(f=>{const ovv=o.pricing?.[f.k];const has=ovv!==undefined&&ovv!==null&&ovv!=='';const dv=def[f.k]??f.d;return{f,ovv,has,dv}}).filter(x=>x.has)
               return(
-                <div key={o.branchId} style={{display:'flex',flexDirection:'column',borderRadius:12,background:'rgba(212,160,23,.05)',border:'1px solid rgba(212,160,23,.25)',overflow:'hidden'}}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'9px 11px',background:'rgba(212,160,23,.08)',borderBottom:'1px solid rgba(212,160,23,.18)'}}>
+                <div key={o.branchId} style={{display:'flex',flexDirection:'column',borderRadius:12,background:'rgba(0,0,0,.22)',border:'1px solid rgba(255,255,255,.05)',overflow:'hidden'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'9px 11px',background:'rgba(0,0,0,.18)',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
                     <button type="button" onClick={()=>openOverrideEditor(s.id,o.branchId)} title="تعديل" style={{background:'transparent',border:'none',padding:0,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,fontFamily:F,flex:1,minWidth:0,justifyContent:'flex-start'}}>
                       <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace',fontWeight:800,fontSize:14}}>{code}</span>
                       {aOff&&<span style={{padding:'2px 7px',borderRadius:5,background:'rgba(192,57,43,.15)',border:'1px solid rgba(192,57,43,.35)',color:C.red,fontSize:10,fontWeight:700,display:'inline-flex',alignItems:'center',gap:3}}><PowerOff size={9} strokeWidth={2.8}/>معطّلة</span>}
@@ -1643,32 +1647,23 @@ if(selectedSvc){
                       <X size={11} strokeWidth={3}/>
                     </button>
                   </div>
-                  {priceEntries.length>0?(
-                    <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:7}}>
-                      {priceEntries.map(([k,v])=>{
-                        const f=sch?.fields?.find(x=>x.k===k)
-                        const label=f?.l||k
-                        const sfx=f?.sfx||''
-                        const dv=def[k]
-                        const isNum=typeof v==='number'||(typeof v==='string'&&/^\d+(\.\d+)?$/.test(v))
-                        const valDisp=isNum?fmtNum(v):String(v)
-                        const dvDisp=dv===undefined||dv===null||dv===''?'—':(typeof dv==='number'?fmtNum(dv):String(dv))
-                        return(
-                          <div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',gap:8,paddingBottom:6,borderBottom:'1px dashed rgba(255,255,255,.05)'}}>
-                            <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,flex:1,minWidth:0,lineHeight:1.4}}>{label}</span>
-                            <span style={{display:'inline-flex',flexDirection:'column',alignItems:'flex-end',gap:2,whiteSpace:'nowrap'}}>
-                              <span style={{display:'inline-flex',alignItems:'baseline',gap:5}}>
-                                <span style={{fontSize:13,fontWeight:800,color:C.gold,direction:'ltr'}}>{valDisp}</span>
-                                {sfx&&<span style={{fontSize:9,color:'var(--tx5)',fontWeight:600}}>{sfx}</span>}
-                              </span>
-                              {String(dv)!==String(v)&&<span style={{fontSize:9,color:'var(--tx5)',fontWeight:500,textDecoration:'line-through',direction:'ltr'}}>{dvDisp}</span>}
-                            </span>
-                          </div>
-                        )
-                      })}
+                  {pf.length===0&&(
+                    <div style={{padding:'10px 12px',fontSize:10.5,color:'var(--tx5)',textAlign:'center',fontWeight:500}}>لا تخصيص سعري — كل الأسعار افتراضية</div>
+                  )}
+                  {pf.length>0&&(
+                    <div style={{padding:'6px 12px 8px',display:'flex',flexDirection:'column'}}>
+                      {pf.map(({f,ovv,has,dv},fi)=>(
+                        <div key={f.k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,padding:'7px 0',borderBottom:fi<pf.length-1?'1px dashed rgba(255,255,255,.04)':'none'}}>
+                          <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,flex:1,minWidth:0}}>{f.l}</span>
+                          <span style={{display:'inline-flex',alignItems:'baseline',gap:6,direction:'ltr',whiteSpace:'nowrap'}}>
+                            {f.sfx&&<span style={{fontSize:8.5,color:'var(--tx5)'}}>{f.sfx}</span>}
+                            <b style={{fontSize:13,color:has?C.gold:'var(--tx4)'}}>{fmtV(has?ovv:dv)}</b>
+                            {has&&String(dv)!==String(ovv)&&<span style={{fontSize:9,color:'var(--tx5)',textDecoration:'line-through'}}>{fmtV(dv)}</span>}
+                            {!has&&<span style={{fontSize:8.5,color:'var(--tx5)'}}>· افتراضي</span>}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ):(
-                    !aOff&&!bDiff&&<div style={{padding:'10px 12px',fontSize:10.5,color:'var(--tx5)',textAlign:'center',fontStyle:'italic'}}>لا توجد قيم مخصصة</div>
                   )}
                 </div>
               )
@@ -1692,7 +1687,7 @@ if(selectedSvc){
       <div className="svc-section" style={{marginBottom:0}}>
         <div className="svc-section-head">
           <span className="svc-section-head-l">
-            <Power size={14} color={C.gold}/> التشغيل والفوترة
+            <span style={{width:6,height:6,borderRadius:'50%',background:C.gold,flexShrink:0}}/> التشغيل والفوترة
           </span>
         </div>
         <div className="svc-section-body">

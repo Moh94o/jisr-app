@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تصاميم الكرت الداخلي</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--gold:#D4A017;--blue:#3483b4;--tx5:rgba(255,255,255,.38)}
+  body{background:radial-gradient(1200px 600px at 70% -10%,#1a1a1a 0%,#0d0d0d 60%);font-family:'Cairo',sans-serif;min-height:100vh;padding:40px 28px 90px;color:#fff}
+  .page-head{max-width:1380px;margin:0 auto 34px}
+  .page-head h1{color:var(--gold);font-size:24px;font-weight:900;margin-bottom:6px}
+  .page-head p{color:#8a8a8a;font-size:14px;line-height:1.7}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(395px,1fr));gap:34px;max-width:1380px;margin:0 auto}
+  .slot{display:flex;flex-direction:column;gap:13px}
+  .slot-tag{display:flex;align-items:center;gap:8px}
+  .slot-tag b{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:8px;background:var(--gold);color:#1a1400;font-size:12px;font-weight:900}
+  .slot-tag .nm{color:#d8d8d8;font-size:14px;font-weight:800}
+  .slot-tag .desc{color:#6f6f6f;font-size:11px;font-weight:600}
+
+  /* ===== fixed outer card (design 2) — context only ===== */
+  .card{position:relative;display:flex;flex-direction:column;gap:11px;padding:16px 16px 16px 14px;border-radius:7px 16px 16px 7px;background:linear-gradient(180deg,#242424,#191919);border:1px solid rgba(255,255,255,.05);border-inline-end:6px solid #D4A017;box-shadow:0 8px 22px rgba(0,0,0,.34)}
+  .sec-title{font-size:14px;font-weight:800;color:var(--gold)}
+  .info-chip{font-size:10.5px;color:var(--blue);background:rgba(52,131,180,.08);border:1px solid rgba(52,131,180,.28);padding:6px 11px;border-radius:8px;font-weight:700;line-height:1.6}
+  .edit-pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;color:var(--gold)}
+  .row-between{display:flex;align-items:center;justify-content:space-between}
+  .ic{width:11px;height:11px}
+
+  /* ===== base inner tile (shared skeleton) ===== */
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .tile{position:relative;border-radius:11px;padding:11px 8px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+  .badge{position:absolute;top:8px;inset-inline-start:8px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#1a1400;background:var(--gold);z-index:1}
+  .tile-label{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .t-name{font-size:11px;font-weight:800;color:#e9e9e9;line-height:1.2}
+  .t-hint{font-size:8.5px;color:var(--tx5);font-weight:600}
+  .tile-val{display:flex;flex-direction:column;align-items:center;gap:1px}
+  .t-val{font-size:21px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;letter-spacing:-.5px;direction:ltr}
+  .t-unit{font-size:8.5px;color:var(--tx5);font-weight:700}
+
+  /* ===== 1. صلب (الحالي) ===== */
+  .v1 .tile{background:#272727;border:1px solid rgba(255,255,255,.05)}
+
+  /* ===== 2. شريط علوي ملوّن ===== */
+  .v2 .tile{background:#222;border:1px solid rgba(255,255,255,.05);overflow:hidden;padding-top:13px}
+  .v2 .tile::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#E8BC36,#9c7510)}
+
+  /* ===== 3. متدرّج ذهبي ===== */
+  .v3 .tile{background:linear-gradient(180deg,rgba(212,160,23,.17),rgba(212,160,23,.03));border:1px solid rgba(212,160,23,.32)}
+
+  /* ===== 4. مخطّط شفّاف ===== */
+  .v4 .tile{background:transparent;border:1.5px solid rgba(212,160,23,.42)}
+  .v4 .t-val{font-size:24px}
+  .v4 .badge{background:transparent;border:1px solid var(--gold);color:var(--gold)}
+
+  /* ===== 5. رقم عملاق ===== */
+  .v5 .tile{background:#1e1e1e;border:1px solid rgba(255,255,255,.06);gap:4px;justify-content:center}
+  .v5 .t-val{font-size:33px;line-height:1}
+  .v5 .t-name{font-size:10px}
+  .v5 .t-hint{display:none}
+  .v5 .badge{top:7px;inset-inline-start:7px;width:16px;height:16px;font-size:8px}
+
+  /* ===== 6. صفوف أفقية ===== */
+  .v6{grid-template-columns:1fr;gap:7px}
+  .v6 .tile{flex-direction:row;align-items:center;justify-content:space-between;text-align:start;padding:9px 12px;background:#242424;border:1px solid rgba(255,255,255,.05);gap:10px}
+  .v6 .badge{position:static;flex-shrink:0}
+  .v6 .tile-label{align-items:flex-start;flex:1}
+  .v6 .tile-val{flex-direction:row;align-items:baseline;gap:4px}
+  .v6 .t-val{font-size:20px}
+
+  /* ===== 7. شريط سفلي للقيمة ===== */
+  .v7 .tile{padding:0;overflow:hidden;gap:0;align-items:stretch;background:#242424;border:1px solid rgba(255,255,255,.05)}
+  .v7 .badge{top:8px;inset-inline-start:8px}
+  .v7 .tile-label{padding:12px 8px 9px;align-items:center}
+  .v7 .tile-val{flex-direction:row;align-items:baseline;justify-content:center;gap:4px;background:rgba(212,160,23,.1);border-top:1px solid rgba(212,160,23,.22);padding:7px 6px}
+
+  /* ===== 8. مرفوع بظل ===== */
+  .v8 .tile{background:linear-gradient(180deg,#2d2d2d,#202020);border:1px solid rgba(255,255,255,.06);box-shadow:0 6px 14px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.05)}
+
+  /* ===== 9. كبسولة للقيمة ===== */
+  .v9 .tile{background:#222;border:1px solid rgba(255,255,255,.05)}
+  .v9 .tile-val{flex-direction:row;align-items:baseline;gap:4px;background:rgba(212,160,23,.14);border:1px solid rgba(212,160,23,.32);border-radius:20px;padding:4px 15px;margin-top:2px}
+  .v9 .t-val{font-size:18px}
+
+  /* ===== 10. توهّج نيون ===== */
+  .v10 .tile{background:#161616;border:1px solid rgba(212,160,23,.26);box-shadow:inset 0 0 18px rgba(212,160,23,.05)}
+  .v10 .t-val{text-shadow:0 0 14px rgba(212,160,23,.6)}
+  .v10 .badge{box-shadow:0 0 10px rgba(212,160,23,.5)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>تصاميم الكرت الداخلي — 10 خيارات</h1>
+    <p>نفس البطاقة الخارجية (التصميم 2)، والمختلف هو شكل الخانات الثلاث بالداخل. اختر رقم الكرت الأنسب وأطبّقه.</p>
+  </div>
+  <div class="grid" id="grid"></div>
+
+<script>
+  const pen = `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>`;
+  const data = [
+    {b:'0', n:'بدون نقل سابق', h:'النقلة الأولى', v:'200'},
+    {b:'1', n:'نقل واحد سابقاً', h:'النقلة الثانية', v:'400'},
+    {b:'≥2', n:'نقلتين فأكثر', h:'ثابت بعد ذلك', v:'600'},
+  ];
+  const tile = d => `<div class="tile"><span class="badge">${d.b}</span><div class="tile-label"><span class="t-name">${d.n}</span><span class="t-hint">${d.h}</span></div><div class="tile-val"><span class="t-val">${d.v}</span><span class="t-unit">ريال</span></div></div>`;
+  const chip = `0 نقل سابق ← 2,000 · 1 نقل سابق ← 4,000 · 2+ نقل سابق ← 6,000 ريال`;
+  const card = (v) => `<div class="card">
+      <div class="row-between"><span class="sec-title">رسوم نقل الكفالة</span><span class="edit-pill">${pen}<span>تعديل</span></span></div>
+      <span class="info-chip">${chip}</span>
+      <div class="tiles v${v}">${data.map(tile).join('')}</div>
+    </div>`;
+
+  const names = [
+    [1,'صلب (الحالي)','خلفية صلبة + شارة رقم بالزاوية'],
+    [2,'شريط علوي ملوّن','خط ذهبي أعلى كل خانة'],
+    [3,'متدرّج ذهبي','تعبئة ذهبية متدرّجة'],
+    [4,'مخطّط شفّاف','حدّ ذهبي بلا تعبئة + رقم أكبر'],
+    [5,'رقم عملاق','تركيز كامل على الرقم'],
+    [6,'صفوف أفقية','3 صفوف بدل 3 أعمدة'],
+    [7,'شريط سفلي للقيمة','القيمة في شريط أسفل الخانة'],
+    [8,'مرفوع بظل','عمق وظل لكل خانة'],
+    [9,'كبسولة للقيمة','الرقم داخل كبسولة ذهبية'],
+    [10,'توهّج نيون','رقم وشارة متوهّجة'],
+  ];
+
+  document.getElementById('grid').innerHTML = names.map(([n,nm,desc]) => `
+    <div class="slot">
+      <div class="slot-tag"><b>${n}</b><span class="nm">${nm}</span><span class="desc">— ${desc}</span></div>
+      ${card(n)}
+    </div>`).join('');
+</script>
+</body>
+</html>
