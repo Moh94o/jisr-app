@@ -5031,7 +5031,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         return (
         <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
           {/* Top bar — Back + sync trigger (mirrors FacilityDetailPage top bar) */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <BackButton onBack={() => setDetail(null)} label={T('رجوع','Back')} />
           </div>
 

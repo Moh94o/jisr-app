@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import ReactDOM from 'react-dom'
 import { X, Save, ChevronDown, CreditCard, Flag, Calendar, Phone, Mail, Plus, Edit2, Trash2, Building2, Shield } from 'lucide-react'
+import { Modal as FkModal } from '../../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
@@ -188,53 +189,16 @@ export const EmptyState = ({ text }) => (
   </div>
 )
 
-// Generic modal shell matching PersonFormModal dimensions and dark theme.
-export const ModalShell = ({ open, onClose, title, Icon, children, footer }) => {
-  if (!open) return null
-  return ReactDOM.createPortal(
-    <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: '#1a1a1a', borderRadius: 18, width: 640, maxWidth: '95vw', maxHeight: '95vh',
-        display: 'flex', flexDirection: 'column', overflow: 'visible',
-        boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(212,160,23,.08)'
-      }}>
-        <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px 6px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8,
-                background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>
-                {Icon && <Icon size={16} strokeWidth={2} />}
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,.95)' }}>{title}</div>
-            </div>
-            <button onClick={onClose}
-              style={{ width: 36, height: 36, borderRadius: 10,
-                background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)',
-                color: 'rgba(255,255,255,.5)', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <X size={14} />
-            </button>
-          </div>
-
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 16px 12px' }}>
-            {children}
-          </div>
-
-          {footer && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 20px 12px', flexShrink: 0, gap: 12 }}>
-              {footer}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>, document.body
-  )
-}
+// Generic modal shell — now delegates to FormKit's Modal so every role/branch
+// popup that uses it inherits the unified chrome (header, close, footer, accent).
+// `scroll` is on because these forms are long and historically scrolled; the
+// footer slot right-aligns its content (save lands on the left in RTL, as before).
+export const ModalShell = ({ open, onClose, title, Icon, children, footer, variant = 'create', accent, width = 640 }) => (
+  <FkModal open={open} onClose={onClose} title={title} Icon={Icon} footer={footer}
+    width={width} scroll variant={variant} accent={accent}>
+    {children}
+  </FkModal>
+)
 
 // Facility picker dropdown — portal + searchable, same pattern as PersonFormModal's Dropdown.
 export const FacilityPicker = ({ value, onChange, options, placeholder = 'اختر المنشأة...', disabled }) => {

@@ -5,6 +5,7 @@ import InvoicePageFull from './InvoicePage.jsx'
 import SettingsPageFull from './SettingsPage.jsx'
 import AdminPageFull from './AdminPage.jsx'
 import BranchesPage from './BranchesPage.jsx'
+import BankAccountsPage from './BankAccountsPage.jsx'
 import SbcFacilities from './pages/SbcFacilities.jsx'
 import FacilitiesPage from './FacilitiesPage.jsx'
 import WorkforcePage from './WorkforcePage.jsx'
@@ -17,19 +18,21 @@ import ClientsPage from './pages/admin/ClientsPage.jsx'
 import AgentsPage from './pages/admin/AgentsPage.jsx'
 import PermissionsPage from './pages/admin/PermissionsPage.jsx'
 import TransactionsPage from './pages/TransactionsPage.jsx'
-import DepartmentsPage from './pages/DepartmentsPage.jsx'
 import SbcCenterPage from './pages/SbcCenterPage.jsx'
+import BaladiCenterPage from './pages/BaladiCenterPage.jsx'
 import SectionStub from './pages/SectionStub.jsx'
 import PaymentsPage from './pages/PaymentsPage.jsx'
 import DepositsPage from './pages/DepositsPage.jsx'
 import StampBadge from './components/ui/StampBadge.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
-import SyncHub from './pages/SyncHub.jsx'
+import { Modal as FKModal } from './components/ui/FormKit.jsx'
+import SyncHub, { SyncActivitiesPage } from './pages/SyncHub.jsx'
 import VisibilityAdmin, { getVisibility, isItemVisible } from './pages/VisibilityAdmin.jsx'
 import { FileText, Sparkles, Tag } from 'lucide-react'
 
 import { getSupabase } from './lib/supabase.js'
 import { exportToExcel, importFromCSV, printContent, generateClientStatement, checkDuplicate, setupKeyboardShortcuts, calculateNitaqat } from './lib/utils.js'
+import { canViewPage, can as canPerm } from './lib/permissions.js'
 
 const C = { dk:'#171717', md:'#222222', fm:'#1e1e1e', gold:'#D4A017', gl:'#dcc06e', brd:'rgba(255,255,255,.13)', red:'#c0392b', blue:'#3483b4', ok:'#27a046' }
 const F = "'Cairo','Tajawal',sans-serif"
@@ -53,6 +56,7 @@ const DT = (clr) => ({
   transaction: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><path d="M8 10h8M8 14h5" stroke={clr} strokeWidth="1.5" strokeLinecap="round" opacity=".7"/><circle cx="17" cy="17" r="4" fill={clr} fillOpacity=".2" stroke={clr} strokeWidth="1.5"/><path d="M17 15.5v3l1.5-1" stroke={clr} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   invoice: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><path d="M8 7h8M8 11h6M8 15h4" stroke={clr} strokeWidth="1.5" strokeLinecap="round" opacity=".6"/><circle cx="16" cy="15" r="1.5" fill={clr} opacity=".5"/></svg>,
   payment: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="3" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="2" y1="10" x2="22" y2="10" stroke={clr} strokeWidth="1.5" opacity=".5"/><circle cx="7" cy="15" r="1.5" fill={clr} opacity=".4"/></svg>,
+  bank: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>,
   expense: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><path d="M3 6V5a2 2 0 012-2h10a2 2 0 012 2v1" stroke={clr} strokeWidth="1.5" opacity=".4"/><circle cx="12" cy="13" r="3" stroke={clr} strokeWidth="1.5" opacity=".6"/><line x1="12" y1="11.5" x2="12" y2="14.5" stroke={clr} strokeWidth="1.3" strokeLinecap="round"/></svg>,
   branch: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="15" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><path d="M6 7V5a2 2 0 012-2h8a2 2 0 012 2v2" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="12" y1="11" x2="12" y2="18" stroke={clr} strokeWidth="1.5" opacity=".4"/><line x1="7" y1="14" x2="17" y2="14" stroke={clr} strokeWidth="1.5" opacity=".4"/></svg>,
   users: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="3.5" fill={clr} fillOpacity=".15" stroke={clr} strokeWidth="1.5"/><path d="M2 20v-1a5 5 0 0114 0v1" stroke={clr} strokeWidth="1.5" opacity=".5"/><circle cx="17" cy="9" r="2.5" fill={clr} fillOpacity=".1" stroke={clr} strokeWidth="1.3" opacity=".6"/><path d="M22 20v-1a3.5 3.5 0 00-4-3.5" stroke={clr} strokeWidth="1.3" opacity=".4"/></svg>,
@@ -672,7 +676,7 @@ const TXN_SECTIONS=[
 // — التأسيس والتراخيص —
 {id:'sbc',                  ar:'المركز السعودي',        en:'Saudi Business Center', i:'branch',      page:'sbc'},
 {id:'chamber',              ar:'الغرفة التجارية',        en:'Chamber of Commerce',   i:'facility',    code:'other'},
-{id:'baladi',               ar:'الرخص البلدية',          en:'Municipal Licenses',    i:'role'},
+{id:'baladi',               ar:'الرخص البلدية',          en:'Municipal Licenses',    i:'role',        page:'baladi'},
 {id:'najiz',                ar:'وكالات ناجز',            en:'Najiz Agencies',        i:'alert'},
 // — العمالة والتأشيرات —
 {id:'work-visas',           ar:'تأشيرات العمل',          en:'Work Visas',            i:'calendar',    code:'work_visa_permanent'},
@@ -716,16 +720,19 @@ const[visibility,setVisibility]=useState(()=>getVisibility());
 const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visibility',JSON.stringify(cfg))};
 // A tab is visible if neither the global config nor this user's personal ui_visibility hides it.
 // Locked hubs (admin) are always visible. The GM bypasses personal overrides so he can never lock himself out.
-const isVisible=(id)=>{const locked=['admin_hub','admin_visibility'].includes(id);if(locked)return true;if(!isItemVisible(id))return false;if(visibility[id]===false)return false;if(!isGM&&user?.ui_visibility&&user.ui_visibility[id]===false)return false;return true;};
+const isVisible=(id)=>{const locked=['admin_hub','admin_visibility'].includes(id);if(locked)return true;if(!isItemVisible(id))return false;if(visibility[id]===false)return false;if(!isGM&&user?.ui_visibility&&user.ui_visibility[id]===false)return false;if(!isGM&&!canViewPage(user,id))return false;return true;};
 // Admin-only nav items: Sync Hub is hidden from non-GM users regardless of visibility toggles.
 const isGM=user?.role?.name_ar==='المدير العام'||user?.role?.name_en==='General Manager';
+// Employee Mahmoud Hassan is granted Sync Hub access despite not being GM.
+const isSyncHubGrantedEmployee=(user?.person?.name_ar||'').replace(/\s+/g,' ').trim().includes('محمود حسن');
+const canSeeSyncHub=isGM||isSyncHubGrantedEmployee||canPerm(user,'sync_hub.access');
 const ADMIN_ONLY=['sync_hub'];
-const canSeeAdminOnly=(id)=>isGM||visibility['grant_'+id]===true;
+const canSeeAdminOnly=(id)=>isGM||visibility['grant_'+id]===true||(id==='sync_hub'&&isSyncHubGrantedEmployee);
 const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches);
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
 useEffect(()=>{const h=e=>{e.preventDefault();setInstallPrompt(e);if(!isStandalone&&!localStorage.getItem('jisr_install_dismissed'))setShowInstallBanner(true)};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h)},[isStandalone]);
-const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',finance_hub:'invoices',transactions_hub:'sbc',admin_hub:'admin_offices',settings:'settings_general'};// Pages with inner hash routing land on this canonical hash so they reset
+const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',sync_center:'sync_hub',finance_hub:'invoices',persons_hub:'admin_clients',transactions_hub:'sbc',admin_hub:'admin_offices'};// Pages with inner hash routing land on this canonical hash so they reset
 // to their list/home view.
 const pageHashes={};
 // Bumped when the user taps a sidebar entry while already on that page.
@@ -743,18 +750,19 @@ const loadActivityLog=useCallback(async()=>{setActivityLoading(true);try{const{d
 const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);const nav=[
 {id:'home',l:T('الرئيسية','Dashboard'),i:'home'},
 {id:'workforce',l:T('المنشآت والعمالة','Workforce'),i:'worker'},
+{id:'sync_center',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
 {id:'finance_hub',l:T('المالية','Operations'),i:'invoice'},
+{id:'persons_hub',l:T('الأشخاص','Persons'),i:'client'},
 {id:'transactions_hub',l:T('المعاملات','Transactions'),i:'transaction'},
-{id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'},
-{id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
-{id:'settings',l:T('الإعدادات','Settings'),i:'settings'}
+{id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'}
 ];
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة','Workers'),i:'worker'}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'invoice'},{id:'payments',l:T('المدفوعات','Payments'),i:'invoice'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'}],
+  sync_center:[{id:'sync_hub',l:T('مزامنة المنشآت والعمالة','Sync Facilities & Workers'),i:'facility'},{id:'sync_log',l:T('سجل المزامنات','Sync Log'),i:'transaction'}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'transfer_calc',l:T('تسعيرات التنازل','Transfer Calc'),i:'chart'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'expense'},{id:'payments',l:T('المدفوعات','Payments'),i:'payment'}],
+  persons_hub:[{id:'admin_clients',l:T('العملاء','Clients'),i:'client'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'role'}],
   transactions_hub:TXN_SECTIONS.map(t=>({id:t.id,l:T(t.ar,t.en),i:t.i})),
-  admin_hub:[{id:'admin_transactions',l:T('المعاملات','Transactions'),i:'transaction'},{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_clients',l:T('العملاء','Clients'),i:'client'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'role'},{id:'admin_services',l:T('الخدمات','Services'),i:'settings'},{id:'admin_permissions',l:T('المستخدمين','Users'),i:'role'}],
-  settings:[{id:'settings_general',l:T('الإعدادات العامة','General Settings'),i:'settings'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
+  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_bank_accounts',l:T('الحسابات البنكية','Bank Accounts'),i:'bank'},{id:'admin_permissions',l:T('المستخدمون','Users'),i:'users'},{id:'admin_services',l:T('الخدمات','Services'),i:'notes'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };const pages={
 facilities:{table:'facilities',title:T('المنشآت','Facilities'),icon:'facility',
 cols:[['name_ar',T('الاسم','Name')],['unified_national_number',T('الرقم الموحد','Unified No.')],['cr_number',T('السجل','CR No.')],['cr_status',T('حالة السجل','CR Status')],['facility_status',T('الحالة','Status')],['nitaqat_color',T('نطاقات','Nitaqat')]],
@@ -1110,17 +1118,17 @@ const subs=rawSubs?rawSubs.filter(t=>isVisible(t.id)):null
 const hubActive=subs&&subs.some(t=>t.id===pg)
 const isOpen=subs?(navExpanded[n.id]!==undefined?navExpanded[n.id]:hubActive):false
 const isActive=pg===n.id||hubActive
-const mainClr=isActive?C.gold:'rgba(255,255,255,.55)'
+const mainClr=isActive?C.gold:'rgba(255,255,255,.82)'
 return<div key={n.id}>
-<div onClick={()=>{if(subs){setNavExpanded(p=>({...p,[n.id]:!isOpen}))}else{setPage(n.id)}}} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',cursor:'pointer',fontSize:13,fontWeight:600,color:mainClr,letterSpacing:'.2px',transition:'.18s',opacity:isActive?1:.9}}>
+<div onClick={()=>{if(subs){setNavExpanded(p=>({...p,[n.id]:!isOpen}))}else{setPage(n.id)}}} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',cursor:'pointer',fontSize:13,fontWeight:600,color:mainClr,letterSpacing:'.2px',transition:'.18s',opacity:1}}>
 <span style={{flex:1,textAlign:lang==='ar'?'right':'left'}}>{n.l}</span>
 {n.n>0&&<span style={{fontSize:9,fontWeight:700,background:C.red,color:'#fff',padding:'1px 6px',borderRadius:8,minWidth:16,textAlign:'center'}}>{n.n}</span>}
-{subs&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={isActive?C.gold:'rgba(255,255,255,.35)'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{transition:'transform .2s',transform:isOpen?'rotate(0deg)':'rotate(180deg)',flexShrink:0}}><polyline points="18 15 12 9 6 15"/></svg>}
+{subs&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={isActive?C.gold:'rgba(255,255,255,.6)'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{transition:'transform .2s',transform:isOpen?'rotate(0deg)':'rotate(180deg)',flexShrink:0}}><polyline points="18 15 12 9 6 15"/></svg>}
 </div>
 {subs&&isOpen&&<div style={{display:'flex',flexDirection:'column',gap:1,margin:'3px 0 6px',[lang==='ar'?'paddingLeft':'paddingRight']:10}}>
-{subs.map(t=>{const sAct=pg===t.id;const subClr=sAct?C.gold:'rgba(255,255,255,.5)';const subIcon=DT(subClr)[t.i||n.i];return<div key={t.id} onClick={()=>setPage(t.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderRadius:10,cursor:'pointer',fontSize:12,fontWeight:sAct?700:500,color:subClr,background:sAct?'rgba(212,160,23,.08)':'transparent',transition:'.15s',position:'relative'}}>
+{subs.map(t=>{const sAct=pg===t.id;const subClr=sAct?C.gold:'rgba(255,255,255,.78)';const subIcon=DT(subClr)[t.i||n.i];return<div key={t.id} onClick={()=>setPage(t.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderRadius:10,cursor:'pointer',fontSize:12,fontWeight:sAct?700:500,color:subClr,background:sAct?'rgba(212,160,23,.08)':'transparent',transition:'.15s',position:'relative'}}>
 {sAct&&<div style={{position:'absolute',[lang==='ar'?'right':'left']:4,top:10,bottom:10,width:3,borderRadius:3,background:C.gold}}/>}
-<span style={{width:16,height:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:sAct?1:.5}}>{subIcon}</span>
+<span style={{width:16,height:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:sAct?1:.8}}>{subIcon}</span>
 <span style={{flex:1,textAlign:lang==='ar'?'right':'left'}}>{t.l}</span>
 {t.n>0&&<span style={{fontSize:9,fontWeight:700,background:sAct?'rgba(212,160,23,.15)':'rgba(255,255,255,.06)',color:sAct?C.gold:'rgba(255,255,255,.6)',padding:'1px 7px',borderRadius:8,minWidth:16,textAlign:'center'}}>{t.n}</span>}
 </div>})}
@@ -1128,18 +1136,6 @@ return<div key={n.id}>
 </div>})}
 </div>
 </nav>
-{/* Sidebar FABs — خدمة + حسبة التنازل */}
-<div style={{padding:'12px 14px 14px',flexShrink:0,display:'flex',flexDirection:'column',gap:8}}>
-{isVisible('fab_service_request')&&<div className="fab-service-request" onClick={()=>setShowServiceRequest(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
-<span style={{fontSize:14,fontWeight:700,color:'#D4A017',fontFamily:"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.5,lineHeight:1}}>{T('فاتورة','Invoice')}</span>
-<span style={{position:'relative',display:'inline-flex',alignItems:'center',color:'#D4A017'}}><FileText size={16} strokeWidth={2}/><Sparkles size={10} strokeWidth={2} style={{position:'absolute',top:-4,right:-4}}/></span>
-</div>}
-{isVisible('fab_transfer_calc')&&<div className="fab-service-request" onClick={()=>setShowKafalaCalc(true)} style={{height:40,padding:'0 18px',borderRadius:10,background:'rgba(212,160,23,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all .2s'}}>
-<span style={{fontSize:14,fontWeight:700,color:'#D4A017',fontFamily:lang==='en'?"'Inter','Cairo',sans-serif":"'Noto Kufi Arabic','Cairo',sans-serif",letterSpacing:-.3,lineHeight:1}}>{T('تسعيرة تنازل','Transfer Calc')}</span>
-<span style={{display:'inline-flex',alignItems:'center',color:'#D4A017'}}><Tag size={16} strokeWidth={2}/></span>
-</div>}
-<style>{`.fab-service-request:hover{background:rgba(212,160,23,.14)!important}`}</style>
-</div>
 </aside>
 {/* ═══ MAIN AREA ═══ */}
 <div style={{flex:1,display:'flex',flexDirection:'column',background:'var(--bg)',minWidth:0}}>
@@ -1184,28 +1180,40 @@ if(!nat){(async()=>{const natId=user.person?.nationality_id;if(natId){const{data
 </header>
 {/* ═══ Content ═══ */}
 <div className='dash-content' style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'32px max(32px, calc((100% - 1500px) / 2))',msOverflowStyle:'none',scrollbarWidth:'none',WebkitOverflowScrolling:'touch'}}>
-{pg==='home'&&<HomePage stats={stats} lang={lang} branches={dashBranches} selectedBranch={dashBranch} onBranchChange={setDashBranch} sb={sb} onNavigate={setPage} toast={tt}/>}
+{/* Permission gate — block direct access to pages the user lacks "view" on. */}
+{(()=>{const blocked=!canViewPage(user,pg);if(!blocked)return null;return(
+<div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'80px 24px',gap:14,color:'var(--tx3)'}}>
+<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.85}}><rect x="3" y="11" width="18" height="11" rx="2.5"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+<div style={{fontSize:18,fontWeight:700,color:'rgba(255,255,255,.9)'}}>{T('لا تملك صلاحية الوصول','No access')}</div>
+<div style={{fontSize:13,color:'var(--tx4)',maxWidth:380,lineHeight:1.7}}>{T('ليس لديك صلاحية لعرض هذه الصفحة. تواصل مع المدير العام لمنحك الصلاحية.','You do not have permission to view this page. Contact the General Manager to request access.')}</div>
+</div>)})()}
+{canViewPage(user,pg)&&pg==='home'&&<HomePage stats={stats} lang={lang} branches={dashBranches} selectedBranch={dashBranch} onBranchChange={setDashBranch} sb={sb} onNavigate={setPage} toast={tt}/>}
 
 {/* ═══ HUB CONTENT (sidebar handles navigation) ═══ */}
 {(()=>{
 const allHubPages=Object.values(hubTabs).flat().map(t=>t.id).concat(['worker_leaves','transfer_calc'])
 if(!allHubPages.includes(pg))return null
+if(!canViewPage(user,pg))return null
 return<div><div>
 {/* العمالة */}
 {pg==='facilities'&&<FacilitiesPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='workers'&&<WorkforcePage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='worker_leaves'&&<WorkerLeavesPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='transfer_calc'&&<TransferCalcPage sb={sb} toast={tt} user={user} lang={lang} onNewCalc={()=>setShowKafalaCalc(true)}/>}
+{/* مركز المزامنة */}
+{pg==='sync_hub'&&canSeeSyncHub&&<SyncHub sb={sb} toast={tt} user={user} lang={lang} initialFocus="sbc"/>}
+{pg==='sync_log'&&<SyncActivitiesPage sb={sb} lang={lang}/>}
 {/* العمليات */}
-{pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} onNewInvoice={()=>setShowServiceRequest(true)}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='deposits'&&<DepositsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='sbc'&&<SbcCenterPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
+{pg==='baladi'&&<BaladiCenterPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {TXN_SECTIONS.filter(s=>s.code&&s.id===pg).map(s=><TransactionsPage key={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)}/>)}
 {TXN_SECTIONS.filter(s=>!s.code&&!s.page&&s.id===pg).map(s=><SectionStub key={s.id} title={T(s.ar,s.en)} lang={lang}/>)}
 {/* الإدارة */}
-{pg==='admin_transactions'&&<DepartmentsPage lang={lang} user={user}/>}
 {pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
+{pg==='admin_bank_accounts'&&<BankAccountsPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='admin_clients'&&<ClientsPage sb={sb} user={user} toast={tt} lang={lang}/>}
 {pg==='admin_agents'&&<AgentsPage sb={sb} user={user} toast={tt} lang={lang}/>}
 {pg==='admin_services'&&<ServiceAdminPage toast={tt} lang={lang}/>}
@@ -1213,27 +1221,19 @@ return<div><div>
 {pg==='admin_ui_controls'&&(()=>{window.setTimeout(()=>setPg('admin_permissions'),0);return null})()}
 {pg==='admin_visibility'&&(()=>{window.setTimeout(()=>setPg('admin_ui_controls'),0);return null})()}
 {/* الإعدادات */}
-{pg==='settings_general'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultMainTab="general_group"/>}
 {pg==='settings_fields'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo} defaultMainTab="fields_group"/>}
 </div></div>})()}
 
 {/* ═══ الإعدادات ═══ */}
-{pg==='sync_hub'&&isGM&&<SyncHub sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='settings'&&<SettingsPageFull sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {pg==='kpi'&&<KPIPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 {(pg==='installments'||pg==='expenses')&&pageConf&&<CrudPage sb={sb} user={user} conf={pageConf} toast={tt} onRefresh={loadStats} lang={lang}/>}
 {pg==='appointments'&&<AppointmentsPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch}/>}
 </div>
 </div>
 {showKafalaCalc&&<KafalaCalculator sb={sb} user={user} toast={tt} lang={lang} onClose={()=>setShowKafalaCalc(false)} onGoToTransferCalc={(q)=>{setShowKafalaCalc(false);try{window.location.hash='#transfer_calc?q='+encodeURIComponent(q||'')}catch{}setPg('transfer_calc')}}/>}
-{showServiceRequest&&<div onClick={()=>setShowServiceRequest(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(8px)',zIndex:998,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
-<style>{`.sr-modal-scroll::-webkit-scrollbar{width:0;display:none}.sr-modal-scroll{scrollbar-width:none;-ms-overflow-style:none}`}</style>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--modal-bg)',borderRadius:16,width:680,maxWidth:'95vw',height:'85vh',maxHeight:'95vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 50px rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.06)',position:'relative'}}>
-<div className="sr-modal-scroll" style={{flex:1,overflowY:'auto'}}>
+{showServiceRequest&&<FKModal open onClose={()=>setShowServiceRequest(false)} hideHeader height="85vh" width={680} scroll>
 <ServiceRequestPage sb={sb} toast={tt} user={user} lang={lang} branchId={dashBranch} onClose={()=>setShowServiceRequest(false)}/>
-</div>
-</div>
-</div>}
+</FKModal>}
 {toastMsg&&(()=>{const isErr=toastMsg.includes('خطأ');const isDel=toastMsg.includes('حذف');const clr=isErr?'#e5867a':isDel?'#e5867a':'#6fc28a';const bg=isErr?'rgba(32,18,18,.92)':isDel?'rgba(32,18,18,.92)':'rgba(18,32,22,.92)';const bdr=isErr?'rgba(192,57,43,.35)':isDel?'rgba(192,57,43,.35)':'rgba(55,140,85,.45)';return<div style={{position:'fixed',top:20,left:'50%',transform:'translateX(-50%)',zIndex:9999,background:bg,color:clr,fontFamily:"'Cairo',sans-serif",fontSize:12.5,fontWeight:600,padding:'11px 18px',borderRadius:10,boxShadow:'0 8px 24px rgba(0,0,0,.45), 0 0 0 1px '+bdr,backdropFilter:'blur(10px)',display:'flex',alignItems:'center',gap:10,animation:'toastSlide .35s cubic-bezier(.2,.85,.3,1.05)',maxWidth:'calc(100vw - 32px)'}}>{isErr?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2.4" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>:isDel?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}<span>{toastMsg}</span><style>{`@keyframes toastSlide{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}`}</style></div>})()}
 {/* ═══ PROFILE MODAL — مستوحى من تصميم حسبة التنازل ═══ */}
 {showProfile&&profileData&&(()=>{
@@ -1796,9 +1796,21 @@ setTimeout(cleanup,60000)
 const fS={width:'100%',height:40,padding:'0 12px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:"'Cairo',sans-serif",fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center',direction:'ltr'}
 return<div style={{fontFamily:"'Cairo',sans-serif",paddingTop:0}}>
 {!detailsRow&&<>
-<div style={{marginBottom:32,position:'relative'}}>
+<div style={{marginBottom:22,position:'relative'}}>
+<div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+<div style={{flex:1,minWidth:0}}>
 <div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>{T('تسعيرات التنازل','Transfer Calculator')}</div>
 <div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>{T('حساب تكاليف نقل خدمات العمال وإصدار التسعيرات ومتابعة حالتها','Worker transfer cost calculation, quote issuance and status tracking')}</div>
+<div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginTop:6,lineHeight:1.6,opacity:.8}}>{T('كروت الإحصاء إجمالي تراكمي دائم يشمل جميع التسعيرات (غير مرتبطة بيوم أو أسبوع)','The stat cards are all-time totals across every quote (not daily or weekly)')}</div>
+</div>
+{canPerm(user,'quotations.create')&&<button onClick={()=>onNewCalc?.()}
+onMouseEnter={e=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background='rgba(212,160,23,.12)'}}
+onMouseLeave={e=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}}
+style={{height:42,padding:'0 18px',borderRadius:11,background:'transparent',border:'1px dashed rgba(212,160,23,.5)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,whiteSpace:'nowrap',flexShrink:0,transition:'background .15s ease, border-color .15s ease'}}>
+{T('تسعيرة تنازل جديدة','New Transfer Calc')}
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>}
+</div>
 </div>
 {(()=>{
 const typeLabel=v=>v==='final_exit'?T('خروج نهائي','Final Exit'):T('نقل كفالة','Sponsorship')
@@ -1956,13 +1968,12 @@ return<>
 <div style={{position:'absolute',insetInlineStart:-60,top:-60,width:180,height:180,borderRadius:'50%',background:`radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`,pointerEvents:'none'}}/>
 <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:-6}}>
 <span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:`0 0 10px ${C.gold}aa`}}/>
-<span style={{fontSize:24,color:'#fff',fontWeight:600,letterSpacing:'.2px'}}>{T('متوسط رسوم المكتب','Avg Office Fee')}</span>
+<span style={{fontSize:24,color:'#fff',fontWeight:600,letterSpacing:'.2px'}}>{T('المتوسط الشهري','Monthly Average')}</span>
 </div>
 <div style={{position:'relative',display:'flex',alignItems:'baseline',gap:7,direction:'ltr'}}>
 <span style={{fontSize:42,fontWeight:800,color:C.gold,letterSpacing:'-1.5px',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{nm(officeStats.perMonth)}</span>
-<span style={{fontSize:13,fontWeight:600,color:C.gold,opacity:.75}}>{T('ر.س / شهر','SAR/mo')}</span>
 </div>
-<div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',paddingTop:8,borderTop:'1px solid rgba(255,255,255,.06)'}}>
+<div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:14,paddingTop:8,borderTop:'1px solid rgba(255,255,255,.06)'}}>
 <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600}}>{T('عدد التسعيرات','Quotes')}</span>
 <span style={{fontSize:13,color:C.gold,fontWeight:700,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{nm(officeStats.count)}</span>
 </div>
@@ -1986,7 +1997,7 @@ return<div key={i} onClick={()=>setListFilter(isActive?'all':s.k)} style={{posit
 
 {/* Status breakdown card */}
 {(()=>{
-const STATUSES=[{k:'priced',c:'#eab308',l:T('مسعّرة','Priced')},{k:'approved',c:C.blue,l:T('مصدّقة','Approved')},{k:'invoiced',c:C.ok,l:T('مفوترة','Invoiced')},{k:'completed',c:'#1a8a3e',l:T('مكتملة','Completed')},{k:'cancelled',c:C.red,l:T('ملغاة','Cancelled')}]
+const STATUSES=[{k:'priced',c:'#eab308',l:T('مسعّرة','Priced')},{k:'approved',c:C.blue,l:T('مصدّقة','Approved')},{k:'invoiced',c:C.ok,l:T('مفوترة','Invoiced')},{k:'cancelled',c:C.red,l:T('ملغاة','Cancelled')}]
 const totalSt=STATUSES.reduce((a,s)=>a+(sCounts[s.k]||0),0)
 return<div style={{borderRadius:16,background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',padding:'12px 16px',display:'flex',flexDirection:'column',gap:10,minHeight:150}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -2235,12 +2246,15 @@ const sec=(title,rows,icon,dotColor)=>{const filtered=rows.filter(Boolean);if(!f
 const quoteNo=mm.quote_no||'#'+String(dr.id||'').slice(0,8).toUpperCase()
 return<div style={{fontFamily:"'Cairo','Tajawal',sans-serif",paddingTop:0,color:'var(--tx2)'}}>
 <div style={{marginBottom:20}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,gap:12}}>
 <BackButton onBack={()=>setDetailsRow(null)} label={T('رجوع','Back')} />
 </div>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:20}}>
 <div>
-<div style={{fontSize:21,fontWeight:600,color:'rgba(255,255,255,.93)'}}>{T('تفاصيل تسعيرة التنازل','Transfer Quote Details')}</div>
+<div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+<div style={{fontSize:22,fontWeight:600,color:C.gold,letterSpacing:'-.2px'}}>{T('تفاصيل تسعيرة التنازل','Transfer Quote Details')}</div>
+</div>
 <div style={{marginTop:18,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',fontSize:11.5,color:'var(--tx3)'}}>
 {(()=>{const isFinal=dr.transfer_type==='final_exit';const c=isFinal?C.red:C.gold;const l=isFinal?T('خروج نهائي','Final Exit'):T('نقل كفالة','Sponsorship');return<span style={{color:c,fontSize:12,fontWeight:700,borderBottom:`1.5px solid ${c}`,paddingBottom:1}}>{l}</span>})()}
 <span style={{width:3,height:3,borderRadius:'50%',background:'rgba(255,255,255,.18)'}}/>

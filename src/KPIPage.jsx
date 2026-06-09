@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { Target } from 'lucide-react'
+import { Modal as FKModal } from './components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { dk: '#171717', md: '#222222', fm: '#1e1e1e', gold: '#D4A017', gl: '#dcc06e', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -340,18 +342,21 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
       </div>
     })()}
 
-    {/* Edit Modal */}
-    {editPop && <div onClick={() => setEditPop(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ ...GLASS, width: 'min(520px,96vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: F }}>
-        <div style={{ height: 3, background: `linear-gradient(90deg, transparent, ${C.gold} 30%, ${C.gl} 50%, ${C.gold} 70%, transparent)` }} />
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>{T('تحديد الأهداف', 'Set Targets')}</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 4 }}>{monthLabel}</div>
-          </div>
-          <button onClick={() => setEditPop(false)} style={{ width: 30, height: 30, borderRadius: 10, background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F, fontSize: 14, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>✕</button>
-        </div>
-        <div style={{ padding: '18px 22px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    {/* Edit Modal — FormKit */}
+    {editPop && (
+      <FKModal open onClose={() => setEditPop(false)} accent={C.gold} width={520} scroll
+        title={T('تحديد الأهداف', 'Set Targets')} subtitle={monthLabel} Icon={Target}
+        footer={<>
+          <button onClick={() => setEditPop(false)}
+            style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
+            {T('إلغاء', 'Cancel')}
+          </button>
+          <button onClick={saveTargets} disabled={saving}
+            style={{ height: 40, padding: '0 24px', borderRadius: 11, border: '1px solid rgba(212,160,23,.45)', background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)', transition: '.2s', opacity: saving ? .6 : 1 }}>
+            {saving ? '...' : T('حفظ الأهداف', 'Save Targets')}
+          </button>
+        </>}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {METRICS.map(m => (
             <div key={m.key}>
               <div style={{ fontSize: 12, fontWeight: 600, color: m.color, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -368,17 +373,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
             </div>
           ))}
         </div>
-        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', flexDirection: 'row-reverse', gap: 10 }}>
-          <button onClick={saveTargets} disabled={saving}
-            style={{ height: 40, padding: '0 24px', borderRadius: 11, border: '1px solid rgba(212,160,23,.45)', background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)', transition: '.2s', opacity: saving ? .6 : 1 }}>
-            {saving ? '...' : T('حفظ الأهداف', 'Save Targets')}
-          </button>
-          <button onClick={() => setEditPop(false)}
-            style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
-            {T('إلغاء', 'Cancel')}
-          </button>
-        </div>
-      </div>
-    </div>}
+      </FKModal>
+    )}
   </div>
 }

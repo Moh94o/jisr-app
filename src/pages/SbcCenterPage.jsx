@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import BackButton from '../components/BackButton'
 import { Dropdown, DateField, sF } from '../components/persons/PersonFormModal'
+import { Modal as FKModal } from '../components/ui/FormKit.jsx'
+import { FileText } from 'lucide-react'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046', purple: '#bb8fce', orange: '#f39c12', cyan: '#16a085', gray: '#95a5a6', warn: '#eab308' }
@@ -163,14 +165,6 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
     return rows.filter(r => [r.request_ref_no, r.trade_name, r.cr_number, r.note].some(v => (v || '').includes(s)))
   }, [rows, q])
 
-  // Group by service type
-  const groups = useMemo(() => {
-    const m = new Map()
-    SBC_CODES.forEach(code => { const t = typeByCode[code]; if (t) m.set(t.id, { id: t.id, code, meta: sbcMeta(code), items: [] }) })
-    filtered.forEach(r => { const g = m.get(r.service_type_id); if (g) g.items.push(r) })
-    return [...m.values()].filter(g => g.items.length)
-  }, [filtered, typeByCode])
-
   // Donut distribution by type
   const dist = useMemo(() => SBC_CODES.map(code => ({ code, meta: sbcMeta(code), cnt: rows.filter(r => typeById[r.service_type_id]?.code === code).length })).filter(d => d.cnt > 0), [rows, typeById])
 
@@ -254,66 +248,78 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
         </div>
       </div>
 
-      {/* List grouped by service type */}
+      {/* List — table view (matches Payments page) */}
       {loading ? (
         <div style={{ padding: 50, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>جاري التحميل…</div>
-      ) : groups.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
           {q ? 'لا نتائج مطابقة' : 'لا توجد معاملات بعد — اضغط «إضافة معاملة».'}
         </div>
-      ) : groups.map(g => (
-        <div key={g.id} style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: g.meta.c, transform: 'translateY(-2px)' }} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx2)' }}>{g.meta.ar}</span>
-            </div>
-            <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{g.items.length} معاملة</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {g.items.map(r => <TxRowCard key={r.id} r={r} meta={g.meta} onClick={() => setSelectedId(r.id)} />)}
-          </div>
-        </div>
-      ))}
+      ) : (
+        <SbcTable rows={filtered} typeById={typeById} onRowClick={setSelectedId} />
+      )}
 
       {showAdd && <AddModal lang={lang} sb={sb} user={user} toast={toast} typeByCode={typeByCode} newStatusId={newStatusId} userBranchId={userBranchId} onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); reload() }} />}
     </div>
   )
 }
 
-// ── Transaction row card (matches Users page UserCard) ──
-function TxRowCard({ r, meta, onClick }) {
-  const accent = meta.c
-  const sTheme = STATUS_THEME[r.status?.code] || { c: C.gray, ar: r.status?.value_ar || '—' }
-  const title = r.trade_name || r.cr_number || '—'
+// ── Transactions table (matches Payments page FeesTable) ──
+function SbcTable({ rows, typeById, onRowClick }) {
   return (
-    <div onClick={onClick} className="sbc-row" style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: `linear-gradient(135deg, ${accent}0e 0%, #232323 50%, #1f1f1f 100%)`, border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden' }}>
-      <div style={{ padding: '14px 26px 14px 18px' }}>
-        <div className="sbc-row-grid">
-          {/* Avatar — service-type icon tile */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 56 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: accent, flexShrink: 0 }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /><path d="M8 13h8M8 17h6" /></svg>
-            </div>
-          </div>
-          <div className="sbc-row-vdiv" />
-          {/* Metadata */}
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px' }}>{title}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: accent + '20', color: accent }}>{meta.ar}</span>
-            </div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 14, fontSize: 11, color: 'var(--tx4)', fontWeight: 600, flexWrap: 'wrap' }}>
-              <span style={{ direction: 'ltr', fontFamily: 'monospace', color: C.gold }}>#{r.request_ref_no}</span>
-              <span style={{ direction: 'ltr', fontFamily: 'monospace' }}>{fmtGreg(r.request_date)}</span>
-            </div>
-          </div>
-          {/* Status badge (left) */}
-          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: sTheme.c, background: tint(sTheme.c, 0.12), border: `1px solid ${tint(sTheme.c, 0.3)}`, borderRadius: 8, padding: '5px 11px' }}>{sTheme.ar}</span>
-          </div>
-        </div>
-      </div>
+    <div style={{ borderRadius: 10, overflow: 'hidden' }}>
+      <style>{`
+.sbc-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
+.sbc-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.sbc-tbl tbody td{padding:13px 12px;font-size:12px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
+.sbc-tbl tbody tr{cursor:pointer;transition:background .12s}
+.sbc-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.sbc-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+.sbc-tbl tbody tr:last-child td{border-bottom:none}
+      `}</style>
+      <table className="sbc-tbl">
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>نوع الخدمة</th>
+            <th>الاسم التجاري / السجل</th>
+            <th>المرجع</th>
+            <th>الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => {
+            const meta = sbcMeta(typeById[r.service_type_id]?.code)
+            const sTheme = STATUS_THEME[r.status?.code] || { c: C.gray, ar: r.status?.value_ar || '—' }
+            const title = r.trade_name || r.cr_number || '—'
+            return (
+              <tr key={r.id} onClick={() => onRowClick(r.id)} title={title}>
+                <td>
+                  <span style={{ direction: 'ltr', fontFamily: 'monospace', color: 'var(--tx2)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(r.request_date)}</span>
+                </td>
+                <td>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 11px', borderRadius: 7, background: meta.c + '18', border: '1px solid ' + meta.c + '38', color: meta.c, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: meta.c, flexShrink: 0 }} />
+                    {meta.ar}
+                  </span>
+                </td>
+                <td>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.92)' }}>{title}</span>
+                </td>
+                <td>
+                  <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>#{r.request_ref_no}</span>
+                </td>
+                <td>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: sTheme.c, background: tint(sTheme.c, 0.12), border: `1px solid ${tint(sTheme.c, 0.3)}`, borderRadius: 8, padding: '5px 12px', whiteSpace: 'nowrap' }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: sTheme.c }} />
+                    {sTheme.ar}
+                  </span>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -474,7 +480,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>
-      <div style={{ marginBottom: 4 }}><BackButton onBack={onBack} /></div>
+      <div style={{ marginBottom: 16 }}><BackButton onBack={onBack} /></div>
 
       {/* Header */}
       <div style={{ marginBottom: 18, marginTop: 6 }}>
@@ -1046,33 +1052,16 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
   const inp = { ...sF, textAlign: 'center' }
 
   return (
-    <div style={overlay}>
-      <div onClick={e => e.stopPropagation()} style={box}>
-        {/* Top bar */}
-        <div style={{ padding: '20px 24px 16px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-              <span style={{ color: C.gold, flexShrink: 0, display: 'inline-flex' }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /><path d="M8 13h8M8 17h6" /></svg>
-              </span>
-              <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>معاملة جديدة</div>
-            </div>
-            <button onClick={onClose} aria-label="إغلاق"
-              onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
-              style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-            </button>
+    <FKModal open onClose={onClose} accent={C.gold} width={560} title="معاملة جديدة" Icon={FileText}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, width: '100%' }}>
+        {isWizard && (
+          <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexShrink: 0 }}>
+            {wizSteps.map((s, i) => <div key={s.k} style={{ flex: 1, height: 3, borderRadius: 4, background: i < step ? 'linear-gradient(90deg, #D4A017, #F0C040)' : 'rgba(255,255,255,.06)', transition: '.35s' }} />)}
           </div>
-          {isWizard && (
-            <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
-              {wizSteps.map((s, i) => <div key={s.k} style={{ flex: 1, height: 3, borderRadius: 4, background: i < step ? 'linear-gradient(90deg, #D4A017, #F0C040)' : 'rgba(255,255,255,.06)', transition: '.35s' }} />)}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Body */}
-        <div className="sbc-dd-scroll" style={{ padding: '8px 24px 14px', overflowY: 'auto', flex: 1, minHeight: 0, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="sbc-dd-scroll" style={{ padding: '8px 6px 14px', overflowY: 'auto', flex: 1, minHeight: 0, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {isWizard ? (
             <div style={fieldset}>
               <div style={legend}><span>{wizSteps[step - 1]?.l}</span></div>
@@ -1251,6 +1240,6 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
           </div>
         </div>
       </div>
-    </div>
+    </FKModal>
   )
 }

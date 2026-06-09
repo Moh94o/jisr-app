@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { DateField, Sel, OccSelect } from './pages/KafalaCalculator.jsx'
 import BackButton from './components/BackButton'
+import { can as canPerm } from './lib/permissions.js'
+import { UserPlus } from 'lucide-react'
+import { Modal as FKModal } from './components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -294,6 +297,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
           <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
             {T('العمالة','Workforce')}
           </div>
+          {canPerm(user, 'workers.create') && (
           <button
             onClick={() => setShowAdd(true)}
             title={T('إضافة عامل', 'Add Worker')}
@@ -314,6 +318,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
             <span>{T('إضافة عامل', 'Add Worker')}</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
+          )}
         </div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
           {T('سجلّ موحّد لجميع العمّال غير السعوديين المشتركين في التأمينات الاجتماعية، يجمع بياناتهم الشخصية وأرقامهم الرسمية وحالة إقاماتهم ورخص عملهم ومنشآتهم المرتبطة بهم في مكان واحد.',
@@ -687,36 +692,19 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
 
       {/* ═══ Add Worker Modal — mirrors Kafala "تسعيرة تنازل" styling ═══ */}
       {showAdd && (
-        <div onClick={() => { if (!adding) setShowAdd(false) }}
-             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <style>{`.wkr-add-scroll::-webkit-scrollbar{width:0;display:none}.wkr-add-scroll{scrollbar-width:none;-ms-overflow-style:none}.wkr-add-scroll input:focus{border-color:rgba(255,255,255,.16)!important;box-shadow:none!important}.wkr-add-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.wkr-add-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.wkr-add-btn:hover:not(:disabled) .nav-ico{background:#D4A017;color:#000}.wkr-add-btn:hover:not(:disabled) .nav-ico{transform:translateX(4px)}[dir=rtl] .wkr-add-btn:hover:not(:disabled) .nav-ico{transform:translateX(-4px)}.wkr-add-btn:disabled{opacity:.5;cursor:not-allowed}@keyframes wkr-spin{to{transform:rotate(360deg)}}`}</style>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--modal-bg)', borderRadius: 16, width: 640, maxWidth: '95vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative' }}>
-            <div dir={isAr ? 'rtl' : 'ltr'} style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-
-              {/* Header */}
-              <div style={{ padding: '20px 24px 0', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', fontFamily: F, lineHeight: 1.2 }}>{T('إضافة عامل', 'Add Worker')}</div>
-                  </div>
-                  <button onClick={() => { if (!adding) setShowAdd(false) }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
-                    style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: F, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}
-                    aria-label={T('إغلاق', 'Close')}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
-                  <div style={{ flex: 1, height: 3, borderRadius: 4, background: 'linear-gradient(90deg, #D4A017, #F0C040)' }} />
-                </div>
-              </div>
-
-              {/* Scrollable Content */}
-              <div className="wkr-add-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <FKModal open onClose={() => { if (!adding) setShowAdd(false) }} accent={C.gold} width={640} scroll
+          title={T('إضافة عامل', 'Add Worker')} Icon={UserPlus}
+          footer={
+            <button onClick={saveManualWorker} disabled={adding} className="wkr-add-btn">
+              <span>{adding ? T('جاري الحفظ…', 'Saving…') : T('حفظ', 'Save')}</span>
+              <span className="nav-ico">
+                {adding
+                  ? <span style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'wkr-spin .7s linear infinite' }} />
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+              </span>
+            </button>
+          }>
+          <style>{`.wkr-add-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.wkr-add-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.wkr-add-btn:hover:not(:disabled) .nav-ico{background:#D4A017;color:#000}.wkr-add-btn:disabled{opacity:.5;cursor:not-allowed}@keyframes wkr-spin{to{transform:rotate(360deg)}}`}</style>
                 <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
                   <div style={{ position: 'absolute', top: -10, [isAr ? 'right' : 'left']: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -765,27 +753,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
                     )
                   })()}
                 </div>
-              </div>
-
-              {/* Footer */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '4px 24px 16px', flexShrink: 0 }}>
-                <div />
-                <div />
-                <div style={{ justifySelf: 'end' }}>
-                  <button onClick={saveManualWorker} disabled={adding} className="wkr-add-btn">
-                    <span>{adding ? T('جاري الحفظ…', 'Saving…') : T('حفظ', 'Save')}</span>
-                    <span className="nav-ico">
-                      {adding
-                        ? <span style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'wkr-spin .7s linear infinite' }} />
-                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
+        </FKModal>
       )}
 
     </div>
@@ -857,7 +825,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack }) {
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       {/* Header with back + name + status badge */}
-      <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
         <BackButton onBack={onBack} label={T('رجوع','Back')} />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
           <NatFlag nationality={w.nationality_ar} size={28} />

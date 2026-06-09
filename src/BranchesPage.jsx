@@ -2,13 +2,19 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 // Forced reparse marker — InvoicePage-styled detail page
 import ReactDOM from 'react-dom'
 import BackButton from './components/BackButton'
+import { can as canPerm } from './lib/permissions.js'
+import BranchRentCard from './pages/branch/BranchRentCard.jsx'
+import BranchObligationsCard from './pages/branch/BranchObligationsCard.jsx'
+import BranchLicenseCard from './pages/branch/BranchLicenseCard.jsx'
 import {
   Building2, Users, Wallet, Activity, MapPin, Phone, User, Edit2, Plus, X, Save,
   Trash2, Search, ChevronDown, Check, AlertCircle, TrendingUp,
-  CreditCard, FileText, Home, Hash, Briefcase, ArrowRight,
+  CreditCard, FileText, Home, Hash, Briefcase, ArrowRight, ArrowLeft,
   Banknote, ArrowDownToLine, ArrowUpFromLine, Receipt, Copy, Landmark,
 } from 'lucide-react'
 import { KCard, KV, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, C } from './pages/admin/roles/RoleUI.jsx'
+import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, Select as FKSelect, MultiSelect as FKMulti, TextField as FKText, FileField as FKFile, DateField as FKDateField, Field as FKField, SuccessView } from './components/ui/FormKit.jsx'
+import { DateField } from './pages/KafalaCalculator.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = C.gold
@@ -78,15 +84,27 @@ function MissingBadge() {
   )
 }
 
-function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect, big }) {
+function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect, big, multi, disabled }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
   const [q, setQ] = useState('')
   const btnRef = useRef(null)
-  const val = form[k] || ''
-  const selected = (opts || []).find(o => o.v === val)
+  const rawVal = form[k]
+  const valArr = multi ? (Array.isArray(rawVal) ? rawVal : []) : null
+  const val = multi ? '' : (rawVal || '')
+  const selected = multi ? null : (opts || []).find(o => o.v === val)
   const filtered = q ? opts.filter(o => (o.l || '').includes(q)) : opts
+  const isSel = o => multi ? valArr.includes(o.v) : o.v === val
+  const hasValue = multi ? valArr.length > 0 : !!selected
+  const picks = multi ? (opts || []).filter(o => valArr.includes(o.v)) : []
+  const btnLabel = multi
+    ? (picks.length === 0 ? (ph || '—') : picks[0].l)
+    : (selected?.l || ph || '—')
   const handleSelect = v => {
+    if (multi) {
+      setForm(p => { const cur = Array.isArray(p[k]) ? p[k] : []; return { ...p, [k]: cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v] } })
+      return
+    }
     if (onSelect) onSelect(v); else setForm(p => ({ ...p, [k]: v }))
     setOpen(false); setQ('')
   }
@@ -96,21 +114,30 @@ function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect, big }) {
     const below = window.innerHeight - r.bottom - 16
     setPos({ top: r.bottom + 4, left: r.left, width: r.width, maxH: Math.max(160, Math.min(260, below)) })
   }, [open])
+  // A dependent field that becomes locked (e.g. its parent was cleared) must close.
+  useEffect(() => { if (disabled) setOpen(false) }, [disabled])
   return (
     <div style={{ gridColumn: w === true ? '1/-1' : undefined }}>
       {big
         ? <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>{l}{r && <span style={{ color: C.red }}> *</span>}</div>
         : <Lbl req={r}>{l}</Lbl>}
-      <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
-        style={{ ...sF, ...(big ? { fontSize: 14, fontWeight: 500 } : {}), cursor: 'pointer', color: selected ? 'var(--tx)' : 'var(--tx5)',
+      <button ref={btnRef} type="button" disabled={disabled} onClick={() => { if (!disabled) setOpen(o => !o) }}
+        style={{ ...sF, ...(big ? { fontSize: 14, fontWeight: 500 } : {}), cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .45 : 1, color: hasValue ? 'var(--tx)' : 'var(--tx5)',
           border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.07)'}`,
           borderRadius: 10,
           background: 'var(--modal-input-bg)',
           boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
           display: 'flex', alignItems: 'center', gap: 8, padding: '0 32px', position: 'relative' }}>
-        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {selected?.l || ph || '—'}
-        </span>
+        {multi && picks.length > 1 ? (
+          <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, direction: 'ltr', overflow: 'hidden' }}>
+            <span style={{ fontWeight: 800, color: GOLD, flexShrink: 0 }}>+{picks.length - 1}</span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{btnLabel}</span>
+          </span>
+        ) : (
+          <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {btnLabel}
+          </span>
+        )}
         <ChevronDown size={12} color={GOLD} strokeWidth={2.5}
           style={{ position: 'absolute', left: 12, top: '50%',
             transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
@@ -140,10 +167,27 @@ function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect, big }) {
                 <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: 'var(--tx5)' }}>لا توجد نتائج</div>
               )}
               {filtered.map(o => {
-                const sel = o.v === val
+                const sel = isSel(o)
+                // Multi-select rows mirror PurposeMultiSelect: icon box + label + checkbox.
+                if (multi) {
+                  return (
+                    <div key={o.v} onClick={() => handleSelect(o.v)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.03)', background: sel ? `${GOLD}14` : 'transparent' }}
+                      onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = sel ? `${GOLD}14` : 'transparent' }}>
+                      <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: sel ? `${GOLD}2e` : 'rgba(255,255,255,.04)', border: `1px solid ${sel ? `${GOLD}50` : 'rgba(255,255,255,.06)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Building2 size={14} color={sel ? GOLD : 'var(--tx4)'} strokeWidth={2.2} />
+                      </span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? '#fff' : 'var(--tx2)' }}>{o.l}</span>
+                      <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${sel ? GOLD : 'rgba(255,255,255,.18)'}`, background: sel ? GOLD : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {sel && <Check size={11} color="#000" strokeWidth={3.5} />}
+                      </span>
+                    </div>
+                  )
+                }
                 return (
                   <div key={o.v} onClick={() => handleSelect(o.v)}
-                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13,
+                    style={{ position: 'relative', padding: '10px 14px', cursor: 'pointer', fontSize: 13,
                       fontWeight: sel ? 800 : 600, color: sel ? GOLD : 'rgba(255,255,255,.92)',
                       background: sel ? 'rgba(212,160,23,.1)' : 'transparent',
                       borderBottom: '1px solid rgba(255,255,255,.03)', textAlign: 'center' }}
@@ -179,7 +223,7 @@ function PurposeMultiSelect({ value, onChange }) {
     const below = window.innerHeight - r.bottom - 16
     setPos({ top: r.bottom + 4, left: r.left, width: r.width, maxH: Math.max(160, Math.min(300, below)) })
   }, [open])
-  const label = selected.length ? (selected.length === 1 ? selected[0] : `${selected[0]} +${selected.length - 1}`) : ''
+  const firstLabel = selected.length ? selected[0] : ''
   return (
     <>
       <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
@@ -187,13 +231,21 @@ function PurposeMultiSelect({ value, onChange }) {
           border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.07)'}`, borderRadius: 10,
           background: 'var(--modal-input-bg)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
           display: 'flex', alignItems: 'center', gap: 8, padding: '0 32px', position: 'relative' }}>
-        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label || 'اختر الغرض...'}</span>
+        {selected.length > 1 ? (
+          <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, direction: 'ltr', overflow: 'hidden' }}>
+            <span style={{ fontWeight: 800, color: GOLD, flexShrink: 0 }}>+{selected.length - 1}</span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{firstLabel}</span>
+          </span>
+        ) : (
+          <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{firstLabel || 'اختر الغرض...'}</span>
+        )}
         <ChevronDown size={12} color={GOLD} strokeWidth={2.5} style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
       </button>
       {open && pos && ReactDOM.createPortal(
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
-          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, zIndex: 9999, overflow: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F }}>
+          <div className="brs-sel-scroll" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, zIndex: 9999, overflowY: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F }}>
+            <style>{`.brs-sel-scroll::-webkit-scrollbar{width:0;display:none}.brs-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}`}</style>
             {PURPOSE_OPTS.map(p => {
               const sel = selected.includes(p.v)
               return (
@@ -360,13 +412,13 @@ export default function BranchesPage({ sb, toast, user, lang }) {
     const d = { ...form }; const id = d._id; delete d._id
     // Drop derived/UI-only fields and any column that's not yet in the branches table.
     ;['region_name','city_name','district_name','manager_user_name','workers_count','branch_id',
-      'region_id','building_number','street','street_en'].forEach(k => delete d[k])
+      'region_id','building_number','street','street_en','_orig'].forEach(k => delete d[k])
     Object.keys(d).forEach(k => { if (d[k] === '') d[k] = null })
     try {
       if (id) { d.updated_by = user?.id; const { error } = await sb.from('branches').update(d).eq('id', id); if (error) throw error }
       else { d.created_by = user?.id; const { error } = await sb.from('branches').insert(d); if (error) throw error }
       setSuccess(true)
-      setTimeout(() => { setSuccess(false); setPop(false); load() }, 1300)
+      load() // refresh the list behind the modal; modal stays open in success state until X is pressed
       return null
     } catch (e) {
       const msg = (e.message || '').toLowerCase()
@@ -423,6 +475,12 @@ export default function BranchesPage({ sb, toast, user, lang }) {
       district_id: r.district_id || '', phone: r.phone || '', manager_user_id: r.manager_user_id || '',
       building_number: r.building_number || '', street: r.street || '', street_en: r.street_en || '',
       postal_code: r.postal_code || '', is_active: r.is_active !== false,
+      // Snapshot of the editable fields before any change, so the success card can
+      // show a before → after comparison. Stripped before the DB write in saveBranch.
+      _orig: {
+        branch_code: r.branch_code || '', region_id: r.region_id || '',
+        city_id: r.city_id || '', district_id: r.district_id || '',
+      },
     })
     setPop(true)
   }
@@ -530,12 +588,13 @@ export default function BranchesPage({ sb, toast, user, lang }) {
           roles={roles}
           onReload={load}
           onBack={() => setSelectedBranchId(null)}
-          onEdit={() => openEdit(selectedBranch)}
-          onDelete={() => del(selectedBranch.id)}
+          onEdit={canPerm(user, 'admin_offices.edit') ? (() => openEdit(selectedBranch)) : null}
+          onDelete={canPerm(user, 'admin_offices.delete') ? (() => del(selectedBranch.id)) : null}
+          user={user} lang={lang}
           toast={toast} />
         {pop && (
           <BranchFormModal
-            open={pop} onClose={() => setPop(false)}
+            open={pop} onClose={() => { setPop(false); setSuccess(false) }}
             form={form} setForm={setForm} saving={saving} success={success}
             onSave={saveBranch} updateCode={updateCode}
             regions={regions} cities={cities} districtsList={districtsList} branchManagers={branchManagers} />
@@ -571,12 +630,14 @@ export default function BranchesPage({ sb, toast, user, lang }) {
             <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>المكاتب</div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة المكاتب والفروع ومتابعة مستخدميها وأرصدتها ونشاطها</div>
           </div>
+          {canPerm(user, 'admin_offices.create') && (
           <button onClick={openAdd}
             onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
             onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
             style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
             مكتب جديد <Plus size={16} strokeWidth={2.2} />
           </button>
+          )}
         </div>
       </div>
 
@@ -749,9 +810,9 @@ export default function BranchesPage({ sb, toast, user, lang }) {
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, transform: 'translateY(-2px)' }} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx2)' }}>{g.name}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx2)' }}>{g.name}</span>
               </div>
-              <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{g.active}/{g.items.length} نشط</span>
+              <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{g.items.length}/{g.active} نشط</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {g.items.map(b => (
@@ -765,7 +826,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
 
       {pop && (
         <BranchFormModal
-          open={pop} onClose={() => setPop(false)}
+          open={pop} onClose={() => { setPop(false); setSuccess(false) }}
           form={form} setForm={setForm} saving={saving} success={success}
           onSave={saveBranch} updateCode={updateCode}
           regions={regions} cities={cities} districtsList={districtsList} branchManagers={branchManagers} />
@@ -789,99 +850,95 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
   const accounts = Number(dashboard?.bank_accounts_active || 0)
   // Activity bar: scale to 30 (1 op/day) for full bar; clamp 0-100
   const pct = Math.min(100, Math.round((activity30 / 30) * 100))
+  const code = branch.branch_code || '—'
+  const locParts = [branch.region_name, branch.city_name, branch.district_name].filter(Boolean)
+  const phoneStr = branch.phone ? String(branch.phone).replace(/^\+?966/, '0') : null
 
+  const baseWrap = {
+    position: 'relative', cursor: 'pointer', borderRadius: 14,
+    background: `linear-gradient(135deg, ${tone}0e 0%, #232323 50%, #1f1f1f 100%)`,
+    border: '1px solid rgba(255,255,255,.06)',
+    boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)',
+    overflow: 'hidden', opacity: isActive ? 1 : .7,
+  }
+
+  const codeEl = (sz) => (
+    <span style={{ fontSize: sz, fontWeight: 800, color: GOLD, fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.5px', direction: 'ltr', lineHeight: 1 }}>{code}</span>
+  )
+
+  const StatusPill = ({ size = 10 }) => (
+    <span style={{ fontSize: size, color: tone, fontWeight: 700, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: tone, boxShadow: `0 0 6px ${tone}` }} />
+      {isActive ? 'نشط' : 'معطّل'}
+    </span>
+  )
+
+  const Location = ({ big }) => locParts.length === 0 ? null : (
+    <div className="brs-meta-row" style={{ flexWrap: 'wrap', fontSize: big ? 15 : 12 }}>
+      <MapPin size={big ? 16 : 13} color={GOLD} strokeWidth={2.2} />
+      <span style={{ color: 'rgba(255,255,255,.82)' }}>
+        {locParts.map((p, i) => (
+          <React.Fragment key={i}>
+            {p}{i < locParts.length - 1 && <span style={{ color: 'rgba(255,255,255,.25)', margin: '0 6px' }}>·</span>}
+          </React.Fragment>
+        ))}
+      </span>
+    </div>
+  )
+
+  const MetaLine = ({ size = 11 }) => (
+    <div className="brs-meta-row" style={{ fontSize: size, gap: 12, flexWrap: 'wrap' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <User size={12} color="var(--tx4)" />
+        {branch.manager_user_name
+          ? <span style={{ color: 'rgba(255,255,255,.74)' }}>{branch.manager_user_name}</span>
+          : <span style={{ color: 'rgba(255,255,255,.32)' }}>لم يتم تحديد مدير بعد</span>}
+      </span>
+      {phoneStr && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: C.ok, direction: 'ltr', fontFamily: 'monospace' }}>
+          <Phone size={11} />{phoneStr}
+        </span>
+      )}
+      {lastActivity && (
+        <span style={{ color: 'var(--tx4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <Activity size={11} />{lastActivity}
+        </span>
+      )}
+      {alerts > 0 && (
+        <span title={`${alerts} تنبيه رصيد منخفض`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5, background: 'rgba(232,114,101,.14)', border: '1px solid rgba(232,114,101,.4)', fontSize: 10, fontWeight: 700, color: C.red }}>
+          <AlertCircle size={10} />{alerts} تنبيه
+        </span>
+      )}
+    </div>
+  )
+
+  const StaffBox = ({ big, tile }) => (
+    <div className="brs-staff-box" style={tile
+      ? { flexDirection: 'column', gap: 5, padding: '12px 20px', minWidth: 80 }
+      : (big ? { padding: '11px 20px' } : undefined)}>
+      <Users size={tile || big ? 18 : 16} color={C.blue} strokeWidth={2.2} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: tile ? 'center' : 'flex-start', lineHeight: 1 }}>
+        <span style={{ fontSize: tile || big ? 24 : 20, fontWeight: 800, color: C.blue, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{nm(staff)}</span>
+        <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginTop: 2 }}>مستخدم</span>
+      </div>
+    </div>
+  )
+
+  // Status rail on the leading edge + framed code tile, taller & rebalanced row
   return (
-    <div onClick={onClick} className="brs-row"
-      style={{
-        position: 'relative', cursor: 'pointer',
-        borderRadius: 14,
-        background: `linear-gradient(135deg, ${tone}0e 0%, #232323 50%, #1f1f1f 100%)`,
-        border: '1px solid rgba(255,255,255,.06)',
-        boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)',
-        overflow: 'hidden',
-        opacity: isActive ? 1 : .7,
-      }}>
-
-      {/* Padded content */}
-      <div style={{ padding: '14px 26px 14px 18px' }}>
-        <div className="brs-row-grid">
-          {/* Code block (right) */}
-          <div className="brs-code-block">
-            <span style={{
-              fontSize: 22, fontWeight: 800, color: GOLD,
-              fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.5px',
-              direction: 'ltr', lineHeight: 1,
-            }}>{branch.branch_code || '—'}</span>
-            <span style={{ fontSize: 10, color: tone, fontWeight: 700, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: tone, boxShadow: `0 0 6px ${tone}` }} />
-              {isActive ? 'نشط' : 'معطّل'}
-            </span>
+    <div onClick={onClick} className="brs-row" style={baseWrap}>
+      <span style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${tone} 0%, ${tone}55 100%)` }} />
+      <div style={{ padding: '20px 30px 20px 26px' }}>
+        <div className="brs-row-grid" style={{ gap: 22 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '13px 18px', borderRadius: 12, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.18)', minWidth: 96 }}>
+            {codeEl(25)}<StatusPill size={10.5} />
           </div>
-
-          {/* Vertical divider */}
-          <div className="brs-row-vdiv" />
-
-          {/* Metadata column */}
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {/* Location row */}
-            {(branch.city_name || branch.region_name || branch.district_name) && (
-              <div className="brs-meta-row" style={{ flexWrap: 'wrap' }}>
-                <MapPin size={13} color={GOLD} strokeWidth={2.2} />
-                <span style={{ color: 'rgba(255,255,255,.82)' }}>
-                  {[branch.region_name, branch.city_name, branch.district_name].filter(Boolean).map((p, i, arr) => (
-                    <React.Fragment key={i}>
-                      {p}
-                      {i < arr.length - 1 && <span style={{ color: 'rgba(255,255,255,.25)', margin: '0 6px' }}>·</span>}
-                    </React.Fragment>
-                  ))}
-                </span>
-              </div>
-            )}
-
-            {/* Manager + phone + activity */}
-            <div className="brs-meta-row" style={{ fontSize: 11, gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <User size={12} color="var(--tx4)" />
-                {branch.manager_user_name ? (
-                  <span style={{ color: 'rgba(255,255,255,.74)' }}>{branch.manager_user_name}</span>
-                ) : (
-                  <span style={{ color: 'rgba(255,255,255,.32)' }}>لا يوجد مدير</span>
-                )}
-              </span>
-              {branch.phone && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: C.ok, direction: 'ltr', fontFamily: 'monospace' }}>
-                  <Phone size={11} />
-                  {String(branch.phone).replace(/^\+?966/, '0')}
-                </span>
-              )}
-              {lastActivity && (
-                <span style={{ color: 'var(--tx4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Activity size={11} />
-                  {lastActivity}
-                </span>
-              )}
-              {alerts > 0 && (
-                <span title={`${alerts} تنبيه رصيد منخفض`}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5,
-                    background: 'rgba(232,114,101,.14)', border: '1px solid rgba(232,114,101,.4)',
-                    fontSize: 10, fontWeight: 700, color: C.red,
-                  }}>
-                  <AlertCircle size={10} />
-                  {alerts} تنبيه
-                </span>
-              )}
-            </div>
+          <div className="brs-row-vdiv" style={{ minHeight: 56 }} />
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Location big /><MetaLine size={11.5} />
           </div>
-
-          {/* Left (employees stat) */}
-          <div className="brs-staff-box">
-            <Users size={16} color={C.blue} strokeWidth={2.2} />
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
-              <span style={{ fontSize: 20, fontWeight: 800, color: C.blue, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{nm(staff)}</span>
-              <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginTop: 2 }}>مستخدم</span>
-            </div>
-          </div>
+          <StaffBox big />
         </div>
       </div>
     </div>
@@ -954,9 +1011,29 @@ function BranchActivityChart({ days, color, label }) {
    Structure mirrors UserRolePage: KPI row + hero + stacked cards.
    ═══════════════════════════════════════════════════════════════ */
 
-function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, docs, roles, onReload, onBack, onEdit, onDelete, toast }) {
+/* ═══════════════════════════════════════════════════════════════
+   Location card body — mini grid tiles (code + region/city/district)
+   ═══════════════════════════════════════════════════════════════ */
+function LocationBody({ branch }) {
+  const tiles = [
+    { l: 'المنطقة', v: branch.region_name },
+    { l: 'المدينة', v: branch.city_name },
+    { l: 'الحي', v: branch.district_name },
+  ]
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '4px 0' }}>
+      {tiles.map((t, i) => (
+        <div key={i} style={{ padding: '12px 14px', borderRadius: 11, background: t.gold ? 'rgba(212,160,23,.07)' : 'rgba(255,255,255,.03)', border: `1px solid ${t.gold ? 'rgba(212,160,23,.2)' : 'rgba(255,255,255,.07)'}` }}>
+          <div style={{ fontSize: 12, color: t.gold ? 'rgba(212,160,23,.8)' : 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginBottom: 5 }}>{t.l}</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: t.gold ? GOLD : (t.v ? 'rgba(255,255,255,.88)' : 'var(--tx5)'), direction: t.ltr ? 'ltr' : 'rtl', textAlign: 'right', fontFamily: t.ltr ? "'JetBrains Mono','Cairo',sans-serif" : F }}>{t.v || '—'}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, docs, roles, onReload, onBack, onEdit, onDelete, toast, user, lang }) {
   const isActive = branch.is_active === true
-  const tone = isActive ? C.ok : '#777'
   const activeStaff = users.filter(u => u.is_active).length
   const activity30 = Number(dashboard?.activity_30d || 0)
   const lastActivity = formatRelative(dashboard?.last_activity_at)
@@ -1047,6 +1124,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
           bank_name: bankForm.bank_name || null, account_name: bankForm.account_name || null,
           account_number: bankForm.account_number || null, iban: bankForm.iban || null,
           swift_code: bankForm.swift_code || null, is_primary: !!bankForm.is_primary,
+          sbc_facility_id: bankForm.sbc_facility_id || null,
         }
         const { error } = await sb.from('bank_accounts').update(upd).eq('id', bankForm._edit_account_id)
         if (error) throw error
@@ -1062,7 +1140,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
       // Mode "new" creates the bank account first; "link" reuses an existing one.
       if (!bankAccountId) {
         const d = { ...bankForm, branch_id: branch.id }
-        delete d.mode; delete d._link_account_id; delete d._link_account; delete d.account_purpose; delete d._ibanFile
+        delete d.mode; delete d._link_account_id; delete d._link_account; delete d.account_purpose; delete d._ibanFile; delete d._branch_ids; delete d._sbc_facility; delete d._orig
         Object.keys(d).forEach(k => { if (d[k] === '') d[k] = null })
         const { data, error } = await sb.from('bank_accounts').insert(d).select('id').single()
         if (error) throw error
@@ -1133,7 +1211,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         .brd-section-count{padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:10px;font-weight:700;color:var(--tx3)}
         /* Two-column detail layout — matches UserDetailPage .usrd-grid */
         .brd-grid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:flex-start}
-        @media (max-width:900px){.brd-grid{grid-template-columns:1fr}.brd-side,.brd-main{grid-column:auto !important;position:static !important}}
+        @media (max-width:900px){.brd-grid{grid-template-columns:1fr}.brd-side,.brd-main{grid-column:auto !important;position:static !important}.brd-side{order:1 !important}.brd-main{order:2 !important}}
         .brd-irow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.07)}
         .brd-irow:last-child{border-bottom:none}
         .brd-irow-l{font-size:12px;color:var(--tx4);font-weight:600;flex-shrink:0}
@@ -1141,7 +1219,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
       `}</style>
 
       {/* Back (matches UserDetailPage) */}
-      <div style={{ marginBottom: 4 }}>
+      <div style={{ marginBottom: 16 }}>
         <BackButton onBack={onBack} />
       </div>
 
@@ -1150,17 +1228,8 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Building2 size={26} color={GOLD} strokeWidth={1.8} style={{ flexShrink: 0 }} />
           <div style={{ fontSize: 22, fontWeight: 600, color: GOLD, fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.2px', direction: 'ltr', unicodeBidi: 'isolate', lineHeight: 1 }}>{branch.branch_code || '—'}</div>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: `${tone}20`, color: tone }}>
-            {isActive ? 'نشط' : 'معطّل'}
-          </span>
-          <button onClick={openAddBank}
-            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
-            style={{ marginInlineStart: 'auto', height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
-            حساب بنكي جديد <Plus size={16} strokeWidth={2.2} />
-          </button>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>عرض تفاصيل المكتب وحساباته البنكية ومستخدميه والمستندات.</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>العنوان والموقع، عقد الإيجار، الفواتير (كهرباء/ماء/إنترنت)، أرقام الجوالات، والمستخدمون.</div>
         {(branch.phone || lastActivity || alerts > 0) && (
           <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)' }}>
             {branch.phone && (
@@ -1197,6 +1266,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                 <span className="brd-section-dot" style={{ background: GOLD }} />
                 العنوان والموقع
               </span>
+              {onEdit && (
               <button onClick={onEdit}
                 onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
@@ -1204,48 +1274,38 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                 تعديل
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
               </button>
+              )}
             </div>
             <div className="brd-section-body" style={{ paddingTop: 6, paddingBottom: 12 }}>
-              {[
-                ['المنطقة', branch.region_name, 'rtl'],
-                ['المدينة', branch.city_name, 'rtl'],
-                ['الحي', branch.district_name, 'rtl'],
-              ].map(([l, v, dir]) => (
-                <div key={l} className="brd-irow">
-                  <span className="brd-irow-l">{l}</span>
-                  <span className="brd-irow-v" style={{ direction: dir, color: v ? 'var(--tx2)' : 'var(--tx5)' }} title={v || ''}>{v || '—'}</span>
-                </div>
-              ))}
+              <LocationBody branch={branch} />
             </div>
           </div>
 
-      {/* Bank accounts section */}
-      <div className="brd-section">
-        <div className="brd-section-head">
-          <span className="brd-section-head-l">
-            <span className="brd-section-dot" style={{ background: GOLD }} />
-            الحسابات البنكية
-          </span>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-            {banks.length > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 9, background: `${C.ok}15`, fontSize: 18, fontWeight: 800, color: C.ok, direction: 'ltr', letterSpacing: '-.3px' }}>
-                <TrendingUp size={16} strokeWidth={2.4} /> {nm(Math.round(totalBalance))}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="brd-section-body">
-          {banks.length === 0 ? (
-            <div style={{ padding: 28, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>
-              لا توجد حسابات بنكية مربوطة بهذا المكتب
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {banks.map(a => <BankRow key={a.id} account={a} sb={sb} toast={toast} onEdit={openEditBank} onReload={reloadBanks} />)}
-            </div>
-          )}
-        </div>
-      </div>
+          {/* Rent contract + payment schedule */}
+          <BranchRentCard sb={sb} branch={branch} user={user} lang={lang} toast={toast} />
+
+          {/* Licenses */}
+          <BranchLicenseCard sb={sb} branch={branch} user={user} toast={toast} title="رخصة بلدي" licenseType="balady" accent="#5dade2" addLabel="إضافة رخصة بلدي جديدة" />
+          <BranchLicenseCard sb={sb} branch={branch} user={user} toast={toast} title="شهادة السلامة" licenseType="safety" accent="#e67e22" addLabel="إضافة شهادة سلامة جديدة" />
+
+          {/* Utility bills — a separate card + popup per service */}
+          <BranchObligationsCard sb={sb} branch={branch} user={user} toast={toast}
+            title="الكهرباء" accent="#eab308" addLabel="فاتورة كهرباء جديدة" editLabel="تعديل فاتورة الكهرباء"
+            vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد"
+            fixedMonthly
+            typeOptions={[{ k: 'utility_electricity', l: 'كهرباء' }]} />
+
+          <BranchObligationsCard sb={sb} branch={branch} user={user} toast={toast}
+            title="الإنترنت" accent="#5dade2" addLabel="فاتورة إنترنت جديدة" editLabel="تعديل فاتورة الإنترنت"
+            vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد"
+            fixedMonthly withAmount
+            typeOptions={[{ k: 'utility_internet', l: 'إنترنت' }]} />
+
+          <BranchObligationsCard sb={sb} branch={branch} user={user} toast={toast}
+            title="الماء" accent="#27ae60" addLabel="فاتورة ماء جديدة" editLabel="تعديل فاتورة الماء"
+            vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد"
+            fixedMonthly
+            typeOptions={[{ k: 'utility_water', l: 'ماء' }]} />
 
       {/* Staff section — full management: activate + role + permissions */}
       <div className="brd-section">
@@ -1267,101 +1327,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
               لا يوجد موظفون في هذا المكتب
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 10 }}>
-              {users.map(u => {
-                const isManager = branch.manager_user_id === u.id
-                const c = isManager ? GOLD : C.blue
-                const roleColor = u.role_color || c
-                const toggleActive = async (e) => {
-                  e.stopPropagation()
-                  const next = !u.is_active
-                  const { error } = await sb.from('users').update({ is_active: next }).eq('id', u.id)
-                  if (error) { toast?.(error.message || 'تعذّر تحديث الحالة', 'error'); return }
-                  toast?.(next ? 'تم التفعيل' : 'تم التعطيل')
-                  onReload?.()
-                }
-                return (
-                  <div key={u.id} style={{
-                    position: 'relative',
-                    padding: '14px 16px', borderRadius: 13,
-                    background: `linear-gradient(135deg, ${c}06 0%, rgba(0,0,0,.22) 50%, rgba(0,0,0,.12) 100%)`,
-                    border: '1px solid rgba(255,255,255,.06)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)',
-                    display: 'flex', flexDirection: 'column', gap: 11,
-                    opacity: u.is_active ? 1 : .65,
-                    transition: '.2s',
-                    overflow: 'hidden',
-                  }}>
-                    {/* Accent corner glow */}
-                    <div style={{ position: 'absolute', insetInlineEnd: -30, top: -30, width: 90, height: 90, borderRadius: '50%', background: `radial-gradient(circle, ${c}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
-
-                    {/* Top row: avatar + name + role badge + toggle */}
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <div style={{
-                          width: 46, height: 46, borderRadius: 12,
-                          background: `linear-gradient(135deg, ${c}2e 0%, ${c}12 100%)`,
-                          border: `1px solid ${c}45`,
-                          boxShadow: `0 3px 10px ${c}22, inset 0 1px 0 rgba(255,255,255,.06)`,
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 17, fontWeight: 700, color: c,
-                        }}>
-                          {(u.name_ar || u.email || '?').trim()[0] || '?'}
-                        </div>
-                        {u.nationality_flag && (
-                          <span title={u.nationality_name || u.nationality_code}
-                            style={{ position: 'absolute', bottom: -4, insetInlineEnd: -4,
-                              width: 22, height: 22, borderRadius: '50%',
-                              overflow: 'hidden', border: '2.5px solid #1a1a1a',
-                              boxShadow: '0 2px 6px rgba(0,0,0,.5)', background: '#1a1a1a',
-                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <img src={u.nationality_flag} alt={u.nationality_name || u.nationality_code}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,.96)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-.1px' }}>{u.name_ar || u.email || '—'}</span>
-                          {isManager && (
-                            <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: `${GOLD}22`, color: GOLD, border: `1px solid ${GOLD}48`, letterSpacing: '.2px' }}>
-                              المدير
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {/* Active toggle — corner */}
-                      <button type="button" onClick={toggleActive}
-                        title={u.is_active ? 'تعطيل' : 'تفعيل'}
-                        style={{
-                          flexShrink: 0,
-                          width: 40, height: 22, borderRadius: 999, border: 'none', cursor: 'pointer',
-                          background: u.is_active ? `linear-gradient(180deg, ${C.ok} 0%, ${C.ok}cc 100%)` : 'rgba(255,255,255,.08)',
-                          position: 'relative',
-                          boxShadow: u.is_active ? `0 0 10px ${C.ok}55, inset 0 1px 0 rgba(255,255,255,.2)` : 'inset 0 1px 3px rgba(0,0,0,.32)',
-                          transition: '.22s',
-                        }}>
-                        <span style={{
-                          position: 'absolute', top: 3, left: u.is_active ? 3 : 21,
-                          width: 16, height: 16, borderRadius: '50%',
-                          background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.45)',
-                          transition: '.22s',
-                        }} />
-                      </button>
-                    </div>
-
-                    {/* Meta rows: id + phone + role — unified design */}
-                    {(u.id_number || u.phone || u.role_name) && (
-                      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        {u.id_number && <MetaRow Icon={Hash} value={u.id_number} label="الهوية" mono />}
-                        {u.phone && <MetaRow Icon={Phone} value={String(u.phone).replace(/^\+?966/, '0')} label="الجوال" mono color={C.ok} />}
-                        {u.role_name && <MetaRow dot={roleColor} value={u.role_name} label="الدور" />}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            <UsersSpotlight users={users} branch={branch} sb={sb} toast={toast} onReload={onReload} />
           )}
         </div>
       </div>
@@ -1423,16 +1389,35 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
               </div>
             </div>
             <div className="brd-section-body" style={{ paddingTop: 6, paddingBottom: 12 }}>
+              <div className="brd-irow">
+                <span className="brd-irow-l" style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>كود المكتب</span>
+                <span className="brd-irow-v" style={{ direction: 'ltr', color: 'var(--tx)', fontWeight: 800, fontVariantNumeric: 'tabular-nums', fontSize: 14, letterSpacing: '.5px' }}>{branch.branch_code || '—'}</span>
+              </div>
               {[
-                { l: 'المستخدمون', v: users.length > activeStaff ? `${nm(activeStaff)} / ${nm(users.length)}` : nm(activeStaff), c: C.blue },
-                { l: 'الحسابات البنكية', v: nm(banks.length), c: GOLD },
-                { l: 'الرصيد', v: nm(Math.round(totalBalance)), c: GOLD },
+                { l: 'المستخدمون', v: users.length > activeStaff ? `${nm(users.length)} / ${nm(activeStaff)}` : nm(activeStaff), c: C.blue },
               ].map(({ l, v, c }) => (
                 <div key={l} className="brd-irow">
-                  <span className="brd-irow-l">{l}</span>
+                  <span className="brd-irow-l" style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{l}</span>
                   <span className="brd-irow-v" style={{ direction: 'ltr', color: c, fontWeight: 800, fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>{v}</span>
                 </div>
               ))}
+              {/* Last-updated timestamp — auto-maintained by the trg_branches_updated_at trigger.
+                  Western digits, dash-separated date, date on the left / time on the right. */}
+              {branch.updated_at && (() => {
+                const d = new Date(branch.updated_at)
+                const p2 = n => String(n).padStart(2, '0')
+                const date = `${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()}`
+                const time = `${p2(d.getHours())}:${p2(d.getMinutes())}`
+                return (
+                  <div className="brd-irow">
+                    <span className="brd-irow-l" style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>آخر تحديث</span>
+                    <span className="brd-irow-v" style={{ display: 'inline-flex', alignItems: 'center', gap: 14, direction: 'ltr', color: 'var(--tx3)', fontWeight: 600, fontSize: 12.5 }}>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{date}</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{time}</span>
+                    </span>
+                  </div>
+                )
+              })()}
               {/* Invoice activity — 14-day sparkline, at the bottom of the overview card */}
               {(() => {
                 const map = new Map()
@@ -1465,15 +1450,6 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
           </div>
         </div>{/* /brd-side */}
       </div>{/* /brd-grid */}
-
-      {bankPop && (
-        <BankAccountFormModal
-          sb={sb}
-          open={bankPop} onClose={() => setBankPop(false)}
-          form={bankForm} setForm={setBankForm}
-          saving={bankSaving} success={bankSuccess}
-          onSave={saveBankAccount} />
-      )}
     </div>
   )
 }
@@ -1482,7 +1458,9 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
    Bank account modal — simpler version of BranchFormModal.
    ═══════════════════════════════════════════════════════════════ */
 
-function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, success, onSave }) {
+export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, success, onSave, branches }) {
+  // Global mode (admin bank-accounts tab): an office must be chosen to link the account to.
+  const globalMode = Array.isArray(branches)
   // Load Saudi banks from lookup_items for the dropdown
   const [saudiBanks, setSaudiBanks] = useState([])
   useEffect(() => {
@@ -1518,268 +1496,384 @@ function BankAccountFormModal({ sb, open, onClose, form, setForm, saving, succes
   }, [sb, mode, searchQ])
   useEffect(() => { if (!open) { setSearchQ(''); setSearchResults([]) } }, [open])
 
+  // Step 2 — link an establishment (sbc_facilities) by any CR / unified / GOSI number.
+  const [facQ, setFacQ] = useState('')
+  const [facResults, setFacResults] = useState([])
+  const [facSearching, setFacSearching] = useState(false)
+  const FAC_SEL = 'id, entity_full_name_ar, entity_full_name_en, cr_number, cr_national_number, gosi_unified_national_number, cr_confirm_date_gregorian, cr_status_ar'
+  useEffect(() => {
+    if (!sb) return
+    const q = facQ.trim()
+    if (q.length < 2) { setFacResults([]); return }
+    setFacSearching(true)
+    const t = setTimeout(async () => {
+      const { data } = await sb.from('sbc_facilities').select(FAC_SEL)
+        .or(`cr_number.ilike.%${q}%,cr_national_number.ilike.%${q}%,gosi_unified_national_number.ilike.%${q}%,main_cr_number.ilike.%${q}%`)
+        .limit(8)
+      setFacResults(data || []); setFacSearching(false)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [sb, facQ])
+  useEffect(() => { if (!open) { setFacQ(''); setFacResults([]) } }, [open])
+  // Edit: preload the already-linked facility so its dates render without a re-search.
+  useEffect(() => {
+    if (!open || !sb || !form.sbc_facility_id || form._sbc_facility) return
+    sb.from('sbc_facilities').select(FAC_SEL).eq('id', form.sbc_facility_id).maybeSingle()
+      .then(({ data }) => { if (data) setForm(p => ({ ...p, _sbc_facility: data })) })
+  }, [open, sb, form.sbc_facility_id]) // eslint-disable-line
+
   // Inline footer error (no toast) + mandatory-field gating — mirrors BranchFormModal.
   const [errMsg, setErrMsg] = useState('')
   const [ibanDrag, setIbanDrag] = useState(false)
   useEffect(() => { if (!open) { setErrMsg(''); setIbanDrag(false) } }, [open])
   const hasPurpose = !!(form.account_purpose || '').trim()
-  const canSave = mode === 'link'
+  // In global mode a new/linked account must be tied to an office; purpose is per-office
+  // so it's not required when editing account-level fields globally.
+  const needBranch = globalMode && mode !== 'edit'
+  const purposeRequired = !(globalMode && mode === 'edit')
+  const branchOk = needBranch ? (Array.isArray(form._branch_ids) && form._branch_ids.length > 0) : true
+  // On edit, block saving until at least one field actually changed (vs the openEdit snapshot).
+  const editOrig = form._orig
+  const idsEqual = (a, b) => { const A = [...(a || [])].sort(); const B = [...(b || [])].sort(); return A.length === B.length && A.every((x, i) => x === B[i]) }
+  const editChanged = !(mode === 'edit' && editOrig) || (
+    String(form.bank_name || '') !== String(editOrig.bank_name || '') ||
+    String(form.account_name || '') !== String(editOrig.account_name || '') ||
+    String(form.account_number || '') !== String(editOrig.account_number || '') ||
+    String(form.iban || '') !== String(editOrig.iban || '') ||
+    String(form.expiry_date || '') !== String(editOrig.expiry_date || '') ||
+    String(form.account_purpose || '') !== String(editOrig.account_purpose || '') ||
+    !idsEqual(form._branch_ids, editOrig.branch_ids) ||
+    String(form.sbc_facility_id || '') !== String(editOrig.sbc_facility_id || '') ||
+    !!form._ibanFile
+  )
+  // Account-fields completeness (step 1) — gates the «التالي» button.
+  const acctComplete = mode === 'link' ? true : (!!form.bank_name && !!(form.account_name || '').trim() && !!(form.account_number || '').trim() && !!(form.iban || '').trim() && (purposeRequired ? hasPurpose : true) && branchOk)
+  const canSave = branchOk && editChanged && (mode === 'link'
     ? (!!form._link_account_id && hasPurpose)
-    : (!!form.bank_name && !!(form.account_name || '').trim() && !!(form.account_number || '').trim() && !!(form.iban || '').trim() && hasPurpose && (mode === 'edit' || !!form._ibanFile))
+    : (!!form.bank_name && !!(form.account_name || '').trim() && !!(form.account_number || '').trim() && !!(form.iban || '').trim() && (purposeRequired ? hasPurpose : true) && (mode === 'edit' || !!form._ibanFile)))
   const handleSave = async () => { setErrMsg(''); const err = await onSave(); if (err) setErrMsg(err) }
 
+  // Shared fixed height so the success card is the SAME size as the form modal
+  // (no jump when switching to the success state). Both also share width: 600.
+  const BANK_MODAL_H = 588
+
   if (success) {
+    // Success card mirrors the form's size, then summarizes the saved account:
+    // bank name as the headline badge, with the account's key fields listed below.
+    const bankNm = form.bank_name || form._link_account?.bank_name || '—'
+    const accName = form.account_name || form._link_account?.account_name || ''
+    const accNo = form.account_number || form._link_account?.account_number || ''
+    const iban = form.iban || form._link_account?.iban || ''
+    const rawExpiry = form.expiry_date || form._link_account?.expiry_date || ''
+    const expiry = rawExpiry ? (() => { const d = new Date(rawExpiry); if (isNaN(d)) return rawExpiry; const p2 = n => String(n).padStart(2, '0'); return `${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()}` })() : ''
+    const officeCodes = (form._branch_ids || []).map(id => (branches || []).find(b => b.id === id)?.branch_code).filter(Boolean)
+    const detailRows = [
+      { l: 'اسم الحساب', v: accName },
+      { l: 'رقم الحساب', v: accNo, mono: true },
+      { l: 'الآيبان', v: iban, mono: true },
+      { l: 'تاريخ الانتهاء', v: expiry, mono: true },
+      { l: officeCodes.length > 1 ? 'المكاتب المرتبطة' : 'المكتب المرتبط', v: officeCodes.join(' · '), mono: true },
+    ].filter(r => r.v)
+    const title = mode === 'edit' ? 'حُدّث الحساب البنكي بنجاح' : 'أُضيف الحساب البنكي بنجاح'
+
+    // On edit, compare against the snapshot taken in openEdit and show ONLY the
+    // fields that changed (before → after) — mirrors the branch edit success card.
+    const orig = form._orig
+    const fmtDate = (s) => { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return s; const p2 = n => String(n).padStart(2, '0'); return `${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()}` }
+    const codesOf = (ids) => (ids || []).map(id => (branches || []).find(b => b.id === id)?.branch_code).filter(Boolean).sort().join(' · ')
+    const showCmp = mode === 'edit' && !!orig
+    const cmpRows = showCmp ? [
+      { l: 'البنك', before: orig.bank_name || '—', after: form.bank_name || '—' },
+      { l: 'اسم الحساب', before: orig.account_name || '—', after: form.account_name || '—' },
+      { l: 'رقم الحساب', before: orig.account_number || '—', after: form.account_number || '—', mono: true },
+      { l: 'الآيبان', before: orig.iban || '—', after: form.iban || '—', mono: true },
+      { l: 'تاريخ الانتهاء', before: fmtDate(orig.expiry_date), after: fmtDate(form.expiry_date), mono: true },
+      { l: 'الغرض', before: orig.account_purpose || '—', after: form.account_purpose || '—' },
+      { l: 'المكاتب المرتبطة', before: codesOf(orig.branch_ids) || '—', after: codesOf(form._branch_ids) || '—', mono: true },
+    ].filter(r => String(r.before) !== String(r.after)) : []
     return ReactDOM.createPortal(
       <div style={{
-        position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)',
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
       }}>
         <div onClick={e => e.stopPropagation()} style={{
-          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
-          borderRadius: 16, width: 360, padding: '40px 28px',
-          boxShadow: '0 24px 60px rgba(0,0,0,.55)', border: '1px solid rgba(255,255,255,.08)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+          background: 'var(--modal-bg)', borderRadius: 16, width: 600, maxWidth: '95vw',
+          // Edit → compact comparison card (matches the branch success height); Add → full summary height.
+          height: showCmp ? 392 : BANK_MODAL_H, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)',
+          position: 'relative', zIndex: 60,
         }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%',
-            background: 'radial-gradient(circle at center, #27a04628, #27a04608)',
-            border: '2px solid #27a04666', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 40px #27a04640' }}>
-            <Check size={36} color="#27a046" strokeWidth={3} />
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,.93)', fontFamily: F }}>
-            {mode === 'edit' ? 'تم تحديث الحساب' : 'تمت إضافة الحساب'}
+          <style>{`
+            @keyframes brsCheck { 0% { stroke-dashoffset: 60 } 100% { stroke-dashoffset: 0 } }
+            @keyframes brsFade { 0% { opacity: 0; transform: translateY(8px) } 100% { opacity: 1; transform: translateY(0) } }
+            @keyframes brsRingDraw { 0% { stroke-dashoffset: 151 } 100% { stroke-dashoffset: 0 } }
+          `}</style>
+          <div dir="rtl" style={{ fontFamily: F, display: 'flex', flexDirection: 'column', height: '100%' }}>
+            {/* Close (X) button — absolutely placed so it doesn't push content down */}
+            <div style={{ position: 'absolute', top: 20, left: 24, zIndex: 2 }}>
+              <button onClick={onClose}
+                onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
+                style={{ width: 34, height: 34, borderRadius: 9,
+                  background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
+                  border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
+                  transition: '.2s' }} aria-label="إغلاق">
+                <X size={14} strokeWidth={2} />
+              </button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '0 32px' }}>
+              <div style={{ width: 68, height: 68, flexShrink: 0, animation: 'brsFade .3s ease forwards' }}>
+                <svg width={68} height={68} viewBox="0 0 52 52" fill="none">
+                  <circle cx="26" cy="26" r="24" stroke="#27a046" strokeWidth="3" fill="rgba(39,160,70,.06)"
+                    style={{ strokeDasharray: 151, strokeDashoffset: 151, animation: 'brsRingDraw .6s ease-out forwards' }} />
+                  <polyline points="16 27 23 34 37 18" stroke="#27a046" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ strokeDasharray: 40, strokeDashoffset: 40, animation: 'brsCheck .4s .55s ease-out forwards' }} />
+                </svg>
+              </div>
+              <div style={{ animation: 'brsFade .4s .45s both', fontSize: 19, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', textAlign: 'center' }}>{title}</div>
+              <div style={{ animation: 'brsFade .4s .55s both', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                {showCmp ? (
+                  /* Edit → before → after comparison of changed fields only */
+                  cmpRows.length > 0 ? (
+                    <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '96px 1fr 18px 1fr', alignItems: 'center', gap: 10, padding: '0 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.2px' }}>
+                        <span /><span style={{ textAlign: 'center' }}>قبل</span><span /><span style={{ textAlign: 'center' }}>بعد</span>
+                      </div>
+                      {cmpRows.map((r, i) => (
+                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '96px 1fr 18px 1fr', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'rgba(212,160,23,.07)', border: '1px solid rgba(212,160,23,.22)' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', whiteSpace: 'nowrap' }}>{r.l}</span>
+                          <span style={{ fontSize: 12.5, fontWeight: 600, textAlign: 'center', fontFamily: r.mono ? "'JetBrains Mono','Cairo',sans-serif" : F, direction: r.mono ? 'ltr' : 'rtl', color: 'rgba(255,255,255,.4)', textDecoration: 'line-through', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.before}</span>
+                          <ArrowLeft size={15} strokeWidth={2.4} color={GOLD} style={{ justifySelf: 'center' }} />
+                          <span style={{ fontSize: 12.5, fontWeight: 800, textAlign: 'center', fontFamily: r.mono ? "'JetBrains Mono','Cairo',sans-serif" : F, direction: r.mono ? 'ltr' : 'rtl', color: GOLD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.after}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: 'var(--tx4)' }}>لم تتغيّر أي بيانات</div>
+                  )
+                ) : (
+                  <>
+                    {/* Add → bank name headline badge + account details */}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 18, fontWeight: 800, color: GOLD, padding: '8px 22px', borderRadius: 12, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.25)' }}>
+                      <Landmark size={17} color={GOLD} strokeWidth={2.2} />
+                      <span>{bankNm}</span>
+                    </div>
+                    {detailRows.length > 0 && (
+                      <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        {detailRows.map((r, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', whiteSpace: 'nowrap' }}>{r.l}</span>
+                            <span style={{
+                              fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.82)', textAlign: 'end',
+                              fontFamily: r.mono ? "'JetBrains Mono','Cairo',sans-serif" : F,
+                              direction: r.mono ? 'ltr' : 'rtl',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+                            }}>{r.v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>, document.body
     )
   }
   if (!open) return null
-  return ReactDOM.createPortal(
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--modal-bg)', borderRadius: 16, width: 600, maxWidth: '95vw',
-        maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)',
-      }}>
-        <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)',
-          display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          {/* Header */}
-          <div style={{ padding: '20px 24px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Wallet size={22} strokeWidth={1.8} color={GOLD} />
-              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{mode === 'edit' ? 'تعديل الحساب البنكي' : 'حساب بنكي جديد'}</div>
-            </div>
-            <button onClick={onClose} aria-label="إغلاق"
-              style={{ width: 34, height: 34, borderRadius: 9,
-                background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
-                border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
-              <X size={14} strokeWidth={2} />
+  const purposeArr = (form.account_purpose || '').split('·').map(s => s.trim()).filter(Boolean)
+  const kafalaInput = { ...sF, fontSize: 14, fontWeight: 500, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
+  const fmtCrDate = (s, addDays = 0) => { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return s; if (addDays) d.setDate(d.getDate() + addDays); const p2 = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` }
+  const MONO = "'JetBrains Mono','Cairo',sans-serif"
+
+  // Step 1 — account data.
+  const accountSection = (
+    <FKSection Icon={Landmark} label="بيانات الحساب">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 11 }}>
+        {globalMode && (
+          <FKMulti full label="المكتب المرتبط" req searchable value={form._branch_ids || []}
+            onChange={arr => setForm(p => ({ ...p, _branch_ids: arr }))}
+            options={(branches || []).map(b => ({ k: b.id, l: [b.branch_code, b.name_ar].filter(Boolean).join(' — ') || b.id }))}
+            getKey={o => o.k} getLabel={o => o.l} placeholder="اختر المكتب..." />
+        )}
+        <FKSelect label="البنك" req value={form.bank_name || ''}
+          onChange={v => setForm(p => ({ ...p, bank_name: v }))}
+          options={saudiBanks.map(b => ({ k: b.value_ar, l: b.value_ar }))}
+          getKey={o => o.k} getLabel={o => o.l} placeholder="اختر البنك..." />
+        <FKText label="اسم الحساب" req value={form.account_name || ''} onChange={v => setForm(p => ({ ...p, account_name: v }))} placeholder="اسم صاحب الحساب" />
+        <FKText label="رقم الحساب" req dir="ltr" value={form.account_number || ''} onChange={v => setForm(p => ({ ...p, account_number: v }))} placeholder="000000000000" />
+        <FKText label="الآيبان (IBAN)" req dir="ltr" upper value={form.iban || ''} onChange={v => setForm(p => ({ ...p, iban: v }))} placeholder="SA00 0000 0000 0000 0000 0000" />
+        <FKDateField label="تاريخ الانتهاء" value={form.expiry_date || ''} onChange={v => setForm(p => ({ ...p, expiry_date: v }))} />
+        <FKMulti label="الغرض" req={purposeRequired} searchable={false} value={purposeArr}
+          onChange={arr => setForm(p => ({ ...p, account_purpose: arr.join(' · ') }))}
+          options={PURPOSE_OPTS.map(o => ({ k: o.v, l: o.v }))} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر الغرض..." />
+      </div>
+    </FKSection>
+  )
+
+  // IBAN document — moved to step 2 (keeps step 1 compact). Required for new accounts.
+  const ibanFileBlock = (
+    <FKSection Icon={FileText} label="ملف الآيبان">
+      <label
+        onDragOver={e => { e.preventDefault(); if (!ibanDrag) setIbanDrag(true) }}
+        onDragLeave={e => { e.preventDefault(); setIbanDrag(false) }}
+        onDrop={e => { e.preventDefault(); setIbanDrag(false); const fl = e.dataTransfer?.files?.[0]; if (fl) setForm(p => ({ ...p, _ibanFile: fl })) }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, height: 46, padding: '0 14px', borderRadius: 9, cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 700, color: form._ibanFile ? C.ok : GOLD, border: `1px dashed ${ibanDrag ? GOLD : (form._ibanFile ? 'rgba(46,160,67,.4)' : 'rgba(212,160,23,.4)')}`, background: ibanDrag ? 'rgba(212,160,23,.12)' : (form._ibanFile ? 'rgba(46,160,67,.06)' : 'rgba(212,160,23,.04)'), transition: '.18s' }}>
+        <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => setForm(p => ({ ...p, _ibanFile: e.target.files?.[0] || null }))} />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+        <span style={{ maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form._ibanFile ? form._ibanFile.name : (ibanDrag ? 'أفلت الملف هنا…' : (mode === 'edit' ? 'استبدال ملف الآيبان (اختياري)' : 'إرفاق ملف الآيبان (صورة أو PDF)'))}</span>
+        {form._ibanFile && <span onClick={e => { e.preventDefault(); setForm(p => ({ ...p, _ibanFile: null })) }} style={{ color: C.red, cursor: 'pointer', fontSize: 11.5, fontWeight: 700 }}>إزالة</span>}
+      </label>
+    </FKSection>
+  )
+
+  // Step 2 — optional establishment link (search by CR / unified / GOSI number).
+  const fac = form._sbc_facility
+  const facilitySection = (
+    <FKSection Icon={Landmark} label="ربط بمنشأة (اختياري)">
+      <style>{`.bafm-search-ico{color:var(--tx4);transition:.2s}.bafm-search:focus-within .bafm-search-ico{color:#D4A017}`}</style>
+      {!fac ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="bafm-search" style={{ position: 'relative' }}>
+            <Search size={15} strokeWidth={2.2} className="bafm-search-ico" style={{ position: 'absolute', top: '50%', insetInlineStart: 12, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            <input autoFocus value={facQ} onChange={e => setFacQ(e.target.value)} dir="ltr"
+              placeholder="ابحث برقم السجل / الموحّد / التأمينات…"
+              style={{ ...sF, paddingInlineStart: 38, direction: 'ltr', textAlign: 'right', fontFamily: MONO }} />
+          </div>
+          {facSearching && <div style={{ padding: 12, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>جاري البحث…</div>}
+          {!facSearching && facQ.trim().length >= 2 && facResults.length === 0 && (
+            <div style={{ padding: 16, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد منشآت مطابقة</div>
+          )}
+          {facResults.map(r => (
+            <button key={r.id} type="button" onClick={() => setForm(p => ({ ...p, sbc_facility_id: r.id, _sbc_facility: r }))}
+              style={{ width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '12px 14px', borderRadius: 11, background: `linear-gradient(135deg, ${GOLD}14, rgba(255,255,255,.02))`, border: `1px solid ${GOLD}33`, color: 'var(--tx)' }}>
+              <div style={{ fontWeight: 700, color: '#fff', fontSize: 13.5 }}>{r.entity_full_name_ar || r.entity_full_name_en || '—'}</div>
+              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--tx4)', direction: 'ltr', textAlign: 'right', fontFamily: MONO }}>{[r.cr_number, r.cr_national_number].filter(Boolean).join(' · ') || '—'}</div>
             </button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+            <span style={{ fontWeight: 800, color: '#fff', fontSize: 14 }}>{fac.entity_full_name_ar || fac.entity_full_name_en || '—'}</span>
+            <button type="button" onClick={() => setForm(p => ({ ...p, sbc_facility_id: null, _sbc_facility: null }))}
+              style={{ background: 'transparent', border: 'none', color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>تغيير</button>
           </div>
-
-          {/* Body */}
-          <style>{`.bafm-scroll::-webkit-scrollbar{width:0;display:none}.bafm-scroll{scrollbar-width:none}
-            .bafm-search-ico{color:var(--tx4);transition:.2s}
-            .bafm-search:focus-within .bafm-search-ico{color:#D4A017}
-            .bafm-search:focus-within input{border-color:rgba(212,160,23,.6)!important}`}</style>
-          <div className="bafm-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '18px 24px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-
-            {/* Mode tabs — underline segmented control */}
-            {mode !== 'edit' && <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(255,255,255,.08)', marginBottom: 14 }}>
-              {[
-                { v: 'new', label: 'حساب جديد', Icon: Plus },
-                { v: 'link', label: 'ربط بحساب موجود', Icon: Search },
-              ].map(t => {
-                const sel = mode === t.v
-                return (
-                  <button key={t.v} type="button"
-                    onClick={() => setForm(p => ({ ...p, mode: t.v, _link_account_id: undefined, _link_account: undefined }))}
-                    style={{ flex: 1, height: 42, border: 'none', borderBottom: `2px solid ${sel ? GOLD : 'transparent'}`, background: 'transparent', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? GOLD : 'var(--tx4)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: -1, transition: '.2s' }}
-                    onMouseEnter={e => { if (!sel) e.currentTarget.style.color = 'var(--tx2)' }}
-                    onMouseLeave={e => { if (!sel) e.currentTarget.style.color = 'var(--tx4)' }}>
-                    {t.label}
-                    <t.Icon size={15} strokeWidth={2.2} />
-                  </button>
-                )
-              })}
-            </div>}
-
-            {(() => {
-              const kafalaInput = { ...sF, fontSize: 14, fontWeight: 500, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
-
-              if (mode === 'link') {
-                const acc = form._link_account
-                return (
-                  <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
-                    <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px',
-                      fontSize: 13, fontWeight: 600, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <Search size={12} strokeWidth={2.2} />
-                      <span>بحث برقم الحساب أو الآيبان</span>
-                    </div>
-
-                    {!acc ? (
-                      <>
-                        <div className="bafm-search" style={{ position: 'relative' }}>
-                          <Search size={15} strokeWidth={2.2} className="bafm-search-ico" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                          <input autoFocus value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                            placeholder="رقم الحساب أو الآيبان (حرف أو أكثر)…" dir="ltr"
-                            style={{ ...kafalaInput, paddingLeft: 40, paddingRight: 14, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif", textAlign: 'right' }} />
-                        </div>
-                        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {searching && <div style={{ padding: 14, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>جاري البحث…</div>}
-                          {!searching && searchQ.trim().length >= 1 && searchResults.length === 0 && (
-                            <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد نتائج</div>
-                          )}
-                          {searchResults.map(r => (
-                            <button key={r.id} type="button"
-                              onClick={() => setForm(p => ({ ...p, _link_account_id: r.id, _link_account: r, account_purpose: '' }))}
-                              style={{ width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, color: 'var(--tx)', border: `1px solid ${GOLD}33`, transition: '.18s' }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}66` }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = `${GOLD}33` }}>
-                              <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{r.bank_name}</span>
-                              {r.account_name && <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 3 }}>{r.account_name}</div>}
-                              {(r.account_number || r.iban) && (
-                                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--tx4)' }}>
-                                  {r.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: "'JetBrains Mono','Cairo',sans-serif", color: 'var(--tx3)' }}>{r.account_number}</span></div>}
-                                  {r.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: "'JetBrains Mono','Cairo',sans-serif", color: 'var(--tx3)' }}>{r.iban}</span></div>}
-                                </div>
-                              )}
-                              {(r.bank_account_branches || []).length > 0 && (
-                                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                  {r.bank_account_branches.map((bb, i) => (
-                                    <span key={i} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 5, background: `${C.blue}15`, color: C.blue, border: `1px solid ${C.blue}33`, fontWeight: 600 }}>
-                                      {bb.branches?.branch_code}{bb.account_purpose ? ` · ${bb.account_purpose}` : ''}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, border: `1px solid ${GOLD}33`, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                            <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{acc.bank_name}</span>
-                            <button type="button" onClick={() => setForm(p => ({ ...p, _link_account_id: undefined, _link_account: undefined }))}
-                              style={{ background: 'transparent', border: 'none', color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
-                              تغيير
-                            </button>
-                          </div>
-                          {acc.account_name && <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{acc.account_name}</div>}
-                          {(acc.account_number || acc.iban) && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--tx4)' }}>
-                              {acc.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: "'JetBrains Mono','Cairo',sans-serif", color: 'var(--tx3)' }}>{acc.account_number}</span></div>}
-                              {acc.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: "'JetBrains Mono','Cairo',sans-serif", color: 'var(--tx3)' }}>{acc.iban}</span></div>}
-                            </div>
-                          )}
-                          {(acc.bank_account_branches || []).length > 0 && (
-                            <div style={{ marginTop: 4, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-                              <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 700, marginBottom: 5 }}>مكاتب مرتبطة:</div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                {acc.bank_account_branches.map((bb, i) => (
-                                  <span key={i} style={{ fontSize: 10, padding: '3px 9px', borderRadius: 5, background: `${C.blue}15`, color: C.blue, border: `1px solid ${C.blue}33`, fontWeight: 600 }}>
-                                    {bb.branches?.branch_code}{bb.account_purpose ? ` · ${bb.account_purpose}` : ''}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ marginTop: 16 }}>
-                          <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>غرض هذا الحساب لهذا المكتب<span style={{ color: C.red }}> *</span></div>
-                          <PurposeMultiSelect value={form.account_purpose} onChange={v => setForm(p => ({ ...p, account_purpose: v }))} />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )
-              }
-
-              // mode === 'new'
-              return (
-                <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '16px 18px 14px', position: 'relative' }}>
-                  <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px',
-                    fontSize: 13, fontWeight: 600, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Wallet size={12} strokeWidth={2.2} />
-                    <span>بيانات الحساب</span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 10 }}>
-                    <CustomSel k="bank_name" l="البنك" r big
-                      opts={saudiBanks.map(b => ({ v: b.value_ar, l: b.value_ar }))}
-                      ph="اختر البنك..." form={form} setForm={setForm} />
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>اسم الحساب<span style={{ color: C.red }}> *</span></div>
-                      <input value={form.account_name || ''}
-                        onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))}
-                        placeholder="اسم صاحب الحساب" style={kafalaInput} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>رقم الحساب<span style={{ color: C.red }}> *</span></div>
-                      <input value={form.account_number || ''}
-                        onChange={e => setForm(p => ({ ...p, account_number: e.target.value }))}
-                        placeholder="000000000000" dir="ltr"
-                        style={{ ...kafalaInput, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>الآيبان (IBAN)<span style={{ color: C.red }}> *</span></div>
-                      <input value={form.iban || ''}
-                        onChange={e => setForm(p => ({ ...p, iban: e.target.value.toUpperCase() }))}
-                        placeholder="SA00 0000 0000 0000 0000 0000" dir="ltr"
-                        style={{ ...kafalaInput, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }} />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>الغرض<span style={{ color: C.red }}> *</span></div>
-                      <PurposeMultiSelect value={form.account_purpose} onChange={v => setForm(p => ({ ...p, account_purpose: v }))} />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>ملف الآيبان<span style={{ color: C.red }}> *</span></div>
-                      <label
-                        onDragOver={e => { e.preventDefault(); if (!ibanDrag) setIbanDrag(true) }}
-                        onDragLeave={e => { e.preventDefault(); setIbanDrag(false) }}
-                        onDrop={e => { e.preventDefault(); setIbanDrag(false); const f = e.dataTransfer?.files?.[0]; if (f) setForm(p => ({ ...p, _ibanFile: f })) }}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 62, padding: '10px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'center', fontFamily: F, fontSize: 12.5, fontWeight: 700, color: GOLD, transition: '.2s', border: `1px dashed ${ibanDrag ? GOLD : 'rgba(212,160,23,.4)'}`, background: ibanDrag ? 'rgba(212,160,23,.12)' : 'rgba(212,160,23,.05)' }}>
-                        <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
-                          onChange={e => setForm(p => ({ ...p, _ibanFile: e.target.files?.[0] || null }))} />
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
-                        <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {form._ibanFile ? form._ibanFile.name : (ibanDrag ? 'أفلت الملف هنا…' : 'إرفاق ملف الآيبان أو اسحبه هنا (صورة أو PDF)')}
-                        </span>
-                        {form._ibanFile && <span onClick={e => { e.preventDefault(); setForm(p => ({ ...p, _ibanFile: null })) }} style={{ color: '#e87265', cursor: 'pointer', fontSize: 11.5, fontWeight: 700 }}>إزالة</span>}
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-
-          {/* Footer — inline error (no toast) + save gated until all fields complete */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '12px 24px 16px', flexShrink: 0, gap: 12 }}>
-            <span style={{ flex: 1, minHeight: 16 }}>
-              {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                {errMsg}
-              </span>}
-            </span>
-            <SaveBtn onClick={handleSave}
-              disabled={saving || !canSave}
-              label={saving ? 'جاري الحفظ...' : (mode === 'link' ? 'ربط' : (mode === 'edit' ? 'تعديل' : 'إضافة'))}
-              icon={mode === 'new' ? <Plus size={15} strokeWidth={2.8} />
-                : mode === 'edit' ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                : mode === 'link' ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" x2="16" y1="12" y2="12" /></svg>
-                : undefined} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {[
+              { l: 'رقم السجل', v: fac.cr_number, mono: true },
+              { l: 'حالة السجل', v: fac.cr_status_ar },
+              { l: 'التأكيد السنوي', v: fmtCrDate(fac.cr_confirm_date_gregorian), mono: true, c: GOLD },
+              { l: 'التعليق المتوقّع', v: fmtCrDate(fac.cr_confirm_date_gregorian, 90), mono: true, c: C.red },
+            ].map((x, i) => (
+              <div key={i} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
+                <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{x.l}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: x.c || 'var(--tx)', direction: x.mono ? 'ltr' : 'rtl', textAlign: x.mono ? 'left' : 'right', fontFamily: x.mono ? MONO : F }}>{x.v || '—'}</div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-    </div>, document.body
+      )}
+    </FKSection>
+  )
+
+  // Link mode keeps its single-page search flow; new/edit are a two-step wizard.
+  if (mode === 'link') {
+    const acc = form._link_account
+    return (
+      <FKModal open onClose={onClose} accent={GOLD} width={600} scroll
+        title="ربط حساب بنكي" Icon={Landmark} errorMsg={errMsg}
+        footer={<SaveBtn onClick={handleSave} disabled={saving || !canSave} label={saving ? 'جاري الحفظ...' : 'ربط'}
+          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" x2="16" y1="12" y2="12" /></svg>} />}>
+        <style>{`.bafm-search-ico{color:var(--tx4);transition:.2s}.bafm-search:focus-within .bafm-search-ico{color:#D4A017}.bafm-search:focus-within input{border-color:rgba(212,160,23,.6)!important}`}</style>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {globalMode && (
+            <div style={{ marginBottom: 6 }}>
+              <FKMulti label="المكتب المرتبط" req searchable value={form._branch_ids || []}
+                onChange={arr => setForm(p => ({ ...p, _branch_ids: arr }))}
+                options={(branches || []).map(b => ({ k: b.id, l: [b.branch_code, b.name_ar].filter(Boolean).join(' — ') || b.id }))}
+                getKey={o => o.k} getLabel={o => o.l} placeholder="اختر المكتب..." />
+            </div>
+          )}
+          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Search size={12} strokeWidth={2.2} />
+              <span>بحث برقم الحساب أو الآيبان</span>
+            </div>
+            {!acc ? (
+              <>
+                <div className="bafm-search" style={{ position: 'relative' }}>
+                  <Search size={15} strokeWidth={2.2} className="bafm-search-ico" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  <input autoFocus value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="رقم الحساب أو الآيبان (حرف أو أكثر)…" dir="ltr"
+                    style={{ ...kafalaInput, paddingLeft: 40, paddingRight: 14, direction: 'ltr', fontFamily: MONO, textAlign: 'right' }} />
+                </div>
+                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {searching && <div style={{ padding: 14, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>جاري البحث…</div>}
+                  {!searching && searchQ.trim().length >= 1 && searchResults.length === 0 && (
+                    <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد نتائج</div>
+                  )}
+                  {searchResults.map(r => (
+                    <button key={r.id} type="button"
+                      onClick={() => setForm(p => ({ ...p, _link_account_id: r.id, _link_account: r, account_purpose: '' }))}
+                      style={{ width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, color: 'var(--tx)', border: `1px solid ${GOLD}33`, transition: '.18s' }}>
+                      <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{r.bank_name}</span>
+                      {r.account_name && <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 3 }}>{r.account_name}</div>}
+                      {(r.account_number || r.iban) && (
+                        <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--tx4)' }}>
+                          {r.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: 'var(--tx3)' }}>{r.account_number}</span></div>}
+                          {r.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: 'var(--tx3)' }}>{r.iban}</span></div>}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, border: `1px solid ${GOLD}33`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{acc.bank_name}</span>
+                    <button type="button" onClick={() => setForm(p => ({ ...p, _link_account_id: undefined, _link_account: undefined }))}
+                      style={{ background: 'transparent', border: 'none', color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>تغيير</button>
+                  </div>
+                  {acc.account_name && <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{acc.account_name}</div>}
+                  {(acc.account_number || acc.iban) && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--tx4)' }}>
+                      {acc.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: 'var(--tx3)' }}>{acc.account_number}</span></div>}
+                      {acc.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: 'var(--tx3)' }}>{acc.iban}</span></div>}
+                    </div>
+                  )}
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <FKMulti label="غرض هذا الحساب لهذا المكتب" req searchable={false}
+                    value={(form.account_purpose || '').split('·').map(s => s.trim()).filter(Boolean)}
+                    onChange={arr => setForm(p => ({ ...p, account_purpose: arr.join(' · ') }))}
+                    options={PURPOSE_OPTS.map(o => ({ k: o.v, l: o.v }))} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر الغرض..." />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </FKModal>
+    )
+  }
+
+  return (
+    <FKModal open onClose={onClose} accent={mode === 'edit' ? '#36a8e6' : GOLD} width={600} height="auto"
+      title={mode === 'edit' ? 'تعديل الحساب البنكي' : 'حساب بنكي جديد'} Icon={Landmark}
+      onSubmit={handleSave} submitting={saving}
+      submitLabel={mode === 'edit' ? 'تعديل' : 'إضافة'} submitIcon={mode === 'edit' ? Edit2 : Plus}
+      nextLabel="التالي" backLabel="السابق"
+      pages={[
+        { title: 'بيانات الحساب', valid: acctComplete, error: errMsg, content: accountSection },
+        { title: 'المستندات وربط المنشأة', valid: canSave, error: errMsg, content: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{ibanFileBlock}{facilitySection}</div>
+        ) },
+      ]} />
   )
 }
 
@@ -1824,7 +1918,7 @@ const EmptyLine = ({ text, Icon }) => (
   </div>
 )
 
-function BankRow({ account, sb, toast, onEdit, onReload }) {
+export function BankRow({ account, sb, toast, onEdit, onReload }) {
   const lowBal = account.min_balance_alert != null &&
     Number(account.current_balance || 0) <= Number(account.min_balance_alert)
   const c = lowBal ? '#e6a23c' : C.ok
@@ -2095,11 +2189,18 @@ function BankRow({ account, sb, toast, onEdit, onReload }) {
   )
 }
 
-function BankCardModal({ sb, accountId, bankName, card, toast, onClose, onSaved }) {
-  const [f, setF] = useState({ card_number: card?.card_number || '', holder_name: card?.holder_name || '', pin: card?.pin || '', cvv: card?.cvv || '' })
+export function BankCardModal({ sb, accountId, bankName, card, toast, onClose, onSaved }) {
+  const [f, setF] = useState({ card_number: card?.card_number || '', holder_name: card?.holder_name || '', pin: card?.pin || '', cvv: card?.cvv || '', holder_user_id: card?.holder_user_id || '' })
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  const [users, setUsers] = useState([])
   const isEdit = !!card?.id
+  // System users — the card can be assigned to whoever physically holds it.
+  useEffect(() => {
+    if (!sb) return
+    sb.from('users').select('id, name_ar, name_en, email').eq('is_active', true).order('name_ar')
+      .then(({ data }) => setUsers(data || []))
+  }, [sb])
   const kafalaInput = { ...sF, fontSize: 14, fontWeight: 500, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
   const monoInput = { ...kafalaInput, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }
   const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
@@ -2108,7 +2209,7 @@ function BankCardModal({ sb, accountId, bankName, card, toast, onClose, onSaved 
     if (!canSave) { toast?.('جميع الحقول إلزامية', 'error'); return }
     setBusy(true)
     try {
-      const payload = { card_number: f.card_number.trim() || null, holder_name: f.holder_name.trim() || null, pin: f.pin.trim() || null, cvv: f.cvv.trim() || null }
+      const payload = { card_number: f.card_number.trim() || null, holder_name: f.holder_name.trim() || null, pin: f.pin.trim() || null, cvv: f.cvv.trim() || null, holder_user_id: f.holder_user_id || null }
       const res = card?.id
         ? await sb.from('bank_cards').update(payload).eq('id', card.id)
         : await sb.from('bank_cards').insert({ bank_account_id: accountId, ...payload })
@@ -2136,59 +2237,23 @@ function BankCardModal({ sb, accountId, bankName, card, toast, onClose, onSaved 
       </div>, document.body
     )
   }
-  return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
-      <div style={{ background: 'var(--modal-bg)', borderRadius: 16, width: 560, maxWidth: '95vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column' }}>
-          {/* Header */}
-          <div style={{ padding: '20px 24px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <CreditCard size={22} strokeWidth={1.8} color={GOLD} />
-              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{isEdit ? 'تعديل البطاقة البنكية' : 'بطاقة بنكية جديدة'}</div>
-            </div>
-            <button onClick={onClose} aria-label="إغلاق"
-              style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
-              <X size={14} strokeWidth={2} />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div style={{ padding: '14px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '18px 18px 16px', position: 'relative', marginTop: 6 }}>
-              <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <CreditCard size={12} strokeWidth={2.2} />
-                <span>بيانات البطاقة</span>
+  return (
+    <FKModal open onClose={onClose} accent={GOLD} width={560} scroll
+      title={isEdit ? 'تعديل البطاقة البنكية' : 'بطاقة بنكية جديدة'} Icon={CreditCard}
+      footer={<SaveBtn onClick={save} disabled={busy || !canSave}
+        label={busy ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'إضافة')}
+        icon={isEdit ? undefined : <Plus size={15} strokeWidth={2.8} />} />}>
+            <FKSection Icon={CreditCard} label="بيانات البطاقة">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 14 }}>
+                <FKText full label="رقم البطاقة" req dir="ltr" value={f.card_number} onChange={v => setF(p => ({ ...p, card_number: v.replace(/[^\d ]/g, '') }))} placeholder="0000 0000 0000 0000" />
+                <FKText full label="اسم حامل البطاقة" req value={f.holder_name} onChange={v => setF(p => ({ ...p, holder_name: v }))} placeholder="الاسم كما في البطاقة" />
+                <FKSelect full label="الموظف الحامل للبطاقة" value={f.holder_user_id || ''} onChange={v => setF(p => ({ ...p, holder_user_id: v }))}
+                  options={users.map(u => ({ k: u.id, l: u.name_ar || u.name_en || u.email }))} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر المستخدم..." />
+                <FKText label="الرقم السري" req dir="ltr" value={f.pin} onChange={v => setF(p => ({ ...p, pin: v.replace(/[^\d]/g, '') }))} placeholder="****" />
+                <FKText label="CVV" req dir="ltr" maxLength={4} value={f.cvv} onChange={v => setF(p => ({ ...p, cvv: v.replace(/[^\d]/g, '') }))} placeholder="***" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 12 }}>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={lbl}>رقم البطاقة<span style={{ color: C.red }}> *</span></div>
-                  <input value={f.card_number} onChange={e => setF(p => ({ ...p, card_number: e.target.value.replace(/[^\d ]/g, '') }))} placeholder="0000 0000 0000 0000" inputMode="numeric" dir="ltr" style={monoInput} />
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={lbl}>اسم حامل البطاقة<span style={{ color: C.red }}> *</span></div>
-                  <input value={f.holder_name} onChange={e => setF(p => ({ ...p, holder_name: e.target.value }))} placeholder="الاسم كما في البطاقة" style={kafalaInput} />
-                </div>
-                <div>
-                  <div style={lbl}>الرقم السري<span style={{ color: C.red }}> *</span></div>
-                  <input value={f.pin} onChange={e => setF(p => ({ ...p, pin: e.target.value.replace(/[^\d]/g, '') }))} placeholder="****" inputMode="numeric" dir="ltr" style={monoInput} />
-                </div>
-                <div>
-                  <div style={lbl}>CVV<span style={{ color: C.red }}> *</span></div>
-                  <input value={f.cvv} onChange={e => setF(p => ({ ...p, cvv: e.target.value.replace(/[^\d]/g, '') }))} placeholder="***" inputMode="numeric" maxLength={4} dir="ltr" style={monoInput} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '4px 24px 18px', flexShrink: 0, gap: 12 }}>
-            <SaveBtn onClick={save} disabled={busy || !canSave}
-              label={busy ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'إضافة')}
-              icon={isEdit ? undefined : <Plus size={15} strokeWidth={2.8} />} />
-          </div>
-        </div>
-      </div>
-    </div>, document.body
+            </FKSection>
+    </FKModal>
   )
 }
 
@@ -2207,6 +2272,137 @@ const MetaRow = ({ Icon, dot, value, label, mono, color }) => {
     </div>
   )
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Users section — spotlight manager banner + employee grid
+   ═══════════════════════════════════════════════════════════════ */
+function UsersSpotlight({ users, branch, sb, toast, onReload }) {
+  const managers = users.filter(u => branch.manager_user_id === u.id)
+  const employees = users.filter(u => branch.manager_user_id !== u.id)
+
+  const toggleActive = async (u, e) => {
+    e?.stopPropagation()
+    const next = !u.is_active
+    const { error } = await sb.from('users').update({ is_active: next }).eq('id', u.id)
+    if (error) { toast?.(error.message || 'تعذّر تحديث الحالة', 'error'); return }
+    toast?.(next ? 'تم التفعيل' : 'تم التعطيل')
+    onReload?.()
+  }
+
+  const phoneOf = u => u.phone ? String(u.phone).replace(/^\+?966/, '0') : null
+  const initialOf = u => (u.name_ar || u.email || '?').trim()[0] || '?'
+  const cOf = u => (branch.manager_user_id === u.id ? GOLD : C.blue)
+
+  const Flag = ({ u, size = 42, radius = 11 }) => {
+    const c = cOf(u)
+    return (
+      <div title={u.nationality_name || u.nationality_code || undefined}
+        style={{ width: size, height: size, borderRadius: radius, flexShrink: 0, overflow: 'hidden',
+          border: `1px solid ${c}45`, boxShadow: `0 3px 10px ${c}22, inset 0 1px 0 rgba(255,255,255,.06)`,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          background: u.nationality_flag ? '#1a1a1a' : `linear-gradient(135deg, ${c}2e 0%, ${c}12 100%)`,
+          fontSize: Math.round(size * 0.37), fontWeight: 700, color: c }}>
+        {u.nationality_flag
+          ? <img src={u.nationality_flag} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : initialOf(u)}
+      </div>
+    )
+  }
+
+  const Sw = ({ u, w = 38, h = 21 }) => (
+    <button type="button" onClick={e => toggleActive(u, e)} title={u.is_active ? 'تعطيل' : 'تفعيل'}
+      style={{ flexShrink: 0, width: w, height: h, borderRadius: 999, border: 'none', cursor: 'pointer',
+        background: u.is_active ? `linear-gradient(180deg, ${C.ok} 0%, ${C.ok}cc 100%)` : 'rgba(255,255,255,.08)',
+        position: 'relative', boxShadow: u.is_active ? `0 0 10px ${C.ok}55, inset 0 1px 0 rgba(255,255,255,.2)` : 'inset 0 1px 3px rgba(0,0,0,.32)', transition: '.22s' }}>
+      <span style={{ position: 'absolute', top: 3, left: u.is_active ? 3 : (w - h + 3), width: h - 6, height: h - 6, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.45)', transition: '.22s' }} />
+    </button>
+  )
+
+  const MgrTag = ({ small }) => (
+    <span style={{ fontSize: small ? 9 : 9.5, fontWeight: 700, padding: small ? '1px 6px' : '2px 7px', borderRadius: 5, background: `${GOLD}22`, color: GOLD, border: `1px solid ${GOLD}48`, letterSpacing: '.2px' }}>المدير</span>
+  )
+
+  const RoleLine = ({ u, size = 11 }) => u.role_name ? (
+    <span style={{ fontSize: size, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: u.role_color || cOf(u) }} />{u.role_name}
+    </span>
+  ) : null
+
+  const GroupHead = ({ color, label, count }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 11 }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
+      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', letterSpacing: '.2px' }}>{label}</span>
+      <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700, direction: 'ltr' }}>{nm(count)}</span>
+      <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.06)' }} />
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <GroupHead color={GOLD} label="المدير" count={managers.length} />
+        {managers.length === 0 ? (
+          <div style={{ padding: '15px 16px', textAlign: 'center', color: 'var(--tx4)', fontSize: 11.5, fontWeight: 600, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>
+            لم يتم تحديد مدير بعد
+          </div>
+        ) : managers.map(u => {
+          const ph = phoneOf(u)
+          return (
+            <div key={u.id} style={{
+              position: 'relative', overflow: 'hidden', borderRadius: 15, padding: '18px 20px',
+              background: `linear-gradient(120deg, ${GOLD}16 0%, ${GOLD}06 40%, rgba(0,0,0,.2) 100%)`,
+              border: `1px solid ${GOLD}38`, boxShadow: `0 6px 20px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.05)`,
+              opacity: u.is_active ? 1 : .6,
+            }}>
+              <div style={{ position: 'absolute', insetInlineStart: -50, top: -50, width: 150, height: 150, borderRadius: '50%', background: `radial-gradient(circle, ${GOLD}22 0%, transparent 70%)`, pointerEvents: 'none' }} />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <Flag u={u} size={60} radius={14} />
+                <div style={{ flex: 1, minWidth: 140 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 17, fontWeight: 700, color: '#fff' }}>{u.name_ar || u.email || '—'}</span>
+                    <MgrTag />
+                  </div>
+                  <div style={{ marginTop: 5 }}><RoleLine u={u} size={12} /></div>
+                </div>
+                {ph && <PillMeta label="الجوال" value={ph} color={C.ok} />}
+                {u.id_number && <PillMeta label="الهوية" value={u.id_number} />}
+                <Sw u={u} w={42} h={23} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      {employees.length > 0 && (
+        <div>
+          <GroupHead color={C.blue} label="الموظفون" count={employees.length} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))', gap: 10 }}>
+            {employees.map(u => (
+              <div key={u.id} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, textAlign: 'center',
+                padding: '16px 12px', borderRadius: 13, background: 'rgba(0,0,0,.18)',
+                border: '1px solid rgba(255,255,255,.06)', opacity: u.is_active ? 1 : .55, transition: '.2s',
+              }}>
+                <Flag u={u} size={52} radius={13} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.94)' }}>{u.name_ar || u.email || '—'}</div>
+                  <div style={{ marginTop: 4, display: 'flex', justifyContent: 'center' }}><RoleLine u={u} size={10.5} /></div>
+                </div>
+                <Sw u={u} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const PillMeta = ({ label, value, color }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '6px 12px', borderRadius: 9, background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.06)' }}>
+    <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
+    <span style={{ fontSize: 12, fontWeight: 700, color: color || 'rgba(255,255,255,.9)', direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }}>{value}</span>
+  </div>
+)
 
 const CopyRow = ({ label, value, onCopy }) => {
   const [copied, setCopied] = useState(false)
@@ -2268,128 +2464,84 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
   // Inline footer error (no toast) + mandatory-field gating — mirrors NewUserModal.
   const [errMsg, setErrMsg] = useState('')
   useEffect(() => { if (!open) setErrMsg('') }, [open])
-  const canSave = !!form.region_id && !!form.city_id && !!form.district_id && !!(form.branch_code || '').trim()
+  // Editable fields, and which of them actually changed vs the openEdit snapshot.
+  const CMP_KEYS = ['branch_code', 'region_id', 'city_id', 'district_id']
+  const orig = form._orig
+  const changedKeys = (isEdit && orig)
+    ? CMP_KEYS.filter(k => String(form[k] || '') !== String(orig[k] || ''))
+    : CMP_KEYS // add mode → treat everything as "new"
+  // On edit, block saving until at least one field actually changed.
+  const hasChanges = !isEdit || changedKeys.length > 0
+  const allFilled = !!form.region_id && !!form.city_id && !!form.district_id && !!(form.branch_code || '').trim()
+  const canSave = allFilled && hasChanges
+  // Shared, fixed modal height so the card does NOT resize when switching from the
+  // form to the success state — both render at exactly the same size. Sized to the
+  // form's natural (tight) height so neither state shows dead space.
+  const MODAL_H = 350
   const handleSave = async () => {
     setErrMsg('')
     const err = await onSave()
     if (err) setErrMsg(err)
   }
 
-  if (success) {
-    return ReactDOM.createPortal(
-      <div style={{
-        position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
-      }}>
-        <div onClick={e => e.stopPropagation()} style={{
-          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
-          backdropFilter: 'blur(20px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-          borderRadius: 16, width: 420, maxWidth: '95vw',
-          padding: '48px 32px',
-          boxShadow: '0 24px 60px rgba(0,0,0,.55), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.08)',
-          border: `1px solid rgba(255,255,255,.08)`,
-        }}>
-          <style>{`
-            @keyframes brsPop { 0% { transform: scale(0); opacity: 0 } 60% { transform: scale(1.15); opacity: 1 } 100% { transform: scale(1); opacity: 1 } }
-            @keyframes brsCheck { 0% { stroke-dashoffset: 60 } 100% { stroke-dashoffset: 0 } }
-            @keyframes brsFade { 0% { opacity: 0; transform: translateY(8px) } 100% { opacity: 1; transform: translateY(0) } }
-          `}</style>
-          <div dir="rtl" style={{ fontFamily: F, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
-            <div style={{
-              width: 84, height: 84, borderRadius: '50%',
-              background: 'radial-gradient(circle at center, #27a04628, #27a04608)',
-              border: '2px solid #27a04666',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              animation: 'brsPop .5s cubic-bezier(.4,1.4,.5,1) forwards',
-              boxShadow: '0 0 40px #27a04640',
-            }}>
-              <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#27a046"
-                strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"
-                  style={{ strokeDasharray: 60, strokeDashoffset: 60,
-                    animation: 'brsCheck .45s .25s ease-out forwards' }} />
-              </svg>
-            </div>
-            <div style={{ animation: 'brsFade .4s .45s both', textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 600, color: 'rgba(255,255,255,.93)', marginBottom: 8, letterSpacing: '-.3px' }}>
-                {isEdit ? 'تم التعديل' : 'تمت الإضافة'}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)' }}>{form.branch_code}</div>
-            </div>
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
+  const successNode = success ? (() => {
+    const title = isEdit ? 'عُدّلت بيانات المكتب بنجاح' : 'أُضيفت بيانات المكتب بنجاح'
+    const code = form.branch_code || '—'
+    const fields = [
+      { l: 'المنطقة', v: regions.find(r => r.id === form.region_id)?.name_ar },
+      { l: 'المدينة', v: cities.find(c => c.id === form.city_id)?.name_ar },
+      { l: 'الحي', v: districtsList.find(d => d.id === form.district_id)?.name_ar },
+    ]
+    const locParts = fields.map(f => f.v).filter(Boolean)
+
+    // On edit, build a before → after comparison — but ONLY for fields that
+    // actually changed (changedKeys), so the card shows just the difference.
+    const regName = (id) => regions.find(r => r.id === id)?.name_ar || '—'
+    const cityName = (id) => cities.find(c => c.id === id)?.name_ar || '—'
+    const distName = (id) => districtsList.find(d => d.id === id)?.name_ar || '—'
+    const cmpAll = (isEdit && orig) ? [
+      { k: 'branch_code', l: 'كود المكتب', before: orig.branch_code || '—', after: form.branch_code || '—', mono: true },
+      { k: 'region_id', l: 'المنطقة', before: regName(orig.region_id), after: regName(form.region_id) },
+      { k: 'city_id', l: 'المدينة', before: cityName(orig.city_id), after: cityName(form.city_id) },
+      { k: 'district_id', l: 'الحي', before: distName(orig.district_id), after: distName(form.district_id) },
+    ] : []
+    const cmpRows = cmpAll.filter(r => changedKeys.includes(r.k))
+    const showCmp = cmpRows.length > 0
+
+    const loc = locParts.length > 0
+      ? <><MapPin size={15} color={GOLD} strokeWidth={2.2} /><span>{locParts.map((p, i) => <React.Fragment key={i}>{p}{i < locParts.length - 1 && <span style={{ color: 'rgba(255,255,255,.25)', margin: '0 6px' }}>·</span>}</React.Fragment>)}</span></>
+      : undefined
+    return showCmp
+      ? <SuccessView title={title} compareRows={cmpRows.map(r => ({ label: r.l, before: r.before, after: r.after, mono: r.mono }))} />
+      : <SuccessView title={title} code={code} codeSub={loc} />
+  })() : undefined
 
   if (!open) return null
-  return ReactDOM.createPortal(
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--modal-bg)', borderRadius: 16, width: 640, maxWidth: '95vw',
-        maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)',
-        position: 'relative', zIndex: 60
-      }}>
-        <div dir="rtl" style={{ fontFamily: F, color: 'rgba(255,255,255,.85)',
-          display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-
-          {/* Header — matches Kafala تسعيرة تنازل */}
-          <div style={{ padding: '20px 24px 16px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                <Building2 size={28} strokeWidth={1.8} color={GOLD} style={{ flexShrink: 0 }} />
-                <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)',
-                  fontFamily: F, lineHeight: 1.2 }}>
-                  {isEdit ? 'تعديل بيانات المكتب' : 'مكتب جديد'}
-                </div>
-              </div>
-              <button onClick={onClose}
-                onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
-                style={{ width: 34, height: 34, borderRadius: 9,
-                  background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
-                  border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-                  transition: '.2s' }} aria-label="إغلاق">
-                <X size={14} strokeWidth={2} />
-              </button>
-            </div>
-          </div>
-
-          {/* Scrollable Content */}
-          <style>{`.bfm-scroll::-webkit-scrollbar{width:0;display:none}.bfm-scroll{scrollbar-width:none;-ms-overflow-style:none}`}</style>
-          <div className="bfm-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto',
-            padding: '4px 24px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-      <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)',
-        padding: '20px 22px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: -10, right: 14,
-          background: 'var(--modal-bg)', padding: '0 8px',
-          fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: F,
-          display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <Building2 size={12} strokeWidth={2.2} />
-          <span>بيانات المكتب</span>
-        </div>
+  return (
+    <FKModal open={open} onClose={onClose} width={640} success={successNode}
+      title={isEdit ? 'تعديل بيانات المكتب' : 'مكتب جديد'} Icon={Building2}
+      variant={isEdit ? 'edit' : 'create'} errorMsg={errMsg}
+      footer={
+        <FKAction Icon={isEdit ? Edit2 : Plus} disabled={saving || !canSave} onClick={handleSave}>
+          {saving ? (isEdit ? 'جارٍ التعديل…' : 'جاري الحفظ...') : (isEdit ? 'تعديل' : 'إضافة')}
+        </FKAction>
+      }>
+      <FKSection Icon={Building2} label="بيانات المكتب">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 16 }}>
-          <CustomSel k="region_id" l="المنطقة" r big
-            opts={regions.map(r => ({ v: r.id, l: r.name_ar }))} ph="اختر المنطقة..."
-            form={form} setForm={setForm} />
-          <CustomSel k="city_id" l="المدينة" r big
-            opts={cities.filter(c => !form.region_id || c.region_id === form.region_id)
-              .map(c => ({ v: c.id, l: c.name_ar }))}
-            ph="اختر المدينة..." onSelect={updateCode}
-            form={form} setForm={setForm} />
-          <CustomSel k="district_id" l="الحي" r big
-            opts={distOpts} ph="اختر الحي..." form={form} setForm={setForm} />
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>كود المكتب<span style={{ color: C.red }}> *</span></div>
+          <FKSelect label="المنطقة" req searchable
+            options={regions} getKey={o => o.id} getLabel={o => o.name_ar}
+            value={form.region_id || null} onChange={v => setForm(p => ({ ...p, region_id: v, city_id: '', district_id: '' }))}
+            placeholder="اختر المنطقة..." />
+          <FKSelect label="المدينة" req disabled={!form.region_id}
+            options={cities.filter(c => !form.region_id || c.region_id === form.region_id)}
+            getKey={o => o.id} getLabel={o => o.name_ar}
+            value={form.city_id || null} onChange={v => updateCode(v)}
+            placeholder={form.region_id ? 'اختر المدينة...' : 'اختر المنطقة أولاً'} />
+          <FKSelect label="الحي" req disabled={!form.city_id}
+            options={distOpts} getKey={o => o.v} getLabel={o => o.l}
+            value={form.district_id || null} onChange={v => setForm(p => ({ ...p, district_id: v }))}
+            placeholder={form.city_id ? 'اختر الحي...' : 'اختر المدينة أولاً'} />
+          <FKField label="كود المكتب" req>
             {codeEditing ? (
               <input value={form.branch_code || ''} autoFocus
                 onChange={e => setForm(p => ({ ...p, branch_code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }))}
@@ -2400,11 +2552,10 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
                   fontFamily: "'JetBrains Mono','Cairo',sans-serif", fontWeight: 700 }} />
             ) : (
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
-                background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,.07)', height: 42, boxSizing: 'border-box',
-                boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-                overflow: 'hidden',
+                display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px',
+                background: 'rgba(0,0,0,.18)', borderRadius: 9,
+                height: 42, boxSizing: 'border-box',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', overflow: 'hidden',
               }}>
                 <span style={{
                   fontSize: 14, fontFamily: "'JetBrains Mono','Cairo',sans-serif",
@@ -2417,39 +2568,20 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
                 <button type="button" onClick={() => setCodeEditing(true)} title="تعديل"
                   style={{
                     width: 28, height: 26, borderRadius: 6,
-                    border: `1px dashed ${GOLD}80`, background: 'transparent',
-                    color: GOLD, cursor: 'pointer',
+                    border: `1px dashed ${isEdit ? '#36a8e6' : GOLD}80`, background: 'transparent',
+                    color: isEdit ? '#36a8e6' : GOLD, cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     padding: 0, flexShrink: 0, transition: '.18s',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}15` }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${isEdit ? '#36a8e6' : GOLD}15` }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                   <Edit2 size={12} strokeWidth={2.2} />
                 </button>
               </div>
             )}
-          </div>
+          </FKField>
         </div>
-      </div>
-          </div>
-
-          {/* Footer — inline error (no toast) + save gated until all fields complete */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '12px 24px 16px', flexShrink: 0, gap: 12 }}>
-            <span style={{ flex: 1, minHeight: 16 }}>
-              {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                {errMsg}
-              </span>}
-            </span>
-            <SaveBtn onClick={handleSave} disabled={saving || !canSave}
-              label={saving ? (isEdit ? 'جارٍ التعديل…' : 'جاري الحفظ...') : (isEdit ? 'تعديل' : 'إضافة')}
-              icon={isEdit
-                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                : <Plus size={15} strokeWidth={2.8} />} />
-          </div>
-        </div>
-      </div>
-    </div>, document.body
+      </FKSection>
+    </FKModal>
   )
 }

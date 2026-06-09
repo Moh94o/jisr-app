@@ -9,12 +9,16 @@ import { pathToFileURL } from 'node:url'
 const netlifyFunctionsDevPlugin = () => ({
   name: 'netlify-functions-dev',
   configureServer(server) {
+    // Resolve the functions dir from Vite's resolved project root, not process.cwd().
+    // The dev server may be launched from a different working directory (e.g. via a
+    // symlinked path), which left process.cwd() pointing somewhere without netlify/.
+    const projectRoot = server.config.root || process.cwd()
     server.middlewares.use(async (req, res, next) => {
       if (!req.url || !req.url.startsWith('/.netlify/functions/')) return next()
       const slug = req.url.split('?')[0].replace('/.netlify/functions/', '')
       if (!/^[\w-]+$/.test(slug)) return next()
 
-      const fnFile = path.resolve(process.cwd(), 'netlify', 'functions', `${slug}.mjs`)
+      const fnFile = path.resolve(projectRoot, 'netlify', 'functions', `${slug}.mjs`)
       let mod
       try {
         mod = await import(`${pathToFileURL(fnFile).href}?t=${Date.now()}`)

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { DateField, Sel } from './KafalaCalculator.jsx'
+import { Tag } from 'lucide-react'
+import { Modal as FKModal } from '../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -61,6 +63,34 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
 
   const [modal, setModal] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
+
+  // Branch obligations (rent / utilities / phone) due within 7 days — surfaced live here.
+  const [dueOblig, setDueOblig] = useState([])
+  const OBLIG_LABEL = { rent: 'إيجار', utility_electricity: 'كهرباء', utility_water: 'ماء', utility_internet: 'إنترنت', phone: 'جوال' }
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      // Rent surfaces 14 days ahead of its due date; utilities (electricity/water/internet)
+      // only 7 days ahead. Fetch with the wider window, then trim per obligation type.
+      const h7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+      const h14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+      let qb = sb.from('branch_obligation_payments')
+        .select('id,due_date,amount,status,branch_id,obligation:obligation_id(obligation_type,vendor,title,account_no),branch:branch_id(branch_code)')
+        .is('deleted_at', null).eq('status', 'pending').lte('due_date', h14).order('due_date')
+      if (scopeBranchId) qb = qb.eq('branch_id', scopeBranchId)
+      const { data } = await qb
+      const filtered = (data || []).filter(r => r.due_date <= (r.obligation?.obligation_type === 'rent' ? h14 : h7))
+      if (alive) setDueOblig(filtered)
+    })()
+    return () => { alive = false }
+  }, [sb, scopeBranchId, refreshTick])
+  const payObligation = async (row) => {
+    const { error } = await sb.from('branch_obligation_payments').update({
+      status: 'paid', paid_date: new Date().toISOString().slice(0, 10), paid_amount: row.amount,
+    }).eq('id', row.id)
+    if (error) { toast?.((isAr ? 'تعذّر السداد: ' : 'Failed: ') + error.message.slice(0, 80), 'error'); return }
+    toast?.(isAr ? 'تم تسجيل السداد' : 'Marked paid'); setRefreshTick(t => t + 1)
+  }
 
   /* Lookups */
   useEffect(() => {
@@ -224,6 +254,18 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
   const dayFull = (k) => { try { const d = new Date(k + 'T12:00:00'); return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') } catch { return k } }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE))
+
+  // Branch obligations (rent / utilities) due within 7 days are surfaced as rows inside
+  // the payments table itself (first page only) rather than a separate card on top.
+  const obligRows = dueOblig.map(r => ({
+    _oblig: true, id: 'oblig_' + r.id, _raw: r,
+    due_date: r.due_date, amount: r.amount, status: r.status,
+    branch_code: r.branch?.branch_code || '',
+    label: OBLIG_LABEL[r.obligation?.obligation_type] || 'التزام',
+    vendor: r.obligation?.vendor || r.obligation?.title || '',
+    account_no: r.obligation?.account_no || '',
+  }))
+  const tableRows = page === 0 ? [...obligRows, ...rows] : rows
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
@@ -417,19 +459,20 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
       {/* List */}
       {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>…</div>}
       {!loading && err && <div style={{ padding: 60, textAlign: 'center', color: C.red, fontSize: 13 }}>{err}</div>}
-      {!loading && !err && rows.length === 0 && (
+      {!loading && !err && tableRows.length === 0 && (
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
           {T('لا توجد سجلات مطابقة','No matching records')}
         </div>
       )}
 
-      {!loading && !err && rows.length > 0 && (
+      {!loading && !err && tableRows.length > 0 && (
         <FeesTable
-          rows={rows}
+          rows={tableRows}
           isAr={isAr}
           T={T}
           onPay={fee => setModal({ fee, action: 'pay' })}
           onEdit={fee => setModal({ fee, action: 'edit' })}
+          onPayOblig={raw => { if (confirm(T('تسجيل سداد هذا الالتزام؟', 'Mark this obligation as paid?'))) payObligation(raw) }}
         />
       )}
 
@@ -500,7 +543,7 @@ function FacilityNumRow({ color, label, value, T }) {
 
 /* ═════════════ Table view (matches DepositsPage chrome) ═════════════
    One row per fee. Columns: Office | Payment type | Facility | Invoice | SADAD | Amount | Action. */
-function FeesTable({ rows, isAr, T, onPay, onEdit }) {
+function FeesTable({ rows, isAr, T, onPay, onEdit, onPayOblig }) {
   return (
     <div style={{ borderRadius: 10, overflow: 'hidden' }}>
       <style>{`
@@ -530,6 +573,36 @@ function FeesTable({ rows, isAr, T, onPay, onEdit }) {
         </thead>
         <tbody>
           {rows.map(fee => {
+            // Branch-obligation rows (rent / utilities due within 7 days) — rendered inline.
+            if (fee._oblig) {
+              const overdue = fee.due_date < new Date().toISOString().slice(0, 10)
+              const c = overdue ? C.red : C.gold
+              const d = fee.due_date ? new Date(fee.due_date + 'T12:00:00') : null
+              const dateFmt = d && !isNaN(d) ? `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}` : '—'
+              return (
+                <tr key={fee.id} onClick={() => onPayOblig?.(fee._raw)} title={T('تسجيل السداد', 'Record payment')}>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <span style={{ direction: 'ltr', fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{dateFmt}</span>
+                      {overdue && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.red }}>{T('متأخر', 'Overdue')}</span>}
+                    </div>
+                  </td>
+                  <td><span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>{fee.branch_code || '—'}</span></td>
+                  <td style={{ fontWeight: 700, color: c }}>{fee.label}</td>
+                  <td><span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{fee.vendor || '—'}</span></td>
+                  <td><span style={{ color: 'var(--tx5)' }}>—</span></td>
+                  <td><span style={{ color: 'var(--tx5)' }}>—</span></td>
+                  <td>{fee.account_no ? <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700 }}>{fee.account_no}</span> : <span style={{ color: 'var(--tx5)' }}>—</span>}</td>
+                  <td style={{ fontWeight: 900, direction: 'ltr', color: '#fff' }}>{fmtAmt(fee.amount)}</td>
+                  <td>
+                    <span className="pay-pill" style={{ color: c, background: c + '18', border: '1px solid ' + c + '38' }}>
+                      <span className="pay-dot" style={{ background: c }} />
+                      {overdue ? T('متأخر', 'Overdue') : T('بانتظار السداد', 'Pending')}
+                    </span>
+                  </td>
+                </tr>
+              )
+            }
             const sr = fee.service_request
             const fac = fee._facility
             const worker = fee._worker
@@ -817,24 +890,21 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
   const lbl = { fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--modal-bg)', borderRadius: 16, width: 640, maxWidth: '95vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', fontFamily: F, direction: 'rtl', color: 'rgba(255,255,255,.85)' }}>
-        {/* Header */}
-        <div style={{ padding: '16px 22px 12px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{action === 'edit' ? T('تعديل توثيق السداد','Edit Payment') : T('توثيق عملية السداد','Document Payment')}</div>
-          </div>
-          <button onClick={onClose}
-            onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
-            style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'visible', padding: '6px 18px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <FKModal open onClose={onClose} accent={C.gold} width={640} scroll
+      title={action === 'edit' ? T('تعديل توثيق السداد','Edit Payment') : T('توثيق عملية السداد','Document Payment')}
+      Icon={Tag} errorMsg={done ? undefined : err}
+      footer={done
+        ? <button onClick={onSaved} style={{ height: 42, padding: '0 28px', borderRadius: 11, border: `1px solid ${C.ok}66`, background: `linear-gradient(180deg, ${C.ok}26 0%, ${C.ok}10 100%)`, color: C.ok, fontFamily: F, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>{T('إغلاق','Close')}</button>
+        : <button onClick={submit} disabled={saving} className="pm-nav-btn">
+            <span>{saving ? T('جارٍ التوثيق…','Documenting…') : T('توثيق السداد','Document Payment')}</span>
+            <span className="pm-nav-ico">
+              {saving
+                ? <span style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'pm-spin 0.7s linear infinite' }} />
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+            </span>
+          </button>}>
+      <style>{`.pm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.pm-nav-btn .pm-nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.pm-nav-btn:hover:not(:disabled) .pm-nav-ico{background:#D4A017;color:#000}.pm-nav-btn:disabled{opacity:.5;cursor:not-allowed}@keyframes pm-spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {done ? (
             <div style={{ minHeight: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 14px' }}>
@@ -931,31 +1001,7 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
             </div>
           </div>
           </>)}
-        </div>
-
-        {!done && err && <div style={{ padding: '10px 24px', color: C.red, fontSize: 12.5, fontWeight: 600, borderTop: '1px solid rgba(192,57,43,.2)', background: 'rgba(192,57,43,.06)' }}>⚠ {err}</div>}
-
-        {/* Footer */}
-        <style>{`.pm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.pm-nav-btn .pm-nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.pm-nav-btn:hover:not(:disabled) .pm-nav-ico{background:#D4A017;color:#000}.pm-nav-btn:disabled{opacity:.5;cursor:not-allowed}@keyframes pm-spin{to{transform:rotate(360deg)}}`}</style>
-        <div style={{ padding: '12px 18px', display: 'flex', justifyContent: done ? 'center' : 'flex-end' }}>
-          {done ? (
-            <button onClick={onSaved} style={{ height: 42, padding: '0 28px', borderRadius: 11, border: `1px solid ${C.ok}66`, background: `linear-gradient(180deg, ${C.ok}26 0%, ${C.ok}10 100%)`, color: C.ok, fontFamily: F, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = `linear-gradient(180deg, ${C.ok}40 0%, ${C.ok}20 100%)` }}
-              onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(180deg, ${C.ok}26 0%, ${C.ok}10 100%)` }}>
-              {T('إغلاق','Close')}
-            </button>
-          ) : (
-            <button onClick={submit} disabled={saving} className="pm-nav-btn">
-              <span>{saving ? T('جارٍ التوثيق…','Documenting…') : T('توثيق السداد','Document Payment')}</span>
-              <span className="pm-nav-ico">
-                {saving
-                  ? <span style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'pm-spin 0.7s linear infinite' }} />
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-              </span>
-            </button>
-          )}
-        </div>
       </div>
-    </div>
+    </FKModal>
   )
 }

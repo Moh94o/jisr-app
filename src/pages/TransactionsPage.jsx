@@ -904,7 +904,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 60, color: 'var(--tx2)' }}>
       {/* Top bar: back */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <BackButton onBack={onBack} label={T('رجوع','Back')} />
       </div>
 

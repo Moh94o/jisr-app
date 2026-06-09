@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
 import { Drop } from './PermissionsPage.jsx'
+import { can as canPerm } from '../../lib/permissions.js'
+import { Modal as FKModal } from '../../components/ui/FormKit.jsx'
 import {
   Users, Phone, FileText, Wallet, Search,
   Calendar, Building2, User, Copy, Check,
@@ -281,7 +283,7 @@ export default function AgentsPage({ sb, lang, user, toast }) {
   if (selectedAgent) {
     return (
       <AgentDetailPage sb={sb} agent={selectedAgent} agentStats={selectedAgent._stats}
-        toast={toast} onBack={() => setSelectedId(null)} T={T} isAr={isAr}
+        toast={toast} onBack={() => setSelectedId(null)} T={T} isAr={isAr} canEdit={canPerm(user, 'admin_agents.edit')}
         branches={branches} nationalities={nationalities} onReload={() => setRefreshTick(t => t + 1)} />
     )
   }
@@ -443,7 +445,7 @@ function AgentRow({ agent, agentStats, onClick, T, isAr }) {
 /* ═══════════════════════════════════════════════════════════════
    Detail page — mirrors ClientDetailPage
    ═══════════════════════════════════════════════════════════════ */
-function AgentDetailPage({ sb, agent, agentStats, toast, onBack, T, isAr, branches = [], nationalities = [], onReload }) {
+function AgentDetailPage({ sb, agent, agentStats, toast, onBack, T, isAr, branches = [], nationalities = [], onReload, canEdit = true }) {
   const [links, setLinks] = useState(null)
   const [editing, setEditing] = useState(false)
 
@@ -498,7 +500,7 @@ function AgentDetailPage({ sb, agent, agentStats, toast, onBack, T, isAr, branch
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>
       {/* Back */}
-      <div style={{ marginBottom: 4 }}>
+      <div style={{ marginBottom: 16 }}>
         <BackButton onBack={onBack} label={T('رجوع', 'Back')} />
       </div>
 
@@ -520,7 +522,7 @@ function AgentDetailPage({ sb, agent, agentStats, toast, onBack, T, isAr, branch
         {/* Right column — agent info + commissions */}
         <div className="cld-main" style={{ gridColumn: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <InfoSectionCard title={T('بيانات الوسيط', 'Agent')} items={infoItems}
-            headerAction={
+            headerAction={!canEdit ? null : (
               <button onClick={() => setEditing(true)}
                 onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
@@ -528,7 +530,7 @@ function AgentDetailPage({ sb, agent, agentStats, toast, onBack, T, isAr, branch
                 {T('تعديل', 'Edit')}
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
               </button>
-            } />
+            )} />
 
           {/* Invoices log — فواتير الطلبات التي جلبها الوسيط */}
           <div style={cardChrome}>
@@ -726,11 +728,10 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
     setDone({ rows })
   }
 
-  return (
+  if (done) {
+    return (
     <div style={overlay}>
       <div onClick={e => e.stopPropagation()} style={box}>
-        <style>{`.cm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${GOLD};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.cm-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${GOLD}}.cm-nav-btn:hover:not(:disabled) .nav-ico{background:${GOLD};color:#000}.cm-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-        {done ? (
           <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 28px', gap: 16, textAlign: 'center' }}>
             <button onClick={() => onSaved?.()} aria-label="إغلاق"
               style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
@@ -756,24 +757,20 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
               </div>
             )}
           </div>
-        ) : (
-          <>
-            {/* Top bar */}
-            <div style={{ padding: '20px 24px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                <span style={{ color: GOLD, flexShrink: 0, display: 'inline-flex' }}><User size={28} /></span>
-                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>تعديل بيانات الوسيط</div>
-              </div>
-              <button onClick={onClose} aria-label="إغلاق"
-                onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
-                style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div style={{ padding: '8px 24px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+      </div>
+    </div>
+    )
+  }
+  return (
+    <FKModal open onClose={onClose} accent={GOLD} width={560} scroll
+      title="تعديل بيانات الوسيط" Icon={User} errorMsg={errMsg}
+      footer={
+        <button onClick={save} disabled={saving || !valid} className="cm-nav-btn">
+          <span>{saving ? 'جارٍ التعديل…' : 'تعديل'}</span>
+          <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span>
+        </button>
+      }>
+      <style>{`.cm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${GOLD};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.cm-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${GOLD}}.cm-nav-btn:hover:not(:disabled) .nav-ico{background:${GOLD};color:#000}.cm-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
               <div style={fieldset}>
                 <div style={legend}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
@@ -812,25 +809,7 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Bottom bar */}
-            <div style={{ padding: '12px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
-              <div style={{ flex: 1, minHeight: 16, textAlign: 'start' }}>
-                {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                  {errMsg}
-                </span>}
-              </div>
-              <button onClick={save} disabled={saving || !valid} className="cm-nav-btn">
-                <span>{saving ? 'جارٍ التعديل…' : 'تعديل'}</span>
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span>
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+    </FKModal>
   )
 }
 

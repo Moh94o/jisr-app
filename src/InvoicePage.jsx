@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { DateField, Sel } from './pages/KafalaCalculator.jsx'
 import BackButton from './components/BackButton'
+import { can as canPerm } from './lib/permissions.js'
+import { Modal, SuccessView } from './components/ui/FormKit.jsx'
+import { Plus, RotateCcw, Ban, Printer } from 'lucide-react'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -190,7 +193,7 @@ const INVOICE_SELECT = `
           service_request_agents(agent:agent_id(name_ar,name_en,id_number,phone,nationality:nationality_id(code,name_ar,flag_url)))
         )
       `
-export default function InvoicePage({ sb, lang, user, branchId, toast }) {
+export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvoice }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
 
@@ -446,8 +449,22 @@ export default function InvoicePage({ sb, lang, user, branchId, toast }) {
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       {/* Hero */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الفواتير','Invoices')}</div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('إدارة الفواتير وحالات السداد ومتابعة الأقساط والدفعات','Manage invoices, payment status, installments and payments')}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الفواتير','Invoices')}</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('إدارة الفواتير وحالات السداد ومتابعة الأقساط والدفعات','Manage invoices, payment status, installments and payments')}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('كروت الإحصاء تعرض حركة اليوم وتبدأ من الساعة 5:00 فجراً بتوقيت الرياض', 'The stat cards show today’s activity, starting at 5:00 AM Riyadh time')}</div>
+          </div>
+          {onNewInvoice && canPerm(user, 'invoices.create') && (
+            <button onClick={onNewInvoice}
+              onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+              style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+              {T('فاتورة جديدة','New Invoice')}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats + Services — Hero + Sidebar + Services (refined layout) */}
@@ -1012,7 +1029,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
       {/* Top bar: back */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <BackButton onBack={onBack} label={T('رجوع','Back')} />
       </div>
 
@@ -1026,7 +1043,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
             <line x1="16" y1="17" x2="8" y2="17"/>
             <line x1="10" y1="9" x2="8" y2="9"/>
           </svg>
-          <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.2px' }}>{T('تفاصيل الفاتورة','Invoice Details')}</div>
+          <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{T('تفاصيل الفاتورة','Invoice Details')}</div>
           {inv.status?.code === 'cancelled' && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 8, background: 'rgba(232,114,101,.16)', border: '1px solid ' + C.red, color: C.red, fontSize: 13, fontWeight: 800, letterSpacing: '.3px' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
@@ -1093,7 +1110,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
         </div>
       </div>
 
-      <InvoiceDetailLayout inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} />
+      <InvoiceDetailLayout inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} canPayPerm={canPerm(user, 'invoices.record_payment')} canRefundPerm={canPerm(user, 'invoices.refund')} canCancelPerm={canPerm(user, 'invoices.cancel')} />
 
       {actionModal && <ActionModal type={actionModal} onClose={() => setActionModal(null)} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} user={user} onSaved={() => setRefreshTick(t => t + 1)} />}
     </div>
@@ -1568,13 +1585,10 @@ const CancelReasonForm = ({ T, accent, color, reason, setReason }) => {
 }
 
 const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, toast, user, onSaved }) => {
-  const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   // When a write succeeds, the modal transforms into an in-place success screen
   // (mirrors the invoice-issuance success view) instead of toasting + closing.
   const [done, setDone] = useState(null)
-  const isMultiStep = type === 'payment' || type === 'refund' || type === 'cancel'
-  const totalSteps = type === 'refund' ? 3 : (isMultiStep ? 2 : 1)
 
   // ─── lifted form state (each operation has its own slice) ─────────────────
   // payment
@@ -1646,28 +1660,28 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
       title: T('تسجيل دفعة', 'Record Payment'),
       color: C.ok,
       accent: 'rgba(46,204,113,.35)',
-      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>,
+      Icon: Plus,
       submit: T('حفظ الدفعة', 'Save Payment'),
     },
     refund: {
       title: T('استرجاع دفعة', 'Refund Payment'),
       color: C.blue,
       accent: 'rgba(93,173,226,.35)',
-      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7"/></svg>,
+      Icon: RotateCcw,
       submit: T('تأكيد الاسترجاع', 'Confirm Refund'),
     },
     cancel: {
       title: T('إلغاء الفاتورة', 'Cancel Invoice'),
       color: C.red,
       accent: 'rgba(229,134,122,.35)',
-      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>,
+      Icon: Ban,
       submit: T('تأكيد الإلغاء', 'Confirm Cancel'),
     },
     print: {
       title: T('طباعة الفاتورة', 'Print Invoice'),
       color: C.gold,
       accent: 'rgba(212,160,23,.35)',
-      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+      Icon: Printer,
       submit: T('طباعة', 'Print'),
     },
   }[type]
@@ -1932,194 +1946,139 @@ const ActionModal = ({ type, onClose, sb, T, isAr, inv, total, paid, remaining, 
     }
   }
 
-  return (
-    <div onClick={onClose} style={overlay} dir={isAr ? 'rtl' : 'ltr'}>
-      <div onClick={e => e.stopPropagation()} style={box}>
-        {done ? (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: F, direction: isAr ? 'rtl' : 'ltr', alignItems: 'center', justifyContent: 'center', padding: '24px 28px', gap: 16, textAlign: 'center' }}>
-            <div style={{ width: 74, height: 74, borderRadius: '50%', background: meta.color + '2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: meta.color, boxShadow: '0 0 0 8px ' + meta.color + '14' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <div style={{ fontSize: 19, fontWeight: 700, color: meta.color }}>{done.title}</div>
-            {done.desc && <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 1.7, maxWidth: 380 }}>{done.desc}</div>}
-            <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
-                <span style={{ flex: 1, fontSize: 13, color: 'rgba(255,255,255,.5)', fontWeight: 600, textAlign: 'start' }}>{T('رقم الفاتورة', 'Invoice No')}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: C.gold, direction: 'ltr', fontFamily: 'monospace' }}>#{inv.invoice_no}</span>
-                <CopyBtn text={inv.invoice_no} />
-              </div>
-              {done.rows.map((r, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: r.color + '14', border: '1px solid ' + r.color + '40' }}>
-                  <span style={{ flex: 1, fontSize: 13, color: r.color, fontWeight: 600, textAlign: 'start' }}>{r.label}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: r.color, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{r.value}</span>
+  // ─── Success screen — kept as a celebratory confirmation (not a form) ──────
+  const successNode = done ? (
+    <SuccessView title={done.title} subtitle={done.desc}
+      rows={[
+        { label: T('رقم الفاتورة', 'Invoice No'), value: '#' + inv.invoice_no, mono: true, copy: true, color: C.gold },
+        ...done.rows.map(r => ({ label: r.label, value: r.value, color: r.color, mono: true })),
+      ]} />
+  ) : undefined
+
+  // ─── Invoice-info summary — first page of every payment/refund/cancel flow ─
+  const invoiceInfo = (
+    <div style={fieldset}>
+      <div style={legend}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>{T('بيانات الفاتورة', 'Invoice Info')}</span>
+      </div>
+      <div>
+        {(() => {
+          const focusOnPaid = type === 'refund' || type === 'cancel'
+          const rows = focusOnPaid
+            ? [
+                { label: T('رقم الفاتورة','Invoice No'), value: '#' + inv.invoice_no, color: C.gold, mono: true },
+                { label: T('الإجمالي','Total'),          value: num(total),            color: 'var(--tx2)' },
+                { label: T('المتبقي','Remaining'),       value: num(remaining),        color: C.gold },
+              ]
+            : [
+                { label: T('رقم الفاتورة','Invoice No'), value: '#' + inv.invoice_no, color: C.gold, mono: true },
+                { label: T('الإجمالي','Total'),          value: num(total),            color: 'var(--tx2)' },
+                { label: T('المدفوع','Paid'),            value: num(paid),             color: C.ok },
+              ]
+          const focus = focusOnPaid
+            ? { label: T('المدفوع','Paid'),       value: num(paid),       color: C.ok }
+            : { label: T('المتبقي','Remaining'),  value: num(remaining),  color: C.gold }
+          return (
+            <>
+              {rows.map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed rgba(255,255,255,.08)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--tx4)' }}>{s.label}</span>
+                  <span style={{ fontSize: 13, color: s.color, fontWeight: 700, direction: 'ltr', fontFamily: s.mono ? 'monospace' : 'inherit', fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
                 </div>
               ))}
-            </div>
-            <button onClick={onClose} style={{ marginTop: 8, height: 44, padding: '0 28px', borderRadius: 11, background: meta.color + '1f', border: '1px solid ' + meta.color + '73', color: meta.color, cursor: 'pointer', fontFamily: F, fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>{T('تم', 'Done')}</span>
-            </button>
-          </div>
-        ) : (
-        <>
-        {/* Header */}
-        <div style={{ padding: '20px 24px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-              <span style={{ color: meta.color, flexShrink: 0, display: 'inline-flex' }}>{meta.icon}</span>
-              <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{meta.title}</div>
-            </div>
-            <button
-              onClick={onClose}
-              aria-label={T('إغلاق', 'Close')}
-              onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
-              style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: F, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-          </div>
-          {isMultiStep && (
-            <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
-              {Array.from({ length: totalSteps }, (_, i) => (
-                <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i < step ? `linear-gradient(90deg, ${meta.color}, ${meta.color}aa)` : 'rgba(255,255,255,0.06)', transition: '.35s' }} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minHeight: 0 }}>
-          {(!isMultiStep || step === 1) && (
-            <div style={fieldset}>
-              <div style={legend}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                <span>{T('بيانات الفاتورة', 'Invoice Info')}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 12px', marginTop: 8, borderRadius: 10, background: focus.color + '14', border: '1px solid ' + focus.color + '40' }}>
+                <span style={{ fontSize: 14, color: focus.color, fontWeight: 700, letterSpacing: '.3px' }}>{focus.label}</span>
+                <span style={{ fontSize: 22, color: focus.color, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{focus.value}</span>
               </div>
-              <div>
-                {(() => {
-                  const focusOnPaid = type === 'refund' || type === 'cancel'
-                  const rows = focusOnPaid
-                    ? [
-                        { label: T('رقم الفاتورة','Invoice No'), value: '#' + inv.invoice_no, color: C.gold, mono: true },
-                        { label: T('الإجمالي','Total'),          value: num(total),            color: 'var(--tx2)' },
-                        { label: T('المتبقي','Remaining'),       value: num(remaining),        color: C.gold },
-                      ]
-                    : [
-                        { label: T('رقم الفاتورة','Invoice No'), value: '#' + inv.invoice_no, color: C.gold, mono: true },
-                        { label: T('الإجمالي','Total'),          value: num(total),            color: 'var(--tx2)' },
-                        { label: T('المدفوع','Paid'),            value: num(paid),             color: C.ok },
-                      ]
-                  const focus = focusOnPaid
-                    ? { label: T('المدفوع','Paid'),       value: num(paid),       color: C.ok }
-                    : { label: T('المتبقي','Remaining'),  value: num(remaining),  color: C.gold }
-                  return (
-                    <>
-                      {rows.map((s, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed rgba(255,255,255,.08)' }}>
-                          <span style={{ fontSize: 12, color: 'var(--tx4)' }}>{s.label}</span>
-                          <span style={{ fontSize: 13, color: s.color, fontWeight: 700, direction: 'ltr', fontFamily: s.mono ? 'monospace' : 'inherit', fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
-                        </div>
-                      ))}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 12px', marginTop: 8, borderRadius: 10, background: focus.color + '14', border: '1px solid ' + focus.color + '40' }}>
-                        <span style={{ fontSize: 14, color: focus.color, fontWeight: 700, letterSpacing: '.3px' }}>{focus.label}</span>
-                        <span style={{ fontSize: 22, color: focus.color, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{focus.value}</span>
-                      </div>
-                    </>
-                  )
-                })()}
-              </div>
-            </div>
-          )}
-
-          {type === 'payment' && step === 2 && (
-            <PaymentDetailsForm
-              T={T} accent={meta.accent} color={meta.color} remaining={remaining}
-              paidAmount={paidAmount} setPaidAmount={setPaidAmount}
-              paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-              transferReference={payTransferRef} setTransferReference={setPayTransferRef}
-              transferReceipt={payTransferReceipt} setTransferReceipt={setPayTransferReceipt}
-              selBankAccId={paySelBankAccId} setSelBankAccId={setPaySelBankAccId}
-              bankAccounts={incomingBankAccounts}
-            />
-          )}
-
-          {type === 'refund' && step === 2 && (
-            <RefundDetailsForm
-              T={T} accent={meta.accent} color={meta.color} paid={paid}
-              refundAmount={refundAmount} setRefundAmount={setRefundAmount}
-              refundMethod={refundMethod} setRefundMethod={setRefundMethod}
-              transferReference={refundTransferRef} setTransferReference={setRefundTransferRef}
-              transferReceipt={refundTransferReceipt} setTransferReceipt={setRefundTransferReceipt}
-              selBankAccId={refundSelBankAccId} setSelBankAccId={setRefundSelBankAccId}
-              bankAccounts={outgoingBankAccounts}
-            />
-          )}
-
-          {type === 'refund' && step === 3 && (
-            <RefundReasonForm
-              T={T} sb={sb} isAr={isAr} accent={meta.accent} color={meta.color}
-              reasonId={refundReasonId} setReasonId={setRefundReasonId}
-              notes={refundNotes} setNotes={setRefundNotes}
-            />
-          )}
-
-          {type === 'cancel' && step === 2 && (
-            <CancelReasonForm
-              T={T} accent={meta.accent} color={meta.color}
-              reason={cancelReason} setReason={setCancelReason}
-            />
-          )}
-
-          {type === 'print' && (
-            <div style={fieldset}>
-              <div style={legend}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg><span>{T('خيارات الطباعة', 'Print Options')}</span></div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { label: T('شعار المؤسسة', 'Company Logo'), defChecked: true },
-                  { label: T('بيانات العميل', 'Client Info'), defChecked: true },
-                  { label: T('تفاصيل الأقساط والدفعات', 'Installments & Payments'), defChecked: true },
-                  { label: T('ختم وتوقيع', 'Stamp & Signature'), defChecked: false },
-                ].map((opt, i) => (
-                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', cursor: 'pointer', fontSize: 13 }}>
-                    <input type="checkbox" defaultChecked={opt.defChecked} style={{ width: 16, height: 16, accentColor: meta.color }} />
-                    <span style={{ color: 'var(--tx2)' }}>{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <style>{`.am-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:var(--am-c);font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.am-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:var(--am-c-bg);display:flex;align-items:center;justify-content:center;transition:.2s;color:var(--am-c)}.am-nav-btn:hover:not(:disabled) .nav-ico{background:var(--am-c);color:#000}.am-back-btn{color:var(--tx3)}.am-back-btn .nav-ico{background:rgba(255,255,255,.06);color:var(--tx3)}.am-back-btn:hover:not(:disabled){color:var(--tx)}.am-back-btn:hover:not(:disabled) .nav-ico{background:rgba(255,255,255,.14);color:var(--tx)}.am-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-        <div style={{ padding: '12px 24px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', gap: 12, '--am-c': meta.color, '--am-c-bg': meta.color + '1a' }}>
-          <div style={{ justifySelf: 'start' }}>
-            {isMultiStep && step > 1 && (
-              <button onClick={() => setStep(s => Math.max(1, s - 1))} className="am-nav-btn am-back-btn">
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
-                <span>{T('السابق','Previous')}</span>
-              </button>
-            )}
-          </div>
-          <div style={{ justifySelf: 'end' }}>
-            {isMultiStep && step < totalSteps ? (
-              <button onClick={() => setStep(s => Math.min(totalSteps, s + 1))} className="am-nav-btn">
-                <span>{T('التالي','Next')}</span>
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
-              </button>
-            ) : (
-              <button onClick={onSubmit} disabled={submitting} className="am-nav-btn">
-                <span>{submitting ? T('جارٍ الحفظ…', 'Saving…') : meta.submit}</span>
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-              </button>
-            )}
-          </div>
-        </div>
-        </>
-        )}
+            </>
+          )
+        })()}
       </div>
     </div>
+  )
+
+  // ─── Print options — single-page flow ─────────────────────────────────────
+  const printOptions = (
+    <div style={fieldset}>
+      <div style={legend}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg><span>{T('خيارات الطباعة', 'Print Options')}</span></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {[
+          { label: T('شعار المؤسسة', 'Company Logo'), defChecked: true },
+          { label: T('بيانات العميل', 'Client Info'), defChecked: true },
+          { label: T('تفاصيل الأقساط والدفعات', 'Installments & Payments'), defChecked: true },
+          { label: T('ختم وتوقيع', 'Stamp & Signature'), defChecked: false },
+        ].map((opt, i) => (
+          <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', cursor: 'pointer', fontSize: 13 }}>
+            <input type="checkbox" defaultChecked={opt.defChecked} style={{ width: 16, height: 16, accentColor: meta.color }} />
+            <span style={{ color: 'var(--tx2)' }}>{opt.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+
+  // Each flow is a sequence of FormKit Modal pages. Page `valid` gates the
+  // Next/Save button; the heavy DB writes still live in onSubmit, untouched.
+  const pages = type === 'payment'
+    ? [
+        { title: T('بيانات الفاتورة','Invoice Info'), valid: true, content: invoiceInfo },
+        { title: T('تفاصيل الدفع','Payment Details'), valid: Number(paidAmount) > 0, content: (
+          <PaymentDetailsForm
+            T={T} accent={meta.accent} color={meta.color} remaining={remaining}
+            paidAmount={paidAmount} setPaidAmount={setPaidAmount}
+            paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+            transferReference={payTransferRef} setTransferReference={setPayTransferRef}
+            transferReceipt={payTransferReceipt} setTransferReceipt={setPayTransferReceipt}
+            selBankAccId={paySelBankAccId} setSelBankAccId={setPaySelBankAccId}
+            bankAccounts={incomingBankAccounts}
+          />
+        ) },
+      ]
+    : type === 'refund'
+    ? [
+        { title: T('بيانات الفاتورة','Invoice Info'), valid: true, content: invoiceInfo },
+        { title: T('تفاصيل الاسترجاع','Refund Details'), valid: Number(refundAmount) > 0, content: (
+          <RefundDetailsForm
+            T={T} accent={meta.accent} color={meta.color} paid={paid}
+            refundAmount={refundAmount} setRefundAmount={setRefundAmount}
+            refundMethod={refundMethod} setRefundMethod={setRefundMethod}
+            transferReference={refundTransferRef} setTransferReference={setRefundTransferRef}
+            transferReceipt={refundTransferReceipt} setTransferReceipt={setRefundTransferReceipt}
+            selBankAccId={refundSelBankAccId} setSelBankAccId={setRefundSelBankAccId}
+            bankAccounts={outgoingBankAccounts}
+          />
+        ) },
+        { title: T('سبب الاسترجاع','Refund Reason'), valid: true, content: (
+          <RefundReasonForm
+            T={T} sb={sb} isAr={isAr} accent={meta.accent} color={meta.color}
+            reasonId={refundReasonId} setReasonId={setRefundReasonId}
+            notes={refundNotes} setNotes={setRefundNotes}
+          />
+        ) },
+      ]
+    : type === 'cancel'
+    ? [
+        { title: T('بيانات الفاتورة','Invoice Info'), valid: true, content: invoiceInfo },
+        { title: T('سبب الإلغاء','Cancellation Reason'), valid: true, content: (
+          <CancelReasonForm
+            T={T} accent={meta.accent} color={meta.color}
+            reason={cancelReason} setReason={setCancelReason}
+          />
+        ) },
+      ]
+    : [
+        { valid: true, content: printOptions },
+      ]
+
+  return (
+    <Modal
+      open onClose={onClose} success={successNode}
+      title={meta.title} Icon={meta.Icon} accent={meta.color} width={540}
+      onSubmit={onSubmit} submitting={submitting} submitLabel={meta.submit}
+      nextLabel={T('التالي','Next')} backLabel={T('السابق','Previous')}
+      pages={pages}
+    />
   )
 }
 
@@ -2925,7 +2884,7 @@ ${pageNumHtml(2, 2)}
   setTimeout(cleanup, 60000)
 }
 
-const InvoiceDetailLayout = ({ inv, data, isAr, T, svc, payT, total, paid, remaining, pct, onRecordPayment, onRefund, onCancelInv, onPrint }) => (
+const InvoiceDetailLayout = ({ inv, data, isAr, T, svc, payT, total, paid, remaining, pct, onRecordPayment, onRefund, onCancelInv, onPrint, canPayPerm = true, canRefundPerm = true, canCancelPerm = true }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={cardChrome}>
@@ -3054,9 +3013,9 @@ const InvoiceDetailLayout = ({ inv, data, isAr, T, svc, payT, total, paid, remai
         // Action buttons depend on invoice state: a cancelled invoice exposes none,
         // a fully-paid one hides "record payment", an unpaid one hides "refund".
         const cancelled = inv.status?.code === 'cancelled'
-        const canPay = !cancelled && remaining > 0.005
-        const canRefund = !cancelled && paid > 0.005
-        const canCancel = !cancelled
+        const canPay = !cancelled && remaining > 0.005 && canPayPerm
+        const canRefund = !cancelled && paid > 0.005 && canRefundPerm
+        const canCancel = !cancelled && canCancelPerm
         if (!canPay && !canRefund && !canCancel) return null
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>

@@ -185,14 +185,14 @@ const SOURCE_META = {
   chambers: { badgeAr: 'الغرف التجارية',         badgeEn: 'Chambers',             descAr: 'مزامنة شهادات الغرف التجارية والعضويات.',                                              descEn: 'Sync chamber certifications and memberships.' },
 }
 
-export default function SyncHub({ sb, toast, user, lang }) {
+export default function SyncHub({ sb, toast, user, lang, initialFocus = null }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
   const [persons, setPersons] = useState([])
   const [sources, setSources] = useState([])
   const [runs, setRuns] = useState([])
   const [changes, setChanges] = useState([])
-  const [focused, setFocused] = useState(null)            // source.id being viewed in drill-down
+  const [focused, setFocused] = useState(initialFocus)    // source.id being viewed in drill-down
   // Canonical totals + provenance rows for facilities — drives the
   // Facilities overview card on the hub.
   const [totalFacilities, setTotalFacilities] = useState(0)
@@ -706,6 +706,57 @@ function SyncActivitiesCard({ runs, changes, sources, persons, T, lang }) {
   )
 }
 
+
+// Standalone "الأنشطة" page — surfaces the sync-run log (SyncActivitiesCard)
+// outside the Sync Hub, as its own top-level sidebar section.
+export function SyncActivitiesPage({ sb, lang }) {
+  const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
+  const [persons, setPersons] = useState([])
+  const [sources, setSources] = useState([])
+  const [runs, setRuns] = useState([])
+  const [changes, setChanges] = useState([])
+
+  useEffect(() => {
+    if (!sb) return
+    let alive = true
+    ;(async () => {
+      const [pr, src, rn, ch] = await Promise.all([
+        sb.from('sync_persons').select('*, person:persons!sync_persons_person_id_fkey(name_ar, name_en, id_number)').is('deleted_at', null).order('sort_order').order('name_ar'),
+        sb.from('sync_sources').select('*').eq('enabled', true).order('sort_order'),
+        sb.from('sync_runs').select('*').order('started_at', { ascending: false }).limit(500),
+        sb.from('sync_changes').select('*').order('detected_at', { ascending: false }).limit(200),
+      ])
+      if (!alive) return
+      const fallbackSources = [
+        { id: 'sbc', name_ar: 'المركز السعودي للأعمال', name_en: 'Saudi Business Center', sort_order: 1 },
+        { id: 'qiwa', name_ar: 'قوى', name_en: 'Qiwa', sort_order: 2 },
+        { id: 'muqeem', name_ar: 'مقيم', name_en: 'Muqeem', sort_order: 3 },
+        { id: 'gosi', name_ar: 'التأمينات الاجتماعية', name_en: 'GOSI', sort_order: 4 },
+        { id: 'chambers', name_ar: 'الغرف التجارية', name_en: 'Chambers', sort_order: 5 },
+        { id: 'ajeer', name_ar: 'أجير', name_en: 'Ajeer', sort_order: 6 },
+        { id: 'mudad', name_ar: 'مدد', name_en: 'Mudad', sort_order: 7 },
+      ]
+      const dbSources = src.data || []
+      setPersons(pr.data || [])
+      setSources(fallbackSources.map(fb => dbSources.find(d => d.id === fb.id) || fb))
+      setRuns(rn.data || [])
+      setChanges(ch.data || [])
+    })()
+    return () => { alive = false }
+  }, [sb])
+
+  return (
+    <div style={{ fontFamily: F, paddingTop: 0 }}>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.95)', letterSpacing: '-.3px' }}>{T('الأنشطة', 'Activities')}</div>
+        <div style={{ marginTop: 8, fontSize: 13, color: 'var(--tx3)', lineHeight: 1.7, maxWidth: 720 }}>
+          {T('سجل كل عمليات المزامنة والتغييرات التي حصلت في كل مصدر.', 'A log of every sync run and the changes it made, per source.')}
+        </div>
+      </div>
+      <SyncActivitiesCard runs={runs} changes={changes} sources={sources} persons={persons} T={T} lang={lang} />
+    </div>
+  )
+}
 
 function changeLabel(c, T) {
   const label = c.record_label || c.record_key || '—'

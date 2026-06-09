@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
 import { Search, X, Check, ShieldCheck, Building2, Phone, Mail, CreditCard, ChevronDown, Eye, EyeOff, Copy, User, Globe } from 'lucide-react'
 import BackButton from '../../components/BackButton'
+import { Modal as FKModal } from '../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -109,7 +110,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>إدارة المستخدمين</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>المستخدمون</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>تفعيل أو تعطيل حسابات المستخدمين والتحكم بصلاحية الدخول للنظام.</div>
         </div>
         {isGM && (
@@ -299,9 +300,9 @@ function UsersTab({ sb, user, toast, lang, users, branches, nationalities, onOpe
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, transform: 'translateY(-2px)' }} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx2)' }}>{g.name}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx2)' }}>{g.name}</span>
               </div>
-              <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{g.active}/{g.items.length} نشط</span>
+              <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{g.items.length}/{g.active} نشط</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {g.items.map(u => (
@@ -338,22 +339,24 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
         boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)',
         overflow: 'hidden', opacity: isActive ? 1 : .7,
       }}>
-      <div style={{ padding: '14px 26px 14px 18px' }}>
-        <div className="usr-row-grid">
+      {/* Status rail on the leading edge */}
+      <span style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${tone} 0%, ${tone}55 100%)` }} />
+      <div style={{ padding: '26px 30px 26px 26px' }}>
+        <div className="usr-row-grid" style={{ gap: 22 }}>
           {/* Avatar — nationality flag (falls back to initial) */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 56 }}>
-            <div title={nat?.name_ar || ''} style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: accent, flexShrink: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 64 }}>
+            <div title={nat?.name_ar || ''} style={{ width: 52, height: 52, borderRadius: 14, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, fontWeight: 800, color: accent, flexShrink: 0 }}>
               {flagUrl ? <img src={flagUrl} alt={nat?.name_ar || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial}
             </div>
           </div>
 
           {/* Vertical divider */}
-          <div className="usr-row-vdiv" />
+          <div className="usr-row-vdiv" style={{ minHeight: 56 }} />
 
           {/* Metadata column */}
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px' }}>{name}</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px' }}>{name}</span>
               {u.role && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: accent + '20', color: accent }}>{u.role.name_ar}</span>}
               {isMe && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: 'rgba(212,160,23,.14)', color: C.gold, letterSpacing: '.3px' }}>أنت</span>}
             </div>
@@ -616,7 +619,7 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>
       {/* Back */}
-      <div style={{ marginBottom: 4 }}>
+      <div style={{ marginBottom: 16 }}>
         <BackButton onBack={onBack} />
       </div>
 
@@ -724,7 +727,7 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
   const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid ' + accent, padding: '20px 22px' }
   const legend = { position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
   const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
-  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
+  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
 
   const save = async () => {
     if (!f.role_id) { setErrMsg('الدور مطلوب'); return }
@@ -786,11 +789,10 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
     setDone({ rows })
   }
 
-  return (
+  if (done) {
+    return (
     <div style={overlay}>
       <div onClick={e => e.stopPropagation()} style={box}>
-        <style>{`.wm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.gold};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.wm-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${C.gold}}.wm-nav-btn:hover:not(:disabled) .nav-ico{background:${C.gold};color:#000}.wm-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-        {done ? (
           <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 28px', gap: 16, textAlign: 'center' }}>
             <button onClick={() => onSaved?.()} aria-label="إغلاق"
               style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
@@ -816,24 +818,20 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
               </div>
             )}
           </div>
-        ) : (
-        <>
-        {/* Top bar */}
-        <div style={{ padding: '20px 24px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-            <span style={{ color: C.gold, flexShrink: 0, display: 'inline-flex' }}><ShieldCheck size={28} /></span>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>تعديل بيانات المستخدم</div>
-            </div>
-          </div>
-          <button onClick={onClose} aria-label="إغلاق"
-            style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
-            <X size={14} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: '8px 24px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+      </div>
+    </div>
+    )
+  }
+  return (
+    <FKModal open onClose={onClose} accent={C.gold} width={560} scroll
+      title="تعديل بيانات المستخدم" Icon={ShieldCheck} errorMsg={errMsg}
+      footer={
+        <button onClick={save} disabled={saving} className="wm-nav-btn">
+          <span>{saving ? 'جارٍ التعديل…' : 'تعديل'}</span>
+          <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span>
+        </button>
+      }>
+      <style>{`.wm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.gold};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.wm-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${C.gold}}.wm-nav-btn:hover:not(:disabled) .nav-ico{background:${C.gold};color:#000}.wm-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
           <div style={fieldset}>
             <div style={legend}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="m22 21-2-2" /><path d="M16 16h.01" /></svg>
@@ -854,7 +852,7 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
               )}
               <div>
                 <div style={lbl}>رقم الجوال</div>
-                <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)' }}>
+                <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 9, overflow: 'hidden', border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
                   <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>+966</div>
                   <input value={(d => !d ? '' : d.length <= 2 ? d : d.length <= 5 ? d.slice(0, 2) + ' ' + d.slice(2) : d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5))(f.personal_phone)} onChange={e => set('personal_phone', e.target.value.replace(/\D/g, '').slice(0, 9))} dir="ltr" inputMode="numeric" maxLength={11} placeholder="5X XXX XXXX"
                     style={{ flex: 1, width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
@@ -862,7 +860,7 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
               </div>
               <div style={{ gridColumn: isGM ? '1 / -1' : 'auto' }}>
                 <div style={lbl}>البريد الإلكتروني</div>
-                <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)' }}>
+                <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 9, overflow: 'hidden', border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
                   <input value={f.email} onChange={e => set('email', e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))} dir="ltr" placeholder="name"
                     style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
                   <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', borderInlineStart: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>{EMAIL_DOMAIN}</div>
@@ -881,25 +879,7 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Bottom bar */}
-        <div style={{ padding: '12px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
-          <div style={{ flex: 1, minHeight: 16, textAlign: 'start' }}>
-            {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-              {errMsg}
-            </span>}
-          </div>
-          <button onClick={save} disabled={saving} className="wm-nav-btn">
-            <span>{saving ? 'جارٍ التعديل…' : 'تعديل'}</span>
-            <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span>
-          </button>
-        </div>
-        </>
-        )}
-      </div>
-    </div>
+    </FKModal>
   )
 }
 
@@ -925,10 +905,10 @@ export function Drop({ value, onChange, options, placeholder }) {
   return (
     <>
       <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
-        style={{ width: '100%', height: 42, padding: '0 34px', borderRadius: 10, cursor: 'pointer',
-          border: `1px solid ${open ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.07)'}`,
-          background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-          color: selected ? 'var(--tx)' : 'var(--tx5)', fontFamily: F, fontSize: 14, fontWeight: 500,
+        style={{ width: '100%', height: 42, padding: '0 34px', borderRadius: 9, cursor: 'pointer',
+          border: `1px solid ${open ? 'rgba(212,160,23,.45)' : 'transparent'}`,
+          background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
+          color: selected ? 'var(--tx)' : 'var(--tx5)', fontFamily: F, fontSize: 14, fontWeight: 600,
           display: 'flex', alignItems: 'center', gap: 8, position: 'relative', outline: 'none', boxSizing: 'border-box', transition: '.2s' }}>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selected?.l || placeholder || '—'}</span>
         <ChevronDown size={13} color={C.gold} strokeWidth={2.5}
@@ -991,10 +971,10 @@ export function MultiDrop({ value, onChange, options, placeholder }) {
       {/* Compact single-line trigger: primary office + a +N badge. The full list
           (with add/remove) lives in the dropdown so the field never grows or scrolls. */}
       <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
-        style={{ width: '100%', height: 42, padding: '0 34px 0 12px', borderRadius: 10, cursor: 'pointer',
-          border: `1px solid ${open ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.07)'}`,
-          background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-          color: 'var(--tx)', fontFamily: F, fontSize: 14, fontWeight: 500,
+        style={{ width: '100%', height: 42, padding: '0 34px 0 12px', borderRadius: 9, cursor: 'pointer',
+          border: `1px solid ${open ? 'rgba(212,160,23,.45)' : 'transparent'}`,
+          background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
+          color: 'var(--tx)', fontFamily: F, fontSize: 14, fontWeight: 600,
           display: 'flex', alignItems: 'center', gap: 7, position: 'relative', outline: 'none', boxSizing: 'border-box', justifyContent: chosen.length ? 'flex-start' : 'center', overflow: 'hidden', transition: '.2s' }}>
         {chosen.length === 0
           ? <span style={{ flex: 1, textAlign: 'center', color: 'var(--tx5)' }}>{placeholder || '—'}</span>
@@ -1054,6 +1034,20 @@ export function MultiDrop({ value, onChange, options, placeholder }) {
 // function which creates the auth user with NO confirmation email; the
 // account starts inactive and is activated from the Users list.
 // ═══════════════════════════════════════════════════════════════════
+// On entering step 2, pre-fill a suggested email + generated password (only if
+// blank) — preserves NewUserModal's old goStep2 side-effect under FormKit pages.
+function Step2Init({ f, setF }) {
+  useEffect(() => {
+    setF(p => {
+      const next = { ...p }
+      if (!next.email) next.email = emailLocalFromName(next.name_en || next.name_ar)
+      if (!next.password) { const pw = genPassword(); next.password = pw; next.password2 = pw }
+      return next
+    })
+  }, [])
+  return null
+}
+
 function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSaved }) {
   const employeeRole = roles.find(r => r.name_ar === 'موظف' || r.name_en === 'Employee')
   const [step, setStep] = useState(1)
@@ -1088,7 +1082,7 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
   const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid ' + accent, padding: '20px 22px' }
   const legend = { position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
   const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
-  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
+  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
 
   const validateStep1 = () => {
     if (!(f.name_ar || '').trim()) { toast('الاسم بالعربي مطلوب'); return false }
@@ -1155,11 +1149,10 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
     setSaving(false)
   }
 
-  return (
+  if (done) {
+    return (
     <div style={overlay}>
       <div onClick={e => e.stopPropagation()} style={box}>
-        <style>{`.nu-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.gold};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.nu-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${C.gold}}.nu-nav-btn:hover:not(:disabled) .nav-ico{background:${C.gold};color:#000}.nu-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-        {done ? (
           <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 28px', gap: 16, textAlign: 'center' }}>
             <button onClick={() => onSaved?.()} aria-label="إغلاق"
               style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
@@ -1184,34 +1177,17 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
               ))}
             </div>
           </div>
-        ) : (
-        <>
-        {/* Top bar */}
-        <div style={{ padding: '20px 24px 16px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-              <span style={{ color: C.gold, flexShrink: 0, display: 'inline-flex' }}><ShieldCheck size={28} /></span>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>مستخدم جديد</div>
-              </div>
-            </div>
-            <button onClick={onClose} aria-label="إغلاق"
-              onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
-              style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
-              <X size={14} />
-            </button>
-          </div>
-          <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
-            {Array.from({ length: totalSteps }, (_, i) => (
-              <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i < step ? `linear-gradient(90deg, ${C.gold}, ${C.gold}aa)` : 'rgba(255,255,255,0.06)', transition: '.35s' }} />
-            ))}
-          </div>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: '8px 24px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
-          {step === 1 && (
+      </div>
+    </div>
+    )
+  }
+  return (
+    <FKModal open onClose={onClose} accent={C.gold} width={560}
+      title="مستخدم جديد" Icon={ShieldCheck}
+      onSubmit={save} submitting={saving} submitLabel="إضافة"
+      nextLabel="التالي" backLabel="السابق"
+      pages={[
+        { title: 'بيانات الموظف', valid: step1Valid, error: errMsg, content: (
             <div style={fieldset}>
               <div style={legend}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
@@ -1249,9 +1225,10 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
                 )}
               </div>
             </div>
-          )}
-
-          {step === 2 && (
+        ) },
+        { title: 'بيانات الدخول', valid: step2Valid, error: errMsg, content: (
+          <>
+            <Step2Init f={f} setF={setF} />
             <div style={fieldset}>
               <div style={legend}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -1260,7 +1237,7 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 20, rowGap: 16 }}>
                 <div>
                   <div style={lbl}>رقم الجوال <span style={{ color: C.red }}>*</span></div>
-                  <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)' }}>
+                  <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 9, overflow: 'hidden', border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
                     <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>+966</div>
                     <input value={(d => !d ? '' : d.length <= 2 ? d : d.length <= 5 ? d.slice(0, 2) + ' ' + d.slice(2) : d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5))(f.personal_phone)} onChange={e => set('personal_phone', e.target.value.replace(/\D/g, '').slice(0, 9))} dir="ltr" inputMode="numeric" maxLength={11} placeholder="5X XXX XXXX"
                       style={{ flex: 1, width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
@@ -1268,7 +1245,7 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
                 </div>
                 <div>
                   <div style={lbl}>البريد الإلكتروني <span style={{ color: C.red }}>*</span></div>
-                  <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)' }}>
+                  <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 9, overflow: 'hidden', border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
                     <input value={f.email} onChange={e => set('email', e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))} dir="ltr" placeholder="name"
                       style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
                     <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', borderInlineStart: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>{EMAIL_DOMAIN}</div>
@@ -1290,44 +1267,10 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
                 </div>
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Bottom bar */}
-        <style>{`.nu-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.gold};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.nu-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${C.gold}}.nu-nav-btn:hover:not(:disabled) .nav-ico{background:${C.gold};color:#000}.nu-back-btn{color:var(--tx3)}.nu-back-btn .nav-ico{background:rgba(255,255,255,.06);color:var(--tx3)}.nu-back-btn:hover:not(:disabled){color:var(--tx)}.nu-back-btn:hover:not(:disabled) .nav-ico{background:rgba(255,255,255,.14);color:var(--tx)}.nu-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-        <div style={{ padding: '12px 24px 16px', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <div style={{ justifySelf: 'start' }}>
-            {step > 1 && (
-              <button onClick={() => { setErrMsg(''); setStep(1) }} className="nu-nav-btn nu-back-btn">
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
-                <span>السابق</span>
-              </button>
-            )}
-          </div>
-          <div style={{ justifySelf: 'center', textAlign: 'center', minHeight: 16 }}>
-            {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-              {errMsg}
-            </span>}
-          </div>
-          <div style={{ justifySelf: 'end' }}>
-            {step < totalSteps ? (
-              <button onClick={goStep2} disabled={!step1Valid} className="nu-nav-btn">
-                <span>التالي</span>
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
-              </button>
-            ) : (
-              <button onClick={save} disabled={saving || !step2Valid} className="nu-nav-btn">
-                <span>{saving ? 'جارٍ الإضافة…' : 'إضافة'}</span>
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
-              </button>
-            )}
-          </div>
-        </div>
-        </>
-        )}
-      </div>
-    </div>
+          </>
+        ) },
+      ]}
+    />
   )
 }
 

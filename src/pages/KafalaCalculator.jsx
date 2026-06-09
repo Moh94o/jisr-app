@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
+import { Modal as FKModal } from '../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', bg: '#171717', sf: '#1e1e1e', bd: 'rgba(255,255,255,.06)' }
@@ -150,7 +151,7 @@ const DAY_ABBR_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'
 const pad2 = n => String(n).padStart(2, '0')
 const fmtDate = (y, m, d) => `${y}-${pad2(m+1)}-${pad2(d)}`
 
-export const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
+export const CalendarPopup = ({ value, onPick, onClose, anchor, lang, min }) => {
   const today = new Date()
   const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split('-').map(Number) : null
   const initial = parsed ? { y: parsed[0], m: parsed[1]-1 } : { y: today.getFullYear(), m: today.getMonth() }
@@ -185,11 +186,12 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
           const s = fmtDate(cur.y, cur.m, d)
           const isSel = value === s
           const isTd = isToday(cur.y, cur.m, d)
+          const dis = !!(min && s < min)
           return (
-            <button key={i} type="button" onClick={() => { onPick(s); onClose() }}
-              onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
+            <button key={i} type="button" disabled={dis} onClick={() => { if (dis) return; onPick(s); onClose() }}
+              onMouseEnter={e => { if (!isSel && !dis) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
               onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = isTd ? 'rgba(212,160,23,.04)' : 'transparent' }}
-              style={{ height: 30, borderRadius: 6, border: isTd && !isSel ? `1px solid ${C.gold}55` : '1px solid transparent', background: isSel ? C.gold : (isTd ? 'rgba(212,160,23,.04)' : 'transparent'), color: isSel ? '#000' : (isTd ? C.gold : 'rgba(255,255,255,.8)'), fontFamily: F, fontSize: 10, fontWeight: isSel || isTd ? 800 : 500, cursor: 'pointer', transition: '.15s', padding: 0 }}>
+              style={{ height: 30, borderRadius: 6, border: isTd && !isSel ? `1px solid ${C.gold}55` : '1px solid transparent', background: isSel ? C.gold : (isTd ? 'rgba(212,160,23,.04)' : 'transparent'), color: isSel ? '#000' : (isTd ? C.gold : 'rgba(255,255,255,.8)'), fontFamily: F, fontSize: 10, fontWeight: isSel || isTd ? 800 : 500, cursor: dis ? 'not-allowed' : 'pointer', opacity: dis ? .25 : 1, transition: '.15s', padding: 0 }}>
               {d}
             </button>
           )
@@ -197,14 +199,14 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang }) => {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
         <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Clear' : 'مسح'}</button>
-        <button type="button" onClick={() => { const t = new Date(); onPick(fmtDate(t.getFullYear(), t.getMonth(), t.getDate())); onClose() }} style={{ fontSize: 12, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Today' : 'اليوم'}</button>
+        <button type="button" onClick={() => { const t = new Date(); const ts = fmtDate(t.getFullYear(), t.getMonth(), t.getDate()); if (min && ts < min) return; onPick(ts); onClose() }} style={{ fontSize: 12, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px', opacity: (min && fmtDate(today.getFullYear(), today.getMonth(), today.getDate()) < min) ? .4 : 1 }}>{lang === 'en' ? 'Today' : 'اليوم'}</button>
       </div>
     </div>
   )
 }
 
 // Single-input date field: type YYYY-MM-DD or click calendar icon for custom picker
-export const DateField = ({ value, onChange, label, req, lang }) => {
+export const DateField = ({ value, onChange, label, req, lang, min }) => {
   const wrapRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
@@ -229,7 +231,8 @@ export const DateField = ({ value, onChange, label, req, lang }) => {
       else if (d === 0) v = v.slice(0, 8) + '01'
     }
     setText(v)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(v) || v === '') onChange(v)
+    if (v === '') { onChange(v); return }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v) && (!min || v >= min)) onChange(v)
   }
   const openPicker = () => {
     if (!pickerOpen && wrapRef.current) {
@@ -251,7 +254,7 @@ export const DateField = ({ value, onChange, label, req, lang }) => {
         </button>
         {pickerOpen && anchor && (<>
           <div onClick={() => setPickerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />
-          <CalendarPopup value={value} onPick={onChange} onClose={() => setPickerOpen(false)} anchor={anchor} lang={lang} />
+          <CalendarPopup value={value} onPick={onChange} onClose={() => setPickerOpen(false)} anchor={anchor} lang={lang} min={min} />
         </>)}
       </div>
     </div>
@@ -588,18 +591,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     })()
   }, [])
 
-  // ═══ CHI Insurance Check state ═══
-  const [insCheck, setInsCheck] = useState({
-    phase: 'idle',        // idle | loading | captcha | verifying | result | error
-    sessionToken: null,
-    captchaImage: null,
-    captchaInput: '',
-    result: null,
-    error: null,
-    attempts: 0,
-  })
-  const INS_MAX_ATTEMPTS = 3
-
   // ═══ HRSD (Ministry of Labor) Worker Inquiry state ═══
   const [hrsdCheck, setHrsdCheck] = useState({
     phase: 'idle',        // idle | loading | captcha | verifying | result | error
@@ -612,55 +603,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   })
   const HRSD_MAX_ATTEMPTS = 3
 
-  // ═══ Muqeem session (stored in localStorage) ═══
-  const [muqeemSession, setMuqeemSession] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('jisr.muqeem.session') || 'null') } catch { return null }
-  })
-  const [muqeemPaste, setMuqeemPaste] = useState({ open: false, curl: '', saving: false, error: null })
-  // Muqeem-fetched worker data — when present, the form renders these fields as fixed read-only text
-  const [muqeemData, setMuqeemData] = useState(null)
-  // Tiny inline indicator next to the iqama input so the employee sees something is happening.
-  const [muqeemFetchStatus, setMuqeemFetchStatus] = useState('idle') // idle | loading | ok | error | unavailable
   // Success modal shown after "إصدار" — carries the saved quote info + copy/navigate actions.
   const [issuedQuote, setIssuedQuote] = useState(null) // { quoteNo, workerName, iqNo, total }
 
-  useEffect(() => {
-    if (muqeemSession) localStorage.setItem('jisr.muqeem.session', JSON.stringify(muqeemSession))
-    else localStorage.removeItem('jisr.muqeem.session')
-  }, [muqeemSession])
-
-  // Pull the latest session that the browser extension synced into Supabase.
-  // Runs on mount and every 30s so a freshly captured JWT is picked up automatically.
-  useEffect(() => {
-    const sb = getSupabase()
-    if (!sb) return
-    let cancelled = false
-    async function pull() {
-      const { data } = await sb.rpc('get_muqeem_session')
-      const row = Array.isArray(data) ? data[0] : data
-      if (cancelled || !row || !row.auth_bearer) return
-      const remote = {
-        cookies: row.cookies || '',
-        authBearer: row.auth_bearer,
-        xsrfToken: row.xsrf_token || null,
-        xDomain: row.x_domain || null,
-        jwtExp: row.jwt_exp || null,
-        moiNumber: row.moi_number || null,
-      }
-      const now = Math.floor(Date.now() / 1000)
-      if (!remote.jwtExp || remote.jwtExp <= now) return
-      setMuqeemSession(prev => {
-        if (prev && prev.authBearer === remote.authBearer) return prev
-        if (prev && prev.jwtExp && prev.jwtExp >= remote.jwtExp) return prev
-        return remote
-      })
-    }
-    pull()
-    const id = setInterval(pull, 30_000)
-    return () => { cancelled = true; clearInterval(id) }
-  }, [])
-
-  const muqeemSessionValid = muqeemSession && muqeemSession.jwtExp && muqeemSession.jwtExp > Math.floor(Date.now() / 1000)
   const WORKER_STATUSES = ['صالح','هروب','خروج نهائي','منقطع عن العمل']
 
   useEffect(() => {
@@ -690,7 +635,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       officeFee: String(cfg.officeFee),
       profChangeInput: String(cfg.profChange),
       extras: [],
-      insuranceWaived: false, insuranceExpiry: '', medicalInsurance: false
     }
   }
   const [f, setF] = useState(makeInitialForm)
@@ -761,11 +705,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   }, [f.iqamaExpiry, f.renewIqama, f.renewalMonths, cfg])
 
   // ═══ Auto-sync effects ═══
-  // Medical fee ← 0 if insurance is valid >2 months 5 days ahead, else age bracket from DOB
+  // Medical fee ← age bracket from DOB (always charged on an age basis)
   useEffect(() => {
-    if (f.insuranceWaived && !f.medicalInsurance) { setF(p => ({ ...p, medicalFee: '0' })); return }
     if (medicalBracket) setF(p => ({ ...p, medicalFee: String(medicalBracket.rate) }))
-  }, [medicalBracket, f.insuranceWaived, f.medicalInsurance])
+  }, [medicalBracket])
 
   // Iqama renewal fee:
   //   - Days left = iqamaExpiry - today
@@ -854,44 +797,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     setF(p => ({ ...p, workPermitRate: String(Math.round(total)) }))
   }, [f.renewalMonths, f.iqamaExpiry, cfg])
 
-  // Auto-set transfer fee from Muqeem sponsor changes:
-  //   0 transfers  → cfg.transferFee1 (المرة الأولى)
-  //   1 transfer   → cfg.transferFee2 (المرة الثانية)
-  //   2+ transfers → cfg.transferFee3 (أكثر من مرتين)
-  const muqeemSponsorChanges = (() => {
-    // Look up the latest Muqeem result if available (state set after fetch)
-    return typeof muqeemData?.sponsorChanges === 'number' ? muqeemData.sponsorChanges : null
-  })()
-  // Bump rule: when the worker's CURRENT occupation is in cfg.transferBumpOccupations (e.g. domestic workers),
-  // treat transfer count as +1. The new occupation is not considered — the bump is based on the existing contract only.
-  const transferBumpIds = Array.isArray(cfg.transferBumpOccupations) ? cfg.transferBumpOccupations : []
-  const occupationBumps = transferBumpIds.length > 0 && transferBumpIds.includes(f.occupationId)
-
-  useEffect(() => {
-    if (muqeemSponsorChanges === null) return
-    const effective = (muqeemSponsorChanges || 0) + (occupationBumps ? 1 : 0)
-    const fee = effective === 0 ? cfg.transferFee1
-              : effective === 1 ? cfg.transferFee2
-              : cfg.transferFee3
-    if (fee != null) setF(p => ({ ...p, transferFeeInput: String(Math.round(fee)) }))
-  }, [muqeemSponsorChanges, occupationBumps, cfg])
-
-  // Manual fallback (when Muqeem data is unavailable): use f.transferCount (0-based: number of previous transfers) to pick the tier.
-  //   0 previous  → transferFee1 (2000)
-  //   1 previous  → transferFee2 (4000)
-  //   2+ previous → transferFee3 (6000, stays flat beyond that)
-  // Same bump rule applies.
-  useEffect(() => {
-    if (muqeemSponsorChanges !== null) return
-    if (muqeemFetchStatus !== 'unavailable' && muqeemFetchStatus !== 'error') return
-    const n = parseInt(f.transferCount)
-    if (isNaN(n)) return
-    const effective = Math.max(0, n) + (occupationBumps ? 1 : 0)
-    const fee = effective <= 0 ? cfg.transferFee1
-              : effective === 1 ? cfg.transferFee2
-              : cfg.transferFee3
-    if (fee != null) setF(p => ({ ...p, transferFeeInput: String(Math.round(fee)) }))
-  }, [f.transferCount, muqeemSponsorChanges, muqeemFetchStatus, occupationBumps, cfg])
+  // Transfer fee is chosen manually on the pricing tab via the "رسوم النقل" card
+  // (transferFee1 / transferFee2 / transferFee3 tiers) and can be fine-tuned inline.
 
   // ═══ Totals (use unified input values) ═══
   // transferOnly — bill only the sponsorship transfer fee; skip renewal, work permit, and medical charges.
@@ -953,303 +860,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const validateTab0 = () => ({})
   const validateTab1 = () => ({})
 
-  // ═══ CHI Insurance check helpers ═══
-  const INS_FN_URL = '/.netlify/functions/check-chi-insurance'
-
-  // ═══ Muqeem helpers ═══
-  // No local caching by iqama — each transfer estimate is for a different worker, must always be fresh.
-  const MUQEEM_FN_URL = '/.netlify/functions/query-muqeem'
-
-  async function queryMuqeem(iqama) {
-    if (!muqeemSession) return { ok: false, code: 'NO_SESSION' }
-    try {
-      const res = await fetch(MUQEEM_FN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'query', iqama, session: muqeemSession }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (data.updatedSession) setMuqeemSession(data.updatedSession)
-      if (data.code === 'SESSION_EXPIRED' || data.code === 'SESSION_INVALID') {
-        setMuqeemSession(null)
-        return { ok: false, code: data.code, error: data.error }
-      }
-      if (!res.ok || !data.ok) return { ok: false, error: data.error || `HTTP ${res.status}` }
-      return { ok: true, result: data.result }
-    } catch (e) {
-      return { ok: false, error: e.message }
-    }
-  }
-
-  function applyMuqeemToForm(m) {
-    const STATUS_MAP = { 'صالح': 'صالح', 'هروب': 'هروب', 'خروج نهائي': 'خروج نهائي', 'منقطع عن العمل': 'منقطع عن العمل' }
-    // Normalize Arabic text for fuzzy matching: collapse hamza/alef variants, taa marbuta, alef maqsura, kashida and whitespace.
-    const arNorm = (s) => String(s || '').replace(/[إأآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/[ؤئ]/g, 'ء').replace(/\u0640/g, '').replace(/[\u064B-\u065F\u0670]/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
-    let localMatch = null
-    let exactLocalMatch = false
-    if (m.occupationAr && Array.isArray(occupations) && occupations.length) {
-      const rn = arNorm(m.occupationAr)
-      const exact = occupations.find(o => arNorm(o.name_ar) === rn)
-      if (exact) { localMatch = exact; exactLocalMatch = true }
-      else { localMatch = occupations.find(o => { const on = arNorm(o.name_ar); return on.includes(rn) || rn.includes(on) }) }
-    }
-    setF(p => ({
-      ...p,
-      iqamaExpiry: m.iqamaExpiryGregorian || p.iqamaExpiry,
-      occupation: localMatch?.name_ar || m.occupationAr || p.occupation,
-      occupationId: localMatch?.id || p.occupationId,
-      legalStatus: STATUS_MAP[m.statusAr] || p.legalStatus,
-      transferCount: m.sponsorChanges != null ? String(Math.max(0, m.sponsorChanges)) : p.transferCount,
-    }))
-    setMuqeemData(m)
-    // Refine with Claude only when local match was inexact — exact match is already authoritative,
-    // and re-running Claude can drift the value across opens.
-    if (!exactLocalMatch && m.occupationAr && Array.isArray(occupations) && occupations.length) {
-      const raw = m.occupationAr
-      fetch('/.netlify/functions/match-occupation', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ raw, occupations: occupations.map(o => ({ id: o.id, name_ar: o.name_ar, name_en: o.name_en })) }),
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          const match = data && data.match
-          if (match && match.name_ar) setF(p => ({ ...p, occupation: match.name_ar, occupationId: match.id }))
-        })
-        .catch(() => {})
-    }
-  }
-
-  // Auto-fetch Muqeem data the moment a valid iqama is typed. Silent + debounced.
-  useEffect(() => {
-    const iq = (f.iqama || '').trim()
-    if (!/^[12]\d{9}$/.test(iq)) {
-      setMuqeemFetchStatus(prev => prev === 'idle' ? prev : 'idle')
-      return
-    }
-    if (muqeemData && muqeemData.iqama === iq) {
-      setMuqeemFetchStatus('ok')
-      return
-    }
-    let cancelled = false
-    setMuqeemFetchStatus('loading')
-    const timer = setTimeout(async () => {
-      const r = await queryMuqeem(iq)
-      if (cancelled) return
-      if (r.ok) {
-        applyMuqeemToForm(r.result)
-        setMuqeemFetchStatus('ok')
-      } else if (r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID') {
-        setMuqeemFetchStatus('unavailable')
-      } else {
-        setMuqeemFetchStatus('error')
-      }
-    }, 500)
-    return () => { cancelled = true; clearTimeout(timer) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [f.iqama, muqeemSession?.authBearer])
-
-  async function saveMuqeemCurl(curl) {
-    setMuqeemPaste(p => ({ ...p, saving: true, error: null }))
-    try {
-      const res = await fetch(MUQEEM_FN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'parse-session', curl }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
-      setMuqeemSession(data.session)
-      setMuqeemPaste({ open: false, curl: '', saving: false, error: null })
-      // Auto-query for the current iqama if we have one
-      if (/^[12]\d{9}$/.test((f.iqama || '').trim())) {
-        const r = await queryMuqeem(f.iqama)
-        if (r.ok) {
-          applyMuqeemToForm(r.result)
-          setInsCheck(c => c.phase === 'result' ? { ...c, result: { ...c.result, muqeem: r.result } } : c)
-        }
-      }
-    } catch (e) {
-      setMuqeemPaste(p => ({ ...p, saving: false, error: e.message }))
-    }
-  }
-
-  // Waive medical fee if insurance is valid for at least 2 months + 5 days ahead.
-  function applyInsuranceToCalc(expiryStr) {
-    const d = expiryStr ? new Date(expiryStr) : null
-    if (!d || isNaN(d)) {
-      setF(p => ({ ...p, insuranceWaived: false, insuranceExpiry: expiryStr || '' }))
-      return { waived: false, daysLeft: null }
-    }
-    const cutoff = new Date()
-    cutoff.setMonth(cutoff.getMonth() + (parseInt(cfg.medicalGraceMonths) || 2))
-    cutoff.setDate(cutoff.getDate() + (parseInt(cfg.medicalGraceDays) || 7))
-    const waived = d >= cutoff
-    const daysLeft = Math.floor((d - new Date()) / 86400000)
-    setF(p => ({ ...p, insuranceWaived: waived, insuranceExpiry: expiryStr }))
-    return { waived, daysLeft }
-  }
-
-  async function callInsFn(body, timeoutMs = 25000) {
-    const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs)
-    try {
-      const res = await fetch(INS_FN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: ctrl.signal,
-      })
-      const text = await res.text()
-      let data
-      try { data = JSON.parse(text) } catch { throw new Error(`HTTP ${res.status}: ${text.slice(0, 150)}`) }
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-      return data
-    } finally { clearTimeout(timer) }
-  }
-
-  async function startInsuranceCheck() {
-    const iq = (f.iqama || '').trim()
-    if (!/^[12]\d{9}$/.test(iq)) {
-      setErrors(e => ({ ...e, iqama: 'رقم الإقامة غير صحيح' }))
-      return
-    }
-    setInsCheck(c => ({ ...c, phase: 'loading', error: null, attempts: 0 }))
-    try {
-      const sb = getSupabase()
-      if (sb) {
-        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-        const { data } = await sb.from('insurance_check_cache').select('*').eq('iqama_number', iq).gte('checked_at', since).maybeSingle()
-        if (data) {
-          let meta
-          if (data.is_active) {
-            meta = applyInsuranceToCalc(data.expiry_date)
-          } else {
-            // Not insured — force insurance toggle to "yes" by clearing waiver and expiry.
-            setF(p => ({ ...p, insuranceWaived: false, insuranceExpiry: '' }))
-            meta = { waived: false, daysLeft: null }
-          }
-          let muqeemData = null
-          const mq = await queryMuqeem(iq)
-          if (mq.ok) { muqeemData = mq.result; applyMuqeemToForm(mq.result) }
-          setInsCheck(c => ({
-            ...c,
-            phase: 'result',
-            result: {
-              status: data.is_active ? 'insured' : 'not_insured',
-              company: data.company_name,
-              expiryDate: data.expiry_date,
-              cached: true,
-              waived: meta.waived,
-              daysLeft: meta.daysLeft,
-              muqeem: muqeemData,
-              muqeemError: mq.ok ? null : (mq.code || mq.error),
-            },
-          }))
-          return
-        }
-      }
-      const r = await callInsFn({ action: 'init' })
-      setInsCheck(c => ({
-        ...c,
-        phase: 'captcha',
-        sessionToken: r.session,
-        captchaImage: r.captchaImage,
-        captchaInput: '',
-      }))
-    } catch (e) {
-      setInsCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? 'انتهت مهلة الاتصال بمنصّة CHI' : (e.message || 'خطأ في الاتصال') }))
-    }
-  }
-
-  async function submitInsCaptcha() {
-    if (!insCheck.captchaInput || insCheck.captchaInput.length < 3) return
-    setInsCheck(c => ({ ...c, phase: 'verifying', error: null }))
-    try {
-      const r = await callInsFn({
-        action: 'verify',
-        iqama: f.iqama,
-        captcha: insCheck.captchaInput,
-        session: insCheck.sessionToken,
-      })
-      if (r.status === 'invalid_captcha' || r.status === 'unknown') {
-        const nextAttempts = (insCheck.attempts || 0) + 1
-        if (nextAttempts >= INS_MAX_ATTEMPTS) {
-          // After 3 CHI failures: mark CHI as auto-skipped (not_insured) and chain to HRSD captcha
-          setF(p => ({ ...p, insuranceWaived: false, insuranceExpiry: '' }))
-          let muqeemData = null
-          const mq = await queryMuqeem(f.iqama)
-          if (mq.ok) { muqeemData = mq.result; applyMuqeemToForm(mq.result) }
-          setInsCheck({ phase: 'await_hrsd', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'not_insured', autoSkipped: true, waived: false, daysLeft: null, muqeem: muqeemData, muqeemError: mq.ok ? null : (mq.code || mq.error) }, error: null, attempts: 0 })
-          startHrsdCheck()
-          return
-        }
-        const fresh = await callInsFn({ action: 'init' })
-        setInsCheck(c => ({
-          ...c,
-          phase: 'captcha',
-          sessionToken: fresh.session,
-          captchaImage: fresh.captchaImage,
-          captchaInput: '',
-          error: `رمز التحقق غير صحيح — المحاولة ${nextAttempts + 1} من ${INS_MAX_ATTEMPTS}`,
-          attempts: nextAttempts,
-        }))
-        return
-      }
-      if (r.code === 'SESSION_EXPIRED') {
-        const fresh = await callInsFn({ action: 'init' })
-        setInsCheck(c => ({
-          ...c,
-          phase: 'captcha',
-          sessionToken: fresh.session,
-          captchaImage: fresh.captchaImage,
-          captchaInput: '',
-          error: 'انتهت الجلسة — تم تحديث الرمز',
-        }))
-        return
-      }
-      // Cache write moved to the Netlify function (which uses service role and is the only side
-      // that has actually verified the captcha). The client write was silently failing under RLS.
-      let meta
-      if (r.status === 'insured') {
-        meta = applyInsuranceToCalc(r.expiryDate)
-      } else {
-        setF(p => ({ ...p, insuranceWaived: false, insuranceExpiry: '' }))
-        meta = { waived: false, daysLeft: null }
-      }
-      let muqeemData = null
-      const mq = await queryMuqeem(f.iqama)
-      if (mq.ok) { muqeemData = mq.result; applyMuqeemToForm(mq.result) }
-      // Skip HRSD if it already ran successfully (e.g. user is retrying CHI with a fresh captcha
-      // after HRSD had succeeded). Otherwise chain HRSD captcha right after CHI.
-      const hrsdAlreadyDone = hrsdCheck.result && hrsdCheck.result.status === 'found'
-      if (hrsdAlreadyDone) {
-        setInsCheck(c => ({ ...c, phase: 'result', result: { ...r, waived: meta.waived, daysLeft: meta.daysLeft, muqeem: muqeemData, muqeemError: mq.ok ? null : (mq.code || mq.error) } }))
-      } else {
-        // Store CHI result silently and chain HRSD captcha immediately — the CHI modal stays hidden
-        // until HRSD finishes, so the user goes straight from CHI captcha → HRSD captcha → combined result.
-        setInsCheck(c => ({ ...c, phase: 'await_hrsd', result: { ...r, waived: meta.waived, daysLeft: meta.daysLeft, muqeem: muqeemData, muqeemError: mq.ok ? null : (mq.code || mq.error) } }))
-        startHrsdCheck()
-      }
-    } catch (e) {
-      setInsCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? 'انتهت مهلة التحقق' : (e.message || 'خطأ في التحقق') }))
-    }
-  }
-
-  function closeInsCheck() {
-    setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
-  }
-
-  async function refreshInsCaptcha() {
-    setInsCheck(c => ({ ...c, captchaImage: null, captchaInput: '', error: null }))
-    try {
-      const r = await callInsFn({ action: 'init' })
-      setInsCheck(c => ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
-    } catch (e) {
-      setInsCheck(c => ({ ...c, error: e.message || 'تعذّر تحديث رمز التحقق' }))
-    }
-  }
-
   // ═══ HRSD (Ministry of Labor) helpers ═══
   const HRSD_FN_URL = '/.netlify/functions/check-hrsd-worker'
 
@@ -1288,8 +898,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       if (r.status === 'invalid_captcha' || r.status === 'unknown') {
         const nextAttempts = (hrsdCheck.attempts || 0) + 1
         if (nextAttempts >= HRSD_MAX_ATTEMPTS) {
-          setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 })
-          setInsCheck(c => c.phase === 'await_hrsd' ? { ...c, phase: 'result' } : c)
+          setHrsdCheck({ phase: 'result', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 })
           return
         }
         const fresh = await callHrsdFn({ action: 'init' })
@@ -1314,17 +923,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         setF(p => ({ ...p, name: r.name }))
       }
       setHrsdCheck(c => ({ ...c, phase: 'result', result: r }))
-      // Reveal the combined CHI+HRSD result modal now that both checks are done.
-      setInsCheck(c => c.phase === 'await_hrsd' ? { ...c, phase: 'result' } : c)
     } catch (e) {
       setHrsdCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? 'انتهت مهلة التحقق' : (e.message || 'خطأ في التحقق') }))
     }
   }
 
   function closeHrsdCheck() {
-    setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
-    // If the CHI modal was waiting for HRSD, show its result now so the user still sees the outcome.
-    setInsCheck(c => c.phase === 'await_hrsd' ? { ...c, phase: 'result' } : c)
+    // Dismissing the inquiry marks it skipped so the form can proceed with the manually-entered data.
+    setHrsdCheck(c => ({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: c.result || { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 }))
   }
 
   async function refreshHrsdCaptcha() {
@@ -1391,7 +997,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       const daysLeft = Math.ceil((new Date(f.iqamaExpiry) - new Date()) / 86400000)
       if (daysLeft <= 30 && daysLeft >= 0) warnings.push({ level: 'warn', text: T(`الإقامة ستنتهي خلال ${daysLeft} يوم — يُنصح بالتجديد قبل الانتهاء.`, `Iqama expires in ${daysLeft} day(s) — renew before expiry.`) })
     }
-    if (insCheck.result?.status === 'not_insured') warnings.push({ level: 'warn', text: T('التأمين الصحي غير نشط — احتُسبت الرسوم حسب الفئة العمرية.','Health insurance not active — fee calculated by age bracket.') })
     if (f.changeProfession && !f.newOccupation) warnings.push({ level: 'warn', text: T('لم يتم تحديد المهنة الجديدة.','New occupation not specified.') })
     if (!sb) { toast && toast(T('قاعدة البيانات غير متاحة','Database unavailable')); return }
     const phoneRaw = (f.phone || '').replace(/^\+?966/, '').trim()
@@ -1402,22 +1007,22 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       dob: f.dob || null,
       nationality: f.nationality || null,
       gender: f.gender || null,
-      muqeem_fetched_at: muqeemData ? new Date().toISOString() : null,
-      iqama_expiry_gregorian: muqeemData?.iqamaExpiryGregorian || f.iqamaExpiry || null,
-      iqama_expiry_hijri: muqeemData?.iqamaExpiryHijri || null,
-      iqama_expired: muqeemData?.iqamaExpired ?? null,
+      muqeem_fetched_at: null,
+      iqama_expiry_gregorian: f.iqamaExpiry || null,
+      iqama_expiry_hijri: null,
+      iqama_expired: f.iqamaExpiry ? new Date(f.iqamaExpiry) < new Date() : null,
       occupation_id: f.occupationId || null,
-      occupation_name_ar: f.occupation || muqeemData?.occupationAr || null,
+      occupation_name_ar: f.occupation || null,
       resident_status_code: null,
-      resident_status_ar: muqeemData?.statusAr || f.legalStatus || null,
-      sponsor_changes: typeof muqeemData?.sponsorChanges === 'number' ? muqeemData.sponsorChanges : null,
+      resident_status_ar: f.legalStatus || null,
+      sponsor_changes: (() => { const n = parseInt(f.transferCount); return isNaN(n) ? null : Math.max(0, n) })(),
       hrsd_worker_status: hrsdCheck.result?.workerStatus || null,
       hrsd_verified_at: hrsdCheck.result?.status === 'found' ? new Date().toISOString() : null,
-      insurance_status: insCheck.result?.status || null,
-      insurance_expiry: insCheck.result?.expiryDate || null,
-      insurance_company: insCheck.result?.company || null,
-      insurance_waived: !!f.insuranceWaived,
-      chi_verified_at: insCheck.result ? new Date().toISOString() : null,
+      insurance_status: null,
+      insurance_expiry: null,
+      insurance_company: null,
+      insurance_waived: false,
+      chi_verified_at: null,
       transfer_only: !!f.transferOnly,
       renew_iqama: !!f.renewIqama,
       renewal_months: renewalMos,
@@ -1457,14 +1062,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     setIssuedQuote({ quoteNo: data.row.quote_no, workerName, iqNo, total: Number(data.row.total_amount), warnings })
   }
 
-  function skipInsAndAdvance() {
-    closeInsCheck()
-    setErrors({}); setTab(1)
-  }
-
   const tryNextTab = () => {
-    if (tab === 0 && insCheck.phase === 'idle' && /^[12]\d{9}$/.test((f.iqama || '').trim())) {
-      startInsuranceCheck()
+    if (tab === 0 && hrsdCheck.phase === 'idle' && !hrsdCheck.result && /^[12]\d{9}$/.test((f.iqama || '').trim())) {
+      startHrsdCheck()
       return
     }
     setErrors({}); setTab(tab + 1)
@@ -1503,7 +1103,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   // SCREEN 2: FORM WITH TABS
   // ═══════════════════════════════════════
   return (
-    <div onClick={() => onClose && onClose()} style={modalOverlay}><div onClick={e => e.stopPropagation()} style={{ ...modalBox, height: 720, overflow: 'hidden' }}>
+    <FKModal open onClose={() => onClose && onClose()} hideHeader height={720} width={640} scroll>
     <div dir={lang === 'en' ? 'ltr' : 'rtl'} style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header — Premium Arabic admin */}
       <div style={{ padding: '20px 24px 0', flexShrink: 0, display: 'flex', flexDirection: 'column', direction: lang === 'en' ? 'ltr' : 'rtl' }}>
@@ -1556,44 +1156,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 16 }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-                <Lbl req>{T('رقم الإقامة','Iqama Number')}</Lbl>
-                {muqeemFetchStatus !== 'idle' && (() => {
-                  const isClickable = muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error'
-                  const retry = async () => {
-                    const iq = (f.iqama || '').trim()
-                    if (!/^[12]\d{9}$/.test(iq)) return
-                    setMuqeemFetchStatus('loading')
-                    const r = await queryMuqeem(iq)
-                    if (r.ok) { applyMuqeemToForm(r.result); setMuqeemFetchStatus('ok') }
-                    else if (r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID') setMuqeemFetchStatus('unavailable')
-                    else setMuqeemFetchStatus('error')
-                  }
-                  const onBadgeClick = () => {
-                    if (muqeemFetchStatus === 'unavailable') retry()
-                    else if (muqeemFetchStatus === 'error') window.open('https://muqeem.sa/#/login', '_blank', 'noopener,noreferrer')
-                  }
-                  return (
-                  <span onClick={isClickable ? onBadgeClick : undefined} title={muqeemFetchStatus === 'unavailable' ? T('إعادة المحاولة','Retry') : muqeemFetchStatus === 'error' ? T('فتح موقع مقيم لجلب البيانات يدويا','Open Muqeem to fetch data manually') : undefined} style={{
-                    fontSize: 10, fontWeight: 400, padding: '2px 8px', borderRadius: 6, marginBottom: 4,
-                    display: 'inline-flex', alignItems: 'center', gap: 6, cursor: isClickable ? 'pointer' : 'default', transition: '.15s',
-                    ...(muqeemFetchStatus === 'loading' ? { background: 'rgba(244,123,32,.12)', color: '#F47B20' } :
-                       muqeemFetchStatus === 'ok' ? { background: 'rgba(244,123,32,.12)', color: '#F47B20' } :
-                       muqeemFetchStatus === 'unavailable' ? { background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.4)' } :
-                       { background: 'rgba(192,57,43,.1)', color: C.red })
-                  }}>
-                    {muqeemFetchStatus === 'loading' && <><span style={{ width: 8, height: 8, border: '1.5px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite' }} /> {T('جاري جلب البيانات…','Fetching data…')}</>}
-                    {muqeemFetchStatus === 'ok' && <>{T('تمت المزامنة مع مقيم','Synced with Muqeem')}<span style={{ marginInlineStart: 6 }}>✓</span></>}
-                    {muqeemFetchStatus === 'unavailable' && <>{T('خدمة مقيم غير متاحة — اضغط لإعادة المحاولة','Muqeem unavailable — click to retry')} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></>}
-                    {muqeemFetchStatus === 'error' && <>{T('جلب البيانات يدويا','Fetch data manually')} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></>}
-                  </span>
-                  )
-                })()}
-                <style>{`@keyframes mq-spin{to{transform:rotate(360deg)}}`}</style>
-              </div>
+              <Lbl req>{T('رقم الإقامة','Iqama Number')}</Lbl>
               <Inp value={f.iqama} onChange={v => {
                 const cleaned = v.replace(/\D/g,'').slice(0,10)
-                // Changing the iqama invalidates all the auto-fetched data from previous iqama — clear it.
+                // Changing the iqama invalidates the previous worker's data — clear it.
                 if (cleaned !== f.iqama) {
                   setF(p => ({
                     ...p,
@@ -1604,13 +1170,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                     legalStatus: 'صالح',
                     transferCount: '0',
                     name: '',
-                    insuranceWaived: false,
-                    insuranceExpiry: '',
-                    medicalInsurance: false,
                   }))
-                  setMuqeemData(null)
-                  setMuqeemFetchStatus('idle')
-                  setInsCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
                   setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
                 }
               }} placeholder="2XXXXXXXXX" dir="ltr" maxLength={10}/>
@@ -1641,50 +1201,15 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             </div>
               )
             })()}
-            {/* Muqeem OK → show fetched values as read-only. Failed/unavailable → manual inputs.
-                Transfer count is not asked here — it's inferred from the transfer fee selection in the pricing tab. */}
-            {muqeemFetchStatus === 'ok' && <>
-              <div>
-                <Lbl>{T('حالة المقيم','Resident Status')}</Lbl>
-                <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: muqeemData?.statusAr ? 'var(--tx)' : 'var(--tx5)' }}>{muqeemData?.statusAr || '—'}</div>
-              </div>
-              <div>
-                <Lbl>{T('المهنة','Occupation')}</Lbl>
-                <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', color: (f.occupation || muqeemData?.occupationAr) ? 'var(--tx)' : 'var(--tx5)' }}>{f.occupation || muqeemData?.occupationAr || '—'}</div>
-              </div>
-              <div>
-                <Lbl>{T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')}</Lbl>
-                {(() => {
-                  const g = muqeemData?.iqamaExpiryGregorian
-                  const m = g && /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(g.trim())
-                  const txt = m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : (g || '—')
-                  const exp = muqeemData?.iqamaExpired
-                  const dateColor = exp === true ? '#e06157' : exp === false ? '#34c759' : g ? 'var(--tx)' : 'var(--tx5)'
-                  return <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: dateColor, fontWeight: exp === true || exp === false ? 700 : 600 }}>{txt}</div>
-                })()}
-              </div>
-              <div>
-                <Lbl>{T('عدد مرات نقل الخدمات','Service Transfer Count')}</Lbl>
-                <div style={{ ...sFRO, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: typeof muqeemData?.sponsorChanges === 'number' ? 'var(--tx)' : 'var(--tx5)' }}>{typeof muqeemData?.sponsorChanges === 'number' ? String(muqeemData.sponsorChanges) : '—'}</div>
-              </div>
-            </>}
-            {(muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error') && <>
-              <div>
-                <Lbl req>{T('حالة المقيم','Resident Status')}</Lbl>
-                <Sel value={f.legalStatus} onChange={v=>set('legalStatus',v)} options={residentStatuses.length ? residentStatuses.map(s=>lang==='en'?s.value_en||s.value_ar:s.value_ar) : WORKER_STATUSES} placeholder={T('اختر…','Select…')}/>
-              </div>
-              <div>
-                <Lbl req>{T('المهنة','Occupation')}</Lbl>
-                <OccSelect value={f.occupation || ''} onChange={(v,item)=>setF(p=>({...p,occupation:v,occupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')}/>
-              </div>
-              <div>
-                <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
-              </div>
-              <div>
-                <Lbl req>{T('عدد مرات نقل الخدمات السابقة','Previous Service Transfers')}</Lbl>
-                <input value={f.transferCount || ''} onChange={e=>set('transferCount', e.target.value.replace(/\D/g,'').slice(0,2))} inputMode="numeric" maxLength={2} placeholder={T('0','0')} style={{ ...sF, textAlign: 'center', direction: 'ltr' }} />
-              </div>
-            </>}
+            {/* Occupation and iqama expiry — entered manually. The transfer fee is set
+                directly (and is editable) on the pricing tab. */}
+            <div>
+              <Lbl req>{T('المهنة','Occupation')}</Lbl>
+              <OccSelect value={f.occupation || ''} onChange={(v,item)=>setF(p=>({...p,occupation:v,occupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')}/>
+            </div>
+            <div>
+              <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
+            </div>
           </div>
         </div>
       })()}
@@ -1711,12 +1236,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         )
 
         // ── Computed values ─────────────────────────────────
-        const ageYears = f.dob ? Math.floor((Date.now() - new Date(f.dob).getTime()) / (365.25 * 86400000)) : null
-        const bracket = ageYears !== null ? (cfg.medicalBrackets || []).find(b => ageYears >= b.min && ageYears < b.max) : null
-        const insuredOk = insCheck.result?.status === 'insured'
-        const insExpiry = insCheck.result?.expiryDate
-        const insWaived = !!f.insuranceWaived
-        const iqamaExpiredFlag = muqeemData?.iqamaExpired ?? (f.iqamaExpiry ? new Date(f.iqamaExpiry) < new Date() : null)
+        const iqamaExpiredFlag = f.iqamaExpiry ? new Date(f.iqamaExpiry) < new Date() : null
         const PURPLE = '#9b59b6'
         const purpleBg = 'rgba(155,89,182,.06)'
         const purpleBorder = 'rgba(155,89,182,.32)'
@@ -1728,20 +1248,15 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             <Row label={T('الإسم','Name')} value={hrsdCheck.result?.name || f.name} />
             <Row label={T('رقم الإقامة','Iqama Number')} value={f.iqama} />
             <Row label={T('حالة العامل','Worker Status')} value={hrsdCheck.result?.workerStatus} />
-            <Row label={T('حالة المقيم','Resident Status')} value={muqeemData?.statusAr} />
-            <Row label={T('المهنة','Occupation')} value={f.occupation || muqeemData?.occupationAr} />
-            <Row label={T('عدد مرات نقل الخدمات','Service Transfer Count')} value={typeof muqeemData?.sponsorChanges === 'number' ? String(muqeemData.sponsorChanges) : null} />
+            <Row label={T('المهنة','Occupation')} value={f.occupation} />
           </Group>
 
           {(() => {
-            const hijriRaw = muqeemData?.iqamaExpiryHijri
-            const hijriFormatted = hijriRaw
-              ? (lang === 'en' ? hijriRaw + ' H' : hijriRaw)
-              : null
+            const hijriFormatted = hijriExpiry || null
             const dateColor = iqamaExpiredFlag === true ? C.red : iqamaExpiredFlag === false ? GREEN : null
             return (
               <Group title={T('الإقامة','Iqama')} Icon={Building2}>
-                <Row label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData?.iqamaExpiryGregorian || f.iqamaExpiry} color={dateColor} />
+                <Row label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={f.iqamaExpiry} color={dateColor} />
                 <Row label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={hijriFormatted} color={dateColor} />
               </Group>
             )
@@ -1761,9 +1276,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 : (<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, direction: 'rtl' }}><span>{years}</span><span>سنة</span><span>{months}</span><span>شهر</span></span>)
             }
             return (
-              <Group title={T('التأمين الصحي','Health Insurance')} Icon={Shield}>
-                <Row label={T('حالة التأمين','Insurance Status')} value={insuredOk ? T('نشط','Active') : T('غير نشط','Inactive')} color={insuredOk ? GREEN : C.red} />
-                {insuredOk && <Row label={T('انتهاء التأمين','Insurance Expiry')} value={insExpiry} color={GREEN} />}
+              <Group title={T('العمر','Age')} Icon={User}>
                 <Row label={T('العمر','Age')} value={ageStr} />
               </Group>
             )
@@ -1836,24 +1349,23 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               )
             })()}
 
-            {/* تأمين طبي — دائمًا ظاهر؛ مقفل على "نعم" إذا التأمين غير نشط (لازم شراء تأمين) */}
-            {(() => {
-              const insOk = insCheck.result?.status === 'insured'
-              const canEdit = insOk && f.insuranceWaived
-              return (
-                <Card Icon={Shield} label={T('تأمين طبي','Medical Insurance')}>
-                  <YesNo
-                    value={canEdit ? f.medicalInsurance : true}
-                    onChange={v => { if (canEdit) set('medicalInsurance', v) }}
-                    disabled={!canEdit}
-                    lang={lang}
-                  />
-                </Card>
-              )
-            })()}
+            {/* رسوم النقل — اختيار شريحة الرسوم يدوياً (المرة الأولى/الثانية/أكثر) */}
+            <Card Icon={CreditCard} label={T('رسوم النقل','Transfer Fee')} span={2}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {transferOptions.map(v => {
+                  const sel = String(Math.round(parseFloat(f.transferFeeInput) || 0)) === v
+                  return (
+                    <RenewalPill key={v} selected={sel} onClick={() => set('transferFeeInput', v)}>
+                      <span style={{ fontSize: 14 }}>{Number(v).toLocaleString('en-US')}</span>
+                      <span style={{ fontSize: 14, fontWeight: 500, opacity: .75 }}>{T('ريال','SAR')}</span>
+                    </RenewalPill>
+                  )
+                })}
+              </div>
+            </Card>
 
             {/* تغيير المهنة */}
-            <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Profession')}>
+            <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Profession')} span={2}>
               <YesNo value={f.changeProfession} onChange={v => set('changeProfession', v)} lang={lang} />
             </Card>
 
@@ -2002,7 +1514,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   {/* Items in 2 columns */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 2 }}>
                     {items.map(([l, v, k], i) => {
-                      const transferEditable = k === 'transferFee' && (muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error')
+                      const transferEditable = k === 'transferFee'
                       const showRenewalFineToggle = k === 'iqamaRenewal' && (iqamaExpired || iqamaInGracePeriod)
                       return (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.04)', fontSize: 12, gap: 8 }}>
@@ -2077,11 +1589,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           else if (phone.length !== 9) errs.push(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'))
           else if (!/^5[013-9]\d{7}$/.test(phone)) errs.push(T('بادئة الجوال غير صحيحة (50, 51, 53–59)','Invalid mobile prefix (50, 51, 53–59)'))
           else if (/^(.)\1{8}$/.test(phone) || '012345678'.includes(phone) || '987654321'.includes(phone)) errs.push(T('رقم الجوال غير صحيح','Invalid mobile number'))
-          if (muqeemFetchStatus !== 'ok') {
-            if (!f.iqamaExpiry) errs.push(T('أدخل تاريخ انتهاء الإقامة','Enter the Iqama expiry date'))
-            if (!f.occupation) errs.push(T('اختر المهنة','Select occupation'))
-            if (!f.legalStatus) errs.push(T('اختر حالة المقيم','Select resident status'))
-          }
+          if (!f.iqamaExpiry) errs.push(T('أدخل تاريخ انتهاء الإقامة','Enter the Iqama expiry date'))
+          if (!f.occupation) errs.push(T('اختر المهنة','Select occupation'))
           return errs
         })()
         const hasErrors = tab === 0 && tabErrors.length > 0
@@ -2131,182 +1640,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       </div>
         )
       })()}
-
-      {/* ═══ CHI Insurance Check Overlay ═══ */}
-      {insCheck.phase !== 'idle' && insCheck.phase !== 'await_hrsd' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: insCheck.phase === 'result' ? '1px solid rgba(255,255,255,.06)' : '1px solid rgba(30,78,132,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
-
-            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-              <div style={{ fontSize: 20, fontWeight: 600, color: 'rgba(255,255,255,.94)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
-                {insCheck.phase === 'result' ? <Database size={22} style={{ color: C.gold }} /> : <Shield size={20} style={{ color: '#5b8fc7' }} />}
-                <span>{insCheck.phase === 'result' ? T('استرجاع البيانات','Data Retrieval') : T('الضمان الصحي','Health Insurance')}</span>
-              </div>
-            </div>
-
-            {insCheck.phase === 'loading' && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid rgba(30,78,132,.18)`, borderTopColor: '#5b8fc7', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بمنصّة CHI…','Connecting to CHI platform…')}</div>
-                <style>{`@keyframes kc-spin{to{transform:rotate(360deg)}}`}</style>
-              </div>
-            )}
-
-            {insCheck.phase === 'captcha' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
-                  {insCheck.captchaImage
-                    ? <CaptchaCountdown captchaKey={insCheck.captchaImage} onExpire={refreshInsCaptcha} color="#5b8fc7" />
-                    : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
-                  {insCheck.captchaImage
-                    ? <img src={insCheck.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, filter: 'invert(1) saturate(0) contrast(1.1)', mixBlendMode: 'lighten', imageRendering: 'auto' }} />
-                    : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
-                  <button type="button" onClick={refreshInsCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(30,78,132,.12)', color: '#5b8fc7', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }} onMouseEnter={e => e.currentTarget.style.background='rgba(30,78,132,.22)'} onMouseLeave={e => e.currentTarget.style.background='rgba(30,78,132,.12)'}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
-                  </button>
-                </div>
-                <input
-                  value={insCheck.captchaInput}
-                  onChange={e => setInsCheck(c => ({ ...c, captchaInput: e.target.value.slice(0, 6) }))}
-                  onKeyDown={e => { if (e.key === 'Enter') submitInsCaptcha() }}
-                  placeholder="______"
-                  autoFocus
-                  maxLength={6}
-                  className="kc-captcha-input"
-                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg)', textAlign: 'center', letterSpacing: '10px', direction: 'ltr', transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.05)' }}
-                />
-                {insCheck.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{insCheck.error}</div>}
-                <button
-                  onClick={submitInsCaptcha}
-                  disabled={!insCheck.captchaInput || insCheck.captchaInput.length < 6}
-                  style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(91,143,199,.55)', background: 'linear-gradient(180deg,#6a9fd6 0%,#4a7aac 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 700, letterSpacing: '.3px', cursor: (!insCheck.captchaInput || insCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!insCheck.captchaInput || insCheck.captchaInput.length < 6) ? 0.45 : 1, transition: '.18s', boxShadow: '0 4px 14px rgba(91,143,199,.32), inset 0 1px 0 rgba(255,255,255,.18)' }}
-                >{T('تحقق','Verify')}</button>
-              </div>
-            )}
-
-            {insCheck.phase === 'verifying' && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid rgba(30,78,132,.18)`, borderTopColor: '#5b8fc7', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري التحقق…','Verifying…')}</div>
-                <style>{`@keyframes kc-spin{to{transform:rotate(360deg)}}`}</style>
-              </div>
-            )}
-
-            {insCheck.phase === 'result' && insCheck.result && (() => {
-              const r = insCheck.result
-              const insured = r.status === 'insured'
-              const notIns = r.status === 'not_insured'
-              const unknown = r.status === 'unknown'
-              const chiOk = insured || notIns
-              const muqeemOk = !!r.muqeem
-              const hrsdOk = hrsdCheck.result && hrsdCheck.result.status === 'found'
-              const allOk = chiOk && muqeemOk && hrsdOk
-              const anyOk = chiOk || muqeemOk || hrsdOk
-              const color = allOk ? '#27a046' : anyOk ? '#d4a017' : C.red
-              const icon = allOk ? <Check size={32} strokeWidth={2.5} /> : anyOk ? <AlertCircle size={32} /> : <X size={32} />
-              const title = allOk ? T('تم التحقق بنجاح','Verification Successful') : anyOk ? T('التحقق','Verification') : T('تعذّر التحقق','Verification Failed')
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
-                    <div style={{ width: 62, height: 62, borderRadius: '50%', background: `${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>{icon}</div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color }}>{title}</div>
-                    {r.cached && <div style={{ fontSize: 14, color: 'rgba(255,255,255,.3)' }}>• {T('من الكاش (آخر 24 ساعة)','cached (last 24 hours)')}</div>}
-                  </div>
-
-
-
-                  {unknown && (r.debug?.panelText || r.debug?.bodyText) && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {r.debug?.panelText && (
-                        <>
-                          <div style={{ fontSize: 14, color: '#d4a017', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('محتوى نتيجة CHI:','CHI result content:')}</div>
-                          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.7)', background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.3)', padding: 10, borderRadius: 8, maxHeight: 120, overflowY: 'auto', textAlign: 'right', direction: 'rtl', lineHeight: 1.6 }}>
-                            {r.debug.panelText}
-                          </div>
-                        </>
-                      )}
-                      {/* Retry button — icon-only, requests a fresh captcha. */}
-                      <button onClick={refreshInsCaptcha} title={T('رمز جديد','New captcha')} style={{ alignSelf: 'flex-end', width: 28, height: 28, padding: 0, border: 'none', background: 'transparent', color: '#5b8fc7', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* ─── Source retrieval status — hidden while CHI is in unknown/retry state so the user focuses on the retry UI ─── */}
-                  {!unknown && (r.muqeem ? (
-                    <div style={{ background: 'rgba(244,123,32,.08)', border: '1px solid rgba(244,123,32,.3)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#F47B20', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-                      <CheckCircle2 size={16} />
-                      <span>{T('استرجاع البيانات من مقيم','Muqeem data retrieved')}</span>
-                    </div>
-                  ) : (
-                    <div style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: C.red, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-                      <AlertCircle size={16} />
-                      <span>{T('فشل استرجاع البيانات من مقيم','Failed to retrieve Muqeem data')}</span>
-                    </div>
-                  ))}
-                  {!unknown && (chiOk ? (() => {
-                    const expiringSoon = (() => {
-                      if (!insured || !r.expiryDate) return false
-                      const exp = new Date(r.expiryDate); if (isNaN(exp.getTime())) return false
-                      const days = Math.floor((exp.getTime() - Date.now()) / 86400000)
-                      return days <= 30
-                    })()
-                    const statusLabel = insured ? T('ساري','Active') : T('غير نشط','Inactive')
-                    const statusColor = !insured ? C.red : expiringSoon ? '#d4a017' : '#27a046'
-                    const showWarn = expiringSoon
-                    return (
-                      <div style={{ background: 'rgba(30,78,132,.12)', border: '1px solid rgba(30,78,132,.4)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#5b8fc7', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-                      <CheckCircle2 size={16} />
-                      <span style={{ flex: 1 }}>{T('استرجاع البيانات من الضمان الصحي','Health Insurance data retrieved')}</span>
-                        <span style={{ color: statusColor, fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          {showWarn && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
-                          {statusLabel}
-                        </span>
-                      </div>
-                    )
-                  })() : (
-                    <div style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: C.red, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-                      <AlertCircle size={16} />
-                      <span>{T('فشل استرجاع البيانات من الضمان الصحي','Failed to retrieve Health Insurance data')}</span>
-                    </div>
-                  ))}
-                  {!unknown && (hrsdCheck.result || hrsdCheck.phase === 'error') && (hrsdOk ? (
-                    <div style={{ background: 'rgba(11,109,61,.12)', border: '1px solid rgba(11,109,61,.4)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#3bb27a', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-                      <CheckCircle2 size={16} />
-                      <span>{T('استرجاع البيانات من وزارة العمل','Ministry of Labor data retrieved')}</span>
-                    </div>
-                  ) : (
-                    <div style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: C.red, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-                      <AlertCircle size={16} />
-                      <span>{T('فشل استرجاع البيانات من وزارة العمل','Failed to retrieve Ministry of Labor data')}</span>
-                    </div>
-                  ))}
-
-                  {/* Continue button — show whenever HRSD has finalized (result, skipped, or never started) */}
-                  {(hrsdCheck.phase === 'result' || hrsdCheck.result || hrsdCheck.phase === 'idle') && (
-                    <button onClick={skipInsAndAdvance} style={{ height: 44, borderRadius: 10, border: 'none', background: C.gold, color: '#000', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                      {T('متابعة','Continue')}
-                    </button>
-                  )}
-                </div>
-              )
-            })()}
-
-            {insCheck.phase === 'error' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
-                  <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red }}><AlertCircle size={28} /></div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: C.red, textAlign: 'center' }}>{T('تعذّر التحقق من التأمين','Insurance verification failed')}</div>
-                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{insCheck.error}</div>
-                </div>
-                <button onClick={startInsuranceCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(30,78,132,.4)', background: 'rgba(30,78,132,.12)', color: '#5b8fc7', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
-                <button onClick={skipInsAndAdvance} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ═══ Quote Issued Success Modal ═══ */}
       {issuedQuote && (() => {
@@ -2367,8 +1700,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         )
       })()}
 
-      {/* ═══ HRSD (Ministry of Labor) CAPTCHA Overlay ═══ */}
-      {hrsdCheck.phase !== 'idle' && hrsdCheck.phase !== 'result' && (
+      {/* ═══ HRSD (Ministry of Labor) Inquiry Overlay ═══ */}
+      {hrsdCheck.phase !== 'idle' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
           <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(11,109,61,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
             <button onClick={closeHrsdCheck} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
@@ -2430,14 +1763,35 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{hrsdCheck.error}</div>
                 </div>
                 <button onClick={startHrsdCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(11,109,61,.4)', background: 'rgba(11,109,61,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
-                <button onClick={closeHrsdCheck} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('إلغاء','Cancel')}</button>
+                <button onClick={() => { closeHrsdCheck(); setErrors({}); setTab(1) }} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>
               </div>
             )}
+
+            {hrsdCheck.phase === 'result' && (() => {
+              const r = hrsdCheck.result || {}
+              const found = r.status === 'found'
+              const advance = () => { setHrsdCheck(c => ({ ...c, phase: 'idle' })); setErrors({}); setTab(1) }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                    <div style={{ width: 58, height: 58, borderRadius: '50%', background: found ? 'rgba(11,109,61,.18)' : 'rgba(212,160,23,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: found ? '#3bb27a' : C.gold }}>{found ? <CheckCircle2 size={28} /> : <AlertCircle size={26} />}</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: found ? '#3bb27a' : C.gold }}>{found ? T('تم الاستعلام','Inquiry complete') : T('تم تخطّي الاستعلام','Inquiry skipped')}</div>
+                  </div>
+                  {found && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      {r.name && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}><span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{T('الإسم','Name')}</span><span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500 }}>{r.name}</span></div>}
+                      {r.workerStatus && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}><span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{T('حالة العامل','Worker Status')}</span><span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500 }}>{r.workerStatus}</span></div>}
+                    </div>
+                  )}
+                  <button onClick={advance} style={{ height: 44, borderRadius: 10, border: 'none', background: C.gold, color: '#000', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('متابعة','Continue')}</button>
+                </div>
+              )
+            })()}
           </div>
         </div>
       )}
 
     </div>
-    </div></div>
+    </FKModal>
   )
 }

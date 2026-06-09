@@ -1,4 +1,6 @@
 import React,{useState,useEffect,useCallback} from 'react'
+import FormKitShowcase from './components/ui/FormKitShowcase.jsx'
+import { Modal as FKModal, ConfirmDialog } from './components/ui/FormKit.jsx'
 const F="'Cairo','Tajawal',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const GLASS_CARD={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
@@ -34,27 +36,14 @@ const isCascade=cascadeCount>0
 const itemsText=isAr?(cascadeCount===1?'عنصر واحد':cascadeCount===2?'عنصرين':`${cascadeCount} عناصر`):(cascadeCount===1?'1 item':`${cascadeCount} items`)
 const title=isCascade?(isAr?'حذف الخانة':'Delete Category'):(isAr?'تأكيد الحذف':'Confirm Delete')
 const confirmBtn=isCascade?(isAr?'حذف الكل':'Delete All'):(isAr?'نعم، احذف':'Yes, Delete')
-return<div onClick={onCancel} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1001,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:460,overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(192,57,43,.15)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.red+' 30%,#e74c3c 50%,'+C.red+' 70%,transparent)'}}/>
-<div style={{padding:'28px 24px',textAlign:'center'}}>
-<div style={{width:56,height:56,borderRadius:'50%',background:'rgba(192,57,43,.08)',border:'2px solid rgba(192,57,43,.15)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{isCascade?<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>:<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>}</svg>
-</div>
-<div style={{fontSize:16,fontWeight:700,color:C.red,marginBottom:8}}>{title}</div>
-{isCascade?<>
-<div style={{fontSize:13,color:'var(--tx2)',lineHeight:1.8,marginBottom:4}}>{isAr?`تحتوي هذه الخانة على ${itemsText}.`:`This category contains ${itemsText}.`}</div>
-{itemName&&<div style={{fontSize:14,fontWeight:700,color:'var(--tx2)',marginBottom:8}}>"{itemName}"</div>}
-<div style={{fontSize:12,color:'rgba(192,57,43,.85)',lineHeight:1.7,marginBottom:20,background:'rgba(192,57,43,.06)',border:'1px solid rgba(192,57,43,.15)',padding:'10px 14px',borderRadius:8}}>{isAr?'إذا حذفتها، سيتم حذف جميع العناصر بداخلها أيضاً. هل أنت متأكد؟':'Deleting it will also delete all items inside. Are you sure?'}</div>
-</>:<>
-<div style={{fontSize:13,color:'var(--tx3)',lineHeight:1.8,marginBottom:4}}>{isAr?'هل أنت متأكد من حذف':'Are you sure you want to delete'}</div>
-{itemName&&<div style={{fontSize:14,fontWeight:700,color:'var(--tx2)',marginBottom:4}}>"{itemName}"</div>}
-<div style={{fontSize:11,color:'var(--tx5)',marginBottom:20}}>{isAr?'هذا الإجراء لا يمكن التراجع عنه':'This action cannot be undone'}</div>
-</>}
-<div style={{display:'flex',gap:10,justifyContent:'center'}}>
-<button onClick={onCancel} style={{height:42,padding:'0 24px',borderRadius:10,border:'1.5px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx3)',fontFamily:F,fontSize:13,fontWeight:600,cursor:'pointer',flex:1}}>{isAr?'إلغاء':'Cancel'}</button>
-<button onClick={onConfirm} style={{height:42,padding:'0 24px',borderRadius:10,border:'none',background:C.red,color:'#fff',fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',flex:1}}>{confirmBtn}</button>
-</div></div></div></div>}
+return<ConfirmDialog open onConfirm={onConfirm} onCancel={onCancel} danger
+title={title}
+message={isCascade
+?(isAr?`تحتوي هذه الخانة على ${itemsText}. إذا حذفتها، سيتم حذف جميع العناصر بداخلها أيضاً. هل أنت متأكد؟`:`This category contains ${itemsText}. Deleting it will also delete all items inside. Are you sure?`)
+:(isAr?'هل أنت متأكد من حذف؟ هذا الإجراء لا يمكن التراجع عنه.':'Are you sure you want to delete? This action cannot be undone.')}
+itemName={itemName}
+confirmText={confirmBtn}
+cancelText={isAr?'إلغاء':'Cancel'}/>}
 
 // ═══ Custom Select Dropdown ═══
 function CustomSelect({value,onChange,options,placeholder,style:sx}){
@@ -76,14 +65,12 @@ return<div ref={ref} style={{position:'relative',...sx}}>
 
 // ═══ Form Popup — defined outside to prevent focus loss ═══
 function FormPopup({title,fields,form,setForm,onSave,onClose,saving,isAr}){
-return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:520,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid var(--bd)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)',flexShrink:0}}/>
-<div style={{background:'var(--bg)',padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-<div style={{fontSize:15,fontWeight:700,color:'var(--tx)'}}>{title}</div>
-<button onClick={onClose} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-</div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+return<FKModal open onClose={onClose} accent={C.gold} width={520} scroll title={title}
+footer={<>
+<button onClick={onClose} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>{isAr?'إلغاء':'Cancel'}</button>
+<button onClick={onSave} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':(form._id?(isAr?'حفظ':'Save'):(isAr?'إضافة':'Add'))}</button>
+</>}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 {fields.map(f=><div key={f.k} style={{gridColumn:f.w?'1/-1':undefined}}>
 <div style={{fontSize:12,fontWeight:600,color:'var(--tx3)',marginBottom:5}}>{f.l}{f.r&&<span style={{color:C.red}}> *</span>}</div>
 {f.opts&&f.btn?<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>{f.opts.map(o=>{const on=String(form[f.k])===String(o.v);return<button key={o.v} type="button" onClick={()=>setForm(p=>({...p,[f.k]:o.v}))} style={{flex:1,minWidth:0,height:42,padding:'0 14px',borderRadius:10,border:'1.5px solid '+(on?(o.v==='true'||o.v===true?'rgba(39,160,70,.55)':(o.v==='false'||o.v===false?'rgba(192,57,43,.45)':'rgba(212,160,23,.5)')):'rgba(255,255,255,.1)'),background:on?(o.v==='true'||o.v===true?'rgba(39,160,70,.18)':(o.v==='false'||o.v===false?'rgba(192,57,43,.12)':'rgba(212,160,23,.12)')):'transparent',color:on?(o.v==='true'||o.v===true?'#34c759':(o.v==='false'||o.v===false?'#e06157':C.gold)):'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:on?700:600,cursor:'pointer',transition:'.15s'}}>{o.l}</button>})}</div>:
@@ -91,11 +78,8 @@ f.opts?<CustomSelect value={form[f.k]||''} onChange={v=>setForm(p=>({...p,[f.k]:
 f.w?<textarea value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/>:
 <input value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fS}/>}
 </div>)}
-</div></div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',flexDirection:'row-reverse',flexShrink:0}}>
-<button onClick={onSave} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':(form._id?(isAr?'حفظ':'Save'):(isAr?'إضافة':'Add'))}</button>
-<button onClick={onClose} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>{isAr?'إلغاء':'Cancel'}</button>
-</div></div></div>}
+</div>
+</FKModal>}
 
 // ═══ OccupationFormPopup — styled to match KafalaCalculator modal ═══
 const kFS={width:'100%',height:38,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(0,0,0,.18)',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',textAlign:'center',transition:'.2s'}
@@ -224,10 +208,9 @@ const isSaving=localSaving||saving
 const fieldH=isBank?38:44
 const isStyled=!isBank
 const btn=(val,cur,onClick,label,kind)=>{const on=String(cur)===String(val);const col=kind==='ok'?'#27a046':kind==='err'?'#e06157':C.gold;const bg=kind==='ok'?'rgba(39,160,70,.18)':kind==='err'?'rgba(192,57,43,.12)':'rgba(212,160,23,.12)';const bd=kind==='ok'?'rgba(39,160,70,.55)':kind==='err'?'rgba(192,57,43,.45)':'rgba(212,160,23,.5)';return<button type="button" onClick={onClick} style={{flex:1,height:fieldH,borderRadius:9,border:'1px solid '+(on?bd:'rgba(255,255,255,.05)'),background:on?bg:'rgba(0,0,0,.18)',color:on?col:'rgba(255,255,255,.58)',fontFamily:F,fontSize:13,fontWeight:on?700:600,cursor:'pointer',transition:'.2s'}}>{label}</button>}
-return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
+return<FKModal open onClose={onClose} accent={C.gold} width={520} scroll hideHeader>
 <style>{`.occ-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.occ-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.occ-nav-btn:hover .nav-ico{background:#D4A017;color:#000}.occ-nav-btn:hover .nav-ico{transform:translateX(-4px)}.occ-nav-btn:disabled{opacity:.5;cursor:not-allowed}.occ-nav-btn:disabled .nav-ico{background:rgba(212,160,23,.1);color:#D4A017;transform:none}@media(max-width:640px){.ci-form-grid{grid-template-columns:1fr!important;gap:14px!important;row-gap:14px!important}}`}</style>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:18,width:520,maxWidth:'calc(100vw - 32px)',minWidth:320,display:'flex',flexDirection:'column',overflow:'visible',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid rgba(212,160,23,.08)',position:'relative'}}>
-<div dir={isAr?'rtl':'ltr'} style={{fontFamily:F,color:'rgba(255,255,255,.85)',display:'flex',flexDirection:'column',height:'100%',overflow:'visible'}}>
+<div dir={isAr?'rtl':'ltr'} style={{fontFamily:F,color:'rgba(255,255,255,.85)',display:'flex',flexDirection:'column',height:'100%',overflow:'visible',position:'relative'}}>
 {/* Header */}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:isStyled?'14px 24px 0':'14px 20px 18px',marginBottom:isStyled?16:0,flexShrink:0,direction:isAr?'rtl':'ltr'}}>
 <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -367,13 +350,13 @@ return<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(1
 <style>{`@keyframes occ-pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}`}</style>
 </div>}
 </div>
-</div>
-</div>
+</FKModal>
 }
 
 // ═══ Main Component ═══
 export default function SettingsPage({sb,toast,user,lang,onTabChange,defaultMainTab}){
 const isAr=lang!=='en'
+const[showFormKit,setShowFormKit]=useState(false)
 const[mainTab,setMainTab]=useState(defaultMainTab||'general_group')
 const[tab,setTab]=useState(()=>{
 const g=(defaultMainTab==='fields_group')?{id:'fields_group',first:'categories'}:{id:'general_group',first:'general'}
@@ -479,6 +462,7 @@ const tabGroups=[
 {id:'occupations',l:'المهن',le:'Occupations'},
 {id:'nationalities',l:'الجنسيات والسفارات',le:'Nationalities & Embassies'},
 {id:'regions_cities',l:'المناطق والمدن والمحافظات',le:'Regions, Cities & Districts'},
+{id:'formkit',l:'معرض الفورمات',le:'FormKit'},
 ]},
 ]
 const tabs=tabGroups.flatMap(g=>g.tabs)
@@ -538,7 +522,15 @@ return<div>
 <div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>{mainTab==='fields_group'?(isAr?'الحقول':'Fields'):(isAr?'الإعدادات والتصنيفات':'Settings & Categories')}</div>
 <div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>{mainTab==='fields_group'?(isAr?'إدارة الخانات والمهن والجنسيات والمناطق':'Manage categories, occupations, nationalities & regions'):(isAr?'إدارة البيانات الأساسية والتصنيفات':'Manage core data & categories')}</div>
 </div>
+<button onClick={()=>setShowFormKit(true)} title={isAr?'معرض الفورمات — كل أشكال الحقول والنوافذ الموحّدة':'FormKit gallery'}
+onMouseEnter={e=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background='rgba(212,160,23,.12)'}}
+onMouseLeave={e=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}}
+style={{height:42,padding:'0 18px',borderRadius:11,background:'transparent',border:'1px dashed rgba(212,160,23,.5)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,whiteSpace:'nowrap',flexShrink:0,transition:'background .15s ease, border-color .15s ease'}}>
+{isAr?'معرض الفورمات':'FormKit'}
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+</button>
 </div>
+<FormKitShowcase open={showFormKit} onClose={()=>setShowFormKit(false)}/>
 
 {!defaultMainTab&&<div style={{display:'flex',gap:0,borderBottom:'1px solid rgba(255,255,255,.07)',marginBottom:14,overflowX:'auto',scrollbarWidth:'none'}}>
 {tabGroups.map(g=>{const sel=mainTab===g.id;return<div key={g.id} onClick={()=>{setMainTab(g.id);setTab(g.tabs[0].id);setQ('');setListFilter('')}} style={{padding:'10px 22px 9px',cursor:'pointer',color:sel?C.gold:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:sel?600:500,borderBottom:sel?'2px solid '+C.gold:'2px solid transparent',marginBottom:-1,transition:'.2s',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{isAr?g.l:g.le}</div>})}
@@ -546,6 +538,20 @@ return<div>
 <div style={{display:'flex',gap:0,borderBottom:'1px solid rgba(255,255,255,.07)',marginBottom:18,overflowX:'auto',scrollbarWidth:'none'}}>
 {currentGroup.tabs.map(t=>{const sel=tab===t.id;return<div key={t.id} onClick={()=>{setTab(t.id);setQ('');setListFilter('')}} style={{padding:'10px 22px 9px',cursor:'pointer',color:sel?C.gold:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:sel?600:500,borderBottom:sel?'2px solid '+C.gold:'2px solid transparent',marginBottom:-1,transition:'.2s',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{isAr?t.l:t.le}</div>})}
 </div>
+
+{tab==='formkit'&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'48px 24px',gap:18}}>
+<div style={{width:64,height:64,borderRadius:16,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.25)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold}}>
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+</div>
+<div style={{maxWidth:420}}>
+<div style={{fontSize:18,fontWeight:600,color:'rgba(255,255,255,.93)',marginBottom:8}}>معرض الفورمات</div>
+<div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',lineHeight:1.7}}>كل أشكال الحقول والنوافذ والألوان والأحجام الموحّدة في مكان واحد — افتحه لتشاهد العناصر وتنسخ منها لأي نافذة جديدة.</div>
+</div>
+<button onClick={()=>setShowFormKit(true)} style={{height:42,padding:'0 24px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.2) 0%,rgba(212,160,23,.08) 100%)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'0 2px 10px rgba(212,160,23,.18)'}}>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+فتح المعرض
+</button>
+</div>}
 
 {tab==='general'&&<>
 {/* ── Muqeem bot credentials — read by the DigitalOcean bot every cycle ── */}

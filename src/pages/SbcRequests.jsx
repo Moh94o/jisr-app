@@ -182,7 +182,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
     const theme = statusTheme(detail.status_name_ar || detail.status_name_en)
     return (
       <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 16 }}>
           <BackButton onBack={() => setDetail(null)} label={T('رجوع', 'Back')} />
         </div>
 

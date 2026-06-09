@@ -1554,7 +1554,7 @@ if(selectedSvc){
     {SVC_LIST_STYLES}
 
     {/* Top bar — back button */}
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,gap:12,flexWrap:'wrap'}}>
       <BackButton onBack={()=>setSelectedSvcId(null)} />
     </div>
 
