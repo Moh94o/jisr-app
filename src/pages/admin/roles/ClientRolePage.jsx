@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { UserCheck, CreditCard, Star, Shield, Edit2, Plus } from 'lucide-react'
 import RoleLayout from './RoleLayout.jsx'
-import { KCard, KV, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, PersonIdentityChip, C } from './RoleUI.jsx'
+import { KV, HeroStat, KpiBox, ModalShell, PersonIdentityChip, C } from './RoleUI.jsx'
+import { ModalSection, GRID, ActionButton, TextField, NumberField, Switch, TextArea } from '../../../components/ui/FormKit.jsx'
 import * as rolesService from '../../../services/rolesService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -122,40 +123,22 @@ function ClientModal({ open, onClose, personId, person, row, toast, onSaved }) {
   }
 
   return (
-    <ModalShell open={open} onClose={onClose} title={isEdit ? 'تعديل ملف العميل' : 'ربط ملف عميل'} Icon={UserCheck}
-      footer={<><div style={{ flex: 1 }} /><SaveBtn onClick={save} disabled={saving} label={saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'ربط')} /></>}>
-      <KCard Icon={UserCheck} label="بيانات العميل">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div><Lbl>رقم العميل</Lbl>
-            <input value={f.client_number} onChange={e => set('client_number', e.target.value)} dir="ltr"
-              style={{ ...sF, direction: 'ltr' }} /></div>
-          <div><Lbl req>الاسم بالعربي</Lbl>
-            <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} style={sF} /></div>
-          <div><Lbl>الاسم بالإنجليزي</Lbl>
-            <input value={f.name_en} onChange={e => set('name_en', e.target.value.toUpperCase())} dir="ltr"
-              style={{ ...sF, direction: 'ltr', textTransform: 'uppercase' }} /></div>
-          <div><Lbl>التقييم (1-5)</Lbl>
-            <input type="number" min="1" max="5" value={f.rating ?? ''}
-              onChange={e => set('rating', e.target.value ? Number(e.target.value) : null)}
-              style={{ ...sF, direction: 'ltr' }} /></div>
+    <ModalShell open={open} onClose={onClose} variant={isEdit ? 'edit' : 'create'}
+      title={isEdit ? 'تعديل ملف العميل' : 'ربط ملف عميل'} Icon={UserCheck}
+      footer={<ActionButton onClick={save} disabled={saving || !f.name_ar}>{saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'ربط')}</ActionButton>}>
+      <ModalSection Icon={UserCheck} label="بيانات العميل">
+        <div style={GRID}>
+          <TextField label="رقم العميل" dir="ltr" value={f.client_number} onChange={v => set('client_number', v)} />
+          <TextField label="الاسم بالعربي" req value={f.name_ar} onChange={v => set('name_ar', v)} />
+          <TextField label="الاسم بالإنجليزي" dir="ltr" upper value={f.name_en} onChange={v => set('name_en', v)} />
+          <NumberField label="التقييم (1-5)" min={1} max={5} value={f.rating ?? ''}
+            onChange={v => set('rating', v === '' ? null : Number(v))} />
+          <Switch label="عميل VIP" checked={f.is_vip} onChange={v => set('is_vip', v)} />
+          <Switch label="قائمة حظر" color={C.red} checked={f.is_blacklisted} onChange={v => set('is_blacklisted', v)} />
+          <Switch label="نشط" checked={f.is_active} onChange={v => set('is_active', v)} />
+          <TextArea label="ملاحظات" value={f.notes} onChange={v => set('notes', v)} />
         </div>
-        <div style={{ display: 'flex', gap: 18, marginTop: 14, flexWrap: 'wrap' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: 'var(--tx2)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={f.is_vip} onChange={e => set('is_vip', e.target.checked)} /> عميل VIP
-          </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: 'var(--tx2)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={f.is_blacklisted} onChange={e => set('is_blacklisted', e.target.checked)} /> قائمة حظر
-          </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: 'var(--tx2)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={f.is_active} onChange={e => set('is_active', e.target.checked)} /> نشط
-          </label>
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <Lbl>ملاحظات</Lbl>
-          <textarea value={f.notes} onChange={e => set('notes', e.target.value)} rows={3}
-            style={{ ...sF, height: 'auto', padding: 14, textAlign: 'start' }} />
-        </div>
-      </KCard>
+      </ModalSection>
     </ModalShell>
   )
 }

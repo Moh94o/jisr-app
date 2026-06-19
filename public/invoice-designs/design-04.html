@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>فاتورة INV-2026-1042 — تأشيرة البناء والإنشاء</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#11233f;
+    --navy-2:#1b3354;
+    --navy-line:#27406a;
+    --steel:#5a6b82;
+    --steel-2:#7d8ca1;
+    --ink:#1c2533;
+    --paper:#ffffff;
+    --gold:#c9a84c;
+    --gold-soft:#d8c89a;
+    --gold-bg:#faf6ea;
+    --row-alt:#f5f7fa;
+    --grid:#dde3ec;
+    --grid-strong:#c3cbd8;
+    --ok:#1c7a4d;
+    --ok-bg:#e7f3ec;
+    --warn:#9a6a12;
+    --warn-bg:#fdf3df;
+    --bad:#a3372f;
+    --bad-bg:#fbeceb;
+  }
+
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+
+  html,body{margin:0;padding:0;background:#52607a;}
+
+  body{
+    font-family:"IBM Plex Sans Arabic",sans-serif;
+    color:var(--ink);
+    font-size:11px;
+    line-height:1.35;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ===== Numerals / dates always LTR, monospaced ===== */
+  .num{
+    direction:ltr;
+    font-variant-numeric:tabular-nums;
+    unicode-bidi:isolate;
+    font-family:"IBM Plex Mono",monospace;
+    font-feature-settings:"tnum" 1;
+  }
+
+  @page{ size:A4; margin:0; }
+
+  /* ===== Fixed two-page model ===== */
+  .page{
+    width:210mm;
+    height:297mm;
+    overflow:hidden;
+    position:relative;
+    margin:0 auto;
+    background:var(--paper);
+    box-shadow:0 0 14px rgba(0,0,0,.28);
+    padding:0 0 13mm 0;          /* comfortable bottom safety margin */
+  }
+  .page + .page{
+    margin-top:10mm;
+    page-break-before:always;
+    break-before:page;
+  }
+
+  .pad{ padding:0 14mm; }
+
+  /* ============ BRAND HEADER (navy) ============ */
+  .topbar{
+    background:var(--navy);
+    color:#fff;
+    padding:7mm 14mm 5.5mm;
+    position:relative;
+    border-bottom:3px solid var(--gold);
+  }
+  .topbar-grid{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:14px;
+  }
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .logo{
+    width:128px;
+    height:auto;
+    display:block;
+  }
+  .brand-text .name-ar{
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:.2px;
+    line-height:1.12;
+    color:#fff;
+  }
+  .brand-text .name-en{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:10.5px;
+    font-weight:500;
+    letter-spacing:1.5px;
+    color:var(--gold-soft);
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+  .brand-text .group{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:8.5px;
+    letter-spacing:3px;
+    color:var(--steel-2);
+    text-transform:uppercase;
+    margin-top:4px;
+  }
+  .topbar-meta{
+    text-align:left;
+    font-size:9.5px;
+    color:#cdd6e3;
+    line-height:1.55;
+  }
+  .topbar-meta .lbl{
+    color:var(--steel-2);
+    font-size:8px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    display:block;
+  }
+  .topbar-meta .val{ color:#fff; font-weight:500; }
+
+  .statement-band{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:5mm;
+    padding-top:3.5mm;
+    border-top:1px solid var(--navy-line);
+  }
+  .statement-title{
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.5px;
+    color:#fff;
+  }
+  .statement-title .en{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:8.5px;
+    letter-spacing:2px;
+    color:var(--steel-2);
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+  .inv-chip{
+    display:flex;
+    gap:0;
+    border:1px solid var(--navy-line);
+  }
+  .inv-chip .cell{
+    padding:5px 14px;
+    text-align:center;
+    border-inline-start:1px solid var(--navy-line);
+  }
+  .inv-chip .cell:first-child{ border-inline-start:none; }
+  .inv-chip .ck{
+    display:block;
+    font-size:7.5px;
+    letter-spacing:1.5px;
+    color:var(--steel-2);
+    text-transform:uppercase;
+  }
+  .inv-chip .cv{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:11px;
+    font-weight:600;
+    color:#fff;
+    margin-top:2px;
+  }
+
+  /* ============ STATUS RIBBON ============ */
+  .statusbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--warn-bg);
+    border-bottom:1px solid var(--grid);
+    padding:5px 14mm;
+    font-size:10px;
+  }
+  .statusbar .s-left{ display:flex; align-items:center; gap:8px; color:var(--steel); }
+  .status-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--warn);
+    color:#fff;
+    font-weight:600;
+    font-size:10px;
+    padding:3px 12px;
+  }
+  .status-pill .dot{ width:7px;height:7px;background:#fff;display:inline-block;}
+  .statusbar .s-right{ font-size:9px; color:var(--steel-2); letter-spacing:.3px;}
+
+  /* ============ HERO — آخر دفعة ============ */
+  .hero{
+    margin:5mm 14mm 0;
+    background:var(--navy);
+    color:#fff;
+    display:grid;
+    grid-template-columns:1.55fr 1fr;
+  }
+  .hero-main{
+    padding:5mm 7mm 5mm;
+    position:relative;
+  }
+  .hero-tag{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    font-size:9px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--gold);
+    font-family:"IBM Plex Mono",monospace;
+    margin-bottom:2px;
+  }
+  .hero-tag .star{ color:var(--gold); font-size:12px; }
+  .hero-tag-ar{
+    font-size:12px;
+    font-weight:600;
+    color:var(--gold-soft);
+    letter-spacing:1px;
+    margin-bottom:7px;
+  }
+  .hero-amount{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  .hero-amount .figs{
+    font-family:"IBM Plex Mono",monospace;
+    font-weight:700;
+    font-size:42px;
+    line-height:1;
+    color:#fff;
+    letter-spacing:-1px;
+  }
+  .hero-amount .cur{
+    font-size:15px;
+    font-weight:500;
+    color:var(--gold-soft);
+  }
+  .hero-sub{
+    margin-top:8px;
+    padding-top:7px;
+    border-top:1px solid var(--navy-line);
+    display:grid;
+    grid-template-columns:repeat(3,auto);
+    gap:0 20px;
+    justify-content:start;
+  }
+  .hero-sub .item .k{
+    font-size:8px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--steel-2);
+    font-family:"IBM Plex Mono",monospace;
+  }
+  .hero-sub .item .v{
+    font-size:11.5px;
+    font-weight:500;
+    color:#fff;
+    margin-top:2px;
+  }
+  .hero-covers{
+    margin-top:8px;
+    background:rgba(201,168,76,.12);
+    border-inline-start:3px solid var(--gold);
+    padding:6px 11px;
+    font-size:10px;
+    color:#eef2f8;
+  }
+  .hero-covers .lbl{ color:var(--gold-soft); font-size:8.5px; letter-spacing:1px; text-transform:uppercase; font-family:"IBM Plex Mono",monospace;}
+  .hero-covers b{ color:#fff; font-weight:600; }
+
+  .hero-side{
+    background:var(--navy-2);
+    border-inline-start:1px solid var(--navy-line);
+    padding:5mm 6mm;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .hero-side .remain-lbl{
+    font-size:9px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--steel-2);
+    font-family:"IBM Plex Mono",monospace;
+  }
+  .hero-side .remain-ar{
+    font-size:12px;
+    color:var(--gold-soft);
+    font-weight:600;
+    margin-top:1px;
+  }
+  .hero-side .remain-val{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:32px;
+    font-weight:700;
+    color:var(--gold);
+    line-height:1;
+    margin-top:8px;
+  }
+  .hero-side .remain-val small{ font-size:13px; color:var(--gold-soft); font-weight:500;}
+  .hero-side .remain-note{
+    font-size:9px;
+    color:var(--steel-2);
+    margin-top:6px;
+    line-height:1.45;
+  }
+
+  /* mini progress */
+  .paybar{
+    margin-top:9px;
+  }
+  .paybar .track{
+    height:7px;
+    background:rgba(255,255,255,.12);
+    position:relative;
+    overflow:hidden;
+  }
+  .paybar .fill{
+    position:absolute;
+    inset:0 auto 0 0;
+    width:82.14%;
+    background:var(--gold);
+  }
+  .paybar .pct{
+    display:flex;
+    justify-content:space-between;
+    font-size:8px;
+    font-family:"IBM Plex Mono",monospace;
+    color:var(--steel-2);
+    letter-spacing:.5px;
+    margin-top:4px;
+  }
+  .paybar .pct b{ color:var(--gold-soft); font-weight:600;}
+
+  /* ============ SECTION TITLES ============ */
+  .sec{ margin-top:4mm; }
+  .sec-head{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    margin-bottom:5px;
+  }
+  .sec-no{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:8.5px;
+    font-weight:600;
+    color:#fff;
+    background:var(--navy);
+    width:17px;height:17px;
+    display:flex;align-items:center;justify-content:center;
+    flex:0 0 auto;
+  }
+  .sec-title{
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--navy);
+    letter-spacing:.2px;
+  }
+  .sec-title .en{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:7.5px;
+    letter-spacing:1.5px;
+    color:var(--steel-2);
+    text-transform:uppercase;
+    margin-inline-start:6px;
+    font-weight:400;
+  }
+  .sec-rule{ flex:1 1 auto; height:1px; background:var(--grid); }
+
+  /* ============ KEY-VALUE GRID CARDS ============ */
+  .kv{
+    border:1px solid var(--grid);
+    border-collapse:collapse;
+    width:100%;
+  }
+  .kv .row2{ display:grid; grid-template-columns:1fr 1fr; }
+  .kv .cell{
+    padding:5px 11px;
+    border-bottom:1px solid var(--grid);
+    border-inline-start:1px solid var(--grid);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    min-height:27px;
+  }
+  .kv .cell:nth-child(odd){ border-inline-start:none; }
+  .kv .row2:last-child .cell{ border-bottom:none; }
+  .kv .k{ color:var(--steel); font-size:9px; }
+  .kv .v{ color:var(--ink); font-weight:500; font-size:10.5px; text-align:left; }
+  .kv .v.mono{ font-family:"IBM Plex Mono",monospace; }
+  .kv .full{ grid-column:1 / -1; }
+
+  .twocol{ display:grid; grid-template-columns:1fr 1fr; gap:6mm; }
+
+  /* ============ TABLES ============ */
+  table.stm{
+    width:100%;
+    border-collapse:collapse;
+    font-size:10px;
+  }
+  table.stm thead th{
+    background:var(--navy);
+    color:#fff;
+    font-weight:600;
+    font-size:9px;
+    letter-spacing:.4px;
+    padding:6px 10px;
+    text-align:right;
+    border-inline-start:1px solid var(--navy-line);
+  }
+  table.stm thead th:first-child{ border-inline-start:none; }
+  table.stm thead th.r{ text-align:left; }
+  table.stm tbody td{
+    padding:5.5px 10px;
+    border-bottom:1px solid var(--grid);
+    border-inline-start:1px solid var(--grid);
+    color:var(--ink);
+    vertical-align:middle;
+  }
+  table.stm tbody td:first-child{ border-inline-start:none; }
+  table.stm tbody tr:nth-child(even){ background:var(--row-alt); }
+  table.stm td.r{ text-align:left; }
+  table.stm td.mono{ font-family:"IBM Plex Mono",monospace; }
+  table.stm .step{ font-weight:600; color:var(--navy); }
+  table.stm .milestone{ color:var(--steel); font-size:9px; }
+  table.stm .idx{ color:var(--steel-2); font-family:"IBM Plex Mono",monospace; font-size:9px; width:26px; text-align:center; }
+  table.stm tr.latest-row{ background:var(--gold-bg) !important; }
+  table.stm tr.latest-row td{ border-bottom:1px solid var(--gold-soft); }
+  table.stm tr.latest-row td:first-child{ border-inline-start:3px solid var(--gold); }
+  .latest-tag{
+    display:inline-block;
+    font-size:7.5px;
+    font-family:"IBM Plex Mono",monospace;
+    letter-spacing:1px;
+    color:var(--gold);
+    border:1px solid var(--gold-soft);
+    padding:1px 5px;
+    margin-inline-start:6px;
+    vertical-align:middle;
+  }
+
+  /* status tags in tables */
+  .tag{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size:8.5px;
+    font-weight:600;
+    padding:2.5px 8px;
+    white-space:nowrap;
+  }
+  .tag .d{ width:6px;height:6px;display:inline-block;border-radius:50%; }
+  .tag.ok{ background:var(--ok-bg); color:var(--ok); }
+  .tag.ok .d{ background:var(--ok); }
+  .tag.warn{ background:var(--warn-bg); color:var(--warn); }
+  .tag.warn .d{ background:var(--warn); }
+  .tag.bad{ background:var(--bad-bg); color:var(--bad); }
+  .tag.bad .d{ background:var(--bad); }
+
+  /* pricing table */
+  table.price tfoot td{
+    background:var(--navy);
+    color:#fff;
+    font-weight:700;
+    font-size:11px;
+    padding:7px 10px;
+    border:none;
+    border-top:2px solid var(--gold);
+  }
+  table.price tfoot td.r{ font-family:"IBM Plex Mono",monospace; }
+
+  /* ============ FINANCIAL SUMMARY ============ */
+  .fin{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    border:1px solid var(--grid-strong);
+    margin-top:6px;
+  }
+  .fin .box{
+    padding:8px 13px;
+    border-inline-start:1px solid var(--grid);
+  }
+  .fin .box:first-child{ border-inline-start:none; }
+  .fin .box .k{
+    font-size:8.5px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--steel-2);
+    font-family:"IBM Plex Mono",monospace;
+  }
+  .fin .box .k .ar{ display:block; font-family:"IBM Plex Sans Arabic"; font-size:9.5px; letter-spacing:0; color:var(--steel); text-transform:none; margin-top:1px;}
+  .fin .box .amt{
+    font-family:"IBM Plex Mono",monospace;
+    font-weight:700;
+    font-size:19px;
+    margin-top:4px;
+    line-height:1;
+  }
+  .fin .box .amt small{ font-size:10px; font-weight:500; color:var(--steel); }
+  .fin .total .amt{ color:var(--ink); }
+  .fin .paid{ background:var(--ok-bg); }
+  .fin .paid .amt{ color:var(--ok); }
+  .fin .due{ background:var(--navy); }
+  .fin .due .k{ color:var(--gold-soft); }
+  .fin .due .k .ar{ color:var(--gold-soft); }
+  .fin .due .amt{ color:var(--gold); }
+  .fin .due .amt small{ color:var(--gold-soft); }
+
+  /* ============ BANK ACCOUNT ============ */
+  .bank{
+    border:1px solid var(--grid-strong);
+    margin-top:6px;
+    display:grid;
+    grid-template-columns:auto 1fr;
+  }
+  .bank .badge{
+    background:var(--navy);
+    color:#fff;
+    padding:9px 16px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    border-inline-end:2px solid var(--gold);
+  }
+  .bank .badge .t{ font-size:8px; letter-spacing:2px; color:var(--steel-2); font-family:"IBM Plex Mono",monospace; text-transform:uppercase;}
+  .bank .badge .b{ font-size:13px; font-weight:600; margin-top:3px; color:#fff;}
+  .bank .badge .b .en{ display:block; font-family:"IBM Plex Mono",monospace; font-size:8px; color:var(--gold-soft); letter-spacing:1px; margin-top:2px;}
+  .bank .lines{ display:grid; grid-template-columns:1fr 1fr; }
+  .bank .ln{
+    padding:6px 13px;
+    border-bottom:1px solid var(--grid);
+    border-inline-start:1px solid var(--grid);
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .bank .ln:nth-child(odd){ border-inline-start:none; }
+  .bank .ln.wide{ grid-column:1 / -1; border-bottom:none; }
+  .bank .ln .k{ color:var(--steel); font-size:9px; }
+  .bank .ln .v{ font-weight:500; font-size:10.5px; text-align:left; }
+  .bank .ln .v.iban{ font-family:"IBM Plex Mono",monospace; font-weight:600; letter-spacing:.5px; color:var(--navy);}
+
+  /* ============ FOOTER NOTICE ============ */
+  .notice{
+    margin:5mm 14mm 0;
+    border:1px solid var(--gold-soft);
+    background:var(--gold-bg);
+    padding:8px 13px;
+    border-inline-start:4px solid var(--gold);
+  }
+  .notice .h{ font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--warn); font-family:"IBM Plex Mono",monospace; font-weight:600; margin-bottom:3px;}
+  .notice .ar{ font-size:10px; color:var(--ink); line-height:1.5; }
+  .notice .en{ font-size:8.5px; color:var(--steel); line-height:1.45; margin-top:3px; direction:ltr; text-align:left; font-style:italic;}
+
+  .foot{
+    margin:5mm 0 0;
+    padding:5px 14mm 0;
+    border-top:1px solid var(--grid);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:8px;
+    color:var(--steel-2);
+    font-family:"IBM Plex Mono",monospace;
+    letter-spacing:.5px;
+  }
+  .foot .gold-dot{ color:var(--gold); }
+
+  /* ============ PAGE 2 MINI HEADER ============ */
+  .minihead{
+    background:var(--navy);
+    color:#fff;
+    padding:4.5mm 14mm;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:3px solid var(--gold);
+  }
+  .minihead .l{ display:flex; align-items:center; gap:11px; }
+  .minihead .logo{ width:90px; }
+  .minihead .mh-name{ font-size:13px; font-weight:600;}
+  .minihead .mh-name .en{ display:block; font-family:"IBM Plex Mono",monospace; font-size:7.5px; color:var(--gold-soft); letter-spacing:1.5px; text-transform:uppercase; margin-top:1px;}
+  .minihead .mh-inv{ text-align:left; font-family:"IBM Plex Mono",monospace; font-size:9px; color:#cdd6e3; }
+  .minihead .mh-inv b{ color:#fff; display:block; font-size:11px;}
+  .minihead .mh-inv .pg{ color:var(--steel-2); font-size:8px; }
+
+  @media print{
+    html,body{ background:#fff; }
+    .page{ box-shadow:none; margin:0; }
+    .page + .page{ margin-top:0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================= PAGE 1 ============================= -->
+<div class="page">
+
+  <!-- 1) BRAND HEADER -->
+  <header class="topbar">
+    <div class="topbar-grid">
+      <div class="brand">
+        <img class="logo" src="../hussain-offices-logo.svg" alt="VISA Albina &amp; Alinsha">
+        <div class="brand-text">
+          <div class="name-ar">تأشيرة البناء والإنشاء</div>
+          <div class="name-en">VISA Albina &amp; Alinsha</div>
+          <div class="group">Hussain Offices</div>
+        </div>
+      </div>
+      <div class="topbar-meta">
+        <span class="lbl">العنوان</span>
+        <span class="val">المملكة العربية السعودية، الجبيل</span><br>
+        <span class="val">Kingdom of Saudi Arabia – Al Jubail</span>
+        <div style="margin-top:6px;">
+          <span class="lbl">جوال المكتب</span>
+          <span class="val num">0569036528</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2) INVOICE META -->
+    <div class="statement-band">
+      <div class="statement-title">
+        كشف حساب وفاتورة خدمة
+        <div class="en">Account Statement &amp; Service Invoice</div>
+      </div>
+      <div class="inv-chip">
+        <div class="cell">
+          <span class="ck">Invoice No.</span>
+          <span class="cv num">INV-2026-1042</span>
+        </div>
+        <div class="cell">
+          <span class="ck">Issue Date</span>
+          <span class="cv num">2026-06-10</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 3) ★ HERO — آخر دفعة -->
+  <section class="hero" aria-label="آخر دفعة">
+    <div class="hero-main">
+      <div class="hero-tag"><span class="star">★</span> Latest Payment Received</div>
+      <div class="hero-tag-ar">آخر دفعة مستلمة</div>
+      <div class="hero-amount">
+        <span class="figs num">1,500</span>
+        <span class="cur">ر.س</span>
+      </div>
+
+      <div class="hero-sub">
+        <div class="item">
+          <div class="k">Date</div>
+          <div class="v num">2026-06-09</div>
+        </div>
+        <div class="item">
+          <div class="k">Method</div>
+          <div class="v">تحويل بنكي</div>
+        </div>
+        <div class="item">
+          <div class="k">Reference</div>
+          <div class="v num">RAJHI-TRF</div>
+        </div>
+      </div>
+
+      <div class="hero-covers">
+        <span class="lbl">مقابل&nbsp;</span>
+        <b>الدفعة الثالثة: التصديق والوكالة</b> — سُدّد منها <b class="num">1,500</b> ر.س جزئياً.
+      </div>
+    </div>
+
+    <aside class="hero-side">
+      <div class="remain-lbl">Remaining Balance</div>
+      <div class="remain-ar">المتبقي بعد هذه الدفعة</div>
+      <div class="remain-val"><span class="num">2,500</span> <small>ر.س</small></div>
+      <div class="remain-note">رصيد مستحق الدفع على الفاتورة بعد احتساب آخر دفعة مستلمة.</div>
+      <div class="paybar">
+        <div class="track"><div class="fill"></div></div>
+        <div class="pct">
+          <span>مدفوع <b class="num">11,500</b></span>
+          <span>إجمالي <b class="num">14,000</b></span>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- 4) STATUS RIBBON -->
+  <div class="statusbar" style="margin-top:5mm;border-top:1px solid var(--grid);">
+    <div class="s-left">
+      <span>حالة الفاتورة</span>
+      <span class="status-pill"><span class="dot"></span> مدفوعة جزئياً</span>
+    </div>
+    <div class="s-right">PARTIALLY PAID &nbsp;·&nbsp; <span class="num">82%</span> سُدّد من إجمالي المبلغ</div>
+  </div>
+
+  <div class="pad">
+
+    <!-- 5 + 6) CLIENT / WORKER -->
+    <div class="twocol" style="margin-top:5mm;">
+      <!-- Client -->
+      <div>
+        <div class="sec-head">
+          <span class="sec-no">5</span>
+          <span class="sec-title">بيانات العميل <span class="en">Client</span></span>
+          <span class="sec-rule"></span>
+        </div>
+        <div class="kv">
+          <div class="row2">
+            <div class="cell full"><span class="k">الاسم</span><span class="v">عبدالله محمد الرشيدي — <span style="color:var(--steel)">Abdullah M. Al-Rashidi</span></span></div>
+          </div>
+          <div class="row2">
+            <div class="cell"><span class="k">رقم الهوية</span><span class="v mono num">1098765432</span></div>
+            <div class="cell"><span class="k">الجوال</span><span class="v mono num">0551234567</span></div>
+          </div>
+          <div class="row2">
+            <div class="cell full"><span class="k">الجنسية</span><span class="v">السعودية</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Worker -->
+      <div>
+        <div class="sec-head">
+          <span class="sec-no">6</span>
+          <span class="sec-title">بيانات العامل <span class="en">Worker</span></span>
+          <span class="sec-rule"></span>
+        </div>
+        <div class="kv">
+          <div class="row2">
+            <div class="cell full"><span class="k">الاسم</span><span class="v">راجيش كومار — <span style="color:var(--steel)">Rajesh Kumar</span></span></div>
+          </div>
+          <div class="row2">
+            <div class="cell"><span class="k">رقم الإقامة</span><span class="v mono num">2456789011</span></div>
+            <div class="cell"><span class="k">الجوال</span><span class="v mono num">0590112233</span></div>
+          </div>
+          <div class="row2">
+            <div class="cell"><span class="k">الجنسية</span><span class="v">الهند</span></div>
+            <div class="cell"><span class="k">المهنة</span><span class="v">عامل بناء</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Facility -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="sec-no">6</span>
+        <span class="sec-title">بيانات المنشأة <span class="en">Establishment</span></span>
+        <span class="sec-rule"></span>
+      </div>
+      <div class="kv">
+        <div class="row2">
+          <div class="cell full"><span class="k">اسم المنشأة</span><span class="v">مؤسسة الجبيل للمقاولات</span></div>
+        </div>
+        <div class="row2">
+          <div class="cell"><span class="k">الرقم الموحد</span><span class="v mono num">7001234567</span></div>
+          <div class="cell"><span class="k">رقم الموارد (HRSD)</span><span class="v mono num">1-2345678</span></div>
+        </div>
+        <div class="row2">
+          <div class="cell full"><span class="k">رقم التأمينات (GOSI)</span><span class="v mono num">558012345</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7) SERVICE -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="sec-no">7</span>
+        <span class="sec-title">الخدمة <span class="en">Service</span></span>
+        <span class="sec-rule"></span>
+      </div>
+      <table class="stm">
+        <thead>
+          <tr>
+            <th>الخدمة</th>
+            <th>الوصف بالإنجليزية</th>
+            <th class="r">الكمية</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="step">نقل كفالة عامل</td>
+            <td class="milestone">Transfer of Sponsorship</td>
+            <td class="r mono num">1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /pad -->
+
+  <div class="foot">
+    <span>تأشيرة البناء والإنشاء · HUSSAIN OFFICES &nbsp;<span class="gold-dot">◆</span>&nbsp; VISA Albina &amp; Alinsha</span>
+    <span>فاتورة رقم <span class="num">INV-2026-1042</span> &nbsp;·&nbsp; صفحة <span class="num">1 / 2</span></span>
+  </div>
+</div>
+
+
+<!-- ============================= PAGE 2 ============================= -->
+<div class="page">
+
+  <!-- repeated mini header -->
+  <div class="minihead">
+    <div class="l">
+      <img class="logo" src="../hussain-offices-logo.svg" alt="VISA Albina &amp; Alinsha">
+      <div class="mh-name">تأشيرة البناء والإنشاء<span class="en">VISA Albina &amp; Alinsha · Hussain Offices</span></div>
+    </div>
+    <div class="mh-inv">
+      <b class="num">INV-2026-1042</b>
+      <span>الإصدار <span class="num">2026-06-10</span></span>
+      <span class="pg">صفحة <span class="num">2 / 2</span></span>
+    </div>
+  </div>
+
+  <div class="pad">
+
+    <!-- 8) PAYMENTS SCHEDULE (الدفعات) -->
+    <div class="sec" style="margin-top:5mm;">
+      <div class="sec-head">
+        <span class="sec-no">8</span>
+        <span class="sec-title">الدفعات <span class="en">Payment Schedule</span></span>
+        <span class="sec-rule"></span>
+      </div>
+      <table class="stm">
+        <thead>
+          <tr>
+            <th class="idx">#</th>
+            <th>المعلم / الدفعة</th>
+            <th>التاريخ المتوقع</th>
+            <th class="r">المبلغ</th>
+            <th class="r">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="idx">01</td>
+            <td><span class="step">الدفعة الأولى</span><div class="milestone">عند التعاقد</div></td>
+            <td class="mono num">2026-05-01</td>
+            <td class="r mono num">6,000</td>
+            <td class="r"><span class="tag ok"><span class="d"></span> مدفوعة</span></td>
+          </tr>
+          <tr>
+            <td class="idx">02</td>
+            <td><span class="step">الدفعة الثانية</span><div class="milestone">رفع الطلب</div></td>
+            <td class="mono num">2026-05-20</td>
+            <td class="r mono num">4,000</td>
+            <td class="r"><span class="tag ok"><span class="d"></span> مدفوعة</span></td>
+          </tr>
+          <tr class="latest-row">
+            <td class="idx">03</td>
+            <td><span class="step">الدفعة الثالثة</span> <span class="latest-tag">آخر دفعة</span><div class="milestone">التصديق والوكالة — سُدّد منها <span class="num">1,500</span></div></td>
+            <td class="mono num">2026-06-15</td>
+            <td class="r mono num">2,500</td>
+            <td class="r"><span class="tag warn"><span class="d"></span> مدفوعة جزئياً</span></td>
+          </tr>
+          <tr>
+            <td class="idx">04</td>
+            <td><span class="step">الدفعة الرابعة</span><div class="milestone">التسليم النهائي</div></td>
+            <td class="mono num">2026-07-01</td>
+            <td class="r mono num">1,500</td>
+            <td class="r"><span class="tag bad"><span class="d"></span> غير مدفوعة</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 9) PAYMENTS RECEIVED (المدفوعات) -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="sec-no">9</span>
+        <span class="sec-title">المدفوعات المستلمة <span class="en">Payments Received</span></span>
+        <span class="sec-rule"></span>
+      </div>
+      <table class="stm">
+        <thead>
+          <tr>
+            <th class="idx">#</th>
+            <th>طريقة الدفع</th>
+            <th>التاريخ</th>
+            <th class="r">المبلغ المستلم</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="idx">01</td>
+            <td>تحويل بنكي</td>
+            <td class="mono num">2026-05-01</td>
+            <td class="r mono num">6,000</td>
+          </tr>
+          <tr>
+            <td class="idx">02</td>
+            <td>نقداً</td>
+            <td class="mono num">2026-05-20</td>
+            <td class="r mono num">4,000</td>
+          </tr>
+          <tr class="latest-row">
+            <td class="idx">03</td>
+            <td>تحويل بنكي <span class="latest-tag">الأحدث</span></td>
+            <td class="mono num">2026-06-09</td>
+            <td class="r mono num">1,500</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 10) PRICING -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="sec-no">10</span>
+        <span class="sec-title">بيانات التسعير <span class="en">Pricing Breakdown</span></span>
+        <span class="sec-rule"></span>
+      </div>
+      <table class="stm price">
+        <thead>
+          <tr>
+            <th>البند</th>
+            <th class="r">القيمة (ر.س)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>نقل الكفالة (الموارد البشرية)</td><td class="r mono num">6,000</td></tr>
+          <tr><td>التصديق والوكالة</td><td class="r mono num">2,000</td></tr>
+          <tr><td>التأمينات الاجتماعية</td><td class="r mono num">1,500</td></tr>
+          <tr><td>أتعاب المكتب</td><td class="r mono num">4,500</td></tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>إجمالي قيمة الخدمة — Total</td>
+            <td class="r num">14,000</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- 11) FINANCIAL SUMMARY -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="sec-no">11</span>
+        <span class="sec-title">الملخّص المالي <span class="en">Financial Summary</span></span>
+        <span class="sec-rule"></span>
+      </div>
+      <div class="fin">
+        <div class="box total">
+          <div class="k">Total<span class="ar">الإجمالي</span></div>
+          <div class="amt num">14,000 <small>ر.س</small></div>
+        </div>
+        <div class="box paid">
+          <div class="k">Paid<span class="ar">المدفوع</span></div>
+          <div class="amt num">11,500 <small>ر.س</small></div>
+        </div>
+        <div class="box due">
+          <div class="k">Balance Due<span class="ar">المتبقي</span></div>
+          <div class="amt num">2,500 <small>ر.س</small></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12) BANK ACCOUNT -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="sec-no">12</span>
+        <span class="sec-title">حساب المكتب <span class="en">Office Bank Account</span></span>
+        <span class="sec-rule"></span>
+      </div>
+      <div class="bank">
+        <div class="badge">
+          <span class="t">Bank</span>
+          <span class="b">مصرف الراجحي<span class="en">Al Rajhi Bank</span></span>
+        </div>
+        <div class="lines">
+          <div class="ln"><span class="k">اسم الحساب</span><span class="v">مكتب حسين — تأشيرة البناء والإنشاء</span></div>
+          <div class="ln"><span class="k">رقم الحساب</span><span class="v mono num">608010167519</span></div>
+          <div class="ln wide"><span class="k">رقم الآيبان (IBAN)</span><span class="v iban num">SA03 8000 0000 6080 1016 7519</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /pad -->
+
+  <!-- 13) FOOTER NOTICE -->
+  <div class="notice">
+    <div class="h">إشعار هام · Important Notice</div>
+    <div class="ar">المكتب غير مسؤول عن أي مدفوعات تتم بدون فاتورة رسمية، ويجب على العميل طلب فاتورة لجميع تعاملاته.</div>
+    <div class="en">The office is not responsible for any payment made without an official invoice. The client must request an invoice for all transactions.</div>
+  </div>
+
+  <div class="foot">
+    <span>تأشيرة البناء والإنشاء · HUSSAIN OFFICES &nbsp;<span class="gold-dot">◆</span>&nbsp; VISA Albina &amp; Alinsha</span>
+    <span>فاتورة رقم <span class="num">INV-2026-1042</span> &nbsp;·&nbsp; صفحة <span class="num">2 / 2</span></span>
+  </div>
+</div>
+
+</body>
+</html>

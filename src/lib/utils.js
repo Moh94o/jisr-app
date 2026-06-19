@@ -1,5 +1,9 @@
 // ═══ جسر — أدوات مساعدة v2 ═══
 
+// Reference numbers (invoice no / transfer-quote no) are shown WITHOUT dashes everywhere.
+// Display/copy only — the stored value keeps its dashes for navigation, search and DB lookups.
+export const noDash = (v) => String(v ?? '').replace(/-/g, '');
+
 // ═══ UI-9: تصدير Excel ═══
 export async function exportToExcel(data, columns, fileName = 'export') {
   if (!data?.length) return;
@@ -76,10 +80,10 @@ tr:nth-child(even){background:#fafafa}
 .amount{font-size:16px;font-weight:800;color:#27a046;text-align:center;margin:10px 0}
 @media print{body{padding:20px}}
 </style></head><body>
-<div class="header"><div class="logo">جسر للأعمال</div><div class="info">Jisr Business<br>${new Date().toLocaleDateString('ar-SA')}</div></div>
+<div class="header"><div class="logo">تأشيرة البناء والإنشاء</div><div class="info">Visa Albina &amp; Alinsha<br>${new Date().toLocaleDateString('ar-SA')}</div></div>
 <h1>${title}</h1>
 ${htmlContent}
-<div class="footer">طُبع بتاريخ ${new Date().toLocaleDateString('ar-SA')} — جسر للأعمال — هذا مستند إلكتروني</div>
+<div class="footer">طُبع بتاريخ ${new Date().toLocaleDateString('ar-SA')} — تأشيرة البناء والإنشاء — هذا مستند إلكتروني</div>
 </body></html>`);
   w.document.close();
   setTimeout(() => w.print(), 300);
@@ -108,6 +112,27 @@ export async function checkDuplicate(sb, table, field, value, excludeId = null) 
   if (excludeId) query = query.neq('id', excludeId);
   const { data } = await query.limit(1).maybeSingle();
   return data;
+}
+
+// ═══ سجل تعديل بيانات العميل — يقارن القيم قبل/بعد ويبني مصفوفة التغييرات ═══
+// prev/next: كائن العميل (name_ar, id_number, phone, nationality_id). nationalities: قائمة الجنسيات لاشتقاق الاسم.
+// يعيد مصفوفة [{ field, from, to }] للحقول المتغيّرة فقط (from/to نصوص جاهزة للعرض)، أو [] إن لا تغيير.
+export function clientEditChanges(prev, next, nationalities = []) {
+  const natName = (id) => {
+    if (!id) return '';
+    const n = (nationalities || []).find(x => String(x.id) === String(id));
+    return n ? (n.name_ar || n.name_en || '') : '';
+  };
+  const digits = (v) => String(v ?? '').replace(/\D/g, '');
+  const defs = [
+    { field: 'name', from: prev?.name_ar || '', to: next?.name_ar || '' },
+    { field: 'id', from: digits(prev?.id_number), to: digits(next?.id_number) },
+    { field: 'phone', from: digits(prev?.phone), to: digits(next?.phone) },
+    { field: 'nationality', from: natName(prev?.nationality_id), to: natName(next?.nationality_id) },
+  ];
+  return defs
+    .filter(d => String(d.from) !== String(d.to))
+    .map(({ field, from, to }) => ({ field, from: from || '', to: to || '' }));
 }
 
 // ═══ UI-6: اختصارات لوحة المفاتيح ═══

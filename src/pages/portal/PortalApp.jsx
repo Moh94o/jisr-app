@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import * as P from '../../services/portalService.js'
 import { getSupabase } from '../../lib/supabase.js'
+import { noDash } from '../../lib/utils.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', goldSoft: '#e8c77a', red: '#c0392b', ok: '#27a046', warn: '#eab308', dk: '#0a0c10' }
@@ -22,7 +23,7 @@ export default function PortalApp() {
   const tt = (m) => { setToastMsg(m); setTimeout(() => setToastMsg(null), 2500) }
 
   useEffect(() => {
-    document.title = 'بوابة العملاء - جسر للأعمال'
+    document.title = 'بوابة العملاء - تأشيرة البناء والإنشاء'
     document.documentElement.dir = 'rtl'
     document.body.style.background = '#0a0c10'
     const sb = getSupabase()
@@ -75,10 +76,10 @@ function Header({ me, onLogout }) {
   return (
     <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderBottom: '1px solid rgba(212,160,23,.15)', background: 'linear-gradient(180deg,#10141a 0%,#0a0c10 100%)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(212,160,23,.15)', border: '1px solid ' + C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, fontWeight: 800 }}>ج</div>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(212,160,23,.15)', border: '1px solid ' + C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, fontWeight: 800 }}>ت</div>
         <div>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>بوابة العملاء</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)' }}>جسر للأعمال</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)' }}>تأشيرة البناء والإنشاء</div>
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -126,10 +127,10 @@ function LoginPage({ tt, onAuthed }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at top, rgba(212,160,23,.06), transparent 60%), #0a0c10', color: '#f0f0f0', fontFamily: F, direction: 'rtl', padding: 16 }}>
       <div style={{ width: '100%', maxWidth: 420, background: '#10141a', borderRadius: 18, padding: 28, border: '1px solid rgba(212,160,23,.16)', boxShadow: '0 8px 32px rgba(0,0,0,.5)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 18 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(212,160,23,.12)', border: '1px solid ' + C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, fontWeight: 800, fontSize: 22 }}>ج</div>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(212,160,23,.12)', border: '1px solid ' + C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, fontWeight: 800, fontSize: 22 }}>ت</div>
         </div>
         <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 800, color: C.gold }}>بوابة العملاء</div>
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 4, marginBottom: 22 }}>جسر للأعمال</div>
+        <div style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 4, marginBottom: 22 }}>تأشيرة البناء والإنشاء</div>
         {step === 'phone' && (
           <>
             <Field label="رقم الجوال">
@@ -222,7 +223,7 @@ function InvoicesTab({ toast }) {
               const remaining = Number(r.total_amount || 0) - Number(r.paid_amount || 0)
               return (
                 <tr key={r.id}>
-                  <Td>{r.invoice_number || r.invoice_no || r.id.slice(0,8)}</Td>
+                  <Td>{noDash(r.invoice_number || r.invoice_no || r.id.slice(0,8))}</Td>
                   <Td>{r.issue_date || r.invoice_date}</Td>
                   <Td>{Number(r.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</Td>
                   <Td>{remaining.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Td>

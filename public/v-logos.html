@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>تصاميم الدائرة</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(ellipse 110% 90% at 50% 28%,#1a1a1a,#0b0b0b 70%);min-height:100vh;font-family:'Segoe UI','Tahoma',sans-serif;color:#eaeaea;padding:34px 22px 70px}
+h1{text-align:center;font-size:22px;font-weight:700;color:#fff;letter-spacing:.3px}
+.lead{text-align:center;font-size:13.5px;color:rgba(255,255,255,.55);margin-top:8px;line-height:1.9}
+.gal{max-width:1040px;margin:36px auto 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:30px 24px}
+.card{display:flex;flex-direction:column;align-items:center;gap:14px}
+.card:hover .badge{transform:translateY(-4px)}
+.badge{transition:transform .2s}
+.cap{text-align:center;line-height:1.5}
+.cap .n{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;background:rgba(212,160,23,.18);color:#F4D03F;font-size:12px;margin-inline-end:7px;vertical-align:2px}
+.cap b{font-size:15px;font-weight:700;color:#fff}
+.cap span{display:block;font-size:12px;color:rgba(255,255,255,.5);margin-top:3px}
+</style>
+</head>
+<body>
+<h1>تصاميم الدائرة (الإطار) — اختَر رقمًا</h1>
+<p class="lead">نفس حرف V الحالي · بس الدائرة المحيطة بأشكال مختلفة<br>قول لي رقم اللي يعجبك وأطبّقه على شعار الدخول</p>
+<div class="gal" id="gal"></div>
+<script>
+const NS='http://www.w3.org/2000/svg';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function arm(x0,y0,x1,y1,amp,cyc,sgn){let d='';const n=44,dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy),px=-dy/L,py=dx/L;
+ for(let i=0;i<=n;i++){const t=i/n,o=sgn*amp*Math.sin(t*cyc*6.2832)*Math.sin(t*Math.PI);
+ const X=x0+dx*t+px*o,Y=y0+dy*t+py*o;d+=(i?'L':'M')+X.toFixed(1)+','+Y.toFixed(1)+' ';}return d.trim();}
+function addV(parent,i){
+ const svg=el('svg',{width:92,height:86,viewBox:'0 0 120 112',fill:'none'});
+ svg.style.position='relative';svg.style.zIndex='2';
+ const defs=el('defs');const lg=el('linearGradient',{id:'vg'+i,x1:0,y1:0,x2:0,y2:1});
+ [[0,'#F7E08A'],[.5,'#D4A017'],[1,'#9C7410']].forEach(s=>lg.appendChild(el('stop',{offset:s[0],'stop-color':s[1]})));
+ defs.appendChild(lg);svg.appendChild(defs);
+ const g='url(#vg'+i+')';
+ svg.appendChild(el('path',{d:arm(32,18,60,90,6,2.5,1),fill:'none',stroke:g,'stroke-width':6,'stroke-linecap':'round','stroke-linejoin':'round'}));
+ svg.appendChild(el('path',{d:arm(88,18,60,90,6,2.5,-1),fill:'none',stroke:g,'stroke-width':6,'stroke-linecap':'round','stroke-linejoin':'round'}));
+ parent.appendChild(svg);
+}
+const DARK='radial-gradient(circle at 50% 44%,#1e1e1e,#0b0b0b 72%)';
+function ring(inset,border){const d=document.createElement('div');d.style.cssText='position:absolute;border-radius:50%;inset:'+inset+'px;border:'+border;return d;}
+const variants={
+1:b=>{b.style.background=DARK;b.style.border='1.5px solid rgba(212,160,23,.28)';b.style.boxShadow='0 0 34px rgba(212,160,23,.1),inset 0 0 22px rgba(212,160,23,.05)';},
+2:b=>{b.style.background=DARK;b.style.border='1.5px solid rgba(212,160,23,.5)';b.style.boxShadow='0 0 30px rgba(212,160,23,.09)';b.appendChild(ring(9,'1px solid rgba(212,160,23,.4)'));},
+3:b=>{b.style.background=DARK;b.style.border='3px solid rgba(212,160,23,.55)';b.style.boxShadow='0 0 30px rgba(212,160,23,.1)';},
+4:b=>{b.style.background=DARK;b.style.border='1.5px solid rgba(212,160,23,.45)';b.style.boxShadow='0 0 46px rgba(212,160,23,.34),0 0 92px rgba(212,160,23,.16)';},
+5:b=>{b.style.background='linear-gradient(160deg,#F7E08A,#D4A017 48%,#7c5c0c)';b.style.boxShadow='0 0 34px rgba(212,160,23,.16)';const inner=document.createElement('div');inner.style.cssText='position:absolute;inset:2.5px;border-radius:50%;background:'+DARK;b.appendChild(inner);},
+6:b=>{b.style.background=DARK;b.style.border='1.5px dashed rgba(212,160,23,.5)';b.style.boxShadow='0 0 26px rgba(212,160,23,.08)';},
+7:b=>{b.style.background=DARK;b.style.border='1.5px solid rgba(212,160,23,.5)';b.style.boxShadow='0 0 28px rgba(212,160,23,.08)';b.appendChild(ring(14,'1px solid rgba(212,160,23,.3)'));},
+8:b=>{b.style.background=DARK;b.style.border='1px solid rgba(212,160,23,.5)';b.style.boxShadow='inset 0 1px 1px rgba(255,255,255,.08),inset 0 0 0 4px rgba(212,160,23,.05),0 0 0 5px rgba(212,160,23,.05),0 0 30px rgba(212,160,23,.1)';},
+9:b=>{b.style.background=DARK;b.style.border='1px solid rgba(212,160,23,.6)';b.style.boxShadow='0 0 24px rgba(212,160,23,.07)';},
+};
+const meta=[
+ [1,'الحالية (بسيطة)','حافة رفيعة + وهج خفيف'],
+ [2,'حلقة مزدوجة','حلقتان متقاربتان'],
+ [3,'حلقة سميكة','إطار ذهبي عريض'],
+ [4,'متوهّجة','هالة ذهبية قوية'],
+ [5,'حافة متدرّجة','إطار بتدرّج ذهبي'],
+ [6,'منقّطة ساكنة','حافة متقطّعة بدون دوران'],
+ [7,'حلقة بفجوة','إطار + حلقة داخلية'],
+ [8,'حافة مشطوفة','إحساس بارز ثلاثي الأبعاد'],
+ [9,'رفيعة أنيقة','خط واحد دقيق'],
+];
+const gal=document.getElementById('gal');
+meta.forEach(([id,title,sub])=>{
+ const card=document.createElement('div');card.className='card';
+ const badge=document.createElement('div');badge.className='badge';
+ badge.style.cssText='position:relative;width:158px;height:158px;border-radius:50%;display:flex;align-items:center;justify-content:center';
+ variants[id](badge);addV(badge,id);
+ const cap=document.createElement('div');cap.className='cap';
+ cap.innerHTML='<span class="n">'+id+'</span><b>'+title+'</b><span>'+sub+'</span>';
+ card.appendChild(badge);card.appendChild(cap);gal.appendChild(card);
+});
+</script>
+</body>
+</html>

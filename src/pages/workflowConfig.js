@@ -31,7 +31,7 @@ export const STAGES = [
   { code: 'visa_issuance',     ar: 'إصدار التأشيرة',    en: 'Visa Issuance',        dept: 'dept_visa',     note: 'رقم التأشيرة + رقم الحدود + ملف PDF' },
   { code: 'wakalah',           ar: 'الوكالة',           en: 'Wakalah',              dept: 'dept_visa',     note: 'السجل التجاري + مكتب التوكيل' },
   { code: 'exit_reentry',      ar: 'خروج وعودة',        en: 'Exit / Re-entry',      dept: 'dept_visa',     note: 'إصدار / تمديد التأشيرة' },
-  { code: 'final_exit',        ar: 'خروج نهائي',        en: 'Final Exit',           dept: 'dept_visa',     note: 'خروج نهائي / بلاغ تغيب' },
+  { code: 'final_exit',        ar: 'خروج نهائي',        en: 'Final Exit',           dept: 'dept_visa',     note: 'إصدار تأشيرة خروج نهائي للعامل' },
   { code: 'passport_update',   ar: 'تحديث الجواز',      en: 'Passport Update',      dept: 'dept_visa',     note: 'تحديث بيانات الجواز' },
   { code: 'medical_exam',      ar: 'الفحص الطبي',       en: 'Medical Exam',         dept: 'dept_iqama',    note: 'اسم العامل + صورة الفحص' },
   { code: 'work_permit',       ar: 'رخصة العمل',        en: 'Work Permit',          dept: 'dept_iqama',    note: 'تاريخ انتهاء الرخصة' },
@@ -52,8 +52,8 @@ export const STAGES = [
 
 // ── Service labels (mirrors TX_TYPES in App.jsx) ──
 export const SERVICE_LABELS = {
-  work_visa_permanent: { ar: 'تأشيرة عمل (دائمة)',          en: 'Work Visa (Permanent)' },
-  work_visa_temporary: { ar: 'تأشيرة عمل (مؤقتة)',          en: 'Work Visa (Temporary)' },
+  work_visa_permanent: { ar: 'تأشيرة وإقامة دائمة',          en: 'Permanent Visa & Iqama' },
+  work_visa_temporary: { ar: 'تأشيرة وإقامة مؤقتة',          en: 'Temporary Visa & Iqama' },
   transfer:            { ar: 'نقل كفالة',                    en: 'Sponsorship Transfer' },
   iqama_renewal:       { ar: 'تجديد الإقامة',               en: 'Iqama Renewal' },
   ajeer:               { ar: 'عقد أجير',                     en: 'Ajeer Contract' },
@@ -62,11 +62,11 @@ export const SERVICE_LABELS = {
   profession_change:   { ar: 'تغيير المهنة',                en: 'Profession Change' },
   name_translation:    { ar: 'تعديل الراتب',                en: 'Salary Adjustment' },
   exit_reentry_visa:   { ar: 'تأشيرة خروج وعودة',           en: 'Exit / Re-entry Visa' },
-  final_exit_visa:     { ar: 'خروج نهائي / بلاغ تغيب',      en: 'Final Exit' },
+  final_exit_visa:     { ar: 'خروج نهائي',      en: 'Final Exit' },
   passport_update:     { ar: 'تحديث بيانات الجواز',         en: 'Passport Update' },
   iqama_print:         { ar: 'طباعة الإقامة',               en: 'Iqama Print' },
   documents:           { ar: 'مستندات',                     en: 'Documents' },
-  general:             { ar: 'عام',                          en: 'General' },
+  general:             { ar: 'خدمة عامة',                    en: 'General' },
 }
 
 // ── Pipelines: service code → ordered stage codes ──

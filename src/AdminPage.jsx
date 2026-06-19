@@ -1,4 +1,7 @@
 import React,{useState,useEffect,useCallback} from 'react'
+import {C as FKC, Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, GRID as FKGRID, FULL as FKFULL, TextField as FKText, TextArea as FKArea, Select as FKSelect, MultiSelect as FKMulti, PhoneField as FKPhone, IdField as FKIdField, TimeField as FKTimeField, CurrencyField as FKCurrency, Switch as FKSwitch, Segmented as FKSegmented, Checkbox as FKCheckbox, RadioGroup as FKRadioGroup, ColorField as FKColor, SuccessView, ConfirmDialog, ScrollBox, InfoRow, InfoGrid} from './components/ui/FormKit.jsx'
+import {Building2, MapPin, Phone as PhoneIcon, Mail, CalendarDays, Wallet, StickyNote, ClipboardList, Landmark, CreditCard, Link2, Settings2, User, Users, UserCog, UserCheck, UserX, RefreshCcw, Shield, KeyRound, FileText, Eye, Palette, Activity, LogIn, Languages, ListChecks, Briefcase, AlertTriangle, Info, Pencil} from 'lucide-react'
+import PageSkeleton, {Shimmer} from './components/ui/Skeleton.jsx'
 const F="'Cairo','Tajawal',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const num=v=>Number(v||0).toLocaleString('en-US')
@@ -10,43 +13,11 @@ const fS={width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255
 const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}
 const sBS={height:40,padding:'0 14px',borderRadius:11,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:10,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
 const lblS={fontSize:12,fontWeight:500,color:'var(--tx3)',paddingInlineStart:2,marginBottom:7}
-const IB=({l,v,copy,toast,isAr})=><div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(String(v));toast&&toast(isAr===false?'Copied':'تم النسخ')}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:'var(--tx5)'}}>⎘</button>}</div></div>
+const IB=({l,v,copy,toast,isAr})=>{const[copied,setCopied]=useState(false);return <div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();try{navigator.clipboard.writeText(String(v));setCopied(true);setTimeout(()=>setCopied(false),1200)}catch{}}} onMouseEnter={e=>{if(!copied)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copied)e.currentTarget.style.color='var(--tx5)'}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:copied?C.ok:'var(--tx5)',transition:'color .15s'}}>{copied?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}</button>}</div></div>}
 
 const BadgeStatus=({v})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'rgba(192,57,43,.1)',color:v?C.ok:C.red}}>{v?'نشط':'معطّل'}</span>
 
-function CustomSelect({value,onChange,options,placeholder,style:sx}){
-const[open,setOpen]=useState(false)
-const ref=React.useRef(null)
-const[pos,setPos]=useState({top:0,left:0,width:0})
-const selected=options.find(o=>String(o.v)===String(value))
-React.useEffect(()=>{if(!open)return;const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h)},[open])
-const handleOpen=()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setPos({top:r.bottom+4,left:r.left,width:r.width})};setOpen(!open)}
-return<div ref={ref} style={{position:'relative',...sx}}>
-<div onClick={handleOpen} style={{...fS,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',background:open?'rgba(255,255,255,.1)':'rgba(255,255,255,.07)',borderColor:open?'rgba(201,168,76,.35)':'rgba(255,255,255,.12)'}}>
-<span style={{color:selected?'rgba(255,255,255,.95)':'rgba(255,255,255,.3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,textAlign:'center'}}>{selected?selected.l:placeholder||'— اختر —'}</span>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,transition:'.2s',transform:open?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
-</div>
-{open&&<div style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,background:'#252525',border:'1px solid rgba(255,255,255,.15)',borderRadius:10,overflow:'hidden',zIndex:9999,maxHeight:200,overflowY:'auto',boxShadow:'0 12px 32px rgba(0,0,0,.6)'}}>
-{options.map(o=><div key={o.v} onClick={()=>{onChange(String(o.v));setOpen(false)}} style={{padding:'10px 14px',fontSize:13,fontWeight:String(o.v)===String(value)?700:500,color:String(o.v)===String(value)?C.gold:'rgba(255,255,255,.8)',background:String(o.v)===String(value)?'rgba(201,168,76,.08)':'transparent',cursor:'pointer',borderBottom:'1px solid var(--bd2)',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{o.l}{String(o.v)===String(value)&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}</div>)}
-</div>}
-</div>}
-
-function DeletePopup({onConfirm,onCancel,itemName}){
-return<div onClick={onCancel} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1001,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:420,overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.5)',border:'1px solid rgba(192,57,43,.15)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.red+' 30%,#e74c3c 50%,'+C.red+' 70%,transparent)'}}/>
-<div style={{padding:'28px 24px',textAlign:'center'}}>
-<div style={{width:56,height:56,borderRadius:'50%',background:'rgba(192,57,43,.08)',border:'2px solid rgba(192,57,43,.15)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-</div>
-<div style={{fontSize:16,fontWeight:700,color:C.red,marginBottom:8}}>تأكيد الحذف</div>
-<div style={{fontSize:13,color:'var(--tx3)',lineHeight:1.8,marginBottom:4}}>هل أنت متأكد من حذف</div>
-{itemName&&<div style={{fontSize:14,fontWeight:700,color:'var(--tx2)',marginBottom:4}}>"{itemName}"</div>}
-<div style={{fontSize:11,color:'var(--tx5)',marginBottom:20}}>هذا الإجراء لا يمكن التراجع عنه</div>
-<div style={{display:'flex',gap:10,justifyContent:'center'}}>
-<button onClick={onConfirm} style={{height:42,padding:'0 24px',borderRadius:10,border:'none',background:C.red,color:'#fff',fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',flex:1}}>نعم، احذف</button>
-<button onClick={onCancel} style={{height:42,padding:'0 24px',borderRadius:10,border:'1.5px solid rgba(255,255,255,.1)',background:'transparent',color:'var(--tx3)',fontFamily:F,fontSize:13,fontWeight:600,cursor:'pointer',flex:1}}>إلغاء</button>
-</div></div></div></div>}
+// CustomSelect/DeletePopup أزيلا — كل النوافذ تستخدم FormKit (Select / ConfirmDialog)
 
 // ═══ Main Component ═══
 export default function AdminPage({sb,toast,user,lang,onTabChange,defaultTab,nav,hubTabs,visibility,onVisibilityChange}){
@@ -87,6 +58,9 @@ const[roleOpenMods,setRoleOpenMods]=useState({})
 const[roleWizStep,setRoleWizStep]=useState(1)
 const[roleActiveMod,setRoleActiveMod]=useState('')
 const[saving,setSaving]=useState(false)
+const[saved,setSaved]=useState(false)
+const[saveErr,setSaveErr]=useState(null)
+const[permErr,setPermErr]=useState(null)
 const[delTarget,setDelTarget]=useState(null)
 const[viewPop,setViewPop]=useState(null)
 const[viewTab,setViewTab]=useState('info')
@@ -142,7 +116,7 @@ sb.from('employee_specialties').select('*').eq('user_id',uid),
 sb.from('task_assignees').select('*,tasks:task_id(title,status,priority,due_date)').eq('user_id',uid)
 ]).then(([at,ll,el,es,ta])=>{setAttendance(at.data||[]);setLoginLogs(ll.data||[]);setEmpLangs(el.data||[]);setEmpSpecs(es.data||[]);setUserTasks((ta.data||[]).filter(t=>t.tasks))})},[viewUser,sb])
 
-const saveForm=async()=>{setSaving(true);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
+const saveForm=async()=>{setSaving(true);setSaveErr(null);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
 if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
 if(d.is_system!==undefined&&d.is_system!==null)d.is_system=d.is_system==='true'
 if(d.is_primary!==undefined&&d.is_primary!==null)d.is_primary=d.is_primary==='true'
@@ -150,17 +124,17 @@ if(t==='branches'&&d.mobile)d.mobile='+966'+d.mobile.replace(/^\+966/,'')
 if(t==='branches'&&d.code){const c=cities.find(x=>x.id===d.city_id);const prefix=c?(c.code||c.name_ar?.slice(0,3)):'';d.code=prefix+'-'+d.code.replace(/^.*-/,'')}
 if(id){d.updated_by=user?.id;const{error}=await sb.from(t).update(d).eq('id',id);if(error)throw error;toast(isAr?'تم التعديل':'Updated')}
 else{d.created_by=user?.id;const{error}=await sb.from(t).insert(d);if(error)throw error;toast(isAr?'تمت الإضافة':'Added')}
-setPop(null);loadAll()}catch(e){toast((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setSaving(false)}
+setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);loadAll()},1400)}catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setSaving(false)}
 
 const confirmDel=async()=>{if(!delTarget)return;const{table,id}=delTarget
 await sb.from(table).update({deleted_at:new Date().toISOString(),deleted_by:user?.id}).eq('id',id)
 toast(isAr?'تم الحذف':'Deleted');setDelTarget(null);loadAll()}
 
-const savePerms=async()=>{if(!permPop)return;setPermSaving(true);try{
+const savePerms=async()=>{if(!permPop)return;setPermSaving(true);setPermErr(null);try{
 await sb.from('role_permissions').delete().eq('role_id',permPop)
 if(selPerms.length>0){const ins=selPerms.map(pid=>({role_id:permPop,permission_id:pid}));const{error}=await sb.from('role_permissions').insert(ins);if(error)throw error}
-toast(isAr?'تم حفظ الصلاحيات':'Permissions saved');setPermPop(null);loadAll()
-}catch(e){toast((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setPermSaving(false)}
+toast(isAr?'تم حفظ الصلاحيات':'Permissions saved');setSaved(true);setTimeout(()=>{setSaved(false);setPermPop(null);loadAll()},1400)
+}catch(e){setPermErr((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setPermSaving(false)}
 
 const getRef=(id,list,ak='name_ar')=>{const r=list.find(x=>x.id===id);return r?r[ak]:'—'}
 
@@ -231,7 +205,26 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 </div>
 
 {/* Branch Cards */}
-{loading?<div style={{textAlign:'center',padding:60,color:'var(--tx5)'}}>جاري التحميل...</div>:
+{loading&&branches.length===0?<div style={{fontFamily:F}}>
+<style>{`@keyframes sk-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
+<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
+{Array.from({length:6}).map((_,i)=><div key={i} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',borderRadius:16,overflow:'hidden'}}>
+<div style={{height:3,background:'rgba(255,255,255,.06)'}}/>
+<div style={{padding:'14px 16px 12px'}}>
+<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+<Shimmer w={38} h={38} r={10}/>
+<div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}><Shimmer w="60%" h={13}/><Shimmer w="40%" h={9}/></div>
+<Shimmer w={44} h={18} r={6}/>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:8}}><Shimmer w="55%" h={10}/><Shimmer w="70%" h={10}/></div>
+</div>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 16px',borderTop:'1px solid rgba(255,255,255,.05)',background:'rgba(255,255,255,.015)'}}>
+<Shimmer w={120} h={11}/>
+<div style={{display:'flex',gap:4}}><Shimmer w={28} h={28} r={7}/><Shimmer w={28} h={28} r={7}/></div>
+</div>
+</div>)}
+</div>
+</div>:
 filteredBranches.length===0?<div style={{textAlign:'center',padding:60,color:'var(--tx6)',fontSize:13}}>لا توجد مكاتب</div>:
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
 {filteredBranches.map(b=>{const bUsers=users.filter(u=>u.branch_id===b.id);const reg=regions.find(r=>r.id===b.region_id);const cit=cities.find(c=>c.id===b.city_id);const accent=b.color||C.gold
@@ -667,156 +660,119 @@ return<div key={a.id} style={{borderRadius:12,background:'var(--bg)',border:'1px
 {/* ═══ EMPLOYEE DETAIL SIDE PANEL ═══ */}
 {viewUser&&(()=>{const u=viewUser;const br=branches.find(b=>b.id===u.branch_id);const rc=u.roles?.color||C.gold;const activeTasks=userTasks.filter(t=>t.tasks&&t.tasks.status!=='completed'&&t.tasks.status!=='cancelled');const completedTasks=userTasks.filter(t=>t.tasks&&t.tasks.status==='completed');const attDays=attendance.length;const onTime=attendance.filter(a=>!a.is_late).length;const lateDays=attendance.filter(a=>a.is_late).length;const avgHrs=attDays>0?(attendance.reduce((s,a)=>s+Number(a.work_hours||0),0)/attDays).toFixed(1):0;const SH3=({t,c})=><div style={{fontSize:12,fontWeight:700,color:c||C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid '+(c||C.gold)+'20'}}>{t}</div>;const priClr={urgent:C.red,high:'#e67e22',medium:C.gold,low:C.ok};const priLbl={urgent:'عاجل',high:'عالي',medium:'متوسط',low:'منخفض'};const stLbl={in_progress:'جاري',pending:'معلّق',completed:'مكتمل',cancelled:'ملغى'}
 const utabs=[{id:'data',l:'البيانات'},{id:'tasks',l:'المهام',n:activeTasks.length},{id:'attend',l:'الحضور',n:attDays},{id:'logins',l:'سجل الدخول',n:loginLogs.length}]
-return<div onClick={()=>setViewUser(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.8)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'var(--sf)',borderRadius:16,width:'min(920px,95vw)',height:'min(650px,88vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 48px rgba(0,0,0,.4)',border:'1px solid rgba(201,168,76,.15)'}}>
-{/* Header */}
-<div style={{background:'var(--bg)',padding:'18px 24px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',borderBottom:'1px solid rgba(201,168,76,.12)',flexShrink:0}}>
-<div style={{display:'flex',gap:12,alignItems:'center'}}>
-<div style={{width:48,height:48,borderRadius:14,background:rc+'15',border:'1.5px solid '+rc+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:800,color:rc}}>{(u.name_ar||'?')[0]}</div>
-<div>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><span style={{fontSize:18,fontWeight:800,color:'var(--tx)'}}>{u.name_ar}</span><span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:u.is_active?'rgba(39,160,70,.1)':'rgba(153,153,153,.1)',color:u.is_active?C.ok:'#999',fontWeight:700}}>{u.is_active?'نشط':'معطّل'}</span></div>
-{u.name_en&&<div style={{fontSize:12,color:'var(--tx4)',direction:'ltr'}}>{u.name_en}</div>}
-<div style={{display:'flex',gap:4,marginTop:4}}>{u.roles&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:rc+'15',color:rc,fontWeight:700}}>{u.roles.name_ar}</span>}{br&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(52,131,180,.08)',color:C.blue}}>{br.name_ar}</span>}{u.is_super_admin&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(201,168,76,.1)',color:C.gold}}>نظامي</span>}</div>
-</div></div>
-<div style={{display:'flex',gap:6}}>
-<button onClick={()=>{setViewUser(null);setForm({_table:'users',_id:u.id,name_ar:u.name_ar||'',name_en:u.name_en||'',email:u.email||'',phone:u.phone||'',id_number:u.id_number||'',nationality:u.nationality||'',role_id:u.role_id||'',branch_id:u.branch_id||'',is_active:String(u.is_active!==false),notes:u.notes||''});setPop('edit_user')}} style={{height:32,padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.2)',background:'rgba(201,168,76,.08)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>تعديل</button>
-<button onClick={()=>setViewUser(null)} style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-</div></div>
-{/* Body */}
-<div style={{flex:1,display:'flex',overflow:'hidden'}}>
-<div style={{width:140,background:'var(--bg)',borderLeft:'1px solid var(--bd2)',padding:'12px 6px',flexShrink:0,overflowY:'auto',scrollbarWidth:'none'}}>
-{utabs.map(t=><div key={t.id} onClick={()=>setUserTab(t.id)} style={{padding:'10px 10px',borderRadius:8,marginBottom:3,fontSize:11,fontWeight:userTab===t.id?700:500,color:userTab===t.id?C.gold:'var(--tx4)',background:userTab===t.id?'rgba(201,168,76,.08)':'transparent',border:userTab===t.id?'1px solid rgba(201,168,76,.12)':'1px solid transparent',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'.15s'}}>
-<span>{t.l}</span>{t.n!==undefined&&t.n>0&&<span style={{fontSize:9,fontWeight:700,color:userTab===t.id?C.gold:'var(--tx6)',background:userTab===t.id?'rgba(201,168,76,.15)':'rgba(255,255,255,.04)',padding:'1px 6px',borderRadius:4,minWidth:18,textAlign:'center'}}>{t.n}</span>}
-</div>)}
-</div>
-<div style={{flex:1,overflowY:'auto',padding:'20px 24px',scrollbarWidth:'none'}}>
-
-{/* TAB 1: البيانات */}
-{userTab==='data'&&<div style={{display:'flex',flexDirection:'column',gap:18}}>
-<div><SH3 t="البيانات الشخصية" c={C.gold}/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><IB l="الاسم بالعربي" v={u.name_ar} toast={toast}/><IB l="بالإنجليزي" v={u.name_en} toast={toast}/><IB l="رقم الهوية" v={u.id_number} copy toast={toast}/><IB l="الجنسية" v={u.nationality} toast={toast}/></div><div style={{display:'grid',gridTemplateColumns:'1fr',gap:10,marginTop:8}}><IB l="الإيميل" v={u.email} copy toast={toast}/><IB l="الجوال" v={u.phone} copy toast={toast}/></div></div>
-<div><SH3 t="الوظيفة" c="#e67e22"/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{u.roles&&<div style={{background:rc+'08',borderRadius:10,padding:'14px 16px',border:'1px solid '+rc+'15',borderRight:'3px solid '+rc}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>الدور</div><div style={{fontSize:14,fontWeight:700,color:rc}}>{u.roles.name_ar}</div></div>}<IB l="الفرع" v={br?.name_ar} toast={toast}/><IB l="تاريخ التعيين" v={u.hire_date} toast={toast}/><IB l="سنوات الخبرة" v={u.experience_years?u.experience_years+' سنوات':null} toast={toast}/><IB l="الحد الأقصى للمعاملات" v={u.max_concurrent_transactions} toast={toast}/>{u.is_all_branches?<div style={{background:'rgba(201,168,76,.06)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(201,168,76,.1)',borderRight:'3px solid '+C.gold}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>الفروع</div><div style={{fontSize:14,fontWeight:700,color:C.gold}}>كل الفروع</div></div>:null}</div></div>
-{empLangs.length>0&&<div><SH3 t="اللغات" c={C.blue}/><div style={{display:'flex',flexDirection:'column',gap:6}}>{empLangs.map(l=><div key={l.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 14px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><span style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{l.language}</span><span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:l.proficiency==='native'?'rgba(39,160,70,.1)':'rgba(230,126,34,.1)',color:l.proficiency==='native'?C.ok:'#e67e22',fontWeight:600}}>{l.proficiency==='native'?'لغة أم':l.proficiency==='advanced'?'متقدم':l.proficiency==='intermediate'?'متوسط':'مبتدئ'}</span></div>)}</div></div>}
-{empSpecs.length>0&&<div><SH3 t="التخصصات" c={C.ok}/><div style={{display:'flex',flexDirection:'column',gap:6}}>{empSpecs.map(s=><div key={s.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 14px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.03)'}}><div><div style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{s.service_name||'تخصص'}</div><div style={{fontSize:9,color:'var(--tx5)',marginTop:2}}>مستوى: {s.skill_level==='expert'?'خبير':s.skill_level==='advanced'?'متقدم':'متوسط'}</div></div>{s.certified&&<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(39,160,70,.1)',color:C.ok,fontWeight:600}}>✓ معتمد</span>}</div>)}</div></div>}
-</div>}
-
-{/* TAB 2: المهام */}
-{userTab==='tasks'&&<div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
-<div style={{padding:14,borderRadius:10,background:'rgba(52,131,180,.04)',border:'1px solid rgba(52,131,180,.08)',textAlign:'center'}}><div style={{fontSize:24,fontWeight:900,color:C.blue}}>{activeTasks.length}</div><div style={{fontSize:9,color:C.blue,opacity:.6,marginTop:4}}>مهام نشطة</div></div>
-<div style={{padding:14,borderRadius:10,background:'rgba(39,160,70,.04)',border:'1px solid rgba(39,160,70,.08)',textAlign:'center'}}><div style={{fontSize:24,fontWeight:900,color:C.ok}}>{completedTasks.length}</div><div style={{fontSize:9,color:C.ok,opacity:.6,marginTop:4}}>مكتملة هذا الشهر</div></div>
-</div>
-{activeTasks.length===0&&completedTasks.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا توجد مهام</div>:
-<div style={{display:'flex',flexDirection:'column',gap:6}}>
-{activeTasks.map(ta=>{const t=ta.tasks;const pc=priClr[t.priority]||C.gold;return<div key={ta.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.03)',borderRight:'3px solid '+pc}}>
-<div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx2)',marginBottom:3}}>{t.title}</div><div style={{display:'flex',gap:6,alignItems:'center'}}><span style={{fontSize:9,color:pc,fontWeight:700}}>{priLbl[t.priority]||t.priority}</span><span style={{fontSize:9,color:'var(--tx5)'}}>الاستحقاق: {t.due_date||'—'}</span></div></div>
-<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:t.status==='in_progress'?'rgba(52,131,180,.1)':'rgba(230,126,34,.1)',color:t.status==='in_progress'?C.blue:'#e67e22',fontWeight:600}}>{stLbl[t.status]||t.status}</span>
-</div>})}
-</div>}
-</div>}
-
-{/* TAB 3: الحضور */}
-{userTab==='attend'&&<div>
-<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
-{[[attDays,'أيام حضور',C.gold],[onTime,'في الوقت',C.ok],[lateDays,'متأخر',lateDays>0?C.red:'var(--tx5)'],[avgHrs,'متوسط ساعات',C.blue]].map(([v,l,c],i)=><div key={i} style={{padding:12,borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.04)',textAlign:'center'}}><div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div><div style={{fontSize:8,color:c,opacity:.6,marginTop:4}}>{l}</div></div>)}
-</div>
-{attendance.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد سجل حضور</div>:
-<div style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:12,overflow:'hidden'}}>
+const tabIcons={data:User,tasks:ClipboardList,attend:CalendarDays,logins:LogIn}
+const profLbl=p=>p==='native'?'لغة أم':p==='advanced'?'متقدم':p==='intermediate'?'متوسط':'مبتدئ'
+const tabContent={
+data:<ScrollBox maxHeight={380}>
+<FKSection Icon={User} label="البيانات الشخصية">
+<InfoGrid>
+<InfoRow label="الاسم بالعربي" value={u.name_ar}/>
+<InfoRow label="بالإنجليزي" value={u.name_en}/>
+<InfoRow label="رقم الهوية" value={u.id_number} mono copy/>
+<InfoRow label="الجنسية" value={u.nationality}/>
+<InfoRow label="الإيميل" value={u.email} mono copy/>
+<InfoRow label="الجوال" value={u.phone} mono copy/>
+</InfoGrid>
+</FKSection>
+<FKSection Icon={Briefcase} label="الوظيفة">
+<InfoGrid>
+<InfoRow label="الدور" value={u.roles?.name_ar} color={rc}/>
+<InfoRow label="الفرع" value={u.is_all_branches?'كل الفروع':br?.name_ar}/>
+<InfoRow label="تاريخ التعيين" value={u.hire_date}/>
+<InfoRow label="سنوات الخبرة" value={u.experience_years?u.experience_years+' سنوات':null}/>
+<InfoRow label="الحد الأقصى للمعاملات" value={u.max_concurrent_transactions}/>
+{u.is_super_admin?<InfoRow label="حساب نظامي" value="نعم" color={FKC.gold}/>:null}
+</InfoGrid>
+</FKSection>
+{empLangs.length>0&&<FKSection Icon={Languages} label="اللغات">
+<InfoGrid>{empLangs.map(l=><InfoRow key={l.id} label={l.language} value={profLbl(l.proficiency)} color={l.proficiency==='native'?FKC.ok:'#e67e22'}/>)}</InfoGrid>
+</FKSection>}
+{empSpecs.length>0&&<FKSection Icon={ListChecks} label="التخصصات">
+<InfoGrid>{empSpecs.map(s=><InfoRow key={s.id} label={s.service_name||'تخصص'} value={(s.skill_level==='expert'?'خبير':s.skill_level==='advanced'?'متقدم':'متوسط')+(s.certified?' · ✓ معتمد':'')} color={s.certified?FKC.ok:undefined}/>)}</InfoGrid>
+</FKSection>}
+</ScrollBox>,
+tasks:<FKSection Icon={ClipboardList} label="المهام" hint={activeTasks.length+' نشطة · '+completedTasks.length+' مكتملة هذا الشهر'}>
+{activeTasks.length===0&&completedTasks.length===0?<div style={{textAlign:'center',padding:30,color:FKC.tx5,fontSize:13}}>لا توجد مهام</div>:
+<ScrollBox maxHeight={360}>
+<InfoGrid style={{gridTemplateColumns:'1fr'}}>
+{activeTasks.map(ta=>{const t=ta.tasks;const pc=priClr[t.priority]||FKC.gold;return<InfoRow key={ta.id} Icon={ClipboardList} color={pc} label={t.title} value={(priLbl[t.priority]||t.priority)+' · '+(stLbl[t.status]||t.status)+' · الاستحقاق: '+(t.due_date||'—')}/>})}
+</InfoGrid>
+</ScrollBox>}
+</FKSection>,
+attend:<FKSection Icon={CalendarDays} label="الحضور" hint={attDays+' يوم · '+onTime+' في الوقت · '+lateDays+' متأخر · متوسط '+avgHrs+' س'}>
+{attendance.length===0?<div style={{textAlign:'center',padding:30,color:FKC.tx5,fontSize:13}}>لا يوجد سجل حضور</div>:
+<ScrollBox maxHeight={360}>
 <table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
-<thead><tr style={{background:'rgba(255,255,255,.03)'}}>{['التاريخ','الدخول','الخروج','الساعات','الحالة'].map((h,i)=><th key={i} style={{padding:'10px 14px',fontSize:10,fontWeight:600,color:'var(--tx4)',textAlign:i===4?'center':'right'}}>{h}</th>)}</tr></thead>
-<tbody>{attendance.slice(0,15).map(a=>{const cin=a.check_in_at?new Date(a.check_in_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const cout=a.check_out_at?new Date(a.check_out_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';return<tr key={a.id} style={{borderBottom:'1px solid rgba(255,255,255,.03)'}}>
-<td style={{padding:'8px 14px',fontSize:11,color:'var(--tx3)'}}>{a.date}</td>
-<td style={{padding:'8px 14px',fontSize:11,color:'var(--tx3)',direction:'ltr'}}>{cin}</td>
-<td style={{padding:'8px 14px',fontSize:11,color:'var(--tx3)',direction:'ltr'}}>{cout}</td>
-<td style={{padding:'8px 14px',fontSize:12,fontWeight:700,color:C.gold}}>{Number(a.work_hours||0).toFixed(1)}</td>
-<td style={{padding:'8px 14px',textAlign:'center'}}>{a.is_late?<span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(230,126,34,.1)',color:'#e67e22',fontWeight:600}}>+{a.late_minutes}د</span>:<span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(39,160,70,.1)',color:C.ok}}>✓</span>}</td>
-</tr>})}</tbody></table></div>}
-</div>}
+<thead><tr style={{background:'rgba(255,255,255,.03)'}}>{['التاريخ','الدخول','الخروج','الساعات','الحالة'].map((h,i)=><th key={i} style={{padding:'10px 14px',fontSize:11,fontWeight:600,color:FKC.tx4,textAlign:i===4?'center':'right'}}>{h}</th>)}</tr></thead>
+<tbody>{attendance.slice(0,15).map(a=>{const cin=a.check_in_at?new Date(a.check_in_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const cout=a.check_out_at?new Date(a.check_out_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';return<tr key={a.id} style={{borderBottom:'1px solid '+FKC.line}}>
+<td style={{padding:'8px 14px',fontSize:12,color:FKC.tx3}}>{a.date}</td>
+<td style={{padding:'8px 14px',fontSize:12,color:FKC.tx3,direction:'ltr'}}>{cin}</td>
+<td style={{padding:'8px 14px',fontSize:12,color:FKC.tx3,direction:'ltr'}}>{cout}</td>
+<td style={{padding:'8px 14px',fontSize:13,fontWeight:600,color:FKC.gold}}>{Number(a.work_hours||0).toFixed(1)}</td>
+<td style={{padding:'8px 14px',textAlign:'center'}}>{a.is_late?<span style={{fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:5,background:'rgba(230,126,34,.12)',color:'#e67e22'}}>+{a.late_minutes}د</span>:<span style={{fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:5,background:FKC.ok+'1a',color:FKC.ok}}>✓</span>}</td>
+</tr>})}</tbody></table>
+</ScrollBox>}
+</FKSection>,
+logins:<FKSection Icon={LogIn} label="سجل الدخول" hint={'آخر '+loginLogs.length+' عمليات دخول'}>
+{loginLogs.length===0?<div style={{textAlign:'center',padding:30,color:FKC.tx5,fontSize:13}}>لا يوجد سجل</div>:
+<ScrollBox maxHeight={360}>
+<InfoGrid style={{gridTemplateColumns:'1fr'}}>
+{loginLogs.map(l=>{const ua=l.user_agent||'';const browser=ua.includes('Safari')&&!ua.includes('Chrome')?'Safari':ua.includes('Chrome')?'Chrome':ua.includes('Firefox')?'Firefox':'Other';const os=ua.includes('iPhone')?'iPhone':ua.includes('Android')?'Android':ua.includes('Windows')?'Windows':ua.includes('Mac')?'Mac':'Other';const ip=(l.ip_address||'').replace(/\d+\.\d+$/,'xx.xx');return<InfoRow key={l.id} Icon={LogIn} color={l.success?FKC.ok:FKC.red} label={browser+' / '+os} value={(l.success?'ناجح':'فشل')+' · '+ip+' · '+(l.created_at?new Date(l.created_at).toLocaleString('en',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):'')}/>})}
+</InfoGrid>
+</ScrollBox>}
+</FKSection>,
+}
+return<FKModal open onClose={()=>setViewUser(null)} title={u.name_ar} subtitle={[(u.is_active?'نشط':'معطّل'),u.name_en,u.roles?.name_ar,br?.name_ar].filter(Boolean).join(' · ')} Icon={User} accent={rc} width={820}
+tab={Math.max(0,utabs.findIndex(t=>t.id===userTab))} onTab={i=>setUserTab(utabs[i].id)}
+footer={<FKAction Icon={Pencil} onClick={()=>{setViewUser(null);setForm({_table:'users',_id:u.id,name_ar:u.name_ar||'',name_en:u.name_en||'',email:u.email||'',phone:u.phone||'',id_number:u.id_number||'',nationality:u.nationality||'',role_id:u.role_id||'',branch_id:u.branch_id||'',is_active:String(u.is_active!==false),notes:u.notes||''});setPop('edit_user')}}>تعديل</FKAction>}
+tabs={utabs.map(t=>({label:t.l+(t.n!==undefined&&t.n>0?' ('+t.n+')':''),Icon:tabIcons[t.id],content:tabContent[t.id]}))}/>})()}
 
-{/* TAB 4: سجل الدخول */}
-{userTab==='logins'&&<div>
-<div style={{fontSize:11,color:'var(--tx4)',marginBottom:14}}>آخر {loginLogs.length} عمليات دخول</div>
-{loginLogs.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد سجل</div>:
-<div style={{display:'flex',flexDirection:'column',gap:6}}>
-{loginLogs.map(l=>{const ua=l.user_agent||'';const isMobile=ua.includes('iPhone')||ua.includes('Android');const browser=ua.includes('Safari')&&!ua.includes('Chrome')?'Safari':ua.includes('Chrome')?'Chrome':ua.includes('Firefox')?'Firefox':'Other';const os=ua.includes('iPhone')?'iPhone':ua.includes('Android')?'Android':ua.includes('Windows')?'Windows':ua.includes('Mac')?'Mac':'Other';const ip=(l.ip_address||'').replace(/\d+\.\d+$/,'xx.xx');return<div key={l.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.03)'}}>
-<div style={{width:8,height:8,borderRadius:'50%',background:l.success?C.ok:C.red,flexShrink:0}}/>
-<div style={{flex:1}}>
-<div style={{fontSize:12,fontWeight:600,color:l.success?'var(--tx2)':C.red}}>{browser} / {os}</div>
-<div style={{fontSize:9,color:'var(--tx5)',direction:'ltr',marginTop:2}}>{ip} · {l.created_at?new Date(l.created_at).toLocaleString('en',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):''}</div>
-</div>
-<span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:l.success?'rgba(39,160,70,.1)':'rgba(230,126,34,.1)',color:l.success?C.ok:'#e67e22',fontWeight:600}}>{l.success?'ناجح':'فشل'}</span>
-</div>})}
-</div>}
-</div>}
-
-</div></div></div></div>})()}
-
-{/* ═══ VIEW BRANCH POPUP ═══ */}
+{/* ═══ VIEW BRANCH POPUP (FormKit tabs) ═══ */}
 {viewPop&&(()=>{const bUsers=users.filter(u=>u.branch_id===viewPop.id);const bAccs=bankAccs.filter(a=>a.branch_id===viewPop.id);const typeMap={deposit:{l:'إيداع',c:C.gold},sadad:{l:'سداد',c:C.blue},international:{l:'حوالات خارجية',c:C.ok}}
-return<div onClick={()=>{setViewPop(null);setViewTab('info')}} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:600,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
-<div style={{height:3,background:viewPop.color||C.gold,flexShrink:0}}/>
-<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<div style={{width:40,height:40,borderRadius:10,background:(viewPop.color||C.gold)+'18',border:'1.5px solid '+(viewPop.color||C.gold)+'30',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:16,fontWeight:800,color:viewPop.color||C.gold}}>{viewPop.name_ar?.[0]}</span></div>
-<div><div style={{fontSize:17,fontWeight:700,color:'var(--tx)'}}>{viewPop.name_ar}</div>{viewPop.name_en&&<div style={{fontSize:11,color:'var(--tx5)',direction:'ltr',marginTop:2}}>{viewPop.name_en}</div>}</div>
+const vKeys=['info','accounts','staff']
+const infoRows=[['الكود',viewPop.code],['المنطقة',getRef(viewPop.region_id,regions)],['المدينة',getRef(viewPop.city_id,cities)],['الجوال',viewPop.mobile],['البريد',viewPop.email],['مدير المكتب',getRef(viewPop.manager_id,users)],['أيام الدوام',viewPop.work_days],['ساعات العمل',(viewPop.work_from||'08:00')+' - '+(viewPop.work_to||'17:00')],['الرصيد الافتتاحي',viewPop.opening_balance?num(viewPop.opening_balance)+' ر.س':null],['الحد النقدي اليومي',viewPop.daily_cash_limit?num(viewPop.daily_cash_limit)+' ر.س':null],['الحالة',viewPop.is_active?'نشط':'معطّل'],['العنوان',viewPop.address],['ملاحظات',viewPop.notes]].filter(([,v])=>v&&v!=='—')
+return<FKModal open onClose={()=>{setViewPop(null);setViewTab('info')}} title={viewPop.name_ar} subtitle={viewPop.name_en||''} Icon={Building2} accent={viewPop.color||FKC.gold}
+tab={Math.max(0,vKeys.indexOf(viewTab))} onTab={i=>setViewTab(vKeys[i])}
+footer={<FKAction Icon={Pencil} onClick={()=>{openEdit(viewPop);setViewPop(null);setViewTab('info')}}>تعديل</FKAction>}
+tabs={[
+{label:'البيانات الأساسية',Icon:Info,content:
+<FKSection Icon={Info} label="معلومات المكتب">
+<ScrollBox maxHeight={340}>
+<InfoGrid>
+{infoRows.map(([k,v])=><InfoRow key={k} label={k} value={String(v)} mono={k==='البريد'||k==='الجوال'||k==='الكود'} copy={k==='البريد'||k==='الجوال'} color={k==='الحالة'?(viewPop.is_active?FKC.ok:FKC.red):undefined}/>)}
+{viewPop.google_maps_url&&<div style={FKFULL}><a href={viewPop.google_maps_url} target="_blank" rel="noreferrer" style={{fontSize:13,fontWeight:600,color:FKC.blue,textDecoration:'none'}}>فتح في الخرائط ↗</a></div>}
+</InfoGrid>
+{viewPop.google_maps_url&&<div style={{marginTop:10,borderRadius:10,overflow:'hidden',height:140}}><iframe src={`https://maps.google.com/maps?q=${encodeURIComponent(viewPop.address||viewPop.google_maps_url)}&output=embed`} width="100%" height="140" style={{border:0}} allowFullScreen loading="lazy"/></div>}
+</ScrollBox>
+</FKSection>},
+{label:'الحسابات البنكية ('+bAccs.length+')',Icon:Landmark,content:
+<FKSection Icon={Landmark} label="الحسابات البنكية" hint={bAccs.length+' حساب'}>
+{bAccs.length===0?<div style={{textAlign:'center',padding:30,color:FKC.tx5,fontSize:13}}>لا توجد حسابات بنكية مرتبطة بهذا المكتب</div>:
+<ScrollBox maxHeight={340}>
+{bAccs.map(a=>{const tp=typeMap[a.account_type]||typeMap.deposit;return<div key={a.id} style={{marginBottom:10}}>
+<div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 2px'}}>
+<span style={{fontSize:14,fontWeight:600,color:FKC.tx}}>{a.bank_name}</span>
+{a.is_primary&&<span style={{fontSize:10,fontWeight:600,color:FKC.gold,background:FKC.gold+'1a',padding:'2px 7px',borderRadius:6}}>رئيسي</span>}
+<span style={{fontSize:10,fontWeight:600,color:tp.c,background:tp.c+'1a',padding:'2px 7px',borderRadius:6}}>{tp.l}</span>
+<span style={{flex:1}}/>
+<span style={{fontSize:11,fontWeight:600,color:a.is_active?FKC.ok:FKC.red}}>{a.is_active?'نشط':'معطّل'}</span>
 </div>
-<button onClick={()=>{setViewPop(null);setViewTab('info')}} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-</div>
-{/* View Tabs */}
-<div style={{display:'flex',gap:0,borderBottom:'1px solid var(--bd)',padding:'0 22px',flexShrink:0}}>
-{[['info','البيانات الأساسية'],['accounts','الحسابات البنكية ('+bAccs.length+')'],['staff','الموظفين ('+bUsers.length+')']].map(([k,l])=>
-<div key={k} onClick={()=>setViewTab(k)} style={{padding:'10px 14px',fontSize:11,fontWeight:viewTab===k?700:500,color:viewTab===k?C.gold:'rgba(255,255,255,.38)',borderBottom:viewTab===k?'2px solid '+C.gold:'2px solid transparent',cursor:'pointer',transition:'.15s',whiteSpace:'nowrap'}}>{l}</div>)}
-</div>
-<div style={{flex:1,overflowY:'auto',padding:'16px 22px'}}>
-{/* Tab: البيانات الأساسية */}
-{viewTab==='info'&&<div>
-{[['الكود',viewPop.code],['المنطقة',getRef(viewPop.region_id,regions)],['المدينة',getRef(viewPop.city_id,cities)],['الجوال',viewPop.mobile],['البريد',viewPop.email],['مدير المكتب',getRef(viewPop.manager_id,users)],['أيام الدوام',viewPop.work_days],['ساعات العمل',(viewPop.work_from||'08:00')+' - '+(viewPop.work_to||'17:00')],['الرصيد الافتتاحي',viewPop.opening_balance?num(viewPop.opening_balance)+' ر.س':null],['الحد النقدي اليومي',viewPop.daily_cash_limit?num(viewPop.daily_cash_limit)+' ر.س':null],['الحالة',viewPop.is_active?'نشط':'معطّل'],['العنوان',viewPop.address],['الموقع',viewPop.google_maps_url?'رابط':''],['ملاحظات',viewPop.notes]].filter(([,v])=>v&&v!=='—').map(([k,v],i)=>
-<div key={i} style={{display:'flex',justifyContent:'space-between',padding:'9px 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-<span style={{fontSize:11,color:'var(--tx4)'}}>{k}</span>
-{k==='الموقع'?<a href={viewPop.google_maps_url} target="_blank" rel="noreferrer" style={{fontSize:12,fontWeight:600,color:C.blue,textDecoration:'none'}}>فتح في الخرائط ↗</a>:
-<span style={{fontSize:13,fontWeight:600,color:k==='الحالة'?(viewPop.is_active?C.ok:C.red):'rgba(255,255,255,.82)',direction:k==='البريد'||k==='الجوال'?'ltr':'rtl'}}>{v}</span>}
-</div>)}
-{viewPop.google_maps_url&&<div style={{marginTop:10,borderRadius:10,overflow:'hidden',border:'1px solid var(--bd)',height:140}}><iframe src={`https://maps.google.com/maps?q=${encodeURIComponent(viewPop.address||viewPop.google_maps_url)}&output=embed`} width="100%" height="140" style={{border:0}} allowFullScreen loading="lazy"/></div>}
-</div>}
-{/* Tab: الحسابات البنكية */}
-{viewTab==='accounts'&&<div>
-{bAccs.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>لا توجد حسابات بنكية مرتبطة بهذا المكتب</div>:
-bAccs.map(a=>{const tp=typeMap[a.account_type]||typeMap.deposit;return<div key={a.id} style={{padding:'12px 14px',borderRadius:10,border:'1px solid var(--bd)',marginBottom:8,background:'rgba(255,255,255,.02)'}}>
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx2)'}}>{a.bank_name}</span>
-{a.is_primary&&<span style={{fontSize:8,color:C.gold,background:'rgba(201,168,76,.1)',padding:'2px 5px',borderRadius:5,fontWeight:700}}>رئيسي</span>}
-</div>
-<span style={{fontSize:9,color:tp.c,background:tp.c+'12',padding:'2px 7px',borderRadius:5,fontWeight:700}}>{tp.l}</span>
-</div>
-{[['اسم الحساب',a.account_name],['رقم الحساب',a.account_number],['IBAN',a.iban],['SWIFT',a.swift_code]].filter(([,v])=>v).map(([k,v],i)=>
-<div key={i} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:10}}>
-<span style={{color:'var(--tx4)'}}>{k}</span>
-<span style={{color:'rgba(255,255,255,.6)',fontFamily:'monospace',direction:'ltr'}}>{v}</span>
-</div>)}
-<div style={{marginTop:6}}><BadgeStatus v={a.is_active}/></div>
+<InfoGrid>
+{[['اسم الحساب',a.account_name,false],['رقم الحساب',a.account_number,true],['IBAN',a.iban,true],['SWIFT',a.swift_code,true]].filter(([,v])=>v).map(([k,v,m])=><InfoRow key={k} label={k} value={v} mono={m} copy={m}/>)}
+</InfoGrid>
 </div>})}
-</div>}
-{/* Tab: الموظفين */}
-{viewTab==='staff'&&<div>
-{bUsers.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>لا يوجد موظفين في هذا المكتب</div>:
-bUsers.map(u=><div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:'1px solid var(--bd2)'}}>
-<div style={{width:32,height:32,borderRadius:8,background:'rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<span style={{fontSize:12,fontWeight:700,color:'var(--tx3)'}}>{u.name_ar?.[0]}</span>
-</div>
-<div style={{flex:1}}>
-<div style={{fontSize:12,fontWeight:600,color:'var(--tx2)'}}>{u.name_ar}</div>
-{u.email&&<div style={{fontSize:9,color:'var(--tx5)',direction:'ltr'}}>{u.email}</div>}
-</div>
-{u.roles&&<span style={{fontSize:9,color:u.roles.color||C.gold,background:(u.roles.color||C.gold)+'15',padding:'3px 7px',borderRadius:6,fontWeight:600}}>{u.roles.name_ar}</span>}
-<BadgeStatus v={u.is_active}/>
-</div>)}
-</div>}
-</div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',gap:8,flexDirection:'row-reverse',flexShrink:0}}>
-<button onClick={()=>{openEdit(viewPop);setViewPop(null);setViewTab('info')}} style={{...bS,height:42,minWidth:100}}>تعديل</button>
-<button onClick={()=>{setViewPop(null);setViewTab('info')}} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>إغلاق</button>
-</div></div></div>})()}
+</ScrollBox>}
+</FKSection>},
+{label:'الموظفين ('+bUsers.length+')',Icon:Users,content:
+<FKSection Icon={Users} label="موظفو المكتب" hint={bUsers.length+' موظف'}>
+{bUsers.length===0?<div style={{textAlign:'center',padding:30,color:FKC.tx5,fontSize:13}}>لا يوجد موظفين في هذا المكتب</div>:
+<ScrollBox maxHeight={340}>
+<InfoGrid style={{gridTemplateColumns:'1fr'}}>
+{bUsers.map(u=><InfoRow key={u.id} Icon={User} label={u.name_ar} color={u.roles?.color||FKC.gold} value={(u.roles?.name_ar?u.roles.name_ar+' · ':'')+(u.is_active?'نشط':'معطّل')}/>)}
+</InfoGrid>
+</ScrollBox>}
+</FKSection>},
+]}/>})()}
 
 {/* ═══ ADD/EDIT BRANCH POPUP (3-Step Wizard) ═══ */}
 {(pop==='add'||pop==='edit')&&(()=>{
@@ -829,170 +785,174 @@ const fmtMobile=v=>{if(!v)return'';return v.replace(/(\d{2})(\d{3})(\d{0,4})/,'$
 const getCityCode=()=>{const c=cities.find(x=>x.id===form.city_id);return c?(c.code||c.name_ar?.slice(0,3)):'---'}
 const net=(Number(String(form.opening_balance||0).replace(/,/g,''))||0)
 const reviewRows=[['الاسم بالعربي',form.name_ar],['الاسم بالإنجليزي',form.name_en],['المنطقة',getRef(form.region_id,regions)],['المدينة',getRef(form.city_id,cities)],['الكود',getCityCode()+'-'+form.code],['اللون',form.color],['العنوان',form.address],['الجوال',form.mobile?'+966 '+fmtMobile(form.mobile):null],['البريد',form.email],['الحالة',form.is_active==='true'?'نشط':'معطّل'],['مدير المكتب',getRef(form.manager_id,users)],['أيام الدوام',form.work_days],['بداية الدوام',form.work_from],['نهاية الدوام',form.work_to],['الرصيد الافتتاحي',form.opening_balance],['الحد النقدي اليومي',form.daily_cash_limit],['رابط الموقع',form.google_maps_url?'محدد':null],['ملاحظات',form.notes]]
-return<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:580,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)',flexShrink:0}}/>
-<div style={{padding:'16px 22px',borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-<div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{pop==='add'?'إضافة مكتب':'تعديل مكتب'}</div>
-<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
+return<FKModal open onClose={()=>{setSaveErr(null);setPop(null)}} title={pop==='add'?'إضافة مكتب':'تعديل مكتب'} Icon={Building2} variant={pop==='add'?'create':'edit'}
+success={saved?<SuccessView title={pop==='add'?'تمت إضافة المكتب':'تم حفظ التعديلات'}/>:null}
+onSubmit={saveForm} submitting={saving} submitLabel={pop==='add'?'إضافة المكتب':'حفظ التعديلات'}
+pages={[
+{title:'البيانات الأساسية',valid:!!form.name_ar&&!!form.code,content:
+<FKSection Icon={FileText} label="الاسم والكود">
+<div style={FKGRID}>
+<FKText label="الاسم بالعربي" req value={form.name_ar} onChange={v=>setForm(p=>({...p,name_ar:v}))}/>
+<FKText label="الاسم بالإنجليزي" dir="ltr" value={form.name_en} onChange={v=>setForm(p=>({...p,name_en:v}))}/>
+<FKSelect label="المنطقة" value={form.region_id} onChange={v=>setForm(p=>({...p,region_id:v,city_id:''}))} options={regions} getKey={r=>r.id} getLabel={r=>r.name_ar} placeholder="اختر المنطقة"/>
+<FKSelect label="المدينة" value={form.city_id} onChange={v=>setForm(p=>({...p,city_id:v}))} options={cities.filter(c=>!form.region_id||c.region_id===form.region_id)} getKey={c=>c.id} getLabel={c=>c.name_ar} placeholder="اختر المدينة"/>
+<FKText label="الكود" req hint={getCityCode()+'-'+(form.code||'..')} dir="ltr" value={form.code} onChange={v=>setForm(p=>({...p,code:v.replace(/\D/g,'').slice(0,4)}))} placeholder="01"/>
+<FKColor label="اللون" value={form.color} onChange={v=>setForm(p=>({...p,color:v}))}/>
 </div>
-{/* Stepper */}
-<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:0}}>
-{['البيانات الأساسية','التفاصيل','مراجعة'].map((s,i)=>{const sn=i+1;const isA=step===sn;const isD=step>sn
-return<React.Fragment key={i}>
-{i>0&&<div style={{flex:1,height:2,margin:'0 6px 16px',borderRadius:1,background:'rgba(255,255,255,.1)',position:'relative',overflow:'hidden',maxWidth:60}}><div style={{position:'absolute',top:0,right:0,bottom:0,width:step>=sn?'100%':'0%',background:`linear-gradient(to left, ${C.gold}, rgba(201,168,76,.4))`,borderRadius:1,transition:'width .4s'}}/></div>}
-<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-<div style={{width:24,height:24,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,background:isA||isD?C.gold:'rgba(255,255,255,.07)',color:isA||isD?C.dk:'rgba(255,255,255,.25)',boxShadow:isA?'0 0 0 4px rgba(201,168,76,.15)':'none',transition:'.3s'}}>{isD?<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>:sn}</div>
-<div style={{fontSize:9,color:isA?C.gold:'rgba(255,255,255,.25)',fontWeight:isA?700:500,whiteSpace:'nowrap'}}>{s}</div>
-</div></React.Fragment>})}
+</FKSection>},
+{title:'الموقع والتواصل',valid:true,content:<>
+<FKSection Icon={MapPin} label="الموقع">
+<div style={FKGRID}>
+<FKArea label="العنوان" rows={2} value={form.address} onChange={v=>setForm(p=>({...p,address:v}))}/>
+<FKText label="رابط الموقع على Google Maps" dir="ltr" full value={form.google_maps_url} onChange={v=>setForm(p=>({...p,google_maps_url:v}))} placeholder="https://maps.app.goo.gl/..."/>
 </div>
+</FKSection>
+<FKSection Icon={PhoneIcon} label="التواصل">
+<div style={FKGRID}>
+<FKPhone label="رقم الجوال" value={form.mobile} onChange={v=>setForm(p=>({...p,mobile:v}))}/>
+<FKText label="البريد الإلكتروني" dir="ltr" value={form.email} onChange={v=>setForm(p=>({...p,email:v}))} placeholder="example@jisr.sa"/>
 </div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}>
-{/* ── Step 1: Basic ── */}
-{step===1&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div><div style={lblS}>الاسم بالعربي <span style={{color:C.red}}>*</span></div><input value={form.name_ar} onChange={e=>setForm(p=>({...p,name_ar:e.target.value}))} style={fS}/></div>
-<div><div style={lblS}>الاسم بالإنجليزي</div><input value={form.name_en} onChange={e=>setForm(p=>({...p,name_en:e.target.value}))} style={fS}/></div>
-<div><div style={lblS}>المنطقة</div><CustomSelect value={form.region_id} onChange={v=>setForm(p=>({...p,region_id:v,city_id:''}))} options={regions.map(r=>({v:r.id,l:r.name_ar}))}/></div>
-<div><div style={lblS}>المدينة</div><CustomSelect value={form.city_id} onChange={v=>setForm(p=>({...p,city_id:v}))} options={cities.filter(c=>!form.region_id||c.region_id===form.region_id).map(c=>({v:c.id,l:c.name_ar}))}/></div>
-<div><div style={lblS}>الكود <span style={{color:C.red}}>*</span></div><div style={{display:'flex',direction:'ltr',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,overflow:'hidden',background:'rgba(255,255,255,.07)'}}><div style={{height:42,padding:'0 10px',background:'rgba(255,255,255,.06)',borderRight:'1px solid rgba(255,255,255,.08)',display:'flex',alignItems:'center',fontSize:10,fontWeight:700,color:'rgba(201,168,76,.5)',flexShrink:0}}>{getCityCode()}-</div><input value={form.code} onChange={e=>setForm(p=>({...p,code:e.target.value.replace(/\D/g,'').slice(0,4)}))} placeholder="01" style={{width:'100%',height:42,padding:'0 12px',border:'none',background:'transparent',fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',textAlign:'center'}}/></div></div>
-<div><div style={lblS}>اللون</div><div style={{display:'flex',gap:6,alignItems:'center'}}><input type="color" value={form.color||'#c9a84c'} onChange={e=>setForm(p=>({...p,color:e.target.value}))} style={{width:42,height:42,borderRadius:10,border:'1.5px solid rgba(255,255,255,.12)',background:'transparent',cursor:'pointer',padding:2}}/><span style={{fontSize:10,color:'var(--tx5)',fontFamily:'monospace',direction:'ltr'}}>{form.color}</span></div></div>
-<div style={{gridColumn:'1/-1'}}><div style={lblS}>العنوان</div><textarea value={form.address} onChange={e=>setForm(p=>({...p,address:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/></div>
-<div><div style={lblS}>رقم الجوال</div><div style={{display:'flex',direction:'ltr',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,overflow:'hidden',background:'rgba(255,255,255,.07)'}}><div style={{height:42,padding:'0 10px',background:'rgba(255,255,255,.06)',borderRight:'1px solid rgba(255,255,255,.08)',display:'flex',alignItems:'center',fontSize:11,fontWeight:700,color:'var(--tx4)',flexShrink:0}}>966+</div><input value={fmtMobile(form.mobile)} onChange={e=>{const v=e.target.value.replace(/\D/g,'').slice(0,9);setForm(p=>({...p,mobile:v}))}} placeholder="5x xxx xxxx" style={{width:'100%',height:42,padding:'0 12px',border:'none',background:'transparent',fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',textAlign:'left',letterSpacing:1}}/></div></div>
-<div><div style={lblS}>البريد الإلكتروني</div><input value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} placeholder="example@jisr.sa" style={fS}/></div>
-</div>}
-{/* ── Step 2: Details ── */}
-{step===2&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div><div style={lblS}>الحالة</div><CustomSelect value={form.is_active} onChange={v=>setForm(p=>({...p,is_active:v}))} options={[{v:'true',l:'نشط'},{v:'false',l:'معطّل'}]}/></div>
-<div><div style={lblS}>مدير المكتب</div><CustomSelect value={form.manager_id||''} onChange={v=>setForm(p=>({...p,manager_id:v}))} options={users.map(u=>({v:u.id,l:u.name_ar}))}/></div>
-<div style={{gridColumn:'1/-1'}}><div style={lblS}>أيام الدوام</div>
-<div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{allDays.map(d=>{const sel=selDays.includes(d);return<div key={d} onClick={()=>toggleDay(d)} style={{padding:'6px 12px',borderRadius:8,border:'1.5px solid '+(sel?'rgba(201,168,76,.3)':'rgba(255,255,255,.1)'),background:sel?'rgba(201,168,76,.1)':'transparent',color:sel?C.gold:'rgba(255,255,255,.35)',fontSize:11,fontWeight:600,cursor:'pointer',transition:'.15s'}}>{d}</div>})}</div>
+</FKSection>
+</>},
+{title:'الدوام والإدارة',valid:true,content:<>
+<FKSection Icon={CalendarDays} label="أيام وساعات الدوام">
+<div style={FKGRID}>
+<FKMulti label="أيام الدوام" full value={selDays} onChange={arr=>setForm(p=>({...p,work_days:arr.join(',')}))} options={allDays} getKey={d=>d} getLabel={d=>d} searchable={false} placeholder="اختر الأيام"/>
+<FKTimeField label="بداية الدوام" value={form.work_from||'08:00'} onChange={v=>setForm(p=>({...p,work_from:v}))}/>
+<FKTimeField label="نهاية الدوام" value={form.work_to||'17:00'} onChange={v=>setForm(p=>({...p,work_to:v}))}/>
 </div>
-<div><div style={lblS}>بداية الدوام</div><CustomSelect value={form.work_from||'08:00'} onChange={v=>setForm(p=>({...p,work_from:v}))} options={times.map(t=>({v:t,l:t}))}/></div>
-<div><div style={lblS}>نهاية الدوام</div><CustomSelect value={form.work_to||'17:00'} onChange={v=>setForm(p=>({...p,work_to:v}))} options={times.map(t=>({v:t,l:t}))}/></div>
-<div><div style={lblS}>الرصيد الافتتاحي</div><input value={form.opening_balance} onChange={e=>setForm(p=>({...p,opening_balance:e.target.value.replace(/[^\d.]/g,'')}))} placeholder="0" style={fS}/></div>
-<div><div style={lblS}>الحد النقدي اليومي</div><input value={form.daily_cash_limit} onChange={e=>setForm(p=>({...p,daily_cash_limit:e.target.value.replace(/[^\d.]/g,'')}))} placeholder="0" style={fS}/></div>
-<div style={{gridColumn:'1/-1'}}><div style={lblS}>رابط الموقع على Google Maps</div><input value={form.google_maps_url} onChange={e=>setForm(p=>({...p,google_maps_url:e.target.value}))} placeholder="https://maps.app.goo.gl/..." style={{...fS,direction:'ltr',textAlign:'left'}}/>
-{form.google_maps_url&&<div style={{marginTop:8,borderRadius:10,overflow:'hidden',border:'1px solid var(--bd)',height:160}}><iframe src={form.google_maps_url.replace('/maps/','/maps/embed?pb=').includes('embed')?form.google_maps_url:`https://maps.google.com/maps?q=${encodeURIComponent(form.google_maps_url)}&output=embed`} width="100%" height="160" style={{border:0}} allowFullScreen loading="lazy"/></div>}
+</FKSection>
+<FKSection Icon={Settings2} label="الإدارة والحالة">
+<div style={FKGRID}>
+<FKSelect label="مدير المكتب" value={form.manager_id||''} onChange={v=>setForm(p=>({...p,manager_id:v}))} options={users} getKey={u=>u.id} getLabel={u=>u.name_ar} placeholder="اختر المدير"/>
+<FKSwitch label="مكتب نشط" hint="يظهر في القوائم ويستقبل العمليات" checked={form.is_active==='true'} onChange={v=>setForm(p=>({...p,is_active:v?'true':'false'}))}/>
 </div>
-<div style={{gridColumn:'1/-1'}}><div style={lblS}>ملاحظات</div><textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/></div>
-</div>}
-{/* ── Step 3: Review ── */}
-{step===3&&<div>
-<div style={{fontSize:14,fontWeight:700,color:'var(--tx)',marginBottom:4}}>مراجعة البيانات</div>
-<div style={{fontSize:10,color:'var(--tx4)',marginBottom:14}}>تأكد من صحة البيانات قبل الحفظ</div>
-{reviewRows.filter(([,v])=>v&&v!=='—'&&v!=='---').map(([k,v],i)=>
-<div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-<span style={{fontSize:11,color:'var(--tx4)'}}>{k}</span>
-{k==='اللون'?<div style={{display:'flex',alignItems:'center',gap:6}}><span style={{width:12,height:12,borderRadius:'50%',background:v,border:'1px solid rgba(255,255,255,.1)'}}/><span style={{fontSize:11,color:'var(--tx5)',fontFamily:'monospace'}}>{v}</span></div>:
-k==='الحالة'?<span style={{fontSize:12,fontWeight:600,color:v==='نشط'?C.ok:C.red}}>{v}</span>:
-<span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,.82)'}}>{v}</span>}
-</div>)}
-</div>}
+</FKSection>
+</>},
+{title:'المالية والملاحظات',valid:true,content:<>
+<FKSection Icon={Wallet} label="المالية">
+<div style={FKGRID}>
+<FKCurrency label="الرصيد الافتتاحي" value={form.opening_balance} onChange={v=>setForm(p=>({...p,opening_balance:v}))}/>
+<FKCurrency label="الحد النقدي اليومي" value={form.daily_cash_limit} onChange={v=>setForm(p=>({...p,daily_cash_limit:v}))}/>
 </div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',gap:10,flexDirection:'row-reverse',flexShrink:0}}>
-{step===1&&<button onClick={()=>{if(!form.name_ar){toast(isAr?'الاسم مطلوب':'Name is required');return};if(!form.code){toast(isAr?'الكود مطلوب':'Code is required');return};setStep(2)}} style={{...bS,height:42,minWidth:130,gap:6}}>التالي <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>}
-{step===2&&<><button onClick={()=>setStep(3)} style={{...bS,height:42,minWidth:130,gap:6}}>مراجعة <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button><button onClick={()=>setStep(1)} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>رجوع</button></>}
-{step===3&&<><button onClick={saveForm} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':(pop==='add'?'إضافة المكتب':'حفظ التعديلات')}</button><button onClick={()=>setStep(2)} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>رجوع</button></>}
-</div></div></div>})()}
+</FKSection>
+<FKSection Icon={StickyNote} label="ملاحظات">
+<FKArea label="ملاحظات" rows={2} value={form.notes} onChange={v=>setForm(p=>({...p,notes:v}))}/>
+</FKSection>
+</>},
+{title:'مراجعة البيانات',valid:true,error:saveErr,content:
+<FKSection Icon={ClipboardList} label="مراجعة" hint="تأكد من صحة البيانات قبل الحفظ">
+<ScrollBox maxHeight={300}>
+<InfoGrid>
+{reviewRows.filter(([,v])=>v&&v!=='—'&&v!=='---').map(([k,v])=><InfoRow key={k} label={k} value={String(v)}/>)}
+</InfoGrid>
+</ScrollBox>
+</FKSection>},
+]}/>})()}
 
-{/* ═══ EDIT USER POPUP ═══ */}
-{pop==='edit_user'&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:520,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)',flexShrink:0}}/>
-<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-<div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>تعديل موظف</div>
-<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
+{/* ═══ EDIT USER POPUP (FormKit) ═══ */}
+{pop==='edit_user'&&<FKModal open onClose={()=>{setSaveErr(null);setPop(null)}} title="تعديل موظف" Icon={UserCog} variant="edit"
+success={saved?<SuccessView title="تم حفظ التعديلات"/>:null}
+onSubmit={saveForm} submitting={saving} submitLabel="حفظ"
+pages={[
+{title:'البيانات الشخصية',valid:!!form.name_ar,content:
+<FKSection Icon={User} label="البيانات الشخصية">
+<div style={FKGRID}>
+<FKText label="الاسم بالعربي" req value={form.name_ar||''} onChange={v=>setForm(p=>({...p,name_ar:v}))}/>
+<FKText label="الاسم بالإنجليزي" dir="ltr" value={form.name_en||''} onChange={v=>setForm(p=>({...p,name_en:v}))}/>
+<FKText label="البريد" dir="ltr" value={form.email||''} onChange={v=>setForm(p=>({...p,email:v}))}/>
+<FKText label="الجوال" dir="ltr" value={form.phone||''} onChange={v=>setForm(p=>({...p,phone:v}))}/>
+<FKIdField label="رقم الهوية" value={form.id_number||''} onChange={v=>setForm(p=>({...p,id_number:v}))}/>
+<FKText label="الجنسية" value={form.nationality||''} onChange={v=>setForm(p=>({...p,nationality:v}))}/>
 </div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-{[['name_ar','الاسم بالعربي',1],['name_en','الاسم بالإنجليزي'],['email','البريد'],['phone','الجوال'],['id_number','رقم الهوية'],['nationality','الجنسية']].map(([k,l,r])=>
-<div key={k}><div style={lblS}>{l}{r&&<span style={{color:C.red}}> *</span>}</div><input value={form[k]||''} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} style={fS}/></div>)}
-<div><div style={lblS}>الدور <span style={{color:C.red}}>*</span></div><CustomSelect value={form.role_id} onChange={v=>setForm(p=>({...p,role_id:v}))} options={roles.map(r=>({v:r.id,l:r.name_ar}))}/></div>
-<div><div style={lblS}>المكتب</div><CustomSelect value={form.branch_id} onChange={v=>setForm(p=>({...p,branch_id:v}))} options={branches.map(b=>({v:b.id,l:b.name_ar}))}/></div>
-<div><div style={lblS}>الحالة</div><CustomSelect value={form.is_active} onChange={v=>setForm(p=>({...p,is_active:v}))} options={[{v:'true',l:'نشط'},{v:'false',l:'معطّل'}]}/></div>
-<div style={{gridColumn:'1/-1'}}><div style={lblS}>ملاحظات</div><textarea value={form.notes||''} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/></div>
-</div></div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',flexDirection:'row-reverse',flexShrink:0}}>
-<button onClick={saveForm} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':'حفظ'}</button>
-<button onClick={()=>setPop(null)} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>إلغاء</button>
-</div></div></div>}
+</FKSection>},
+{title:'الوظيفة والحالة',valid:!!form.role_id,error:saveErr,content:<>
+<FKSection Icon={Briefcase} label="الوظيفة">
+<div style={FKGRID}>
+<FKSelect label="الدور" req value={form.role_id} onChange={v=>setForm(p=>({...p,role_id:v}))} options={roles} getKey={r=>r.id} getLabel={r=>r.name_ar} placeholder="اختر الدور"/>
+<FKSelect label="المكتب" value={form.branch_id} onChange={v=>setForm(p=>({...p,branch_id:v}))} options={branches} getKey={b=>b.id} getLabel={b=>b.name_ar} placeholder="اختر المكتب"/>
+<FKSwitch label="حساب نشط" hint="يستطيع تسجيل الدخول" checked={form.is_active==='true'} onChange={v=>setForm(p=>({...p,is_active:v?'true':'false'}))}/>
+</div>
+</FKSection>
+<FKSection Icon={StickyNote} label="ملاحظات">
+<FKArea label="ملاحظات" rows={2} value={form.notes||''} onChange={v=>setForm(p=>({...p,notes:v}))}/>
+</FKSection>
+</>},
+]}/>}
 
-{/* ═══ ADD/EDIT ROLE POPUP ═══ */}
-{(pop==='add_role'||pop==='edit_role')&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:480,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.gold+' 30%,#dcc06e 50%,'+C.gold+' 70%,transparent)',flexShrink:0}}/>
-<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-<div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{pop==='add_role'?'إضافة دور':'تعديل دور'}</div>
-<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
+{/* ═══ ADD/EDIT ROLE POPUP (FormKit) ═══ */}
+{(pop==='add_role'||pop==='edit_role')&&<FKModal open onClose={()=>{setSaveErr(null);setPop(null)}} title={pop==='add_role'?'إضافة دور':'تعديل دور'} Icon={Shield} variant={pop==='add_role'?'create':'edit'} width={560}
+success={saved?<SuccessView title={form._id?'تم حفظ التعديلات':'تمت إضافة الدور'}/>:null}
+errorMsg={saveErr}
+footer={<FKAction onClick={saveForm} disabled={saving||!form.name_ar}>{saving?'جاري الحفظ...':(form._id?'حفظ':'إضافة')}</FKAction>}>
+<FKSection Icon={Shield} label="بيانات الدور">
+<div style={FKGRID}>
+<FKText label="الاسم بالعربي" req value={form.name_ar||''} onChange={v=>setForm(p=>({...p,name_ar:v}))}/>
+<FKText label="الاسم بالإنجليزي" dir="ltr" value={form.name_en||''} onChange={v=>setForm(p=>({...p,name_en:v}))}/>
+<FKColor label="اللون" value={form.color} onChange={v=>setForm(p=>({...p,color:v}))}/>
+<FKSwitch label="دور نشط" hint="متاح للتعيين" checked={form.is_active==='true'} onChange={v=>setForm(p=>({...p,is_active:v?'true':'false'}))}/>
+<FKArea label="الوصف" rows={2} value={form.description||''} onChange={v=>setForm(p=>({...p,description:v}))}/>
 </div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div><div style={lblS}>الاسم بالعربي <span style={{color:C.red}}>*</span></div><input value={form.name_ar||''} onChange={e=>setForm(p=>({...p,name_ar:e.target.value}))} style={fS}/></div>
-<div><div style={lblS}>الاسم بالإنجليزي</div><input value={form.name_en||''} onChange={e=>setForm(p=>({...p,name_en:e.target.value}))} style={fS}/></div>
-<div><div style={lblS}>اللون</div><input type="color" value={form.color||'#c9a84c'} onChange={e=>setForm(p=>({...p,color:e.target.value}))} style={{width:'100%',height:42,borderRadius:10,border:'1.5px solid rgba(255,255,255,.12)',background:'transparent',cursor:'pointer',padding:2}}/></div>
-<div><div style={lblS}>الحالة</div><CustomSelect value={form.is_active} onChange={v=>setForm(p=>({...p,is_active:v}))} options={[{v:'true',l:'نشط'},{v:'false',l:'معطّل'}]}/></div>
-<div style={{gridColumn:'1/-1'}}><div style={lblS}>الوصف</div><textarea value={form.description||''} onChange={e=>setForm(p=>({...p,description:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/></div>
-</div></div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',flexDirection:'row-reverse',flexShrink:0}}>
-<button onClick={saveForm} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':(form._id?'حفظ':'إضافة')}</button>
-<button onClick={()=>setPop(null)} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>إلغاء</button>
-</div></div></div>}
+</FKSection>
+</FKModal>}
 
-{/* ═══ PERMISSIONS POPUP ═══ */}
-{permPop&&<div onClick={()=>setPermPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:580,maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.blue+' 30%,#5ba3d4 50%,'+C.blue+' 70%,transparent)',flexShrink:0}}/>
-<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-<div><div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>إدارة الصلاحيات</div><div style={{fontSize:11,color:'var(--tx4)',marginTop:4}}>{roles.find(r=>r.id===permPop)?.name_ar||''} — {selPerms.length} صلاحية مختارة</div></div>
-<button onClick={()=>setPermPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
-</div>
-<div style={{flex:1,overflowY:'auto',padding:'12px 22px'}}>
+{/* ═══ PERMISSIONS POPUP (FormKit) ═══ */}
+{permPop&&<FKModal open onClose={()=>{setPermErr(null);setPermPop(null)}} title="إدارة الصلاحيات" subtitle={(roles.find(r=>r.id===permPop)?.name_ar||'')+' — '+selPerms.length+' صلاحية مختارة'} Icon={KeyRound} variant="edit" width={620}
+success={saved?<SuccessView title="تم حفظ الصلاحيات"/>:null}
+errorMsg={permErr}
+footer={<FKAction onClick={savePerms} disabled={permSaving}>{permSaving?'جاري الحفظ...':'حفظ الصلاحيات'}</FKAction>}>
+<FKSection Icon={KeyRound} label="صلاحيات الدور" hint={selPerms.length+' مختارة'}>
+<ScrollBox maxHeight={300}>
 {permModules.map(mod=>{const modPerms=perms.filter(p=>p.module===mod);const allChecked=modPerms.every(p=>selPerms.includes(p.id))
 return<div key={mod} style={{marginBottom:12}}>
-<div onClick={()=>{if(allChecked)setSelPerms(s=>s.filter(id=>!modPerms.some(p=>p.id===id)));else setSelPerms(s=>[...new Set([...s,...modPerms.map(p=>p.id)])])}} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',cursor:'pointer',borderBottom:'1px solid var(--bd2)'}}>
-<div style={{width:18,height:18,borderRadius:5,border:allChecked?'none':'1.5px solid rgba(255,255,255,.2)',background:allChecked?C.blue:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-{allChecked&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+<div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:'1px solid '+FKC.line}}>
+<FKCheckbox label={mod} checked={allChecked} onChange={()=>{if(allChecked)setSelPerms(s=>s.filter(id=>!modPerms.some(p=>p.id===id)));else setSelPerms(s=>[...new Set([...s,...modPerms.map(p=>p.id)])])}}/>
+<span style={{fontSize:11,fontWeight:600,color:FKC.tx4}}>{modPerms.filter(p=>selPerms.includes(p.id)).length}/{modPerms.length}</span>
 </div>
-<span style={{fontSize:12,fontWeight:700,color:C.gold}}>{mod}</span>
-<span style={{fontSize:9,color:'var(--tx5)'}}>{modPerms.filter(p=>selPerms.includes(p.id)).length}/{modPerms.length}</span>
-</div>
-{modPerms.map(p=>{const checked=selPerms.includes(p.id);return<div key={p.id} onClick={()=>setSelPerms(s=>checked?s.filter(id=>id!==p.id):[...s,p.id])} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 0 7px 26px',cursor:'pointer'}}>
-<div style={{width:16,height:16,borderRadius:4,border:checked?'none':'1.5px solid rgba(255,255,255,.15)',background:checked?C.blue:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-{checked&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-</div>
-<span style={{fontSize:12,fontWeight:500,color:checked?'rgba(255,255,255,.85)':'rgba(255,255,255,.35)',flex:1}}>{p.name_ar}</span>
-<span style={{fontSize:9,color:'rgba(255,255,255,.18)',fontFamily:'monospace',direction:'ltr'}}>{p.action}</span>
+{modPerms.map(p=>{const checked=selPerms.includes(p.id);return<div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 0 7px 26px'}}>
+<FKCheckbox label={p.name_ar} checked={checked} onChange={()=>setSelPerms(s=>checked?s.filter(id=>id!==p.id):[...s,p.id])}/>
+<span style={{flex:1}}/>
+<span style={{fontSize:10,fontWeight:600,color:FKC.tx5,fontFamily:'monospace',direction:'ltr'}}>{p.action}</span>
 </div>})}
 </div>})}
-</div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',flexDirection:'row-reverse',flexShrink:0}}>
-<button onClick={savePerms} disabled={permSaving} style={{...bS,height:42,minWidth:130,border:'1px solid rgba(52,131,180,.3)',background:'rgba(52,131,180,.15)',color:C.blue,opacity:permSaving?.6:1}}>{permSaving?'...':'حفظ الصلاحيات'}</button>
-<button onClick={()=>setPermPop(null)} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>إلغاء</button>
-</div></div></div>}
+</ScrollBox>
+</FKSection>
+</FKModal>}
 
-{/* ═══ ADD/EDIT BANK ACCOUNT POPUP ═══ */}
-{(pop==='add_bank'||pop==='edit_bank')&&<div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.75)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{...GLASS,width:520,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.06)'}}>
-<div style={{height:3,background:'linear-gradient(90deg,transparent,'+C.blue+' 30%,#5ba3d4 50%,'+C.blue+' 70%,transparent)',flexShrink:0}}/>
-<div style={{padding:'16px 22px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-<div style={{fontSize:16,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px'}}>{pop==='add_bank'?'إضافة حساب بنكي':'تعديل حساب بنكي'}</div>
-<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}}>✕</button>
+{/* ═══ ADD/EDIT BANK ACCOUNT POPUP (FormKit) ═══ */}
+{(pop==='add_bank'||pop==='edit_bank')&&<FKModal open onClose={()=>{setSaveErr(null);setPop(null)}} title={pop==='add_bank'?'إضافة حساب بنكي':'تعديل حساب بنكي'} Icon={Landmark} variant={pop==='add_bank'?'create':'edit'}
+success={saved?<SuccessView title={form._id?'تم حفظ التعديلات':'تمت إضافة الحساب'}/>:null}
+onSubmit={saveForm} submitting={saving} submitLabel={form._id?'حفظ':'إضافة'}
+pages={[
+{title:'بيانات الحساب',valid:!!form.bank_name&&!!form.account_type,content:
+<FKSection Icon={Landmark} label="بيانات الحساب">
+<div style={FKGRID}>
+<FKText label="اسم البنك" req value={form.bank_name||''} onChange={v=>setForm(p=>({...p,bank_name:v}))}/>
+<FKText label="اسم الحساب" value={form.account_name||''} onChange={v=>setForm(p=>({...p,account_name:v}))}/>
+<FKText label="رقم الحساب" dir="ltr" value={form.account_number||''} onChange={v=>setForm(p=>({...p,account_number:v}))}/>
+<FKSelect label="نوع الحساب" req value={form.account_type||'deposit'} onChange={v=>setForm(p=>({...p,account_type:v}))} options={[{v:'deposit',l:'إيداع'},{v:'sadad',l:'سداد'},{v:'international',l:'حوالات خارجية'}]} getKey={o=>o.v} getLabel={o=>o.l} searchable={false}/>
 </div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-<div><div style={lblS}>اسم البنك <span style={{color:C.red}}>*</span></div><input value={form.bank_name||''} onChange={e=>setForm(p=>({...p,bank_name:e.target.value}))} style={fS}/></div>
-<div><div style={lblS}>اسم الحساب</div><input value={form.account_name||''} onChange={e=>setForm(p=>({...p,account_name:e.target.value}))} style={fS}/></div>
-<div><div style={lblS}>رقم الحساب</div><input value={form.account_number||''} onChange={e=>setForm(p=>({...p,account_number:e.target.value}))} style={fS}/></div>
-<div><div style={lblS}>نوع الحساب <span style={{color:C.red}}>*</span></div><CustomSelect value={form.account_type||'deposit'} onChange={v=>setForm(p=>({...p,account_type:v}))} options={[{v:'deposit',l:'إيداع'},{v:'sadad',l:'سداد'},{v:'international',l:'حوالات خارجية'}]}/></div>
-<div style={{gridColumn:'1/-1'}}><div style={lblS}>رقم الآيبان (IBAN)</div><input value={form.iban||''} onChange={e=>setForm(p=>({...p,iban:e.target.value.toUpperCase()}))} placeholder="SA..." style={{...fS,direction:'ltr',fontFamily:'monospace',letterSpacing:1}}/></div>
-{form.account_type==='international'&&<div><div style={lblS}>رمز SWIFT</div><input value={form.swift_code||''} onChange={e=>setForm(p=>({...p,swift_code:e.target.value.toUpperCase()}))} style={{...fS,direction:'ltr',fontFamily:'monospace'}}/></div>}
-<div><div style={lblS}>المكتب</div><CustomSelect value={form.branch_id||''} onChange={v=>setForm(p=>({...p,branch_id:v}))} options={branches.map(b=>({v:b.id,l:b.name_ar}))}/></div>
-{form.account_type!=='international'&&<div/>}
-<div><div style={lblS}>حساب رئيسي</div><CustomSelect value={form.is_primary||'false'} onChange={v=>setForm(p=>({...p,is_primary:v}))} options={[{v:'true',l:'نعم'},{v:'false',l:'لا'}]}/></div>
-<div><div style={lblS}>الحالة</div><CustomSelect value={form.is_active||'true'} onChange={v=>setForm(p=>({...p,is_active:v}))} options={[{v:'true',l:'نشط'},{v:'false',l:'معطّل'}]}/></div>
-<div style={{gridColumn:'1/-1'}}><div style={lblS}>ملاحظات</div><textarea value={form.notes||''} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/></div>
-</div></div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'flex-start',flexShrink:0}}>
-<button onClick={saveForm} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':(form._id?'حفظ':'إضافة')}</button>
-</div></div></div>}
+</FKSection>},
+{title:'الأرقام البنكية',valid:true,content:
+<FKSection Icon={CreditCard} label="الأرقام البنكية">
+<div style={FKGRID}>
+<FKText label="رقم الآيبان (IBAN)" dir="ltr" full upper value={form.iban||''} onChange={v=>setForm(p=>({...p,iban:v.toUpperCase()}))} placeholder="SA..."/>
+{form.account_type==='international'&&<FKText label="رمز SWIFT" dir="ltr" upper value={form.swift_code||''} onChange={v=>setForm(p=>({...p,swift_code:v.toUpperCase()}))}/>}
+</div>
+</FKSection>},
+{title:'الربط والإعدادات',valid:true,error:saveErr,content:<>
+<FKSection Icon={Link2} label="الربط والحالة">
+<div style={FKGRID}>
+<FKSelect label="المكتب" value={form.branch_id||''} onChange={v=>setForm(p=>({...p,branch_id:v}))} options={branches} getKey={b=>b.id} getLabel={b=>b.name_ar} placeholder="اختر المكتب"/>
+<FKSwitch label="حساب رئيسي" hint="يُعرض أولاً في القوائم" checked={(form.is_primary||'false')==='true'} onChange={v=>setForm(p=>({...p,is_primary:v?'true':'false'}))}/>
+<FKSwitch label="حساب نشط" hint="متاح للعمليات" checked={(form.is_active||'true')==='true'} onChange={v=>setForm(p=>({...p,is_active:v?'true':'false'}))}/>
+</div>
+</FKSection>
+<FKSection Icon={StickyNote} label="ملاحظات">
+<FKArea label="ملاحظات" rows={2} value={form.notes||''} onChange={v=>setForm(p=>({...p,notes:v}))}/>
+</FKSection>
+</>},
+]}/>}
 
 </div></div>
 {/* REVIEW PENDING USER POPUP */}
@@ -1001,7 +961,7 @@ const ru=reviewUser;
 const visibleRoles=roles.filter(r=>!roleSearch||(r.name_ar||'').includes(roleSearch)||(r.name_en||'').toLowerCase().includes(roleSearch.toLowerCase()));
 const submit=async()=>{
 if(saving||selRoles.length===0)return;
-setSaving(true);
+setSaving(true);setSaveErr(null);
 try{
 const updates={branch_id:form.branch_id||null,notes:form.notes||null};
 if(activateNow){updates.is_active=true;updates.activated_at=new Date().toISOString();updates.activated_by=user?.id||null}
@@ -1009,100 +969,42 @@ await sb.from('users').update(updates).eq('id',ru.id);
 await sb.from('user_roles').delete().eq('user_id',ru.id);
 if(selRoles.length>0){await sb.from('user_roles').insert(selRoles.map(rid=>({user_id:ru.id,role_id:rid,assigned_by:user?.id||null})))}
 toast(isAr?(activateNow?'تمت الموافقة والتفعيل':'تم حفظ التعديلات'):(activateNow?'Approved and activated':'Changes saved'));
-setPop(null);setReviewUser(null);setSelRoles([]);
-loadAll();
-}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
+setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);setReviewUser(null);setSelRoles([]);loadAll()},1400);
+}catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
-return <div onClick={()=>{setPop(null);setReviewUser(null)}} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.78)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:16,width:'min(680px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid var(--bd)'}}>
-<div style={{padding:'18px 22px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexShrink:0,borderBottom:'1px solid var(--bd)'}}>
-<div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><circle cx="9" cy="7" r="4"/><path d="M17 11l2 2 4-4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
-<div>
-<div style={{fontSize:16,fontWeight:800,color:C.gold}}>مراجعة طلب تسجيل جديد</div>
-<div style={{fontSize:11,color:'var(--tx4)',marginTop:3}}>عيّن الأدوار المناسبة ثم قم بتفعيل الحساب للسماح بالدخول</div>
+return <FKModal open onClose={()=>{setSaveErr(null);setPop(null);setReviewUser(null)}} title="مراجعة طلب تسجيل جديد" Icon={UserCheck} variant="add"
+success={saved?<SuccessView title={activateNow?'تمت الموافقة والتفعيل':'تم حفظ التعديلات'}/>:null}
+onSubmit={submit} submitting={saving} submitLabel="موافقة وتفعيل"
+pages={[
+{title:'بيانات المتقدم والأدوار',valid:selRoles.length>0,error:selRoles.length===0?'حدّد دوراً واحداً على الأقل':'',content:<>
+<FKSection Icon={User} label="بيانات المتقدم" hint="بانتظار الموافقة">
+<InfoGrid>
+<InfoRow label="الاسم" value={ru.name_ar+(ru.name_en?' · '+ru.name_en:'')}/>
+<InfoRow label="البريد" value={ru.email} mono copy/>
+<InfoRow label="الجوال" value={ru.phone} mono copy/>
+<InfoRow label="رقم الهوية" value={ru.id_number} mono/>
+{ru.nationality?<InfoRow label="الجنسية" value={ru.nationality}/>:null}
+</InfoGrid>
+</FKSection>
+<FKSection Icon={Shield} label="التعيين" hint="الموظف يحصل على مجموع صلاحيات جميع الأدوار">
+<div style={FKGRID}>
+<FKMulti label="الأدوار المعيّنة" req value={selRoles} onChange={arr=>setSelRoles(arr)} options={visibleRoles} getKey={r=>r.id} getLabel={r=>r.name_ar} getSub={r=>r.name_en||''} placeholder="اختر الأدوار"/>
+<FKSelect label="الفرع" value={form.branch_id||''} onChange={v=>setForm(p=>({...p,branch_id:v}))} options={branches} getKey={b=>b.id} getLabel={b=>b.name_ar} placeholder="اختر الفرع"/>
 </div>
+</FKSection>
+</>},
+{title:'التفعيل والملاحظات',valid:selRoles.length>0,error:saveErr,content:<>
+<FKSection Icon={UserCheck} label="التفعيل">
+<div style={FKGRID}>
+<FKSwitch full label="تفعيل الحساب فوراً" hint="سيتمكن الموظف من تسجيل الدخول بعد الحفظ" checked={activateNow} onChange={v=>setActivateNow(v)}/>
 </div>
-<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-</button>
-</div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px',display:'flex',flexDirection:'column',gap:16}}>
-<div style={{padding:'14px 18px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:46,height:46,borderRadius:'50%',background:'rgba(184,114,42,.2)',border:'1px solid rgba(184,114,42,.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:'#b8722a',flexShrink:0}}>{(ru.name_ar||'?')[0]}</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
-<span style={{fontSize:15,fontWeight:800,color:'var(--tx)'}}>{ru.name_ar}</span>
-<span style={{fontSize:10,padding:'3px 10px',borderRadius:12,background:'rgba(184,114,42,.15)',color:'#b8722a',fontWeight:700,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:'#b8722a'}}/>بانتظار الموافقة
-</span>
-</div>
-<div style={{fontSize:11,color:'var(--tx4)',direction:'ltr',textAlign:'right',marginBottom:4}}>{ru.name_en||''}</div>
-<div style={{display:'flex',gap:12,flexWrap:'wrap',fontSize:10,color:'var(--tx4)'}}>
-{ru.email?<span style={{direction:'ltr'}}>✉ {ru.email}</span>:null}
-{ru.phone?<span style={{direction:'ltr'}}>📞 {ru.phone}</span>:null}
-{ru.id_number?<span style={{direction:'ltr'}}>ID: {ru.id_number}</span>:null}
-{ru.nationality?<span>{ru.nationality}</span>:null}
-</div>
-</div>
-</div>
-<div>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>الأدوار المعيّنة</span>
-<span style={{color:C.red}}>*</span>
-</div>
-<div style={{fontSize:10,color:'var(--tx4)',marginBottom:12}}>حدّد دور واحد أو أكثر. الموظف يحصل على مجموع صلاحيات جميع الأدوار.</div>
-<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',flexWrap:'wrap',gap:6,minHeight:44,alignItems:'center'}}>
-{selRoles.length>0?selRoles.map(rid=>{const r=roles.find(x=>x.id===rid);if(!r)return null;const rc=roleClrs[r.name_ar]||r.color||C.gold;return <span key={rid} style={{fontSize:11,padding:'5px 10px',borderRadius:12,background:rc+'15',border:'1px solid '+rc+'30',color:rc,fontWeight:700,display:'inline-flex',alignItems:'center',gap:6}}>{r.name_ar}<span onClick={()=>setSelRoles(sr=>sr.filter(id=>id!==rid))} style={{cursor:'pointer',display:'flex'}}>✕</span></span>}):<span style={{fontSize:10,color:'var(--tx5)'}}>لم يتم اختيار أي دور</span>}
-</div>
-<div style={{position:'relative',marginTop:10}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={roleSearch} onChange={e=>setRoleSearch(e.target.value)} placeholder="ابحث عن دور..." style={{...fS,textAlign:'right',paddingRight:38}}/>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}}>
-{visibleRoles.map(r=>{const ck=selRoles.includes(r.id);const rc=roleClrs[r.name_ar]||r.color||C.gold;return <div key={r.id} onClick={()=>setSelRoles(sr=>ck?sr.filter(id=>id!==r.id):[...sr,r.id])} style={{padding:'14px 16px',borderRadius:10,border:'1px solid '+(ck?rc+'40':'var(--bd)'),background:ck?rc+'08':'rgba(255,255,255,.02)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,transition:'.15s'}}>
-<div style={{width:20,height:20,borderRadius:5,border:ck?'none':'1.5px solid rgba(255,255,255,.18)',background:ck?rc:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-{ck?<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>:null}
-</div>
-<div style={{textAlign:'right',flex:1}}>
-<div style={{fontSize:12,fontWeight:700,color:ck?rc:'var(--tx)'}}>{r.name_ar}</div>
-<div style={{fontSize:9,color:'var(--tx5)',direction:'ltr',textAlign:'right'}}>{r.name_en||r.name_ar}</div>
-</div>
-</div>})}
-</div>
-</div>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:8}}>الفرع</div>
-<CustomSelect value={form.branch_id||''} onChange={v=>setForm(p=>({...p,branch_id:v}))} options={branches.map(b=>({v:b.id,l:b.name_ar}))}/>
-</div>
-<div style={{padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx)',marginBottom:3}}>تفعيل الحساب فوراً</div>
-<div style={{fontSize:10,color:'var(--tx4)'}}>سيتمكن الموظف من تسجيل الدخول بعد الحفظ</div>
-</div>
-<div onClick={()=>setActivateNow(!activateNow)} style={{width:42,height:22,borderRadius:11,background:activateNow?C.ok:'rgba(255,255,255,.1)',cursor:'pointer',position:'relative',transition:'.2s',flexShrink:0}}>
-<div style={{position:'absolute',top:2,[activateNow?'left':'right']:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'.2s'}}/>
-</div>
-</div>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:6}}>ملاحظات داخلية (اختياري)</div>
-<textarea value={form.notes||''} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} placeholder="سبب الموافقة، صلاحيات إضافية، ملاحظات إدارية..." style={{...fS,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/>
-</div>
-</div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,gap:10}}>
-<div style={{fontSize:10,color:'var(--tx5)'}}>{selRoles.length} دور محدد · {activateNow?'سيتم تفعيل الحساب':'لن يُفعّل الآن'}</div>
-<div style={{display:'flex',gap:10,alignItems:'center'}}>
-<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'none',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>رفض الطلب</button>
-<button onClick={submit} disabled={saving||selRoles.length===0} style={{height:42,padding:'0 20px',background:C.ok,color:'#fff',border:'none',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:800,cursor:saving||selRoles.length===0?'not-allowed':'pointer',display:'flex',alignItems:'center',gap:8,opacity:saving||selRoles.length===0?.6:1}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-{saving?'...':'موافقة وتفعيل'}
-</button>
-</div>
-</div>
-</div>
-</div>;
+</FKSection>
+<FKSection Icon={StickyNote} label="ملاحظات داخلية" hint="اختياري">
+<FKArea label="ملاحظات" rows={2} value={form.notes||''} onChange={v=>setForm(p=>({...p,notes:v}))} placeholder="سبب الموافقة، صلاحيات إضافية، ملاحظات إدارية..."/>
+</FKSection>
+</>},
+]}/>;
 })()}
 
 {/* EDIT ACTIVE USER POPUP */}
@@ -1113,119 +1015,64 @@ const br=branches.find(b=>b.id===editBranch);
 const relD=iso=>{if(!iso)return'—';const d=daysSince(iso);if(d<1)return'اليوم';if(d===1)return'أمس';if(d<7)return'قبل '+d+' أيام';return d+' يوم'};
 const updDays=daysSince(ru.updated_at);
 const submit=async()=>{
-if(saving)return;setSaving(true);
+if(saving)return;setSaving(true);setSaveErr(null);
 try{
 await sb.from('users').update({branch_id:editBranch||null}).eq('id',ru.id);
 await sb.from('user_roles').delete().eq('user_id',ru.id);
 if(selRoles.length>0){await sb.from('user_roles').insert(selRoles.map(rid=>({user_id:ru.id,role_id:rid,assigned_by:user?.id||null})))}
 toast(isAr?'تم حفظ التعديلات':'Changes saved');
-setPop(null);setReviewUser(null);
-loadAll();
-}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
+setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);setReviewUser(null);loadAll()},1400);
+}catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
-return <div onClick={()=>{setPop(null);setReviewUser(null)}} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:18,width:720,maxWidth:'95vw',height:'min(620px,95vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid rgba(201,168,76,.08)'}}>
-{/* Header — Kafala Calculator style */}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 20px 14px',flexShrink:0}}>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<div style={{width:36,height:36,borderRadius:8,background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.2)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold}}>
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+const eKeys=['roles','personal','activity']
+return <FKModal open onClose={()=>{setSaveErr(null);setPop(null);setReviewUser(null)}} title="تعديل بيانات الموظف" subtitle={[ru.name_ar,(ru.email||ru.name_en||''),br?.name_ar,ru.updated_at?'آخر تعديل: قبل '+updDays+' أيام':''].filter(Boolean).join(' · ')} Icon={UserCog} variant="edit"
+success={saved?<SuccessView title="تم حفظ التعديلات"/>:null}
+tab={Math.max(0,eKeys.indexOf(editTab))} onTab={i=>setEditTab(eKeys[i])}
+errorMsg={saveErr}
+footer={<FKAction onClick={submit} disabled={saving}>{saving?'جاري الحفظ...':'حفظ'}</FKAction>}
+tabs={[
+{label:'الأدوار والصلاحيات',Icon:Shield,content:<>
+<FKSection Icon={Shield} label="الأدوار والفرع">
+<div style={FKGRID}>
+<FKMulti label="الأدوار" value={selRoles} onChange={arr=>setSelRoles(arr)} options={roles} getKey={r=>r.id} getLabel={r=>r.name_ar} getSub={r=>r.name_en||''} placeholder="اختر الأدوار"/>
+<FKSelect label="الفرع" value={editBranch} onChange={v=>setEditBranch(v)} options={branches} getKey={b=>b.id} getLabel={b=>b.name_ar} placeholder="اختر الفرع"/>
 </div>
+</FKSection>
+<FKSection Icon={Activity} label="معلومات الحساب">
+<InfoGrid>
+<InfoRow label="الإضافة" value={ru.created_at?String(ru.created_at).slice(0,10):'—'} mono/>
+<InfoRow label="التفعيل" value={ru.activated_at?String(ru.activated_at).slice(0,10):'—'} mono/>
+<InfoRow label="آخر دخول" value={ru.last_login_at?String(ru.last_login_at).slice(0,10):'—'} mono/>
+<InfoRow label="فُعل بواسطة" value={user?.name_ar||'—'}/>
+</InfoGrid>
+</FKSection>
+<FKSection Icon={AlertTriangle} label="منطقة الخطر" style={{borderColor:FKC.red+'59'}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
 <div>
-<div style={{fontSize:20,fontWeight:800,color:'rgba(255,255,255,.95)',fontFamily:F}}>تعديل بيانات الموظف</div>
+<div style={{fontSize:13,fontWeight:600,color:FKC.red}}>تعطيل الحساب</div>
+<div style={{fontSize:11,color:FKC.tx4,marginTop:2}}>سيتم منع الموظف من تسجيل الدخول</div>
 </div>
+<FKAction Icon={UserX} color={FKC.red} onClick={()=>{setDeactReason('');setDeactNotes('');setDeactConfirm('');setPop('deactivate_user')}}>تعطيل</FKAction>
 </div>
-<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',color:'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-</button>
-</div>
-{/* Tabs — above progress bar, clickable for navigation */}
-<div style={{padding:'0 20px 8px',display:'flex',gap:8,flexShrink:0}}>
-{[['roles','الأدوار والصلاحيات','shield'],['personal','البيانات الشخصية','user'],['activity','سجل النشاط','clock']].map(([k,l,i])=>{const sel=editTab===k;return <div key={k} onClick={()=>setEditTab(k)} style={{flex:1,padding:'8px 10px',borderRadius:8,fontSize:12,fontWeight:sel?800:600,color:sel?C.gold:'var(--tx4)',background:sel?'rgba(201,168,76,.08)':'transparent',border:'1px solid '+(sel?'rgba(201,168,76,.25)':'transparent'),cursor:'pointer',textAlign:'center',transition:'.15s',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-{i==='shield'?<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>:i==='user'?<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0113 0"/></svg>:<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
-<span>{l}</span>
-</div>})}
-</div>
-{/* Progress bar — below tabs */}
-<div style={{padding:'0 22px 10px',flexShrink:0,display:'flex',gap:6}}>
-{['roles','personal','activity'].map((k,i)=>{const tabIdx={roles:0,personal:1,activity:2}[editTab];return <div key={k} onClick={()=>setEditTab(k)} style={{flex:1,height:3,borderRadius:2,background:i<=tabIdx?C.gold:'rgba(255,255,255,.08)',transition:'.25s',cursor:'pointer'}}/>})}
-</div>
-<div style={{flex:1,overflow:'hidden',padding:'2px 16px 10px',display:'flex',flexDirection:'column'}}>
-{/* Gold-bordered card matching Kafala design */}
-<div style={{flex:1,borderRadius:12,border:'1.5px solid rgba(201,168,76,.35)',padding:'18px 14px 14px',position:'relative',marginTop:10,display:'flex',flexDirection:'column',minHeight:0}}>
-<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
-{editTab==='roles'?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>:editTab==='personal'?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0113 0"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
-<span>{editTab==='roles'?'الأدوار والصلاحيات':editTab==='personal'?'البيانات الشخصية':'سجل النشاط'}</span>
-</div>
-{/* Compact user strip */}
-<div style={{display:'flex',alignItems:'center',gap:10,paddingBottom:10,marginBottom:10,borderBottom:'1px dashed rgba(255,255,255,.06)'}}>
-<div style={{width:34,height:34,borderRadius:'50%',background:ac+'20',border:'1px solid '+ac+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:800,color:ac,flexShrink:0}}>{(ru.name_ar||'?')[0]}</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-<span style={{fontSize:13,fontWeight:800,color:'var(--tx)'}}>{ru.name_ar}</span>
-<span style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:'rgba(39,160,70,.15)',color:C.ok,fontWeight:700,display:'inline-flex',alignItems:'center',gap:4}}><span style={{width:4,height:4,borderRadius:'50%',background:C.ok}}/>نشط</span>
-</div>
-<div style={{fontSize:10,color:'var(--tx5)',direction:'ltr',textAlign:'right',marginTop:1}}>{ru.email||ru.name_en||''}{br?' · '+br.name_ar:''}</div>
-</div>
-</div>
-{editTab==='roles'?<div style={{flex:1,display:'flex',flexDirection:'column',gap:10,minHeight:0,overflowY:'auto',scrollbarWidth:'none'}}>
-<style>{`.ap-roles-scroll::-webkit-scrollbar{width:0;display:none}`}</style>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div>
-<div style={{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,textAlign:'start'}}>الأدوار</div>
-<div style={{padding:'10px 12px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.08)',display:'flex',flexWrap:'wrap',gap:5,minHeight:42,alignItems:'center'}}>
-{selRoles.length>0?selRoles.map(rid=>{const r=roles.find(x=>x.id===rid);if(!r)return null;const rc=roleClrs[r.name_ar]||r.color||C.gold;return <span key={rid} style={{fontSize:10,padding:'3px 8px',borderRadius:10,background:rc+'15',border:'1px solid '+rc+'30',color:rc,fontWeight:700,display:'inline-flex',alignItems:'center',gap:5}}>{r.name_ar}<span onClick={()=>setSelRoles(sr=>sr.filter(id=>id!==rid))} style={{cursor:'pointer',display:'flex'}}>✕</span></span>}):<span style={{fontSize:10,color:'var(--tx5)'}}>لا توجد أدوار</span>}
-</div>
-<button onClick={()=>{const next=roles.find(r=>!selRoles.includes(r.id));if(next)setSelRoles(sr=>[...sr,next.id])}} style={{marginTop:6,width:'100%',padding:'8px',borderRadius:8,border:'1px dashed rgba(255,255,255,.12)',background:'transparent',color:'var(--tx4)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:F}}>+ إضافة دور</button>
-</div>
-<div>
-<div style={{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,textAlign:'start'}}>الفرع</div>
-<CustomSelect value={editBranch} onChange={v=>setEditBranch(v)} options={branches.map(b=>({v:b.id,l:b.name_ar}))}/>
-</div>
-</div>
-<div>
-<div style={{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,textAlign:'start'}}>معلومات الحساب</div>
-<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
-{[['الإضافة',ru.created_at?String(ru.created_at).slice(0,10):'—'],['التفعيل',ru.activated_at?String(ru.activated_at).slice(0,10):'—'],['آخر دخول',ru.last_login_at?String(ru.last_login_at).slice(0,10):'—'],['فُعل بواسطة',user?.name_ar||'—']].map(([l,v])=><div key={l} style={{padding:'8px 10px',borderRadius:8,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.08)'}}>
-<div style={{fontSize:9,color:'var(--tx5)',marginBottom:3}}>{l}</div>
-<div style={{fontSize:11,fontWeight:700,color:'var(--tx2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{v}</div>
-</div>)}
-</div>
-</div>
-<div style={{padding:'10px 12px',borderRadius:9,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.03)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginTop:'auto'}}>
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-<div>
-<div style={{fontSize:11,fontWeight:700,color:C.red}}>منطقة الخطر — تعطيل الحساب</div>
-<div style={{fontSize:9,color:'var(--tx5)'}}>سيتم منع الموظف من تسجيل الدخول</div>
-</div>
-</div>
-<button onClick={()=>{setDeactReason('');setDeactNotes('');setDeactConfirm('');setPop('deactivate_user')}} style={{height:30,padding:'0 12px',borderRadius:7,border:'none',background:C.red,color:'#fff',fontFamily:F,fontSize:10.5,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>تعطيل</button>
-</div>
-</div>:editTab==='personal'?<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,alignContent:'start'}}>
-{[['name_ar','الاسم بالعربي'],['name_en','الاسم بالإنجليزي'],['email','البريد'],['phone','الجوال'],['id_number','رقم الهوية'],['nationality','الجنسية']].map(([k,l])=><div key={k}>
-<div style={{fontSize:10.5,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5,textAlign:'start'}}>{l}</div>
-<div style={{padding:'10px 12px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.08)',fontSize:12,fontWeight:600,color:'var(--tx2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',direction:k==='email'||k==='phone'||k==='id_number'||k==='name_en'?'ltr':'inherit',textAlign:k==='email'||k==='phone'||k==='id_number'||k==='name_en'?'left':'inherit'}}>{ru[k]||'—'}</div>
-</div>)}
-</div>:<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx5)',fontSize:12}}>سجل النشاط غير متاح حالياً</div>}
-</div>
-</div>
-<style>{`.ap-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#c9a84c;font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.ap-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(201,168,76,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#c9a84c}.ap-nav-btn:hover .nav-ico{background:#c9a84c;color:#000}.ap-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-<div style={{padding:'14px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,gap:10}}>
-<div style={{fontSize:10,color:'var(--tx5)'}}>{ru.updated_at?'آخر تعديل: قبل '+updDays+' أيام':''}</div>
-<div style={{display:'flex',gap:10,alignItems:'center'}}>
-<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{height:40,padding:'0 14px',background:'transparent',color:'var(--tx4)',border:'none',fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer'}}>إلغاء</button>
-<button onClick={submit} disabled={saving} className="ap-nav-btn">
-<span>{saving?'...':'حفظ'}</span>
-<span className="nav-ico">
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-</span>
-</button>
-</div>
-</div>
-</div>
-</div>;
+</FKSection>
+</>},
+{label:'البيانات الشخصية',Icon:User,content:
+<FKSection Icon={User} label="البيانات الشخصية" hint="للقراءة فقط">
+<InfoGrid>
+<InfoRow label="الاسم بالعربي" value={ru.name_ar}/>
+<InfoRow label="الاسم بالإنجليزي" value={ru.name_en}/>
+<InfoRow label="البريد" value={ru.email} mono copy/>
+<InfoRow label="الجوال" value={ru.phone} mono copy/>
+<InfoRow label="رقم الهوية" value={ru.id_number} mono/>
+<InfoRow label="الجنسية" value={ru.nationality}/>
+</InfoGrid>
+</FKSection>},
+{label:'سجل النشاط',Icon:Activity,content:
+<FKSection Icon={Activity} label="سجل النشاط">
+<div style={{padding:30,textAlign:'center',color:FKC.tx5,fontSize:13}}>سجل النشاط غير متاح حالياً</div>
+</FKSection>},
+]}/>;
 })()}
 
 {/* DEACTIVATE USER POPUP */}
@@ -1235,78 +1082,35 @@ const ac=ru.roles?.color||roleClrs[ru.roles?.name_ar]||'#888';
 const reasons=[['end_service','انتهاء الخدمة','الموظف لم يعد يعمل في الشركة'],['leave','إجازة طويلة','تعطيل مؤقت أثناء الإجازة'],['transfer','نقل لفرع آخر','الموظف انتقل لمكان آخر غير متابع'],['other','سبب آخر','اكتب السبب يدوياً في الخانة التالية']];
 const canSubmit=deactReason&&deactConfirm.trim()===ru.name_ar?.trim();
 const submit=async()=>{
-if(saving||!canSubmit)return;setSaving(true);
+if(saving||!canSubmit)return;setSaving(true);setSaveErr(null);
 try{
 await sb.from('users').update({is_active:false,deactivated_at:new Date().toISOString(),deactivated_by:user?.id||null,deactivation_reason:reasons.find(r=>r[0]===deactReason)?.[1]||null,notes:deactNotes||null}).eq('id',ru.id);
-toast(isAr?'تم تعطيل الحساب':'Account disabled');setPop(null);setReviewUser(null);loadAll();
-}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
+toast(isAr?'تم تعطيل الحساب':'Account disabled');setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);setReviewUser(null);loadAll()},1400);
+}catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
-return <div onClick={()=>setPop('edit_active')} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.82)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:16,width:'min(580px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.6)',border:'1px solid rgba(192,57,43,.2)'}}>
-<div style={{padding:'18px 22px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexShrink:0,borderBottom:'1px solid var(--bd)'}}>
-<div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-<div>
-<div style={{fontSize:16,fontWeight:800,color:C.red}}>تعطيل حساب الموظف</div>
-<div style={{fontSize:11,color:'var(--tx4)',marginTop:3}}>هذا الإجراء يمنع الموظف من الدخول للنظام</div>
+return <FKModal open onClose={()=>{setSaveErr(null);setPop('edit_active')}} title="تعطيل حساب الموظف" subtitle={[ru.name_ar,ru.name_en,ru.roles?.name_ar].filter(Boolean).join(' · ')+' — هذا الإجراء يمنع الموظف من الدخول للنظام'} Icon={UserX} variant="delete"
+success={saved?<SuccessView title="تم تعطيل الحساب"/>:null}
+onSubmit={submit} submitting={saving} submitLabel="تعطيل الحساب" submitIcon={UserX}
+pages={[
+{title:'سبب التعطيل',valid:!!deactReason,error:!deactReason?'اختر سبب التعطيل':'',content:<>
+<FKSection Icon={AlertTriangle} label="سبب التعطيل" hint="إلزامي">
+<FKRadioGroup label="السبب" req value={deactReason} onChange={v=>setDeactReason(v)} options={reasons.map(([k,l,d])=>({v:k,l:l+' — '+d}))}/>
+</FKSection>
+<FKSection Icon={StickyNote} label="ملاحظات إضافية" hint="اختياري">
+<FKArea label="ملاحظات" rows={2} value={deactNotes} onChange={v=>setDeactNotes(v)} placeholder="تفاصيل إضافية عن سبب التعطيل..."/>
+</FKSection>
+</>},
+{title:'تأكيد الإجراء',valid:canSubmit,error:saveErr,content:
+<FKSection Icon={AlertTriangle} label="تأكيد الإجراء">
+<div style={{fontSize:12,color:FKC.tx3,lineHeight:2,marginBottom:10}}>
+لن يتمكن الموظف من <span style={{color:FKC.red,fontWeight:600}}>تسجيل الدخول</span> للنظام · ستبقى <span style={{color:FKC.red,fontWeight:600}}>بياناته والمعاملات السابقة محفوظة</span> · يمكنك <span style={{color:FKC.red,fontWeight:600}}>إعادة تفعيل</span> الحساب في أي وقت · الأدوار الحالية ستبقى محفوظة ولن تحذف
 </div>
+<div style={FKGRID}>
+<FKText label={'اكتب اسم الموظف "'+ru.name_ar+'" للتأكيد'} req full value={deactConfirm} onChange={v=>setDeactConfirm(v)} placeholder="اكتب الاسم هنا..." error={deactConfirm&&!canSubmit?'الاسم غير مطابق':null}/>
 </div>
-<button onClick={()=>setPop('edit_active')} style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-</button>
-</div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px',display:'flex',flexDirection:'column',gap:14}}>
-<div style={{padding:'14px 18px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:46,height:46,borderRadius:'50%',background:ac+'20',border:'1px solid '+ac+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:ac}}>{(ru.name_ar||'?')[0]}</div>
-<div><div style={{fontSize:15,fontWeight:800,color:'var(--tx)'}}>{ru.name_ar}</div><div style={{fontSize:11,color:'var(--tx4)'}}>{ru.name_en||''}{ru.roles?.name_ar?' · '+ru.roles.name_ar:''}</div></div>
-</div>
-<div style={{padding:'14px 18px',borderRadius:12,background:'rgba(192,57,43,.04)',border:'1px solid rgba(192,57,43,.2)'}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-<span style={{fontSize:12,fontWeight:800,color:C.red}}>ما الذي سيحدث عند التعطيل؟</span>
-</div>
-<ul style={{margin:0,paddingRight:20,fontSize:11,color:'var(--tx3)',lineHeight:2}}>
-<li>لن يتمكن الموظف من <span style={{color:C.red,fontWeight:700}}>تسجيل الدخول</span> للنظام</li>
-<li>ستبقى <span style={{color:C.red,fontWeight:700}}>بياناته والمعاملات السابقة محفوظة</span></li>
-<li>يمكنك <span style={{color:C.red,fontWeight:700}}>إعادة تفعيل</span> الحساب في أي وقت</li>
-<li>الأدوار الحالية ستبقى محفوظة ولن تحذف</li>
-</ul>
-</div>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:10}}>سبب التعطيل <span style={{color:C.red}}>*</span></div>
-<div style={{display:'flex',flexDirection:'column',gap:8}}>
-{reasons.map(([k,l,d])=>{const sel=deactReason===k;return <div key={k} onClick={()=>setDeactReason(k)} style={{padding:'14px 16px',borderRadius:10,border:'1px solid '+(sel?'rgba(192,57,43,.35)':'var(--bd)'),background:sel?'rgba(192,57,43,.05)':'rgba(255,255,255,.02)',cursor:'pointer',display:'flex',alignItems:'center',gap:12,transition:'.15s'}}>
-<div style={{width:18,height:18,borderRadius:'50%',border:sel?'none':'1.5px solid rgba(255,255,255,.18)',background:sel?C.red:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{sel?<div style={{width:7,height:7,borderRadius:'50%',background:'#fff'}}/>:null}</div>
-<div style={{flex:1}}>
-<div style={{fontSize:12,fontWeight:700,color:sel?C.red:'var(--tx)'}}>{l}</div>
-<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{d}</div>
-</div>
-</div>})}
-</div>
-</div>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:6}}>ملاحظات إضافية (اختياري)</div>
-<textarea value={deactNotes} onChange={e=>setDeactNotes(e.target.value)} rows={3} placeholder="تفاصيل إضافية عن سبب التعطيل..." style={{...fS,height:'auto',padding:12,resize:'vertical',textAlign:'right'}}/>
-</div>
-<div style={{padding:'14px 18px',borderRadius:12,background:'rgba(192,57,43,.04)',border:'1px solid rgba(192,57,43,.2)'}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
-<span style={{fontSize:12,fontWeight:800,color:C.red}}>تأكيد الإجراء</span>
-</div>
-<div style={{fontSize:11,color:'var(--tx3)',marginBottom:8}}>اكتب اسم الموظف <span style={{color:C.red,fontWeight:700}}>"{ru.name_ar}"</span> للتأكيد</div>
-<input value={deactConfirm} onChange={e=>setDeactConfirm(e.target.value)} placeholder="اكتب الاسم هنا..." style={{...fS,textAlign:'center',background:'rgba(0,0,0,.3)'}}/>
-</div>
-</div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'flex-start',gap:10,flexShrink:0}}>
-<button onClick={submit} disabled={saving||!canSubmit} style={{height:42,padding:'0 20px',background:C.red,color:'#fff',border:'none',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:800,cursor:canSubmit?'pointer':'not-allowed',display:'flex',alignItems:'center',gap:8,opacity:canSubmit?1:.5}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-تعطيل الحساب
-</button>
-<button onClick={()=>setPop('edit_active')} style={{height:42,padding:'0 20px',background:'rgba(255,255,255,.04)',color:'var(--tx)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer'}}>إلغاء</button>
-</div>
-</div>
-</div>;
+</FKSection>},
+]}/>;
 })()}
 
 {/* REACTIVATE USER POPUP */}
@@ -1316,82 +1120,36 @@ const ac=ru.roles?.color||roleClrs[ru.roles?.name_ar]||'#888';
 const disDays=ru.deactivated_at?daysSince(ru.deactivated_at):null;
 const savedRoles=ru.user_roles||[];
 const submit=async()=>{
-if(saving)return;setSaving(true);
+if(saving)return;setSaving(true);setSaveErr(null);
 try{
 await sb.from('users').update({is_active:true,activated_at:new Date().toISOString(),activated_by:user?.id||null,deactivated_at:null,deactivation_reason:null}).eq('id',ru.id);
-toast(isAr?'تم تفعيل الحساب':'Account enabled');setPop(null);setReviewUser(null);loadAll();
-}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
+toast(isAr?'تم تفعيل الحساب':'Account enabled');setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);setReviewUser(null);loadAll()},1400);
+}catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
-return <div onClick={()=>{setPop(null);setReviewUser(null)}} style={{position:'fixed',inset:0,background:'rgba(14,14,14,.82)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:16,width:'min(580px,96vw)',maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.6)',border:'1px solid rgba(39,160,70,.2)'}}>
-<div style={{padding:'18px 22px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexShrink:0,borderBottom:'1px solid var(--bd)'}}>
-<div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="1.8"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-<div>
-<div style={{fontSize:16,fontWeight:800,color:C.ok}}>إعادة تفعيل الحساب</div>
-<div style={{fontSize:11,color:'var(--tx4)',marginTop:3}}>استعادة وصول الموظف للنظام</div>
+return <FKModal open onClose={()=>{setSaveErr(null);setPop(null);setReviewUser(null)}} title="إعادة تفعيل الحساب" subtitle={[ru.name_ar,'معطل',ru.name_en,disDays!==null?'معطل منذ '+disDays+' يوم':''].filter(Boolean).join(' · ')} Icon={RefreshCcw} variant="add"
+success={saved?<SuccessView title="تم تفعيل الحساب"/>:null}
+errorMsg={saveErr}
+footer={<FKAction onClick={submit} disabled={saving}>{saving?'جاري التفعيل...':'تفعيل الحساب'}</FKAction>}>
+<FKSection Icon={Info} label="معلومات التعطيل السابق">
+<InfoGrid>
+<InfoRow label="السبب" value={ru.deactivation_reason||'—'}/>
+<InfoRow label="عُطل بتاريخ" value={ru.deactivated_at?String(ru.deactivated_at).slice(0,10):'—'} mono/>
+<InfoRow label="عُطل بواسطة" value="مهدي اليامي"/>
+<InfoRow label="آخر دخول" value={ru.last_login_at?String(ru.last_login_at).slice(0,10):'—'} mono/>
+</InfoGrid>
+</FKSection>
+<FKSection Icon={Shield} label="الأدوار المحفوظة" hint="ستعود فعّالة تلقائياً بعد التفعيل">
+<InfoGrid style={{gridTemplateColumns:'1fr'}}>
+<InfoRow label="الأدوار" value={savedRoles.map(ur=>ur.roles?.name_ar).filter(Boolean).join(' · ')||'لا توجد أدوار محفوظة'}/>
+</InfoGrid>
+</FKSection>
+<FKSection Icon={Mail} label="الإشعار" hint="سيتمكن الموظف من الدخول فوراً بعد التفعيل بنفس بيانات الدخول السابقة">
+<div style={FKGRID}>
+<FKSwitch full label="إرسال إشعار للموظف" hint="بريد إلكتروني لإعلامه بإعادة تفعيل حسابه" checked={reactNotify} onChange={v=>setReactNotify(v)}/>
 </div>
-</div>
-<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-</button>
-</div>
-<div style={{flex:1,overflowY:'auto',padding:'18px 22px',display:'flex',flexDirection:'column',gap:14}}>
-<div style={{padding:'14px 18px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:46,height:46,borderRadius:'50%',background:ac+'20',border:'1px solid '+ac+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:ac}}>{(ru.name_ar||'?')[0]}</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
-<span style={{fontSize:15,fontWeight:800,color:'var(--tx)'}}>{ru.name_ar}</span>
-<span style={{fontSize:10,padding:'3px 10px',borderRadius:12,background:'rgba(192,57,43,.15)',color:C.red,fontWeight:700,display:'inline-flex',alignItems:'center',gap:5}}>
-<span style={{width:5,height:5,borderRadius:'50%',background:C.red}}/>معطل
-</span>
-</div>
-<div style={{fontSize:11,color:'var(--tx4)',direction:'ltr',textAlign:'right'}}>{ru.name_en||''}{disDays!==null?' · معطل منذ '+disDays+' يوم':''}</div>
-</div>
-</div>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:10}}>معلومات التعطيل السابق</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-{[['السبب',ru.deactivation_reason||'—'],['عُطل بتاريخ',ru.deactivated_at?String(ru.deactivated_at).slice(0,10):'—'],['عُطل بواسطة','مهدي اليامي'],['آخر دخول',ru.last_login_at?String(ru.last_login_at).slice(0,10):'—']].map(([l,v])=><div key={l} style={{padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)'}}>
-<div style={{fontSize:9,color:'var(--tx5)',marginBottom:4}}>{l}</div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx)'}}>{v}</div>
-</div>)}
-</div>
-</div>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx3)',marginBottom:4}}>الأدوار المحفوظة</div>
-<div style={{fontSize:10,color:'var(--tx5)',marginBottom:10}}>هذه الأدوار ستعود فعّالة تلقائياً بعد التفعيل</div>
-<div style={{padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',flexWrap:'wrap',gap:6,minHeight:44,alignItems:'center'}}>
-{savedRoles.length>0?savedRoles.map((ur,i)=>{const rn=ur.roles?.name_ar;if(!rn)return null;const rc=roleClrs[rn]||ur.roles?.color||C.gold;return <span key={i} style={{fontSize:11,padding:'5px 12px',borderRadius:12,background:rc+'15',border:'1px solid '+rc+'30',color:rc,fontWeight:700}}>{rn}</span>}):<span style={{fontSize:10,color:'var(--tx5)'}}>لا توجد أدوار محفوظة</span>}
-</div>
-</div>
-<div style={{padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:'var(--tx)',marginBottom:3}}>إرسال إشعار للموظف</div>
-<div style={{fontSize:10,color:'var(--tx4)'}}>بريد إلكتروني لإعلامه بإعادة تفعيل حسابه</div>
-</div>
-<div onClick={()=>setReactNotify(!reactNotify)} style={{width:42,height:22,borderRadius:11,background:reactNotify?C.ok:'rgba(255,255,255,.1)',cursor:'pointer',position:'relative',transition:'.2s',flexShrink:0}}>
-<div style={{position:'absolute',top:2,[reactNotify?'left':'right']:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'.2s'}}/>
-</div>
-</div>
-<div style={{padding:'14px 18px',borderRadius:12,background:'rgba(52,131,180,.06)',border:'1px solid rgba(52,131,180,.2)',display:'flex',alignItems:'flex-start',gap:10}}>
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2" style={{flexShrink:0,marginTop:1}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-<div>
-<div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:3}}>ملاحظة</div>
-<div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.7}}>سيتمكن الموظف من الدخول فوراً بعد التفعيل باستخدام نفس بيانات الدخول السابقة.</div>
-</div>
-</div>
-</div>
-<div style={{padding:'14px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'flex-start',gap:10,flexShrink:0}}>
-<button onClick={submit} disabled={saving} style={{height:42,padding:'0 20px',background:C.ok,color:'#fff',border:'none',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:800,cursor:saving?'not-allowed':'pointer',display:'flex',alignItems:'center',gap:8,opacity:saving?.6:1}}>
-{saving?'...':'تفعيل الحساب'}
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-</button>
-<button onClick={()=>{setPop(null);setReviewUser(null)}} style={{height:42,padding:'0 20px',background:'rgba(255,255,255,.04)',color:'var(--tx)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer'}}>إلغاء</button>
-</div>
-</div>
-</div>;
+</FKSection>
+</FKModal>;
 })()}
 
 {/* ADD ROLE FULL POPUP */}
@@ -1404,177 +1162,106 @@ const visMods=[...new Set(filteredPerms.map(p=>p.module))];
 const curMod=roleActiveMod&&visMods.includes(roleActiveMod)?roleActiveMod:(visMods[0]||'');
 const curModPerms=(permsByMod[curMod]||[]).filter(p=>filteredPerms.includes(p));
 const curModAllSel=curModPerms.length>0&&curModPerms.every(p=>selPerms.includes(p.id));
-const stepTitles={1:'المعلومات الأساسية',2:'المظهر ونطاق الوصول',3:'الصلاحيات'};
 const canNext1=form.name_ar&&form.name_en&&form.code;
 const canSubmit=form.name_ar&&form.code&&selPerms.length>0;
 const submit=async()=>{
 if(saving)return;
-setSaving(true);
+setSaving(true);setSaveErr(null);
 try{
 const{data:newR,error}=await sb.from('roles').insert({name_ar:form.name_ar,name_en:form.name_en||null,description:form.description||null,color:form.color||C.gold,is_active:true,is_system:false}).select('id').single();
 if(error)throw error;
 if(selPerms.length>0){await sb.from('role_permissions').insert(selPerms.map(pid=>({role_id:newR.id,permission_id:pid})))}
-toast(isAr?'تم إنشاء الدور':'Role created');setPop(null);loadAll();
-}catch(e){toast((isAr?'خطأ: ':'Error: ')+(e.message||''))}
+toast(isAr?'تم إنشاء الدور':'Role created');setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);loadAll()},1400);
+}catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
 };
-const fldLbl={fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:5};
-const fldInp={width:'100%',height:40,padding:'0 14px',border:'1px solid rgba(255,255,255,.08)',borderRadius:9,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',background:'rgba(0,0,0,.18)',outline:'none',textAlign:'right',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'};
-return <div onClick={()=>setPop(null)} style={{position:'fixed',inset:0,background:'rgba(10,10,10,.8)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
-<div onClick={e=>e.stopPropagation()} style={{background:'#1a1a1a',borderRadius:18,width:'min(720px,96vw)',height:'min(560px,94vh)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,.5)',border:'1px solid rgba(212,160,23,.08)'}}>
-<style>{`.role-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.role-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${C.gold}}.role-nav-btn:hover:not(:disabled) .nav-ico{background:${C.gold};color:#000}.role-nav-btn:disabled{opacity:.45;cursor:not-allowed}.role-hide-scroll{scrollbar-width:none;-ms-overflow-style:none}.role-hide-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
-
-{/* Header */}
-<div style={{padding:'16px 22px 10px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+// ── صفحة 1: المعلومات الأساسية ──
+const page1=(
+<FKSection Icon={Shield} label="المعلومات الأساسية">
+<div style={FKGRID}>
+<FKText label="الاسم بالعربي" req value={form.name_ar||''} onChange={v=>setForm(p=>({...p,name_ar:v}))} placeholder="مسؤول تأشيرات"/>
+<FKText label="الاسم بالإنجليزي" req dir="ltr" value={form.name_en||''} onChange={v=>setForm(p=>({...p,name_en:v}))} placeholder="Visa Officer"/>
+<FKText label="المعرّف البرمجي" req hint="لا يمكن تغييره لاحقاً" dir="ltr" value={form.code||''} onChange={v=>setForm(p=>({...p,code:String(v).toLowerCase().replace(/[^a-z0-9_]/g,'')}))} placeholder="visa_officer"/>
+<FKSelect label="مستوى الوصول" value={String(roleLevel)} onChange={v=>setRoleLevel(Number(v))} searchable={false}
+options={[{v:'1',l:'1 — أساسي'},{v:'2',l:'2 — مسؤول متخصص'},{v:'3',l:'3 — مدير'},{v:'4',l:'4 — مدير عام'}]}
+getKey={o=>o.v} getLabel={o=>o.l}/>
+<FKArea label="الوصف" hint="اختياري" rows={2} value={form.description||''} onChange={v=>setForm(p=>({...p,description:v}))} placeholder="وصف مختصر عن مسؤوليات هذا الدور..."/>
+</div>
+</FKSection>
+);
+// ── صفحة 2: المظهر ونطاق الوصول ──
+const page2=(
+<>
+<FKSection Icon={Palette} label="الشكل المرئي" hint="لون الدور وشارته">
+<div style={FKGRID}>
+<FKColor label="لون الدور" value={form.color||'#3483b4'} onChange={v=>setForm(p=>({...p,color:v}))} swatches={colors}/>
 <div>
-<div style={{fontSize:16,fontWeight:800,color:'var(--tx)'}}>إضافة دور جديد</div>
-<div style={{fontSize:11,color:'var(--tx4)',marginTop:3}}>الخطوة {roleWizStep} من 3 — {stepTitles[roleWizStep]}</div>
-</div>
-</div>
-<button onClick={()=>setPop(null)} style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',color:'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-</button>
-</div>
-
-{/* Progress bar */}
-<div style={{padding:'0 22px 10px',display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-{[1,2,3].map(s=><div key={s} style={{flex:1,height:3,borderRadius:2,background:roleWizStep>=s?C.gold:'rgba(255,255,255,.08)',transition:'.25s'}}/>)}
-</div>
-
-{/* Body */}
-<div className="role-hide-scroll" style={{flex:1,overflowY:'auto',padding:'12px 22px 10px',display:'flex',flexDirection:'column',gap:12,minHeight:0}}>
-
-{/* STEP 1 — Basic info */}
-{roleWizStep===1&&<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 16px 16px',position:'relative',flex:1,display:'flex',flexDirection:'column',gap:12}}>
-<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold}}>المعلومات الأساسية</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
-<div><div style={fldLbl}>الاسم بالعربي <span style={{color:C.red}}>*</span></div><input value={form.name_ar||''} onChange={e=>setForm(p=>({...p,name_ar:e.target.value}))} placeholder="مسؤول تأشيرات" style={fldInp}/></div>
-<div><div style={fldLbl}>الاسم بالإنجليزي <span style={{color:C.red}}>*</span></div><input value={form.name_en||''} onChange={e=>setForm(p=>({...p,name_en:e.target.value}))} placeholder="Visa Officer" style={{...fldInp,direction:'ltr',textAlign:'left'}}/></div>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<div>
-<div style={fldLbl}>المعرّف البرمجي <span style={{color:C.red}}>*</span></div>
-<div style={{display:'flex',border:'1px solid rgba(255,255,255,.08)',borderRadius:9,background:'rgba(0,0,0,.18)',overflow:'hidden',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)'}}>
-<input value={form.code||''} onChange={e=>setForm(p=>({...p,code:e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,'')}))} placeholder="visa_officer" style={{flex:1,height:40,padding:'0 12px',border:'none',background:'transparent',direction:'ltr',color:'var(--tx)',fontSize:12,fontWeight:600,outline:'none'}}/>
-<div style={{padding:'0 10px',background:'rgba(255,255,255,.04)',display:'flex',alignItems:'center',fontSize:11,color:'var(--tx5)',direction:'ltr'}}>.role</div>
-</div>
-</div>
-<div>
-<div style={fldLbl}>مستوى الوصول</div>
-<CustomSelect value={String(roleLevel)} onChange={v=>setRoleLevel(Number(v))} options={[{v:'1',l:'1 — أساسي'},{v:'2',l:'2 — مسؤول متخصص'},{v:'3',l:'3 — مدير'},{v:'4',l:'4 — مدير عام'}]}/>
-</div>
-</div>
-<div>
-<div style={fldLbl}>الوصف</div>
-<textarea value={form.description||''} onChange={e=>setForm(p=>({...p,description:e.target.value}))} rows={2} placeholder="وصف مختصر عن مسؤوليات هذا الدور..." style={{...fldInp,height:60,padding:'10px 14px',resize:'none',textAlign:'right'}}/>
-</div>
-<div style={{fontSize:9,color:'var(--tx5)',display:'flex',alignItems:'center',gap:4,marginTop:'auto'}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>المعرّف البرمجي لا يمكن تغييره لاحقاً</div>
-</div>}
-
-{/* STEP 2 — Appearance + Scope + Settings */}
-{roleWizStep===2&&<div style={{flex:1,display:'flex',flexDirection:'column',gap:10,minHeight:0}}>
-<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'14px 16px',position:'relative'}}>
-<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold}}>الشكل المرئي</div>
-<div style={{display:'flex',alignItems:'center',gap:14,marginTop:2}}>
-<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,padding:'6px 12px',borderRadius:14,background:(form.color||'#3483b4')+'20',border:'1px solid '+(form.color||'#3483b4')+'50',color:form.color||'#3483b4',fontWeight:700,flexShrink:0}}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-{form.name_ar||'اسم الدور'}
+<div style={{fontSize:14,fontWeight:600,color:FKC.tx3,marginBottom:9,textAlign:'start'}}>المعاينة</div>
+<div style={{height:42,borderRadius:9,background:FKC.inputBg,boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,padding:'5px 12px',borderRadius:14,background:(form.color||'#3483b4')+'20',border:'1px solid '+(form.color||'#3483b4')+'50',color:form.color||'#3483b4',fontWeight:600}}>
+<Shield size={11} strokeWidth={2.2}/>{form.name_ar||'اسم الدور'}
 </span>
-<div style={{display:'flex',gap:6,flex:1,flexWrap:'wrap'}}>
-{colors.map(c=><div key={c} onClick={()=>setForm(p=>({...p,color:c}))} style={{width:28,height:28,borderRadius:7,background:c,cursor:'pointer',border:form.color===c?'2px solid #fff':'2px solid transparent',display:'flex',alignItems:'center',justifyContent:'center',boxSizing:'border-box'}}>
-{form.color===c?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>:null}
-</div>)}
 </div>
 </div>
 </div>
-
-<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'14px 16px',position:'relative'}}>
-<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold}}>نطاق الوصول</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:2}}>
-{[['all_branches','جميع الفروع','وصول شامل لبيانات جميع الفروع'],['own_branch','فرع الموظف فقط','يرى بيانات الفرع المعيّن له فقط']].map(([k,l,d])=>{const sel=roleScope===k;return <div key={k} onClick={()=>setRoleScope(k)} style={{padding:'10px 12px',borderRadius:9,border:'1px solid '+(sel?'rgba(212,160,23,.4)':'var(--bd)'),background:sel?'rgba(212,160,23,.05)':'rgba(255,255,255,.02)',cursor:'pointer',transition:'.15s'}}>
-<div style={{fontSize:11,fontWeight:700,color:sel?C.gold:'var(--tx)',marginBottom:3}}>{l}</div>
-<div style={{fontSize:9,color:'var(--tx5)',lineHeight:1.5}}>{d}</div>
+</FKSection>
+<FKSection Icon={Eye} label="نطاق الوصول">
+<FKSegmented full value={roleScope} onChange={setRoleScope}
+options={[{v:'all_branches',l:'جميع الفروع',sub:'وصول شامل لبيانات جميع الفروع'},{v:'own_branch',l:'فرع الموظف فقط',sub:'يرى بيانات الفرع المعيّن له فقط'}]} height={52}/>
+</FKSection>
+<FKSection Icon={Settings2} label="إعدادات إضافية">
+<div style={FKGRID}>
+<FKSwitch label="قابل للتعيين" hint="السماح بتعيين هذا الدور لموظفين جدد" checked={roleAssignable} onChange={setRoleAssignable}/>
+<FKSwitch label="يتطلب تصعيد تلقائي" hint="إشعار المدير عند تجاوز حدود الصلاحية" checked={roleEscalation} onChange={setRoleEscalation}/>
+</div>
+</FKSection>
+</>
+);
+// ── صفحة 3: الصلاحيات (القائمة وحدها تتمرّر عبر ScrollBox — النافذة ثابتة) ──
+const page3=(
+<FKSection Icon={KeyRound} label="الصلاحيات" hint={`${selPerms.length} محدّدة`}>
+<div style={{display:'flex',flexDirection:'column',gap:10}}>
+<FKText value={rolePermSearch} onChange={setRolePermSearch} placeholder="ابحث في الصلاحيات..."/>
+<div style={{display:'flex',gap:6,overflowX:'auto',flexShrink:0,paddingBottom:2,scrollbarWidth:'none'}}>
+{visMods.map(m=>{const mPerms=(permsByMod[m]||[]).filter(p=>filteredPerms.includes(p));const modSel=mPerms.filter(p=>selPerms.includes(p.id)).length;const isCur=m===curMod;return <div key={m} onClick={()=>setRoleActiveMod(m)} style={{padding:'6px 12px',borderRadius:8,background:isCur?FKC.gold+'26':'rgba(255,255,255,.03)',border:'1px solid '+(isCur?FKC.gold+'59':'rgba(255,255,255,.06)'),cursor:'pointer',display:'flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s'}}>
+<span style={{fontSize:11,fontWeight:600,color:isCur?FKC.gold:FKC.tx2,whiteSpace:'nowrap'}}>{modsLabels[m]||m}</span>
+<span style={{fontSize:9,padding:'1px 6px',borderRadius:8,background:modSel>0?FKC.gold+'22':'rgba(255,255,255,.05)',color:modSel>0?FKC.gold:FKC.tx5,fontWeight:600}}>{modSel}/{mPerms.length}</span>
 </div>})}
 </div>
-</div>
-
-<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'14px 16px',position:'relative'}}>
-<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold}}>إعدادات إضافية</div>
-<div style={{display:'flex',flexDirection:'column',gap:8,marginTop:2}}>
-<div style={{padding:'8px 12px',borderRadius:8,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div>
-<div style={{fontSize:11,fontWeight:700,color:'var(--tx)',marginBottom:2}}>قابل للتعيين</div>
-<div style={{fontSize:9,color:'var(--tx4)'}}>السماح بتعيين هذا الدور لموظفين جدد</div>
-</div>
-<div onClick={()=>setRoleAssignable(!roleAssignable)} style={{width:38,height:20,borderRadius:10,background:roleAssignable?C.ok:'rgba(255,255,255,.1)',cursor:'pointer',position:'relative',transition:'.2s',flexShrink:0}}>
-<div style={{position:'absolute',top:2,[roleAssignable?'left':'right']:2,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'.2s'}}/>
-</div>
-</div>
-<div style={{padding:'8px 12px',borderRadius:8,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-<div>
-<div style={{fontSize:11,fontWeight:700,color:'var(--tx)',marginBottom:2}}>يتطلب تصعيد تلقائي</div>
-<div style={{fontSize:9,color:'var(--tx4)'}}>إشعار المدير عند تجاوز حدود الصلاحية</div>
-</div>
-<div onClick={()=>setRoleEscalation(!roleEscalation)} style={{width:38,height:20,borderRadius:10,background:roleEscalation?C.ok:'rgba(255,255,255,.1)',cursor:'pointer',position:'relative',transition:'.2s',flexShrink:0}}>
-<div style={{position:'absolute',top:2,[roleEscalation?'left':'right']:2,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'.2s'}}/>
-</div>
-</div>
-</div>
-</div>
-</div>}
-
-{/* STEP 3 — Permissions */}
-{roleWizStep===3&&<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative',flex:1,display:'flex',flexDirection:'column',gap:10,minHeight:0}}>
-<div style={{position:'absolute',top:-9,right:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold}}>الصلاحيات · {selPerms.length} محدّدة</div>
-
-<div style={{position:'relative',flexShrink:0}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:12}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={rolePermSearch} onChange={e=>setRolePermSearch(e.target.value)} placeholder="ابحث في الصلاحيات..." style={{...fldInp,height:36,paddingRight:30}}/>
-</div>
-
-<div className="role-hide-scroll" style={{display:'flex',gap:6,overflowX:'auto',flexShrink:0,paddingBottom:2}}>
-{visMods.map(m=>{const mPerms=(permsByMod[m]||[]).filter(p=>filteredPerms.includes(p));const modSel=mPerms.filter(p=>selPerms.includes(p.id)).length;const isCur=m===curMod;return <div key={m} onClick={()=>setRoleActiveMod(m)} style={{padding:'6px 12px',borderRadius:8,background:isCur?'rgba(212,160,23,.15)':'rgba(255,255,255,.03)',border:'1px solid '+(isCur?'rgba(212,160,23,.35)':'rgba(255,255,255,.06)'),cursor:'pointer',display:'flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s'}}>
-<span style={{fontSize:11,fontWeight:700,color:isCur?C.gold:'var(--tx2)',whiteSpace:'nowrap'}}>{modsLabels[m]||m}</span>
-<span style={{fontSize:9,padding:'1px 6px',borderRadius:8,background:modSel>0?C.gold+'22':'rgba(255,255,255,.05)',color:modSel>0?C.gold:'var(--tx5)',fontWeight:800}}>{modSel}/{mPerms.length}</span>
-</div>})}
-</div>
-
 {curMod&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-<div style={{fontSize:10,color:'var(--tx5)'}}>{modsLabels[curMod]||curMod}</div>
+<div style={{fontSize:11,color:FKC.tx5}}>{modsLabels[curMod]||curMod}</div>
 <div style={{display:'flex',gap:6}}>
-<button onClick={()=>setSelPerms(perms.map(p=>p.id))} style={{padding:'4px 10px',borderRadius:6,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.03)',color:'var(--tx3)',fontSize:10,fontWeight:700,fontFamily:F,cursor:'pointer'}}>الكل</button>
-<button onClick={()=>{if(curModAllSel){setSelPerms(s=>s.filter(id=>!curModPerms.some(p=>p.id===id)))}else{setSelPerms(s=>[...new Set([...s,...curModPerms.map(p=>p.id)])])}}} style={{padding:'4px 10px',borderRadius:6,border:'1px solid rgba(212,160,23,.2)',background:'rgba(212,160,23,.08)',color:C.gold,fontSize:10,fontWeight:700,fontFamily:F,cursor:'pointer'}}>{curModAllSel?'إلغاء القسم':'تحديد القسم'}</button>
+<button onClick={()=>setSelPerms(perms.map(p=>p.id))} style={{padding:'4px 10px',borderRadius:6,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.03)',color:FKC.tx3,fontSize:10,fontWeight:600,fontFamily:F,cursor:'pointer'}}>الكل</button>
+<button onClick={()=>{if(curModAllSel){setSelPerms(s=>s.filter(id=>!curModPerms.some(p=>p.id===id)))}else{setSelPerms(s=>[...new Set([...s,...curModPerms.map(p=>p.id)])])}}} style={{padding:'4px 10px',borderRadius:6,border:'1px solid '+FKC.gold+'33',background:FKC.gold+'14',color:FKC.gold,fontSize:10,fontWeight:600,fontFamily:F,cursor:'pointer'}}>{curModAllSel?'إلغاء القسم':'تحديد القسم'}</button>
 </div>
 </div>}
-
-<div className="role-hide-scroll" style={{flex:1,overflowY:'auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,alignContent:'flex-start'}}>
-{curModPerms.map(p=>{const ck=selPerms.includes(p.id);return <div key={p.id} onClick={()=>setSelPerms(s=>ck?s.filter(id=>id!==p.id):[...s,p.id])} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:8,background:ck?'rgba(212,160,23,.08)':'rgba(255,255,255,.02)',border:'1px solid '+(ck?'rgba(212,160,23,.3)':'var(--bd)'),cursor:'pointer',transition:'.1s',minHeight:38,boxSizing:'border-box'}}>
-<div style={{width:16,height:16,borderRadius:4,border:ck?'none':'1.5px solid rgba(255,255,255,.18)',background:ck?C.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{ck?<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#000" strokeWidth="3" strokeLinecap="round"/></svg>:null}</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:11,fontWeight:700,color:ck?C.gold:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name_ar||p.action}</div>
-<div style={{fontSize:9,color:'var(--tx5)',direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.module}.{p.action}</div>
-</div>
+<ScrollBox maxHeight={190}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,alignContent:'flex-start'}}>
+{curModPerms.map(p=>{const ck=selPerms.includes(p.id);return <div key={p.id} onClick={()=>setSelPerms(s=>ck?s.filter(id=>id!==p.id):[...s,p.id])} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:8,background:ck?FKC.gold+'14':'rgba(255,255,255,.02)',border:'1px solid '+(ck?FKC.gold+'4d':'rgba(255,255,255,.06)'),cursor:'pointer',transition:'.1s',minHeight:38,boxSizing:'border-box'}}>
+<span style={{width:16,height:16,borderRadius:4,border:ck?'none':'1.5px solid rgba(255,255,255,.18)',background:ck?FKC.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{ck?<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#000" strokeWidth="3" strokeLinecap="round"/></svg>:null}</span>
+<span style={{flex:1,minWidth:0}}>
+<span style={{display:'block',fontSize:11,fontWeight:600,color:ck?FKC.gold:FKC.tx,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name_ar||p.action}</span>
+<span style={{display:'block',fontSize:9,color:FKC.tx5,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.module}.{p.action}</span>
+</span>
 </div>})}
-{curModPerms.length===0&&<div style={{gridColumn:'1/-1',padding:16,textAlign:'center',fontSize:10,color:'var(--tx5)'}}>لا توجد صلاحيات</div>}
+{curModPerms.length===0&&<div style={{gridColumn:'1/-1',padding:16,textAlign:'center',fontSize:10,color:FKC.tx5}}>لا توجد صلاحيات</div>}
 </div>
-</div>}
-
+</ScrollBox>
 </div>
-
-{/* Footer navigation */}
-<div style={{flexShrink:0,padding:'12px 22px 16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-{roleWizStep>1?<button onClick={()=>setRoleWizStep(roleWizStep-1)} className="role-nav-btn"><span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span><span>رجوع</span></button>:<span/>}
-{roleWizStep<3?<button onClick={()=>{if(roleWizStep===1&&!canNext1){toast(isAr?'الرجاء إكمال الحقول المطلوبة':'Please complete required fields');return}setRoleWizStep(roleWizStep+1)}} disabled={roleWizStep===1&&!canNext1} className="role-nav-btn"><span>التالي</span><span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span></button>:<button onClick={submit} disabled={saving||!canSubmit} className="role-nav-btn"><span>{saving?'جاري...':'إنشاء الدور'}</span><span className="nav-ico">{saving?<div style={{width:14,height:14,border:'2px solid rgba(212,160,23,.3)',borderTopColor:C.gold,borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}</span></button>}
-</div>
-
-</div>
-</div>;
+</FKSection>
+);
+return <FKModal open onClose={()=>{setSaveErr(null);setPop(null)}} title="إضافة دور جديد" Icon={Shield} variant="create" width={720}
+onSubmit={submit} submitting={saving} submitLabel="إنشاء الدور"
+success={saved?<SuccessView title="تم إنشاء الدور"/>:null}
+pages={[
+{title:'المعلومات الأساسية',valid:!!canNext1,error:canNext1?'':'أكمل الحقول الإلزامية (*) للمتابعة',content:page1},
+{title:'المظهر ونطاق الوصول',valid:true,content:page2},
+{title:'الصلاحيات',valid:!!canSubmit,error:canSubmit?(saveErr||''):'حدّد صلاحية واحدة على الأقل',content:page3},
+]}/>;
 })()}
 
-{/* DELETE POPUP */}
-{delTarget&&<DeletePopup itemName={delTarget.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}
+{/* DELETE CONFIRM (FormKit) */}
+<ConfirmDialog open={!!delTarget} itemName={delTarget?.name} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>
 </div>}
 
 function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityChange}){
@@ -1594,7 +1281,7 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
   React.useEffect(()=>{sb.from('ui_controls').select('*').then(({data})=>{if(data)setPerms(Object.fromEntries(data.map(r=>[r.control_key,r])));setLoading(false)})},[sb])
   const updateMode=async(key,mode)=>{const current=perms[key]||{control_key:key,allowed_user_ids:[]};const next={...current,mode,updated_at:new Date().toISOString()};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode,allowed_user_ids:current.allowed_user_ids||[]});toast&&toast(isAr?'تم الحفظ':'Saved')}
   const toggleUser=async(key,userId)=>{const current=perms[key]||{control_key:key,mode:'custom',allowed_user_ids:[]};const arr=current.allowed_user_ids||[];const nextArr=arr.includes(userId)?arr.filter(u=>u!==userId):[...arr,userId];const next={...current,allowed_user_ids:nextArr};setPerms(p=>({...p,[key]:next}));await sb.from('ui_controls').upsert({control_key:key,mode:current.mode||'custom',allowed_user_ids:nextArr})}
-  if(loading)return<div style={{padding:40,textAlign:'center',color:'var(--tx5)',fontFamily:F}}>جاري التحميل...</div>
+  if(loading)return<PageSkeleton variant="list" listRows={6}/>
   // Sidebar visibility toggles (localStorage-based, applies to all users)
   const LOCKED_NAV=['admin_hub','admin_visibility']
   const visGet=(id)=>(visibility||{})[id]!==false

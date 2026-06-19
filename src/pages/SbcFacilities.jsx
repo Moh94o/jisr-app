@@ -4,6 +4,7 @@ import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
+import { EmptyState } from '../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -65,7 +66,6 @@ function CopyableNumber({ value, onToast, copyLabel }) {
     try {
       await navigator.clipboard.writeText(String(value))
       setCopied(true)
-      onToast?.(copyLabel || 'Copied')
       setTimeout(() => setCopied(false), 1500)
     } catch {
       // clipboard api unavailable — ignore silently
@@ -74,8 +74,8 @@ function CopyableNumber({ value, onToast, copyLabel }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
       <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, color: 'var(--tx)', fontWeight: 700 }}>{value}</span>
-      <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.gold : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, transition: 'color .15s' }}
-        onMouseEnter={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.75)' }}
+      <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, transition: 'color .15s' }}
+        onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
         onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
         {copied ? (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -97,7 +97,6 @@ function NumberRow({ color, label, value, toast, T }) {
     try {
       await navigator.clipboard.writeText(String(value))
       setCopied(true)
-      toast?.(T ? T('نُسخ', 'Copied') : 'Copied')
       setTimeout(() => setCopied(false), 1500)
     } catch {
       // clipboard api unavailable — ignore silently
@@ -109,8 +108,8 @@ function NumberRow({ color, label, value, toast, T }) {
       {hasVal ? (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr', minWidth: 0 }}>
           <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
-          <button type="button" onClick={onCopy} title={T ? T('نُسخ', 'Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
-            onMouseEnter={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.7)' }}
+          <button type="button" onClick={onCopy} title={T ? T('نُسخ', 'Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
+            onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
             onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.3)' }}>
             {copied ? (
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1043,9 +1042,11 @@ function CopyBtn({ value }) {
   return (
     <button type="button" onClick={onCopy} title="نسخ"
       style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent',
-        color: copied ? C.gold : 'rgba(255,255,255,.35)', cursor: 'pointer',
+        color: copied ? C.ok : 'rgba(255,255,255,.35)', cursor: 'pointer',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 4, transition: 'color .15s', flexShrink: 0 }}>
+        borderRadius: 4, transition: 'color .15s', flexShrink: 0 }}
+      onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
+      onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
       {copied ? (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       ) : (
@@ -4360,7 +4361,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           { v: 'sbc',    l: T('المركز السعودي', 'SBC'),       c: C.gold,   sub: T('سجلات تجارية', 'CR registry') },
           { v: 'gosi',   l: T('التأمينات الاجتماعية', 'GOSI'), c: C.ok,     sub: T('اشتراكات ومديونية', 'Contributors & debt') },
           { v: 'qiwa',   l: T('قوى', 'Qiwa'),                 c: C.blue,   sub: T('الموارد البشرية', 'HR & labor') },
-          { v: 'muqeem', l: T('مقيم', 'Muqeem'),              c: C.purple, sub: T('الإقامات', 'Residency') },
+          { v: 'muqeem', l: T('مقيم', 'Muqeem'),              c: C.purple, sub: T('الإقامات', 'Iqamas') },
         ]
         const counter = (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -4375,9 +4376,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       {/* Card grid — one card per facility, matches Facilities page design */}
       {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>…</div>}
       {!loading && displayRows.length === 0 && (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
-          {T('لا توجد نتائج مطابقة للبحث.', 'No matching results.')}
-        </div>
+        <EmptyState icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>} title={T('لا توجد نتائج مطابقة للبحث', 'No matching results')} desc={T('جرّب تعديل كلمة البحث', 'Try adjusting your search')} />
       )}
 
       {!loading && displayRows.length > 0 && (() => {
@@ -5309,8 +5308,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         <span style={val} title={typeof v === 'string' ? v : undefined}>{has ? v : '—'}</span>
                         {has && (
                           <button type="button" onClick={copy} title={T('نُسخ', 'Copy')}
-                            style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.gold : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, flexShrink: 0, transition: 'color .15s' }}
-                            onMouseEnter={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.75)' }}
+                            style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, flexShrink: 0, transition: 'color .15s' }}
+                            onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
                             onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
                             {copied ? (
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Edit2, Plus, Activity, CheckCircle2, X } from 'lucide-react'
 import RoleLayout from './RoleLayout.jsx'
-import { KCard, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, FacilityCard, AddBtn, EmptyState, FacilityPicker, C } from './RoleUI.jsx'
+import { HeroStat, KpiBox, ModalShell, FacilityCard, AddBtn, EmptyState, C } from './RoleUI.jsx'
+import { ModalSection, GRID, ActionButton, Select, TextField, DateField, CurrencyField, Switch, TextArea, ConfirmDialog } from '../../../components/ui/FormKit.jsx'
 import * as rolesService from '../../../services/rolesService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -21,6 +22,7 @@ export default function CrPartyPage({ person, onBack, toast, countries, reload, 
   const [showModal, setShowModal] = useState(false)
   const [isMarked, setIsMarked] = useState(false)
   const [marking, setMarking] = useState(false)
+  const [confirmTarget, setConfirmTarget] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -71,7 +73,6 @@ export default function CrPartyPage({ person, onBack, toast, countries, reload, 
   }
   const openEdit = (r) => { setEditRow(r); setShowModal(true) }
   const onEnd = async (r) => {
-    if (!confirm(`إنهاء علاقة "${r.facility?.name_ar}"؟`)) return
     try { await rolesService.endCrParty(r.id); toast?.('تم الإنهاء'); load(); reload?.() }
     catch (e) { toast?.(rolesService.humanizeDbError(e)) }
   }
@@ -117,7 +118,7 @@ export default function CrPartyPage({ person, onBack, toast, countries, reload, 
                 { label: 'إلى', value: r.end_date || 'ساري', dir: 'ltr' },
                 ...(config.showPosition ? [{ label: 'المنصب', value: r.position_title || '—' }] : []),
               ]}
-              onEdit={() => openEdit(r)} onEnd={() => onEnd(r)} />
+              onEdit={() => openEdit(r)} onEnd={() => setConfirmTarget(r)} />
           ))}
           {endedRows.length > 0 && (
             <>
@@ -142,6 +143,12 @@ export default function CrPartyPage({ person, onBack, toast, countries, reload, 
         <CrPartyModal open={showModal} onClose={() => { setShowModal(false); setEditRow(null) }}
           personId={person.id} row={editRow} facilities={facilities} toast={toast} onSaved={onSaved} config={config} />
       )}
+
+      <ConfirmDialog open={!!confirmTarget} title="تأكيد الإنهاء"
+        message="إنهاء علاقة المنشأة؟" itemName={confirmTarget?.facility?.name_ar}
+        confirmText="إنهاء"
+        onConfirm={() => { const r = confirmTarget; setConfirmTarget(null); onEnd(r) }}
+        onCancel={() => setConfirmTarget(null)} />
     </RoleLayout>
   )
 }
@@ -267,43 +274,29 @@ function CrPartyModal({ open, onClose, personId, row, facilities, toast, onSaved
   }
 
   return (
-    <ModalShell open={open} onClose={onClose}
+    <ModalShell open={open} onClose={onClose} variant={isEdit ? 'edit' : 'create'}
       title={isEdit ? `تعديل ${config.title}` : `إضافة ${config.title}`} Icon={config.Icon}
-      footer={<><div style={{ flex: 1 }} /><SaveBtn onClick={save} disabled={saving} label={saving ? 'جاري الحفظ...' : 'حفظ'} /></>}>
-      <KCard Icon={config.Icon} label={config.title}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div style={{ gridColumn: '1 / -1' }}><Lbl req>المنشأة</Lbl>
-            <FacilityPicker value={f.facility_id} onChange={v => set('facility_id', v)} options={facilities}
-              disabled={isEdit} /></div>
+      footer={<ActionButton onClick={save} disabled={saving || !f.facility_id}>{saving ? 'جاري الحفظ...' : 'حفظ'}</ActionButton>}>
+      <ModalSection Icon={config.Icon} label={config.title}>
+        <div style={GRID}>
+          <Select label="المنشأة" req full value={f.facility_id} onChange={v => set('facility_id', v)}
+            options={facilities} getKey={o => o.id} getLabel={o => o.name_ar}
+            getSub={o => o.cr_number ? `CR: ${o.cr_number}` : ''}
+            placeholder="اختر المنشأة..." disabled={isEdit} />
           {config.showOwnership && (
-            <div><Lbl>نسبة الملكية (%)</Lbl>
-              <input type="number" min="0" max="100" step="0.01" value={f.ownership_percentage}
-                onChange={e => set('ownership_percentage', e.target.value)} style={{ ...sF, direction: 'ltr' }} /></div>
+            <CurrencyField label="نسبة الملكية" unit="%" placeholder="0"
+              value={f.ownership_percentage} onChange={v => set('ownership_percentage', v)} />
           )}
           {config.showPosition && (
-            <div><Lbl>المنصب</Lbl>
-              <input value={f.position_title} onChange={e => set('position_title', e.target.value)}
-                placeholder="المدير العام" style={sF} /></div>
+            <TextField label="المنصب" placeholder="المدير العام"
+              value={f.position_title} onChange={v => set('position_title', v)} />
           )}
-          <div><Lbl>تاريخ البدء</Lbl>
-            <input type="date" value={f.start_date} onChange={e => set('start_date', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div><Lbl>تاريخ الانتهاء</Lbl>
-            <input type="date" value={f.end_date} onChange={e => set('end_date', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: 'var(--tx2)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={f.is_primary} onChange={e => set('is_primary', e.target.checked)} />
-              أساسي
-            </label>
-          </div>
+          <DateField label="تاريخ البدء" value={f.start_date} onChange={v => set('start_date', v)} />
+          <DateField label="تاريخ الانتهاء" value={f.end_date} onChange={v => set('end_date', v)} />
+          <Switch label="أساسي" checked={f.is_primary} onChange={v => set('is_primary', v)} />
+          <TextArea label="ملاحظات" value={f.notes} onChange={v => set('notes', v)} />
         </div>
-        <div style={{ marginTop: 14 }}>
-          <Lbl>ملاحظات</Lbl>
-          <textarea value={f.notes} onChange={e => set('notes', e.target.value)} rows={3}
-            style={{ ...sF, height: 'auto', padding: 14, textAlign: 'start' }} />
-        </div>
-      </KCard>
+      </ModalSection>
     </ModalShell>
   )
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { User, Save, Building2, Briefcase, Users as UsersIcon, HardHat } from 'lucide-react'
 import * as personsService from '../../services/personsService.js'
 import {
-  Modal, ModalSection, ActionButton, SuccessScreen, GRID,
+  Modal, ModalSection, ActionButton, SuccessView, ScrollBox, GRID,
   TextField, Select, DateField, PhoneField, IdField, Flag, C, countWords,
 } from '../ui/FormKit.jsx'
 
@@ -140,7 +140,7 @@ export default function PersonFormModal({ open, onClose, personId, onSaved, toas
       const saved = isEdit ? await personsService.updatePerson(personId, payload) : await personsService.createPerson(payload)
       onSaved?.(saved)
       setSuccess(true)
-      setTimeout(() => { onClose?.() }, 1600)
+      setTimeout(() => { onClose?.() }, 1400)
     } catch (e) {
       toast?.('خطأ: ' + (e.message || 'فشل الحفظ'))
     } finally {
@@ -149,18 +149,9 @@ export default function PersonFormModal({ open, onClose, personId, onSaved, toas
   }
 
   if (!open) return null
-  if (success) return <SuccessScreen open title={isEdit ? 'تم تحديث الشخص' : 'تمت الإضافة'} subtitle={f.name_ar} />
 
-  return (
-    <Modal open={open} onClose={onClose} width={720} scroll
-      title={isEdit ? 'تعديل الشخص' : 'شخص جديد'} Icon={User}
-      variant={isEdit ? 'edit' : 'create'}
-      errorMsg={firstErrMsg}
-      footer={
-        <ActionButton Icon={Save} disabled={saving} onClick={save}>
-          {saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ التعديلات' : 'إضافة')}
-        </ActionButton>
-      }>
+  // قسم البيانات الأساسية — يُعرض كمحتوى مباشر في الإضافة، وكتبويب أول في التعديل
+  const basicSection = (
       <ModalSection Icon={User} label="معلومات أساسية">
         <div style={GRID}>
           <TextField full label="الاسم الكامل بالعربي" req filter="ar" value={f.name_ar} onChange={v => set('name_ar', v)}
@@ -200,8 +191,24 @@ export default function PersonFormModal({ open, onClose, personId, onSaved, toas
           <PhoneField label="رقم ثانوي" value={f.secondary_phone} onChange={v => set('secondary_phone', v)} />
         </div>
       </ModalSection>
+  )
 
-      {isEdit && <RolesTab personId={personId} profile={profile} toast={toast} />}
+  return (
+    <Modal open={open} onClose={onClose} width={720}
+      title={isEdit ? 'تعديل الشخص' : 'شخص جديد'} Icon={User}
+      variant={isEdit ? 'edit' : 'create'}
+      errorMsg={firstErrMsg}
+      success={success ? <SuccessView title={isEdit ? 'تم تحديث الشخص' : 'تمت الإضافة'} /> : null}
+      tabs={isEdit ? [
+        { label: 'البيانات', Icon: User, content: basicSection },
+        { label: 'الأدوار', Icon: UsersIcon, content: <RolesTab personId={personId} profile={profile} toast={toast} /> },
+      ] : undefined}
+      footer={
+        <ActionButton Icon={Save} disabled={saving} onClick={save}>
+          {saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ التعديلات' : 'إضافة')}
+        </ActionButton>
+      }>
+      {!isEdit && basicSection}
     </Modal>
   )
 }
@@ -232,24 +239,28 @@ function RolesTab({ personId, profile, toast }) {
     <>
       <ModalSection Icon={Building2} label="المنشآت المملوكة">
         {loading ? <Skel /> : owned.length === 0 ? <EmptyRow text="لا توجد منشآت مملوكة" /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {owned.map(o => (
-              <FacilityRow key={o.assignment_id || o.facility_id} title={o.facility_name_ar}
-                sub={`ملكية ${o.ownership_percentage || 0}%${o.is_primary ? ' · أساسي' : ''}`} />
-            ))}
-          </div>
+          <ScrollBox maxHeight={130}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {owned.map(o => (
+                <FacilityRow key={o.assignment_id || o.facility_id} title={o.facility_name_ar}
+                  sub={`ملكية ${o.ownership_percentage || 0}%${o.is_primary ? ' · أساسي' : ''}`} />
+              ))}
+            </div>
+          </ScrollBox>
         )}
         <AddRowBtn text="إضافة ملكية" onClick={() => toast?.('ميزة الربط قيد التطوير')} />
       </ModalSection>
 
       <ModalSection Icon={Briefcase} label="المنشآت المُدارة">
         {loading ? <Skel /> : managed.length === 0 ? <EmptyRow text="لا توجد منشآت مُدارة" /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {managed.map(m => (
-              <FacilityRow key={m.assignment_id || m.facility_id} title={m.facility_name_ar}
-                sub={`${m.manager_type || 'مدير'}${m.is_primary ? ' · أساسي' : ''}`} />
-            ))}
-          </div>
+          <ScrollBox maxHeight={130}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {managed.map(m => (
+                <FacilityRow key={m.assignment_id || m.facility_id} title={m.facility_name_ar}
+                  sub={`${m.manager_type || 'مدير'}${m.is_primary ? ' · أساسي' : ''}`} />
+              ))}
+            </div>
+          </ScrollBox>
         )}
         <AddRowBtn text="إضافة إدارة" onClick={() => toast?.('ميزة الربط قيد التطوير')} />
       </ModalSection>

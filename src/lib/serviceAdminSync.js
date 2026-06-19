@@ -17,6 +17,7 @@ export const SVC_ADMIN_KEY_MAP = {
   kafalaPricingConfig:        'svc_admin_pricing_kafala',
   iqamaRenewalPricingConfig:  'svc_admin_pricing_iqama',
   servicesPricingConfig:      'svc_admin_pricing_services',
+  docTypesConfig:             'svc_admin_doc_types',
 }
 
 const TABLE = 'system_settings'

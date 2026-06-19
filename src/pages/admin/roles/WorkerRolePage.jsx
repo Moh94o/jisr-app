@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { HardHat, CreditCard, Calendar, Edit2, Plus, AlertCircle } from 'lucide-react'
 import RoleLayout from './RoleLayout.jsx'
-import { KCard, KV, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, PersonIdentityChip, C } from './RoleUI.jsx'
+import { KV, HeroStat, KpiBox, ModalShell, PersonIdentityChip, C } from './RoleUI.jsx'
+import { ModalSection, GRID, ActionButton, TextField, IdField, NumberField, DateField } from '../../../components/ui/FormKit.jsx'
 import * as rolesService from '../../../services/rolesService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -136,44 +137,25 @@ function WorkerModal({ open, onClose, personId, person, row, toast, onSaved }) {
   }
 
   return (
-    <ModalShell open={open} onClose={onClose} title={isEdit ? 'تعديل ملف العامل' : 'ربط ملف عامل'} Icon={HardHat}
-      footer={<><div style={{ flex: 1 }} /><SaveBtn onClick={save} disabled={saving} label={saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'ربط')} /></>}>
-      <KCard Icon={HardHat} label="بيانات العامل">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div><Lbl req>الاسم بالعربي</Lbl>
-            <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} style={sF} /></div>
-          <div><Lbl>الاسم بالإنجليزي</Lbl>
-            <input value={f.name_en} onChange={e => set('name_en', e.target.value.toUpperCase())} dir="ltr"
-              style={{ ...sF, direction: 'ltr', textTransform: 'uppercase' }} /></div>
-          <div><Lbl>رقم الإقامة</Lbl>
-            <input value={f.iqama_number} onChange={e => set('iqama_number', e.target.value.replace(/\D/g,''))}
-              dir="ltr" maxLength={10} style={{ ...sF, direction: 'ltr' }} /></div>
-          <div><Lbl>انتهاء الإقامة</Lbl>
-            <input type="date" value={f.iqama_expiry_date} onChange={e => set('iqama_expiry_date', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div><Lbl>رقم الحدود</Lbl>
-            <input value={f.border_number} onChange={e => set('border_number', e.target.value)} dir="ltr"
-              style={{ ...sF, direction: 'ltr' }} /></div>
-          <div><Lbl>رقم الجواز</Lbl>
-            <input value={f.passport_number} onChange={e => set('passport_number', e.target.value.toUpperCase())} dir="ltr"
-              style={{ ...sF, direction: 'ltr', textTransform: 'uppercase' }} /></div>
-          <div><Lbl>انتهاء الجواز</Lbl>
-            <input type="date" value={f.passport_expiry} onChange={e => set('passport_expiry', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div><Lbl>تاريخ الدخول</Lbl>
-            <input type="date" value={f.entry_date} onChange={e => set('entry_date', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div><Lbl>رقم التأمينات</Lbl>
-            <input value={f.social_insurance_no} onChange={e => set('social_insurance_no', e.target.value)} dir="ltr"
-              style={{ ...sF, direction: 'ltr' }} /></div>
-          <div><Lbl>انضمام التأمينات</Lbl>
-            <input type="date" value={f.join_date_gosi} onChange={e => set('join_date_gosi', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div><Lbl>عدد التابعين</Lbl>
-            <input type="number" min="0" value={f.dependents_count ?? 0}
-              onChange={e => set('dependents_count', Number(e.target.value))} style={{ ...sF, direction: 'ltr' }} /></div>
+    <ModalShell open={open} onClose={onClose} width={720} variant={isEdit ? 'edit' : 'create'}
+      title={isEdit ? 'تعديل ملف العامل' : 'ربط ملف عامل'} Icon={HardHat}
+      footer={<ActionButton onClick={save} disabled={saving || !f.name_ar}>{saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'ربط')}</ActionButton>}>
+      <ModalSection Icon={HardHat} label="بيانات العامل">
+        <div style={GRID}>
+          <TextField label="الاسم بالعربي" req value={f.name_ar} onChange={v => set('name_ar', v)} />
+          <TextField label="الاسم بالإنجليزي" dir="ltr" upper value={f.name_en} onChange={v => set('name_en', v)} />
+          <IdField label="رقم الإقامة" value={f.iqama_number} onChange={v => set('iqama_number', v)} />
+          <DateField label="انتهاء الإقامة" value={f.iqama_expiry_date} onChange={v => set('iqama_expiry_date', v)} />
+          <TextField label="رقم الحدود" dir="ltr" value={f.border_number} onChange={v => set('border_number', v)} />
+          <TextField label="رقم الجواز" dir="ltr" upper value={f.passport_number} onChange={v => set('passport_number', v)} />
+          <DateField label="انتهاء الجواز" value={f.passport_expiry} onChange={v => set('passport_expiry', v)} />
+          <DateField label="تاريخ الدخول" value={f.entry_date} onChange={v => set('entry_date', v)} />
+          <TextField label="رقم التأمينات" dir="ltr" value={f.social_insurance_no} onChange={v => set('social_insurance_no', v)} />
+          <DateField label="انضمام التأمينات" value={f.join_date_gosi} onChange={v => set('join_date_gosi', v)} />
+          <NumberField label="عدد التابعين" min={0} value={f.dependents_count ?? 0}
+            onChange={v => set('dependents_count', v === '' ? 0 : Number(v))} />
         </div>
-      </KCard>
+      </ModalSection>
     </ModalShell>
   )
 }

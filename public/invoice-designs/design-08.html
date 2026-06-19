@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>فاتورة INV-2026-1042 — تأشيرة البناء والإنشاء</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Amiri:ital,wght@0,400;0,700;1,400&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --burgundy:#5e1626;
+    --burgundy-deep:#491019;
+    --burgundy-soft:#7a2236;
+    --gold:#c9a84c;
+    --gold-deep:#a8862f;
+    --gold-bright:#e0c576;
+    --cream:#fbf6ec;
+    --cream-2:#f4ebd8;
+    --paper:#ffffff;
+    --ink:#2c1b1f;
+    --ink-soft:#6a5258;
+    --line:#e3d4b6;
+    --green:#2f7d4f;
+    --green-bg:#e8f3ec;
+    --amber:#b3791a;
+    --amber-bg:#fbf1dc;
+    --red:#a32230;
+    --red-bg:#f7e7e7;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  @page{ size:A4; margin:0; }
+
+  html,body{ background:#d8d2c4; }
+
+  body{
+    font-family:'Tajawal',sans-serif;
+    color:var(--ink);
+    line-height:1.35;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .num{ direction:ltr; font-variant-numeric:tabular-nums; unicode-bidi:isolate; }
+
+  /* ---------- PAGE (fixed two-page model) ---------- */
+  .page{
+    width:210mm;
+    height:297mm;
+    margin:0 auto;
+    background:var(--paper);
+    position:relative;
+    padding:10mm 11mm 14mm;
+    overflow:hidden;
+  }
+  .page + .page{ margin-top:8mm; }
+
+  /* Decorative double border framing the whole page */
+  .page::before{
+    content:"";
+    position:absolute;
+    inset:6mm;
+    border:2.4pt solid var(--burgundy);
+    pointer-events:none;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .page::after{
+    content:"";
+    position:absolute;
+    inset:8mm;
+    border:0.9pt solid var(--gold);
+    pointer-events:none;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+
+  .sheet{ position:relative; z-index:2; padding:1mm 4mm; }
+
+  /* Ornamental corner flourishes */
+  .corner{ position:absolute; width:15mm; height:15mm; z-index:3; pointer-events:none; }
+  .corner svg{ width:100%; height:100%; display:block; }
+  .corner.tl{ top:6.5mm; right:6.5mm; }
+  .corner.tr{ top:6.5mm; left:6.5mm; transform:scaleX(-1); }
+  .corner.bl{ bottom:6.5mm; right:6.5mm; transform:scaleY(-1); }
+  .corner.br{ bottom:6.5mm; left:6.5mm; transform:scale(-1,-1); }
+
+  /* ---------- BRAND HEADER ---------- */
+  .brand{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10mm;
+    padding-bottom:3mm;
+    border-bottom:1.6pt double var(--gold-deep);
+  }
+  .brand-id{ text-align:right; }
+  .brand-ar{
+    font-family:'Aref Ruqaa',serif;
+    font-weight:700;
+    font-size:23pt;
+    color:var(--burgundy);
+    line-height:1.12;
+    letter-spacing:.3px;
+  }
+  .brand-en{
+    font-family:'Amiri',serif;
+    font-size:12pt;
+    color:var(--gold-deep);
+    letter-spacing:2.2px;
+    text-transform:uppercase;
+    margin-top:1px;
+    direction:ltr;
+    text-align:right;
+    font-style:italic;
+  }
+  .brand-group{
+    font-size:8pt;
+    color:var(--ink-soft);
+    letter-spacing:3px;
+    direction:ltr;
+    text-align:right;
+    margin-top:2px;
+  }
+  .brand-meta{
+    margin-top:4px;
+    font-size:8.5pt;
+    color:var(--ink-soft);
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+    align-items:flex-end;
+  }
+  .brand-meta .row{ display:flex; align-items:center; gap:6px; }
+  .brand-logo-wrap{
+    flex:none;
+    text-align:center;
+    padding:2mm 5mm;
+    border-right:1pt solid var(--line);
+  }
+  .logo{ width:130px; height:auto; display:block; }
+  .brand-logo-wrap .seal-line{
+    margin-top:3px;
+    font-family:'Amiri',serif;
+    font-size:7pt;
+    color:var(--gold-deep);
+    letter-spacing:2px;
+  }
+
+  /* document title band */
+  .doc-title{
+    margin-top:3.5mm;
+    text-align:center;
+    position:relative;
+  }
+  .doc-title h1{
+    font-family:'Aref Ruqaa',serif;
+    font-weight:700;
+    font-size:16pt;
+    color:var(--burgundy);
+    display:inline-block;
+    padding:0 16px;
+    position:relative;
+    background:var(--paper);
+  }
+  .doc-title .ribbon-line{
+    position:absolute;
+    top:50%;
+    left:0; right:0;
+    height:0;
+    border-top:1pt solid var(--gold);
+    z-index:-1;
+  }
+  .doc-title .sub{
+    font-family:'Amiri',serif;
+    font-style:italic;
+    font-size:9.5pt;
+    color:var(--ink-soft);
+    letter-spacing:2px;
+    direction:ltr;
+    margin-top:1px;
+  }
+
+  /* invoice meta strip */
+  .inv-strip{
+    margin-top:3mm;
+    display:flex;
+    justify-content:center;
+    gap:0;
+    border:1pt solid var(--line);
+    border-radius:2px;
+    overflow:hidden;
+    background:var(--cream);
+  }
+  .inv-strip .cell{
+    flex:1;
+    text-align:center;
+    padding:2.4mm 4mm;
+  }
+  .inv-strip .cell + .cell{ border-right:1pt solid var(--line); }
+  .inv-strip .lbl{ font-size:8pt; color:var(--ink-soft); letter-spacing:.5px; }
+  .inv-strip .val{ font-size:11.5pt; font-weight:700; color:var(--burgundy); margin-top:1px; }
+  .inv-strip .status-chip{
+    display:inline-block;
+    margin-top:2px;
+    background:var(--amber-bg);
+    color:var(--amber);
+    border:1pt solid var(--amber);
+    border-radius:20px;
+    padding:1px 12px;
+    font-size:9.5pt;
+    font-weight:700;
+  }
+
+  /* ---------- HERO : LAST PAYMENT (cartouche) ---------- */
+  .hero{
+    margin-top:4.5mm;
+    background:
+      linear-gradient(135deg,var(--burgundy) 0%,var(--burgundy-deep) 100%);
+    border:1.4pt solid var(--gold);
+    box-shadow:inset 0 0 0 3pt var(--burgundy), inset 0 0 0 3.8pt var(--gold-deep);
+    border-radius:6px;
+    color:#fff;
+    padding:5mm 8mm 5mm;
+    position:relative;
+  }
+  .hero .cartouche-tag{
+    position:absolute;
+    top:-3.4mm;
+    right:12mm;
+    background:var(--gold);
+    color:var(--burgundy-deep);
+    font-family:'Aref Ruqaa',serif;
+    font-weight:700;
+    font-size:11pt;
+    padding:1.2mm 7mm;
+    border-radius:20px;
+    letter-spacing:.5px;
+    box-shadow:0 1pt 0 var(--gold-deep);
+  }
+  .hero .cartouche-tag::before{ content:"\2605"; margin-left:6px; color:var(--burgundy-deep); }
+  .hero-grid{
+    display:flex;
+    align-items:stretch;
+    justify-content:space-between;
+    gap:6mm;
+  }
+  .hero-amount{
+    flex:none;
+    padding-left:7mm;
+    border-left:1pt solid rgba(201,168,76,.4);
+    align-self:center;
+  }
+  .hero-amount .cap{
+    font-size:9.5pt;
+    color:var(--gold-bright);
+    letter-spacing:1px;
+    margin-bottom:.5mm;
+  }
+  .hero-amount .big{
+    font-family:'Aref Ruqaa',serif;
+    font-weight:700;
+    font-size:38pt;
+    line-height:1;
+    color:#fff;
+  }
+  .hero-amount .big .cur{ font-family:'Tajawal'; font-size:14pt; font-weight:500; color:var(--gold-bright); margin-right:4px; }
+  .hero-detail{
+    flex:1;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:2.4mm 6mm;
+    align-content:center;
+  }
+  .hero-detail .item .k{ font-size:8.5pt; color:var(--gold-bright); letter-spacing:.5px; }
+  .hero-detail .item .v{ font-size:11pt; font-weight:700; color:#fff; margin-top:1px; }
+  .hero-detail .item.full{ grid-column:1 / -1; border-top:1pt dotted rgba(201,168,76,.35); padding-top:1.6mm; }
+  .hero-remaining{
+    flex:none;
+    text-align:center;
+    background:rgba(255,255,255,.07);
+    border:1pt solid var(--gold);
+    border-radius:5px;
+    padding:3.5mm 6mm;
+    align-self:center;
+  }
+  .hero-remaining .k{ font-size:9pt; color:var(--gold-bright); letter-spacing:.5px; }
+  .hero-remaining .v{ font-family:'Aref Ruqaa',serif; font-weight:700; font-size:22pt; color:var(--gold-bright); line-height:1.1; margin-top:.8mm; }
+  .hero-remaining .v .cur{ font-family:'Tajawal'; font-size:11pt; font-weight:500; }
+
+  /* ---------- SECTION TITLES ---------- */
+  .sec{ margin-top:4mm; }
+  .sec-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:2mm;
+  }
+  .sec-head .mark{
+    width:9px; height:9px;
+    background:var(--gold);
+    border:1pt solid var(--gold-deep);
+    transform:rotate(45deg);
+    flex:none;
+  }
+  .sec-head h2{
+    font-family:'Aref Ruqaa',serif;
+    font-weight:700;
+    font-size:13pt;
+    color:var(--burgundy);
+    white-space:nowrap;
+  }
+  .sec-head .rule{ flex:1; height:0; border-top:1pt solid var(--line); }
+
+  /* two-column row of cards */
+  .duo{ display:flex; gap:5mm; }
+  .duo > *{ flex:1; }
+
+  /* info card / definition list */
+  .card{
+    background:var(--cream);
+    border:1pt solid var(--line);
+    border-radius:4px;
+    padding:3mm 5mm;
+  }
+  .card.framed{ box-shadow:inset 0 0 0 2.6pt var(--paper), inset 0 0 0 3.2pt var(--line); }
+  .card-title{
+    font-family:'Tajawal';
+    font-weight:800;
+    font-size:9.5pt;
+    color:var(--burgundy);
+    border-bottom:1pt solid var(--line);
+    padding-bottom:1.6mm;
+    margin-bottom:2mm;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .card-title::before{ content:""; width:6px; height:6px; background:var(--gold); display:inline-block; transform:rotate(45deg); }
+  .dl{ display:grid; grid-template-columns:auto 1fr; gap:1.2mm 6mm; }
+  .dl dt{ font-size:9pt; color:var(--ink-soft); white-space:nowrap; }
+  .dl dd{ font-size:9.5pt; font-weight:700; color:var(--ink); text-align:left; }
+
+  /* service line */
+  .service-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--cream);
+    border:1pt solid var(--line);
+    border-radius:4px;
+    padding:3mm 6mm;
+  }
+  .service-row .name{ font-family:'Aref Ruqaa',serif; font-size:14pt; color:var(--burgundy); font-weight:700; }
+  .service-row .en{ font-family:'Amiri',serif; font-style:italic; font-size:9.5pt; color:var(--ink-soft); direction:ltr; }
+  .service-row .qty{ text-align:center; }
+  .service-row .qty .k{ font-size:8pt; color:var(--ink-soft); }
+  .service-row .qty .v{ font-size:16pt; font-weight:800; color:var(--burgundy); }
+
+  /* ---------- TABLES ---------- */
+  table{ width:100%; border-collapse:collapse; font-size:9.5pt; }
+  thead th{
+    background:var(--burgundy);
+    color:var(--gold-bright);
+    font-family:'Tajawal';
+    font-weight:700;
+    font-size:9pt;
+    padding:2mm 3mm;
+    text-align:right;
+    letter-spacing:.3px;
+    border:0.6pt solid var(--burgundy-deep);
+  }
+  tbody td{
+    padding:1.7mm 3mm;
+    border:0.6pt solid var(--line);
+    color:var(--ink);
+  }
+  tbody tr:nth-child(even) td{ background:var(--cream); }
+  td.amt, th.amt{ text-align:left; font-weight:700; }
+  td.ctr, th.ctr{ text-align:center; }
+  .row-idx{ color:var(--gold-deep); font-weight:800; }
+
+  /* status pills inside table */
+  .pill{ display:inline-block; padding:.5mm 3mm; border-radius:20px; font-size:8.5pt; font-weight:700; white-space:nowrap; border:0.8pt solid; }
+  .pill.paid{ background:var(--green-bg); color:var(--green); border-color:var(--green); }
+  .pill.partial{ background:var(--amber-bg); color:var(--amber); border-color:var(--amber); }
+  .pill.unpaid{ background:var(--red-bg); color:var(--red); border-color:var(--red); }
+  tr.is-latest td{ background:var(--cream-2)!important; box-shadow:inset 3px 0 0 var(--gold); }
+  .latest-tag{ display:inline-block; margin-right:5px; background:var(--gold); color:var(--burgundy-deep); font-size:7pt; font-weight:800; padding:.3mm 2mm; border-radius:3px; vertical-align:middle; }
+
+  /* ---------- PRICING + SUMMARY ---------- */
+  .pricing-wrap{ display:flex; gap:5mm; align-items:flex-start; }
+  .pricing-wrap .pricing-tbl{ flex:1.35; }
+  tfoot td{
+    background:var(--burgundy-soft);
+    color:#fff;
+    font-weight:800;
+    font-size:11pt;
+    padding:2.4mm 3mm;
+    border:0.6pt solid var(--burgundy-deep);
+  }
+  tfoot td.amt{ color:var(--gold-bright); }
+
+  .summary{
+    flex:1;
+    background:linear-gradient(160deg,var(--cream) 0%,var(--cream-2) 100%);
+    border:1.2pt solid var(--gold-deep);
+    border-radius:5px;
+    padding:3mm 5mm;
+    box-shadow:inset 0 0 0 2.4pt var(--paper), inset 0 0 0 3pt var(--gold);
+  }
+  .summary h3{ font-family:'Aref Ruqaa',serif; font-size:12pt; color:var(--burgundy); text-align:center; margin-bottom:2mm; padding-bottom:1.6mm; border-bottom:1pt solid var(--line); }
+  .summary .line{ display:flex; justify-content:space-between; align-items:center; padding:1.5mm 0; font-size:10.5pt; }
+  .summary .line + .line{ border-top:1pt dotted var(--line); }
+  .summary .line .k{ color:var(--ink-soft); font-weight:500; }
+  .summary .line .v{ font-weight:700; color:var(--ink); }
+  .summary .line.total .k{ color:var(--burgundy); font-weight:800; }
+  .summary .line.paid .v{ color:var(--green); }
+  .summary .line.remain{
+    margin-top:1.6mm;
+    background:var(--burgundy);
+    color:#fff;
+    border-radius:4px;
+    padding:2.4mm 4mm;
+    border-top:none!important;
+  }
+  .summary .line.remain .k{ color:var(--gold-bright); font-weight:800; font-size:11pt; }
+  .summary .line.remain .v{ color:#fff; font-weight:800; font-size:15pt; }
+
+  /* ---------- BANK + SEAL ---------- */
+  .bank-wrap{ display:flex; gap:5mm; align-items:stretch; }
+  .bank{
+    flex:1.5;
+    background:var(--cream);
+    border:1pt solid var(--line);
+    border-radius:4px;
+    padding:3mm 5mm;
+  }
+  .seal-box{
+    flex:1;
+    border:1pt dashed var(--gold-deep);
+    border-radius:4px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:2mm;
+    background:var(--paper);
+  }
+  .seal{
+    width:30mm; height:30mm;
+    border-radius:50%;
+    border:1.6pt solid var(--burgundy);
+    box-shadow:0 0 0 1.4pt var(--paper), 0 0 0 2.6pt var(--gold);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    color:var(--burgundy);
+    position:relative;
+  }
+  .seal .seal-arc{ position:absolute; inset:0; }
+  .seal .star{ color:var(--gold-deep); font-size:10pt; }
+  .seal .seal-ar{ font-family:'Aref Ruqaa',serif; font-weight:700; font-size:8.5pt; line-height:1.2; }
+  .seal .seal-en{ font-family:'Amiri',serif; font-size:6pt; letter-spacing:1px; direction:ltr; color:var(--gold-deep); }
+
+  /* ---------- FOOTER NOTICE ---------- */
+  .notice{
+    margin-top:4mm;
+    border:1pt solid var(--gold-deep);
+    border-radius:4px;
+    background:var(--cream-2);
+    padding:3mm 5mm;
+    position:relative;
+  }
+  .notice .tag{
+    position:absolute;
+    top:-2.6mm; right:7mm;
+    background:var(--burgundy);
+    color:var(--gold-bright);
+    font-size:8.5pt;
+    font-weight:700;
+    padding:.6mm 5mm;
+    border-radius:12px;
+    letter-spacing:.5px;
+  }
+  .notice .ar{ font-size:9.5pt; color:var(--ink); font-weight:500; line-height:1.5; }
+  .notice .en{ font-family:'Amiri',serif; font-style:italic; font-size:8.5pt; color:var(--ink-soft); direction:ltr; text-align:left; margin-top:1.6mm; padding-top:1.6mm; border-top:1pt dotted var(--line); }
+
+  .page-foot{
+    margin-top:3.5mm;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:8pt;
+    color:var(--ink-soft);
+    border-top:1pt solid var(--line);
+    padding-top:2mm;
+  }
+  .page-foot .en{ font-family:'Amiri',serif; font-style:italic; direction:ltr; }
+
+  /* ---------- SECOND PAGE MINI HEADER ---------- */
+  .mini-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding-bottom:2.5mm;
+    margin-bottom:1mm;
+    border-bottom:1.4pt double var(--gold-deep);
+  }
+  .mini-head .left{ display:flex; align-items:center; gap:8px; }
+  .mini-head .logo{ width:78px; }
+  .mini-head .name-ar{ font-family:'Aref Ruqaa',serif; font-weight:700; font-size:13.5pt; color:var(--burgundy); }
+  .mini-head .name-en{ font-family:'Amiri',serif; font-style:italic; font-size:8pt; color:var(--gold-deep); letter-spacing:1.5px; direction:ltr; }
+  .mini-head .inv-no{ text-align:left; }
+  .mini-head .inv-no .k{ font-size:7.5pt; color:var(--ink-soft); }
+  .mini-head .inv-no .v{ font-size:11pt; font-weight:800; color:var(--burgundy); }
+
+  .page-break{ page-break-before:always; break-before:page; }
+
+  @media print{
+    html,body{ background:#fff; }
+    .page{ margin:0; box-shadow:none; }
+    .page + .page{ margin-top:0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================ PAGE 1 ============================ -->
+<section class="page">
+  <!-- ornamental corners -->
+  <div class="corner tl">
+    <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#c9a84c" stroke-width="1.4"><path d="M2 58 V14 Q2 2 14 2 H58"/><path d="M8 58 V16 Q8 8 16 8 H58"/></g><circle cx="14" cy="14" r="3" fill="#5e1626"/></svg>
+  </div>
+  <div class="corner tr">
+    <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#c9a84c" stroke-width="1.4"><path d="M2 58 V14 Q2 2 14 2 H58"/><path d="M8 58 V16 Q8 8 16 8 H58"/></g><circle cx="14" cy="14" r="3" fill="#5e1626"/></svg>
+  </div>
+  <div class="corner bl">
+    <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#c9a84c" stroke-width="1.4"><path d="M2 58 V14 Q2 2 14 2 H58"/><path d="M8 58 V16 Q8 8 16 8 H58"/></g><circle cx="14" cy="14" r="3" fill="#5e1626"/></svg>
+  </div>
+  <div class="corner br">
+    <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#c9a84c" stroke-width="1.4"><path d="M2 58 V14 Q2 2 14 2 H58"/><path d="M8 58 V16 Q8 8 16 8 H58"/></g><circle cx="14" cy="14" r="3" fill="#5e1626"/></svg>
+  </div>
+
+  <div class="sheet">
+
+    <!-- 1) BRAND HEADER -->
+    <header class="brand">
+      <div class="brand-id">
+        <div class="brand-ar">تأشيرة البناء والإنشاء</div>
+        <div class="brand-en">VISA Albina &amp; Alinsha</div>
+        <div class="brand-group">HUSSAIN OFFICES</div>
+        <div class="brand-meta">
+          <div class="row"><span>المملكة العربية السعودية، الجبيل</span></div>
+          <div class="row"><span style="direction:ltr">Kingdom of Saudi Arabia – Al Jubail</span></div>
+          <div class="row"><span>جوال المكتب</span><span class="num">٠٥٦٩٠٣٦٥٢٨ · 0569036528</span></div>
+        </div>
+      </div>
+      <div class="brand-logo-wrap">
+        <img class="logo" src="../hussain-offices-logo.svg" alt="VISA Albina & Alinsha">
+        <div class="seal-line">EST. HUSSAIN OFFICES</div>
+      </div>
+    </header>
+
+    <!-- document title -->
+    <div class="doc-title">
+      <div class="ribbon-line"></div>
+      <h1>فاتورة خدمات رسمية</h1>
+      <div class="sub">OFFICIAL SERVICE INVOICE</div>
+    </div>
+
+    <!-- 2) INVOICE META + 4) STATUS -->
+    <div class="inv-strip">
+      <div class="cell">
+        <div class="lbl">رقم الفاتورة</div>
+        <div class="val num">INV-2026-1042</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">تاريخ الإصدار</div>
+        <div class="val num">2026-06-10</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">حالة الفاتورة</div>
+        <div class="status-chip">مدفوعة جزئياً</div>
+      </div>
+    </div>
+
+    <!-- 3) ★ HERO : LAST PAYMENT (cartouche) -->
+    <div class="hero">
+      <div class="cartouche-tag">آخر دفعة مستلمة</div>
+      <div class="hero-grid">
+        <div class="hero-amount">
+          <div class="cap">المبلغ المستلم</div>
+          <div class="big"><span class="num">1,500</span> <span class="cur">ر.س</span></div>
+        </div>
+        <div class="hero-detail">
+          <div class="item">
+            <div class="k">تاريخ الاستلام</div>
+            <div class="v num">2026-06-09</div>
+          </div>
+          <div class="item">
+            <div class="k">طريقة الدفع</div>
+            <div class="v">تحويل بنكي</div>
+          </div>
+          <div class="item full">
+            <div class="k">مقابل</div>
+            <div class="v">الدفعة الثالثة: التصديق والوكالة</div>
+          </div>
+        </div>
+        <div class="hero-remaining">
+          <div class="k">المتبقي بعدها</div>
+          <div class="v"><span class="num">2,500</span> <span class="cur">ر.س</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4) STATUS already in strip -->
+
+    <!-- 5) + 6) CLIENT / WORKER+FACILITY -->
+    <div class="sec">
+      <div class="sec-head"><span class="mark"></span><h2>أطراف المعاملة</h2><span class="rule"></span></div>
+      <div class="duo">
+        <div class="card">
+          <div class="card-title">بيانات العميل</div>
+          <dl class="dl">
+            <dt>الاسم</dt><dd>عبدالله محمد الرشيدي</dd>
+            <dt>Name</dt><dd style="direction:ltr">Abdullah M. Al-Rashidi</dd>
+            <dt>رقم الهوية</dt><dd class="num">1098765432</dd>
+            <dt>الجوال</dt><dd class="num">0551234567</dd>
+            <dt>الجنسية</dt><dd>السعودية</dd>
+          </dl>
+        </div>
+        <div class="card">
+          <div class="card-title">بيانات العامل</div>
+          <dl class="dl">
+            <dt>الاسم</dt><dd>راجيش كومار</dd>
+            <dt>Name</dt><dd style="direction:ltr">Rajesh Kumar</dd>
+            <dt>رقم الإقامة</dt><dd class="num">2456789011</dd>
+            <dt>الجوال</dt><dd class="num">0590112233</dd>
+            <dt>الجنسية</dt><dd>الهند</dd>
+            <dt>المهنة</dt><dd>عامل بناء</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="card" style="margin-top:4mm">
+        <div class="card-title">بيانات المنشأة</div>
+        <dl class="dl" style="grid-template-columns:auto 1fr auto 1fr;">
+          <dt>اسم المنشأة</dt><dd>مؤسسة الجبيل للمقاولات</dd>
+          <dt>الرقم الموحد</dt><dd class="num">7001234567</dd>
+          <dt>رقم الموارد (HRSD)</dt><dd class="num">1-2345678</dd>
+          <dt>رقم التأمينات (GOSI)</dt><dd class="num">558012345</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- 7) SERVICE -->
+    <div class="sec">
+      <div class="sec-head"><span class="mark"></span><h2>الخدمة</h2><span class="rule"></span></div>
+      <div class="service-row">
+        <div>
+          <div class="name">نقل كفالة عامل</div>
+          <div class="en">Transfer of Sponsorship</div>
+        </div>
+        <div class="qty">
+          <div class="k">الكمية</div>
+          <div class="v num">١</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-foot">
+      <span>تأشيرة البناء والإنشاء — فاتورة <span class="num">INV-2026-1042</span></span>
+      <span class="en">Page 1 of 2 — VISA Albina &amp; Alinsha</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================ PAGE 2 ============================ -->
+<section class="page page-break">
+  <!-- ornamental corners -->
+  <div class="corner tl">
+    <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#c9a84c" stroke-width="1.4"><path d="M2 58 V14 Q2 2 14 2 H58"/><path d="M8 58 V16 Q8 8 16 8 H58"/></g><circle cx="14" cy="14" r="3" fill="#5e1626"/></svg>
+  </div>
+  <div class="corner tr">
+    <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#c9a84c" stroke-width="1.4"><path d="M2 58 V14 Q2 2 14 2 H58"/><path d="M8 58 V16 Q8 8 16 8 H58"/></g><circle cx="14" cy="14" r="3" fill="#5e1626"/></svg>
+  </div>
+  <div class="corner bl">
+    <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#c9a84c" stroke-width="1.4"><path d="M2 58 V14 Q2 2 14 2 H58"/><path d="M8 58 V16 Q8 8 16 8 H58"/></g><circle cx="14" cy="14" r="3" fill="#5e1626"/></svg>
+  </div>
+  <div class="corner br">
+    <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#c9a84c" stroke-width="1.4"><path d="M2 58 V14 Q2 2 14 2 H58"/><path d="M8 58 V16 Q8 8 16 8 H58"/></g><circle cx="14" cy="14" r="3" fill="#5e1626"/></svg>
+  </div>
+
+  <div class="sheet">
+
+    <!-- mini repeated header -->
+    <div class="mini-head">
+      <div class="left">
+        <img class="logo" src="../hussain-offices-logo.svg" alt="VISA Albina & Alinsha">
+        <div>
+          <div class="name-ar">تأشيرة البناء والإنشاء</div>
+          <div class="name-en">VISA Albina &amp; Alinsha · HUSSAIN OFFICES</div>
+        </div>
+      </div>
+      <div class="inv-no">
+        <div class="k">رقم الفاتورة</div>
+        <div class="v num">INV-2026-1042</div>
+      </div>
+    </div>
+
+    <!-- 8) INSTALLMENTS TABLE (الدفعات) -->
+    <div class="sec" style="margin-top:4mm">
+      <div class="sec-head"><span class="mark"></span><h2>الدفعات</h2><span class="rule"></span></div>
+      <table>
+        <thead>
+          <tr>
+            <th class="ctr" style="width:8mm">#</th>
+            <th>المعلم</th>
+            <th class="ctr">التاريخ المتوقع</th>
+            <th class="amt">المبلغ</th>
+            <th class="ctr">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="ctr row-idx num">1</td>
+            <td>الدفعة الأولى — عند التعاقد</td>
+            <td class="ctr num">2026-05-01</td>
+            <td class="amt"><span class="num">6,000</span> ر.س</td>
+            <td class="ctr"><span class="pill paid">مدفوعة</span></td>
+          </tr>
+          <tr>
+            <td class="ctr row-idx num">2</td>
+            <td>الدفعة الثانية — رفع الطلب</td>
+            <td class="ctr num">2026-05-20</td>
+            <td class="amt"><span class="num">4,000</span> ر.س</td>
+            <td class="ctr"><span class="pill paid">مدفوعة</span></td>
+          </tr>
+          <tr class="is-latest">
+            <td class="ctr row-idx num">3</td>
+            <td>الدفعة الثالثة — التصديق والوكالة <span class="latest-tag">★ آخر دفعة</span></td>
+            <td class="ctr num">2026-06-15</td>
+            <td class="amt"><span class="num">2,500</span> ر.س</td>
+            <td class="ctr"><span class="pill partial">مدفوعة جزئياً<br><span style="font-weight:500;font-size:7.5pt">مدفوع <span class="num">1,500</span></span></span></td>
+          </tr>
+          <tr>
+            <td class="ctr row-idx num">4</td>
+            <td>الدفعة الرابعة — التسليم النهائي</td>
+            <td class="ctr num">2026-07-01</td>
+            <td class="amt"><span class="num">1,500</span> ر.س</td>
+            <td class="ctr"><span class="pill unpaid">غير مدفوعة</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 9) RECEIVED PAYMENTS (المدفوعات المستلمة) -->
+    <div class="sec">
+      <div class="sec-head"><span class="mark"></span><h2>المدفوعات المستلمة</h2><span class="rule"></span></div>
+      <table>
+        <thead>
+          <tr>
+            <th class="ctr" style="width:8mm">#</th>
+            <th>طريقة الدفع</th>
+            <th class="ctr">التاريخ</th>
+            <th class="amt">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="ctr row-idx num">1</td>
+            <td>تحويل بنكي</td>
+            <td class="ctr num">2026-05-01</td>
+            <td class="amt"><span class="num">6,000</span> ر.س</td>
+          </tr>
+          <tr>
+            <td class="ctr row-idx num">2</td>
+            <td>نقداً</td>
+            <td class="ctr num">2026-05-20</td>
+            <td class="amt"><span class="num">4,000</span> ر.س</td>
+          </tr>
+          <tr class="is-latest">
+            <td class="ctr row-idx num">3</td>
+            <td>تحويل بنكي <span class="latest-tag">★ الأحدث</span></td>
+            <td class="ctr num">2026-06-09</td>
+            <td class="amt"><span class="num">1,500</span> ر.س</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 10) PRICING + 11) SUMMARY -->
+    <div class="sec">
+      <div class="sec-head"><span class="mark"></span><h2>بيانات التسعير والملخّص المالي</h2><span class="rule"></span></div>
+      <div class="pricing-wrap">
+        <div class="pricing-tbl">
+          <table>
+            <thead>
+              <tr>
+                <th>البند</th>
+                <th class="amt">المبلغ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>نقل الكفالة (الموارد البشرية)</td><td class="amt"><span class="num">6,000</span> ر.س</td></tr>
+              <tr><td>التصديق والوكالة</td><td class="amt"><span class="num">2,000</span> ر.س</td></tr>
+              <tr><td>التأمينات الاجتماعية</td><td class="amt"><span class="num">1,500</span> ر.س</td></tr>
+              <tr><td>أتعاب المكتب</td><td class="amt"><span class="num">4,500</span> ر.س</td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>الإجمالي</td>
+                <td class="amt"><span class="num">14,000</span> ر.س</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="summary">
+          <h3>الملخّص المالي</h3>
+          <div class="line total"><span class="k">الإجمالي</span><span class="v"><span class="num">14,000</span> ر.س</span></div>
+          <div class="line paid"><span class="k">المدفوع</span><span class="v"><span class="num">11,500</span> ر.س</span></div>
+          <div class="line remain"><span class="k">المتبقي</span><span class="v"><span class="num">2,500</span> ر.س</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12) OFFICE BANK ACCOUNT + SEAL -->
+    <div class="sec">
+      <div class="sec-head"><span class="mark"></span><h2>حساب المكتب والتصديق</h2><span class="rule"></span></div>
+      <div class="bank-wrap">
+        <div class="bank">
+          <div class="card-title">بيانات الحساب البنكي</div>
+          <dl class="dl">
+            <dt>البنك</dt><dd>مصرف الراجحي</dd>
+            <dt>اسم الحساب</dt><dd>مكتب حسين — تأشيرة البناء والإنشاء</dd>
+            <dt>رقم الحساب</dt><dd class="num">608010167519</dd>
+            <dt>الآيبان</dt><dd class="num">SA03 8000 0000 6080 1016 7519</dd>
+          </dl>
+        </div>
+        <div class="seal-box">
+          <div class="seal">
+            <svg class="seal-arc" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <path id="arcTop" d="M 14,50 A 36,36 0 0 1 86,50" />
+                <path id="arcBot" d="M 16,52 A 34,34 0 0 0 84,52" />
+              </defs>
+              <text font-family="Amiri, serif" font-size="7" fill="#a8862f" letter-spacing="1.4">
+                <textPath href="#arcTop" startOffset="50%" text-anchor="middle">HUSSAIN OFFICES</textPath>
+              </text>
+              <text font-family="Amiri, serif" font-size="6" fill="#a8862f" letter-spacing="1.2">
+                <textPath href="#arcBot" startOffset="50%" text-anchor="middle">AL JUBAIL · KSA</textPath>
+              </text>
+            </svg>
+            <div class="star">&#9733;</div>
+            <div class="seal-ar">ختم المكتب</div>
+            <div class="seal-en">OFFICIAL SEAL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 13) FOOTER NOTICE -->
+    <div class="notice">
+      <span class="tag">إشعار هام · IMPORTANT</span>
+      <div class="ar">المكتب غير مسؤول عن أي مدفوعات تتم بدون فاتورة رسمية، ويجب على العميل طلب فاتورة لجميع تعاملاته.</div>
+      <div class="en">The office is not responsible for any payment made without an official invoice. The client must request an invoice for all transactions.</div>
+    </div>
+
+    <div class="page-foot">
+      <span>شكراً لتعاملكم مع تأشيرة البناء والإنشاء</span>
+      <span class="en">Page 2 of 2 — Thank you for your business</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

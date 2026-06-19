@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { UserCheck, BadgeCheck, CheckCircle2, X } from 'lucide-react'
 import RoleLayout from './RoleLayout.jsx'
-import { KCard, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, FacilityCard, AddBtn, EmptyState, FacilityPicker, C } from './RoleUI.jsx'
+import { HeroStat, KpiBox, ModalShell, FacilityCard, AddBtn, EmptyState, C } from './RoleUI.jsx'
+import { ModalSection, GRID, ActionButton, Select, TextField, DateField, Segmented, TextArea, ConfirmDialog } from '../../../components/ui/FormKit.jsx'
 import * as rolesService from '../../../services/rolesService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -40,6 +41,7 @@ export default function SupervisorRolePage({ person, onBack, toast, countries, r
   const [showModal, setShowModal] = useState(false)
   const [isMarked, setIsMarked] = useState(false)
   const [marking, setMarking] = useState(false)
+  const [confirmTarget, setConfirmTarget] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -85,7 +87,6 @@ export default function SupervisorRolePage({ person, onBack, toast, countries, r
   }
   const openEdit = (r) => { setEditRow(r); setShowModal(true) }
   const onEnd = async (r) => {
-    if (!confirm(`إنهاء صلاحية الإشراف على "${r.facility?.name_ar}"؟`)) return
     try { await rolesService.endSupervisor(r.id); toast?.('تم الإنهاء'); load(); reload?.() }
     catch (e) { toast?.(rolesService.humanizeDbError(e)) }
   }
@@ -122,7 +123,7 @@ export default function SupervisorRolePage({ person, onBack, toast, countries, r
                 { label: 'من', value: r.start_date || '—', dir: 'ltr' },
                 { label: 'إلى', value: r.end_date || 'ساري', dir: 'ltr' },
               ]}
-              onEdit={() => openEdit(r)} onEnd={() => onEnd(r)} />
+              onEdit={() => openEdit(r)} onEnd={() => setConfirmTarget(r)} />
           ))}
           {endedRows.length > 0 && (
             <>
@@ -144,6 +145,12 @@ export default function SupervisorRolePage({ person, onBack, toast, countries, r
         <SupervisorModal open={showModal} onClose={() => { setShowModal(false); setEditRow(null) }}
           personId={person.id} row={editRow} facilities={facilities} toast={toast} onSaved={onSaved} />
       )}
+
+      <ConfirmDialog open={!!confirmTarget} title="تأكيد الإنهاء"
+        message="إنهاء صلاحية الإشراف على المنشأة؟" itemName={confirmTarget?.facility?.name_ar}
+        confirmText="إنهاء"
+        onConfirm={() => { const r = confirmTarget; setConfirmTarget(null); onEnd(r) }}
+        onCancel={() => setConfirmTarget(null)} />
     </RoleLayout>
   )
 }
@@ -183,36 +190,24 @@ function SupervisorModal({ open, onClose, personId, row, facilities, toast, onSa
   }
 
   return (
-    <ModalShell open={open} onClose={onClose} title={isEdit ? 'تعديل صلاحية إشراف' : 'إضافة صلاحية إشراف'} Icon={UserCheck}
-      footer={<><div style={{ flex: 1 }} /><SaveBtn onClick={save} disabled={saving} label={saving ? 'جاري الحفظ...' : 'حفظ'} /></>}>
-      <KCard Icon={UserCheck} label="صلاحية المشرف">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div style={{ gridColumn: '1 / -1' }}><Lbl req>المنشأة</Lbl>
-            <FacilityPicker value={f.facility_id} onChange={v => set('facility_id', v)}
-              options={facilities} disabled={isEdit} /></div>
-          <div><Lbl>اسم مستخدم التأمينات</Lbl>
-            <input value={f.gosi_username} onChange={e => set('gosi_username', e.target.value)} dir="ltr"
-              style={{ ...sF, direction: 'ltr' }} /></div>
-          <div><Lbl>مستوى الصلاحية</Lbl>
-            <select value={f.access_level} onChange={e => set('access_level', e.target.value)}
-              style={{ ...sF, cursor: 'pointer' }}>
-              <option value="viewer">عرض فقط</option>
-              <option value="editor">تعديل</option>
-              <option value="admin">مدير</option>
-            </select></div>
-          <div><Lbl>تاريخ البدء</Lbl>
-            <input type="date" value={f.start_date} onChange={e => set('start_date', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div><Lbl>تاريخ الانتهاء</Lbl>
-            <input type="date" value={f.end_date} onChange={e => set('end_date', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
+    <ModalShell open={open} onClose={onClose} variant={isEdit ? 'edit' : 'create'}
+      title={isEdit ? 'تعديل صلاحية إشراف' : 'إضافة صلاحية إشراف'} Icon={UserCheck}
+      footer={<ActionButton onClick={save} disabled={saving || !f.facility_id}>{saving ? 'جاري الحفظ...' : 'حفظ'}</ActionButton>}>
+      <ModalSection Icon={UserCheck} label="صلاحية المشرف">
+        <div style={GRID}>
+          <Select label="المنشأة" req full value={f.facility_id} onChange={v => set('facility_id', v)}
+            options={facilities} getKey={o => o.id} getLabel={o => o.name_ar}
+            getSub={o => o.cr_number ? `CR: ${o.cr_number}` : ''}
+            placeholder="اختر المنشأة..." disabled={isEdit} />
+          <TextField label="اسم مستخدم التأمينات" dir="ltr"
+            value={f.gosi_username} onChange={v => set('gosi_username', v)} />
+          <Segmented label="مستوى الصلاحية" value={f.access_level} onChange={v => set('access_level', v)}
+            options={[{ v: 'viewer', l: 'عرض فقط' }, { v: 'editor', l: 'تعديل' }, { v: 'admin', l: 'مدير' }]} />
+          <DateField label="تاريخ البدء" value={f.start_date} onChange={v => set('start_date', v)} />
+          <DateField label="تاريخ الانتهاء" value={f.end_date} onChange={v => set('end_date', v)} />
+          <TextArea label="ملاحظات" value={f.notes} onChange={v => set('notes', v)} />
         </div>
-        <div style={{ marginTop: 14 }}>
-          <Lbl>ملاحظات</Lbl>
-          <textarea value={f.notes} onChange={e => set('notes', e.target.value)} rows={3}
-            style={{ ...sF, height: 'auto', padding: 14, textAlign: 'start' }} />
-        </div>
-      </KCard>
+      </ModalSection>
     </ModalShell>
   )
 }

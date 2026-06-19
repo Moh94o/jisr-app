@@ -57,6 +57,7 @@ export const PAGE_VIEW_PERM = {
   home: 'home.view',
   facilities: 'facilities.view',
   workers: 'workers.view',
+  temp_workers: 'workers.view',
   invoices: 'invoices.view',
   payments: 'payments.view',
   deposits: 'deposits.view',

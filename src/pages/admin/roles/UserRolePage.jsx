@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
-import ReactDOM from 'react-dom'
-import { User, Mail, Phone, Calendar, Edit2, Plus, Save, Activity, X } from 'lucide-react'
+import { User, Edit2, Plus, Activity, Shield } from 'lucide-react'
 import RoleLayout from './RoleLayout.jsx'
-import { KCard, KV, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, PersonIdentityChip, C } from './RoleUI.jsx'
-import { Dropdown, normalizePhoneFor9Digit } from '../../../components/persons/PersonFormModal.jsx'
+import { HeroStat, KpiBox, C } from './RoleUI.jsx'
+import { normalizePhoneFor9Digit } from '../../../components/persons/PersonFormModal.jsx'
+import {
+  Modal, ModalSection, ActionButton, GRID, SuccessView,
+  TextField, PhoneField, Segmented, MultiSelect, Switch,
+} from '../../../components/ui/FormKit.jsx'
 import * as rolesService from '../../../services/rolesService.js'
 import UserPermissionsCard from './UserPermissionsCard.jsx'
 import UserActivityCard from './UserActivityCard.jsx'
@@ -183,9 +186,6 @@ function UserModal({ open, onClose, personId, person, row, toast, onSaved, allRo
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
-  const toggleRole = (id) => setF(p => ({
-    ...p, roleIds: p.roleIds.includes(id) ? p.roleIds.filter(x => x !== id) : [...p.roleIds, id]
-  }))
 
   const save = async () => {
     setSaving(true)
@@ -203,132 +203,29 @@ function UserModal({ open, onClose, personId, person, row, toast, onSaved, allRo
     finally { setSaving(false) }
   }
 
-  if (success) {
-    return ReactDOM.createPortal(
-      <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16
-      }}>
-        <div onClick={e => e.stopPropagation()} style={{
-          background: '#1a1a1a', borderRadius: 18, width: 420, maxWidth: '95vw',
-          padding: '48px 32px', boxShadow: '0 24px 60px rgba(0,0,0,.5)',
-          border: '1px solid rgba(212,160,23,.08)', position: 'relative'
-        }}>
-          <style>{`
-            @keyframes urSuccessPop { 0% { transform: scale(0); opacity: 0 } 60% { transform: scale(1.15); opacity: 1 } 100% { transform: scale(1); opacity: 1 } }
-            @keyframes urSuccessCheck { 0% { stroke-dashoffset: 60 } 100% { stroke-dashoffset: 0 } }
-            @keyframes urSuccessFade { 0% { opacity: 0; transform: translateY(8px) } 100% { opacity: 1; transform: translateY(0) } }
-          `}</style>
-          <div dir="rtl" style={{ fontFamily: F, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18 }}>
-            <div style={{
-              width: 84, height: 84, borderRadius: '50%',
-              background: `radial-gradient(circle at center, #27a04622, #27a04608)`,
-              border: `2px solid #27a04655`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              animation: 'urSuccessPop .5s cubic-bezier(.4,1.4,.5,1) forwards',
-              boxShadow: `0 0 40px #27a04633`
-            }}>
-              <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#27a046" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"
-                  style={{ strokeDasharray: 60, strokeDashoffset: 60, animation: 'urSuccessCheck .45s .25s ease-out forwards' }} />
-              </svg>
-            </div>
-            <div style={{ animation: 'urSuccessFade .4s .45s both', textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,.95)', marginBottom: 6 }}>
-                {isEdit ? 'تم التعديل' : 'تم الربط'}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx5)' }}>
-                {f.name_ar}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>, document.body
-    )
-  }
-
   return (
-    <ModalShell open={open} onClose={onClose} title={isEdit ? 'تعديل ملف المستخدم' : 'ربط ملف مستخدم'} Icon={User}
-      footer={<><div style={{ flex: 1 }} /><SaveBtn onClick={save} disabled={saving} label={saving ? 'جاري الحفظ...' : (isEdit ? 'تعديل' : 'ربط')} /></>}>
-      <KCard Icon={User} label="بيانات المستخدم">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div><Lbl req>الاسم بالعربي</Lbl>
-            <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} style={sF} /></div>
-          <div><Lbl>الاسم بالإنجليزي</Lbl>
-            <input value={f.name_en} onChange={e => set('name_en', e.target.value.toUpperCase())} dir="ltr"
-              style={{ ...sF, direction: 'ltr', textTransform: 'uppercase' }} /></div>
-          <div><Lbl>الجوال</Lbl>
-            <div className="kc-phone-wrap" style={{
-              display: 'flex', direction: 'ltr',
-              border: '1px solid transparent',
-              borderRadius: 9, overflow: 'hidden',
-              background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
-              height: 42, transition: 'border-color .2s'
-            }}>
-              <div style={{
-                height: '100%', padding: '0 10px',
-                background: 'rgba(255,255,255,.04)',
-                display: 'flex', alignItems: 'center',
-                fontSize: 12, fontWeight: 700, color: '#D4A017', flexShrink: 0
-              }}>+966</div>
-              <input value={f.phone}
-                onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))}
-                placeholder="5X XXX XXXX" maxLength={9}
-                style={{
-                  width: '100%', height: '100%', padding: '0 12px',
-                  border: 'none', background: 'transparent',
-                  fontFamily: F, fontSize: 13, fontWeight: 600,
-                  color: 'var(--tx)', outline: 'none', textAlign: 'left'
-                }} />
-            </div></div>
-          <div><Lbl>اللغة المفضّلة</Lbl>
-            <Dropdown value={f.preferred_lang} onChange={v => set('preferred_lang', v)}
-              options={[{ id: 'ar', label: 'العربية' }, { id: 'en', label: 'English' }]}
-              getKey={o => o.id} getLabel={o => o.label}
-              placeholder="اختر..." searchable={false} /></div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <Lbl>الأدوار</Lbl>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {allRoles.map(r => {
-                const on = f.roleIds.includes(r.id)
-                return (
-                  <button key={r.id} type="button" onClick={() => toggleRole(r.id)}
-                    style={{ height: 36, padding: '0 14px', borderRadius: 9,
-                      border: `1px solid ${on ? 'rgba(212,160,23,.5)' : 'rgba(255,255,255,.1)'}`,
-                      background: on ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)',
-                      color: on ? '#D4A017' : 'var(--tx2)',
-                      fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}>
-                    <span style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0,
-                      border: `1.5px solid ${on ? '#D4A017' : 'rgba(255,255,255,.3)'}`,
-                      background: on ? '#D4A017' : 'transparent',
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {on && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a"
-                        strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                    </span>
-                    {r.name_ar}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', marginTop: 4 }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12,
-              fontWeight: 700, color: 'var(--tx2)', cursor: 'pointer' }}
-              onClick={e => { e.preventDefault(); set('is_active', !f.is_active) }}>
-              <span style={{ width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                border: `1.5px solid ${f.is_active ? '#27a046' : 'rgba(255,255,255,.3)'}`,
-                background: f.is_active ? '#27a046' : 'transparent',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                transition: '.15s' }}>
-                {f.is_active && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff"
-                  strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-              </span>
-              مستخدم نشط
-            </label>
-          </div>
+    <Modal open={open} onClose={onClose}
+      title={isEdit ? 'تعديل ملف المستخدم' : 'ربط ملف مستخدم'} Icon={User}
+      width={640} variant={isEdit ? 'edit' : 'create'}
+      success={success ? <SuccessView title={isEdit ? 'تم التعديل' : 'تم الربط'} /> : null}
+      footer={<ActionButton onClick={save} disabled={saving}>{saving ? 'جاري الحفظ...' : (isEdit ? 'تعديل' : 'ربط')}</ActionButton>}>
+      <ModalSection Icon={User} label="بيانات المستخدم">
+        <div style={GRID}>
+          <TextField label="الاسم بالعربي" req value={f.name_ar} onChange={v => set('name_ar', v)} />
+          <TextField label="الاسم بالإنجليزي" upper dir="ltr" value={f.name_en} onChange={v => set('name_en', v)} />
+          <PhoneField label="الجوال" value={f.phone} onChange={v => set('phone', v)} />
+          <Segmented label="اللغة المفضّلة" value={f.preferred_lang} onChange={v => set('preferred_lang', v)}
+            options={[{ v: 'ar', l: 'العربية' }, { v: 'en', l: 'English' }]} />
         </div>
-      </KCard>
-    </ModalShell>
+      </ModalSection>
+      <ModalSection Icon={Shield} label="الأدوار والحالة">
+        <div style={GRID}>
+          <MultiSelect label="الأدوار" placeholder="اختر الأدوار..."
+            value={f.roleIds} onChange={v => set('roleIds', v)}
+            options={allRoles} getKey={r => r.id} getLabel={r => r.name_ar} />
+          <Switch label="مستخدم نشط" checked={f.is_active} onChange={v => set('is_active', v)} />
+        </div>
+      </ModalSection>
+    </Modal>
   )
 }

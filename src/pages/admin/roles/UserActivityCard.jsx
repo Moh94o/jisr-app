@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import ReactDOM from 'react-dom'
 import {
   Activity, Plus, Pencil, Trash2, Check, X, LogIn, Download, Upload,
   ChevronDown, Filter, Clock, MapPin, Info,
 } from 'lucide-react'
 import * as userProfileService from '../../../services/userProfileService.js'
+import { Modal, ModalSection, ScrollBox, InfoRow, InfoGrid, C } from '../../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = '#D4A017'
@@ -182,22 +182,22 @@ const DiffRow = ({ label, oldV, newV }) => {
     <div style={{
       display: 'grid', gridTemplateColumns: '130px 1fr 1fr', gap: 10,
       padding: '9px 10px', borderRadius: 8,
-      background: changed ? `${GOLD}08` : 'transparent',
-      border: `1px solid ${changed ? GOLD + '22' : 'transparent'}`,
+      background: changed ? `${C.gold}08` : 'transparent',
+      border: `1px solid ${changed ? C.gold + '22' : 'transparent'}`,
       alignItems: 'start',
     }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)' }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: C.tx4 }}>{label}</div>
       <div style={{
         fontSize: 11.5, fontWeight: 600, padding: '4px 8px', borderRadius: 6,
-        background: changed ? 'rgba(192,57,43,.08)' : 'rgba(255,255,255,.02)',
-        color: changed ? '#e68a80' : 'var(--tx3)',
+        background: changed ? `${C.red}14` : 'rgba(255,255,255,.02)',
+        color: changed ? '#e68a80' : C.tx3,
         textDecoration: changed && newV != null ? 'line-through' : 'none',
         wordBreak: 'break-word',
       }}>{fmt(oldV)}</div>
       <div style={{
-        fontSize: 11.5, fontWeight: 700, padding: '4px 8px', borderRadius: 6,
-        background: changed ? 'rgba(39,160,70,.08)' : 'rgba(255,255,255,.02)',
-        color: changed ? '#6ee091' : 'var(--tx3)',
+        fontSize: 11.5, fontWeight: 600, padding: '4px 8px', borderRadius: 6,
+        background: changed ? `${C.ok}14` : 'rgba(255,255,255,.02)',
+        color: changed ? '#6ee091' : C.tx3,
         wordBreak: 'break-word',
       }}>{fmt(newV)}</div>
     </div>
@@ -205,16 +205,16 @@ const DiffRow = ({ label, oldV, newV }) => {
 }
 
 const DetailPanel = ({ row, onClose }) => {
-  if (!row) return null
-  const tone = TONE[row.action_tone] || TONE.neutral
-  const Icon = ACTION_ICON[row.action] || Activity
   const keys = useMemo(() => {
     const s = new Set()
-    ;[row.old_data, row.new_data].forEach(o => {
+    ;[row?.old_data, row?.new_data].forEach(o => {
       if (o && typeof o === 'object') Object.keys(o).forEach(k => s.add(k))
     })
     return Array.from(s)
   }, [row])
+  if (!row) return null
+  const tone = TONE[row.action_tone] || TONE.neutral
+  const Icon = ACTION_ICON[row.action] || Activity
   const changedKeys = keys.filter(k => {
     const a = row.old_data?.[k]
     const b = row.new_data?.[k]
@@ -222,118 +222,53 @@ const DetailPanel = ({ row, onClose }) => {
   })
   const showKeys = changedKeys.length ? changedKeys : keys
 
-  return ReactDOM.createPortal(
-    <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(10,10,10,.7)', backdropFilter: 'blur(6px)',
-      zIndex: 1000, display: 'flex', justifyContent: 'flex-start',
-    }}>
-      <div onClick={e => e.stopPropagation()} dir="rtl" style={{
-        width: 520, maxWidth: '95vw', height: '100%',
-        background: '#1a1a1a', borderLeft: '1px solid rgba(212,160,23,.15)',
-        boxShadow: '-12px 0 40px rgba(0,0,0,.5)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        fontFamily: F, animation: 'slidePanelIn .25s ease-out',
-      }}>
-        <style>{`@keyframes slidePanelIn { from { transform: translateX(-100%) } to { transform: translateX(0) } }`}</style>
-        <div style={{
-          padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.06)',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
+  return (
+    <Modal open onClose={onClose} width={560} accent={tone.color} Icon={Icon}
+      title={row.action_label_ar || row.action}
+      subtitle={`${row.entity_label_ar || ''}${row.entity_name ? ` · ${row.entity_name}` : ''}`}>
+      <ModalSection Icon={Info} label="تفاصيل العملية">
+        {row.description && (
           <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: tone.bg, border: `1.5px solid ${tone.border}`,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            padding: '10px 12px', borderRadius: 9, marginBottom: 10,
+            background: C.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
+            fontSize: 13, fontWeight: 600, color: C.tx2, lineHeight: 1.7, textAlign: 'start',
           }}>
-            <Icon size={16} color={tone.color} strokeWidth={2.2} />
+            {row.description}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)' }}>
-              {row.action_label_ar || row.action}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--tx5)', marginTop: 2 }}>
-              {row.entity_label_ar}{row.entity_name ? ` · ${row.entity_name}` : ''}
-            </div>
+        )}
+        <InfoGrid>
+          <InfoRow label="الوقت" value={formatAbsolute(row.created_at)} Icon={Clock} full />
+          {row.branch_code && <InfoRow label="الفرع" value={row.branch_code} Icon={MapPin} mono />}
+          {row.ip_address && <InfoRow label="IP" value={row.ip_address} mono copy />}
+          {row.metadata?.user_agent && <InfoRow label="المتصفح" value={String(row.metadata.user_agent)} />}
+        </InfoGrid>
+      </ModalSection>
+
+      {showKeys.length > 0 && (
+        <ModalSection Icon={Info} label="الفروقات" hint="هذا القسم وحده يتمرّر">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 600 }}>
+            <span style={{ color: '#e68a80' }}>قبل</span>
+            <span style={{ color: C.tx5 }}>/</span>
+            <span style={{ color: '#6ee091' }}>بعد</span>
           </div>
-          <button onClick={onClose} style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)',
-            color: 'var(--tx3)', cursor: 'pointer',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <X size={14} />
-          </button>
+          <ScrollBox maxHeight={280}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {showKeys.map(k => (
+                <DiffRow key={k} label={k} oldV={row.old_data?.[k]} newV={row.new_data?.[k]} />
+              ))}
+            </div>
+          </ScrollBox>
+        </ModalSection>
+      )}
+
+      {showKeys.length === 0 && !row.description && (
+        <div style={{ padding: 30, textAlign: 'center', color: C.tx5, fontSize: 12, fontWeight: 600 }}>
+          لا توجد تفاصيل إضافية
         </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {row.description && (
-            <div style={{
-              padding: '10px 12px', borderRadius: 9,
-              background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.05)',
-              fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', lineHeight: 1.6,
-            }}>
-              {row.description}
-            </div>
-          )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8 }}>
-            <InfoBox label="الوقت" value={formatAbsolute(row.created_at)} />
-            {row.branch_code && <InfoBox label="الفرع" value={row.branch_code} mono />}
-            {row.ip_address && <InfoBox label="IP" value={row.ip_address} mono />}
-            {row.metadata?.user_agent && (
-              <InfoBox label="المتصفح" value={String(row.metadata.user_agent).slice(0, 40) + (String(row.metadata.user_agent).length > 40 ? '…' : '')} />
-            )}
-          </div>
-
-          {showKeys.length > 0 && (
-            <div>
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                marginBottom: 8, padding: '0 2px',
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tx)' }}>
-                  <Info size={11} style={{ marginInlineEnd: 4, color: GOLD }} /> الفروقات
-                </div>
-                <div style={{ display: 'flex', gap: 6, fontSize: 10, fontWeight: 800 }}>
-                  <span style={{ color: '#e68a80' }}>قبل</span>
-                  <span style={{ color: 'var(--tx5)' }}>/</span>
-                  <span style={{ color: '#6ee091' }}>بعد</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {showKeys.map(k => (
-                  <DiffRow key={k} label={k} oldV={row.old_data?.[k]} newV={row.new_data?.[k]} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {showKeys.length === 0 && !row.description && (
-            <div style={{ padding: 30, textAlign: 'center', color: 'var(--tx5)', fontSize: 11.5, fontWeight: 700 }}>
-              لا توجد تفاصيل إضافية
-            </div>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
+      )}
+    </Modal>
   )
 }
-
-const InfoBox = ({ label, value, mono }) => (
-  <div style={{
-    padding: '8px 10px', borderRadius: 8,
-    background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)',
-  }}>
-    <div style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 800, letterSpacing: '.3px', marginBottom: 3 }}>{label}</div>
-    <div style={{
-      fontSize: 11.5, fontWeight: 700, color: 'var(--tx)',
-      direction: mono ? 'ltr' : 'rtl', wordBreak: 'break-word',
-      fontFamily: mono ? "'JetBrains Mono',monospace" : F,
-    }}>
-      {value}
-    </div>
-  </div>
-)
 
 const PAGE_SIZE = 50
 

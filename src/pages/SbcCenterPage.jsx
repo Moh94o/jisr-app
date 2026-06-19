@@ -1,29 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import BackButton from '../components/BackButton'
-import { Dropdown, DateField, sF } from '../components/persons/PersonFormModal'
-import { Modal as FKModal } from '../components/ui/FormKit.jsx'
-import { FileText } from 'lucide-react'
+import { Modal as FKModal, ModalSection, Select, TextField, IdField, PhoneField, CurrencyField, DateField, Segmented, Switch, SuccessView, ScrollBox, InfoRow, InfoGrid, GRID, FULL, C as FKC } from '../components/ui/FormKit.jsx'
+import { FileText, User, Users, CreditCard, Pencil, Info } from 'lucide-react'
+import { SkeletonCards, SkeletonTable } from '../components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046', purple: '#bb8fce', orange: '#f39c12', cyan: '#16a085', gray: '#95a5a6', warn: '#eab308' }
 const nm = v => Number(v || 0).toLocaleString('en-US')
 const tint = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})` }
-
-// Adapter: keep the existing <Drop options={[{v,l}]} onChange={v} .../> call sites,
-// but render the canonical searchable Dropdown from PersonFormModal for a unified look.
-const Drop = ({ value, onChange, options, placeholder, searchable }) => (
-  <Dropdown value={value} onChange={(k) => onChange(k)} options={options || []}
-    getKey={o => o.v} getLabel={o => o.l} placeholder={placeholder}
-    searchable={searchable ?? ((options || []).length > 5)}
-    renderCell={(o, isSel) => (
-      <span style={{ fontSize: 13, fontWeight: isSel ? 800 : 700, color: isSel ? '#D4A017' : 'rgba(255,255,255,.92)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-        {o.l}
-        {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
-      </span>
-    )} />
-)
-// Canonical label style (matches PersonFormModal's Lbl)
-const LBL = { fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }
 
 // The internal commercial-registration services (no client — office's own filings).
 const SBC_CODES = ['sbc_name_reserve', 'sbc_cr_open', 'sbc_cr_renew', 'sbc_cr_amend', 'sbc_documents']
@@ -103,8 +87,8 @@ function InfoSectionCard({ title, items, headerAction }) {
 function EditAction({ onEdit, label = 'تعديل' }) {
   return (
     <button onClick={onEdit}
-      onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
       style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
       {label}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -132,12 +116,12 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
     ;(async () => {
       const [{ data: ti }, { data: si }] = await Promise.all([
         sb.from('lookup_items').select('id,code,value_ar,value_en').in('code', SBC_CODES),
-        sb.from('lookup_items').select('id,code,value_ar,category:lookup_categories!inner(category_key)').eq('category.category_key', 'request_status'),
+        sb.from('lookup_items').select('id,code,value_ar,category:lookup_categories!inner(category_key)').eq('category.category_key', 'request_status').eq('is_active', true),
       ])
       if (!alive) return
       setTypes(ti || [])
       setStatuses(si || [])
-      setNewStatusId((si || []).find(s => s.code === 'new')?.id || null)
+      setNewStatusId((si || []).find(s => s.code === 'in_progress')?.id || null) // initial status applied to newly-created requests
     })()
     return () => { alive = false }
   }, [sb])
@@ -176,6 +160,7 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
       statuses={statuses} onBack={() => setSelectedId(null)} onChanged={reload} />
   }
 
+  const initialLoading = loading && rows.length === 0
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       <style>{`
@@ -195,13 +180,15 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة السجل التجاري والكيان النظامي للمنشآت عبر المركز السعودي للأعمال. المعاملات تُضاف مباشرة من هذه الصفحة.</div>
         </div>
         <button onClick={() => setShowAdd(true)}
-          onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
           إضافة معاملة
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
       </div>
+
+      {initialLoading ? (<><SkeletonCards count={2} cols="1.8fr 1fr" minHeight={150} /><SkeletonTable columns={['18%','24%','28%','15%','15%']} rows={8} /></>) : (<>
 
       {/* Hero — total + distribution donut */}
       <div className="sbc-hero-grid">
@@ -249,15 +236,15 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
       </div>
 
       {/* List — table view (matches Payments page) */}
-      {loading ? (
-        <div style={{ padding: 50, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>جاري التحميل…</div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
           {q ? 'لا نتائج مطابقة' : 'لا توجد معاملات بعد — اضغط «إضافة معاملة».'}
         </div>
       ) : (
         <SbcTable rows={filtered} typeById={typeById} onRowClick={setSelectedId} />
       )}
+
+      </>)}
 
       {showAdd && <AddModal lang={lang} sb={sb} user={user} toast={toast} typeByCode={typeByCode} newStatusId={newStatusId} userBranchId={userBranchId} onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); reload() }} />}
     </div>
@@ -557,7 +544,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
             <div style={{ ...cardChrome, border: '1px dashed rgba(255,255,255,.1)' }}>
               <div style={{ padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--tx4)', lineHeight: 1.6 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.warn} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
-                بانتظار سداد رسم فتح السجل في صفحة المدفوعات قبل إكمال بيانات المنشأة.
+                بانتظار سداد رسم فتح السجل في صفحة سدادات الخدمات قبل إكمال بيانات المنشأة.
               </div>
             </div>
           ))}
@@ -597,7 +584,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
             <div style={{ ...cardChrome, border: '1px dashed rgba(255,255,255,.1)' }}>
               <div style={{ padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--tx4)', lineHeight: 1.6 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.warn} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
-                بانتظار سداد رسم الوثيقة في صفحة المدفوعات قبل إرفاق المستخرج.
+                بانتظار سداد رسم الوثيقة في صفحة سدادات الخدمات قبل إرفاق المستخرج.
               </div>
             </div>
           ))}
@@ -662,133 +649,8 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
   )
 }
 
-// ── Shared styles + searchable person/muaqqib pickers (used by the name-reserve wizard) ──
-const segBtn = (on) => ({ flex: 1, height: 36, borderRadius: 9, cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 700, border: '1px solid ' + (on ? 'rgba(212,160,23,.5)' : 'rgba(255,255,255,.08)'), background: on ? 'rgba(212,160,23,.12)' : 'transparent', color: on ? C.gold : 'var(--tx3)', transition: '.15s' })
-const dropWrap = { position: 'absolute', top: 'calc(100% + 4px)', insetInline: 0, zIndex: 30, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,.7)', maxHeight: 210, overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }
-const dropRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.05)', fontSize: 13 }
-const chipBox = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)' }
-const xBtn = { width: 24, height: 24, borderRadius: 6, border: 'none', background: 'rgba(255,255,255,.08)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 }
-// Search inputs: RTL text from the right, magnifier icon pinned to the left.
-const searchInpStyle = (inp) => ({ ...inp, textAlign: 'right', direction: 'rtl', padding: '0 14px 0 38px' })
-const SearchIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-
-// Chosen designs: person chip = «كرت 4» (avatar + green check), search-row id = «بحث 3» (gold chip).
-const Avatar = ({ c = C.gold, s = 38 }) => <div style={{ width: s, height: s, borderRadius: '50%', background: `${c}22`, border: `1px solid ${c}55`, color: c, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><svg width={Math.round(s * 0.5)} height={Math.round(s * 0.5)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg></div>
-const idChipStyle = { color: C.gold, direction: 'ltr', fontFamily: 'monospace', fontSize: 11, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.25)', borderRadius: 6, padding: '2px 7px', flexShrink: 0 }
-function PersonChip({ name, sub, onRemove }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'linear-gradient(135deg, rgba(212,160,23,.14), rgba(212,160,23,.04))', border: '1px solid rgba(212,160,23,.3)' }}>
-      <Avatar name={name} s={38} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12" /></svg>
-        </div>
-        {sub && <span style={{ fontSize: 11, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace' }}>{sub}</span>}
-      </div>
-      <button type="button" onClick={onRemove} style={xBtn}>✕</button>
-    </div>
-  )
-}
-
-function BeneficiaryField({ sb, value, setValue, inp, lbl, label = 'المستفيد', required = true, searchOnly = false }) {
-  const [results, setResults] = useState([]); const [open, setOpen] = useState(false); const tRef = useRef(null)
-  const mode = searchOnly ? 'search' : (value.mode || 'search')
-  const search = (q) => {
-    clearTimeout(tRef.current)
-    setValue({ ...value, query: q, person: null })
-    if (!q || q.trim().length < 2) { setResults([]); setOpen(false); return }
-    tRef.current = setTimeout(async () => {
-      const { data } = await sb.from('persons').select('id,name_ar,name_en,id_number')
-        .is('deleted_at', null).or(`id_number.ilike.%${q.trim()}%,name_ar.ilike.%${q.trim()}%`).order('name_ar').limit(8)
-      setResults(data || []); setOpen(true)
-    }, 250)
-  }
-  return (
-    <div>
-      <div style={lbl}>{label} {required && <span style={{ color: C.red }}>*</span>}</div>
-      {!searchOnly && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-          <button type="button" onClick={() => setValue({ ...value, mode: 'search' })} style={segBtn(mode === 'search')}>بحث</button>
-          <button type="button" onClick={() => setValue({ ...value, mode: 'new' })} style={segBtn(mode === 'new')}>إضافة جديد</button>
-        </div>
-      )}
-      {mode === 'new' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <input style={inp} placeholder="اسم المستفيد" value={value.name} onChange={e => setValue({ ...value, name: e.target.value })} />
-          <input style={{ ...inp, fontFamily: 'monospace', direction: 'ltr' }} dir="ltr" placeholder="رقم الهوية" value={value.idNumber} onChange={e => setValue({ ...value, idNumber: e.target.value })} />
-        </div>
-      ) : value.person ? (
-        <PersonChip name={value.person.name_ar || value.person.name_en} sub={value.person.id_number} onRemove={() => setValue({ ...value, person: null, query: '' })} />
-      ) : (
-        <div style={{ position: 'relative' }}>
-          <SearchIcon /><input style={searchInpStyle(inp)} placeholder="ابحث بالاسم أو رقم الهوية…" value={value.query || ''} onChange={e => search(e.target.value)} onFocus={() => results.length && setOpen(true)} />
-          {open && results.length > 0 && (
-            <div className="sbc-dd-scroll" style={dropWrap}>
-              {results.map(r => (
-                <div key={r.id} onClick={() => { setValue({ ...value, person: r }); setOpen(false) }} style={dropRow}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,160,23,.1)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <span style={{ color: 'var(--tx2)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name_ar || r.name_en}</span>
-                  <span style={idChipStyle}>{r.id_number}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function MuaqqibField({ sb, value, setValue, inp, lbl }) {
-  const [results, setResults] = useState([]); const [open, setOpen] = useState(false); const tRef = useRef(null)
-  const search = (q) => {
-    clearTimeout(tRef.current)
-    setValue({ ...value, query: q, selected: null })
-    if (!q || q.trim().length < 2) { setResults([]); setOpen(false); return }
-    tRef.current = setTimeout(async () => {
-      const { data } = await sb.from('muaqqibs').select('id,name_ar,phone')
-        .is('deleted_at', null).or(`name_ar.ilike.%${q.trim()}%,phone.ilike.%${q.trim()}%`).order('name_ar').limit(8)
-      setResults(data || []); setOpen(true)
-    }, 250)
-  }
-  return (
-    <div>
-      <div style={lbl}>المعقّب</div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        <button type="button" onClick={() => setValue({ ...value, mode: 'search' })} style={segBtn(value.mode === 'search')}>بحث</button>
-        <button type="button" onClick={() => setValue({ ...value, mode: 'new' })} style={segBtn(value.mode === 'new')}>إضافة جديد</button>
-      </div>
-      {value.mode === 'new' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <input style={inp} placeholder="اسم المعقّب" value={value.name} onChange={e => setValue({ ...value, name: e.target.value })} />
-          <div style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42 }}>
-            <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: C.gold, flexShrink: 0 }}>+966</div>
-            <input value={value.phone} onChange={e => setValue({ ...value, phone: e.target.value.replace(/\D/g, '').slice(0, 9) })} placeholder="5X XXX XXXX" maxLength={9}
-              style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
-          </div>
-        </div>
-      ) : value.selected ? (
-        <PersonChip name={value.selected.name_ar} sub={value.selected.phone} onRemove={() => setValue({ ...value, selected: null, query: '' })} />
-      ) : (
-        <div style={{ position: 'relative' }}>
-          <SearchIcon /><input style={searchInpStyle(inp)} placeholder="ابحث باسم المعقّب أو جواله…" value={value.query || ''} onChange={e => search(e.target.value)} onFocus={() => results.length && setOpen(true)} />
-          {open && results.length > 0 && (
-            <div className="sbc-dd-scroll" style={dropWrap}>
-              {results.map(r => (
-                <div key={r.id} onClick={() => { setValue({ ...value, selected: r }); setOpen(false) }} style={dropRow}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,160,23,.1)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{r.name_ar}</span>
-                  {r.phone ? <span style={idChipStyle}>{r.phone}</span> : <span />}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
+// Small remove button used by the amend rows.
+const xBtn = { width: 24, height: 24, borderRadius: 6, border: 'none', background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.55)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 }
 
 // Per-service wizard step definitions (key + stepper label).
 const STEP_DEFS = {
@@ -807,84 +669,12 @@ const AMEND_BASIC_FIELDS = [
 ]
 const ENTITY_TYPES = [{ v: 'individual', l: 'مؤسسة فردية' }, { v: 'company', l: 'شركة' }]
 
-// Facility search/select (by unified / GOSI / HRSD number) — used by CR-renew.
-function FacilityField({ sb, value, setValue, inp, lbl }) {
-  const [results, setResults] = useState([]); const [open, setOpen] = useState(false); const tRef = useRef(null)
-  const search = (q) => {
-    clearTimeout(tRef.current)
-    setValue({ ...value, query: q, facility: null })
-    if (!q || q.trim().length < 2) { setResults([]); setOpen(false); return }
-    tRef.current = setTimeout(async () => {
-      const t = q.trim()
-      const { data } = await sb.from('facilities')
-        .select('id,name_ar,unified_number,gosi_number,hrsd_number,confirmation_date,opening:opening_request_id(entity_kind)')
-        .is('deleted_at', null)
-        .or(`unified_number.ilike.%${t}%,gosi_number.ilike.%${t}%,hrsd_number.ilike.%${t}%`)
-        .order('name_ar').limit(8)
-      setResults(data || []); setOpen(true)
-    }, 250)
-  }
-  const kindLabel = (f) => f?.opening?.entity_kind === 'company' ? 'شركة' : (f?.opening?.entity_kind === 'individual' ? 'مؤسسة فردية' : null)
-  // Show the number field that actually matches what the user typed (unified / GOSI / HRSD).
-  const matchedNo = (r) => {
-    const q = (value.query || '').replace(/\s/g, '')
-    if (q && String(r.unified_number || '').replace(/\s/g, '').includes(q)) return { l: 'موحد', v: r.unified_number }
-    if (q && String(r.gosi_number || '').replace(/\s/g, '').includes(q)) return { l: 'تأمينات', v: r.gosi_number }
-    if (q && String(r.hrsd_number || '').replace(/\s/g, '').includes(q)) return { l: 'موارد', v: r.hrsd_number }
-    return { l: 'موحد', v: r.unified_number || r.gosi_number || r.hrsd_number || '' }
-  }
-  return (
-    <div>
-      <div style={lbl}>المنشأة <span style={{ color: C.red }}>*</span></div>
-      {value.facility ? (
-        <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /><path d="M9 9h.01M9 12h.01M9 15h.01M9 18h.01" /></svg>
-            <span style={{ flex: 1, fontSize: 13.5, fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value.facility.name_ar || '—'}</span>
-            {kindLabel(value.facility) && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(212,160,23,.18)', color: C.gold, flexShrink: 0 }}>{kindLabel(value.facility)}</span>}
-            <button type="button" onClick={() => setValue({ ...value, facility: null, query: '' })} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
-            {[['الرقم الموحد', value.facility.unified_number], ['التأمينات', value.facility.gosi_number], ['الموارد', value.facility.hrsd_number]].map(([k, v], i) => (
-              <div key={i} style={{ background: 'rgba(0,0,0,.2)', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
-                <div style={{ fontSize: 9, color: 'var(--tx5)', marginBottom: 3 }}>{k}</div>
-                <div style={{ fontSize: 11, color: C.gold, direction: 'ltr', fontFamily: 'monospace' }}>{v || '—'}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 6, background: 'rgba(0,0,0,.2)', borderRadius: 8, padding: '8px', textAlign: 'center' }}>
-            <div style={{ fontSize: 9.5, color: 'var(--tx5)', marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-              التأكيد السنوي
-            </div>
-            <div style={{ fontSize: 13, color: C.gold, direction: 'ltr', fontFamily: 'monospace', fontWeight: 700 }}>{value.facility.confirmation_date ? fmtGreg(value.facility.confirmation_date) : '—'}</div>
-          </div>
-        </div>
-      ) : (
-        <div style={{ position: 'relative' }}>
-          <SearchIcon /><input style={searchInpStyle(inp)} placeholder="ابحث بالرقم الموحد أو التأمينات أو الموارد…" value={value.query || ''} onChange={e => search(e.target.value)} onFocus={() => results.length && setOpen(true)} />
-          {open && results.length > 0 && (
-            <div className="sbc-dd-scroll" style={dropWrap}>
-              {results.map(r => (
-                <div key={r.id} onClick={() => { setValue({ ...value, facility: r }); setOpen(false) }} style={dropRow}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,160,23,.1)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <span style={{ color: 'var(--tx2)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name_ar || '—'}</span>
-                  {(() => { const m = matchedNo(r); return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}><span style={{ fontSize: 10, color: 'var(--tx5)' }}>{m.l}</span><span style={idChipStyle}>{m.v || '—'}</span></span> })()}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Add-transaction modal (direct create — no invoice) ──
+// FormKit Modal in pages mode — the per-service steps stay config-driven via STEP_DEFS,
+// each step renders as a Modal page with its own valid gate (the original goNext checks).
 function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId, onClose, onSaved }) {
   const [code, setCode] = useState('')
-  const [step, setStep] = useState(1)
-  // simple-form fields (non name-reserve services)
+  // simple-form fields (services without step definitions)
   const [tradeName, setTradeName] = useState('')
   const [crNumber, setCrNumber] = useState('')
   const [note, setNote] = useState('')
@@ -897,8 +687,8 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
   const [sadadNo, setSadadNo] = useState('')
   const [amount, setAmount] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [errMsg, setErrMsg] = useState('')
-  const fileRef = useRef(null)
   const [entityKind, setEntityKind] = useState('individual') // 'individual' | 'company'
   const [companyForm, setCompanyForm] = useState('llc')
   const [fac, setFac] = useState({ facility: null, query: '' })
@@ -910,6 +700,9 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
   const [trManagers, setTrManagers] = useState({ enabled: false, person: null, query: '' })
   const [entityTo, setEntityTo] = useState('')
   const [docType, setDocType] = useState('cr_extract')
+  // footer errors appear only after the user touches a field on that page
+  const [touched, setTouched] = useState({})
+  const touch = k => setTouched(t => (t[k] ? t : { ...t, [k]: true }))
   const isNameReserve = code === 'sbc_name_reserve'
   const isCrOpen = code === 'sbc_cr_open'
   const isCrRenew = code === 'sbc_cr_renew'
@@ -917,15 +710,46 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
   const isDocuments = code === 'sbc_documents'
   const wizSteps = STEP_DEFS[code] || []
   const isWizard = wizSteps.length > 0
-  const curStepKey = wizSteps[step - 1]?.k
   const fieldKind = code ? sbcMeta(code).field : null
+  const needsFacility = isCrRenew || isCrAmend || isDocuments
+  const needsPersons = isNameReserve || isCrOpen || isCrAmend
+  const needsMuq = isNameReserve || isCrOpen
+
+  // Option lists for the FormKit Selects — same sources/columns as the old inline
+  // searches, fetched once; the Select dropdown searches them internally.
+  const [facOpts, setFacOpts] = useState([])
+  const [personOpts, setPersonOpts] = useState([])
+  const [muqOpts, setMuqOpts] = useState([])
+  useEffect(() => {
+    if (!needsFacility) return
+    let alive = true
+    sb.from('facilities')
+      .select('id,name_ar,unified_number,gosi_number,hrsd_number,confirmation_date,opening:opening_request_id(entity_kind)')
+      .is('deleted_at', null).order('name_ar').limit(500)
+      .then(({ data }) => { if (alive) setFacOpts(data || []) })
+    return () => { alive = false }
+  }, [sb, needsFacility])
+  useEffect(() => {
+    if (!needsPersons) return
+    let alive = true
+    sb.from('persons').select('id,name_ar,name_en,id_number').is('deleted_at', null).order('name_ar').limit(1000)
+      .then(({ data }) => { if (alive) setPersonOpts(data || []) })
+    return () => { alive = false }
+  }, [sb, needsPersons])
+  useEffect(() => {
+    if (!needsMuq) return
+    let alive = true
+    sb.from('muaqqibs').select('id,name_ar,phone').is('deleted_at', null).order('name_ar').limit(500)
+      .then(({ data }) => { if (alive) setMuqOpts(data || []) })
+    return () => { alive = false }
+  }, [sb, needsMuq])
 
   const save = async () => {
     setErrMsg('')
     if (!code) { setErrMsg('اختر نوع الخدمة'); return }
     const typeRow = typeByCode[code]
     if (!typeRow?.id) { setErrMsg('نوع الخدمة غير متوفر'); return }
-    if (!newStatusId) { setErrMsg('حالة «جديد» غير متوفرة'); return }
+    if (!newStatusId) { setErrMsg('حالة «قيد التنفيذ» غير متوفرة'); return }
     setSaving(true)
     try {
       if (isWizard) {
@@ -996,9 +820,9 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
           fee_label_en: isDocuments ? 'Document' : isCrAmend ? 'Amend CR' : isCrRenew ? 'Renew CR' : (isCrOpen ? 'Open CR' : 'Trade Name Reservation'),
           notes: 'manual_pay_request', sort_order: 0,
         })
-        toast?.('تمت الإضافة — انتقل إلى المدفوعات للسداد')
-        onSaved()
-        window.dispatchEvent(new CustomEvent('app-navigate-payments'))
+        toast?.('تمت الإضافة — انتقل إلى سدادات الخدمات للسداد')
+        setSaved(true)
+        setTimeout(() => { onSaved(); window.dispatchEvent(new CustomEvent('app-navigate-payments')) }, 1400)
         return
       }
       const refNo = String(Date.now()).slice(-10)
@@ -1016,230 +840,253 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
         const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
         if (!upErr) { const { data: pub } = sb.storage.from('attachments').getPublicUrl(path); await sb.from('attachments').insert({ entity_type: 'service_request', entity_id: sr.id, file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path, mime_type: file.type || null, size_bytes: file.size || null, notes: 'sbc_doc' }) }
       }
-      toast?.('تمت إضافة المعاملة'); onSaved()
+      toast?.('تمت إضافة المعاملة'); setSaved(true); setTimeout(() => onSaved(), 1400)
     } catch (e) { setErrMsg(e.message || 'تعذر الحفظ') } finally { setSaving(false) }
   }
 
-  const goNext = () => {
-    setErrMsg('')
-    if (curStepKey === 'fields') {
-      if (!tradeName.trim()) { setErrMsg(isCrOpen ? 'أدخل اسم المنشأة' : 'أدخل الاسم التجاري المحجوز'); return }
-      if (isNameReserve && !reservationNo.trim()) { setErrMsg('أدخل رقم الحجز'); return }
-      if (isCrOpen && entityKind === 'company' && !companyForm) { setErrMsg('اختر شكل الشركة'); return }
+  // ── Per-page validity (gates التالي/إرسال) — same checks the old goNext/save ran ──
+  const fieldsValid = isNameReserve
+    ? !!(tradeName.trim() && reservationNo.trim())
+    : !!(tradeName.trim() && (entityKind !== 'company' || companyForm))
+  const facilityValid = !!fac.facility?.id && (!isCrRenew || !!newConfDate)
+  const firstValid = !!code && (wizSteps[0]?.k === 'facility' ? facilityValid : fieldsValid)
+  const partiesValid = !!(benef.person || (benef.name.trim() && benef.idNumber.trim()))
+  const amendValid =
+    amendType === 'basic' ? basicChanges.some(c => c.field && String(c.value).trim())
+    : amendType === 'transfer'
+      ? ((trOwners.enabled || trManagers.enabled) && (!trOwners.enabled || !!trOwners.person?.id) && (!trManagers.enabled || !!trManagers.person?.id))
+      : amendType === 'entity' ? !!entityTo : false
+  const paymentValid = !!sadadNo.trim() && Number(amount) > 0
+
+  // ── Per-page footer messages (shown only after touching the page) ──
+  const firstError = (() => {
+    if (!code) return ''
+    if (wizSteps[0]?.k === 'facility') {
+      if (!(touched.facility || touched.confDate)) return ''
+      if (!fac.facility?.id) return 'اختر المنشأة'
+      if (isCrRenew && !newConfDate) return 'أدخل تاريخ التأكيد السنوي الجديد'
+      return ''
     }
-    if (curStepKey === 'facility') {
-      if (!fac.facility?.id) { setErrMsg('اختر المنشأة'); return }
-      if (isCrRenew && !newConfDate) { setErrMsg('أدخل تاريخ التأكيد السنوي الجديد'); return }
+    if (!(touched.tradeName || touched.reservationNo || touched.companyForm)) return ''
+    if (!tradeName.trim()) return isCrOpen ? 'أدخل اسم المنشأة' : 'أدخل الاسم التجاري المحجوز'
+    if (isNameReserve && !reservationNo.trim()) return 'أدخل رقم الحجز'
+    if (isCrOpen && entityKind === 'company' && !companyForm) return 'اختر شكل الشركة'
+    return ''
+  })()
+  const partiesError = touched.benef && !partiesValid ? 'أدخل بيانات المستفيد أو اختره' : ''
+  const amendError = (() => {
+    if (!touched.amend || amendValid) return ''
+    if (amendType === 'basic') return 'أضف حقلاً وقيمته'
+    if (amendType === 'transfer') {
+      if (!trOwners.enabled && !trManagers.enabled) return 'اختر قسماً واحداً على الأقل'
+      if (trOwners.enabled && !trOwners.person?.id) return 'اختر شخص الملاك والشركاء'
+      return 'اختر شخص المدراء'
     }
-    if (curStepKey === 'amend') {
-      if (amendType === 'basic' && !basicChanges.some(c => c.field && String(c.value).trim())) { setErrMsg('أضف حقلاً وقيمته'); return }
-      if (amendType === 'transfer') {
-        if (!trOwners.enabled && !trManagers.enabled) { setErrMsg('اختر قسماً واحداً على الأقل'); return }
-        if (trOwners.enabled && !trOwners.person?.id) { setErrMsg('اختر شخص الملاك والشركاء'); return }
-        if (trManagers.enabled && !trManagers.person?.id) { setErrMsg('اختر شخص المدراء'); return }
-      }
-      if (amendType === 'entity' && !entityTo) { setErrMsg('اختر النوع الجديد'); return }
-    }
-    if (curStepKey === 'parties' && !(benef.person || (benef.name.trim() && benef.idNumber.trim()))) { setErrMsg('أدخل بيانات المستفيد أو اختره'); return }
-    setStep(s => Math.min(wizSteps.length, s + 1))
+    return 'اختر النوع الجديد'
+  })()
+  const paymentError = errMsg || (((touched.sadad || touched.amount) && !paymentValid)
+    ? (!sadadNo.trim() ? 'أدخل رقم السداد' : 'أدخل المبلغ') : '')
+
+  // ── Page contents — FormKit fields only ──
+  const personSelectProps = {
+    options: personOpts, getKey: o => o.id,
+    getLabel: o => o.name_ar || o.name_en || '—', getSub: o => o.id_number || '',
+    placeholder: 'ابحث بالاسم أو رقم الهوية…',
   }
 
-  const overlay = { position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1500, padding: 16, fontFamily: F, direction: 'rtl' }
-  const box = { background: '#1a1a1a', borderRadius: 18, width: 560, maxWidth: '95vw', height: 600, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(212,160,23,.08)' }
-  const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 16px 16px' }
-  const legend = { position: 'absolute', top: -9, right: 14, background: '#1a1a1a', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
-  const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
-  const inp = { ...sF, textAlign: 'center' }
+  const firstPage = (
+    <ModalSection Icon={FileText} label="بيانات الخدمة">
+      <div style={GRID}>
+        <Select full label="نوع الخدمة" req searchable={false} placeholder="— اختر —"
+          value={code} onChange={v => { setErrMsg(''); setCode(v) }}
+          options={SBC_CODES.map(c => ({ v: c, l: sbcMeta(c).ar }))} getKey={o => o.v} getLabel={o => o.l} />
+        {isNameReserve && (<>
+          <Segmented label="اللغة" req value={language} onChange={setLanguage}
+            options={[{ v: 'ar', l: 'عربي' }, { v: 'en', l: 'إنجليزي' }]} />
+          <TextField label="الاسم التجاري المحجوز" req value={tradeName}
+            onChange={v => { setTradeName(v); touch('tradeName') }}
+            placeholder={language === 'en' ? 'e.g. Horizon Co.' : 'مثال: مؤسسة الأفق'} />
+          <TextField full label="رقم الحجز" req dir="ltr" value={reservationNo}
+            onChange={v => { setReservationNo(v); touch('reservationNo') }} placeholder="—" />
+        </>)}
+        {isCrOpen && (<>
+          <Segmented label="النوع" req value={entityKind} onChange={setEntityKind} options={ENTITY_TYPES} />
+          {entityKind === 'company' && (
+            <Select label="شكل الشركة" req searchable={false} placeholder="— اختر —"
+              value={companyForm} onChange={v => { setErrMsg(''); setCompanyForm(v); touch('companyForm') }}
+              options={COMPANY_FORMS} getKey={o => o.v} getLabel={o => o.l} />
+          )}
+          <TextField full label="اسم المنشأة" req value={tradeName}
+            onChange={v => { setTradeName(v); touch('tradeName') }} placeholder="مثال: مؤسسة الأفق للتجارة" />
+        </>)}
+        {isDocuments && (
+          <Select full label="الوثيقة" req searchable={false} placeholder="— اختر —"
+            value={docType} onChange={v => { setErrMsg(''); setDocType(v) }}
+            options={DOC_TYPES} getKey={o => o.v} getLabel={o => o.l} />
+        )}
+        {needsFacility && (<>
+          <Select full label="المنشأة" req placeholder="ابحث بالرقم الموحد أو التأمينات أو الموارد…"
+            value={fac.facility?.id || ''}
+            onChange={(id, row) => { setFac({ facility: row, query: '' }); touch('facility') }}
+            options={facOpts} getKey={o => o.id} getLabel={o => o.name_ar || '—'}
+            getSub={o => [o.unified_number, o.gosi_number, o.hrsd_number].filter(Boolean).join(' · ')} />
+          {fac.facility && (
+            <div style={FULL}>
+              <InfoGrid>
+                <InfoRow label="الرقم الموحد" value={fac.facility.unified_number} mono />
+                <InfoRow label="التأمينات" value={fac.facility.gosi_number} mono />
+                <InfoRow label="الموارد" value={fac.facility.hrsd_number} mono />
+                <InfoRow label="التأكيد السنوي" value={fac.facility.confirmation_date ? fmtGreg(fac.facility.confirmation_date) : ''} mono />
+              </InfoGrid>
+            </div>
+          )}
+        </>)}
+        {isCrRenew && (
+          <DateField full label="تاريخ التأكيد السنوي الجديد" req value={newConfDate}
+            onChange={v => { setNewConfDate(v); touch('confDate') }} />
+        )}
+        {!isWizard && fieldKind === 'trade_name' && (
+          <TextField full label="الاسم التجاري" value={tradeName} onChange={setTradeName} placeholder="مثال: مؤسسة الأفق" />
+        )}
+        {!isWizard && fieldKind === 'cr_number' && (
+          <TextField full label="رقم السجل التجاري" dir="ltr" value={crNumber} onChange={setCrNumber} placeholder="1010xxxxxx" />
+        )}
+      </div>
+    </ModalSection>
+  )
 
-  return (
-    <FKModal open onClose={onClose} accent={C.gold} width={560} title="معاملة جديدة" Icon={FileText}>
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, width: '100%' }}>
-        {isWizard && (
-          <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexShrink: 0 }}>
-            {wizSteps.map((s, i) => <div key={s.k} style={{ flex: 1, height: 3, borderRadius: 4, background: i < step ? 'linear-gradient(90deg, #D4A017, #F0C040)' : 'rgba(255,255,255,.06)', transition: '.35s' }} />)}
+  const partiesPage = (
+    <>
+      <ModalSection Icon={User} label="المستفيد">
+        <div style={GRID}>
+          <Segmented full value={benef.mode} onChange={v => setBenef({ ...benef, mode: v })}
+            options={[{ v: 'search', l: 'بحث' }, { v: 'new', l: 'إضافة جديد' }]} />
+          {benef.mode === 'new' ? (<>
+            <TextField label="اسم المستفيد" req value={benef.name}
+              onChange={v => { setBenef({ ...benef, name: v }); touch('benef') }} placeholder="اسم المستفيد" />
+            <IdField label="رقم الهوية" req value={benef.idNumber}
+              onChange={v => { setBenef({ ...benef, idNumber: v }); touch('benef') }} />
+          </>) : (
+            <Select full label="البحث عن شخص" req {...personSelectProps}
+              value={benef.person?.id || ''}
+              onChange={(id, row) => { setBenef({ ...benef, person: row }); touch('benef') }} />
+          )}
+        </div>
+      </ModalSection>
+      <ModalSection Icon={Users} label="المعقّب" hint="اختياري">
+        <div style={GRID}>
+          <Segmented full value={muq.mode} onChange={v => setMuq({ ...muq, mode: v })}
+            options={[{ v: 'search', l: 'بحث' }, { v: 'new', l: 'إضافة جديد' }]} />
+          {muq.mode === 'new' ? (<>
+            <TextField label="اسم المعقّب" value={muq.name} onChange={v => setMuq({ ...muq, name: v })} placeholder="اسم المعقّب" />
+            <PhoneField label="جوال المعقّب" value={muq.phone} onChange={v => setMuq({ ...muq, phone: v })} />
+          </>) : (
+            <Select full label="البحث عن معقّب" placeholder="ابحث باسم المعقّب أو جواله…"
+              value={muq.selected?.id || ''} onChange={(id, row) => setMuq({ ...muq, selected: row })}
+              options={muqOpts} getKey={o => o.id} getLabel={o => o.name_ar || '—'} getSub={o => o.phone || ''} />
+          )}
+        </div>
+      </ModalSection>
+    </>
+  )
+
+  const amendPage = (
+    <ModalSection Icon={Pencil} label="تفاصيل التعديل">
+      <div style={GRID}>
+        <Select full label="نوع التعديل" req searchable={false} placeholder="— اختر —"
+          value={amendType} onChange={v => { setErrMsg(''); setAmendType(v) }}
+          options={[{ v: 'basic', l: 'تغيير بيانات أساسية' }, { v: 'transfer', l: 'نقل السجل التجاري' }, { v: 'entity', l: 'نوع وكيان السجل التجاري' }]}
+          getKey={o => o.v} getLabel={o => o.l} />
+
+        {amendType === 'basic' && (
+          <div style={FULL}>
+            <ScrollBox maxHeight={220}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {basicChanges.map((c, i) => {
+                  const used = basicChanges.map((x, j) => (j !== i ? x.field : null)).filter(Boolean)
+                  const opts = AMEND_BASIC_FIELDS.filter(fd => !used.includes(fd.v))
+                  return (
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '44% 1fr auto', gap: 8, alignItems: 'center' }}>
+                      <Select searchable={false} placeholder="الحقل" value={c.field}
+                        onChange={v => { setBasicChanges(arr => arr.map((x, j) => (j === i ? { ...x, field: v } : x))); touch('amend') }}
+                        options={opts} getKey={o => o.v} getLabel={o => o.l} />
+                      <TextField placeholder="القيمة الجديدة" value={c.value}
+                        onChange={v => { setBasicChanges(arr => arr.map((x, j) => (j === i ? { ...x, value: v } : x))); touch('amend') }} />
+                      {basicChanges.length > 1 && (
+                        <button type="button" onClick={() => setBasicChanges(arr => arr.filter((_, j) => j !== i))}
+                          style={{ ...xBtn, width: 32, height: 42, borderRadius: 9 }}>✕</button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </ScrollBox>
+            {basicChanges.length < AMEND_BASIC_FIELDS.length && (
+              <button type="button" onClick={() => setBasicChanges(arr => [...arr, { field: '', value: '' }])}
+                style={{ marginTop: 10, height: 34, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ إضافة حقل</button>
+            )}
           </div>
         )}
 
-        {/* Body */}
-        <div className="sbc-dd-scroll" style={{ padding: '8px 6px 14px', overflowY: 'auto', flex: 1, minHeight: 0, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {isWizard ? (
-            <div style={fieldset}>
-              <div style={legend}><span>{wizSteps[step - 1]?.l}</span></div>
-
-              {step === 1 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div>
-                    <div style={lbl}>نوع الخدمة <span style={{ color: C.red }}>*</span></div>
-                    <Drop value={code} onChange={v => { setErrMsg(''); setStep(1); setCode(v) }} placeholder="— اختر —" options={SBC_CODES.map(c => ({ v: c, l: sbcMeta(c).ar }))} />
-                  </div>
-                  {isNameReserve && (<>
-                    <div>
-                      <div style={lbl}>اللغة <span style={{ color: C.red }}>*</span></div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button type="button" onClick={() => setLanguage('ar')} style={segBtn(language === 'ar')}>عربي</button>
-                        <button type="button" onClick={() => setLanguage('en')} style={segBtn(language === 'en')}>إنجليزي</button>
-                      </div>
-                    </div>
-                    <div><div style={lbl}>الاسم التجاري المحجوز <span style={{ color: C.red }}>*</span></div><input style={inp} value={tradeName} onChange={e => setTradeName(e.target.value)} placeholder={language === 'en' ? 'e.g. Horizon Co.' : 'مثال: مؤسسة الأفق'} /></div>
-                    <div><div style={lbl}>رقم الحجز <span style={{ color: C.red }}>*</span></div><input style={{ ...inp, fontFamily: 'monospace', direction: 'ltr' }} dir="ltr" value={reservationNo} onChange={e => setReservationNo(e.target.value)} placeholder="—" /></div>
-                  </>)}
-                  {isCrOpen && (<>
-                    <div>
-                      <div style={lbl}>النوع <span style={{ color: C.red }}>*</span></div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button type="button" onClick={() => setEntityKind('individual')} style={segBtn(entityKind === 'individual')}>مؤسسة فردية</button>
-                        <button type="button" onClick={() => setEntityKind('company')} style={segBtn(entityKind === 'company')}>شركة</button>
-                      </div>
-                    </div>
-                    {entityKind === 'company' && (
-                      <div>
-                        <div style={lbl}>شكل الشركة <span style={{ color: C.red }}>*</span></div>
-                        <Drop value={companyForm} onChange={v => { setErrMsg(''); setCompanyForm(v) }} placeholder="— اختر —" options={COMPANY_FORMS} />
-                      </div>
-                    )}
-                    <div><div style={lbl}>اسم المنشأة <span style={{ color: C.red }}>*</span></div><input style={inp} value={tradeName} onChange={e => setTradeName(e.target.value)} placeholder="مثال: مؤسسة الأفق للتجارة" /></div>
-                  </>)}
-                  {isDocuments && (
-                    <div>
-                      <div style={lbl}>الوثيقة <span style={{ color: C.red }}>*</span></div>
-                      <Drop value={docType} onChange={v => { setErrMsg(''); setDocType(v) }} placeholder="— اختر —" options={DOC_TYPES} />
-                    </div>
-                  )}
-                  {(isCrRenew || isCrAmend || isDocuments) && (
-                    <FacilityField sb={sb} value={fac} setValue={setFac} inp={inp} lbl={lbl} />
-                  )}
-                  {isCrRenew && (
-                    <div><div style={lbl}>تاريخ التأكيد السنوي الجديد <span style={{ color: C.red }}>*</span></div>
-                      <DateField value={newConfDate} onChange={setNewConfDate} /></div>
-                  )}
-                </div>
-              )}
-
-              {curStepKey === 'parties' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                  <BeneficiaryField sb={sb} value={benef} setValue={setBenef} inp={inp} lbl={lbl} />
-                  <MuaqqibField sb={sb} value={muq} setValue={setMuq} inp={inp} lbl={lbl} />
-                </div>
-              )}
-
-              {curStepKey === 'amend' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <div style={lbl}>نوع التعديل <span style={{ color: C.red }}>*</span></div>
-                    <Drop value={amendType} onChange={v => { setErrMsg(''); setAmendType(v) }} placeholder="— اختر —"
-                      options={[{ v: 'basic', l: 'تغيير بيانات أساسية' }, { v: 'transfer', l: 'نقل السجل التجاري' }, { v: 'entity', l: 'نوع وكيان السجل التجاري' }]} />
-                  </div>
-
-                  {amendType === 'basic' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {basicChanges.map((c, i) => {
-                        const used = basicChanges.map((x, j) => j !== i ? x.field : null).filter(Boolean)
-                        const opts = AMEND_BASIC_FIELDS.filter(f => !used.includes(f.v))
-                        return (
-                          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <div style={{ flex: '0 0 44%' }}>
-                              <Drop value={c.field} onChange={v => setBasicChanges(arr => arr.map((x, j) => j === i ? { ...x, field: v } : x))} placeholder="الحقل" options={opts} />
-                            </div>
-                            <input style={{ ...inp, flex: 1, textAlign: 'start' }} value={c.value} onChange={e => setBasicChanges(arr => arr.map((x, j) => j === i ? { ...x, value: e.target.value } : x))} placeholder="القيمة الجديدة" />
-                            {basicChanges.length > 1 && <button type="button" onClick={() => setBasicChanges(arr => arr.filter((_, j) => j !== i))} style={{ ...xBtn, height: 38, width: 32 }}>✕</button>}
-                          </div>
-                        )
-                      })}
-                      {basicChanges.length < AMEND_BASIC_FIELDS.length && (
-                        <button type="button" onClick={() => setBasicChanges(arr => [...arr, { field: '', value: '' }])} style={{ alignSelf: 'flex-start', height: 34, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ إضافة حقل</button>
-                      )}
-                    </div>
-                  )}
-
-                  {amendType === 'transfer' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                      <div>
-                        <button type="button" onClick={() => setTrOwners(s => ({ ...s, enabled: !s.enabled }))} style={{ ...segBtn(trOwners.enabled), width: '100%' }}>الملاك والشركاء</button>
-                        {trOwners.enabled && <div style={{ marginTop: 10 }}><BeneficiaryField sb={sb} value={trOwners} setValue={setTrOwners} inp={inp} lbl={lbl} label="شخص الملاك والشركاء" searchOnly /></div>}
-                      </div>
-                      <div>
-                        <button type="button" onClick={() => setTrManagers(s => ({ ...s, enabled: !s.enabled }))} style={{ ...segBtn(trManagers.enabled), width: '100%' }}>المدراء</button>
-                        {trManagers.enabled && <div style={{ marginTop: 10 }}><BeneficiaryField sb={sb} value={trManagers} setValue={setTrManagers} inp={inp} lbl={lbl} label="شخص المدراء" searchOnly /></div>}
-                      </div>
-                    </div>
-                  )}
-
-                  {amendType === 'entity' && (() => {
-                    const cur = fac.facility?.opening?.entity_kind
-                    const opts = ENTITY_TYPES.filter(t => t.v !== cur)
-                    return (
-                      <div>
-                        <div style={lbl}>النوع الجديد <span style={{ color: C.red }}>*</span></div>
-                        <Drop value={entityTo} onChange={v => { setErrMsg(''); setEntityTo(v) }} placeholder="— اختر —" options={opts} />
-                        {cur && <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 6 }}>النوع الحالي: {cur === 'company' ? 'شركة' : 'مؤسسة فردية'} (لا يمكن اختياره)</div>}
-                      </div>
-                    )
-                  })()}
-                </div>
-              )}
-
-              {curStepKey === 'payment' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div><div style={lbl}>رقم السداد <span style={{ color: C.red }}>*</span></div><input style={{ ...inp, fontFamily: 'monospace', direction: 'ltr' }} dir="ltr" value={sadadNo} onChange={e => setSadadNo(e.target.value)} placeholder="—" /></div>
-                  <div><div style={lbl}>المبلغ <span style={{ color: C.red }}>*</span></div><input type="text" inputMode="decimal" style={{ ...inp, fontFamily: 'monospace', direction: 'ltr' }} dir="ltr" value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0.00" /></div>
-                  <div style={{ fontSize: 11.5, color: 'var(--tx4)', display: 'flex', alignItems: 'center', gap: 7, lineHeight: 1.6 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
-                    سيتم إنشاء رسم بانتظار السداد ثم الانتقال إلى صفحة المدفوعات.
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={fieldset}>
-              <div style={legend}><span>الخدمة</span></div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div>
-                  <div style={lbl}>نوع الخدمة <span style={{ color: C.red }}>*</span></div>
-                  <Drop value={code} onChange={v => { setErrMsg(''); setCode(v) }} placeholder="— اختر —" options={SBC_CODES.map(c => ({ v: c, l: sbcMeta(c).ar }))} />
-                </div>
-                {fieldKind === 'trade_name' && (
-                  <div><div style={lbl}>الاسم التجاري</div><input style={inp} value={tradeName} onChange={e => setTradeName(e.target.value)} placeholder="مثال: مؤسسة الأفق" /></div>
-                )}
-                {fieldKind === 'cr_number' && (
-                  <div><div style={lbl}>رقم السجل التجاري</div><input style={{ ...inp, fontFamily: 'monospace', direction: 'ltr' }} dir="ltr" value={crNumber} onChange={e => setCrNumber(e.target.value)} placeholder="1010xxxxxx" /></div>
-                )}
-              </div>
-            </div>
+        {amendType === 'transfer' && (<>
+          <Switch full label="الملاك والشركاء" hint="نقل هذا القسم" checked={trOwners.enabled}
+            onChange={v => { setTrOwners(s => ({ ...s, enabled: v })); touch('amend') }} />
+          {trOwners.enabled && (
+            <Select full label="شخص الملاك والشركاء" req {...personSelectProps}
+              value={trOwners.person?.id || ''}
+              onChange={(id, row) => { setTrOwners(s => ({ ...s, person: row })); touch('amend') }} />
           )}
-        </div>
+          <Switch full label="المدراء" hint="نقل هذا القسم" checked={trManagers.enabled}
+            onChange={v => { setTrManagers(s => ({ ...s, enabled: v })); touch('amend') }} />
+          {trManagers.enabled && (
+            <Select full label="شخص المدراء" req {...personSelectProps}
+              value={trManagers.person?.id || ''}
+              onChange={(id, row) => { setTrManagers(s => ({ ...s, person: row })); touch('amend') }} />
+          )}
+        </>)}
 
-        {/* Bottom bar */}
-        <style>{`.nu-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.gold};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.nu-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${C.gold}}.nu-nav-btn:hover:not(:disabled) .nav-ico{background:${C.gold};color:#000}.nu-nav-btn:disabled{opacity:.5;cursor:not-allowed}.sbc-dd-scroll::-webkit-scrollbar{width:0;height:0;display:none}`}</style>
-        <div style={{ padding: '12px 24px 16px', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <div style={{ justifySelf: 'start' }}>
-            {isWizard && step > 1 && (
-              <button onClick={() => { setErrMsg(''); setStep(s => Math.max(1, s - 1)) }} className="nu-nav-btn" style={{ flexDirection: 'row-reverse' }}>
-                <span>السابق</span>
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></span>
-              </button>
-            )}
-          </div>
-          <div style={{ justifySelf: 'center', textAlign: 'center', minHeight: 16 }}>
-            {errMsg && <span style={{ fontSize: 12, fontWeight: 500, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-              {errMsg}
-            </span>}
-          </div>
-          <div style={{ justifySelf: 'end' }}>
-            {isWizard && step < wizSteps.length ? (
-              <button onClick={goNext} disabled={!code} className="nu-nav-btn">
-                <span>التالي</span>
-                <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg></span>
-              </button>
-            ) : (
-              <button onClick={save} disabled={saving || !code} className="nu-nav-btn">
-                <span>{saving ? 'جارٍ الإرسال…' : (isWizard ? 'إرسال' : 'إضافة')}</span>
-                <span className="nav-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg></span>
-              </button>
-            )}
-          </div>
+        {amendType === 'entity' && (() => {
+          const cur = fac.facility?.opening?.entity_kind
+          return (
+            <Select full label="النوع الجديد" req searchable={false} placeholder="— اختر —"
+              hint={cur ? `الحالي: ${cur === 'company' ? 'شركة' : 'مؤسسة فردية'} — لا يمكن اختياره` : undefined}
+              value={entityTo} onChange={v => { setEntityTo(v); touch('amend') }}
+              options={ENTITY_TYPES.filter(t => t.v !== cur)} getKey={o => o.v} getLabel={o => o.l} />
+          )
+        })()}
+      </div>
+    </ModalSection>
+  )
+
+  const paymentPage = (
+    <ModalSection Icon={CreditCard} label="السداد">
+      <div style={GRID}>
+        <TextField label="رقم السداد" req dir="ltr" value={sadadNo}
+          onChange={v => { setSadadNo(v); touch('sadad') }} placeholder="—" />
+        <CurrencyField label="المبلغ" req value={amount} onChange={v => { setAmount(v); touch('amount') }} />
+        <div style={{ ...FULL, fontSize: 12, fontWeight: 500, color: FKC.tx4, display: 'flex', alignItems: 'center', gap: 7, lineHeight: 1.6 }}>
+          <Info size={13} color={C.gold} strokeWidth={2} style={{ flexShrink: 0 }} />
+          سيتم إنشاء رسم بانتظار السداد ثم الانتقال إلى صفحة سدادات الخدمات.
         </div>
       </div>
-    </FKModal>
+    </ModalSection>
+  )
+
+  // ── Pages — built from the per-service STEP_DEFS config (step 1 carries the service select) ──
+  const pageByKey = {
+    parties: { valid: partiesValid, error: partiesError, content: partiesPage },
+    amend: { valid: amendValid, error: amendError, content: amendPage },
+    payment: { valid: paymentValid, error: paymentError, content: paymentPage },
+  }
+  const pages = isWizard
+    ? wizSteps.map((s, i) => (i === 0
+        ? { title: s.l, valid: firstValid, error: firstError, content: firstPage }
+        : { title: s.l, ...pageByKey[s.k] }))
+    : [{ title: 'الخدمة', valid: !!code, error: errMsg, content: firstPage }]
+
+  return (
+    <FKModal open onClose={onClose} variant="create" width={560} title="معاملة جديدة" Icon={FileText}
+      pages={pages} onSubmit={save} submitting={saving} submitLabel={isWizard ? 'إرسال' : 'إضافة'}
+      success={saved ? <SuccessView title="تمت إضافة المعاملة" /> : null} />
   )
 }

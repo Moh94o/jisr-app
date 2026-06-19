@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../components/BackButton'
-import { Dropdown, DateField, sF } from '../components/persons/PersonFormModal'
-import { Modal as FKModal, ModalSection as FKSection, Select as FKSelect, TextField as FKText, CurrencyField as FKCurrency } from '../components/ui/FormKit.jsx'
+import { Modal as FKModal, ModalSection as FKSection, Select as FKSelect, TextField as FKText, CurrencyField as FKCurrency, DateField as FKDateField, SuccessView, ActionButton, GRID, EmptyState } from '../components/ui/FormKit.jsx'
 import { FileText } from 'lucide-react'
+import { SkeletonCards, SkeletonTable } from '../components/ui/Skeleton.jsx'
 
 // ── المركز السعودي-style transactions page, for municipal licenses (رخص بلدي)
 //    and safety certificates (شهادات السلامة). Backed by service_requests filtered
@@ -12,13 +12,6 @@ const MONO = "'JetBrains Mono','Cairo',sans-serif"
 const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046', purple: '#bb8fce', orange: '#f39c12', cyan: '#16a085', gray: '#95a5a6', warn: '#eab308' }
 const nm = v => Number(v || 0).toLocaleString('en-US')
 const tint = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})` }
-
-const Drop = ({ value, onChange, options, placeholder, searchable }) => (
-  <Dropdown value={value} onChange={(k) => onChange(k)} options={options || []}
-    getKey={o => o.v} getLabel={o => o.l} placeholder={placeholder}
-    searchable={searchable ?? ((options || []).length > 5)} />
-)
-const LBL = { fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }
 
 const BALADI_CODES = ['baladi_license_issue', 'baladi_license_renew', 'safety_cert_issue', 'safety_cert_renew']
 const BALADI_META = {
@@ -60,6 +53,11 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [facilityFilter, setFacilityFilter] = useState('')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [advOpen, setAdvOpen] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
 
@@ -71,12 +69,12 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
     ;(async () => {
       const [{ data: ti }, { data: si }] = await Promise.all([
         sb.from('lookup_items').select('id,code,value_ar,value_en').in('code', BALADI_CODES),
-        sb.from('lookup_items').select('id,code,value_ar,category:lookup_categories!inner(category_key)').eq('category.category_key', 'request_status'),
+        sb.from('lookup_items').select('id,code,value_ar,category:lookup_categories!inner(category_key)').eq('category.category_key', 'request_status').eq('is_active', true),
       ])
       if (!alive) return
       setTypes(ti || [])
       setStatuses(si || [])
-      setNewStatusId((si || []).find(s => s.code === 'new')?.id || null)
+      setNewStatusId((si || []).find(s => s.code === 'in_progress')?.id || null) // initial status applied to newly-created requests
     })()
     return () => { alive = false }
   }, [sb])
@@ -97,11 +95,19 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
   useEffect(() => { reload() }, [reload])
 
   const rowName = (r) => r.facility?.name_ar || r.trade_name || r.cr_number || '—'
+  const facilityOptions = useMemo(() => { const m = new Map(); rows.forEach(r => { if (r.facility_id && r.facility?.name_ar) m.set(r.facility_id, r.facility.name_ar) }); return [...m.entries()].map(([id, name]) => ({ id, name })) }, [rows])
   const filtered = useMemo(() => {
     const s = q.trim()
-    if (!s) return rows
-    return rows.filter(r => [r.request_ref_no, r.cr_number, r.note, r.facility?.name_ar, r.facility?.unified_number].some(v => (v || '').includes(s)))
-  }, [rows, q])
+    return rows.filter(r => {
+      if (statusFilter && r.status?.code !== statusFilter) return false
+      if (facilityFilter && r.facility_id !== facilityFilter) return false
+      const d = r.request_date || (r.created_at || '').slice(0, 10)
+      if (fromDate && d < fromDate) return false
+      if (toDate && d > toDate) return false
+      if (s && ![r.request_ref_no, r.cr_number, r.note, r.facility?.name_ar, r.facility?.unified_number].some(v => (v || '').includes(s))) return false
+      return true
+    })
+  }, [rows, q, statusFilter, facilityFilter, fromDate, toDate])
 
   const dist = useMemo(() => BALADI_CODES.map(code => ({ code, m: meta(code), cnt: rows.filter(r => typeById[r.service_type_id]?.code === code).length })).filter(d => d.cnt > 0), [rows, typeById])
   const doneCount = rows.filter(r => r.status?.code === 'done').length
@@ -112,6 +118,7 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
       statuses={statuses} onBack={() => setSelectedId(null)} onChanged={reload} />
   }
 
+  const initialLoading = loading && rows.length === 0
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       <style>{`
@@ -125,13 +132,15 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إصدار وتجديد رخص البلدية وشهادات السلامة للمنشآت. المعاملات تُضاف مباشرة من هذه الصفحة.</div>
         </div>
         <button onClick={() => setShowAdd(true)}
-          onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
           إضافة معاملة
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
       </div>
+
+      {initialLoading ? (<><SkeletonCards count={2} cols="1.8fr 1fr" minHeight={150} /><SkeletonTable columns={5} rows={8} /></>) : (<>
 
       <div className="sbc-hero-grid">
         <HeroStat tone={C.gold} label="المعاملات" value={nm(rows.length)} footer={doneCount > 0 ? `${nm(doneCount)} منجزة` : (rows.length ? 'قيد العمل' : 'لا توجد معاملات')} />
@@ -174,17 +183,70 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث بالمرجع أو المنشأة أو رقم الرخصة…"
             style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
+        {(() => {
+          const hasFilters = !!(statusFilter || facilityFilter || fromDate || toDate)
+          const active = advOpen || hasFilters
+          const clearAll = () => { setStatusFilter(''); setFacilityFilter(''); setFromDate(''); setToDate('') }
+          return (
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.05)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+              تصفية
+              {hasFilters ? (
+                <span role="button" tabIndex={0} title="مسح الفلاتر"
+                  onClick={e => { e.stopPropagation(); clearAll() }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); clearAll() } }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+                  style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </span>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="18" y1="6" x2="20" y2="6" /><circle cx="16" cy="6" r="2" /><line x1="4" y1="12" x2="8" y2="12" /><line x1="12" y1="12" x2="20" y2="12" /><circle cx="10" cy="12" r="2" /><line x1="4" y1="18" x2="16" y2="18" /><line x1="20" y1="18" x2="20" y2="18" /><circle cx="18" cy="18" r="2" /></svg>
+              )}
+            </button>
+          )
+        })()}
       </div>
 
-      {loading ? (
-        <div style={{ padding: 50, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>جاري التحميل…</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
-          {q ? 'لا نتائج مطابقة' : 'لا توجد معاملات بعد — اضغط «إضافة معاملة».'}
-        </div>
+      {advOpen && (() => {
+        const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
+        return (
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+              <div>
+                <div style={fLbl}>الحالة</div>
+                <FKSelect options={[{ v: '', l: 'الكل' }, ...statuses.map(s => ({ v: s.code, l: s.value_ar }))]} getKey={o => o.v} getLabel={o => o.l}
+                  value={statusFilter || null} onChange={v => setStatusFilter(v || '')} placeholder="الكل" />
+              </div>
+              <div>
+                <div style={fLbl}>المنشأة</div>
+                <FKSelect searchable options={[{ id: '', name: 'كل المنشآت' }, ...facilityOptions]} getKey={o => o.id} getLabel={o => o.name}
+                  value={facilityFilter || null} onChange={v => setFacilityFilter(v || '')} placeholder="كل المنشآت" />
+              </div>
+              <div>
+                <div style={fLbl}>تاريخ من</div>
+                <FKDateField value={fromDate} onChange={setFromDate} />
+              </div>
+              <div>
+                <div style={fLbl}>تاريخ إلى</div>
+                <FKDateField value={toDate} onChange={setToDate} />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={q
+            ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1Z" /><path d="M8 7h8" /><path d="M8 11h8" /><path d="M8 15h5" /></svg>}
+          title={q ? 'لا نتائج مطابقة' : 'لا توجد معاملات بعد'}
+          desc={q ? undefined : 'اضغط «إضافة معاملة» لإضافة أول معاملة'} />
       ) : (
         <BaladiTable rows={filtered} typeById={typeById} rowName={rowName} onRowClick={setSelectedId} />
       )}
+
+      </>)}
 
       {showAdd && <AddModal sb={sb} user={user} toast={toast} typeByCode={typeByCode} newStatusId={newStatusId} userBranchId={userBranchId} onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); reload() }} />}
     </div>
@@ -235,50 +297,45 @@ function BaladiTable({ rows, typeById, rowName, onRowClick }) {
   )
 }
 
-// ── Add transaction ──
+// ── Add transaction — FormKit Modal (single page, no scroll) ──
 function AddModal({ sb, user, toast, typeByCode, newStatusId, userBranchId, onClose, onSaved }) {
-  const [f, setF] = useState({ code: '', facility_id: '', facility_label: '', license_number: '', amount: '', sadad: '' })
+  const [f, setF] = useState({ code: '', facility_id: '', license_number: '', lic_id: '', amount: '', sadad: '' })
   const [saving, setSaving] = useState(false)
-  const [facQ, setFacQ] = useState('')
-  const [facRes, setFacRes] = useState([])
-  const [licQ, setLicQ] = useState('')      // renewal: search existing licenses
-  const [licRes, setLicRes] = useState([])
+  const [saved, setSaved] = useState(false)
+  const [errMsg, setErrMsg] = useState('')
+  const [facOpts, setFacOpts] = useState([])   // facilities — issue services
+  const [licOpts, setLicOpts] = useState([])   // prior baladi transactions — renewals
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
   const isRenew = f.code === 'baladi_license_renew' || f.code === 'safety_cert_renew'
 
-  // Facility search (issue) — by name / unified / CR number.
+  // Facilities (issue) — same source as the old inline search; the FormKit Select searches it internally.
   useEffect(() => {
     if (!sb) return
-    const s = facQ.trim()
-    if (s.length < 2) { setFacRes([]); return }
-    const t = setTimeout(async () => {
-      const { data } = await sb.from('facilities').select('id,name_ar,unified_number,cr_number')
-        .or(`name_ar.ilike.%${s}%,unified_number.ilike.%${s}%,cr_number.ilike.%${s}%`).is('deleted_at', null).limit(8)
-      setFacRes(data || [])
-    }, 250)
-    return () => clearTimeout(t)
-  }, [sb, facQ])
+    let alive = true
+    sb.from('facilities').select('id,name_ar,unified_number,cr_number')
+      .is('deleted_at', null).order('name_ar').limit(500)
+      .then(({ data }) => { if (alive) setFacOpts(data || []) })
+    return () => { alive = false }
+  }, [sb])
 
-  // Renewal: search prior baladi transactions by license number / reference.
+  // Renewal: prior baladi transactions (license number / reference) — searched inside the Select.
   useEffect(() => {
     if (!sb || !isRenew) return
-    const s = licQ.trim()
-    if (s.length < 2) { setLicRes([]); return }
     const ids = BALADI_CODES.map(c => typeByCode[c]?.id).filter(Boolean)
-    const t = setTimeout(async () => {
-      const { data } = await sb.from('service_requests')
-        .select('id,request_ref_no,cr_number,facility_id,facility:facility_id(name_ar,unified_number)')
-        .is('deleted_at', null).in('service_type_id', ids)
-        .or(`cr_number.ilike.%${s}%,request_ref_no.ilike.%${s}%`).limit(8)
-      setLicRes(data || [])
-    }, 250)
-    return () => clearTimeout(t)
-  }, [sb, licQ, isRenew]) // eslint-disable-line
+    if (!ids.length) return
+    let alive = true
+    sb.from('service_requests')
+      .select('id,request_ref_no,cr_number,facility_id,facility:facility_id(name_ar,unified_number)')
+      .is('deleted_at', null).in('service_type_id', ids)
+      .order('request_date', { ascending: false, nullsFirst: false }).limit(300)
+      .then(({ data }) => { if (alive) setLicOpts(data || []) })
+    return () => { alive = false }
+  }, [sb, isRenew]) // eslint-disable-line
 
   const valid = !!f.code && !!f.facility_id && Number(f.amount) > 0
   const save = async () => {
-    if (!valid) { toast?.('أكمل الخدمة والمنشأة والمبلغ', 'error'); return }
-    setSaving(true)
+    if (!valid) { setErrMsg('أكمل الخدمة والمنشأة والمبلغ'); return }
+    setErrMsg(''); setSaving(true)
     try {
       const ref = String(Date.now()).slice(-10)
       const { data: sr, error } = await sb.from('service_requests').insert({
@@ -293,81 +350,41 @@ function AddModal({ sb, user, toast, typeByCode, newStatusId, userBranchId, onCl
         service_request_id: sr.id, amount: Number(f.amount) || 0, paid_amount: 0, status: 'pending',
         sadad_no: f.sadad.trim() || null, fee_label_ar: meta(f.code).ar, notes: 'manual_pay_request', sort_order: 0,
       })
-      toast?.('تمت الإضافة — انتقل إلى المدفوعات للسداد'); onSaved()
-      window.dispatchEvent(new CustomEvent('app-navigate-payments'))
+      toast?.('تمت الإضافة — انتقل إلى سدادات الخدمات للسداد')
+      setSaved(true)
+      setTimeout(() => { onSaved(); window.dispatchEvent(new CustomEvent('app-navigate-payments')) }, 1400)
     } catch (e) {
-      toast?.('تعذّر الحفظ: ' + (e.message || '').slice(0, 80), 'error'); setSaving(false)
+      setErrMsg('تعذّر الحفظ: ' + (e.message || '').slice(0, 80)); setSaving(false)
     }
   }
 
-  const lblS = { fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.55)', marginBottom: 8, textAlign: 'start' }
-  const selectedFacility = (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', borderRadius: 10, background: tint(C.gold, .08), border: `1px solid ${tint(C.gold, .3)}` }}>
-      <span style={{ fontWeight: 700, color: '#fff', fontSize: 13 }}>{f.facility_label}{f.license_number ? <span style={{ color: 'var(--tx4)', fontWeight: 600, marginInline: 6, fontFamily: MONO, direction: 'ltr' }}>· {f.license_number}</span> : null}</span>
-      <button type="button" onClick={() => setF(p => ({ ...p, facility_id: '', facility_label: '', license_number: '' }))} style={{ background: 'transparent', border: 'none', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>تغيير</button>
-    </div>
-  )
-
   return (
-    <FKModal open onClose={onClose} accent={C.gold} width={560} scroll title="إضافة معاملة" Icon={FileText}
-      footer={<button onClick={save} disabled={saving || !valid}
-        style={{ height: 40, padding: '0 18px', borderRadius: 10, background: valid ? 'rgba(212,160,23,.12)' : 'transparent', border: '1px solid ' + (valid ? 'rgba(212,160,23,.4)' : 'rgba(255,255,255,.1)'), color: valid ? C.gold : 'var(--tx5)', fontFamily: F, fontSize: 13, fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed' }}>
-        {saving ? 'جاري الحفظ...' : 'إضافة'}</button>}>
+    <FKModal open onClose={onClose} variant="create" width={560} title="إضافة معاملة" Icon={FileText}
+      errorMsg={errMsg}
+      success={saved ? <SuccessView title="تمت إضافة المعاملة" /> : null}
+      footer={<ActionButton disabled={saving || !valid} onClick={save}>{saving ? 'جاري الحفظ...' : 'إضافة'}</ActionButton>}>
       <FKSection Icon={FileText} label="بيانات المعاملة">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <FKSelect label="نوع الخدمة" req searchable={false} value={f.code}
-          onChange={v => setF(p => ({ ...p, code: v, facility_id: '', facility_label: '', license_number: '' }))}
-          options={BALADI_CODES.map(c => ({ k: c, l: meta(c).ar }))} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر الخدمة..." />
-
-        {isRenew ? (
-          <div>
-            <div style={lblS}>رقم الرخصة <span style={{ color: C.red }}>*</span> <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>(بحث في الرخص الحالية)</span></div>
-            {f.facility_id ? selectedFacility : (
-              <>
-                <input value={licQ} onChange={e => setLicQ(e.target.value)} placeholder="ابحث برقم الرخصة أو المرجع…" dir="ltr"
-                  style={{ ...sF, fontWeight: 600, direction: 'ltr', textAlign: 'right', fontFamily: MONO }} />
-                {licRes.length > 0 && (
-                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
-                    {licRes.map(r => (
-                      <button key={r.id} type="button" onClick={() => setF(p => ({ ...p, facility_id: r.facility_id || '', facility_label: r.facility?.name_ar || '—', license_number: r.cr_number || r.request_ref_no }))}
-                        style={{ textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '10px 12px', borderRadius: 10, background: tint(C.gold, .1), border: `1px solid ${tint(C.gold, .28)}`, color: 'var(--tx)' }}>
-                        <div style={{ fontWeight: 700, color: '#fff', fontSize: 13 }}>{r.facility?.name_ar || '—'}</div>
-                        <div style={{ marginTop: 3, fontSize: 11, color: 'var(--tx4)', direction: 'ltr', textAlign: 'right', fontFamily: MONO }}>{r.cr_number || ('#' + r.request_ref_no)}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        ) : (
-          <div>
-            <div style={lblS}>المنشأة <span style={{ color: C.red }}>*</span></div>
-            {f.facility_id ? selectedFacility : (
-              <>
-                <input value={facQ} onChange={e => setFacQ(e.target.value)} placeholder="ابحث باسم المنشأة أو الرقم الموحّد…"
-                  style={{ ...sF, fontWeight: 600 }} />
-                {facRes.length > 0 && (
-                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
-                    {facRes.map(r => (
-                      <button key={r.id} type="button" onClick={() => setF(p => ({ ...p, facility_id: r.id, facility_label: r.name_ar || r.unified_number || '—' }))}
-                        style={{ textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '10px 12px', borderRadius: 10, background: tint(C.gold, .1), border: `1px solid ${tint(C.gold, .28)}`, color: 'var(--tx)' }}>
-                        <div style={{ fontWeight: 700, color: '#fff', fontSize: 13 }}>{r.name_ar || '—'}</div>
-                        <div style={{ marginTop: 3, fontSize: 11, color: 'var(--tx4)', direction: 'ltr', textAlign: 'right', fontFamily: MONO }}>{r.unified_number || r.cr_number || ''}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 14 }}>
+        <div style={GRID}>
+          <FKSelect full label="نوع الخدمة" req searchable={false} placeholder="اختر الخدمة..."
+            value={f.code} onChange={v => setF(p => ({ ...p, code: v, facility_id: '', license_number: '', lic_id: '' }))}
+            options={BALADI_CODES.map(c => ({ k: c, l: meta(c).ar }))} getKey={o => o.k} getLabel={o => o.l} />
+          {isRenew ? (
+            <FKSelect full label="رقم الرخصة" req hint="بحث في الرخص الحالية" placeholder="ابحث برقم الرخصة أو المرجع…"
+              value={f.lic_id}
+              onChange={(id, r) => setF(p => ({ ...p, lic_id: id, facility_id: r.facility_id || '', license_number: r.cr_number || r.request_ref_no }))}
+              options={licOpts} getKey={o => o.id} getLabel={o => o.facility?.name_ar || '—'}
+              getSub={o => o.cr_number || ('#' + o.request_ref_no)}
+              renderSelected={o => `${o.facility?.name_ar || '—'} · ${o.cr_number || '#' + o.request_ref_no}`} />
+          ) : (
+            <FKSelect full label="المنشأة" req placeholder="ابحث باسم المنشأة أو الرقم الموحّد…"
+              value={f.facility_id}
+              onChange={id => setF(p => ({ ...p, facility_id: id, lic_id: '', license_number: '' }))}
+              options={facOpts} getKey={o => o.id} getLabel={o => o.name_ar || o.unified_number || '—'}
+              getSub={o => o.unified_number || o.cr_number || ''} />
+          )}
           <FKCurrency label="المبلغ" req value={f.amount} onChange={v => set('amount', v)} />
           <FKText label="رقم السداد" dir="ltr" value={f.sadad} onChange={v => set('sadad', v)} />
         </div>
-      </div>
       </FKSection>
     </FKModal>
   )

@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
 import { Drop } from './PermissionsPage.jsx'
 import { can as canPerm } from '../../lib/permissions.js'
-import { Modal as FKModal } from '../../components/ui/FormKit.jsx'
+import { noDash } from '../../lib/utils.js'
+import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, CurrencyField, Select, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
+import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import {
   Users, Phone, FileText, Wallet, Search,
   Calendar, Building2, User, Copy, Check,
-  X, IdCard, Coins,
+  IdCard, Coins,
 } from 'lucide-react'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -77,7 +79,8 @@ function HeroStat({ tone, label, value, footer }) {
 
 /* ─── Nationality distribution donut card — matches the Clients page ─── */
 function NatDonutCard({ items, totalLabel, title }) {
-  const total = items.reduce((s, r) => s + r.cnt, 0) || 1
+  const total = items.reduce((s, r) => s + r.cnt, 0)
+  const denom = total || 1 // guard the donut arc math against divide-by-zero when empty
   const topN = items.slice(0, 6)
   const R = 32, CIRC = 2 * Math.PI * R
   let offset = 0
@@ -100,7 +103,7 @@ function NatDonutCard({ items, totalLabel, title }) {
           <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
           {items.map((r, i) => {
             const c = r.color || ROLE_PALETTE[i % ROLE_PALETTE.length]
-            const dash = (r.cnt / total) * CIRC
+            const dash = (r.cnt / denom) * CIRC
             const seg = (
               <circle key={i} r={R} fill="none" stroke={c} strokeWidth="11"
                 strokeDasharray={`${dash} ${CIRC - dash}`} strokeDashoffset={-offset}
@@ -142,7 +145,9 @@ function CopyBtn({ value, toast }) {
   }
   return (
     <button type="button" onClick={copy} title="نسخ"
-      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+      onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
+      onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx4)' }}
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
       {done ? <Check size={12} /> : <Copy size={12} />}
     </button>
   )
@@ -181,7 +186,7 @@ const AmountBox = ({ label, value, color }) => (
 /* ═══════════════════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════ */
-export default function AgentsPage({ sb, lang, user, toast }) {
+export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
   const isAr = lang !== 'en'
   const T = (a, e) => isAr ? a : e
 
@@ -289,6 +294,7 @@ export default function AgentsPage({ sb, lang, user, toast }) {
   }
 
   const topBranchCode = branches.find(b => b.id === stats?.topBranchId)?.branch_code || '—'
+  const initialLoading = loading && agents.length === 0
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
@@ -304,7 +310,10 @@ export default function AgentsPage({ sb, lang, user, toast }) {
       <div style={{ marginBottom: 22 }}>
         <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الوسطاء', 'Agents')}</div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('قائمة الوسطاء وسجل الطلبات التي جلبوها وعمولاتهم.', 'Agents directory with referred requests and commissions.')}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('إجمالي الوسطاء وتوزيع الجنسيات رصيد تراكمي دائم، و«جديد هذا الشهر» يُحسب من بداية الشهر الميلادي الحالي', 'Total agents and nationality split are all-time; “new this month” counts from the start of the current calendar month')}</div>
       </div>
+
+      {initialLoading ? (<><SkeletonCards count={2} cols="1.8fr 1fr" minHeight={150} /><SkeletonList rows={6} /></>) : (<>
 
       {/* Stats hero — KPI + nationality donut (Clients page style) */}
       <div className="clp-hero" style={{ marginBottom: 24 }}>
@@ -355,13 +364,11 @@ export default function AgentsPage({ sb, lang, user, toast }) {
       )}
 
       {/* List — flat, ordered by each agent's latest commission payment */}
-      {loading ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx5)', fontSize: 13, fontWeight: 500 }}>{T('جاري التحميل…', 'Loading…')}</div>
-      ) : total === 0 ? (
-        <div style={{ ...cardChrome, padding: 60, textAlign: 'center' }}>
-          <Users size={36} color={GOLD} style={{ opacity: .55 }} />
-          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{q || hasFilters ? T('لا توجد نتائج مطابقة', 'No matches') : T('لا يوجد وسطاء بعد', 'No agents yet')}</div>
-        </div>
+      {total === 0 ? (
+        <EmptyState
+          icon={emptyIcon}
+          title={q || hasFilters ? T('لا توجد نتائج مطابقة', 'No matches') : T('لا يوجد وسطاء بعد', 'No agents yet')}
+          desc={q || hasFilters ? T('جرّب تعديل التصفية أو كلمة البحث', 'Try adjusting the filter or search') : T('أضِف أول وسيط لتتبّع الطلبات والعمولات', 'Add your first agent to track requests and commissions')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
           {pageRows.map(a => (
@@ -382,6 +389,8 @@ export default function AgentsPage({ sb, lang, user, toast }) {
           </div>
         </div>
       )}
+
+      </>)}
     </div>
   )
 }
@@ -524,8 +533,8 @@ function AgentDetailPage({ sb, agent, agentStats, toast, onBack, T, isAr, branch
           <InfoSectionCard title={T('بيانات الوسيط', 'Agent')} items={infoItems}
             headerAction={!canEdit ? null : (
               <button onClick={() => setEditing(true)}
-                onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                 style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
                 {T('تعديل', 'Edit')}
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -609,7 +618,7 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
   const remaining = Number(invoice.remaining_amount || 0)
   const ps = payState(total, paid)
   const sClr = svcColor(invoice.service_type?.code)
-  const invNo = invoice.invoice_no || `#${String(invoice.id).slice(0, 8)}`
+  const invNo = noDash(invoice.invoice_no) || `#${String(invoice.id).slice(0, 8)}`
   const svcName = isAr ? invoice.service_type?.value_ar : (invoice.service_type?.value_en || invoice.service_type?.value_ar)
 
   const noBtn = (size = 13) => (
@@ -674,7 +683,7 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
     default_commission_amount: agent.default_commission_amount != null ? String(agent.default_commission_amount) : '',
   })
   const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(null)
+  const [done, setDone] = useState(false)
   const [errMsg, setErrMsg] = useState('')
   const set = (k, v) => { setErrMsg(''); setF(p => ({ ...p, [k]: v })) }
 
@@ -682,15 +691,13 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
   const idDigits = (f.id_number || '').replace(/\D/g, '')
   const phoneDigits = (f.phone || '').replace(/\D/g, '')
   const valid = !!(f.name_ar.trim() && idDigits.length === 10 && phoneDigits.length === 9 && f.nationality_id && f.branch_id)
-  const reqStar = <span style={{ color: C.red }}>*</span>
 
-  const accent = 'rgba(212,160,23,.4)'
-  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1500, padding: 16, fontFamily: F, direction: 'rtl' }
-  const box = { background: 'var(--modal-bg)', borderRadius: 16, width: 560, maxWidth: '95vw', minHeight: 430, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)' }
-  const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid ' + accent, padding: '20px 22px' }
-  const legend = { position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
-  const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
-  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
+  // إغلاق تلقائي بعد ظهور شاشة النجاح الموحّدة
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => onSaved?.(), 1400)
+    return () => clearTimeout(t)
+  }, [done])
 
   const save = async () => {
     if (!f.name_ar.trim()) { setErrMsg('الاسم مطلوب'); return }
@@ -714,102 +721,31 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
     if (error) { setErrMsg(error.message.slice(0, 100)); setSaving(false); return }
     if ((data || []).length === 0) { setErrMsg('لم يتم الحفظ — ليست لديك صلاحية كافية'); setSaving(false); return }
     setSaving(false)
-
-    const natName = id => nationalities.find(n => n.id === id)?.name_ar || '—'
-    const brName = id => branches.find(b => b.id === id)?.branch_code || '—'
-    const phoneDisp = p => p ? String(p).replace(/^\+?966/, '0') : '—'
-    const rows = []
-    if ((agent.name_ar || '') !== f.name_ar.trim()) rows.push({ label: 'الاسم', from: agent.name_ar || '—', to: f.name_ar.trim() || '—' })
-    if ((agent.id_number || '') !== f.id_number.trim()) rows.push({ label: 'رقم الهوية', from: agent.id_number || '—', to: f.id_number.trim() || '—', mono: true })
-    if ((agent.phone || '') !== (newPhone || '')) rows.push({ label: 'رقم الجوال', from: phoneDisp(agent.phone), to: phoneDisp(newPhone), mono: true })
-    if ((agent.nationality_id || '') !== (f.nationality_id || '')) rows.push({ label: 'الجنسية', from: natName(agent.nationality_id), to: natName(f.nationality_id) })
-    if ((agent.branch_id || '') !== (f.branch_id || '')) rows.push({ label: 'المكتب', from: brName(agent.branch_id), to: brName(f.branch_id), mono: true })
-    if (Number(agent.default_commission_amount || 0) !== Number(commission || 0)) rows.push({ label: 'العمولة الافتراضية', from: agent.default_commission_amount != null ? num(agent.default_commission_amount) : '—', to: commission != null ? num(commission) : '—', mono: true })
-    setDone({ rows })
+    setDone(true)
   }
 
-  if (done) {
-    return (
-    <div style={overlay}>
-      <div onClick={e => e.stopPropagation()} style={box}>
-          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 28px', gap: 16, textAlign: 'center' }}>
-            <button onClick={() => onSaved?.()} aria-label="إغلاق"
-              style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
-              <X size={14} />
-            </button>
-            <div style={{ width: 74, height: 74, borderRadius: '50%', background: C.ok + '2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok, boxShadow: '0 0 0 8px ' + C.ok + '14' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            </div>
-            <div style={{ fontSize: 19, fontWeight: 700, color: C.ok }}>تم تعديل البيانات بنجاح</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 1.7, maxWidth: 380 }}>{done.rows.length ? 'تم تحديث الحقول التالية:' : 'لم تتغيّر أي بيانات.'}</div>
-            {done.rows.length > 0 && (
-              <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                {done.rows.map((r, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
-                    <span style={{ flex: 1, fontSize: 13, color: 'var(--tx3)', fontWeight: 600, textAlign: 'start' }}>{r.label}</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, direction: r.mono ? 'ltr' : 'rtl' }}>
-                      <span style={{ fontSize: 12.5, color: 'var(--tx5)', fontWeight: 600, textDecoration: 'line-through', fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.from}>{r.from}</span>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                      <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.to}>{r.to}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-      </div>
-    </div>
-    )
-  }
   return (
-    <FKModal open onClose={onClose} accent={GOLD} width={560} scroll
-      title="تعديل بيانات الوسيط" Icon={User} errorMsg={errMsg}
-      footer={
-        <button onClick={save} disabled={saving || !valid} className="cm-nav-btn">
-          <span>{saving ? 'جارٍ التعديل…' : 'تعديل'}</span>
-          <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span>
-        </button>
-      }>
-      <style>{`.cm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${GOLD};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.cm-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${GOLD}}.cm-nav-btn:hover:not(:disabled) .nav-ico{background:${GOLD};color:#000}.cm-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-              <div style={fieldset}>
-                <div style={legend}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-                  <span>بيانات الوسيط</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 14, rowGap: 14 }}>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div style={lbl}>الاسم {reqStar}</div>
-                    <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} placeholder="اسم الوسيط" style={inp} />
-                  </div>
-                  <div>
-                    <div style={lbl}>رقم الهوية {reqStar}</div>
-                    <input value={f.id_number} onChange={e => set('id_number', e.target.value.replace(/\D/g, '').slice(0, 10))} dir="ltr" inputMode="numeric" maxLength={10} placeholder="0000000000" style={{ ...inp, direction: 'ltr', fontFamily: 'monospace' }} />
-                  </div>
-                  <div>
-                    <div style={lbl}>رقم الجوال {reqStar}</div>
-                    <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)' }}>
-                      <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: GOLD, flexShrink: 0 }}>+966</div>
-                      <input value={(d => !d ? '' : d.length <= 2 ? d : d.length <= 5 ? d.slice(0, 2) + ' ' + d.slice(2) : d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5))(f.phone)} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} dir="ltr" inputMode="numeric" maxLength={11} placeholder="5X XXX XXXX"
-                        style={{ flex: 1, width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div style={lbl}>الجنسية {reqStar}</div>
-                    <Drop value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder="— اختر —"
-                      options={nationalities.map(n => ({ v: n.id, l: n.name_ar }))} />
-                  </div>
-                  <div>
-                    <div style={lbl}>المكتب {reqStar}</div>
-                    <Drop value={f.branch_id} onChange={v => set('branch_id', v)} placeholder="— اختر —"
-                      options={branches.map(b => ({ v: b.id, l: b.branch_code }))} />
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div style={lbl}>العمولة الافتراضية <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>(ر.س — اختياري)</span></div>
-                    <input value={f.default_commission_amount} onChange={e => set('default_commission_amount', e.target.value.replace(/[^\d.]/g, ''))} dir="ltr" inputMode="decimal" placeholder="0" style={{ ...inp, direction: 'ltr', fontFamily: 'monospace' }} />
-                  </div>
-                </div>
-              </div>
-    </FKModal>
+    <FKModal open onClose={() => (done ? onSaved?.() : onClose())} width={560} height="auto"
+      title="تعديل بيانات الوسيط" Icon={User} variant="edit"
+      success={done ? <SuccessView title="تم تعديل البيانات بنجاح" /> : null}
+      onSubmit={save} submitting={saving} submitLabel="تعديل"
+      pages={[{
+        valid, error: errMsg, content: (
+          <ModalSection Icon={User} label="بيانات الوسيط">
+            <div style={GRID}>
+              <TextField label="الاسم" req full value={f.name_ar} onChange={v => set('name_ar', v)} placeholder="اسم الوسيط" />
+              <IdField label="رقم الهوية" req value={f.id_number} onChange={v => set('id_number', v)} placeholder="0000000000" />
+              <PhoneField label="رقم الجوال" req value={f.phone} onChange={v => set('phone', v)} />
+              <Select label="الجنسية" req value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder="— اختر —"
+                options={nationalities} getKey={n => n.id} getLabel={n => n.name_ar} />
+              <Select label="المكتب" req value={f.branch_id} onChange={v => set('branch_id', v)} placeholder="— اختر —"
+                options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />
+              <CurrencyField label="العمولة الافتراضية" hint="اختياري" full value={f.default_commission_amount} onChange={v => set('default_commission_amount', v)} />
+            </div>
+          </ModalSection>
+        ),
+      }]}
+    />
   )
 }
 

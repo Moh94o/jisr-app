@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { UserCheck, CreditCard, Edit2, Plus, Building2 } from 'lucide-react'
 import RoleLayout from './RoleLayout.jsx'
-import { KCard, KV, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, PersonIdentityChip, C } from './RoleUI.jsx'
+import { KV, HeroStat, KpiBox, ModalShell, PersonIdentityChip, C } from './RoleUI.jsx'
+import { ModalSection, GRID, ActionButton, TextField, CurrencyField, Segmented, Switch } from '../../../components/ui/FormKit.jsx'
 import * as rolesService from '../../../services/rolesService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -97,7 +98,7 @@ function BrokerModal({ open, onClose, personId, person, row, toast, onSaved }) {
     name_ar: row?.name_ar || person?.name_ar || '',
     name_en: row?.name_en || person?.name_en || '',
     default_commission_type: row?.default_commission_type || 'percentage',
-    default_commission_rate: row?.default_commission_rate ?? null,
+    default_commission_rate: row?.default_commission_rate ?? '',
     bank_name: row?.bank_name || '',
     account_number: row?.account_number || '',
     iban: row?.iban || '',
@@ -110,8 +111,9 @@ function BrokerModal({ open, onClose, personId, person, row, toast, onSaved }) {
   const save = async () => {
     setSaving(true)
     try {
-      const payload = { ...f, person_id: personId }
-      if (isEdit) await rolesService.updateBroker(row.id, f)
+      const data = { ...f, default_commission_rate: f.default_commission_rate === '' || f.default_commission_rate == null ? null : Number(f.default_commission_rate) }
+      const payload = { ...data, person_id: personId }
+      if (isEdit) await rolesService.updateBroker(row.id, data)
       else await rolesService.createBroker(payload)
       toast?.(isEdit ? 'تم التحديث' : 'تم الربط'); onSaved?.()
     } catch (e) { toast?.(rolesService.humanizeDbError(e)) }
@@ -119,40 +121,23 @@ function BrokerModal({ open, onClose, personId, person, row, toast, onSaved }) {
   }
 
   return (
-    <ModalShell open={open} onClose={onClose} title={isEdit ? 'تعديل ملف الوسيط' : 'ربط ملف وسيط'} Icon={UserCheck}
-      footer={<><div style={{ flex: 1 }} /><SaveBtn onClick={save} disabled={saving} label={saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'ربط')} /></>}>
-      <KCard Icon={UserCheck} label="بيانات الوسيط">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div><Lbl req>الاسم بالعربي</Lbl>
-            <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} style={sF} /></div>
-          <div><Lbl>الاسم بالإنجليزي</Lbl>
-            <input value={f.name_en} onChange={e => set('name_en', e.target.value.toUpperCase())} dir="ltr"
-              style={{ ...sF, direction: 'ltr', textTransform: 'uppercase' }} /></div>
-          <div><Lbl>نوع العمولة</Lbl>
-            <select value={f.default_commission_type} onChange={e => set('default_commission_type', e.target.value)}
-              style={{ ...sF, cursor: 'pointer' }}>
-              <option value="percentage">نسبة مئوية</option>
-              <option value="fixed">مبلغ ثابت</option>
-            </select></div>
-          <div><Lbl>النسبة / المبلغ</Lbl>
-            <input type="number" step="0.01" value={f.default_commission_rate ?? ''}
-              onChange={e => set('default_commission_rate', e.target.value ? Number(e.target.value) : null)}
-              style={{ ...sF, direction: 'ltr' }} /></div>
-          <div><Lbl>البنك</Lbl>
-            <input value={f.bank_name} onChange={e => set('bank_name', e.target.value)} style={sF} /></div>
-          <div><Lbl>رقم الحساب</Lbl>
-            <input value={f.account_number} onChange={e => set('account_number', e.target.value)} dir="ltr"
-              style={{ ...sF, direction: 'ltr' }} /></div>
-          <div style={{ gridColumn: '1 / -1' }}><Lbl>الآيبان</Lbl>
-            <input value={f.iban} onChange={e => set('iban', e.target.value.toUpperCase())} dir="ltr"
-              style={{ ...sF, direction: 'ltr', textTransform: 'uppercase' }} /></div>
+    <ModalShell open={open} onClose={onClose} variant={isEdit ? 'edit' : 'create'}
+      title={isEdit ? 'تعديل ملف الوسيط' : 'ربط ملف وسيط'} Icon={UserCheck}
+      footer={<ActionButton onClick={save} disabled={saving || !f.name_ar}>{saving ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'ربط')}</ActionButton>}>
+      <ModalSection Icon={UserCheck} label="بيانات الوسيط">
+        <div style={GRID}>
+          <TextField label="الاسم بالعربي" req value={f.name_ar} onChange={v => set('name_ar', v)} />
+          <TextField label="الاسم بالإنجليزي" dir="ltr" upper value={f.name_en} onChange={v => set('name_en', v)} />
+          <Segmented label="نوع العمولة" value={f.default_commission_type} onChange={v => set('default_commission_type', v)}
+            options={[{ v: 'percentage', l: 'نسبة مئوية' }, { v: 'fixed', l: 'مبلغ ثابت' }]} />
+          <CurrencyField label="النسبة / المبلغ" unit={f.default_commission_type === 'percentage' ? '%' : 'ريال'}
+            value={f.default_commission_rate} onChange={v => set('default_commission_rate', v)} />
+          <TextField label="البنك" value={f.bank_name} onChange={v => set('bank_name', v)} />
+          <TextField label="رقم الحساب" dir="ltr" value={f.account_number} onChange={v => set('account_number', v)} />
+          <TextField label="الآيبان" dir="ltr" upper full value={f.iban} onChange={v => set('iban', v)} />
+          <Switch label="نشط" checked={f.is_active} onChange={v => set('is_active', v)} />
         </div>
-        <div style={{ marginTop: 14 }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: 'var(--tx2)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={f.is_active} onChange={e => set('is_active', e.target.checked)} /> نشط
-          </label>
-        </div>
-      </KCard>
+      </ModalSection>
     </ModalShell>
   )
 }

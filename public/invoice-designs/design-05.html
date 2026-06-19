@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>فاتورة INV-2026-1042 — تأشيرة البناء والإنشاء</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;500;600;700&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --emerald:#0f4c3a;
+    --emerald-deep:#0a3528;
+    --emerald-soft:#16624a;
+    --cream:#f6f1e3;
+    --cream-deep:#efe7d2;
+    --gold:#c9a84c;
+    --gold-soft:#d9bf78;
+    --ink:#1c2620;
+    --muted:#6d7a72;
+    --line:#e4dcc6;
+    --paper:#ffffff;
+    --paid:#0f4c3a;
+    --partial:#b9882a;
+    --unpaid:#9a3b32;
+  }
+
+  *{
+    box-sizing:border-box;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  html,body{margin:0;padding:0;background:#cdd3cf;}
+
+  body{
+    font-family:'Almarai',sans-serif;
+    color:var(--ink);
+    font-size:11px;
+    line-height:1.35;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .num{
+    direction:ltr;
+    font-variant-numeric:tabular-nums;
+    unicode-bidi:isolate;
+    font-family:'Almarai',sans-serif;
+  }
+
+  h1,h2,h3,h4,.brand-ar,.hero-amount,.totals-grand .v,.section-title{
+    font-family:'El Messiri',serif;
+  }
+
+  /* ===== PAGE — FIXED TWO-PAGE MODEL ===== */
+  @page{size:A4;margin:0;}
+
+  .page{
+    width:210mm;
+    height:297mm;
+    background:var(--paper);
+    margin:0 auto;
+    position:relative;
+    overflow:hidden;
+    padding:0 0 13mm 0;
+  }
+  .page2{
+    page-break-before:always;
+    break-before:page;
+  }
+
+  @media print{
+    html,body{background:#fff;}
+    .page{margin:0;box-shadow:none;}
+  }
+  @media screen{
+    .page{box-shadow:0 18px 60px rgba(10,53,40,.28);margin-top:16px;}
+    .page:last-of-type{margin-bottom:16px;}
+  }
+
+  /* ===== CORNER VINE ORNAMENT ===== */
+  .vine{position:absolute;width:120px;height:120px;pointer-events:none;opacity:.9;}
+  .vine svg{width:100%;height:100%;display:block;}
+  .vine.tl{top:108px;right:12px;}
+  .vine.bl{bottom:18mm;left:12px;transform:rotate(180deg);}
+
+  /* ===== HEADER / BRAND BAR ===== */
+  .brandbar{
+    background:linear-gradient(135deg,var(--emerald) 0%,var(--emerald-deep) 100%);
+    color:var(--cream);
+    padding:14px 26px 13px;
+    position:relative;
+  }
+  .brandbar::after{
+    content:"";
+    position:absolute;left:0;right:0;bottom:0;height:3px;
+    background:linear-gradient(90deg,transparent,var(--gold) 18%,var(--gold-soft) 50%,var(--gold) 82%,transparent);
+  }
+  .brand-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+  }
+  .logo{
+    width:138px;height:auto;display:block;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));
+  }
+  .brand-id{text-align:left;}
+  .brand-ar{
+    font-size:23px;
+    font-weight:700;
+    letter-spacing:.3px;
+    color:#fff;
+    line-height:1.15;
+    margin:0;
+  }
+  .brand-en{
+    font-size:12px;
+    letter-spacing:2px;
+    color:var(--gold-soft);
+    font-weight:700;
+    margin-top:2px;
+  }
+  .brand-group{
+    font-size:9px;
+    letter-spacing:3px;
+    color:rgba(246,241,227,.7);
+    margin-top:4px;
+    text-transform:uppercase;
+  }
+  .brand-meta{
+    display:flex;flex-direction:column;gap:2px;
+    font-size:10px;
+    color:rgba(246,241,227,.85);
+    margin-top:6px;
+  }
+  .brand-meta .row{display:flex;align-items:center;gap:6px;justify-content:flex-end;}
+  .brand-meta svg{width:12px;height:12px;stroke:var(--gold-soft);fill:none;stroke-width:1.6;flex:none;}
+
+  .doc-strip{
+    display:flex;
+    align-items:stretch;
+    justify-content:space-between;
+    background:var(--emerald-deep);
+    color:var(--cream);
+    padding:7px 26px;
+    font-size:11px;
+  }
+  .doc-strip .seg{display:flex;align-items:center;gap:8px;}
+  .doc-strip .lbl{color:var(--gold-soft);font-weight:700;letter-spacing:.5px;}
+  .doc-strip .val{color:#fff;font-weight:700;}
+  .doc-strip .divider{width:1px;background:rgba(201,168,76,.4);margin:0 4px;}
+  .doc-title-tag{
+    font-family:'El Messiri',serif;
+    font-size:14px;color:var(--gold-soft);font-weight:700;letter-spacing:1px;
+  }
+
+  /* ===== BODY WRAP ===== */
+  .body{padding:12px 26px 0;}
+
+  /* ===== HERO — LAST PAYMENT ===== */
+  .hero{
+    margin:12px 0 4px;
+    background:var(--cream);
+    border:1px solid var(--gold);
+    border-radius:16px;
+    padding:0;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 8px 26px rgba(15,76,58,.12);
+  }
+  .hero::before{
+    content:"";position:absolute;inset:0;border-radius:16px;
+    border:1px solid rgba(201,168,76,.35);margin:5px;pointer-events:none;
+  }
+  .hero-head{
+    display:flex;align-items:center;gap:10px;
+    background:linear-gradient(90deg,var(--emerald),var(--emerald-soft));
+    color:var(--cream);
+    padding:8px 22px;
+    position:relative;z-index:2;
+  }
+  .hero-head .star{color:var(--gold-soft);font-size:16px;}
+  .hero-head .section-title{
+    font-size:15px;font-weight:700;color:#fff;letter-spacing:.5px;margin:0;
+  }
+  .hero-head .pill{
+    margin-inline-start:auto;
+    background:rgba(201,168,76,.18);
+    border:1px solid var(--gold-soft);
+    color:var(--gold-soft);
+    padding:3px 11px;border-radius:999px;
+    font-size:10px;font-weight:700;letter-spacing:.5px;
+  }
+  .hero-body{
+    display:grid;
+    grid-template-columns:1.35fr 1px 1fr;
+    align-items:center;
+    gap:0;
+    padding:12px 22px 12px;
+    position:relative;z-index:2;
+  }
+  .hero-amount-wrap .cap{
+    font-size:10.5px;color:var(--emerald-soft);font-weight:700;letter-spacing:.5px;margin-bottom:2px;
+  }
+  .hero-amount{
+    font-size:42px;font-weight:700;color:var(--emerald);line-height:1;
+    display:flex;align-items:baseline;gap:8px;
+  }
+  .hero-amount .cur{font-size:18px;color:var(--gold);font-weight:600;font-family:'Almarai';}
+  .hero-sub{
+    margin-top:8px;font-size:11px;color:var(--ink);
+    display:flex;flex-wrap:wrap;gap:5px 16px;
+  }
+  .hero-sub .it{display:flex;align-items:center;gap:6px;}
+  .hero-sub .it svg{width:13px;height:13px;stroke:var(--gold);fill:none;stroke-width:1.7;flex:none;}
+  .hero-sub .k{color:var(--muted);}
+  .hero-sub .v{color:var(--emerald);font-weight:700;}
+  .hero-div{background:linear-gradient(180deg,transparent,var(--gold),transparent);width:1px;height:74px;justify-self:center;}
+  .hero-remain{
+    text-align:center;padding-inline-start:8px;
+  }
+  .hero-remain .cap{font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.5px;}
+  .hero-remain .big{
+    font-size:30px;font-weight:700;color:var(--unpaid);line-height:1.1;margin-top:2px;
+    font-family:'El Messiri',serif;
+  }
+  .hero-remain .big .cur{font-size:14px;color:var(--gold);font-weight:600;font-family:'Almarai';}
+  .hero-remain .note{font-size:9.5px;color:var(--muted);margin-top:2px;}
+  .hero-covers{
+    grid-column:1 / -1;
+    margin-top:9px;
+    background:rgba(15,76,58,.06);
+    border-top:1px dashed var(--gold);
+    padding:7px 4px 1px;
+    font-size:10.5px;
+    display:flex;align-items:center;gap:8px;
+    color:var(--emerald);
+  }
+  .hero-covers svg{width:14px;height:14px;stroke:var(--gold);fill:none;stroke-width:1.7;}
+  .hero-covers b{font-weight:700;}
+
+  /* ===== SECTION ===== */
+  .sec{margin-top:12px;}
+  .sec-head{
+    display:flex;align-items:center;gap:10px;margin-bottom:7px;
+  }
+  .sec-head .ic{
+    width:24px;height:24px;flex:none;border-radius:8px;
+    background:var(--emerald);display:flex;align-items:center;justify-content:center;
+  }
+  .sec-head .ic svg{width:14px;height:14px;stroke:var(--gold-soft);fill:none;stroke-width:1.7;}
+  .sec-head .section-title{
+    font-size:13.5px;font-weight:700;color:var(--emerald);margin:0;
+  }
+  .sec-head .rule{flex:1;height:1px;background:linear-gradient(90deg,var(--gold),transparent);}
+  .sec-head.left .rule{background:linear-gradient(270deg,var(--gold),transparent);}
+
+  /* status badge inline */
+  .status-line{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(185,136,42,.12);
+    border:1px solid var(--partial);
+    color:var(--partial);
+    padding:4px 14px;border-radius:999px;
+    font-size:11.5px;font-weight:700;letter-spacing:.4px;
+  }
+  .status-line .dot{width:8px;height:8px;border-radius:50%;background:var(--partial);box-shadow:0 0 0 3px rgba(185,136,42,.2);}
+
+  /* data cards */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .card{
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .card-h{
+    background:var(--cream);
+    border-bottom:1px solid var(--line);
+    padding:6px 13px;
+    font-family:'El Messiri',serif;
+    font-size:12px;font-weight:700;color:var(--emerald);
+    display:flex;align-items:center;gap:7px;
+  }
+  .card-h svg{width:14px;height:14px;stroke:var(--gold);fill:none;stroke-width:1.7;}
+  .kv{padding:5px 13px;}
+  .kv .r{
+    display:flex;justify-content:space-between;gap:10px;
+    padding:3px 0;border-bottom:1px dotted var(--line);font-size:10.5px;
+  }
+  .kv .r:last-child{border-bottom:0;}
+  .kv .k{color:var(--muted);}
+  .kv .v{color:var(--ink);font-weight:700;text-align:left;}
+
+  /* service banner */
+  .service-banner{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    background:linear-gradient(135deg,var(--cream),var(--cream-deep));
+    border:1px solid var(--gold);
+    border-radius:12px;
+    padding:10px 18px;
+  }
+  .service-banner .left{display:flex;align-items:center;gap:12px;}
+  .service-banner .sic{
+    width:36px;height:36px;border-radius:10px;flex:none;
+    background:var(--emerald);display:flex;align-items:center;justify-content:center;
+  }
+  .service-banner .sic svg{width:20px;height:20px;stroke:var(--gold-soft);fill:none;stroke-width:1.6;}
+  .service-banner .name-ar{font-family:'El Messiri',serif;font-size:15px;font-weight:700;color:var(--emerald);}
+  .service-banner .name-en{font-size:10px;color:var(--muted);letter-spacing:1px;}
+  .service-banner .qty{
+    text-align:center;background:#fff;border:1px solid var(--gold);border-radius:10px;
+    padding:5px 16px;
+  }
+  .service-banner .qty .ql{font-size:9px;color:var(--muted);font-weight:700;letter-spacing:1px;}
+  .service-banner .qty .qv{font-family:'El Messiri',serif;font-size:20px;color:var(--emerald);font-weight:700;line-height:1;}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;font-size:11px;}
+  .tbl{border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .tbl table{border-radius:12px;overflow:hidden;}
+  thead th{
+    background:var(--emerald);
+    color:var(--cream);
+    font-family:'El Messiri',serif;
+    font-weight:600;font-size:11.5px;letter-spacing:.3px;
+    padding:7px 12px;text-align:right;
+  }
+  thead th.c{text-align:center;}
+  thead th.l{text-align:left;}
+  tbody td{padding:6px 12px;border-bottom:1px solid var(--line);color:var(--ink);}
+  tbody td.c{text-align:center;}
+  tbody td.l{text-align:left;}
+  tbody tr:nth-child(even){background:rgba(246,241,227,.45);}
+  tbody tr:last-child td{border-bottom:0;}
+  .step-name{font-weight:700;color:var(--emerald);}
+  .milestone{color:var(--muted);font-size:10px;}
+  .latest-row{background:rgba(201,168,76,.14)!important;position:relative;}
+  .latest-row td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
+  .latest-tag{
+    display:inline-block;margin-inline-start:6px;font-size:9px;font-weight:700;
+    color:var(--gold);background:rgba(201,168,76,.16);border:1px solid var(--gold);
+    border-radius:999px;padding:1px 7px;letter-spacing:.5px;
+  }
+
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:3px 11px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap;
+  }
+  .badge .d{width:7px;height:7px;border-radius:50%;}
+  .b-paid{background:rgba(15,76,58,.1);color:var(--paid);border:1px solid rgba(15,76,58,.4);}
+  .b-paid .d{background:var(--paid);}
+  .b-partial{background:rgba(185,136,42,.12);color:var(--partial);border:1px solid var(--partial);}
+  .b-partial .d{background:var(--partial);}
+  .b-unpaid{background:rgba(154,59,50,.1);color:var(--unpaid);border:1px solid rgba(154,59,50,.45);}
+  .b-unpaid .d{background:var(--unpaid);}
+  .amt{font-weight:700;color:var(--ink);}
+  .method{display:inline-flex;align-items:center;gap:6px;}
+  .method svg{width:14px;height:14px;stroke:var(--gold);fill:none;stroke-width:1.7;}
+
+  /* pricing + totals layout */
+  .money-grid{display:grid;grid-template-columns:1.25fr 1fr;gap:14px;align-items:start;}
+
+  .pricing .tbl tbody td:last-child{font-weight:700;color:var(--emerald);text-align:left;}
+  .pricing tfoot td{
+    background:var(--cream-deep);
+    font-family:'El Messiri',serif;font-weight:700;font-size:13px;color:var(--emerald);
+    padding:8px 12px;border-top:2px solid var(--gold);
+  }
+  .pricing tfoot td.l{text-align:left;}
+
+  .totals{
+    border:1px solid var(--gold);border-radius:14px;overflow:hidden;background:#fff;
+  }
+  .totals .row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:9px 16px;border-bottom:1px solid var(--line);font-size:12.5px;
+  }
+  .totals .row .k{color:var(--muted);font-weight:700;}
+  .totals .row .v{font-weight:700;}
+  .totals .row.total .v{color:var(--ink);}
+  .totals .row.paid .v{color:var(--paid);}
+  .totals-grand{
+    background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));
+    color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;
+    border-bottom:0;
+  }
+  .totals-grand .k{color:var(--gold-soft);font-family:'El Messiri',serif;font-size:14px;font-weight:700;}
+  .totals-grand .v{font-size:24px;font-weight:700;color:#fff;}
+  .totals-grand .v .cur{font-size:13px;color:var(--gold-soft);font-weight:600;font-family:'Almarai';}
+
+  /* bank */
+  .bank{
+    margin-top:0;
+    background:var(--emerald);
+    border-radius:14px;
+    color:var(--cream);
+    padding:12px 18px;
+    position:relative;overflow:hidden;
+  }
+  .bank::after{
+    content:"";position:absolute;left:-30px;bottom:-30px;width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle,rgba(201,168,76,.18),transparent 70%);
+  }
+  .bank-h{
+    display:flex;align-items:center;gap:9px;margin-bottom:8px;
+    font-family:'El Messiri',serif;font-size:13.5px;font-weight:700;color:var(--gold-soft);
+  }
+  .bank-h svg{width:17px;height:17px;stroke:var(--gold-soft);fill:none;stroke-width:1.6;}
+  .bank-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px;position:relative;z-index:2;}
+  .bank-grid .it{display:flex;flex-direction:column;gap:1px;}
+  .bank-grid .it.full{grid-column:1 / -1;}
+  .bank-grid .bk{font-size:9.5px;color:rgba(246,241,227,.65);letter-spacing:.5px;}
+  .bank-grid .bv{font-size:12px;color:#fff;font-weight:700;}
+  .bank-grid .bv.iban{font-size:12.5px;letter-spacing:1px;color:var(--gold-soft);}
+
+  /* footer notice */
+  .footer{
+    position:absolute;left:0;right:0;bottom:0;
+    background:var(--cream);
+    border-top:2px solid var(--gold);
+    padding:9px 26px 10px;
+  }
+  .footer-notice{display:flex;gap:11px;align-items:flex-start;}
+  .footer-notice .warn{
+    width:22px;height:22px;flex:none;border-radius:50%;
+    background:var(--emerald);display:flex;align-items:center;justify-content:center;margin-top:1px;
+  }
+  .footer-notice .warn svg{width:13px;height:13px;stroke:var(--gold-soft);fill:none;stroke-width:1.8;}
+  .footer-notice .txt .ar{font-size:10px;color:var(--emerald);font-weight:700;line-height:1.45;}
+  .footer-notice .txt .en{font-size:8.5px;color:var(--muted);direction:ltr;text-align:left;line-height:1.35;margin-top:2px;}
+  .footer-base{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:7px;padding-top:6px;border-top:1px dotted var(--line);
+    font-size:9px;color:var(--muted);
+  }
+  .footer-base .gold{color:var(--gold);font-weight:700;letter-spacing:1px;}
+
+  /* page 2 compact header */
+  .mini-head{
+    display:flex;align-items:center;justify-content:space-between;
+    background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));
+    color:var(--cream);padding:10px 26px;position:relative;
+  }
+  .mini-head::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:2px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  }
+  .mini-head .logo{width:88px;}
+  .mini-head .mt{text-align:left;}
+  .mini-head .mt .a{font-family:'El Messiri',serif;font-size:14px;font-weight:700;color:#fff;}
+  .mini-head .mt .b{font-size:9.5px;color:var(--gold-soft);letter-spacing:1px;}
+  .mini-head .inv{font-size:10.5px;color:var(--gold-soft);font-weight:700;}
+</style>
+</head>
+<body>
+
+<!-- ================= PAGE 1 ================= -->
+<div class="page">
+
+  <!-- corner vine ornament -->
+  <div class="vine tl" aria-hidden="true">
+    <svg viewBox="0 0 100 100" fill="none">
+      <path d="M2 2 C 40 2, 60 14, 64 46 C 66 64, 78 74, 96 76" stroke="#c9a84c" stroke-width="1.1"/>
+      <path d="M64 46 C 50 40, 40 48, 40 60" stroke="#c9a84c" stroke-width="1"/>
+      <path d="M40 60 C 30 56, 24 62, 24 72" stroke="#c9a84c" stroke-width="1"/>
+      <path d="M2 2 C 18 6, 26 14, 26 26 C 26 34, 20 40, 12 40" stroke="#c9a84c" stroke-width="1"/>
+      <ellipse cx="64" cy="46" rx="5" ry="2.6" transform="rotate(40 64 46)" stroke="#c9a84c" stroke-width=".9"/>
+      <ellipse cx="40" cy="60" rx="4.4" ry="2.3" transform="rotate(60 40 60)" stroke="#c9a84c" stroke-width=".9"/>
+      <ellipse cx="26" cy="26" rx="4" ry="2.1" transform="rotate(-30 26 26)" stroke="#c9a84c" stroke-width=".9"/>
+      <circle cx="96" cy="76" r="2.4" fill="#c9a84c"/>
+      <circle cx="12" cy="40" r="2" fill="#c9a84c"/>
+    </svg>
+  </div>
+
+  <!-- ===== BRAND HEADER ===== -->
+  <header class="brandbar">
+    <div class="brand-row">
+      <div class="brand-id">
+        <h1 class="brand-ar">تأشيرة البناء والإنشاء</h1>
+        <div class="brand-en">VISA Albina &amp; Alinsha</div>
+        <div class="brand-group">HUSSAIN OFFICES</div>
+        <div class="brand-meta">
+          <div class="row">
+            <span>المملكة العربية السعودية، الجبيل</span>
+            <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </div>
+          <div class="row">
+            <span>Kingdom of Saudi Arabia – Al Jubail</span>
+          </div>
+          <div class="row">
+            <span class="num">0569036528</span>
+            <svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></svg>
+          </div>
+        </div>
+      </div>
+      <img class="logo" src="../hussain-offices-logo.svg" alt="VISA Albina & Alinsha">
+    </div>
+  </header>
+
+  <!-- ===== DOC STRIP : INVOICE META ===== -->
+  <div class="doc-strip">
+    <div class="seg"><span class="doc-title-tag">فاتورة ضريبية</span></div>
+    <div class="seg">
+      <span class="lbl">رقم الفاتورة</span>
+      <span class="val num">INV-2026-1042</span>
+      <span class="divider"></span>
+      <span class="lbl">تاريخ الإصدار</span>
+      <span class="val num">2026-06-10</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- ===== ★ HERO : LAST PAYMENT ===== -->
+    <section class="hero" aria-label="آخر دفعة">
+      <div class="hero-head">
+        <span class="star">★</span>
+        <h2 class="section-title">آخر دفعة مستلمة</h2>
+        <span class="pill">الأحدث</span>
+      </div>
+      <div class="hero-body">
+        <div class="hero-amount-wrap">
+          <div class="cap">المبلغ المستلم</div>
+          <div class="hero-amount"><span class="num">1,500</span><span class="cur">ر.س</span></div>
+          <div class="hero-sub">
+            <span class="it">
+              <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
+              <span class="k">الطريقة</span><span class="v">تحويل بنكي</span>
+            </span>
+            <span class="it">
+              <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+              <span class="k">التاريخ</span><span class="v num">2026-06-09</span>
+            </span>
+          </div>
+        </div>
+        <div class="hero-div"></div>
+        <div class="hero-remain">
+          <div class="cap">المتبقي بعدها</div>
+          <div class="big"><span class="num">2,500</span> <span class="cur">ر.س</span></div>
+          <div class="note">المبلغ المستحق على الفاتورة</div>
+        </div>
+        <div class="hero-covers">
+          <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+          <span>غطّت هذه الدفعة جزءًا من&nbsp;<b>الدفعة الثالثة: التصديق والوكالة</b></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== STATUS ===== -->
+    <div class="sec" style="margin-top:10px;display:flex;align-items:center;gap:12px;">
+      <span class="status-line"><span class="dot"></span> حالة الفاتورة: مدفوعة جزئياً</span>
+      <span style="flex:1;height:1px;background:linear-gradient(270deg,var(--gold),transparent);"></span>
+    </div>
+
+    <!-- ===== CLIENT / WORKER / FACILITY ===== -->
+    <section class="sec">
+      <div class="sec-head">
+        <span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg></span>
+        <h3 class="section-title">بيانات الأطراف</h3>
+        <span class="rule"></span>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <div class="card-h">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
+            بيانات العميل
+          </div>
+          <div class="kv">
+            <div class="r"><span class="k">الاسم</span><span class="v">عبدالله محمد الرشيدي</span></div>
+            <div class="r"><span class="k">Name</span><span class="v" style="direction:ltr;">Abdullah M. Al-Rashidi</span></div>
+            <div class="r"><span class="k">رقم الهوية</span><span class="v num">1098765432</span></div>
+            <div class="r"><span class="k">الجوال</span><span class="v num">0551234567</span></div>
+            <div class="r"><span class="k">الجنسية</span><span class="v">السعودية</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h">
+            <svg viewBox="0 0 24 24"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/></svg>
+            بيانات العامل
+          </div>
+          <div class="kv">
+            <div class="r"><span class="k">الاسم</span><span class="v">راجيش كومار</span></div>
+            <div class="r"><span class="k">Name</span><span class="v" style="direction:ltr;">Rajesh Kumar</span></div>
+            <div class="r"><span class="k">رقم الإقامة</span><span class="v num">2456789011</span></div>
+            <div class="r"><span class="k">الجوال</span><span class="v num">0590112233</span></div>
+            <div class="r"><span class="k">الجنسية</span><span class="v">الهند</span></div>
+            <div class="r"><span class="k">المهنة</span><span class="v">عامل بناء</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:10px;">
+        <div class="card-h">
+          <svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="13" rx="1.5"/><path d="M7 8V5a2 2 0 012-2h6a2 2 0 012 2v3"/><path d="M7 13h2M11 13h2M15 13h2M7 17h2M11 17h2"/></svg>
+          بيانات المنشأة — مؤسسة الجبيل للمقاولات
+        </div>
+        <div class="kv" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 24px;">
+          <div class="r"><span class="k">الرقم الموحد</span><span class="v num">7001234567</span></div>
+          <div class="r"><span class="k">رقم الموارد (HRSD)</span><span class="v num">1-2345678</span></div>
+          <div class="r"><span class="k">رقم التأمينات (GOSI)</span><span class="v num">558012345</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SERVICE ===== -->
+    <section class="sec">
+      <div class="sec-head">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M14 4l6 6-9 9H5v-6z"/><path d="M12 6l6 6"/></svg></span>
+        <h3 class="section-title">الخدمة</h3>
+        <span class="rule"></span>
+      </div>
+      <div class="service-banner">
+        <div class="left">
+          <span class="sic"><svg viewBox="0 0 24 24"><path d="M16 3h5v5M21 3l-7 7"/><path d="M8 21H3v-5M3 21l7-7"/><circle cx="12" cy="12" r="3"/></svg></span>
+          <div>
+            <div class="name-ar">نقل كفالة عامل</div>
+            <div class="name-en">Transfer of Sponsorship</div>
+          </div>
+        </div>
+        <div class="qty">
+          <div class="ql">الكمية</div>
+          <div class="qv num">1</div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /body -->
+
+  <!-- ===== FOOTER (page1) ===== -->
+  <footer class="footer">
+    <div class="footer-base" style="border-top:0;padding-top:0;margin-top:0;">
+      <span class="gold">VISA ALBINA &amp; ALINSHA — HUSSAIN OFFICES</span>
+      <span>صفحة <span class="num">1</span> من <span class="num">2</span></span>
+    </div>
+  </footer>
+
+</div><!-- /page 1 -->
+
+
+<!-- ================= PAGE 2 ================= -->
+<div class="page page2">
+
+  <!-- corner vine ornament bottom -->
+  <div class="vine bl" aria-hidden="true">
+    <svg viewBox="0 0 100 100" fill="none">
+      <path d="M2 2 C 40 2, 60 14, 64 46 C 66 64, 78 74, 96 76" stroke="#c9a84c" stroke-width="1.1"/>
+      <path d="M64 46 C 50 40, 40 48, 40 60" stroke="#c9a84c" stroke-width="1"/>
+      <path d="M40 60 C 30 56, 24 62, 24 72" stroke="#c9a84c" stroke-width="1"/>
+      <ellipse cx="64" cy="46" rx="5" ry="2.6" transform="rotate(40 64 46)" stroke="#c9a84c" stroke-width=".9"/>
+      <ellipse cx="40" cy="60" rx="4.4" ry="2.3" transform="rotate(60 40 60)" stroke="#c9a84c" stroke-width=".9"/>
+      <circle cx="96" cy="76" r="2.4" fill="#c9a84c"/>
+    </svg>
+  </div>
+
+  <!-- mini repeated header -->
+  <header class="mini-head">
+    <div class="inv">فاتورة رقم <span class="num">INV-2026-1042</span></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="mt">
+        <div class="a">تأشيرة البناء والإنشاء</div>
+        <div class="b">VISA Albina &amp; Alinsha</div>
+      </div>
+      <img class="logo" src="../hussain-offices-logo.svg" alt="VISA Albina & Alinsha">
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ===== INSTALLMENTS TABLE (الدفعات) ===== -->
+    <section class="sec" style="margin-top:14px;">
+      <div class="sec-head">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span>
+        <h3 class="section-title">الدفعات</h3>
+        <span class="rule"></span>
+      </div>
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr>
+              <th>المعلَم</th>
+              <th class="c">التاريخ المتوقع</th>
+              <th class="l">المبلغ</th>
+              <th class="c">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="step-name">الدفعة الأولى</span><div class="milestone">عند التعاقد</div></td>
+              <td class="c num">2026-05-01</td>
+              <td class="l amt"><span class="num">6,000</span> ر.س</td>
+              <td class="c"><span class="badge b-paid"><span class="d"></span>مدفوعة</span></td>
+            </tr>
+            <tr>
+              <td><span class="step-name">الدفعة الثانية</span><div class="milestone">رفع الطلب</div></td>
+              <td class="c num">2026-05-20</td>
+              <td class="l amt"><span class="num">4,000</span> ر.س</td>
+              <td class="c"><span class="badge b-paid"><span class="d"></span>مدفوعة</span></td>
+            </tr>
+            <tr>
+              <td><span class="step-name">الدفعة الثالثة</span><div class="milestone">التصديق والوكالة</div></td>
+              <td class="c num">2026-06-15</td>
+              <td class="l amt"><span class="num">2,500</span> ر.س<div class="milestone">مدفوع منها <span class="num">1,500</span></div></td>
+              <td class="c"><span class="badge b-partial"><span class="d"></span>مدفوعة جزئياً</span></td>
+            </tr>
+            <tr>
+              <td><span class="step-name">الدفعة الرابعة</span><div class="milestone">التسليم النهائي</div></td>
+              <td class="c num">2026-07-01</td>
+              <td class="l amt"><span class="num">1,500</span> ر.س</td>
+              <td class="c"><span class="badge b-unpaid"><span class="d"></span>غير مدفوعة</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== RECEIVED PAYMENTS (المدفوعات المستلمة) ===== -->
+    <section class="sec">
+      <div class="sec-head">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>
+        <h3 class="section-title">المدفوعات المستلمة</h3>
+        <span class="rule"></span>
+      </div>
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr>
+              <th>الطريقة</th>
+              <th class="c">التاريخ</th>
+              <th class="l">المبلغ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>تحويل بنكي</span></td>
+              <td class="c num">2026-05-01</td>
+              <td class="l amt"><span class="num">6,000</span> ر.س</td>
+            </tr>
+            <tr>
+              <td><span class="method"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>نقداً</span></td>
+              <td class="c num">2026-05-20</td>
+              <td class="l amt"><span class="num">4,000</span> ر.س</td>
+            </tr>
+            <tr class="latest-row">
+              <td><span class="method"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>تحويل بنكي</span><span class="latest-tag">الأحدث</span></td>
+              <td class="c num">2026-06-09</td>
+              <td class="l amt"><span class="num">1,500</span> ر.س</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== PRICING + FINANCIAL SUMMARY ===== -->
+    <section class="sec">
+      <div class="sec-head">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 6h18M7 6V4h10v2M5 6l1 14h12l1-14"/></svg></span>
+        <h3 class="section-title">بيانات التسعير والملخّص المالي</h3>
+        <span class="rule"></span>
+      </div>
+      <div class="money-grid">
+        <!-- pricing -->
+        <div class="pricing">
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>البند</th>
+                  <th class="l">المبلغ (ر.س)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>نقل الكفالة (الموارد البشرية)</td><td class="l"><span class="num">6,000</span></td></tr>
+                <tr><td>التصديق والوكالة</td><td class="l"><span class="num">2,000</span></td></tr>
+                <tr><td>التأمينات الاجتماعية</td><td class="l"><span class="num">1,500</span></td></tr>
+                <tr><td>أتعاب المكتب</td><td class="l"><span class="num">4,500</span></td></tr>
+              </tbody>
+              <tfoot>
+                <tr><td>الإجمالي</td><td class="l"><span class="num">14,000</span></td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <!-- totals summary -->
+        <div class="totals">
+          <div class="row total"><span class="k">الإجمالي</span><span class="v"><span class="num">14,000</span> ر.س</span></div>
+          <div class="row paid"><span class="k">المدفوع</span><span class="v"><span class="num">11,500</span> ر.س</span></div>
+          <div class="totals-grand">
+            <span class="k">المتبقي</span>
+            <span class="v"><span class="num">2,500</span> <span class="cur">ر.س</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== BANK ACCOUNT ===== -->
+    <section class="sec">
+      <div class="bank">
+        <div class="bank-h">
+          <svg viewBox="0 0 24 24"><path d="M3 10l9-6 9 6"/><path d="M4 10v9M20 10v9M8 10v9M12 10v9M16 10v9"/><path d="M2 21h20"/></svg>
+          حساب المكتب
+        </div>
+        <div class="bank-grid">
+          <div class="it"><span class="bk">البنك</span><span class="bv">مصرف الراجحي</span></div>
+          <div class="it"><span class="bk">اسم الحساب</span><span class="bv">مكتب حسين — تأشيرة البناء والإنشاء</span></div>
+          <div class="it"><span class="bk">رقم الحساب</span><span class="bv num">608010167519</span></div>
+          <div class="it full"><span class="bk">الآيبان (IBAN)</span><span class="bv iban num">SA03 8000 0000 6080 1016 7519</span></div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /body -->
+
+  <!-- ===== FOOTER NOTICE ===== -->
+  <footer class="footer">
+    <div class="footer-notice">
+      <span class="warn"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span>
+      <div class="txt">
+        <div class="ar">إشعار هام: المكتب غير مسؤول عن أي مدفوعات تتم بدون فاتورة رسمية، ويجب على العميل طلب فاتورة لجميع تعاملاته.</div>
+        <div class="en">Important notice: The office is not responsible for any payment made without an official invoice. The client must request an invoice for all transactions.</div>
+      </div>
+    </div>
+    <div class="footer-base">
+      <span class="gold">VISA ALBINA &amp; ALINSHA — HUSSAIN OFFICES</span>
+      <span>شكراً لتعاملكم معنا · <span class="num">0569036528</span></span>
+      <span>صفحة <span class="num">2</span> من <span class="num">2</span></span>
+    </div>
+  </footer>
+
+</div><!-- /page 2 -->
+
+</body>
+</html>

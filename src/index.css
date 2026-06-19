@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Shared skeleton shimmer — defined globally so every loading skeleton animates
+   regardless of how the Skeleton.jsx primitives are imported (PageSkeleton also
+   self-injects these, this is the safety net for pages that import the bare
+   Shimmer/SkeletonTable/SkeletonList primitives directly). */
+@keyframes sk-shimmer { 0% { background-position: 100% 0 } 100% { background-position: -100% 0 } }
+@keyframes sk-spin { to { transform: rotate(360deg) } }

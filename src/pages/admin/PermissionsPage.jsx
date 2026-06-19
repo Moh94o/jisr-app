@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
-import { Search, X, Check, ShieldCheck, Building2, Phone, Mail, CreditCard, ChevronDown, Eye, EyeOff, Copy, User, Globe } from 'lucide-react'
+import { Search, X, Check, ShieldCheck, Building2, Phone, Mail, CreditCard, ChevronDown, Eye, EyeOff, Copy, User, Globe, Lock } from 'lucide-react'
 import BackButton from '../../components/BackButton'
-import { Modal as FKModal } from '../../components/ui/FormKit.jsx'
+import {
+  Modal as FKModal, ModalSection, ActionButton, SuccessView, Lbl, GRID, FULL,
+  TextField, IdField, PhoneField, Select, MultiSelect, EmptyState,
+} from '../../components/ui/FormKit.jsx'
+import { Shimmer } from '../../components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -28,6 +32,18 @@ const genPassword = () => {
   let p = pick(U) + pick(L) + pick(D) + pick(S)
   for (let i = 0; i < 6; i++) p += pick(all)
   return p.split('').sort(() => Math.random() - 0.5).join('')
+}
+
+// Small "اقتراح جديد" pill — generates a fresh password into the field(s).
+// Shared by the create-user and edit-work-info modals.
+function PwSuggestBtn({ onClick }) {
+  return (
+    <button type="button" onClick={onClick}
+      style={{ height: 26, padding: '0 10px', borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
+      اقتراح جديد
+    </button>
+  )
 }
 
 // Shared KPI-card shell — matches the BranchesPage hero cards exactly.
@@ -56,7 +72,7 @@ function HeroStat({ tone, label, value, footer }) {
   )
 }
 
-export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, visibility, onVisibilityChange }) {
+export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, visibility, onVisibilityChange, emptyIcon }) {
   const [users, setUsers] = useState([])
   const [branches, setBranches] = useState([])
   const [roles, setRoles] = useState([])
@@ -65,6 +81,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
   const [grants, setGrants] = useState([])        // user_permissions rows (per-user overrides)
   const [adding, setAdding] = useState(false)
   const [selectedId, setSelectedId] = useState(null) // open employee detail page
+  const [loading, setLoading] = useState(true)
 
   // Creating accounts is a General-Manager-only action.
   const isGM = user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager'
@@ -92,6 +109,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
     })
     setModules(Object.values(grouped).sort((a, b) => a.sort - b.sort))
     setGrants(gRes.data || [])
+    setLoading(false)
   }
   useEffect(() => { if (sb) refresh() }, [sb])
 
@@ -115,8 +133,8 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
         </div>
         {isGM && (
           <button onClick={() => setAdding(true)}
-            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
             style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
             مستخدم جديد
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
@@ -124,7 +142,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
         )}
       </div>
 
-      <UsersTab sb={sb} user={user} toast={toast} lang={lang} users={users} branches={branches} nationalities={nationalities} onOpen={u => setSelectedId(u.id)} onChanged={() => { refresh() }} />
+      <UsersTab sb={sb} user={user} toast={toast} lang={lang} loading={loading} users={users} branches={branches} nationalities={nationalities} emptyIcon={emptyIcon} onOpen={u => setSelectedId(u.id)} onChanged={() => { refresh() }} />
 
       {adding && <NewUserModal sb={sb} toast={toast} branches={branches} roles={roles} nationalities={nationalities}
         onClose={() => setAdding(false)} onSaved={async () => { setAdding(false); await refresh() }} />}
@@ -135,15 +153,21 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
 // ═══════════════════════════════════════════════════════════════════
 // Users tab — activate/deactivate user accounts, edit employee details.
 // ═══════════════════════════════════════════════════════════════════
-function UsersTab({ sb, user, toast, lang, users, branches, nationalities, onOpen, onChanged }) {
+function UsersTab({ sb, user, toast, lang, loading, users, branches, nationalities, emptyIcon, onOpen, onChanged }) {
   const isAr = lang !== 'en'; const T = (a, e) => isAr ? a : e
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'active' | 'pending'
+  const [roleFilter, setRoleFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState('')
+  const [advOpen, setAdvOpen] = useState(false)
+  const roleOptions = useMemo(() => { const m = new Map(); users.forEach(u => { if (u.role?.id) m.set(u.role.id, u.role) }); return [...m.values()] }, [users])
   const [savingIds, setSavingIds] = useState(() => new Set())
   const pendingCount = users.filter(u => !u.is_active).length
   const filtered = users.filter(u => {
     if (statusFilter === 'active' && !u.is_active) return false
     if (statusFilter === 'pending' && u.is_active) return false
+    if (roleFilter && u.role?.id !== roleFilter) return false
+    if (branchFilter && u.primary_branch_id !== branchFilter && !(u.branch_ids || []).includes(branchFilter)) return false
     if (!q) return true
     const phoneLocal = u.personal_phone ? String(u.personal_phone).replace(/^\+?966/, '0') : ''
     const branchCodes = (u.branch_ids && u.branch_ids.length)
@@ -215,7 +239,54 @@ function UsersTab({ sb, user, toast, lang, users, branches, nationalities, onOpe
         .usr-row-grid{display:grid;grid-template-columns:auto 1px 1fr auto;gap:18px;align-items:center}
         @media (max-width:720px){.usr-row-grid{grid-template-columns:1fr;gap:12px}.usr-row-vdiv{display:none}}
         .usr-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%);min-height:46px}
+        @keyframes sk-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
       `}</style>
+
+      {/* Initial-load skeleton — echoes the hero grid (KPI + donut) and the
+          role-grouped row cards, so the body doesn't flash the empty state. */}
+      {loading && users.length === 0 ? (
+        <>
+          <div className="usr-hero-grid">
+            <div style={{ padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
+              <Shimmer w="42%" h={20} />
+              <Shimmer w="50%" h={40} />
+              <Shimmer w="60%" h={11} />
+            </div>
+            <div style={{ padding: '12px 16px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 150, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Shimmer w="45%" h={12} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
+                <Shimmer w={86} h={86} r="50%" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {Array.from({ length: 4 }).map((_, i) => <Shimmer key={i} w={`${70 - i * 8}%`} h={9} />)}
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Role group header + row cards */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+              <Shimmer w={120} h={13} />
+              <Shimmer w={60} h={11} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} style={{ position: 'relative', borderRadius: 14, background: 'linear-gradient(135deg, rgba(119,119,119,.06) 0%, #232323 50%, #1f1f1f 100%)', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden' }}>
+                  <span style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 4, background: 'rgba(255,255,255,.06)' }} />
+                  <div style={{ padding: '26px 30px 26px 26px', display: 'flex', alignItems: 'center', gap: 22 }}>
+                    <Shimmer w={52} h={52} r={14} style={{ flexShrink: 0 }} />
+                    <div className="usr-row-vdiv" style={{ minHeight: 56 }} />
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <Shimmer w="34%" h={14} />
+                      <Shimmer w="55%" h={10} />
+                    </div>
+                    <Shimmer w={44} h={24} r={999} style={{ flexShrink: 0 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (<>
 
       {/* Hero — active count + nationality distribution */}
       <div className="usr-hero-grid">
@@ -281,18 +352,65 @@ function UsersTab({ sb, user, toast, lang, users, branches, nationalities, onOpe
         })()}
       </div>
 
-      {/* Filter row — search (offices style) + status chips */}
+      {/* Filter row — search + filter button/card (InvoicePage style) */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث بالاسم أو الهوية أو الجوال أو البريد أو الفرع أو الدور…"
             style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
+        {(() => {
+          const hasFilters = !!(roleFilter || branchFilter || statusFilter !== 'all')
+          const active = advOpen || hasFilters
+          const clearAll = () => { setRoleFilter(''); setBranchFilter(''); setStatusFilter('all') }
+          return (
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.05)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+              تصفية
+              {hasFilters ? (
+                <span role="button" tabIndex={0} title="مسح الفلاتر"
+                  onClick={e => { e.stopPropagation(); clearAll() }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); clearAll() } }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+                  style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </span>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="18" y1="6" x2="20" y2="6" /><circle cx="16" cy="6" r="2" /><line x1="4" y1="12" x2="8" y2="12" /><line x1="12" y1="12" x2="20" y2="12" /><circle cx="10" cy="12" r="2" /><line x1="4" y1="18" x2="16" y2="18" /><line x1="20" y1="18" x2="20" y2="18" /><circle cx="18" cy="18" r="2" /></svg>
+              )}
+            </button>
+          )
+        })()}
       </div>
+
+      {advOpen && (() => {
+        const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
+        return (
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+              <div>
+                <div style={fLbl}>الدور</div>
+                <Select searchable options={[{ id: '', name_ar: 'كل الأدوار' }, ...roleOptions]} getKey={o => o.id} getLabel={o => o.name_ar}
+                  value={roleFilter || null} onChange={v => setRoleFilter(v || '')} placeholder="كل الأدوار" />
+              </div>
+              <div>
+                <div style={fLbl}>المكتب</div>
+                <Select searchable options={[{ id: '', branch_code: 'كل المكاتب' }, ...(branches || [])]} getKey={o => o.id} getLabel={o => o.branch_code}
+                  value={branchFilter || null} onChange={v => setBranchFilter(v || '')} placeholder="كل المكاتب" />
+              </div>
+              <div>
+                <div style={fLbl}>الحالة</div>
+                <Select options={[{ v: '', l: 'الكل' }, { v: 'active', l: 'نشط' }, { v: 'pending', l: 'معطّل / قيد المراجعة' }]} getKey={o => o.v} getLabel={o => o.l}
+                  value={statusFilter === 'all' ? null : statusFilter} onChange={v => setStatusFilter(v || 'all')} placeholder="الكل" />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* List — role-grouped accent row cards (matches offices city groups) */}
       {sorted.length === 0 ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>لا يوجد موظفين</div>
+        <EmptyState icon={emptyIcon} title="لا يوجد موظفين" desc="أضِف مستخدمين لإدارة أدوارهم وصلاحياتهم" />
       ) : roleGroups.map((g, gi) => {
         const c = g.color || ROLE_PALETTE[gi % ROLE_PALETTE.length]
         return (
@@ -314,6 +432,7 @@ function UsersTab({ sb, user, toast, lang, users, branches, nationalities, onOpe
           </div>
         )
       })}
+      </>)}
     </div>
   )
 }
@@ -394,7 +513,10 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
 const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
-const VIS_LOCKED = ['admin_hub', 'admin_permissions', 'admin_ui_controls', 'admin_visibility']
+// Every sidebar tab is controllable — nothing is permanently locked. The General
+// Manager bypasses personal visibility entirely (App.jsx isVisible), so an empty
+// list can never lock the GM out of any tab.
+const VIS_LOCKED = []
 
 // Small inline copy-to-clipboard button used on copyable info rows.
 function CopyBtn({ value, toast }) {
@@ -409,7 +531,9 @@ function CopyBtn({ value, toast }) {
   }
   return (
     <button type="button" onClick={copy} title="نسخ"
-      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+      onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
+      onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx4)' }}
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
       {done ? <Check size={12} /> : <Copy size={12} />}
     </button>
   )
@@ -487,8 +611,8 @@ function InfoSectionCard({ title, items, pwNode, headerAction }) {
 function EditAction({ onEdit }) {
   return (
     <button onClick={onEdit}
-      onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
       style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
       تعديل
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -524,12 +648,55 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
   const grantSet = new Set(grants.filter(g => g.is_granted).map(g => g.permission_id))
   const vis = u.ui_visibility || {}
 
-  // Map a permission module → the sidebar tab it controls, so each module row
-  // can carry its own "إظهار التبويب" toggle. Only modules that correspond to a
-  // real sidebar tab get a toggle.
-  const MODULE_TAB_ALIAS = { quotations: 'transfer_calc', admin: 'admin_permissions' }
-  const validTabIds = new Set([...(nav || []).map(n => n.id), ...Object.values(hubTabs || {}).flat().map(t => t.id)])
-  const tabIdFor = (m) => { const id = MODULE_TAB_ALIAS[m] || m; return validTabIds.has(id) ? id : null }
+  // The permissions card mirrors the real sidebar tree (nav → hubTabs): every hub,
+  // tab, and transaction section gets its own "إظهار التبويب" toggle, and any tab that
+  // maps to a permission module also shows that module's granular action toggles.
+  // Tab id → permission module name (most match 1:1; the transfer-calc tab is served
+  // by the active `quotations` domain, not the legacy `transfer_calc` module).
+  const TAB_MODULE_ALIAS = { transfer_calc: 'quotations' }
+  const moduleByName = {}
+  modules.forEach(m => { moduleByName[m.module] = m })
+  const moduleForTab = (tabId) => moduleByName[TAB_MODULE_ALIAS[tabId] || tabId] || null
+  // Hubs (nav items with sub-tabs) and standalone tabs (nav items without), in order.
+  const navTree = (nav || []).map(n => ({ id: n.id, label: n.l, leaves: hubTabs?.[n.id] || null }))
+  // Modules already surfaced under a tab; the rest go to "صلاحيات أخرى" so no granular
+  // permission becomes uneditable. The legacy transfer_calc duplicate is dropped.
+  const usedModules = new Set()
+  navTree.forEach(h => (h.leaves || [{ id: h.id }]).forEach(t => { const m = moduleForTab(t.id); if (m) usedModules.add(m.module) }))
+  const extraModules = modules.filter(m => !usedModules.has(m.module) && m.module !== 'transfer_calc')
+
+  // Granular action toggles for one permission module.
+  const permActionRows = (mod) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+      {mod.perms.map(p => {
+        const on = grantSet.has(p.id)
+        return (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: on ? 'var(--tx)' : 'var(--tx3)' }}>{p.label_ar}</span>
+            <VisToggle on={on} locked={busy} onClick={() => togglePerm(p.id)} />
+          </div>
+        )
+      })}
+    </div>
+  )
+  // One leaf tab — its show/hide toggle plus (if mapped) its module's action toggles.
+  const permLeafBlock = (tab) => {
+    const mod = moduleForTab(tab.id)
+    const on = vis[tab.id] === true   // hidden by default — shown only when explicitly enabled
+    return (
+      <div key={tab.id}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.015)' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{tab.l}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            {on ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: on ? 'var(--tx3)' : 'var(--tx5)' }}>إظهار التبويب</span>
+            <VisToggle on={on} locked={busy} onClick={() => toggleVisible(tab.id)} />
+          </span>
+        </div>
+        {mod && permActionRows(mod)}
+      </div>
+    )
+  }
 
   const togglePerm = async (permId) => {
     if (busy) return
@@ -549,7 +716,7 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
 
   const toggleVisible = async (id) => {
     if (busy || VIS_LOCKED.includes(id)) return
-    const currentlyVisible = vis[id] !== false
+    const currentlyVisible = vis[id] === true   // hidden by default
     const next = { ...vis, [id]: !currentlyVisible }
     setBusy(true)
     const { error } = await sb.from('users').update({ ui_visibility: next, updated_at: new Date().toISOString() }).eq('id', u.id)
@@ -651,39 +818,44 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
               <span style={cardTitle}>الصلاحيات</span>
               <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 600 }}>{grantSet.size} مفعّلة</span>
             </div>
-            <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {modules.length === 0 ? <div style={{ textAlign: 'center', color: 'var(--tx5)', fontSize: 12, padding: 14 }}>لا توجد صلاحيات</div> :
-                modules.map(mod => {
-                  const tabId = tabIdFor(mod.module)
-                  const tabOn = tabId ? (vis[tabId] !== false) : null
-                  const tabLocked = !tabId || VIS_LOCKED.includes(tabId)
-                  return (
-                  <div key={mod.module}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)' }}>{mod.label_ar}</span>
-                      {tabId && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                          {tabOn ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
-                          <span style={{ fontSize: 10.5, fontWeight: 600, color: tabOn ? 'var(--tx3)' : 'var(--tx5)' }}>إظهار التبويب</span>
-                          {tabLocked && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: 'rgba(212,160,23,.12)', color: C.gold, fontWeight: 700 }}>دائم</span>}
-                          <VisToggle on={!!tabOn} locked={tabLocked || busy} onClick={() => toggleVisible(tabId)} />
-                        </span>
-                      )}
+            <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {navTree.map(hub => {
+                const hubOn = vis[hub.id] === true   // hidden by default
+                const isHub = !!hub.leaves
+                return (
+                  <div key={hub.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{hub.label}</span>
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                        {hubOn ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: hubOn ? 'var(--tx3)' : 'var(--tx5)' }}>{isHub ? 'إظهار القسم' : 'إظهار التبويب'}</span>
+                        <VisToggle on={hubOn} locked={busy} onClick={() => toggleVisible(hub.id)} />
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {mod.perms.map(p => {
-                        const on = grantSet.has(p.id)
-                        return (
-                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: on ? 'var(--tx)' : 'var(--tx3)' }}>{p.label_ar}</span>
-                            <VisToggle on={on} locked={busy} onClick={() => togglePerm(p.id)} />
-                          </div>
-                        )
-                      })}
-                    </div>
+                    {isHub
+                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingInlineStart: 8 }}>{hub.leaves.map(t => permLeafBlock(t))}</div>
+                      : (moduleForTab(hub.id) && permActionRows(moduleForTab(hub.id)))}
                   </div>
-                  )
-                })}
+                )
+              })}
+              {extraModules.length > 0 && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--tx5)' }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>صلاحيات أخرى</span>
+                    <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>غير مرتبطة بتبويب</span>
+                  </div>
+                  {extraModules.map(mod => (
+                    <div key={mod.module} style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 2 }}>{mod.label_ar}</div>
+                      {permActionRows(mod)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -702,7 +874,7 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
 
 // ═══════════════════════════════════════════════════════════════════
 // WorkInfoModal — edit just the work fields (role, office, phone, email).
-// Styled like NewUserModal (gold-bordered fieldset, centered inputs).
+// FormKit edit modal (cyan): one ModalSection, in-modal SuccessView.
 // ═══════════════════════════════════════════════════════════════════
 function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
   const [f, setF] = useState({
@@ -713,7 +885,7 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
     password: '',
   })
   const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(null) // success screen — list of changed rows
+  const [done, setDone] = useState(false) // in-modal success view (FormKit success= prop)
   const [errMsg, setErrMsg] = useState('') // inline error shown in the footer (no toast)
   const set = (k, v) => { setErrMsg(''); setF(p => ({ ...p, [k]: v })) }
 
@@ -721,13 +893,12 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
   const selRole = roles.find(r => r.id === f.role_id)
   const isGM = selRole?.name_ar === 'المدير العام' || selRole?.name_en === 'General Manager'
 
-  const accent = 'rgba(212,160,23,.4)'
-  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1500, padding: 16, fontFamily: F, direction: 'rtl' }
-  const box = { background: 'var(--modal-bg)', borderRadius: 16, width: 560, maxWidth: '95vw', minHeight: 430, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)' }
-  const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid ' + accent, padding: '20px 22px' }
-  const legend = { position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
-  const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
-  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
+  // Success view auto-closes (and refreshes the detail page) after a short beat.
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => onSaved?.(), 1400)
+    return () => clearTimeout(t)
+  }, [done])
 
   const save = async () => {
     if (!f.role_id) { setErrMsg('الدور مطلوب'); return }
@@ -774,119 +945,46 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
       if (pwMsg) { setErrMsg('تم حفظ البيانات لكن تعذّر تغيير كلمة المرور: ' + pwMsg); setSaving(false); return }
     }
     setSaving(false)
-
-    // Build the "from → to" change list for the in-modal success screen.
-    const codes = ids => (ids || []).map(id => branches.find(b => b.id === id)?.branch_code).filter(Boolean).join('، ')
-    const roleName = id => roles.find(r => r.id === id)?.name_ar || '—'
-    const phoneDisp = p => p ? String(p).replace(/^\+?966/, '0') : '—'
-    const oldBranchIds = (user.branch_ids && user.branch_ids.length) ? user.branch_ids : (user.primary_branch_id ? [user.primary_branch_id] : [])
-    const rows = []
-    if (user.role_id !== f.role_id) rows.push({ label: 'الدور', from: roleName(user.role_id), to: roleName(f.role_id) })
-    if (codes(oldBranchIds) !== codes(branchIds)) rows.push({ label: 'المكتب', from: codes(oldBranchIds) || '—', to: codes(branchIds) || '—', mono: true })
-    if ((user.personal_phone || '') !== (phone9 ? '+966' + phone9 : '')) rows.push({ label: 'رقم الجوال', from: phoneDisp(user.personal_phone), to: phoneDisp(phone9 ? '+966' + phone9 : ''), mono: true })
-    if ((user.email || '') !== (email || '')) rows.push({ label: 'البريد الإلكتروني', from: user.email || '—', to: email || '—', mono: true })
-    if (newPw) rows.push({ label: 'كلمة المرور', from: '••••••', to: newPw, mono: true })
-    setDone({ rows })
+    setDone(true)
   }
 
-  if (done) {
-    return (
-    <div style={overlay}>
-      <div onClick={e => e.stopPropagation()} style={box}>
-          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 28px', gap: 16, textAlign: 'center' }}>
-            <button onClick={() => onSaved?.()} aria-label="إغلاق"
-              style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
-              <X size={14} />
-            </button>
-            <div style={{ width: 74, height: 74, borderRadius: '50%', background: C.ok + '2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok, boxShadow: '0 0 0 8px ' + C.ok + '14' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            </div>
-            <div style={{ fontSize: 19, fontWeight: 700, color: C.ok }}>تم تعديل البيانات بنجاح</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 1.7, maxWidth: 380 }}>{done.rows.length ? 'تم تحديث الحقول التالية:' : 'لم تتغيّر أي بيانات.'}</div>
-            {done.rows.length > 0 && (
-              <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                {done.rows.map((r, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
-                    <span style={{ flex: 1, fontSize: 13, color: 'var(--tx3)', fontWeight: 600, textAlign: 'start' }}>{r.label}</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, direction: r.mono ? 'ltr' : 'rtl' }}>
-                      <span style={{ fontSize: 12.5, color: 'var(--tx5)', fontWeight: 600, textDecoration: 'line-through', fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.from}>{r.from}</span>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                      <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.to}>{r.to}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-      </div>
-    </div>
-    )
-  }
   return (
-    <FKModal open onClose={onClose} accent={C.gold} width={560} scroll
+    <FKModal open onClose={done ? () => onSaved?.() : onClose} variant="edit" width={560}
       title="تعديل بيانات المستخدم" Icon={ShieldCheck} errorMsg={errMsg}
-      footer={
-        <button onClick={save} disabled={saving} className="wm-nav-btn">
-          <span>{saving ? 'جارٍ التعديل…' : 'تعديل'}</span>
-          <span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span>
-        </button>
-      }>
-      <style>{`.wm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:${C.gold};font-family:${F};font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.wm-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:${C.gold}}.wm-nav-btn:hover:not(:disabled) .nav-ico{background:${C.gold};color:#000}.wm-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-          <div style={fieldset}>
-            <div style={legend}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="m22 21-2-2" /><path d="M16 16h.01" /></svg>
-              <span>بيانات العمل</span>
+      success={done ? <SuccessView title="تم تعديل البيانات بنجاح" /> : null}
+      footer={<ActionButton onClick={save} disabled={saving}>{saving ? 'جارٍ التعديل…' : 'تعديل'}</ActionButton>}>
+      <ModalSection Icon={User} label="بيانات العمل">
+        <div style={GRID}>
+          <Select label="الدور" req placeholder="— اختر —"
+            value={f.role_id} onChange={v => set('role_id', v)}
+            options={roles.filter(r => ASSIGNABLE_ROLES.includes(r.name_ar) || r.id === f.role_id)}
+            getKey={r => r.id} getLabel={r => r.name_ar} />
+          {!isGM && (
+            <MultiSelect label="المكتب" req hint="يمكن اختيار أكثر من مكتب" placeholder="— اختر —"
+              value={f.branch_ids} onChange={v => set('branch_ids', v)}
+              options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />
+          )}
+          <PhoneField label="رقم الجوال" value={f.personal_phone} onChange={v => set('personal_phone', v)} />
+          <TextField label="البريد الإلكتروني" hint={EMAIL_DOMAIN} dir="ltr" placeholder="name" full={isGM}
+            value={f.email} onChange={v => set('email', (v || '').toLowerCase().replace(/[^a-z0-9._-]/g, ''))} />
+          <div style={FULL}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+              <Lbl hint="اتركها فارغة لعدم التغيير">كلمة المرور</Lbl>
+              <PwSuggestBtn onClick={() => set('password', genPassword())} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 14, rowGap: 14 }}>
-              <div>
-                <div style={lbl}>الدور <span style={{ color: C.red }}>*</span></div>
-                <Drop value={f.role_id} onChange={v => set('role_id', v)} placeholder="— اختر —"
-                  options={roles.filter(r => ASSIGNABLE_ROLES.includes(r.name_ar) || r.id === f.role_id).map(r => ({ v: r.id, l: r.name_ar }))} />
-              </div>
-              {!isGM && (
-                <div>
-                  <div style={lbl}>المكتب <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>(يمكن اختيار أكثر من مكتب)</span> <span style={{ color: C.red }}>*</span></div>
-                  <MultiDrop value={f.branch_ids} onChange={v => set('branch_ids', v)} placeholder="— اختر —"
-                    options={branches.map(b => ({ v: b.id, l: b.branch_code }))} />
-                </div>
-              )}
-              <div>
-                <div style={lbl}>رقم الجوال</div>
-                <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 9, overflow: 'hidden', border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
-                  <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>+966</div>
-                  <input value={(d => !d ? '' : d.length <= 2 ? d : d.length <= 5 ? d.slice(0, 2) + ' ' + d.slice(2) : d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5))(f.personal_phone)} onChange={e => set('personal_phone', e.target.value.replace(/\D/g, '').slice(0, 9))} dir="ltr" inputMode="numeric" maxLength={11} placeholder="5X XXX XXXX"
-                    style={{ flex: 1, width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
-                </div>
-              </div>
-              <div style={{ gridColumn: isGM ? '1 / -1' : 'auto' }}>
-                <div style={lbl}>البريد الإلكتروني</div>
-                <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 9, overflow: 'hidden', border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
-                  <input value={f.email} onChange={e => set('email', e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))} dir="ltr" placeholder="name"
-                    style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
-                  <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', borderInlineStart: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>{EMAIL_DOMAIN}</div>
-                </div>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <div style={{ ...lbl, marginBottom: 0 }}>كلمة المرور <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>(اتركها فارغة لعدم التغيير)</span></div>
-                  <button type="button" onClick={() => set('password', genPassword())}
-                    style={{ height: 26, padding: '0 10px', borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
-                    اقتراح جديد
-                  </button>
-                </div>
-                <input value={f.password} onChange={e => set('password', e.target.value)} style={{ ...inp, direction: 'ltr', fontFamily: 'monospace', letterSpacing: '.5px' }} dir="ltr" type="text" placeholder="كلمة مرور جديدة" />
-              </div>
-            </div>
+            <TextField dir="ltr" placeholder="كلمة مرور جديدة" value={f.password} onChange={v => set('password', v)} />
           </div>
+        </div>
+      </ModalSection>
     </FKModal>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // Drop — portal dropdown that matches the invoice-modal field look
-// (gold chevron, search when long, centered value). Used for every
-// select inside NewUserModal so all dropdowns share one style.
+// (gold chevron, search when long, centered value). No longer used in
+// this file (modals moved to FormKit Select) — kept exported for
+// ClientsPage / AgentsPage which still import it.
 // ═══════════════════════════════════════════════════════════════════
 export function Drop({ value, onChange, options, placeholder }) {
   const [open, setOpen] = useState(false)
@@ -1050,17 +1148,22 @@ function Step2Init({ f, setF }) {
 
 function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSaved }) {
   const employeeRole = roles.find(r => r.name_ar === 'موظف' || r.name_en === 'Employee')
-  const [step, setStep] = useState(1)
-  const totalSteps = 2
   const [f, setF] = useState({
     name_ar: '', name_en: '', id_number: '', nationality_id: '',
     role_id: employeeRole?.id || '', branch_ids: [],
     personal_phone: '', email: '', password: '', password2: '',
   })
   const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(null) // in-modal success screen after creating the account
+  const [done, setDone] = useState(false) // in-modal success view after creating the account
   const [errMsg, setErrMsg] = useState('') // inline error shown in the footer (no toast)
   const set = (k, v) => { setErrMsg(''); setF(p => ({ ...p, [k]: v })) }
+
+  // Success view auto-closes (and refreshes the users list) after a short beat.
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => onSaved?.(), 1400)
+    return () => clearTimeout(t)
+  }, [done])
 
   // The General Manager isn't tied to an office — hide the office field for that role.
   const selRole = roles.find(r => r.id === f.role_id)
@@ -1076,45 +1179,24 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
     && /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/.test(localPart)
     && (f.password || '').length >= 6 && f.password === f.password2
 
-  const accent = 'rgba(212,160,23,.4)'
-  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1500, padding: 16, fontFamily: F, direction: 'rtl' }
-  const box = { background: 'var(--modal-bg)', borderRadius: 16, width: 560, maxWidth: '95vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)' }
-  const fieldset = { position: 'relative', borderRadius: 12, border: '1.5px solid ' + accent, padding: '20px 22px' }
-  const legend = { position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }
-  const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
-  const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.2s' }
-
   const validateStep1 = () => {
-    if (!(f.name_ar || '').trim()) { toast('الاسم بالعربي مطلوب'); return false }
-    if (!(f.name_en || '').trim()) { toast('الاسم بالإنجليزي مطلوب'); return false }
-    if (!/^\d{10}$/.test((f.id_number || '').replace(/\D/g, ''))) { toast('رقم الهوية يجب أن يكون 10 أرقام'); return false }
-    if (!f.nationality_id) { toast('الجنسية مطلوبة'); return false }
-    if (!f.role_id) { toast('الدور مطلوب'); return false }
-    if (!isGM && !(f.branch_ids && f.branch_ids.length)) { toast('المكتب مطلوب'); return false }
+    if (!(f.name_ar || '').trim()) { setErrMsg('الاسم بالعربي مطلوب'); return false }
+    if (!(f.name_en || '').trim()) { setErrMsg('الاسم بالإنجليزي مطلوب'); return false }
+    if (!/^\d{10}$/.test((f.id_number || '').replace(/\D/g, ''))) { setErrMsg('رقم الهوية يجب أن يكون 10 أرقام'); return false }
+    if (!f.nationality_id) { setErrMsg('الجنسية مطلوبة'); return false }
+    if (!f.role_id) { setErrMsg('الدور مطلوب'); return false }
+    if (!isGM && !(f.branch_ids && f.branch_ids.length)) { setErrMsg('المكتب مطلوب'); return false }
     return true
   }
 
-  // Moving to step 2 pre-fills a suggested email + a unique generated password
-  // (only if the GM left them blank) to make creating an account as quick as possible.
-  const goStep2 = () => {
-    setErrMsg('')
-    if (!validateStep1()) return
-    setF(p => {
-      const next = { ...p }
-      if (!next.email) next.email = emailLocalFromName(next.name_en || next.name_ar)
-      if (!next.password) { const pw = genPassword(); next.password = pw; next.password2 = pw }
-      return next
-    })
-    setStep(2)
-  }
-
   const save = async () => {
+    setErrMsg('')
     const name_ar = (f.name_ar || '').trim()
     const idDigits = (f.id_number || '').replace(/\D/g, '')
     const localPart = (f.email || '').trim().toLowerCase()
     const email = localPart + EMAIL_DOMAIN
     const phoneDigits = (f.personal_phone || '').replace(/\D/g, '')
-    if (!validateStep1()) { setStep(1); return }
+    if (!validateStep1()) return
     if (phoneDigits.length !== 9) { setErrMsg('رقم الجوال يجب أن يكون 9 أرقام بعد +966'); return }
     if (!/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/.test(localPart)) { setErrMsg('البريد الإلكتروني غير صحيح'); return }
     if ((f.password || '').length < 6) { setErrMsg('كلمة المرور 6 أحرف على الأقل'); return }
@@ -1141,132 +1223,62 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
         setErrMsg(msg); setSaving(false); return
       }
       if (data && data.ok === false) { setErrMsg(data.error?.message || 'تعذّرت الإضافة'); setSaving(false); return }
-      // In-modal success screen (mirrors the edit modal) instead of a toast.
-      setDone({ name: name_ar, email, password: f.password })
+      // In-modal success view (FormKit success= prop) instead of a toast. The login
+      // credentials stay reachable on the user detail page (email + plain_password).
+      setDone(true)
     } catch (e) {
       setErrMsg((e?.message || 'تعذّرت الإضافة').slice(0, 100))
     }
     setSaving(false)
   }
 
-  if (done) {
-    return (
-    <div style={overlay}>
-      <div onClick={e => e.stopPropagation()} style={box}>
-          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 28px', gap: 16, textAlign: 'center' }}>
-            <button onClick={() => onSaved?.()} aria-label="إغلاق"
-              style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
-              <X size={14} />
-            </button>
-            <div style={{ width: 74, height: 74, borderRadius: '50%', background: C.ok + '2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok, boxShadow: '0 0 0 8px ' + C.ok + '14' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            </div>
-            <div style={{ fontSize: 19, fontWeight: 700, color: C.ok }}>تم إنشاء الحساب بنجاح</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 1.7, maxWidth: 380 }}>الحساب أُنشئ معطّلاً — فعّله من القائمة. هذه بيانات الدخول:</div>
-            <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-              {[
-                { label: 'الاسم', value: done.name },
-                { label: 'البريد الإلكتروني', value: done.email, mono: true, copy: true },
-                { label: 'كلمة المرور', value: done.password, mono: true, copy: true },
-              ].map((r, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
-                  <span style={{ flex: 1, fontSize: 13, color: 'var(--tx3)', fontWeight: 600, textAlign: 'start' }}>{r.label}</span>
-                  {r.copy && <CopyBtn value={r.value} toast={toast} />}
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', direction: r.mono ? 'ltr' : 'rtl', fontFamily: r.mono ? 'monospace' : 'inherit', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.value}>{r.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-      </div>
-    </div>
-    )
-  }
   return (
-    <FKModal open onClose={onClose} accent={C.gold} width={560}
+    <FKModal open onClose={done ? () => onSaved?.() : onClose} variant="create" width={560}
       title="مستخدم جديد" Icon={ShieldCheck}
       onSubmit={save} submitting={saving} submitLabel="إضافة"
-      nextLabel="التالي" backLabel="السابق"
+      success={done ? <SuccessView title="تم إنشاء الحساب بنجاح" /> : null}
       pages={[
         { title: 'بيانات الموظف', valid: step1Valid, error: errMsg, content: (
-            <div style={fieldset}>
-              <div style={legend}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                <span>بيانات الموظف</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 20, rowGap: 16 }}>
-                <div>
-                  <div style={lbl}>الاسم بالعربي <span style={{ color: C.red }}>*</span></div>
-                  <input value={f.name_ar} onChange={e => set('name_ar', e.target.value)} style={inp} dir="rtl" />
-                </div>
-                <div>
-                  <div style={lbl}>الاسم بالإنجليزي <span style={{ color: C.red }}>*</span></div>
-                  <input value={f.name_en} onChange={e => set('name_en', e.target.value)} style={{ ...inp, direction: 'ltr' }} dir="ltr" />
-                </div>
-                <div>
-                  <div style={lbl}>رقم الهوية <span style={{ color: C.red }}>*</span></div>
-                  <input value={f.id_number} onChange={e => set('id_number', e.target.value.replace(/\D/g, '').slice(0, 10))} style={{ ...inp, direction: 'ltr' }} dir="ltr" inputMode="numeric" placeholder="10 أرقام" />
-                </div>
-                <div>
-                  <div style={lbl}>الجنسية <span style={{ color: C.red }}>*</span></div>
-                  <Drop value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder="— اختر —"
-                    options={nationalities.map(n => ({ v: n.id, l: n.name_ar }))} />
-                </div>
-                <div>
-                  <div style={lbl}>الدور <span style={{ color: C.red }}>*</span></div>
-                  <Drop value={f.role_id} onChange={v => set('role_id', v)} placeholder="موظف (افتراضي)"
-                    options={roles.filter(r => ASSIGNABLE_ROLES.includes(r.name_ar)).map(r => ({ v: r.id, l: r.name_ar }))} />
-                </div>
-                {!isGM && (
-                  <div>
-                    <div style={lbl}>المكتب <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>(يمكن اختيار أكثر من مكتب)</span> <span style={{ color: C.red }}>*</span></div>
-                    <MultiDrop value={f.branch_ids} onChange={v => set('branch_ids', v)} placeholder="الافتراضي"
-                      options={branches.map(b => ({ v: b.id, l: b.branch_code }))} />
-                  </div>
-                )}
-              </div>
+          <ModalSection Icon={User} label="بيانات الموظف">
+            <div style={GRID}>
+              <TextField label="الاسم بالعربي" req value={f.name_ar} onChange={v => set('name_ar', v)} />
+              <TextField label="الاسم بالإنجليزي" req dir="ltr" value={f.name_en} onChange={v => set('name_en', v)} />
+              <IdField label="رقم الهوية" req placeholder="10 أرقام" value={f.id_number} onChange={v => set('id_number', v)} />
+              <Select label="الجنسية" req placeholder="— اختر —"
+                value={f.nationality_id} onChange={v => set('nationality_id', v)}
+                options={nationalities} getKey={n => n.id} getLabel={n => n.name_ar} />
+              <Select label="الدور" req placeholder="موظف (افتراضي)"
+                value={f.role_id} onChange={v => set('role_id', v)}
+                options={roles.filter(r => ASSIGNABLE_ROLES.includes(r.name_ar))}
+                getKey={r => r.id} getLabel={r => r.name_ar} />
+              {!isGM && (
+                <MultiSelect label="المكتب" req hint="يمكن اختيار أكثر من مكتب" placeholder="الافتراضي"
+                  value={f.branch_ids} onChange={v => set('branch_ids', v)}
+                  options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />
+              )}
             </div>
+          </ModalSection>
         ) },
         { title: 'بيانات الدخول', valid: step2Valid, error: errMsg, content: (
           <>
             <Step2Init f={f} setF={setF} />
-            <div style={fieldset}>
-              <div style={legend}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>بيانات الدخول</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 20, rowGap: 16 }}>
-                <div>
-                  <div style={lbl}>رقم الجوال <span style={{ color: C.red }}>*</span></div>
-                  <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 9, overflow: 'hidden', border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
-                    <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>+966</div>
-                    <input value={(d => !d ? '' : d.length <= 2 ? d : d.length <= 5 ? d.slice(0, 2) + ' ' + d.slice(2) : d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5))(f.personal_phone)} onChange={e => set('personal_phone', e.target.value.replace(/\D/g, '').slice(0, 9))} dir="ltr" inputMode="numeric" maxLength={11} placeholder="5X XXX XXXX"
-                      style={{ flex: 1, width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
+            <ModalSection Icon={Lock} label="بيانات الدخول">
+              <div style={GRID}>
+                <PhoneField label="رقم الجوال" req value={f.personal_phone} onChange={v => set('personal_phone', v)} />
+                <TextField label="البريد الإلكتروني" req hint={EMAIL_DOMAIN} dir="ltr" placeholder="name"
+                  value={f.email} onChange={v => set('email', (v || '').toLowerCase().replace(/[^a-z0-9._-]/g, ''))} />
+                <div style={FULL}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <Lbl req hint="مقترحة تلقائياً">كلمة المرور</Lbl>
+                    <PwSuggestBtn onClick={() => setF(p => { const pw = genPassword(); return { ...p, password: pw, password2: pw } })} />
                   </div>
-                </div>
-                <div>
-                  <div style={lbl}>البريد الإلكتروني <span style={{ color: C.red }}>*</span></div>
-                  <div style={{ display: 'flex', direction: 'ltr', height: 42, borderRadius: 9, overflow: 'hidden', border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
-                    <input value={f.email} onChange={e => set('email', e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))} dir="ltr" placeholder="name"
-                      style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
-                    <div style={{ padding: '0 10px', background: 'rgba(255,255,255,.04)', borderInlineStart: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>{EMAIL_DOMAIN}</div>
-                  </div>
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <div style={{ ...lbl, marginBottom: 0 }}>كلمة المرور <span style={{ color: C.red }}>*</span> <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>(مقترحة تلقائياً)</span></div>
-                    <button type="button" onClick={() => setF(p => { const pw = genPassword(); return { ...p, password: pw, password2: pw } })}
-                      style={{ height: 26, padding: '0 10px', borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
-                      اقتراح جديد
-                    </button>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 20, rowGap: 16 }}>
-                    <input value={f.password} onChange={e => set('password', e.target.value)} style={{ ...inp, direction: 'ltr', fontFamily: 'monospace', letterSpacing: '.5px' }} dir="ltr" type="text" placeholder="كلمة المرور" />
-                    <input value={f.password2} onChange={e => set('password2', e.target.value)} style={{ ...inp, direction: 'ltr', fontFamily: 'monospace', letterSpacing: '.5px' }} dir="ltr" type="text" placeholder="تأكيد كلمة المرور" />
+                  <div style={GRID}>
+                    <TextField dir="ltr" placeholder="كلمة المرور" value={f.password} onChange={v => set('password', v)} />
+                    <TextField dir="ltr" placeholder="تأكيد كلمة المرور" value={f.password2} onChange={v => set('password2', v)} />
                   </div>
                 </div>
               </div>
-            </div>
+            </ModalSection>
           </>
         ) },
       ]}

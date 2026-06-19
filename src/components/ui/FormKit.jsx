@@ -20,7 +20,7 @@
 
 import React, { useState, useEffect, useRef, useId, useContext, createContext } from 'react'
 import ReactDOM from 'react-dom'
-import { X, ChevronDown, ChevronLeft, ChevronRight, Check, Search, Save, Calendar as CalIcon, Clock as ClockIcon, Minus, Plus, Upload, Paperclip, AlertTriangle, Info, Trash2, Copy } from 'lucide-react'
+import { X, ChevronDown, ChevronLeft, ChevronRight, Check, Search, Save, Calendar as CalIcon, Clock as ClockIcon, Minus, Plus, Upload, Paperclip, AlertTriangle, Info, Trash2, Copy, Circle, CheckCircle2 } from 'lucide-react'
 
 /* ═══════════════════════════════ التوكنز ═══════════════════════════════ */
 
@@ -147,6 +147,35 @@ export const fmtThousands = s => {
   return dec != null ? intF + '.' + dec : intF
 }
 
+/* ═══════════════════════ تحقق الأرقام الحقيقية ═══════════════════════════
+   نمنع الأرقام الوهمية (كل الخانات متطابقة 1111… أو متسلسلة 12345…) في حقول
+   الهوية/الإقامة والجوال. تُستخدم داخل IdField/PhoneField وتُصدَّر للاستخدام
+   في تحقق الإرسال عند الحاجة. */
+
+// مُعطَّل بناءً على طلب المستخدم: لا نرفض أي رقم بحجّة أنه "وهمي" في أي مكان
+// بالبرنامج. نقبل كل الأرقام (حتى 2222222222 / 555555555) ما دامت الصيغة سليمة.
+const isFakeNumber = () => false
+
+// تحقق هوية/إقامة: 10 خانات تبدأ بـ1/2/3، وليست رقماً وهمياً.
+// بسيط عمداً — لا نرفض أي رقم واقعي، فقط الأنماط الوهمية الواضحة.
+// تُرجع نص الخطأ، أو '' إذا صحيحة/غير مكتملة. (لا نُزعج المستخدم قبل اكتمال 10 خانات)
+export const validateSaudiId = id => {
+  const s = String(id || '')
+  if (s.length < 10) return ''
+  if (!/^[123]\d{9}$/.test(s)) return 'رقم هوية غير صحيح'
+  if (isFakeNumber(s)) return 'أدخل رقم هوية حقيقياً'
+  return ''
+}
+
+// تحقق جوال سعودي: 9 خانات تبدأ بـ5 وليست وهمية. تُرجع نص الخطأ أو ''.
+export const validatePhone = ph => {
+  const s = String(ph || '')
+  if (s.length < 9) return ''
+  if (!/^5\d{8}$/.test(s)) return 'رقم جوال غير صحيح'
+  if (isFakeNumber(s)) return 'أدخل رقم جوال حقيقياً'
+  return ''
+}
+
 /* ═══════════════════════════ التاريخ (الصيغة) ══════════════════════════ */
 // صيغة التخزين والكتابة الموحّدة في كل الموقع: yyyy-mm-dd (ميلادي)
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
@@ -172,15 +201,15 @@ export const fmtTime12 = v => {
 /* ════════════════════════════════ Lbl ═════════════════════════════════ */
 // عنوان الحقل — موحّد. req = نجمة حمراء للحقل الإلزامي.
 export const Lbl = ({ children, req, hint, err }) => (
-  <div style={{ fontSize: 14, fontWeight: 600, color: err ? C.red : C.tx3, marginBottom: 9, textAlign: 'start', display: 'flex', alignItems: 'baseline', gap: 6, transition: '.15s' }}>
+  <div style={{ fontSize: 14, fontWeight: 600, color: err ? C.red : C.tx, marginBottom: 9, textAlign: 'start', display: 'flex', alignItems: 'baseline', gap: 6, transition: '.15s' }}>
     <span>{children}{req && <span style={{ color: C.red }}> *</span>}</span>
-    {hint && <span style={{ fontSize: 10, fontWeight: 600, color: C.tx5 }}>· {hint}</span>}
+    {hint && <span style={{ fontSize: 10, fontWeight: 600, color: C.tx5 }}>{hint}</span>}
   </div>
 )
 
 // غلاف حقل: عنوان + المحتوى + رسالة خطأ. كل الحقول الجاهزة تستخدمه داخلياً.
-export const Field = ({ label, req, hint, error, full, children }) => (
-  <div style={full ? FULL : undefined}>
+export const Field = ({ label, req, hint, error, full, style, children }) => (
+  <div style={{ ...(full ? FULL : {}), ...style }}>
     {label && <Lbl req={req} hint={hint} err={!!error}>{label}</Lbl>}
     {children}
     {error && typeof error === 'string' && (
@@ -194,16 +223,16 @@ export const AccentContext = createContext(C.gold)
 
 /* ═══════════════════════════ ModalSection (KCard) ══════════════════════ */
 // بطاقة بإطار وعنوان مقطوع في الأعلى — لونها يتبع لون النافذة الأساسي.
-export const ModalSection = ({ Icon, label, hint, children, style }) => {
+export const ModalSection = ({ Icon, label, hint, children, style, bodyStyle, flex }) => {
   const ac = useContext(AccentContext)
   return (
-    <div style={{ borderRadius: 12, border: `1.5px solid ${ac}59`, padding: '18px 14px 14px', position: 'relative', marginTop: 20, transition: '.2s', ...style }}>
+    <div style={{ borderRadius: 12, border: `1.5px solid ${ac}59`, padding: '18px 14px 14px', position: 'relative', marginTop: 20, transition: '.2s', ...(flex ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}), ...style }}>
       <div style={{ position: 'absolute', top: -9, right: 14, background: C.modal, padding: '0 8px', fontSize: 12, fontWeight: 600, color: ac, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         {Icon && <Icon size={12} strokeWidth={2.2} />}
         <span>{label}</span>
-        {hint && <span style={{ fontSize: 11, fontWeight: 500, color: C.tx4, marginInlineStart: 4 }}>· {hint}</span>}
+        {hint && <span style={{ fontSize: 11, fontWeight: 500, color: C.tx4, marginInlineStart: 4 }}>{hint}</span>}
       </div>
-      <div>{children}</div>
+      <div style={flex ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', ...bodyStyle } : bodyStyle}>{children}</div>
     </div>
   )
 }
@@ -384,7 +413,7 @@ export const Flag = ({ code, size = 18 }) => {
    ════════════════════════════════════════════════════════════════════════ */
 
 // نص عام. filter: 'ar' | 'en' | undefined ، upper لتحويل لحروف كبيرة (أسماء إنجليزية)
-export const TextField = ({ label, req, error, hint, value, onChange, placeholder, dir = 'rtl', filter, upper, maxLength, full }) => {
+export const TextField = ({ label, req, error, hint, value, onChange, placeholder, dir = 'rtl', align = 'center', filter, upper, maxLength, full, disabled }) => {
   const clean = v => {
     let s = v
     if (filter === 'ar') s = s.replace(RE_AR, '')
@@ -395,8 +424,8 @@ export const TextField = ({ label, req, error, hint, value, onChange, placeholde
   }
   return (
     <Field label={label} req={req} error={error} hint={hint} full={full}>
-      <input value={value || ''} onChange={e => onChange(clean(e.target.value))} placeholder={placeholder} dir={dir}
-        style={{ ...sF, direction: dir, textAlign: 'center', textTransform: upper ? 'uppercase' : 'none', boxShadow: errRing(error) }} />
+      <input value={value || ''} onChange={e => onChange(clean(e.target.value))} placeholder={placeholder} dir={dir} disabled={disabled}
+        style={{ ...sF, direction: dir, textAlign: align, textTransform: upper ? 'uppercase' : 'none', boxShadow: errRing(error), ...(disabled ? { opacity: .5, cursor: 'not-allowed' } : {}) }} />
     </Field>
   )
 }
@@ -416,31 +445,35 @@ export const NumberField = ({ label, req, error, hint, value, onChange, placehol
 )
 
 // مبلغ بالريال — الرقم و"ريال" مجموعة واحدة في منتصف الحقل.
-export const CurrencyField = ({ label, req, error, hint, value, onChange, placeholder = '0.00', unit = 'ريال', full }) => {
+// big: نسخة بارزة للحقل الأساسي (مثل المبلغ المدفوع) — أطول وأكبر خطّاً مع إبقاء شكل الإدخال
+// العادي (خلفية غامقة) كي يبان كحقل إدخال لا كعرض؛ البروز من الحجم لا من التلوين.
+export const CurrencyField = ({ label, req, error, hint, value, onChange, placeholder = '0.00', unit = 'ريال', full, padX, big }) => {
   const ac = useContext(AccentContext)
   const display = fmtThousands(value)
   const widthCh = Math.max(4, (display || placeholder).length) + 1
   return (
-    <Field label={label} req={req} error={error} hint={hint} full={full}>
-      <div style={{ display: 'flex', direction: 'ltr', alignItems: 'center', justifyContent: 'center', gap: 6, border: '1px solid transparent', borderRadius: 9, background: C.inputBg, boxShadow: errRing(error), height: 42 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>{unit}</span>
+    <Field label={label} req={req} error={error} hint={hint} full={full} style={padX ? { paddingLeft: padX, paddingRight: padX } : undefined}>
+      <div style={{ display: 'flex', direction: 'ltr', alignItems: 'center', justifyContent: 'center', gap: big ? 8 : 6, border: '1px solid transparent', borderRadius: big ? 12 : 9, background: C.inputBg, boxShadow: errRing(error), height: big ? 58 : 42 }}>
+        <span style={{ fontSize: big ? 16 : 14, fontWeight: 600, color: ac, flexShrink: 0 }}>{unit}</span>
         <input value={display} inputMode="decimal"
           onChange={e => { let v = e.target.value.replace(/,/g, '').replace(RE_DECIMAL, ''); const p = v.split('.'); if (p.length > 2) v = p[0] + '.' + p.slice(1).join(''); onChange(v) }}
           placeholder={placeholder}
-          style={{ width: widthCh + 'ch', maxWidth: '70%', height: '100%', padding: 0, border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'center' }} />
+          style={{ width: widthCh + 'ch', maxWidth: '70%', height: '100%', padding: 0, border: 'none', background: 'transparent', fontFamily: F, fontSize: big ? 26 : 14, fontWeight: big ? 700 : 600, color: C.tx, outline: 'none', textAlign: 'center', letterSpacing: big ? '.5px' : undefined }} />
       </div>
     </Field>
   )
 }
 
 // جوال سعودي — بادئة +966 ثابتة، 9 أرقام تبدأ بـ 5.
-export const PhoneField = ({ label, req, error, hint, value, onChange, full }) => {
+export const PhoneField = ({ label, req, error, hint, value, onChange, full, silent }) => {
   const ac = useContext(AccentContext)
+  // silent: لا نلوّن الحقل ولا نُظهر ملاحظة تحته — التحقق يُعرض في الشريط السفلي للنافذة بدلاً منه.
+  const err = silent ? (error || '') : (error || validatePhone(value))  // خطأ خارجي أو تحقق داخلي
   return (
-    <Field label={label} req={req} error={error} hint={hint} full={full}>
-      <div style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(error), height: 42 }}>
+    <Field label={label} req={req} error={err} hint={hint} full={full}>
+      <div style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(err), height: 42 }}>
         <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
-        <input value={value || ''} onChange={e => onChange(e.target.value.replace(RE_DIGITS, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
+        <input value={value || ''} onChange={e => onChange(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
           style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left' }} />
       </div>
     </Field>
@@ -448,14 +481,18 @@ export const PhoneField = ({ label, req, error, hint, value, onChange, full }) =
 }
 
 // رقم هوية/إقامة — 10 خانات، بادئة أولى اختيارية (1 وطنية / 2 إقامة).
-export const IdField = ({ label, req, error, hint, value, onChange, prefix, placeholder = 'XXXXXXXXXX', full }) => (
-  <Field label={label} req={req} error={error} hint={hint} full={full}>
-    <input value={value || ''} dir="ltr" maxLength={10}
-      onChange={e => { let v = e.target.value.replace(RE_DIGITS, '').slice(0, 10); if (v && prefix && v[0] !== prefix) v = prefix + v.slice(1); onChange(v) }}
-      placeholder={prefix ? prefix + placeholder.slice(1) : placeholder}
-      style={{ ...sF, direction: 'ltr', textAlign: 'center', letterSpacing: '.5px', boxShadow: errRing(error) }} />
-  </Field>
-)
+export const IdField = ({ label, req, error, hint, value, onChange, prefix, placeholder = 'XXXXXXXXXX', full, silent, disabled }) => {
+  // silent: لا نلوّن الحقل ولا نُظهر ملاحظة تحته — التحقق يُعرض في الشريط السفلي للنافذة بدلاً منه.
+  const err = silent ? (error || '') : (error || validateSaudiId(value))   // خطأ خارجي أو تحقق داخلي
+  return (
+    <Field label={label} req={req} error={err} hint={hint} full={full}>
+      <input value={value || ''} dir="ltr" maxLength={10} disabled={disabled}
+        onChange={e => { let v = e.target.value.replace(RE_DIGITS, '').slice(0, 10); if (prefix) { if (v && v[0] !== prefix) v = prefix + v.slice(1) } else { v = v.replace(/^[^123]+/, '') } onChange(v) }}
+        placeholder={prefix ? prefix + placeholder.slice(1) : placeholder}
+        style={{ ...sF, direction: 'ltr', textAlign: 'center', letterSpacing: '.5px', boxShadow: errRing(err), ...(disabled ? { opacity: .5, cursor: 'not-allowed' } : {}) }} />
+    </Field>
+  )
+}
 
 // نص طويل.
 export const TextArea = ({ label, req, error, hint, value, onChange, placeholder, rows = 3, dir = 'rtl', full = true }) => (
@@ -465,37 +502,63 @@ export const TextArea = ({ label, req, error, hint, value, onChange, placeholder
   </Field>
 )
 
-// حقل إرفاق ملف — اسحب وأفلت أو اضغط للاختيار. value = ملف File (أو null).
-export const FileField = ({ label, req, error, hint, value, onChange, accept = 'image/*,application/pdf', full = true }) => {
+// حقل إرفاق ملف — اسحب وأفلت أو اضغط للاختيار.
+// مفرد: value = ملف File (أو null). متعدّد (multiple): value = مصفوفة ملفات.
+// compact: منطقة إفلات أصغر (لتوفير الارتفاع).
+export const FileField = ({ label, req, error, hint, value, onChange, accept = 'image/*,application/pdf', full = true, multiple = false, compact = false }) => {
   const ac = useContext(AccentContext)
   const inputId = useId()
   const [drag, setDrag] = useState(false)
   const fmtSize = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB'
+  const files = multiple ? (Array.isArray(value) ? value : []) : (value ? [value] : [])
+  const add = list => {
+    const arr = Array.from(list || []).filter(Boolean)
+    if (!arr.length) return
+    onChange(multiple ? [...files, ...arr] : arr[0])
+  }
+  const removeAt = i => onChange(multiple ? files.filter((_, idx) => idx !== i) : null)
+  const showDrop = multiple || files.length === 0
   return (
     <Field label={label} req={req} error={error} hint={hint} full={full}>
-      {!value ? (
+      {showDrop && (
         <label htmlFor={inputId}
           onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setDrag(true) }}
           onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!drag) setDrag(true) }}
           onDragLeave={e => { e.preventDefault(); e.stopPropagation(); if (e.currentTarget.contains(e.relatedTarget)) return; setDrag(false) }}
-          onDrop={e => { e.preventDefault(); e.stopPropagation(); setDrag(false); const fl = e.dataTransfer.files?.[0]; if (fl) onChange(fl) }}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 96, padding: '16px', borderRadius: 10, border: `1.5px dashed ${drag ? ac : (error ? C.red : ac + '59')}`, background: drag ? ac + '1a' : C.inputBg, cursor: 'pointer', transition: '.18s', transform: drag ? 'scale(1.01)' : 'scale(1)' }}>
-          <Upload size={22} color={ac} strokeWidth={2} />
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.tx2 }}>{drag ? 'أفلت الملف هنا' : 'اسحب ملف هنا أو اضغط للإرفاق'}</div>
-          <div style={{ fontSize: 11, fontWeight: 500, color: C.tx4 }}>صور أو PDF</div>
-          <input id={inputId} type="file" accept={accept} onChange={e => { const fl = e.target.files?.[0]; if (fl) onChange(fl) }} style={{ display: 'none' }} />
+          onDrop={e => { e.preventDefault(); e.stopPropagation(); setDrag(false); add(e.dataTransfer.files) }}
+          style={{ display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: compact ? 44 : 96, padding: compact ? '8px 14px' : '16px', borderRadius: 10, border: `1.5px dashed ${drag ? ac : (error ? C.red : ac + '59')}`, background: drag ? ac + '1a' : C.inputBg, cursor: 'pointer', transition: '.18s', transform: drag ? 'scale(1.01)' : 'scale(1)' }}>
+          <Upload size={compact ? 18 : 22} color={ac} strokeWidth={2} />
+          <div style={{ fontSize: compact ? 12 : 13, fontWeight: 600, color: C.tx2 }}>{drag ? (multiple ? 'أفلت الملفات هنا' : 'أفلت الملف هنا') : (multiple ? 'اسحب ملفات أو اضغط للإرفاق' : 'اسحب ملف هنا أو اضغط للإرفاق')}</div>
+          <input id={inputId} type="file" accept={accept} multiple={multiple} onChange={e => { add(e.target.files); e.target.value = '' }} style={{ display: 'none' }} />
         </label>
-      ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', height: 48, borderRadius: 10, border: `1px solid ${C.ok}40`, background: `${C.ok}0d` }}>
-          <Paperclip size={16} color={C.ok} strokeWidth={2} style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value.name}</div>
-            <div style={{ fontSize: 11, fontWeight: 500, color: C.tx4 }}>{fmtSize(value.size)}</div>
+      )}
+      {files.length > 0 && (
+        multiple ? (
+          // عرض متعدّد — شارات صغيرة تلتف بسطور؛ ارتفاع محدود يتمرّر داخلياً فقط عند الكثرة.
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: showDrop ? 8 : 0, maxHeight: 104, overflowY: 'auto', paddingInlineEnd: 2 }}>
+            {files.map((f, i) => (
+              <span key={i} title={`${f.name} · ${fmtSize(f.size)}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', padding: '5px 6px 5px 10px', borderRadius: 8, border: `1px solid ${C.ok}40`, background: `${C.ok}0d` }}>
+                <Paperclip size={12} color={C.ok} strokeWidth={2} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150, direction: 'ltr' }}>{f.name}</span>
+                <button type="button" onClick={() => removeAt(i)} style={{ width: 18, height: 18, borderRadius: 5, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
           </div>
-          <button type="button" onClick={() => onChange(null)} style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <X size={13} />
-          </button>
-        </div>
+        ) : (
+          // عرض مفرد — صف كامل بالاسم والحجم.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', height: 44, borderRadius: 10, border: `1px solid ${C.ok}40`, background: `${C.ok}0d` }}>
+            <Paperclip size={16} color={C.ok} strokeWidth={2} style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files[0].name}</div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: C.tx4 }}>{fmtSize(files[0].size)}</div>
+            </div>
+            <button type="button" onClick={() => removeAt(0)} style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <X size={13} />
+            </button>
+          </div>
+        )
       )}
     </Field>
   )
@@ -513,6 +576,21 @@ export const MultiSelect = ({ label, req, error, hint, full, value, onChange, ..
   <Field label={label} req={req} error={error} hint={hint} full={full}>
     <Dropdown multi error={!!error} selectedKeys={value || []} onChange={onChange} {...dd} />
   </Field>
+)
+
+// حالة فارغة موحّدة — أيقونة ذهبية + عنوان + وصف داخل بطاقة بحدّ منقّط.
+// استعملها في كل القوائم/التبويبات الفارغة لتوحيد الشكل عبر الموقع.
+// icon: عقدة SVG اختيارية (مرّر أيقونة مناسبة للسياق)؛ يسقط لأيقونة عامة إن لم تُمرَّر.
+export const EmptyState = ({ icon, title, desc, style }) => (
+  <div style={{ padding: '34px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, border: '1px dashed rgba(255,255,255,.1)', borderRadius: 14, ...style }}>
+    <div style={{ width: 46, height: 46, borderRadius: 13, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {icon || (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z" /></svg>
+      )}
+    </div>
+    <div style={{ fontSize: 13.5, color: C.tx2, fontWeight: 600, fontFamily: F, textAlign: 'center' }}>{title}</div>
+    {desc && <div style={{ fontSize: 11, color: C.tx4, fontFamily: F, textAlign: 'center', lineHeight: 1.6 }}>{desc}</div>}
+  </div>
 )
 
 // حقل تاريخ — كتابة yyyy-mm-dd + أيقونة تقويم تفتح الكلايندر.
@@ -576,9 +654,12 @@ export const Segmented = ({ label, req, error, hint, options, value, onChange, h
         const sel = value === o.v
         const clr = o.c || C.gold
         return (
-          <button key={String(o.v)} type="button" onClick={() => onChange(o.v)} style={{ flex: 1, borderRadius: 9, border: `1.5px solid ${sel ? clr : 'rgba(255,255,255,.07)'}`, background: sel ? `linear-gradient(180deg, ${clr}22 0%, ${clr}0a 100%)` : C.inputBg, color: sel ? clr : C.tx3, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, cursor: 'pointer', transition: '.18s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, boxShadow: sel ? `inset 0 1px 0 ${clr}26` : 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
-            <span>{o.l}</span>
-            {o.sub && <span style={{ fontSize: 10, opacity: .6 }}>{o.sub}</span>}
+          <button key={String(o.v)} type="button" onClick={() => onChange(o.v)} style={{ flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'rgba(255,255,255,.08)'}`, background: sel ? clr + '14' : C.inputBg, color: sel ? clr : C.tx3, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, cursor: 'pointer', transition: '.18s', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: sel ? 'none' : 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
+            {sel ? <CheckCircle2 size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
+            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span>{o.l}</span>
+              {o.sub && <span style={{ fontSize: 10, opacity: .6 }}>{o.sub}</span>}
+            </span>
           </button>
         )
       })}
@@ -750,10 +831,10 @@ export const TimeField = ({ label, req, error, hint, value, onChange, full, minu
           <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 10, zIndex: 3001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', direction: 'rtl', fontFamily: F, display: 'flex', gap: 8 }}>
             <style>{`.fk-time-col::-webkit-scrollbar{width:0;display:none}.fk-time-col{scrollbar-width:none}`}</style>
             <div className="fk-time-col" style={{ flex: 1, maxHeight: 168, overflowY: 'auto' }}>
-              {hours.map(h => <div key={h} style={colCell(h === h12)} onClick={() => emit(h, mm, ampm)}>{h}</div>)}
+              {mins.map(m => <div key={m} style={colCell(m === mm)} onClick={() => emit(h12, m, ampm)}>{pad2(m)}</div>)}
             </div>
             <div className="fk-time-col" style={{ flex: 1, maxHeight: 168, overflowY: 'auto' }}>
-              {mins.map(m => <div key={m} style={colCell(m === mm)} onClick={() => emit(h12, m, ampm)}>{pad2(m)}</div>)}
+              {hours.map(h => <div key={h} style={colCell(h === h12)} onClick={() => emit(h, mm, ampm)}>{h}</div>)}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: 52 }}>
               {['AM', 'PM'].map(ap => <div key={ap} style={{ ...colCell(ap === ampm), padding: '9px 0' }} onClick={() => emit(h12, mm, ap)}>{ap === 'AM' ? 'ص' : 'م'}</div>)}
@@ -773,19 +854,25 @@ export const InfoRow = ({ label, value, Icon, color, mono, copy, full }) => {
   const clr = color || ac
   return (
     <div style={full ? FULL : undefined}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: C.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', minHeight: 42 }}>
-        {Icon && <Icon size={14} color={clr} strokeWidth={2.2} style={{ flexShrink: 0 }} />}
-        <span style={{ fontSize: 13, fontWeight: 600, color: C.tx3, flexShrink: 0 }}>{label}</span>
-        <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 14, fontWeight: 600, color: value == null || value === '' ? C.tx5 : C.tx, direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? SUCCESS_MONO : F, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240, textAlign: 'end' }} title={value != null ? String(value) : ''}>
-          {value == null || value === '' ? '—' : value}
-        </span>
-        {copy && value != null && value !== '' && (
-          <button type="button" onClick={() => { try { navigator.clipboard?.writeText(String(value)); setDone(true); setTimeout(() => setDone(false), 1200) } catch {} }}
-            style={{ width: 24, height: 24, padding: 0, borderRadius: 6, border: 'none', background: 'transparent', color: done ? C.ok : C.tx4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            {done ? <Check size={13} strokeWidth={3} /> : <Copy size={12} strokeWidth={2} />}
-          </button>
-        )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '9px 12px', borderRadius: 9, background: C.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', minHeight: 50 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {Icon && <Icon size={12} color={clr} strokeWidth={2.2} style={{ flexShrink: 0 }} />}
+          <span style={{ fontSize: 11, fontWeight: 600, color: C.tx4 }}>{label}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: value == null || value === '' ? C.tx5 : C.tx, direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? SUCCESS_MONO : F, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }} title={value != null ? String(value) : ''}>
+            {value == null || value === '' ? '—' : value}
+          </span>
+          {copy && value != null && value !== '' && (<>
+            <span style={{ flex: 1 }} />
+            <button type="button" onClick={() => { try { navigator.clipboard?.writeText(String(value)); setDone(true); setTimeout(() => setDone(false), 1200) } catch {} }}
+              onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
+              onMouseLeave={e => { if (!done) e.currentTarget.style.color = C.tx4 }}
+              style={{ width: 24, height: 24, padding: 0, borderRadius: 6, border: 'none', background: 'transparent', color: done ? C.ok : C.tx4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'color .15s' }}>
+              {done ? <Check size={13} strokeWidth={3} /> : <Copy size={12} strokeWidth={2} />}
+            </button>
+          </>)}
+        </div>
       </div>
     </div>
   )
@@ -824,9 +911,14 @@ export const ActionButton = ({ children, Icon = Save, onClick, disabled, dir = '
 
 /* ════════════════════════════ ScrollBox (الاستثناء) ═══════════════════ */
 // المنطقة الوحيدة المسموح لها بالتمرير داخل النافذة (مثل جدول السداد).
-// النافذة نفسها لا تتمرّر أبداً — لو المحتوى كبير قسّمه لصفحات (pages).
-export const ScrollBox = ({ children, maxHeight = 300, style }) => (
-  <div style={{ maxHeight, overflowY: 'auto', overflowX: 'hidden', borderRadius: 8, ...style }}>{children}</div>
+// النافذة نفسها لا تتمرّر أبداً — لو المحتوى كبير قسّمه لصفحات (pages) أو احصره هنا.
+// شريط تمرير ذهبي رفيع موحّد لكل البرنامج. fill=true ليملأ المساحة المتبقّية داخل
+// ModalSection flex (بدل ارتفاع ثابت) فلا يُقصّ ولا يتجاوز شريط الأزرار.
+export const ScrollBox = ({ children, maxHeight = 300, fill = false, style }) => (
+  <div className="fk-scrollbox" style={{ ...(fill ? { flex: 1, minHeight: 0 } : { maxHeight }), overflowY: 'auto', overflowX: 'hidden', borderRadius: 8, ...style }}>
+    <style>{`.fk-scrollbox{scrollbar-width:thin;scrollbar-color:${C.gold}73 transparent}.fk-scrollbox::-webkit-scrollbar{width:6px}.fk-scrollbox::-webkit-scrollbar-track{background:transparent}.fk-scrollbox::-webkit-scrollbar-thumb{background:${C.gold}73;border-radius:3px}`}</style>
+    {children}
+  </div>
 )
 
 /* ═══════════════════════════════ Modal ════════════════════════════════ */
@@ -851,7 +943,8 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   closeOnOverlay = false, headerExtra, variant = 'create', accent, scroll = false,
   hideHeader = false, height, success,
   tabs, tab, onTab,
-  pages, onSubmit, submitting, submitLabel = 'حفظ', submitIcon, nextLabel = 'التالي', backLabel = 'السابق' }) {
+  pages, onSubmit, submitting, submitLabel = 'حفظ', submitIcon, nextLabel = 'التالي', backLabel = 'السابق',
+  page: pageCtl, onNext, onBack }) {
   const [page, setPage] = useState(0)
   const [tabUn, setTabUn] = useState(0)
   const [closeHov, setCloseHov] = useState(false)
@@ -867,20 +960,28 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   const AC = accent || VARIANT_COLORS[variant] || C.gold
 
   const hasPages = Array.isArray(pages) && pages.length > 0
-  const cur = hasPages ? Math.min(page, pages.length - 1) : 0
+  // وضع الويزارد المتحكَّم: مرّر page (فهرس الصفحة) + onNext/onBack ليقود مكوّنك
+  // التنقّلَ بنفسه (للويزاردات المتفرّعة حسب الخدمة) — والكروم يبقى موحّداً.
+  const controlled = pageCtl != null
+  const cur = hasPages ? Math.min(controlled ? pageCtl : page, pages.length - 1) : 0
   const isLast = !hasPages || cur === pages.length - 1
   const curValid = hasPages ? pages[cur].valid !== false : true
   const shownError = hasPages ? (pages[cur].error || '') : errorMsg
   const body = hasTabs ? tabs[Math.min(curTab, tabs.length - 1)].content : (hasPages ? pages[cur].content : children)
+  // مسافة علوية إضافية حين تظهر صفحة بلا عنوان (شريط التقدّم فقط) — تفسح مجالاً
+  // لشارة عنوان القسم العائمة بدل التصاقها بشريط التقدّم.
+  const bodyPadTop = (hasPages && pages.length > 1 && !pages[cur].title) ? 16 : 2
 
   // أزرار التنقّل: السابق (أقصى اليمين) + التالي/حفظ (أقصى اليسار)، معطّلة حتى تُملأ الإلزامية
+  const goBack = controlled ? (() => onBack?.()) : (() => setPage(p => Math.max(0, p - 1)))
+  const goNext = controlled ? (() => onNext?.()) : (() => setPage(p => p + 1))
   const backNode = hasPages && cur > 0
-    ? <ActionButton variant="ghost" dir="fwd" Icon={ChevronRight} onClick={() => setPage(p => Math.max(0, p - 1))}>{backLabel}</ActionButton>
+    ? <ActionButton variant="ghost" dir="fwd" Icon={ChevronRight} onClick={goBack}>{backLabel}</ActionButton>
     : null
   const forwardNode = hasPages
     ? (isLast
         ? <ActionButton dir="back" Icon={submitIcon || Save} color={AC} disabled={!curValid || submitting} onClick={() => onSubmit?.()}>{submitting ? 'جاري الحفظ...' : submitLabel}</ActionButton>
-        : <ActionButton dir="back" Icon={ChevronLeft} color={AC} disabled={!curValid} onClick={() => setPage(p => p + 1)}>{nextLabel}</ActionButton>)
+        : <ActionButton dir="back" Icon={ChevronLeft} color={AC} disabled={!curValid} onClick={goNext}>{nextLabel}</ActionButton>)
     : footer
   const showFooter = backNode || forwardNode || shownError != null
   // ارتفاع ثابت بين الخطوات في وضع الصفحات حتى لا يتغيّر شكل النافذة.
@@ -958,7 +1059,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* شريط التقدّم + اسم الخطوة الحالية — تحت العنوان مباشرة */}
           {hasPages && (pages.length > 1 || pages[cur].title) && (
-            <div style={{ padding: '0 20px 12px', flexShrink: 0 }}>
+            <div style={{ padding: '0 20px 3px', flexShrink: 0 }}>
               {pages.length > 1 && (
                 <div style={{ display: 'flex', gap: 6, marginBottom: pages[cur].title ? 9 : 0 }}>
                   {pages.map((_, i) => (
@@ -972,11 +1073,11 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
             </div>
           )}
 
-          {/* المحتوى — بلا تمرير. كل صفحة مفترض تكفي بنفسها. */}
+          {/* المحتوى — كل صفحة مفترض تكفي بنفسها؛ يُسمح بالتمرير كأمان حين يفيض المحتوى فقط. */}
           <style>{`.fk-body input:focus,.fk-body select:focus,.fk-body textarea:focus,.fk-body button:focus{outline:none!important}
             .fk-body > *:first-child{margin-top:4px!important}
             .fk-body::-webkit-scrollbar{width:4px}.fk-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}`}</style>
-          <div className="fk-body" style={{ flex: 1, minHeight: 0, overflow: hasTabs || (scroll && !hasPages) ? 'auto' : 'hidden', overflowX: 'visible', padding: '2px 16px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+          <div className="fk-body" style={{ flex: 1, minHeight: 0, overflowY: hasTabs || scroll || hasPages ? 'auto' : 'hidden', overflowX: 'hidden', padding: `${bodyPadTop}px 16px 12px`, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
             {body}
           </div>
 
@@ -1004,7 +1105,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
    (مثل «تمت الإضافة» أو «تم التعديل»). موحّد للكل: بلا وصف ولا شارة كود ولا تفاصيل.
    كل نافذة تعرض نجاحها عبر هذا المكوّن فيتوحّد الشكل تماماً. يُمرَّر لـ Modal success. */
 const SUCCESS_MONO = "'JetBrains Mono','Cairo',sans-serif"
-export function SuccessView({ title = 'تمت العملية بنجاح' }) {
+export function SuccessView({ title = 'تمت العملية بنجاح', code, action }) {
   return (
     <div style={{ width: '100%', fontFamily: F, direction: 'rtl', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
       <style>{`@keyframes fkRingDraw{0%{stroke-dashoffset:151}100%{stroke-dashoffset:0}}@keyframes fkCheck{0%{stroke-dashoffset:60}100%{stroke-dashoffset:0}}@keyframes fkFade{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}`}</style>
@@ -1016,7 +1117,13 @@ export function SuccessView({ title = 'تمت العملية بنجاح' }) {
             style={{ strokeDasharray: 40, strokeDashoffset: 40, animation: 'fkCheck .4s .55s ease-out forwards' }} />
         </svg>
       </div>
-      <div style={{ animation: 'fkFade .4s .45s both', textAlign: 'center', fontSize: 19, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>{title}</div>
+      <div style={{ animation: 'fkFade .4s .45s both', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <div style={{ textAlign: 'center', fontSize: 19, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>{title}</div>
+        {code && (
+          <span style={{ color: C.gold, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontSize: 13.5, fontWeight: 800, letterSpacing: '.3px', direction: 'ltr' }}>{code}</span>
+        )}
+        {action || null}
+      </div>
     </div>
   )
 }

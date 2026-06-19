@@ -189,13 +189,13 @@ export const EmptyState = ({ text }) => (
   </div>
 )
 
-// Generic modal shell — now delegates to FormKit's Modal so every role/branch
+// Generic modal shell — delegates to FormKit's Modal so every role/branch
 // popup that uses it inherits the unified chrome (header, close, footer, accent).
-// `scroll` is on because these forms are long and historically scrolled; the
-// footer slot right-aligns its content (save lands on the left in RTL, as before).
+// Per the FormKit contract the window never scrolls: long content must be split
+// into `pages` or use ScrollBox inside a ModalSection — no scroll pass-through.
 export const ModalShell = ({ open, onClose, title, Icon, children, footer, variant = 'create', accent, width = 640 }) => (
   <FkModal open={open} onClose={onClose} title={title} Icon={Icon} footer={footer}
-    width={width} scroll variant={variant} accent={accent}>
+    width={width} variant={variant} accent={accent}>
     {children}
   </FkModal>
 )

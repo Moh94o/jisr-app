@@ -1,17 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Tag } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Tag, Banknote, CreditCard, Paperclip, Upload, Plus, X, Check, FileText } from 'lucide-react'
 import { Sel, DateField } from './KafalaCalculator'
-import { Modal as FKModal } from '../components/ui/FormKit.jsx'
+import { Modal as FKModal, ModalSection, SuccessView, ScrollBox, GRID, CurrencyField, TextArea, Select as FKSelect, DateField as FKDateField, TimeField as FKTimeField, EmptyState, C as FK } from '../components/ui/FormKit.jsx'
 import BackButton from '../components/BackButton'
+import { SkeletonTable, StatStripSkeleton } from '../components/ui/Skeleton.jsx'
 import { can as canPerm } from '../lib/permissions.js'
+import { noDash } from '../lib/utils.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#2ecc71', blue: '#5dade2', red: '#e87265', gray: '#95a5a6' }
 const PAGE = 50
 const fmtAmt = (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 const fmtInt = (v) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })
-// Add thousands separators to a raw numeric input string while preserving the decimal part being typed.
-const withThousands = (s) => { if (s === '' || s == null) return ''; const p = String(s).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }
 // International ISO format YYYY-MM-DD (e.g. 2026-06-03). Read right-to-left in Arabic it is day → month → year, with the day on the right.
 // Business "today" boundary — matches the Invoices stats: the day starts at 05:00 Riyadh time.
 const riyadhDayStart = () => {
@@ -39,7 +39,7 @@ const humanDuration = (ms, T) => {
 
 // Money the office RECEIVES from clients against invoices (cash or bank transfer).
 // Distinct from المدفوعات, which is what the office pays out to execute requests.
-export default function DepositsPage({ sb, lang, user, branchId, toast }) {
+export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIcon }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
   const isGM = user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager'
@@ -355,7 +355,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
 
   // Stat card styled to match the Invoices page cards: gradient surface, colored dot + title, big figure, footer sub-stat.
   const dCard = (label, value, count, color, footLabel, grow = 1) => (
-    <div style={{ position: 'relative', flex: `${grow} 1 0%`, minWidth: 200, padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
+    <div style={{ position: 'relative', flex: `${grow} 1 0%`, minWidth: 200, padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 190 }}>
       <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${color}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 10px ${color}aa` }} />
@@ -364,7 +364,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
         <span style={{ fontSize: 42, fontWeight: 800, color, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmtInt(value)}</span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600, fontFamily: F }}>{footLabel || T('عدد الدفعات', 'Payments')}</span>
         <span style={{ fontSize: 13, color, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{count}</span>
       </div>
@@ -376,14 +376,14 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
     // Keep the card at the same 150px height even with 3 rows by compacting padding/fonts.
     const compact = parts.length >= 3
     return (
-    <div style={{ position: 'relative', flex: 1, minWidth: 200, minHeight: 150, borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', flex: 1, minWidth: 200, minHeight: 190, borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {parts.map((s, i) => (
         <div key={i} style={{ position: 'relative', padding: compact ? '7px 16px' : '12px 16px', flex: 1, minHeight: 0, borderTop: i > 0 ? '1px solid rgba(255,255,255,.06)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: compact ? 3 : 6, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', insetInlineStart: -25, top: '50%', transform: 'translateY(-50%)', width: 70, height: 70, borderRadius: '50%', background: `radial-gradient(circle, ${s.color}10 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.color }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ fontSize: compact ? 12 : 13, color: '#fff', fontWeight: 700 }}>{s.label}</span>
+              <span style={{ fontSize: compact ? 12 : 13, color: '#fff', fontWeight: 600 }}>{s.label}</span>
               <span style={{ fontSize: compact ? 11 : 12, color: 'var(--tx4)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>({s.count})</span>
             </div>
           </div>
@@ -400,6 +400,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
   const actBtn = (clr) => ({ height: 28, padding: '0 12px', borderRadius: 8, background: clr + '14', border: '1px solid ' + clr + '4d', color: clr, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' })
 
   // Clicking a row opens the full deposit/transfer verification detail page (mirrors InvoiceDetailPage).
+  const initialLoading = loading && filtered.length === 0
   if (detail) return (
     <DepositDetailPage
       sb={sb} lang={lang} T={T} user={user} isGM={isGM} row={detail} banks={banks} cards={cards}
@@ -422,12 +423,14 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('كرت «الخزنة» رصيد تراكمي دائم، وبقية الكروت يومية تبدأ من الساعة 5:00 فجراً بتوقيت الرياض', '“Cash drawer” is a running all-time balance; the other cards are daily, starting at 5:00 AM Riyadh time')}</div>
         </div>
         {canPerm(user, 'deposits.create') && (
-        <button onClick={() => setCashModal(true)} onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }} onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }} style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+        <button onClick={() => setCashModal(true)} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }} style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
           {T('إيداع نقدي جديد', 'New cash deposit')}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
         )}
       </div>
+
+      {initialLoading ? (<><StatStripSkeleton cols="2.2fr 1.25fr 1.25fr" breakdownRows={4} /><SkeletonTable columns={['16%','16%','20%','20%','14%','14%']} rows={8} /></>) : (<>
 
       {/* Daily summary — today's deposits. Grid matches the Invoices stats so الخزنة = نقدًا width. */}
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.25fr 1.25fr', gap: 14, marginBottom: 24, alignItems: 'stretch' }}>
@@ -509,12 +512,14 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
       })()}
 
       {/* Table */}
-      {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, fontWeight: 600 }}>{T('جارِ التحميل…', 'Loading…')}</div>
-      ) : err ? (
+      {err ? (
         <div style={{ padding: 24, textAlign: 'center', color: C.red, fontSize: 13, fontWeight: 600, border: '1px dashed rgba(232,114,101,.3)', borderRadius: 12 }}>{T('تعذّر تحميل الإيداعات', 'Failed to load deposits')}: {err}</div>
       ) : filtered.length === 0 ? (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, fontWeight: 600, border: '1px dashed rgba(255,255,255,.1)', borderRadius: 12, background: 'rgba(0,0,0,.12)' }}>{T('لا توجد إيداعات مطابقة', 'No matching deposits')}</div>
+        <EmptyState
+          icon={emptyIcon}
+          title={T('لا توجد إيداعات مطابقة', 'No matching deposits')}
+          desc={T('جرّب تعديل الفلاتر أو البحث', 'Try adjusting the filters or search')}
+        />
       ) : (
         <div style={{ borderRadius: 10, overflow: 'hidden' }}>
           <style>{`
@@ -552,8 +557,8 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
                     <td>
                       {r.invoiceNo
                         ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
-                            <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, fontFamily: 'monospace' }}>{r.invoiceNo}</span>
-                            <CopyBtn text={r.invoiceNo} />
+                            <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, fontFamily: 'monospace' }}>{noDash(r.invoiceNo)}</span>
+                            <CopyBtn text={noDash(r.invoiceNo)} />
                           </span>
                         : <span style={{ color: 'var(--tx5)' }}>—</span>}
                     </td>
@@ -599,6 +604,8 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
         </div>
       )}
 
+      </>)}
+
       {cashModal && (
         <CashDepositModal
           T={T} lang={lang} banks={banks} cards={cards} balance={drawer.balance} fmtAmt={fmtAmt}
@@ -612,18 +619,11 @@ export default function DepositsPage({ sb, lang, user, branchId, toast }) {
   )
 }
 
-const overlayS = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(6px)', zIndex: 998, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, direction: 'rtl' }
-const modalS = { background: 'var(--modal-bg, #1c1c1c)', borderRadius: 16, width: 620, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.55)', border: '1px solid rgba(255,255,255,.07)', fontFamily: F }
-const FileField = ({ T, file, setFile }) => (
-  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 44, borderRadius: 10, border: `1px dashed ${file ? C.ok : 'rgba(212,160,23,.4)'}`, background: file ? 'rgba(46,204,113,.08)' : 'rgba(212,160,23,.05)', color: file ? C.ok : C.gold, cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 700, padding: '0 14px' }}>
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
-    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file ? file.name : T('إرفاق ملف (صورة أو PDF)', 'Attach file (image or PDF)')}</span>
-    <input type="file" accept="image/*,application/pdf" onChange={e => setFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-  </label>
-)
-
-// Multiple deposit-slip images/PDFs for a single deposit operation.
-const MultiFileField = ({ T, files, setFiles, label, addLabel }) => {
+// Multiple deposit-slip images/PDFs for a single deposit operation. FormKit's FileField is
+// single-file, so this stays — but styled to mirror FileField exactly: dashed gold drop area
+// with drag & drop, C tokens, and green 42px file chips with a remove button.
+const MultiFileField = ({ T, files, setFiles, label, addLabel, listMaxHeight = 120, fill = false }) => {
+  const [drag, setDrag] = useState(false)
   const addFiles = (list) => {
     const incoming = Array.from(list || [])
     if (incoming.length === 0) return
@@ -634,114 +634,52 @@ const MultiFileField = ({ T, files, setFiles, label, addLabel }) => {
     })
   }
   const removeAt = (i) => setFiles(prev => prev.filter((_, idx) => idx !== i))
+  const fmtSize = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB'
+  const empty = files.length === 0
+  const dragProps = {
+    onDragEnter: e => { e.preventDefault(); e.stopPropagation(); setDrag(true) },
+    onDragOver: e => { e.preventDefault(); e.stopPropagation(); if (!drag) setDrag(true) },
+    onDragLeave: e => { e.preventDefault(); e.stopPropagation(); if (e.currentTarget.contains(e.relatedTarget)) return; setDrag(false) },
+    onDrop: e => { e.preventDefault(); e.stopPropagation(); setDrag(false); addFiles(e.dataTransfer.files) },
+  }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
-      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, flex: 1, borderRadius: 10, border: '1px dashed rgba(212,160,23,.4)', background: 'rgba(212,160,23,.05)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 700, padding: '0 14px' }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
-        <span>{files.length > 0 ? (addLabel || T('إضافة صور أخرى', 'Add more images')) : (label || T('إرفاق صور الإيداع (يمكن اختيار أكثر من صورة)', 'Attach deposit images (you can select more than one)'))}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, ...(fill ? { flex: 1, minHeight: 0 } : {}) }}>
+      <label {...dragProps}
+        style={{ display: 'flex', flexDirection: empty ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: empty ? 96 : 42, ...(fill && empty ? { flex: 1, minHeight: 0 } : {}), padding: empty ? 16 : '0 14px', borderRadius: 10, border: `1.5px dashed ${drag ? FK.gold : FK.gold + '59'}`, background: drag ? FK.gold + '1a' : FK.inputBg, cursor: 'pointer', transition: '.18s', fontFamily: F, boxSizing: 'border-box', transform: drag ? 'scale(1.01)' : 'scale(1)' }}>
+        {empty ? (<>
+          <Upload size={22} color={FK.gold} strokeWidth={2} />
+          <div style={{ fontSize: 13, fontWeight: 600, color: FK.tx2 }}>{drag ? T('أفلت الملفات هنا', 'Drop the files here') : (label || T('اسحب الصور هنا أو اضغط للإرفاق', 'Drag images here or click to attach'))}</div>
+          <div style={{ fontSize: 11, fontWeight: 500, color: FK.tx4 }}>{T('صور أو PDF — يمكن اختيار أكثر من ملف', 'Images or PDF — multiple files allowed')}</div>
+        </>) : (<>
+          <span style={{ fontSize: 13, fontWeight: 600, color: FK.gold }}>{addLabel || T('إضافة صور أخرى', 'Add more images')}</span>
+          <Plus size={15} color={FK.gold} strokeWidth={2.2} />
+        </>)}
         <input type="file" accept="image/*,application/pdf" multiple onChange={e => { addFiles(e.target.files); e.target.value = '' }} style={{ display: 'none' }} />
       </label>
-      {files.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, flexShrink: 0, maxHeight: 200, overflowY: 'auto', alignContent: 'start' }}>
-          {files.map((f, i) => (
-            <div key={`${f.name}_${f.size}_${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 9, border: `1px solid ${C.ok}40`, background: 'rgba(46,204,113,.08)', minWidth: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr', textAlign: 'right' }}>{f.name}</span>
-              <button type="button" onClick={() => removeAt(i)} aria-label={T('إزالة', 'Remove')} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 7, border: 'none', background: 'rgba(255,255,255,.06)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)'; e.currentTarget.style.color = '#e5867a' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx3)' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
-          ))}
-        </div>
+      {!empty && (
+        <ScrollBox fill={fill} maxHeight={listMaxHeight} style={{ paddingInlineEnd: 12, marginTop: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+            {files.map((f, i) => (
+              <div key={`${f.name}_${f.size}_${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', height: 42, borderRadius: 9, border: `1px solid ${FK.ok}40`, background: `${FK.ok}0d`, minWidth: 0, boxSizing: 'border-box' }}>
+                <Paperclip size={14} color={FK.ok} strokeWidth={2} style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: FK.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr', textAlign: 'right' }}>{f.name}</div>
+                  <div style={{ fontSize: 10, fontWeight: 500, color: FK.tx4 }}>{fmtSize(f.size)}</div>
+                </div>
+                <button type="button" onClick={() => removeAt(i)} aria-label={T('إزالة', 'Remove')} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 7, border: 'none', background: 'rgba(192,57,43,.15)', color: FK.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                  <X size={12} strokeWidth={2.4} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </ScrollBox>
       )}
-    </div>
-  )
-}
-
-const kLbl = ({ children }) => <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start', fontFamily: F }}>{children}</div>
-
-const pad2 = (n) => String(n).padStart(2, '0')
-
-// One scrollable column in the time picker — selected item highlighted gold (matches the calendar day cells).
-const TimeCol = ({ items, cur, render, onPick }) => {
-  const ref = useRef(null)
-  useEffect(() => { const idx = items.indexOf(cur); if (ref.current && idx >= 0) ref.current.scrollTop = Math.max(0, idx * 32 - 64) }, []) // eslint-disable-line
-  return (
-    <div ref={ref} className="tf-col" style={{ flex: 1, overflowY: 'auto', maxHeight: 168, display: 'flex', flexDirection: 'column', gap: 2, scrollbarWidth: 'none' }}>
-      {items.map(it => {
-        const sel = it === cur
-        return (
-          <button key={it} type="button" onClick={() => onPick(it)}
-            onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
-            onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}
-            style={{ height: 30, flexShrink: 0, borderRadius: 6, border: '1px solid transparent', background: sel ? C.gold : 'transparent', color: sel ? '#000' : 'rgba(255,255,255,.8)', fontFamily: F, fontSize: 12, fontWeight: sel ? 800 : 500, cursor: 'pointer', transition: '.12s', direction: 'ltr' }}>
-            {render ? render(it) : it}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// Time field that mirrors DateField: input + clock button + a dark gold-accented popup (hours / minutes / AM-PM).
-function TimeField({ value, onChange, lang }) {
-  const isAr = lang !== 'en'
-  const wrapRef = useRef(null)
-  const [open, setOpen] = useState(false)
-  const [anchor, setAnchor] = useState(null)
-  const m = (value && /^\d{1,2}:\d{2}$/.test(value)) ? value.split(':').map(Number) : null
-  const hh = m ? m[0] : null, mm = m ? m[1] : null
-  const period = hh == null ? 'AM' : (hh >= 12 ? 'PM' : 'AM')
-  const h12 = hh == null ? null : (hh % 12 === 0 ? 12 : hh % 12)
-  const display = hh == null ? '' : `${pad2(h12)}:${pad2(mm)} ${period}`
-  const curH = h12 ?? 12, curM = mm ?? 0
-  const setParts = (newH12, newMin, newPeriod) => {
-    let h = newH12 % 12
-    if (newPeriod === 'PM') h += 12
-    onChange(`${pad2(h)}:${pad2(newMin)}`)
-  }
-  const toggle = () => {
-    if (!open && wrapRef.current) { const r = wrapRef.current.getBoundingClientRect(); setAnchor({ top: r.top, bottom: r.bottom, left: r.left, width: r.width }) }
-    setOpen(o => !o)
-  }
-  const tfField = { width: '100%', height: 42, padding: '0 40px 0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxSizing: 'border-box', textAlign: 'center', letterSpacing: '.5px', cursor: 'pointer', direction: 'ltr', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
-  let popup = null
-  if (open && anchor) {
-    const POPUP_H = 220, POPUP_W = Math.max(220, anchor.width)
-    const flipUp = (window.innerHeight - anchor.bottom) < POPUP_H + 10
-    const top = flipUp ? Math.max(8, anchor.top - POPUP_H - 6) : anchor.bottom + 6
-    const left = Math.max(8, Math.min(window.innerWidth - POPUP_W - 8, anchor.left + anchor.width / 2 - POPUP_W / 2))
-    const colLbl = { fontSize: 12, fontWeight: 700, color: C.gold, textAlign: 'center', marginBottom: 5 }
-    popup = (<>
-      <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />
-      <div style={{ position: 'fixed', top, left, width: POPUP_W, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: 'ltr' }}>
-        <style>{`.tf-col::-webkit-scrollbar{display:none;width:0}`}</style>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1, minWidth: 0 }}><div style={colLbl}>&nbsp;</div><TimeCol items={['AM', 'PM']} cur={period} onPick={p => setParts(curH, curM, p)} /></div>
-          <div style={{ flex: 1, minWidth: 0 }}><div style={colLbl}>{isAr ? 'ساعة' : 'Hour'}</div><TimeCol items={Array.from({ length: 12 }, (_, i) => i + 1)} cur={curH} render={pad2} onPick={h => setParts(h, curM, period)} /></div>
-          <div style={{ flex: 1, minWidth: 0 }}><div style={colLbl}>{isAr ? 'دقيقة' : 'Min'}</div><TimeCol items={Array.from({ length: 60 }, (_, i) => i)} cur={curM} render={pad2} onPick={mn => setParts(curH, mn, period)} /></div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-          <button type="button" onClick={() => { const t = new Date(); onChange(`${pad2(t.getHours())}:${pad2(t.getMinutes())}`); setOpen(false) }} style={{ fontSize: 12, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{isAr ? 'الآن' : 'Now'}</button>
-          <button type="button" onClick={() => { onChange(''); setOpen(false) }} style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{isAr ? 'مسح' : 'Clear'}</button>
-        </div>
-      </div>
-    </>)
-  }
-  return (
-    <div ref={wrapRef} style={{ position: 'relative', width: '100%' }}>
-      <input type="text" readOnly value={display} placeholder="--:-- --" onClick={toggle} style={tfField} />
-      <button type="button" onClick={toggle} aria-label="time" style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 30, height: 30, border: 'none', background: open ? 'rgba(212,160,23,.12)' : 'transparent', cursor: 'pointer', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: 7, transition: '.15s' }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
-      </button>
-      {popup}
     </div>
   )
 }
 
 function CashDepositModal({ T, lang, banks, cards = [], balance, fmtAmt, onClose, onSubmit, onDone, toast }) {
   const safeBalance = Math.max(0, Number(balance) || 0)
-  const [step, setStep] = useState(1)
   const [cardId, setCardId] = useState('')
   const [depositDate, setDepositDate] = useState('')
   const [depositTime, setDepositTime] = useState('')
@@ -750,20 +688,11 @@ function CashDepositModal({ T, lang, banks, cards = [], balance, fmtAmt, onClose
   const [files, setFiles] = useState([])
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [addErr, setAddErr] = useState(null)
   // The deposit destination is chosen by CARD; each option stacks bank name / holder / prominent full card number.
   const cardOpts = useMemo(() => cards.map(cd => {
     const acc = banks.find(b => b.id === cd.bank_account_id)
-    return {
-      v: cd.id, l: acc?.bank_name || T('بطاقة', 'Card'),
-      sub: (isSel) => (
-        <span style={{ display: 'block' }}>
-          <span style={{ display: 'block', fontSize: 11 }}>{cd.holder_name || '—'}</span>
-          <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: isSel ? C.gold : '#fff', letterSpacing: '.5px', marginTop: 3 }}>{cd.card_number || '—'}</span>
-        </span>
-      ),
-      search: `${cd.holder_name || ''} ${cd.card_number || ''}`,
-      display: cd.card_number || acc?.bank_name || '—',
-    }
+    return { id: cd.id, bank: acc?.bank_name || T('بطاقة', 'Card'), holder: cd.holder_name || '—', number: cd.card_number || '—' }
   }), [cards, banks])
   const depNum = parseFloat(depositedAmount)
   const depValid = depositedAmount !== '' && !isNaN(depNum) && depNum > 0
@@ -772,81 +701,60 @@ function CashDepositModal({ T, lang, banks, cards = [], balance, fmtAmt, onClose
   // All fields are mandatory.
   const step1Valid = depValid && !exceeds && !!depositDate && !!depositTime
   const step2Valid = !!cardId && files.length > 0
-  const goNext = () => {
-    if (!depValid) { toast?.(T('أدخل المبلغ المودع', 'Enter the deposited amount'), 'error'); return }
-    if (exceeds) { toast?.(T('المبلغ المودع أكبر من الرصيد المتوفر بالخزنة', 'Deposited amount exceeds the cash on hand'), 'error'); return }
-    if (!depositDate) { toast?.(T('أدخل تاريخ الإيداع', 'Enter the deposit date'), 'error'); return }
-    if (!depositTime) { toast?.(T('أدخل وقت الإيداع', 'Enter the deposit time'), 'error'); return }
-    setStep(2)
-  }
   const submit = async () => {
-    if (!step1Valid) { toast?.(T('أكمل بيانات المبلغ والتاريخ والوقت', 'Complete the amount, date and time'), 'error'); setStep(1); return }
-    if (!cardId) { toast?.(T('اختر البطاقة البنكية المُودَع بها', 'Select the deposited-with bank card'), 'error'); return }
-    if (files.length === 0) { toast?.(T('أرفق صورة واحدة على الأقل لسند الإيداع', 'Attach at least one deposit slip image'), 'error'); return }
+    setAddErr(null)
+    if (!step1Valid) { setAddErr(T('أكمل بيانات المبلغ والتاريخ والوقت', 'Complete the amount, date and time')); return }
+    if (!cardId) { setAddErr(T('اختر البطاقة البنكية المُودَع بها', 'Select the deposited-with bank card')); return }
+    if (files.length === 0) { setAddErr(T('أرفق صورة واحدة على الأقل لسند الإيداع', 'Attach at least one deposit slip image')); return }
     setBusy(true)
     const bankAccountId = cards.find(cd => cd.id === cardId)?.bank_account_id || null
     try { await onSubmit({ bankAccountId, depositDate: `${depositDate}T${depositTime || '00:00'}`, depositedAmount: depNum, notes: notes.trim(), files }); setSuccess(true); setTimeout(() => onDone(), 1400) }
-    catch (e) { toast?.(T('تعذّر إنشاء الإيداع: ', 'Failed to create deposit: ') + (e?.message || e), 'error'); setBusy(false) }
-  }
-  const Lbl = kLbl
-  const fieldS = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxSizing: 'border-box', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
-  if (success) {
-    return (
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16, direction: 'rtl' }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--modal-bg)', borderRadius: 16, width: 560, maxWidth: '95vw', height: 'min(500px, 92vh)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', fontFamily: F, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, textAlign: 'center', padding: '24px 28px' }}>
-          <div style={{ width: 74, height: 74, borderRadius: '50%', background: '#27a0462e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#27a046', boxShadow: '0 0 0 8px #27a04614' }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          </div>
-          <div style={{ fontSize: 19, fontWeight: 700, color: '#27a046' }}>{T('تم توثيق الإيداع', 'Deposit recorded')}</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 1.7 }}>{T('في انتظار التحقق', 'Pending verification')}</div>
-        </div>
-      </div>
-    )
+    catch (e) { setAddErr(T('تعذّر إنشاء الإيداع: ', 'Failed to create deposit: ') + (e?.message || e)); setBusy(false) }
   }
   return (
-    <FKModal open onClose={onClose} accent={C.gold} width={560}
+    <FKModal open onClose={success ? onDone : () => { setAddErr(null); onClose() }} variant="create" width={560}
       title={T('توثيق الإيداع النقدي', 'Record cash deposit')} Icon={Tag}
-      onSubmit={submit} submitting={busy} submitLabel={T('توثيق الإيداع', 'Record deposit')}
+      onSubmit={submit} submitting={busy} submitLabel={T('إضافة', 'Add')} submitIcon={Plus}
       nextLabel={T('التالي', 'Next')} backLabel={T('السابق', 'Previous')}
+      success={success ? <SuccessView title={T('تم توثيق الإيداع', 'Deposit recorded')} /> : null}
       pages={[
-        { title: T('المبلغ والتاريخ', 'Amount & date'), valid: step1Valid, content: (<>
-          {/* Cash on hand — gold-outlined fieldset with a floating legend (matches the Kafala "بيانات العامل" card) */}
-          <div style={{ borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '20px 22px', position: 'relative', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: F }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4Z" /></svg>
-              <span>{T('المتوفر بالخزنة (غير مودع)', 'Cash on hand (undeposited)')}</span>
-            </div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: C.gold, direction: 'ltr', textAlign: 'start' }}>{fmtInt(safeBalance)}</div>
-          </div>
-          <div style={{ flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.gold, marginBottom: 8, textAlign: 'start', fontFamily: F }}>{T('المبلغ المودع', 'Amount deposited')}</div>
-            <input value={withThousands(depositedAmount)} onChange={e => setDepositedAmount(e.target.value.replace(/,/g, '').replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="0.00" style={{ ...fieldS, direction: 'ltr', fontWeight: 800, fontSize: 18, color: exceeds ? C.red : 'var(--tx)', borderColor: exceeds ? `${C.red}80` : 'rgba(255,255,255,.07)' }} />
-            {exceeds ? (
-              <div style={{ fontSize: 11.5, color: C.red, marginTop: 6, textAlign: 'start', fontWeight: 700 }}>{T('المبلغ أكبر من المتوفر بالخزنة', 'Amount exceeds cash on hand')}</div>
-            ) : (
-              <div style={{ fontSize: 11.5, color: 'var(--tx5)', marginTop: 6, textAlign: 'start' }}>{T('سيتبقى بالخزنة', 'Will remain in the drawer')}: <span style={{ direction: 'ltr', fontWeight: 700, color: remaining > 0.009 ? C.gold : 'var(--tx3)' }}>{fmtAmt(remaining)}</span></div>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', flexShrink: 0 }}>
-            <div style={{ flex: '1 1 160px' }}>
-              <Lbl>{T('تاريخ الإيداع', 'Deposit date')}</Lbl>
-              <DateField value={depositDate} onChange={setDepositDate} lang={lang} />
-            </div>
-            <div style={{ flex: '1 1 120px' }}>
-              <Lbl>{T('وقت الإيداع', 'Deposit time')}</Lbl>
-              <TimeField value={depositTime} onChange={setDepositTime} lang={lang} />
+        { valid: step1Valid, content: (<>
+          <div style={{ textAlign: 'center', padding: '14px 14px 12px', borderBottom: `2px solid ${FK.gold}`, marginTop: 12, background: 'rgba(255,255,255,.02)', borderRadius: '10px 10px 0 0' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.5)', letterSpacing: '.5px', marginBottom: 6 }}>{T('المتوفر بالخزنة (غير مودع)', 'Cash on hand (undeposited)')}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8, direction: 'ltr' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(212,160,23,.6)' }}>{T('ريال', 'SAR')}</span>
+              <span style={{ fontSize: 32, fontWeight: 600, color: FK.gold }}>{fmtInt(safeBalance)}</span>
             </div>
           </div>
+          <ModalSection Icon={Banknote} label={T('بيانات الإيداع', 'Deposit details')}>
+            <div style={GRID}>
+              <CurrencyField full req label={T('المبلغ المودع', 'Amount deposited')}
+                value={depositedAmount} onChange={setDepositedAmount}
+                error={exceeds ? T('المبلغ أكبر من المتوفر بالخزنة', 'Amount exceeds cash on hand') : undefined}
+                hint={exceeds ? undefined : `${T('سيتبقى بالخزنة', 'Will remain in the drawer')}: ${fmtAmt(remaining)}`} />
+              <FKDateField req label={T('تاريخ الإيداع', 'Deposit date')} value={depositDate} onChange={setDepositDate} />
+              <FKTimeField req minuteStep={1} label={T('وقت الإيداع', 'Deposit time')} value={depositTime} onChange={setDepositTime} />
+            </div>
+          </ModalSection>
           </>) },
-        { title: T('البطاقة والمرفقات', 'Card & slips'), valid: step2Valid, content: (<>
-          <div style={{ flexShrink: 0 }}>
-            <Lbl>{T('البطاقة البنكية المُودَع بها', 'Deposited-with bank card')}</Lbl>
-            <Sel value={cardId} onChange={setCardId} options={cardOpts} placeholder={cardOpts.length ? T('— اختر البطاقة —', '— select card —') : T('لا توجد بطاقات', 'No cards')} searchable searchPlaceholder={T('ابحث عن بطاقة…', 'Search card…')} maxVisible={5} />
-          </div>
-          <div style={{ flex: 1, minHeight: 120, display: 'flex', flexDirection: 'column' }}>
-            <Lbl>{T('صور الإيداع النقدي', 'Cash deposit slip images')}</Lbl>
-            <MultiFileField T={T} files={files} setFiles={setFiles} />
-          </div>
+        { valid: step2Valid, error: addErr, content: (<>
+          <ModalSection Icon={CreditCard} label={T('البطاقة البنكية', 'Bank card')}>
+            <FKSelect full req label={T('البطاقة البنكية المُودَع بها', 'Deposited-with bank card')}
+              value={cardId} onChange={v => { setAddErr(null); setCardId(v) }} options={cardOpts}
+              getKey={o => o.id} getLabel={o => o.bank} getSub={o => `${o.holder} ${o.number}`}
+              placeholder={cardOpts.length ? T('— اختر البطاقة —', '— select card —') : T('لا توجد بطاقات', 'No cards')}
+              renderSelected={o => <span style={{ direction: 'ltr', letterSpacing: '.5px' }}>{o.number}</span>}
+              renderCell={(o, sel) => (
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: sel ? FK.gold : FK.tx }}>{o.bank}</span>
+                  <span style={{ fontSize: 11, fontWeight: 500, color: FK.tx3 }}>{o.holder}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: sel ? FK.gold : '#fff', letterSpacing: '.5px', direction: 'ltr' }}>{o.number}</span>
+                </span>
+              )} />
+          </ModalSection>
+          <ModalSection flex Icon={Paperclip} label={T('صور الإيداع النقدي', 'Cash deposit slip images')} hint={T('صورة واحدة على الأقل', 'at least one image')}>
+            <MultiFileField T={T} files={files} setFiles={(...a) => { setAddErr(null); setFiles(...a) }} fill />
+          </ModalSection>
           </>) },
       ]}
     />
@@ -938,7 +846,7 @@ const OperationCard = ({ T, isBank, st, verifyDuration, depositorName, row, tota
         {/* Highlighted block — bank: invoice + client ref; cash: depositor name. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: isBank ? 9 : 1, padding: '10px 12px', background: 'rgba(255,255,255,.04)', borderRadius: 10, marginBottom: 2 }}>
           {isBank ? (
-            hiField(T('رقم الفاتورة', 'Invoice number'), row.invoiceNo)
+            hiField(T('رقم الفاتورة', 'Invoice number'), noDash(row.invoiceNo))
           ) : (
             <>
               <span style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 600 }}>{T('اسم المودع', 'Deposited by')}</span>
@@ -1038,18 +946,19 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
   const canSubmit = !busy && !sameUser && allRefsFilled && vFiles.length > 0 && (isBank || amountsMatch)
 
   const submit = async () => {
-    if (sameUser) { toast?.(T('لا يمكنك التحقق من إيداع أنشأته بنفسك — يلزم مستخدم آخر', 'You cannot verify a deposit you created — a different user is required'), 'error'); return }
-    if (!allRefsFilled) { toast?.(T('أدخل الرقم المرجعي', 'Enter the reference number'), 'error'); return }
-    if (vFiles.length === 0) { toast?.(T('أرفق ملفات عمليات الإيداع من البنك', 'Attach the bank deposit files'), 'error'); return }
-    if (!isBank && !amountsMatch) { toast?.(T('مجموع مبالغ العمليات يجب أن يساوي إجمالي الإيداع', 'Sum of operation amounts must equal the deposit total'), 'error'); return }
+    setConfirmErr(null)
+    if (sameUser) { setConfirmErr(T('لا يمكنك التحقق من إيداع أنشأته بنفسك — يلزم مستخدم آخر', 'You cannot verify a deposit you created — a different user is required')); return false }
+    if (!allRefsFilled) { setConfirmErr(T('أدخل الرقم المرجعي', 'Enter the reference number')); return false }
+    if (vFiles.length === 0) { setConfirmErr(T('أرفق ملفات عمليات الإيداع من البنك', 'Attach the bank deposit files')); return false }
+    if (!isBank && !amountsMatch) { setConfirmErr(T('مجموع مبالغ العمليات يجب أن يساوي إجمالي الإيداع', 'Sum of operation amounts must equal the deposit total')); return false }
     const references = isBank
       ? [{ reference_number: lines[0].reference_number, amount: total }]
       : lines.map(l => ({ reference_number: l.reference_number, amount: l.amount }))
     setBusy(true)
     try {
       const ok = await onVerify({ bankAccountId: bankAccountId || null, files: vFiles, notes, references })
-      if (ok) { toast?.(T('تم التحقق بنجاح', 'Verified successfully')); onBack() } else setBusy(false)
-    } catch (e) { toast?.(T('تعذّر التحقق: ', 'Verification failed: ') + (e?.message || e), 'error'); setBusy(false) }
+      if (ok) { toast?.(T('تم التحقق بنجاح', 'Verified successfully')); onBack(); return true } else { setBusy(false); return false }
+    } catch (e) { setConfirmErr(T('تعذّر التحقق: ', 'Verification failed: ') + (e?.message || e)); setBusy(false); return false }
   }
 
   // Notes card: add / remove free-form notes against this deposit.
@@ -1057,13 +966,14 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
   const [noteBusy, setNoteBusy] = useState(false)
   const addNote = async () => {
     const text = noteText.trim()
-    if (!text || !depositId) return
+    if (!text || !depositId) return false
+    setNoteErr(null)
     setNoteBusy(true)
     try {
       const { error } = await sb.from('deposit_notes').insert({ deposit_id: depositId, note: text, created_by: user?.id || null })
       if (error) throw error
-      setNoteText(''); await reloadNotes()
-    } catch (e) { toast?.(T('تعذّر إضافة الملاحظة: ', 'Failed to add note: ') + (e?.message || e), 'error') }
+      setNoteText(''); await reloadNotes(); return true
+    } catch (e) { setNoteErr(T('تعذّر إضافة الملاحظة: ', 'Failed to add note: ') + (e?.message || e)); return false }
     finally { setNoteBusy(false) }
   }
   const deleteNote = async (id) => {
@@ -1075,6 +985,17 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
   }
 
   const lineInput = { ...inputS, width: '100%' }
+
+  // نمط رواتب سبلاير: أزرار الإجراء كأقراص في ترويسة كرت «الإجراء»، والإضافات عبر نوافذ منبثقة.
+  const [noteModal, setNoteModal] = useState(false)
+  const [confirmModal, setConfirmModal] = useState(false)
+  const [dataModal, setDataModal] = useState(false)
+  const [confirmErr, setConfirmErr] = useState(null)
+  const [noteErr, setNoteErr] = useState(null)
+  // معاينة بطاقة «بيانات التحقق» — تُعرض ملخّصاً للمدخل، والإدخال يتم داخل النافذة المنبثقة.
+  const filledRefs = lines.filter(l => (l.reference_number || '').trim())
+  const hasVData = filledRefs.length > 0 || vFiles.length > 0
+  const pill = (clr, disabled) => ({ flexShrink: 0, height: 34, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + clr + '80', color: clr, fontFamily: F, fontSize: 12.5, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s' })
 
   return (
     <div style={{ fontFamily: F, direction: 'rtl', paddingTop: 0, paddingBottom: 60, color: 'var(--tx2)' }}>
@@ -1130,9 +1051,20 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
 
         {/* Right column (order 1): verification card — wide (1fr) */}
         <div style={{ order: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Card 1 — بيانات التحقق: الأرقام المرجعية + مرفقات الإيداع */}
           <div style={depCardChrome}>
-            <div style={depCardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: isVerified ? C.ok : C.gold }} /><span style={depCardTitle}>{isVerified ? T('بيانات التحقق', 'Verification details') : T('بيانات التحقق', 'Verification')}</span></div>
-            <div style={{ padding: '32px 20px 20px', display: 'flex', flexDirection: 'column', gap: 40 }}>
+            <div style={{ ...depCardHeader, gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: isVerified ? C.ok : C.gold }} />
+              <span style={depCardTitle}>{T('بيانات التحقق', 'Verification details')}</span>
+              {!isVerified && (
+                <button onClick={() => setDataModal(true)} style={{ ...pill(C.gold), marginInlineStart: 'auto' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.gold + '1f' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                  <span>{hasVData ? T('تعديل البيانات', 'Edit data') : T('تعبئة البيانات', 'Fill data')}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                </button>
+              )}
+            </div>
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               {isVerified ? (
                 <>
                   <div style={{ fontSize: 12, color: 'var(--tx4)', lineHeight: 1.6 }}>{isBank ? T('الأرقام المرجعية المسجّلة لعملية التحويل البنكي:', 'Reference numbers recorded for the bank transfer:') : T('الأرقام المرجعية المسجّلة لعملية الإيداع النقدي:', 'Reference numbers recorded for the cash deposit:')}</div>
@@ -1151,119 +1083,190 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
                     </div>
                   ))}
                 </>
+              ) : !hasVData ? (
+                <div style={{ fontSize: 12.5, color: 'var(--tx5)', textAlign: 'center', lineHeight: 1.9, padding: '10px 0' }}>
+                  {T('لم تُعبّأ بيانات التحقق بعد', 'Verification data not filled yet')}<br />
+                  <span style={{ fontSize: 11.5 }}>{T('اضغط «تعبئة البيانات» لإدخال الأرقام المرجعية والمرفقات', 'Tap “Fill data” to enter reference numbers and attachments')}</span>
+                </div>
               ) : (
                 <>
-                  {isBank ? (
-                    <div>
-                      <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, marginBottom: 6 }}>{T('الرقم المرجعي للحوالة البنكية', 'Bank transfer reference number')}<span style={{ color: C.red }}> *</span></div>
-                      <input value={lines[0].reference_number} onChange={e => setLine(0, 'reference_number', e.target.value)} placeholder={T('الرقم المرجعي', 'Reference number')} style={{ ...lineInput, direction: 'ltr', textAlign: 'center' }} />
+                  {filledRefs.map((l, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 7 }}>
+                        <span style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{T('الرقم المرجعي', 'Reference number')}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: 'monospace', direction: 'ltr' }}>{l.reference_number}</span>
+                      </div>
+                      {!isBank && l.amount !== '' && <span style={{ fontSize: 13, fontWeight: 800, color: C.gold, direction: 'ltr' }}>{fmtAmt(parseFloat(l.amount) || 0)}</span>}
                     </div>
-                  ) : (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{T('الأرقام المرجعية لعمليات الإيداع', 'Deposit operation references')}<span style={{ color: C.red }}> *</span></span>
-                        <button onClick={addLine}
-                          onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-                          onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
-                          style={{ height: 26, padding: '0 12px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + C.gold + '80', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s ease, border-color .15s ease' }}>
-                          {T('إضافة', 'Add')}
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {lines.map((l, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <input value={l.reference_number} onChange={e => setLine(i, 'reference_number', e.target.value)} placeholder={T('الرقم المرجعي', 'Reference')} style={{ ...lineInput, flex: '1 1 0', direction: 'ltr', textAlign: 'center' }} />
-                            <input value={l.amount} onChange={e => setAmount(i, e.target.value)} inputMode="decimal" placeholder={T('المبلغ', 'Amount')} style={{ ...lineInput, width: 100, direction: 'ltr', textAlign: 'center', fontWeight: 700 }} />
-                            {lines.length > 1 && (
-                              <button onClick={() => removeLine(i)} aria-label={T('حذف', 'Remove')} style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.06)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)'; e.currentTarget.style.color = '#e5867a' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx3)' }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 12 }}>
-                        <span style={{ color: 'var(--tx3)' }}>{T('المتبقي', 'Remaining')}</span>
-                        <span style={{ direction: 'ltr', fontWeight: 800, color: amountsMatch ? '#fff' : C.red }}>{fmtAmt(remaining)}</span>
-                      </div>
+                  ))}
+                  {!isBank && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                      <span style={{ color: 'var(--tx3)' }}>{T('المتبقي', 'Remaining')}</span>
+                      <span style={{ direction: 'ltr', fontWeight: 800, color: amountsMatch ? '#fff' : C.red }}>{fmtAmt(remaining)}</span>
                     </div>
                   )}
-
-                  <div>
-                    <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, marginBottom: 12 }}>{T('مرفقات عمليات الإيداع من البنك', 'Bank deposit attachments')}<span style={{ color: C.red }}> *</span></div>
-                    <MultiFileField T={T} files={vFiles} setFiles={setVFiles} label={T('إرفاق الملفات', 'Attach files')} addLabel={T('إرفاق ملفات أخرى', 'Attach more files')} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '10px 12px' }}>
+                    <span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Paperclip size={13} strokeWidth={2} />{T('مرفقات عمليات الإيداع من البنك', 'Bank deposit attachments')}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: vFiles.length ? '#fff' : C.red, direction: 'ltr' }}>{vFiles.length}</span>
                   </div>
                 </>
               )}
+            </div>
+          </div>
 
-              {/* Notes — adding is allowed only before verification; after verification existing notes stay visible (read-only). */}
-              {depositId && (!isVerified || dnotes.length > 0) && (
-                <div>
-                  <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, marginBottom: 12 }}>{T('الملاحظات', 'Notes')}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {dnotes.map(n => {
-                      const p = n.author?.person
-                      const name = ((lang !== 'en' ? (p?.name_ar || p?.name_en) : (p?.name_en || p?.name_ar)) || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ')
-                      return (
-                        <div key={n.id} style={{ background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                            <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>
-                            {!isVerified && (
-                              <button onClick={() => deleteNote(n.id)} aria-label={T('حذف', 'Remove')} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)'; e.currentTarget.style.color = '#e5867a' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--tx4)' }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                              </button>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, fontSize: 10.5, color: 'var(--tx5)' }}>
-                            {name && <span style={{ fontWeight: 700 }}>{name}</span>}
-                            <span style={{ direction: 'ltr', marginRight: 'auto' }}>{fmtDate(n.created_at)} {fmtTime(n.created_at)}</span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {!isVerified && (
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                        <textarea
-                          value={noteText}
-                          onChange={e => setNoteText(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addNote() } }}
-                          placeholder={T('اكتب ملاحظة…', 'Write a note…')}
-                          rows={2}
-                          style={{ ...inputS, flex: '1 1 0', height: 'auto', minHeight: 40, padding: '10px 12px', resize: 'vertical', textAlign: 'right', lineHeight: 1.6 }}
-                        />
-                        <button onClick={addNote} disabled={noteBusy || !noteText.trim()}
-                          onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' } }}
-                          onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
-                          style={{ flexShrink: 0, height: 40, padding: '0 16px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + C.gold + '80', color: C.gold, fontFamily: F, fontSize: 12.5, fontWeight: 700, cursor: (noteBusy || !noteText.trim()) ? 'not-allowed' : 'pointer', opacity: (noteBusy || !noteText.trim()) ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
-                          {T('إضافة', 'Add')}
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+          {/* Card 2 — الإجراء: الملاحظات + أزرار الإجراء (نمط رواتب سبلاير) */}
+          <div style={depCardChrome}>
+            <div style={{ ...depCardHeader, gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
+              <span style={{ ...depCardTitle, color: C.blue }}>{T('الإجراء', 'Action')}</span>
+              {!isVerified && (
+                <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {depositId && (
+                    <button onClick={() => { setNoteErr(null); setNoteModal(true) }} style={pill(C.gold)}
+                      onMouseEnter={e => { e.currentTarget.style.background = C.gold + '1f' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                      <span>{T('إضافة ملاحظة', 'Add note')}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                    </button>
+                  )}
+                  <button onClick={() => { if (canSubmit) { setConfirmErr(null); setConfirmModal(true) } }} disabled={!canSubmit} style={pill(C.ok, !canSubmit)}
+                    onMouseEnter={e => { if (canSubmit) e.currentTarget.style.background = C.ok + '1f' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                    <span>{T('تأكيد التحقق', 'Confirm verification')}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                  </button>
                 </div>
               )}
-
-              {/* Confirm verification — kept last. */}
-              {!isVerified && (
-                <>
-                  {sameUser && (
-                    <div style={{ fontSize: 11.5, color: C.red, lineHeight: 1.6, fontWeight: 700 }}>{T('لا يمكنك التحقق من إيداع أنشأته بنفسك — يلزم مستخدم آخر', 'You cannot verify a deposit you created — a different user is required')}</div>
+            </div>
+            <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, marginBottom: 10 }}>{T('الملاحظات', 'Notes')}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {dnotes.map(n => {
+                    const p = n.author?.person
+                    const name = ((lang !== 'en' ? (p?.name_ar || p?.name_en) : (p?.name_en || p?.name_ar)) || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ')
+                    return (
+                      <div key={n.id} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                          <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>
+                          {!isVerified && (
+                            <button onClick={() => deleteNote(n.id)} aria-label={T('حذف', 'Remove')} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--tx4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)'; e.currentTarget.style.color = '#e5867a' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--tx4)' }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', direction: 'rtl', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)' }}>
+                          {name ? <span style={{ fontWeight: 600, color: C.gold }}>{name}</span> : <span />}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(n.created_at)} {fmtTime(n.created_at)}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {isVerified && (
+                    <div style={{ background: `${C.ok}14`, border: `1px solid ${C.ok}3a`, borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.ok, fontWeight: 700 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        {T('تم التحقق بنجاح', 'Verified successfully')}
+                      </span>
+                      {verifyDuration && <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('مدة التحقق', 'Verification time')}: {verifyDuration}</span>}
+                      {verifiedAt && <span style={{ fontSize: 10.5, color: 'var(--tx5)', direction: 'ltr', alignSelf: 'flex-start', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(verifiedAt)} {fmtTime(verifiedAt)}</span>}
+                    </div>
                   )}
-                  <button onClick={submit} disabled={!canSubmit}
-                    onMouseEnter={e => { if (canSubmit) { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' } }}
-                    onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
-                    style={{ alignSelf: 'center', height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: canSubmit ? 'pointer' : 'not-allowed', opacity: canSubmit ? 1 : 0.5, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, minWidth: 260, transition: 'background .15s ease, border-color .15s ease' }}>
-                    {busy ? T('جارٍ الحفظ…', 'Saving…') : T('تأكيد التحقق', 'Confirm verification')}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  </button>
-                </>
+                  {dnotes.length === 0 && !isVerified && (
+                    <span style={{ fontSize: 11.5, color: 'var(--tx5)', textAlign: 'center', padding: '6px 0' }}>{T('لا توجد ملاحظات', 'No notes')}</span>
+                  )}
+                </div>
+              </div>
+              {!isVerified && sameUser && (
+                <div style={{ fontSize: 11.5, color: C.red, lineHeight: 1.6, fontWeight: 700 }}>{T('لا يمكنك التحقق من إيداع أنشأته بنفسك — يلزم مستخدم آخر', 'You cannot verify a deposit you created — a different user is required')}</div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* نافذة بيانات التحقق — الأرقام المرجعية + المرفقات (الإدخال داخل نافذة منبثقة) */}
+      {dataModal && (
+        <FKModal open onClose={() => setDataModal(false)} variant="create" width={560}
+          title={T('بيانات التحقق', 'Verification details')} Icon={Banknote}
+          onSubmit={() => setDataModal(false)} submitLabel={T('حفظ', 'Save')} submitIcon={Check}
+          pages={[{ valid: allRefsFilled && vFiles.length > 0 && (isBank || amountsMatch), content: (
+            <>
+              <ModalSection Icon={Banknote} label={T('الأرقام المرجعية', 'Reference numbers')}>
+                {isBank ? (
+                  <div>
+                    <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, marginBottom: 6 }}>{T('الرقم المرجعي للحوالة البنكية', 'Bank transfer reference number')}<span style={{ color: C.red }}> *</span></div>
+                    <input value={lines[0].reference_number} onChange={e => setLine(0, 'reference_number', e.target.value)} placeholder={T('الرقم المرجعي', 'Reference number')} style={{ ...lineInput, direction: 'ltr', textAlign: 'center' }} />
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{T('الأرقام المرجعية لعمليات الإيداع', 'Deposit operation references')}<span style={{ color: C.red }}> *</span></span>
+                      <button onClick={addLine}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        style={{ height: 26, padding: '0 12px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + C.gold + '80', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s ease, border-color .15s ease' }}>
+                        {T('إضافة', 'Add')}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {lines.map((l, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <input value={l.reference_number} onChange={e => setLine(i, 'reference_number', e.target.value)} placeholder={T('الرقم المرجعي', 'Reference')} style={{ ...lineInput, flex: '1 1 0', direction: 'ltr', textAlign: 'center' }} />
+                          <input value={l.amount} onChange={e => setAmount(i, e.target.value)} inputMode="decimal" placeholder={T('المبلغ', 'Amount')} style={{ ...lineInput, width: 100, direction: 'ltr', textAlign: 'center', fontWeight: 700 }} />
+                          {lines.length > 1 && (
+                            <button onClick={() => removeLine(i)} aria-label={T('حذف', 'Remove')} style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.06)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)'; e.currentTarget.style.color = '#e5867a' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx3)' }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 12 }}>
+                      <span style={{ color: 'var(--tx3)' }}>{T('المتبقي', 'Remaining')}</span>
+                      <span style={{ direction: 'ltr', fontWeight: 800, color: amountsMatch ? '#fff' : C.red }}>{fmtAmt(remaining)}</span>
+                    </div>
+                  </div>
+                )}
+              </ModalSection>
+              <ModalSection flex Icon={Paperclip} label={T('مرفقات عمليات الإيداع من البنك', 'Bank deposit attachments')} hint={T('ملف واحد على الأقل', 'at least one file')}>
+                <MultiFileField T={T} files={vFiles} setFiles={setVFiles} fill label={T('إرفاق الملفات', 'Attach files')} addLabel={T('إرفاق ملفات أخرى', 'Attach more files')} />
+              </ModalSection>
+            </>
+          ) }]} />
+      )}
+
+      {/* نافذة إضافة ملاحظة — نمط رواتب سبلاير (نص الإجراء) */}
+      {noteModal && (
+        <FKModal open onClose={() => { setNoteErr(null); setNoteModal(false) }} variant="create" width={500} height="auto"
+          title={T('إضافة ملاحظة', 'Add note')} Icon={FileText}
+          onSubmit={async () => { if (await addNote()) setNoteModal(false) }} submitting={noteBusy}
+          submitLabel={T('إضافة', 'Add')} submitIcon={Plus}
+          pages={[{ valid: !!noteText.trim(), error: noteErr, content: (
+            <ModalSection Icon={FileText} label={T('تفاصيل الملاحظة', 'Note details')}>
+              <div style={GRID}>
+                <TextArea req full label={T('نص الملاحظة', 'Note text')} value={noteText} onChange={v => { setNoteErr(null); setNoteText(v) }}
+                  placeholder={T('اكتب ملاحظة…', 'Write a note…')} rows={4} />
+              </div>
+            </ModalSection>
+          ) }]} />
+      )}
+
+      {/* نافذة تأكيد التحقق — مراجعة قبل الاعتماد */}
+      {confirmModal && (
+        <FKModal open onClose={() => { setConfirmErr(null); setConfirmModal(false) }} variant="add" width={500} height="auto"
+          title={T('تأكيد التحقق', 'Confirm verification')} Icon={Check}
+          onSubmit={async () => { if (await submit()) setConfirmModal(false) }} submitting={busy}
+          submitLabel={T('تأكيد التحقق', 'Confirm verification')} submitIcon={Check}
+          pages={[{ valid: canSubmit, error: confirmErr, content: (
+            <ModalSection Icon={Check} label={T('مراجعة قبل الاعتماد', 'Review before confirming')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={{ color: 'var(--tx3)', fontWeight: 600 }}>{T('المبلغ الإجمالي', 'Total amount')}</span><span style={{ color: C.gold, fontWeight: 800, direction: 'ltr' }}>{fmtAmt(total)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={{ color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد الأرقام المرجعية', 'Reference numbers')}</span><span style={{ color: 'var(--tx2)', fontWeight: 700, direction: 'ltr' }}>{lines.length}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={{ color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد المرفقات', 'Attachments')}</span><span style={{ color: 'var(--tx2)', fontWeight: 700, direction: 'ltr' }}>{vFiles.length}</span></div>
+              </div>
+            </ModalSection>
+          ) }]} />
+      )}
     </div>
   )
 }

@@ -49,8 +49,8 @@ export default function BranchLicenseCard({ sb, branch, user, toast, title, lice
           {st && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: `${st.c}1a`, color: st.c, border: `1px solid ${st.c}33` }}>{st.l}</span>}
           {canEdit && (
             <button onClick={() => setModal(true)}
-              onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
               style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               {lic ? 'تعديل' : addLabel}
               {lic

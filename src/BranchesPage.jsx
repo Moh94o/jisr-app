@@ -1,20 +1,17 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 // Forced reparse marker — InvoicePage-styled detail page
-import ReactDOM from 'react-dom'
 import BackButton from './components/BackButton'
 import { can as canPerm } from './lib/permissions.js'
 import BranchRentCard from './pages/branch/BranchRentCard.jsx'
 import BranchObligationsCard from './pages/branch/BranchObligationsCard.jsx'
 import BranchLicenseCard from './pages/branch/BranchLicenseCard.jsx'
 import {
-  Building2, Users, Wallet, Activity, MapPin, Phone, User, Edit2, Plus, X, Save,
-  Trash2, Search, ChevronDown, Check, AlertCircle, TrendingUp,
-  CreditCard, FileText, Home, Hash, Briefcase, ArrowRight, ArrowLeft,
+  Building2, Users, Activity, MapPin, Phone, User, Edit2, Plus,
+  Search, Check, AlertCircle, CreditCard, FileText, Link2,
   Banknote, ArrowDownToLine, ArrowUpFromLine, Receipt, Copy, Landmark,
 } from 'lucide-react'
-import { KCard, KV, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, C } from './pages/admin/roles/RoleUI.jsx'
-import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, Select as FKSelect, MultiSelect as FKMulti, TextField as FKText, FileField as FKFile, DateField as FKDateField, Field as FKField, SuccessView } from './components/ui/FormKit.jsx'
-import { DateField } from './pages/KafalaCalculator.jsx'
+import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, Select as FKSelect, MultiSelect as FKMulti, TextField as FKText, FileField as FKFile, DateField as FKDateField, Field as FKField, EmptyState, SuccessView, ConfirmDialog, ScrollBox, GRID, C, sF } from './components/ui/FormKit.jsx'
+import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = C.gold
@@ -47,263 +44,13 @@ const formatRelative = (iso) => {
   return new Date(iso).toLocaleDateString('ar-SA')
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Field primitives — carried over from the previous design because
-   they match the Kafala Calculator input look we standardized on.
-   ═══════════════════════════════════════════════════════════════ */
-
-function WF({ k, l, r, d, w, opts, ph, tp, form, setForm, missing }) {
-  const val = form[k] || ''
-  const onChange = e => setForm(p => ({ ...p, [k]: e.target.value }))
-  return (
-    <div style={{ gridColumn: w === true ? '1/-1' : undefined, position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Lbl req={r}>{l}</Lbl>
-        {missing && <MissingBadge />}
-      </div>
-      {opts
-        ? <select value={val} onChange={onChange} style={sF}>
-            <option value="">—</option>
-            {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-          </select>
-        : <input type={tp || 'text'} placeholder={ph || ''} value={val} onChange={onChange}
-            style={{ ...sF, direction: d ? 'ltr' : 'rtl', textAlign: 'center', borderColor: missing ? 'rgba(192,57,43,.35)' : undefined }} />}
-    </div>
-  )
-}
-
-function MissingBadge() {
-  return (
-    <span title="هذا الحقل غير موجود في قاعدة البيانات بعد — لن يُحفظ"
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 14, height: 14, borderRadius: '50%',
-        background: 'rgba(192,57,43,.18)', border: '1px solid rgba(192,57,43,.5)',
-        color: '#e87265', fontSize: 9, fontWeight: 900, lineHeight: 1, cursor: 'help',
-      }}>×</span>
-  )
-}
-
-function CustomSel({ k, l, r, w, opts, ph, form, setForm, onSelect, big, multi, disabled }) {
-  const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState(null)
-  const [q, setQ] = useState('')
-  const btnRef = useRef(null)
-  const rawVal = form[k]
-  const valArr = multi ? (Array.isArray(rawVal) ? rawVal : []) : null
-  const val = multi ? '' : (rawVal || '')
-  const selected = multi ? null : (opts || []).find(o => o.v === val)
-  const filtered = q ? opts.filter(o => (o.l || '').includes(q)) : opts
-  const isSel = o => multi ? valArr.includes(o.v) : o.v === val
-  const hasValue = multi ? valArr.length > 0 : !!selected
-  const picks = multi ? (opts || []).filter(o => valArr.includes(o.v)) : []
-  const btnLabel = multi
-    ? (picks.length === 0 ? (ph || '—') : picks[0].l)
-    : (selected?.l || ph || '—')
-  const handleSelect = v => {
-    if (multi) {
-      setForm(p => { const cur = Array.isArray(p[k]) ? p[k] : []; return { ...p, [k]: cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v] } })
-      return
-    }
-    if (onSelect) onSelect(v); else setForm(p => ({ ...p, [k]: v }))
-    setOpen(false); setQ('')
-  }
-  useEffect(() => {
-    if (!open || !btnRef.current) return
-    const r = btnRef.current.getBoundingClientRect()
-    const below = window.innerHeight - r.bottom - 16
-    setPos({ top: r.bottom + 4, left: r.left, width: r.width, maxH: Math.max(160, Math.min(260, below)) })
-  }, [open])
-  // A dependent field that becomes locked (e.g. its parent was cleared) must close.
-  useEffect(() => { if (disabled) setOpen(false) }, [disabled])
-  return (
-    <div style={{ gridColumn: w === true ? '1/-1' : undefined }}>
-      {big
-        ? <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>{l}{r && <span style={{ color: C.red }}> *</span>}</div>
-        : <Lbl req={r}>{l}</Lbl>}
-      <button ref={btnRef} type="button" disabled={disabled} onClick={() => { if (!disabled) setOpen(o => !o) }}
-        style={{ ...sF, ...(big ? { fontSize: 14, fontWeight: 500 } : {}), cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .45 : 1, color: hasValue ? 'var(--tx)' : 'var(--tx5)',
-          border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.07)'}`,
-          borderRadius: 10,
-          background: 'var(--modal-input-bg)',
-          boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-          display: 'flex', alignItems: 'center', gap: 8, padding: '0 32px', position: 'relative' }}>
-        {multi && picks.length > 1 ? (
-          <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, direction: 'ltr', overflow: 'hidden' }}>
-            <span style={{ fontWeight: 800, color: GOLD, flexShrink: 0 }}>+{picks.length - 1}</span>
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{btnLabel}</span>
-          </span>
-        ) : (
-          <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {btnLabel}
-          </span>
-        )}
-        <ChevronDown size={12} color={GOLD} strokeWidth={2.5}
-          style={{ position: 'absolute', left: 12, top: '50%',
-            transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
-      </button>
-      {open && pos && ReactDOM.createPortal(
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
-          <div style={{
-            position: 'fixed', top: pos.top, left: pos.left, width: pos.width,
-            background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)',
-            borderRadius: 12, maxHeight: pos.maxH, zIndex: 9999, overflow: 'hidden',
-            display: 'flex', flexDirection: 'column',
-            boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F,
-          }}>
-            {(opts || []).length > 5 && (
-              <div style={{ padding: 8, borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
-                <input value={q} onChange={e => setQ(e.target.value)} placeholder="بحث..." autoFocus
-                  style={{ width: '100%', height: 32, padding: '0 10px',
-                    border: '1px solid rgba(255,255,255,.06)', borderRadius: 8,
-                    background: 'var(--modal-bg)', fontFamily: F, fontSize: 12, fontWeight: 600,
-                    color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
-              </div>
-            )}
-            <div className="brs-sel-scroll" style={{ flex: 1, overflowY: 'auto' }}>
-              <style>{`.brs-sel-scroll::-webkit-scrollbar{width:0;display:none}.brs-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}`}</style>
-              {filtered.length === 0 && (
-                <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: 'var(--tx5)' }}>لا توجد نتائج</div>
-              )}
-              {filtered.map(o => {
-                const sel = isSel(o)
-                // Multi-select rows mirror PurposeMultiSelect: icon box + label + checkbox.
-                if (multi) {
-                  return (
-                    <div key={o.v} onClick={() => handleSelect(o.v)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.03)', background: sel ? `${GOLD}14` : 'transparent' }}
-                      onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = sel ? `${GOLD}14` : 'transparent' }}>
-                      <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: sel ? `${GOLD}2e` : 'rgba(255,255,255,.04)', border: `1px solid ${sel ? `${GOLD}50` : 'rgba(255,255,255,.06)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Building2 size={14} color={sel ? GOLD : 'var(--tx4)'} strokeWidth={2.2} />
-                      </span>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? '#fff' : 'var(--tx2)' }}>{o.l}</span>
-                      <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${sel ? GOLD : 'rgba(255,255,255,.18)'}`, background: sel ? GOLD : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {sel && <Check size={11} color="#000" strokeWidth={3.5} />}
-                      </span>
-                    </div>
-                  )
-                }
-                return (
-                  <div key={o.v} onClick={() => handleSelect(o.v)}
-                    style={{ position: 'relative', padding: '10px 14px', cursor: 'pointer', fontSize: 13,
-                      fontWeight: sel ? 800 : 600, color: sel ? GOLD : 'rgba(255,255,255,.92)',
-                      background: sel ? 'rgba(212,160,23,.1)' : 'transparent',
-                      borderBottom: '1px solid rgba(255,255,255,.03)', textAlign: 'center' }}
-                    onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
-                    onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}>
-                    {o.l}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </>, document.body)}
-    </div>
-  )
-}
-
-// Multi-select dropdown for a bank account's purposes (value is a ' · '-joined string).
+// Multi-select dropdown options for a bank account's purposes (value is a ' · '-joined string).
 const PURPOSE_OPTS = [
   { v: 'الإيداعات النقدية', Icon: Banknote, hue: '#27a046' },
   { v: 'التحويلات الواردة', Icon: ArrowDownToLine, hue: '#3483b4' },
   { v: 'التحويلات الصادرة', Icon: ArrowUpFromLine, hue: '#e6a23c' },
   { v: 'سداد المدفوعات', Icon: Receipt, hue: '#bb8fce' },
 ]
-function PurposeMultiSelect({ value, onChange }) {
-  const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState(null)
-  const btnRef = useRef(null)
-  const selected = (value || '').split('·').map(s => s.trim()).filter(Boolean)
-  const toggle = p => { const next = selected.includes(p) ? selected.filter(x => x !== p) : [...selected, p]; onChange(next.join(' · ')) }
-  useEffect(() => {
-    if (!open || !btnRef.current) return
-    const r = btnRef.current.getBoundingClientRect()
-    const below = window.innerHeight - r.bottom - 16
-    setPos({ top: r.bottom + 4, left: r.left, width: r.width, maxH: Math.max(160, Math.min(300, below)) })
-  }, [open])
-  const firstLabel = selected.length ? selected[0] : ''
-  return (
-    <>
-      <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
-        style={{ ...sF, fontSize: 14, fontWeight: 500, cursor: 'pointer', color: selected.length ? 'var(--tx)' : 'var(--tx5)',
-          border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.07)'}`, borderRadius: 10,
-          background: 'var(--modal-input-bg)', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-          display: 'flex', alignItems: 'center', gap: 8, padding: '0 32px', position: 'relative' }}>
-        {selected.length > 1 ? (
-          <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, direction: 'ltr', overflow: 'hidden' }}>
-            <span style={{ fontWeight: 800, color: GOLD, flexShrink: 0 }}>+{selected.length - 1}</span>
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{firstLabel}</span>
-          </span>
-        ) : (
-          <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{firstLabel || 'اختر الغرض...'}</span>
-        )}
-        <ChevronDown size={12} color={GOLD} strokeWidth={2.5} style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
-      </button>
-      {open && pos && ReactDOM.createPortal(
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
-          <div className="brs-sel-scroll" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, zIndex: 9999, overflowY: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F }}>
-            <style>{`.brs-sel-scroll::-webkit-scrollbar{width:0;display:none}.brs-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}`}</style>
-            {PURPOSE_OPTS.map(p => {
-              const sel = selected.includes(p.v)
-              return (
-                <div key={p.v} onClick={() => toggle(p.v)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.03)', background: sel ? `${p.hue}14` : 'transparent' }}
-                  onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = sel ? `${p.hue}14` : 'transparent' }}>
-                  <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: sel ? `${p.hue}2e` : 'rgba(255,255,255,.04)', border: `1px solid ${sel ? `${p.hue}50` : 'rgba(255,255,255,.06)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <p.Icon size={14} color={sel ? p.hue : 'var(--tx4)'} strokeWidth={2.2} />
-                  </span>
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: sel ? 700 : 600, color: sel ? '#fff' : 'var(--tx2)' }}>{p.v}</span>
-                  <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${sel ? p.hue : 'rgba(255,255,255,.18)'}`, background: sel ? p.hue : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {sel && <Check size={11} color="#000" strokeWidth={3.5} />}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </>, document.body)}
-    </>
-  )
-}
-
-function PhoneField({ k, l, r, w, form, setForm }) {
-  const digits = (form[k] || '').replace('+966', '').replace(/\D/g, '')
-  return (
-    <div style={{ gridColumn: w === true ? '1/-1' : undefined }}>
-      <Lbl req={r}>{l}</Lbl>
-      <div style={{
-        display: 'flex', direction: 'ltr',
-        border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, overflow: 'hidden',
-        background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
-        boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-        height: 42, transition: '.18s',
-      }}>
-        <div style={{
-          height: '100%', padding: '0 12px',
-          background: 'rgba(212,160,23,.10)',
-          borderInlineEnd: '1px solid rgba(255,255,255,.06)',
-          display: 'flex', alignItems: 'center',
-          fontSize: 12, fontWeight: 600, color: GOLD, flexShrink: 0,
-        }}>+966</div>
-        <input placeholder="5X XXX XXXX" maxLength={9} value={digits}
-          onChange={e => {
-            const v = e.target.value.replace(/\D/g, '').slice(0, 9)
-            setForm(p => ({ ...p, [k]: v ? '+966' + v : '' }))
-          }}
-          style={{
-            width: '100%', height: '100%', padding: '0 12px',
-            border: 'none', background: 'transparent',
-            fontFamily: F, fontSize: 13, fontWeight: 500,
-            color: 'var(--tx)', outline: 'none', textAlign: 'left',
-          }} />
-      </div>
-    </div>
-  )
-}
-
 /* ═══════════════════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════ */
@@ -329,6 +76,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
   const [success, setSuccess] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [filters, setFilters] = useState({ region_id: '', city_id: '', is_active: '' })
+  const [advOpen, setAdvOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -438,12 +186,22 @@ export default function BranchesPage({ sb, toast, user, lang }) {
     }
   }
 
-  const del = async (id) => {
-    if (!confirm('حذف هذا المكتب؟')) return
+  // Delete flow — FormKit ConfirmDialog replaces the native confirm().
+  const [delTarget, setDelTarget] = useState(null)
+  const del = (id) => setDelTarget(id)
+  const confirmDelBranch = async () => {
+    const id = delTarget
+    setDelTarget(null)
+    if (!id) return
     const { error } = await sb.from('branches').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     if (error) { toast?.('خطأ: ' + (error.message || '').slice(0, 80), 'error'); return }
     toast?.('تم الحذف'); setSelectedBranchId(null); load()
   }
+  const delConfirmEl = (
+    <ConfirmDialog open={!!delTarget} onCancel={() => setDelTarget(null)} onConfirm={confirmDelBranch}
+      title="حذف المكتب" message="هل أنت متأكد من حذف هذا المكتب؟ لا يمكن التراجع عن هذا الإجراء."
+      itemName={branches.find(b => b.id === delTarget)?.branch_code || undefined} />
+  )
 
   const updateCode = async (cityId) => {
     const city = cities.find(c => c.id === cityId)
@@ -599,10 +357,12 @@ export default function BranchesPage({ sb, toast, user, lang }) {
             onSave={saveBranch} updateCode={updateCode}
             regions={regions} cities={cities} districtsList={districtsList} branchManagers={branchManagers} />
         )}
+        {delConfirmEl}
       </div>
     )
   }
 
+  const initialLoading = loading && branches.length === 0
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       {sharedStyle}
@@ -632,14 +392,16 @@ export default function BranchesPage({ sb, toast, user, lang }) {
           </div>
           {canPerm(user, 'admin_offices.create') && (
           <button onClick={openAdd}
-            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
             style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
             مكتب جديد <Plus size={16} strokeWidth={2.2} />
           </button>
           )}
         </div>
       </div>
+
+      {initialLoading ? (<><SkeletonCards count={3} cols="2.2fr 1fr 1.5fr" minHeight={150} /><SkeletonList rows={6} /></>) : (<>
 
       {/* Hero — InvoicePage spirit: Big primary KPI + Stacked secondary + Distribution */}
       <div className="brs-hero-grid">
@@ -653,7 +415,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
           overflow: 'hidden', minHeight: 150,
         }}>
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.ok}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6, minHeight: 40 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.ok, boxShadow: `0 0 10px ${C.ok}aa` }} />
             <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>المكاتب</span>
           </div>
@@ -662,9 +424,11 @@ export default function BranchesPage({ sb, toast, user, lang }) {
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
             <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>
-              {topStats.active === topStats.total
-                ? 'جميع المكاتب نشطة'
-                : `${topStats.total - topStats.active} معطّل`}
+              {topStats.total === 0
+                ? 'لا توجد مكاتب'
+                : topStats.active === topStats.total
+                  ? 'جميع المكاتب نشطة'
+                  : `${topStats.total - topStats.active} معطّل`}
             </span>
           </div>
         </div>
@@ -679,21 +443,23 @@ export default function BranchesPage({ sb, toast, user, lang }) {
           overflow: 'hidden', minHeight: 150,
         }}>
           {(() => {
-            const inactive = users.length - topStats.totalStaff
+            // Only genuinely deactivated staff count as «معطّل» — the General Manager is excluded
+            // entirely (he isn't per-branch staff), not lumped in as if he were disabled.
+            const inactive = users.filter(u => !u.is_active && u.role_name !== 'المدير العام').length
             const withStaff = branches.filter(b => Number(dashboards[b.id]?.staff_total || 0) > 0).length
             return (
               <>
                 <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.blue}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6, minHeight: 40 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, boxShadow: `0 0 10px ${C.blue}aa` }} />
-                  <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>المستخدمون</span>
+                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>المستخدمون</span>
                 </div>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
                   <span style={{ fontSize: 42, fontWeight: 800, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{nm(topStats.totalStaff)}</span>
                 </div>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
                   <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>
-                    {users.length === 0
+                    {(topStats.totalStaff + inactive) === 0
                       ? 'لا يوجد موظفون'
                       : inactive > 0
                         ? `${nm(inactive)} معطّل`
@@ -718,7 +484,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
             return Array.from(map.values()).sort((a, b) => b.cnt - a.cnt)
           })()
           const topN = allByCity.slice(0, 6)
-          const totalCnt = allByCity.reduce((s, r) => s + r.cnt, 0) || 1
+          const totalCnt = allByCity.reduce((s, r) => s + r.cnt, 0)
           return (
             <div style={{
               borderRadius: 16,
@@ -793,15 +559,77 @@ export default function BranchesPage({ sb, toast, user, lang }) {
               color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box',
             }} />
         </div>
+        {(() => {
+          const hasFilters = !!(filters.region_id || filters.city_id || filters.is_active !== '')
+          const active = advOpen || hasFilters
+          const clearAll = () => setFilters({ region_id: '', city_id: '', is_active: '' })
+          return (
+            <button onClick={() => setAdvOpen(o => !o)} style={{
+              height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0,
+              background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)',
+              border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.05)',
+              color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s',
+            }}>
+              تصفية
+              {hasFilters ? (
+                <span role="button" tabIndex={0} title="مسح الفلاتر"
+                  onClick={e => { e.stopPropagation(); clearAll() }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); clearAll() } }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+                  style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </span>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="18" y1="6" x2="20" y2="6" /><circle cx="16" cy="6" r="2" /><line x1="4" y1="12" x2="8" y2="12" /><line x1="12" y1="12" x2="20" y2="12" /><circle cx="10" cy="12" r="2" /><line x1="4" y1="18" x2="16" y2="18" /><line x1="20" y1="18" x2="20" y2="18" /><circle cx="18" cy="18" r="2" /></svg>
+              )}
+            </button>
+          )
+        })()}
       </div>
 
+      {/* Advanced filter card — InvoicePage style */}
+      {advOpen && (() => {
+        const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
+        return (
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+              <div>
+                <div style={fLbl}>المنطقة</div>
+                <FKSelect searchable options={[{ id: '', name_ar: 'كل المناطق' }, ...regions]} getKey={o => o.id} getLabel={o => o.name_ar}
+                  value={filters.region_id || null} onChange={v => setFilters(p => ({ ...p, region_id: v || '', city_id: '' }))} placeholder="كل المناطق" />
+              </div>
+              <div>
+                <div style={fLbl}>المدينة</div>
+                <FKSelect searchable disabled={!filters.region_id}
+                  options={[{ id: '', name_ar: 'كل المدن' }, ...cities.filter(c => !filters.region_id || c.region_id === filters.region_id)]}
+                  getKey={o => o.id} getLabel={o => o.name_ar}
+                  value={filters.city_id || null} onChange={v => setFilters(p => ({ ...p, city_id: v || '' }))}
+                  placeholder={filters.region_id ? 'كل المدن' : 'اختر المنطقة أولاً'} />
+              </div>
+              <div>
+                <div style={fLbl}>الحالة</div>
+                <FKSelect options={[{ v: '', l: 'الكل' }, { v: 'true', l: 'نشط' }, { v: 'false', l: 'معطّل' }]} getKey={o => o.v} getLabel={o => o.l}
+                  value={filters.is_active || null} onChange={v => setFilters(p => ({ ...p, is_active: v || '' }))} placeholder="الكل" />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* List — region-grouped row cards (matches InvoicePage day-grouped pattern) */}
-      {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>…</div>}
-      {!loading && filteredBranches.length === 0 && (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
-          {branches.length === 0 ? 'لا توجد مكاتب — أضِف أول مكتب' : 'لا توجد نتائج مطابقة'}
-        </div>
-      )}
+      {!loading && filteredBranches.length === 0 && (() => {
+        const noneAtAll = branches.length === 0
+        const storeIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="m2 7 4.41-4.41A2 2 0 017.83 2h8.34a2 2 0 011.42.59L22 7" /><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><path d="M15 22v-4a2 2 0 00-2-2h-2a2 2 0 00-2 2v4" /><path d="M2 7h20" /></svg>
+        const searchIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+        return (
+          <EmptyState
+            icon={noneAtAll ? storeIcon : searchIcon}
+            title={noneAtAll ? 'لا توجد مكاتب بعد' : 'لا توجد نتائج مطابقة'}
+            desc={noneAtAll ? 'ابدأ بإضافة أول مكتب لإدارته ومتابعة نشاطه' : 'جرّب تعديل التصفية أو كلمة البحث'} />
+        )
+      })()}
       {!loading && cityGroups.map((g, gi) => {
         const c = regionPalette[gi % regionPalette.length]
         return (
@@ -824,6 +652,8 @@ export default function BranchesPage({ sb, toast, user, lang }) {
         )
       })}
 
+      </>)}
+
       {pop && (
         <BranchFormModal
           open={pop} onClose={() => { setPop(false); setSuccess(false) }}
@@ -831,6 +661,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
           onSave={saveBranch} updateCode={updateCode}
           regions={regions} cities={cities} districtsList={districtsList} branchManagers={branchManagers} />
       )}
+      {delConfirmEl}
     </div>
   )
 }
@@ -1093,7 +924,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
   const openEditBank = (account) => {
     setBankForm({
       mode: 'edit', _edit_account_id: account.id, _junction_id: account._junction_id,
-      bank_name: account.bank_name, account_name: account.account_name,
+      bank_name: account.bank_name, bank_name_en: account.bank_name_en || '', account_name: account.account_name, account_name_en: account.account_name_en || '',
       account_number: account.account_number, iban: account.iban, swift_code: account.swift_code,
       account_purpose: account.account_purpose, is_primary: !!account.is_primary,
     })
@@ -1121,7 +952,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
       // Edit mode: update the existing account + its branch-junction purpose.
       if (bankForm.mode === 'edit') {
         const upd = {
-          bank_name: bankForm.bank_name || null, account_name: bankForm.account_name || null,
+          bank_name: bankForm.bank_name || null, bank_name_en: bankForm.bank_name_en || null, account_name: bankForm.account_name || null, account_name_en: bankForm.account_name_en || null,
           account_number: bankForm.account_number || null, iban: bankForm.iban || null,
           swift_code: bankForm.swift_code || null, is_primary: !!bankForm.is_primary,
           sbc_facility_id: bankForm.sbc_facility_id || null,
@@ -1133,7 +964,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         }
         await uploadIban(bankForm._edit_account_id)
         setBankSuccess(true)
-        setTimeout(() => { setBankSuccess(false); setBankPop(false); reloadBanks() }, 1100)
+        setTimeout(() => { setBankSuccess(false); setBankPop(false); reloadBanks() }, 1400)
         return null
       }
       let bankAccountId = bankForm._link_account_id
@@ -1155,7 +986,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
       if (jErr) throw jErr
       await uploadIban(bankAccountId)
       setBankSuccess(true)
-      setTimeout(() => { setBankSuccess(false); setBankPop(false); reloadBanks() }, 1100)
+      setTimeout(() => { setBankSuccess(false); setBankPop(false); reloadBanks() }, 1400)
       return null
     } catch (e) {
       const msg = (e.message || '').toLowerCase()
@@ -1268,8 +1099,8 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
               </span>
               {onEdit && (
               <button onClick={onEdit}
-                onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                 style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
                 تعديل
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -1466,7 +1297,7 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
   useEffect(() => {
     if (!sb || !open) return
     sb.from('lookup_items')
-      .select('value_ar, sort_order, lookup_categories!inner(category_key)')
+      .select('value_ar, value_en, sort_order, lookup_categories!inner(category_key)')
       .eq('lookup_categories.category_key', 'saudi_banks')
       .eq('is_active', true)
       .order('sort_order')
@@ -1524,8 +1355,7 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
 
   // Inline footer error (no toast) + mandatory-field gating — mirrors BranchFormModal.
   const [errMsg, setErrMsg] = useState('')
-  const [ibanDrag, setIbanDrag] = useState(false)
-  useEffect(() => { if (!open) { setErrMsg(''); setIbanDrag(false) } }, [open])
+  useEffect(() => { if (!open) setErrMsg('') }, [open])
   const hasPurpose = !!(form.account_purpose || '').trim()
   // In global mode a new/linked account must be tied to an office; purpose is per-office
   // so it's not required when editing account-level fields globally.
@@ -1537,7 +1367,9 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
   const idsEqual = (a, b) => { const A = [...(a || [])].sort(); const B = [...(b || [])].sort(); return A.length === B.length && A.every((x, i) => x === B[i]) }
   const editChanged = !(mode === 'edit' && editOrig) || (
     String(form.bank_name || '') !== String(editOrig.bank_name || '') ||
+    String(form.bank_name_en || '') !== String(editOrig.bank_name_en || '') ||
     String(form.account_name || '') !== String(editOrig.account_name || '') ||
+    String(form.account_name_en || '') !== String(editOrig.account_name_en || '') ||
     String(form.account_number || '') !== String(editOrig.account_number || '') ||
     String(form.iban || '') !== String(editOrig.iban || '') ||
     String(form.expiry_date || '') !== String(editOrig.expiry_date || '') ||
@@ -1553,147 +1385,20 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
     : (!!form.bank_name && !!(form.account_name || '').trim() && !!(form.account_number || '').trim() && !!(form.iban || '').trim() && (purposeRequired ? hasPurpose : true) && (mode === 'edit' || !!form._ibanFile)))
   const handleSave = async () => { setErrMsg(''); const err = await onSave(); if (err) setErrMsg(err) }
 
-  // Shared fixed height so the success card is the SAME size as the form modal
-  // (no jump when switching to the success state). Both also share width: 600.
-  const BANK_MODAL_H = 588
+  // Unified success view — shown inside the SAME Modal via the success prop (no jump).
+  const successNode = success
+    ? <SuccessView title={mode === 'edit' ? 'تم تعديل الحساب البنكي' : mode === 'link' ? 'تم ربط الحساب البنكي' : 'تمت إضافة الحساب البنكي'} />
+    : null
 
-  if (success) {
-    // Success card mirrors the form's size, then summarizes the saved account:
-    // bank name as the headline badge, with the account's key fields listed below.
-    const bankNm = form.bank_name || form._link_account?.bank_name || '—'
-    const accName = form.account_name || form._link_account?.account_name || ''
-    const accNo = form.account_number || form._link_account?.account_number || ''
-    const iban = form.iban || form._link_account?.iban || ''
-    const rawExpiry = form.expiry_date || form._link_account?.expiry_date || ''
-    const expiry = rawExpiry ? (() => { const d = new Date(rawExpiry); if (isNaN(d)) return rawExpiry; const p2 = n => String(n).padStart(2, '0'); return `${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()}` })() : ''
-    const officeCodes = (form._branch_ids || []).map(id => (branches || []).find(b => b.id === id)?.branch_code).filter(Boolean)
-    const detailRows = [
-      { l: 'اسم الحساب', v: accName },
-      { l: 'رقم الحساب', v: accNo, mono: true },
-      { l: 'الآيبان', v: iban, mono: true },
-      { l: 'تاريخ الانتهاء', v: expiry, mono: true },
-      { l: officeCodes.length > 1 ? 'المكاتب المرتبطة' : 'المكتب المرتبط', v: officeCodes.join(' · '), mono: true },
-    ].filter(r => r.v)
-    const title = mode === 'edit' ? 'حُدّث الحساب البنكي بنجاح' : 'أُضيف الحساب البنكي بنجاح'
-
-    // On edit, compare against the snapshot taken in openEdit and show ONLY the
-    // fields that changed (before → after) — mirrors the branch edit success card.
-    const orig = form._orig
-    const fmtDate = (s) => { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return s; const p2 = n => String(n).padStart(2, '0'); return `${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()}` }
-    const codesOf = (ids) => (ids || []).map(id => (branches || []).find(b => b.id === id)?.branch_code).filter(Boolean).sort().join(' · ')
-    const showCmp = mode === 'edit' && !!orig
-    const cmpRows = showCmp ? [
-      { l: 'البنك', before: orig.bank_name || '—', after: form.bank_name || '—' },
-      { l: 'اسم الحساب', before: orig.account_name || '—', after: form.account_name || '—' },
-      { l: 'رقم الحساب', before: orig.account_number || '—', after: form.account_number || '—', mono: true },
-      { l: 'الآيبان', before: orig.iban || '—', after: form.iban || '—', mono: true },
-      { l: 'تاريخ الانتهاء', before: fmtDate(orig.expiry_date), after: fmtDate(form.expiry_date), mono: true },
-      { l: 'الغرض', before: orig.account_purpose || '—', after: form.account_purpose || '—' },
-      { l: 'المكاتب المرتبطة', before: codesOf(orig.branch_ids) || '—', after: codesOf(form._branch_ids) || '—', mono: true },
-    ].filter(r => String(r.before) !== String(r.after)) : []
-    return ReactDOM.createPortal(
-      <div style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
-      }}>
-        <div onClick={e => e.stopPropagation()} style={{
-          background: 'var(--modal-bg)', borderRadius: 16, width: 600, maxWidth: '95vw',
-          // Edit → compact comparison card (matches the branch success height); Add → full summary height.
-          height: showCmp ? 392 : BANK_MODAL_H, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)',
-          position: 'relative', zIndex: 60,
-        }}>
-          <style>{`
-            @keyframes brsCheck { 0% { stroke-dashoffset: 60 } 100% { stroke-dashoffset: 0 } }
-            @keyframes brsFade { 0% { opacity: 0; transform: translateY(8px) } 100% { opacity: 1; transform: translateY(0) } }
-            @keyframes brsRingDraw { 0% { stroke-dashoffset: 151 } 100% { stroke-dashoffset: 0 } }
-          `}</style>
-          <div dir="rtl" style={{ fontFamily: F, display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Close (X) button — absolutely placed so it doesn't push content down */}
-            <div style={{ position: 'absolute', top: 20, left: 24, zIndex: 2 }}>
-              <button onClick={onClose}
-                onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.4)'; e.currentTarget.style.color = '#e5867a' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(180deg,#323232 0%,#262626 100%)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'var(--tx3)' }}
-                style={{ width: 34, height: 34, borderRadius: 9,
-                  background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
-                  border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-                  transition: '.2s' }} aria-label="إغلاق">
-                <X size={14} strokeWidth={2} />
-              </button>
-            </div>
-            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '0 32px' }}>
-              <div style={{ width: 68, height: 68, flexShrink: 0, animation: 'brsFade .3s ease forwards' }}>
-                <svg width={68} height={68} viewBox="0 0 52 52" fill="none">
-                  <circle cx="26" cy="26" r="24" stroke="#27a046" strokeWidth="3" fill="rgba(39,160,70,.06)"
-                    style={{ strokeDasharray: 151, strokeDashoffset: 151, animation: 'brsRingDraw .6s ease-out forwards' }} />
-                  <polyline points="16 27 23 34 37 18" stroke="#27a046" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ strokeDasharray: 40, strokeDashoffset: 40, animation: 'brsCheck .4s .55s ease-out forwards' }} />
-                </svg>
-              </div>
-              <div style={{ animation: 'brsFade .4s .45s both', fontSize: 19, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', textAlign: 'center' }}>{title}</div>
-              <div style={{ animation: 'brsFade .4s .55s both', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                {showCmp ? (
-                  /* Edit → before → after comparison of changed fields only */
-                  cmpRows.length > 0 ? (
-                    <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '96px 1fr 18px 1fr', alignItems: 'center', gap: 10, padding: '0 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.2px' }}>
-                        <span /><span style={{ textAlign: 'center' }}>قبل</span><span /><span style={{ textAlign: 'center' }}>بعد</span>
-                      </div>
-                      {cmpRows.map((r, i) => (
-                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '96px 1fr 18px 1fr', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'rgba(212,160,23,.07)', border: '1px solid rgba(212,160,23,.22)' }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', whiteSpace: 'nowrap' }}>{r.l}</span>
-                          <span style={{ fontSize: 12.5, fontWeight: 600, textAlign: 'center', fontFamily: r.mono ? "'JetBrains Mono','Cairo',sans-serif" : F, direction: r.mono ? 'ltr' : 'rtl', color: 'rgba(255,255,255,.4)', textDecoration: 'line-through', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.before}</span>
-                          <ArrowLeft size={15} strokeWidth={2.4} color={GOLD} style={{ justifySelf: 'center' }} />
-                          <span style={{ fontSize: 12.5, fontWeight: 800, textAlign: 'center', fontFamily: r.mono ? "'JetBrains Mono','Cairo',sans-serif" : F, direction: r.mono ? 'ltr' : 'rtl', color: GOLD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.after}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: 'var(--tx4)' }}>لم تتغيّر أي بيانات</div>
-                  )
-                ) : (
-                  <>
-                    {/* Add → bank name headline badge + account details */}
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 18, fontWeight: 800, color: GOLD, padding: '8px 22px', borderRadius: 12, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.25)' }}>
-                      <Landmark size={17} color={GOLD} strokeWidth={2.2} />
-                      <span>{bankNm}</span>
-                    </div>
-                    {detailRows.length > 0 && (
-                      <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                        {detailRows.map((r, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', whiteSpace: 'nowrap' }}>{r.l}</span>
-                            <span style={{
-                              fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.82)', textAlign: 'end',
-                              fontFamily: r.mono ? "'JetBrains Mono','Cairo',sans-serif" : F,
-                              direction: r.mono ? 'ltr' : 'rtl',
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
-                            }}>{r.v}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>, document.body
-    )
-  }
   if (!open) return null
   const purposeArr = (form.account_purpose || '').split('·').map(s => s.trim()).filter(Boolean)
-  const kafalaInput = { ...sF, fontSize: 14, fontWeight: 500, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
   const fmtCrDate = (s, addDays = 0) => { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return s; if (addDays) d.setDate(d.getDate() + addDays); const p2 = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` }
   const MONO = "'JetBrains Mono','Cairo',sans-serif"
 
   // Step 1 — account data.
   const accountSection = (
     <FKSection Icon={Landmark} label="بيانات الحساب">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 11 }}>
+      <div style={GRID}>
         {globalMode && (
           <FKMulti full label="المكتب المرتبط" req searchable value={form._branch_ids || []}
             onChange={arr => setForm(p => ({ ...p, _branch_ids: arr }))}
@@ -1701,10 +1406,12 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
             getKey={o => o.k} getLabel={o => o.l} placeholder="اختر المكتب..." />
         )}
         <FKSelect label="البنك" req value={form.bank_name || ''}
-          onChange={v => setForm(p => ({ ...p, bank_name: v }))}
+          onChange={v => { const b = saudiBanks.find(x => x.value_ar === v); setForm(p => ({ ...p, bank_name: v, bank_name_en: b?.value_en || p.bank_name_en || '' })) }}
           options={saudiBanks.map(b => ({ k: b.value_ar, l: b.value_ar }))}
           getKey={o => o.k} getLabel={o => o.l} placeholder="اختر البنك..." />
+        <FKText label="اسم البنك (إنجليزي)" dir="ltr" value={form.bank_name_en || ''} onChange={v => setForm(p => ({ ...p, bank_name_en: v }))} placeholder="Saudi National Bank" />
         <FKText label="اسم الحساب" req value={form.account_name || ''} onChange={v => setForm(p => ({ ...p, account_name: v }))} placeholder="اسم صاحب الحساب" />
+        <FKText label="اسم الحساب (إنجليزي)" dir="ltr" value={form.account_name_en || ''} onChange={v => setForm(p => ({ ...p, account_name_en: v }))} placeholder="Account holder name" />
         <FKText label="رقم الحساب" req dir="ltr" value={form.account_number || ''} onChange={v => setForm(p => ({ ...p, account_number: v }))} placeholder="000000000000" />
         <FKText label="الآيبان (IBAN)" req dir="ltr" upper value={form.iban || ''} onChange={v => setForm(p => ({ ...p, iban: v }))} placeholder="SA00 0000 0000 0000 0000 0000" />
         <FKDateField label="تاريخ الانتهاء" value={form.expiry_date || ''} onChange={v => setForm(p => ({ ...p, expiry_date: v }))} />
@@ -1718,50 +1425,43 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
   // IBAN document — moved to step 2 (keeps step 1 compact). Required for new accounts.
   const ibanFileBlock = (
     <FKSection Icon={FileText} label="ملف الآيبان">
-      <label
-        onDragOver={e => { e.preventDefault(); if (!ibanDrag) setIbanDrag(true) }}
-        onDragLeave={e => { e.preventDefault(); setIbanDrag(false) }}
-        onDrop={e => { e.preventDefault(); setIbanDrag(false); const fl = e.dataTransfer?.files?.[0]; if (fl) setForm(p => ({ ...p, _ibanFile: fl })) }}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, height: 46, padding: '0 14px', borderRadius: 9, cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 700, color: form._ibanFile ? C.ok : GOLD, border: `1px dashed ${ibanDrag ? GOLD : (form._ibanFile ? 'rgba(46,160,67,.4)' : 'rgba(212,160,23,.4)')}`, background: ibanDrag ? 'rgba(212,160,23,.12)' : (form._ibanFile ? 'rgba(46,160,67,.06)' : 'rgba(212,160,23,.04)'), transition: '.18s' }}>
-        <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => setForm(p => ({ ...p, _ibanFile: e.target.files?.[0] || null }))} />
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
-        <span style={{ maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form._ibanFile ? form._ibanFile.name : (ibanDrag ? 'أفلت الملف هنا…' : (mode === 'edit' ? 'استبدال ملف الآيبان (اختياري)' : 'إرفاق ملف الآيبان (صورة أو PDF)'))}</span>
-        {form._ibanFile && <span onClick={e => { e.preventDefault(); setForm(p => ({ ...p, _ibanFile: null })) }} style={{ color: C.red, cursor: 'pointer', fontSize: 11.5, fontWeight: 700 }}>إزالة</span>}
-      </label>
+      <FKFile label={mode === 'edit' ? 'استبدال ملف الآيبان' : 'ملف الآيبان'} req={mode !== 'edit'}
+        hint={mode === 'edit' ? 'اختياري' : 'صورة أو PDF'}
+        value={form._ibanFile || null} onChange={fl => setForm(p => ({ ...p, _ibanFile: fl }))} />
     </FKSection>
   )
 
   // Step 2 — optional establishment link (search by CR / unified / GOSI number).
   const fac = form._sbc_facility
   const facilitySection = (
-    <FKSection Icon={Landmark} label="ربط بمنشأة (اختياري)">
-      <style>{`.bafm-search-ico{color:var(--tx4);transition:.2s}.bafm-search:focus-within .bafm-search-ico{color:#D4A017}`}</style>
+    <FKSection Icon={Landmark} label="ربط بمنشأة (اختياري)" hint="بحث برقم السجل / الموحّد / التأمينات">
       {!fac ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="bafm-search" style={{ position: 'relative' }}>
-            <Search size={15} strokeWidth={2.2} className="bafm-search-ico" style={{ position: 'absolute', top: '50%', insetInlineStart: 12, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-            <input autoFocus value={facQ} onChange={e => setFacQ(e.target.value)} dir="ltr"
-              placeholder="ابحث برقم السجل / الموحّد / التأمينات…"
-              style={{ ...sF, paddingInlineStart: 38, direction: 'ltr', textAlign: 'right', fontFamily: MONO }} />
-          </div>
-          {facSearching && <div style={{ padding: 12, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>جاري البحث…</div>}
+          <FKText full dir="ltr" value={facQ} onChange={setFacQ} placeholder="ابحث برقم السجل / الموحّد / التأمينات…" />
+          {facSearching && <div style={{ padding: 12, textAlign: 'center', color: C.tx4, fontSize: 12 }}>جاري البحث…</div>}
           {!facSearching && facQ.trim().length >= 2 && facResults.length === 0 && (
-            <div style={{ padding: 16, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد منشآت مطابقة</div>
+            <div style={{ padding: 16, textAlign: 'center', color: C.tx4, fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد منشآت مطابقة</div>
           )}
-          {facResults.map(r => (
-            <button key={r.id} type="button" onClick={() => setForm(p => ({ ...p, sbc_facility_id: r.id, _sbc_facility: r }))}
-              style={{ width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '12px 14px', borderRadius: 11, background: `linear-gradient(135deg, ${GOLD}14, rgba(255,255,255,.02))`, border: `1px solid ${GOLD}33`, color: 'var(--tx)' }}>
-              <div style={{ fontWeight: 700, color: '#fff', fontSize: 13.5 }}>{r.entity_full_name_ar || r.entity_full_name_en || '—'}</div>
-              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--tx4)', direction: 'ltr', textAlign: 'right', fontFamily: MONO }}>{[r.cr_number, r.cr_national_number].filter(Boolean).join(' · ') || '—'}</div>
-            </button>
-          ))}
+          {facResults.length > 0 && (
+            <ScrollBox maxHeight={190}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {facResults.map(r => (
+                  <button key={r.id} type="button" onClick={() => setForm(p => ({ ...p, sbc_facility_id: r.id, _sbc_facility: r }))}
+                    style={{ width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '12px 14px', borderRadius: 11, background: `linear-gradient(135deg, ${GOLD}14, rgba(255,255,255,.02))`, border: `1px solid ${GOLD}33`, color: C.tx }}>
+                    <div style={{ fontWeight: 600, color: C.tx, fontSize: 13.5 }}>{r.entity_full_name_ar || r.entity_full_name_en || '—'}</div>
+                    <div style={{ marginTop: 4, fontSize: 11, color: C.tx4, direction: 'ltr', textAlign: 'right', fontFamily: MONO }}>{[r.cr_number, r.cr_national_number].filter(Boolean).join(' · ') || '—'}</div>
+                  </button>
+                ))}
+              </div>
+            </ScrollBox>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-            <span style={{ fontWeight: 800, color: '#fff', fontSize: 14 }}>{fac.entity_full_name_ar || fac.entity_full_name_en || '—'}</span>
+            <span style={{ fontWeight: 600, color: C.tx, fontSize: 14 }}>{fac.entity_full_name_ar || fac.entity_full_name_en || '—'}</span>
             <button type="button" onClick={() => setForm(p => ({ ...p, sbc_facility_id: null, _sbc_facility: null }))}
-              style={{ background: 'transparent', border: 'none', color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>تغيير</button>
+              style={{ background: 'transparent', border: 'none', color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>تغيير</button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
@@ -1771,8 +1471,8 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
               { l: 'التعليق المتوقّع', v: fmtCrDate(fac.cr_confirm_date_gregorian, 90), mono: true, c: C.red },
             ].map((x, i) => (
               <div key={i} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
-                <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{x.l}</div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: x.c || 'var(--tx)', direction: x.mono ? 'ltr' : 'rtl', textAlign: x.mono ? 'left' : 'right', fontFamily: x.mono ? MONO : F }}>{x.v || '—'}</div>
+                <div style={{ fontSize: 11, color: C.tx4, fontWeight: 600, marginBottom: 4 }}>{x.l}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: x.c || C.tx, direction: x.mono ? 'ltr' : 'rtl', textAlign: x.mono ? 'left' : 'right', fontFamily: x.mono ? MONO : F }}>{x.v || '—'}</div>
               </div>
             ))}
           </div>
@@ -1781,98 +1481,90 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
     </FKSection>
   )
 
-  // Link mode keeps its single-page search flow; new/edit are a two-step wizard.
+  // Link mode — single FormKit page: search an existing account, then pick its purpose.
   if (mode === 'link') {
     const acc = form._link_account
-    return (
-      <FKModal open onClose={onClose} accent={GOLD} width={600} scroll
-        title="ربط حساب بنكي" Icon={Landmark} errorMsg={errMsg}
-        footer={<SaveBtn onClick={handleSave} disabled={saving || !canSave} label={saving ? 'جاري الحفظ...' : 'ربط'}
-          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" x2="16" y1="12" y2="12" /></svg>} />}>
-        <style>{`.bafm-search-ico{color:var(--tx4);transition:.2s}.bafm-search:focus-within .bafm-search-ico{color:#D4A017}.bafm-search:focus-within input{border-color:rgba(212,160,23,.6)!important}`}</style>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    const linkContent = (
+      <FKSection Icon={Search} label="ربط حساب بنكي قائم" hint="بحث برقم الحساب أو الآيبان">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {globalMode && (
-            <div style={{ marginBottom: 6 }}>
-              <FKMulti label="المكتب المرتبط" req searchable value={form._branch_ids || []}
-                onChange={arr => setForm(p => ({ ...p, _branch_ids: arr }))}
-                options={(branches || []).map(b => ({ k: b.id, l: [b.branch_code, b.name_ar].filter(Boolean).join(' — ') || b.id }))}
-                getKey={o => o.k} getLabel={o => o.l} placeholder="اختر المكتب..." />
-            </div>
+            <FKMulti full label="المكتب المرتبط" req searchable value={form._branch_ids || []}
+              onChange={arr => setForm(p => ({ ...p, _branch_ids: arr }))}
+              options={(branches || []).map(b => ({ k: b.id, l: [b.branch_code, b.name_ar].filter(Boolean).join(' — ') || b.id }))}
+              getKey={o => o.k} getLabel={o => o.l} placeholder="اختر المكتب..." />
           )}
-          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: GOLD, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Search size={12} strokeWidth={2.2} />
-              <span>بحث برقم الحساب أو الآيبان</span>
-            </div>
-            {!acc ? (
-              <>
-                <div className="bafm-search" style={{ position: 'relative' }}>
-                  <Search size={15} strokeWidth={2.2} className="bafm-search-ico" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  <input autoFocus value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="رقم الحساب أو الآيبان (حرف أو أكثر)…" dir="ltr"
-                    style={{ ...kafalaInput, paddingLeft: 40, paddingRight: 14, direction: 'ltr', fontFamily: MONO, textAlign: 'right' }} />
-                </div>
-                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {searching && <div style={{ padding: 14, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>جاري البحث…</div>}
-                  {!searching && searchQ.trim().length >= 1 && searchResults.length === 0 && (
-                    <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد نتائج</div>
-                  )}
-                  {searchResults.map(r => (
-                    <button key={r.id} type="button"
-                      onClick={() => setForm(p => ({ ...p, _link_account_id: r.id, _link_account: r, account_purpose: '' }))}
-                      style={{ width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, color: 'var(--tx)', border: `1px solid ${GOLD}33`, transition: '.18s' }}>
-                      <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{r.bank_name}</span>
-                      {r.account_name && <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 3 }}>{r.account_name}</div>}
-                      {(r.account_number || r.iban) && (
-                        <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--tx4)' }}>
-                          {r.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: 'var(--tx3)' }}>{r.account_number}</span></div>}
-                          {r.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: 'var(--tx3)' }}>{r.iban}</span></div>}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, border: `1px solid ${GOLD}33`, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                    <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{acc.bank_name}</span>
-                    <button type="button" onClick={() => setForm(p => ({ ...p, _link_account_id: undefined, _link_account: undefined }))}
-                      style={{ background: 'transparent', border: 'none', color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>تغيير</button>
+          {!acc ? (
+            <>
+              <FKText full label="رقم الحساب أو الآيبان" dir="ltr" value={searchQ} onChange={setSearchQ}
+                placeholder="رقم الحساب أو الآيبان (حرف أو أكثر)…" />
+              {searching && <div style={{ padding: 14, textAlign: 'center', color: C.tx4, fontSize: 12 }}>جاري البحث…</div>}
+              {!searching && searchQ.trim().length >= 1 && searchResults.length === 0 && (
+                <div style={{ padding: 18, textAlign: 'center', color: C.tx4, fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد نتائج</div>
+              )}
+              {searchResults.length > 0 && (
+                <ScrollBox maxHeight={190}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {searchResults.map(r => (
+                      <button key={r.id} type="button"
+                        onClick={() => setForm(p => ({ ...p, _link_account_id: r.id, _link_account: r, account_purpose: '' }))}
+                        style={{ width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: F, padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, color: C.tx, border: `1px solid ${GOLD}33`, transition: '.18s' }}>
+                        <span style={{ fontWeight: 600, color: C.tx, fontSize: 14 }}>{r.bank_name}</span>
+                        {r.account_name && <div style={{ fontSize: 11, color: C.tx3, marginTop: 3 }}>{r.account_name}</div>}
+                        {(r.account_number || r.iban) && (
+                          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: C.tx4 }}>
+                            {r.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: C.tx3 }}>{r.account_number}</span></div>}
+                            {r.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: C.tx3 }}>{r.iban}</span></div>}
+                          </div>
+                        )}
+                      </button>
+                    ))}
                   </div>
-                  {acc.account_name && <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{acc.account_name}</div>}
-                  {(acc.account_number || acc.iban) && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--tx4)' }}>
-                      {acc.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: 'var(--tx3)' }}>{acc.account_number}</span></div>}
-                      {acc.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: 'var(--tx3)' }}>{acc.iban}</span></div>}
-                    </div>
-                  )}
+                </ScrollBox>
+              )}
+            </>
+          ) : (
+            <>
+              <div style={{ padding: '14px 16px', borderRadius: 12, background: `linear-gradient(135deg, ${GOLD}14 0%, rgba(255,255,255,.02) 60%)`, border: `1px solid ${GOLD}33`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                  <span style={{ fontWeight: 600, color: C.tx, fontSize: 14 }}>{acc.bank_name}</span>
+                  <button type="button" onClick={() => setForm(p => ({ ...p, _link_account_id: undefined, _link_account: undefined }))}
+                    style={{ background: 'transparent', border: 'none', color: GOLD, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>تغيير</button>
                 </div>
-                <div style={{ marginTop: 16 }}>
-                  <FKMulti label="غرض هذا الحساب لهذا المكتب" req searchable={false}
-                    value={(form.account_purpose || '').split('·').map(s => s.trim()).filter(Boolean)}
-                    onChange={arr => setForm(p => ({ ...p, account_purpose: arr.join(' · ') }))}
-                    options={PURPOSE_OPTS.map(o => ({ k: o.v, l: o.v }))} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر الغرض..." />
-                </div>
-              </>
-            )}
-          </div>
+                {acc.account_name && <div style={{ fontSize: 11, color: C.tx3 }}>{acc.account_name}</div>}
+                {(acc.account_number || acc.iban) && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: C.tx4 }}>
+                    {acc.account_number && <div>رقم الحساب: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: C.tx3 }}>{acc.account_number}</span></div>}
+                    {acc.iban && <div>الآيبان: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', fontFamily: MONO, color: C.tx3 }}>{acc.iban}</span></div>}
+                  </div>
+                )}
+              </div>
+              <FKMulti full label="غرض هذا الحساب لهذا المكتب" req searchable={false}
+                value={(form.account_purpose || '').split('·').map(s => s.trim()).filter(Boolean)}
+                onChange={arr => setForm(p => ({ ...p, account_purpose: arr.join(' · ') }))}
+                options={PURPOSE_OPTS.map(o => ({ k: o.v, l: o.v }))} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر الغرض..." />
+            </>
+          )}
         </div>
-      </FKModal>
+      </FKSection>
+    )
+    return (
+      <FKModal open onClose={onClose} variant="create" width={600} success={successNode}
+        title="ربط حساب بنكي" Icon={Landmark}
+        onSubmit={handleSave} submitting={saving} submitLabel="ربط" submitIcon={Link2}
+        pages={[{ valid: canSave, error: errMsg, content: linkContent }]} />
     )
   }
 
   return (
-    <FKModal open onClose={onClose} accent={mode === 'edit' ? '#36a8e6' : GOLD} width={600} height="auto"
+    <FKModal open onClose={onClose} variant={mode === 'edit' ? 'edit' : 'create'} width={600} success={successNode}
       title={mode === 'edit' ? 'تعديل الحساب البنكي' : 'حساب بنكي جديد'} Icon={Landmark}
       onSubmit={handleSave} submitting={saving}
       submitLabel={mode === 'edit' ? 'تعديل' : 'إضافة'} submitIcon={mode === 'edit' ? Edit2 : Plus}
       nextLabel="التالي" backLabel="السابق"
       pages={[
         { title: 'بيانات الحساب', valid: acctComplete, error: errMsg, content: accountSection },
-        { title: 'المستندات وربط المنشأة', valid: canSave, error: errMsg, content: (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{ibanFileBlock}{facilitySection}</div>
-        ) },
+        { title: 'ملف الآيبان', valid: mode === 'edit' || !!form._ibanFile, content: ibanFileBlock },
+        { title: 'ربط المنشأة (اختياري)', valid: canSave, error: errMsg, content: facilitySection },
       ]} />
   )
 }
@@ -1923,7 +1615,7 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
     Number(account.current_balance || 0) <= Number(account.min_balance_alert)
   const c = lowBal ? '#e6a23c' : C.ok
 
-  const copy = (v) => { if (!v) return; navigator.clipboard?.writeText(String(v)); toast?.('تم النسخ') }
+  const copy = (v) => { if (!v) return; navigator.clipboard?.writeText(String(v)) }
 
   const [cards, setCards] = useState([])
   const [confirmDel, setConfirmDel] = useState(false)
@@ -1988,7 +1680,6 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
     </button>
   )
   const maskNum = (v) => { const s = String(v || '').replace(/\s+/g, ''); return s.length > 4 ? '•••• ' + s.slice(-4) : s }
-  const aBtn = (clr) => ({ height: 28, padding: '0 10px', borderRadius: 7, background: clr + '14', border: `1px solid ${clr}40`, color: clr, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' })
 
   // ── Build reusable UI pieces, then arrange them in a two-column layout. ──────
   const PURPOSE_META = {
@@ -2017,8 +1708,8 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
 
   const editBtn = (
     <button type="button" onClick={() => onEdit?.(account)}
-      onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
       style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
       تعديل
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -2126,22 +1817,12 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
 
   const footerActions = (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-      {confirmDel ? (
-        <>
-          <span style={{ fontSize: 11.5, color: '#e87265', fontWeight: 700 }}>حذف الحساب نهائياً؟</span>
-          <button type="button" disabled={deleting} onClick={delAccount} style={{ ...aBtn('#e87265'), opacity: deleting ? 0.6 : 1 }}>{deleting ? '...' : 'تأكيد'}</button>
-          <button type="button" onClick={() => setConfirmDel(false)} style={aBtn('#95a5a6')}>إلغاء</button>
-        </>
-      ) : (
-        <>
-          <button type="button" onClick={() => { setEditCard(null); setShowCardModal(true) }}
-            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
-            style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
-            بطاقة بنكية جديدة <Plus size={13} strokeWidth={2.2} />
-          </button>
-        </>
-      )}
+      <button type="button" onClick={() => { setEditCard(null); setShowCardModal(true) }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+        بطاقة بنكية جديدة <Plus size={13} strokeWidth={2.2} />
+      </button>
     </div>
   )
 
@@ -2185,15 +1866,20 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
           onClose={() => { setShowCardModal(false); setEditCard(null) }}
           onSaved={() => { setShowCardModal(false); setEditCard(null); loadCards() }} />
       )}
+      <ConfirmDialog open={confirmDel} onCancel={() => setConfirmDel(false)} onConfirm={delAccount}
+        title="حذف الحساب البنكي" message="هل أنت متأكد من حذف هذا الحساب نهائياً؟ لا يمكن التراجع عن هذا الإجراء."
+        itemName={account.bank_name} confirmText={deleting ? '...' : 'حذف'} />
     </>
   )
 }
 
 export function BankCardModal({ sb, accountId, bankName, card, toast, onClose, onSaved }) {
-  const [f, setF] = useState({ card_number: card?.card_number || '', holder_name: card?.holder_name || '', pin: card?.pin || '', cvv: card?.cvv || '', holder_user_id: card?.holder_user_id || '' })
+  const [f, setFRaw] = useState({ card_number: card?.card_number || '', holder_name: card?.holder_name || '', pin: card?.pin || '', cvv: card?.cvv || '', holder_user_id: card?.holder_user_id || '' })
+  const setF = (...a) => { setErrMsg(''); setFRaw(...a) }
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
   const [users, setUsers] = useState([])
+  const [errMsg, setErrMsg] = useState('')
   const isEdit = !!card?.id
   // System users — the card can be assigned to whoever physically holds it.
   useEffect(() => {
@@ -2201,12 +1887,10 @@ export function BankCardModal({ sb, accountId, bankName, card, toast, onClose, o
     sb.from('users').select('id, name_ar, name_en, email').eq('is_active', true).order('name_ar')
       .then(({ data }) => setUsers(data || []))
   }, [sb])
-  const kafalaInput = { ...sF, fontSize: 14, fontWeight: 500, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
-  const monoInput = { ...kafalaInput, direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }
-  const lbl = { fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }
   const canSave = !!f.card_number.trim() && !!f.holder_name.trim() && !!f.pin.trim() && !!f.cvv.trim()
   const save = async () => {
-    if (!canSave) { toast?.('جميع الحقول إلزامية', 'error'); return }
+    setErrMsg('')
+    if (!canSave) { setErrMsg('جميع الحقول إلزامية'); return }
     setBusy(true)
     try {
       const payload = { card_number: f.card_number.trim() || null, holder_name: f.holder_name.trim() || null, pin: f.pin.trim() || null, cvv: f.cvv.trim() || null, holder_user_id: f.holder_user_id || null }
@@ -2215,44 +1899,33 @@ export function BankCardModal({ sb, accountId, bankName, card, toast, onClose, o
         : await sb.from('bank_cards').insert({ bank_account_id: accountId, ...payload })
       if (res.error) throw res.error
       setBusy(false); setDone(true)
+      setTimeout(() => onSaved?.(), 1400)
     } catch (e) {
       const msg = (e.message || '').toLowerCase()
-      toast?.(msg.includes('row-level security') || e.code === '42501' ? 'لا تملك صلاحية إضافة بطاقة' : 'تعذّر الحفظ: ' + (e.message || '').slice(0, 80), 'error')
+      setErrMsg(msg.includes('row-level security') || e.code === '42501' ? 'لا تملك صلاحية إضافة بطاقة' : 'تعذّر الحفظ: ' + (e.message || '').slice(0, 80))
       setBusy(false)
     }
   }
-  if (done) {
-    return ReactDOM.createPortal(
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
-        <div style={{ position: 'relative', background: 'var(--modal-bg)', borderRadius: 16, width: 420, maxWidth: '95vw', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', fontFamily: F, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', gap: 16, textAlign: 'center' }}>
-          <button onClick={onSaved} aria-label="إغلاق"
-            style={{ position: 'absolute', top: 16, left: 16, width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }}>
-            <X size={14} />
-          </button>
-          <div style={{ width: 74, height: 74, borderRadius: '50%', background: C.ok + '2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok, boxShadow: '0 0 0 8px ' + C.ok + '14' }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          </div>
-          <div style={{ fontSize: 19, fontWeight: 700, color: C.ok }}>{isEdit ? 'تم تحديث البطاقة بنجاح' : 'تمت إضافة البطاقة بنجاح'}</div>
-        </div>
-      </div>, document.body
-    )
-  }
   return (
-    <FKModal open onClose={onClose} accent={GOLD} width={560} scroll
+    <FKModal open onClose={done ? onSaved : onClose} variant={isEdit ? 'edit' : 'create'} width={560}
       title={isEdit ? 'تعديل البطاقة البنكية' : 'بطاقة بنكية جديدة'} Icon={CreditCard}
-      footer={<SaveBtn onClick={save} disabled={busy || !canSave}
-        label={busy ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'إضافة')}
-        icon={isEdit ? undefined : <Plus size={15} strokeWidth={2.8} />} />}>
-            <FKSection Icon={CreditCard} label="بيانات البطاقة">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 14 }}>
-                <FKText full label="رقم البطاقة" req dir="ltr" value={f.card_number} onChange={v => setF(p => ({ ...p, card_number: v.replace(/[^\d ]/g, '') }))} placeholder="0000 0000 0000 0000" />
-                <FKText full label="اسم حامل البطاقة" req value={f.holder_name} onChange={v => setF(p => ({ ...p, holder_name: v }))} placeholder="الاسم كما في البطاقة" />
-                <FKSelect full label="الموظف الحامل للبطاقة" value={f.holder_user_id || ''} onChange={v => setF(p => ({ ...p, holder_user_id: v }))}
-                  options={users.map(u => ({ k: u.id, l: u.name_ar || u.name_en || u.email }))} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر المستخدم..." />
-                <FKText label="الرقم السري" req dir="ltr" value={f.pin} onChange={v => setF(p => ({ ...p, pin: v.replace(/[^\d]/g, '') }))} placeholder="****" />
-                <FKText label="CVV" req dir="ltr" maxLength={4} value={f.cvv} onChange={v => setF(p => ({ ...p, cvv: v.replace(/[^\d]/g, '') }))} placeholder="***" />
-              </div>
-            </FKSection>
+      success={done ? <SuccessView title={isEdit ? 'تم تعديل البطاقة' : 'تمت إضافة البطاقة'} /> : null}
+      errorMsg={errMsg}
+      footer={
+        <FKAction Icon={isEdit ? Edit2 : Plus} disabled={busy || !canSave} onClick={save}>
+          {busy ? 'جاري الحفظ...' : (isEdit ? 'حفظ' : 'إضافة')}
+        </FKAction>
+      }>
+      <FKSection Icon={CreditCard} label="بيانات البطاقة">
+        <div style={GRID}>
+          <FKText full label="رقم البطاقة" req dir="ltr" value={f.card_number} onChange={v => setF(p => ({ ...p, card_number: v.replace(/[^\d ]/g, '') }))} placeholder="0000 0000 0000 0000" />
+          <FKText full label="اسم حامل البطاقة" req value={f.holder_name} onChange={v => setF(p => ({ ...p, holder_name: v }))} placeholder="الاسم كما في البطاقة" />
+          <FKSelect full label="الموظف الحامل للبطاقة" value={f.holder_user_id || ''} onChange={v => setF(p => ({ ...p, holder_user_id: v }))}
+            options={users.map(u => ({ k: u.id, l: u.name_ar || u.name_en || u.email }))} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر المستخدم..." />
+          <FKText label="الرقم السري" req dir="ltr" value={f.pin} onChange={v => setF(p => ({ ...p, pin: v.replace(/[^\d]/g, '') }))} placeholder="****" />
+          <FKText label="CVV" req dir="ltr" maxLength={4} value={f.cvv} onChange={v => setF(p => ({ ...p, cvv: v.replace(/[^\d]/g, '') }))} placeholder="***" />
+        </div>
+      </FKSection>
     </FKModal>
   )
 }
@@ -2448,7 +2121,7 @@ const CopyRow = ({ label, value, onCopy }) => {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Add / Edit modal — built on ModalShell + KCard + success animation.
+   Add / Edit modal — built on FormKit Modal + ModalSection + SuccessView.
    ═══════════════════════════════════════════════════════════════ */
 
 function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave, updateCode,
@@ -2474,47 +2147,16 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
   const hasChanges = !isEdit || changedKeys.length > 0
   const allFilled = !!form.region_id && !!form.city_id && !!form.district_id && !!(form.branch_code || '').trim()
   const canSave = allFilled && hasChanges
-  // Shared, fixed modal height so the card does NOT resize when switching from the
-  // form to the success state — both render at exactly the same size. Sized to the
-  // form's natural (tight) height so neither state shows dead space.
-  const MODAL_H = 350
   const handleSave = async () => {
     setErrMsg('')
     const err = await onSave()
     if (err) setErrMsg(err)
   }
 
-  const successNode = success ? (() => {
-    const title = isEdit ? 'عُدّلت بيانات المكتب بنجاح' : 'أُضيفت بيانات المكتب بنجاح'
-    const code = form.branch_code || '—'
-    const fields = [
-      { l: 'المنطقة', v: regions.find(r => r.id === form.region_id)?.name_ar },
-      { l: 'المدينة', v: cities.find(c => c.id === form.city_id)?.name_ar },
-      { l: 'الحي', v: districtsList.find(d => d.id === form.district_id)?.name_ar },
-    ]
-    const locParts = fields.map(f => f.v).filter(Boolean)
-
-    // On edit, build a before → after comparison — but ONLY for fields that
-    // actually changed (changedKeys), so the card shows just the difference.
-    const regName = (id) => regions.find(r => r.id === id)?.name_ar || '—'
-    const cityName = (id) => cities.find(c => c.id === id)?.name_ar || '—'
-    const distName = (id) => districtsList.find(d => d.id === id)?.name_ar || '—'
-    const cmpAll = (isEdit && orig) ? [
-      { k: 'branch_code', l: 'كود المكتب', before: orig.branch_code || '—', after: form.branch_code || '—', mono: true },
-      { k: 'region_id', l: 'المنطقة', before: regName(orig.region_id), after: regName(form.region_id) },
-      { k: 'city_id', l: 'المدينة', before: cityName(orig.city_id), after: cityName(form.city_id) },
-      { k: 'district_id', l: 'الحي', before: distName(orig.district_id), after: distName(form.district_id) },
-    ] : []
-    const cmpRows = cmpAll.filter(r => changedKeys.includes(r.k))
-    const showCmp = cmpRows.length > 0
-
-    const loc = locParts.length > 0
-      ? <><MapPin size={15} color={GOLD} strokeWidth={2.2} /><span>{locParts.map((p, i) => <React.Fragment key={i}>{p}{i < locParts.length - 1 && <span style={{ color: 'rgba(255,255,255,.25)', margin: '0 6px' }}>·</span>}</React.Fragment>)}</span></>
-      : undefined
-    return showCmp
-      ? <SuccessView title={title} compareRows={cmpRows.map(r => ({ label: r.l, before: r.before, after: r.after, mono: r.mono }))} />
-      : <SuccessView title={title} code={code} codeSub={loc} />
-  })() : undefined
+  // Unified success view — one sentence only, rendered inside the same Modal.
+  const successNode = success
+    ? <SuccessView title={isEdit ? 'عُدّلت بيانات المكتب بنجاح' : 'أُضيفت بيانات المكتب بنجاح'} />
+    : undefined
 
   if (!open) return null
   return (
@@ -2527,7 +2169,7 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
         </FKAction>
       }>
       <FKSection Icon={Building2} label="بيانات المكتب">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 16 }}>
+        <div style={GRID}>
           <FKSelect label="المنطقة" req searchable
             options={regions} getKey={o => o.id} getLabel={o => o.name_ar}
             value={form.region_id || null} onChange={v => setForm(p => ({ ...p, region_id: v, city_id: '', district_id: '' }))}

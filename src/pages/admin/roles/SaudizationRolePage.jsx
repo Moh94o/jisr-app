@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { UserCheck, Calendar } from 'lucide-react'
 import RoleLayout from './RoleLayout.jsx'
-import { KCard, Lbl, sF, HeroStat, KpiBox, ModalShell, SaveBtn, PersonIdentityChip, FacilityCard, AddBtn, EmptyState, FacilityPicker, C } from './RoleUI.jsx'
+import { HeroStat, KpiBox, ModalShell, PersonIdentityChip, FacilityCard, AddBtn, EmptyState, C } from './RoleUI.jsx'
+import { ModalSection, GRID, ActionButton, Select, DateField, CurrencyField, Segmented, TextArea, ConfirmDialog } from '../../../components/ui/FormKit.jsx'
 import * as rolesService from '../../../services/rolesService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -25,6 +26,7 @@ export default function SaudizationRolePage({ person, onBack, toast, countries, 
   const [editRow, setEditRow] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [filterYear, setFilterYear] = useState('')
+  const [confirmTarget, setConfirmTarget] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,7 +58,6 @@ export default function SaudizationRolePage({ person, onBack, toast, countries, 
   const openAdd = () => { setEditRow(null); setShowModal(true) }
   const openEdit = (r) => { setEditRow(r); setShowModal(true) }
   const onDelete = async (r) => {
-    if (!confirm(`حذف سعودة أسبوع ${r.week_start}؟`)) return
     try { await rolesService.deleteSaudization(r.id); toast?.('تم الحذف'); load(); reload?.() }
     catch (e) { toast?.(rolesService.humanizeDbError(e)) }
   }
@@ -103,7 +104,7 @@ export default function SaudizationRolePage({ person, onBack, toast, countries, 
                 { label: 'إلى', value: r.week_end, dir: 'ltr' },
                 { label: 'الراتب الشهري', value: r.monthly_salary != null ? `${nm(r.monthly_salary)} ر.س` : '—' },
               ]}
-              onEdit={() => openEdit(r)} onEnd={() => onDelete(r)} />
+              onEdit={() => openEdit(r)} onEnd={() => setConfirmTarget(r)} />
           ))}
         </div>
       )}
@@ -112,6 +113,12 @@ export default function SaudizationRolePage({ person, onBack, toast, countries, 
         <SaudizationModal open={showModal} onClose={() => { setShowModal(false); setEditRow(null) }}
           personId={person.id} row={editRow} facilities={facilities} toast={toast} onSaved={onSaved} />
       )}
+
+      <ConfirmDialog open={!!confirmTarget} title="تأكيد الحذف"
+        message="حذف سعودة الأسبوع؟" itemName={confirmTarget?.week_start}
+        confirmText="حذف"
+        onConfirm={() => { const r = confirmTarget; setConfirmTarget(null); onDelete(r) }}
+        onCancel={() => setConfirmTarget(null)} />
     </RoleLayout>
   )
 }
@@ -160,36 +167,23 @@ function SaudizationModal({ open, onClose, personId, row, facilities, toast, onS
   }
 
   return (
-    <ModalShell open={open} onClose={onClose} title={isEdit ? 'تعديل سعودة' : 'إضافة سعودة'} Icon={Calendar}
-      footer={<><div style={{ flex: 1 }} /><SaveBtn onClick={save} disabled={saving} label={saving ? 'جاري الحفظ...' : 'حفظ'} /></>}>
-      <KCard Icon={Calendar} label="سجل سعودة أسبوعي">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div style={{ gridColumn: '1 / -1' }}><Lbl req>المنشأة</Lbl>
-            <FacilityPicker value={f.facility_id} onChange={v => set('facility_id', v)} options={facilities}
-              disabled={isEdit} /></div>
-          <div><Lbl req>بداية الأسبوع</Lbl>
-            <input type="date" value={f.week_start} onChange={e => set('week_start', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div><Lbl req>نهاية الأسبوع</Lbl>
-            <input type="date" value={f.week_end} onChange={e => set('week_end', e.target.value)}
-              style={{ ...sF, direction: 'ltr', colorScheme: 'dark' }} /></div>
-          <div><Lbl>نوع السعودة</Lbl>
-            <select value={f.placement_type} onChange={e => set('placement_type', e.target.value)}
-              style={{ ...sF, cursor: 'pointer' }}>
-              <option value="primary">أساسي</option>
-              <option value="backup">احتياطي</option>
-              <option value="temporary">مؤقت</option>
-            </select></div>
-          <div><Lbl>الراتب الشهري</Lbl>
-            <input type="number" step="1" value={f.monthly_salary}
-              onChange={e => set('monthly_salary', e.target.value)} style={{ ...sF, direction: 'ltr' }} /></div>
+    <ModalShell open={open} onClose={onClose} variant={isEdit ? 'edit' : 'create'}
+      title={isEdit ? 'تعديل سعودة' : 'إضافة سعودة'} Icon={Calendar}
+      footer={<ActionButton onClick={save} disabled={saving || !f.facility_id || !f.week_start || !f.week_end}>{saving ? 'جاري الحفظ...' : 'حفظ'}</ActionButton>}>
+      <ModalSection Icon={Calendar} label="سجل سعودة أسبوعي">
+        <div style={GRID}>
+          <Select label="المنشأة" req full value={f.facility_id} onChange={v => set('facility_id', v)}
+            options={facilities} getKey={o => o.id} getLabel={o => o.name_ar}
+            getSub={o => o.cr_number ? `CR: ${o.cr_number}` : ''}
+            placeholder="اختر المنشأة..." disabled={isEdit} />
+          <DateField label="بداية الأسبوع" req value={f.week_start} onChange={v => set('week_start', v)} />
+          <DateField label="نهاية الأسبوع" req value={f.week_end} onChange={v => set('week_end', v)} />
+          <Segmented label="نوع السعودة" value={f.placement_type} onChange={v => set('placement_type', v)}
+            options={[{ v: 'primary', l: 'أساسي' }, { v: 'backup', l: 'احتياطي' }, { v: 'temporary', l: 'مؤقت' }]} />
+          <CurrencyField label="الراتب الشهري" value={f.monthly_salary} onChange={v => set('monthly_salary', v)} />
+          <TextArea label="ملاحظات" value={f.notes} onChange={v => set('notes', v)} />
         </div>
-        <div style={{ marginTop: 14 }}>
-          <Lbl>ملاحظات</Lbl>
-          <textarea value={f.notes} onChange={e => set('notes', e.target.value)} rows={3}
-            style={{ ...sF, height: 'auto', padding: 14, textAlign: 'start' }} />
-        </div>
-      </KCard>
+      </ModalSection>
     </ModalShell>
   )
 }

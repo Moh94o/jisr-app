@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تصاميم الفاتورة — اختر الأفضل</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--gold:#D4A017;--gold-soft:#e3b52e;--bg:#0c0c0d;--panel:#151517;--line:rgba(255,255,255,.07);--muted:#8a8a85}
+  body{background:var(--bg);font-family:'Cairo',sans-serif;color:#fff;min-height:100vh;padding:34px clamp(16px,4vw,56px) 80px}
+  .top{max-width:1320px;margin:0 auto 30px}
+  h1{font-family:'Noto Kufi Arabic','Cairo',sans-serif;font-weight:900;font-size:clamp(22px,3vw,30px);letter-spacing:-.5px;display:flex;align-items:center;gap:12px}
+  h1 .dot{width:11px;height:11px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 5px rgba(212,160,23,.16)}
+  .sub{color:var(--muted);font-size:14px;margin-top:10px;line-height:1.9;max-width:760px}
+  .sub b{color:var(--gold-soft);font-weight:700}
+  .grid{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:26px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,border-color .2s,box-shadow .2s}
+  .card:hover{transform:translateY(-4px);border-color:rgba(212,160,23,.4);box-shadow:0 18px 40px rgba(0,0,0,.45)}
+  .thumb{position:relative;height:430px;overflow:hidden;background:#fff;cursor:pointer}
+  .thumb .scaler{position:absolute;top:0;right:0;width:794px;height:1180px;transform:scale(.448);transform-origin:top right}
+  .thumb iframe{width:794px;height:1180px;border:0;background:#fff;pointer-events:none}
+  .thumb .veil{position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(0,0,0,0) 72%,rgba(0,0,0,.04) 100%)}
+  .thumb .open-hint{position:absolute;inset:auto 0 0 0;z-index:3;padding:10px;text-align:center;font-size:12px;font-weight:700;color:#1a1a1a;background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.92) 55%);opacity:0;transition:opacity .2s}
+  .card:hover .open-hint{opacity:1}
+  .num-badge{position:absolute;top:12px;right:12px;z-index:4;width:38px;height:38px;border-radius:11px;background:rgba(12,12,13,.86);border:1px solid rgba(212,160,23,.5);color:var(--gold);font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+  .meta{padding:16px 18px 18px;display:flex;flex-direction:column;gap:13px}
+  .names .ar{font-family:'Noto Kufi Arabic','Cairo',sans-serif;font-weight:800;font-size:17px}
+  .names .en{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.3px;margin-top:3px;direction:ltr;text-align:right}
+  .actions{display:flex;gap:9px}
+  .btn{flex:1;height:40px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:#eee;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .18s}
+  .btn:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16)}
+  .btn.primary{background:linear-gradient(180deg,var(--gold-soft),#c99a10);border:none;color:#1a1400}
+  .btn.primary:hover{box-shadow:0 6px 16px rgba(212,160,23,.32);transform:translateY(-1px)}
+  .btn svg{width:15px;height:15px}
+  /* modal */
+  .modal{position:fixed;inset:0;z-index:50;background:rgba(6,6,7,.86);backdrop-filter:blur(6px);display:none;flex-direction:column;align-items:center;padding:18px}
+  .modal.on{display:flex}
+  .modal-bar{width:100%;max-width:830px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .modal-bar .t{font-family:'Noto Kufi Arabic','Cairo',sans-serif;font-weight:800;font-size:18px}
+  .modal-bar .t small{display:block;color:var(--muted);font-size:11px;font-weight:600;direction:ltr;text-align:right}
+  .modal-bar .grp{display:flex;gap:9px}
+  .frame-wrap{width:100%;max-width:830px;flex:1;overflow:auto;border-radius:12px;background:#525659;padding:18px;display:flex;justify-content:center}
+  .frame-wrap iframe{width:794px;min-height:1123px;border:0;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.5);border-radius:3px;flex:0 0 auto}
+  .x{width:42px;height:42px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:#fff;font-size:20px;cursor:pointer;line-height:1}
+  .x:hover{background:rgba(255,255,255,.12)}
+  @media (max-width:520px){.frame-wrap{padding:8px}.frame-wrap iframe{width:100%;min-height:140vw}}
+</style>
+</head>
+<body>
+  <div class="top">
+    <h1><span class="dot"></span> تصاميم الفاتورة — اختر الأفضل</h1>
+    <p class="sub">١٠ تصاميم فاخرة ورسمية مبنية على نفس البيانات — يبدأ كلٌّ منها بـ <b>«آخر دفعة»</b> كأول عنصر بارز. تصفّح، كبّر أي تصميم بالضغط عليه، وأخبرني <b>برقم</b> التصميم الذي أعجبك لأعتمده في طباعة الفاتورة.</p>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <div class="modal" id="modal">
+    <div class="modal-bar">
+      <div class="t" id="mTitle">—<small id="mEn"></small></div>
+      <div class="grp">
+        <button class="btn primary" id="mPrint" style="flex:0 0 auto;padding:0 18px">طباعة</button>
+        <button class="btn" id="mTab" style="flex:0 0 auto;padding:0 18px">فتح في تبويب</button>
+        <button class="x" id="mClose">×</button>
+      </div>
+    </div>
+    <div class="frame-wrap"><iframe id="mFrame" title="معاينة"></iframe></div>
+  </div>
+
+<script>
+  const DESIGNS = [
+    {n:1, ar:'الذهبي الكلاسيكي', en:'Classic Gold Executive'},
+    {n:2, ar:'الأسود والذهبي الملكي', en:'Royal Black & Gold'},
+    {n:3, ar:'الافتتاحي الرخامي', en:'Editorial Marble Minimal'},
+    {n:4, ar:'كشف الحساب البنكي', en:'Corporate Banking Statement'},
+    {n:5, ar:'الزمرّدي البوتيكي', en:'Emerald & Cream Boutique'},
+    {n:6, ar:'المعماري الأزرق', en:'Architectural Blueprint Luxe'},
+    {n:7, ar:'الطباعي الجريء', en:'Bold Swiss Typographic'},
+    {n:8, ar:'البورجوندي التراثي', en:'Burgundy & Gold Heritage'},
+    {n:9, ar:'الشمبانيا العصري', en:'Champagne Modern Premium'},
+    {n:10, ar:'المونوكروم الخالد', en:'Timeless Monochrome Slate'},
+  ];
+  const file = n => 'design-' + String(n).padStart(2,'0') + '.html';
+  const ICON_EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+
+  const grid = document.getElementById('grid');
+  DESIGNS.forEach(d => {
+    const url = file(d.n);
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<div class="thumb" data-n="'+d.n+'">' +
+        '<div class="num-badge">'+d.n+'</div>' +
+        '<div class="scaler"><iframe loading="lazy" src="'+url+'" scrolling="no"></iframe></div>' +
+        '<div class="veil"></div>' +
+        '<div class="open-hint">اضغط للتكبير ↑</div>' +
+      '</div>' +
+      '<div class="meta">' +
+        '<div class="names"><div class="ar">'+d.ar+'</div><div class="en">'+d.en+'</div></div>' +
+        '<div class="actions">' +
+          '<button class="btn primary" data-act="view" data-n="'+d.n+'">'+ICON_EYE+' عرض كامل</button>' +
+          '<button class="btn" data-act="print" data-n="'+d.n+'">'+ICON_PRINT+' طباعة</button>' +
+        '</div>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+
+  const modal = document.getElementById('modal');
+  const mFrame = document.getElementById('mFrame');
+  const mTitle = document.getElementById('mTitle');
+  const mEn = document.getElementById('mEn');
+  const mTab = document.getElementById('mTab');
+  const mPrint = document.getElementById('mPrint');
+  let current = null;
+
+  function openModal(n){
+    const d = DESIGNS.find(x=>x.n===n); if(!d) return;
+    current = d;
+    mTitle.childNodes[0].nodeValue = d.n + '. ' + d.ar;
+    mEn.textContent = d.en;
+    mFrame.src = file(n);
+    modal.classList.add('on');
+    document.body.style.overflow='hidden';
+  }
+  function closeModal(){ modal.classList.remove('on'); mFrame.src='about:blank'; document.body.style.overflow=''; current=null; }
+
+  function printDesign(n){
+    const f = document.createElement('iframe');
+    f.style.cssText='position:fixed;right:-9999px;bottom:0;width:794px;height:1123px;border:0';
+    f.src = file(n);
+    document.body.appendChild(f);
+    f.onload = () => { setTimeout(()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){} setTimeout(()=>f.remove(), 60000); }, 500); };
+  }
+
+  document.addEventListener('click', e => {
+    const thumb = e.target.closest('.thumb');
+    if(thumb){ openModal(+thumb.dataset.n); return; }
+    const btn = e.target.closest('[data-act]');
+    if(btn){ const n=+btn.dataset.n; if(btn.dataset.act==='view') openModal(n); else printDesign(n); }
+  });
+  document.getElementById('mClose').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if(e.target===modal) closeModal(); });
+  document.addEventListener('keydown', e => { if(e.key==='Escape' && modal.classList.contains('on')) closeModal(); });
+  mTab.addEventListener('click', ()=>{ if(current) window.open(file(current.n),'_blank'); });
+  mPrint.addEventListener('click', ()=>{ if(current){ try{ mFrame.contentWindow.focus(); mFrame.contentWindow.print(); }catch(e){ printDesign(current.n); } } });
+</script>
+</body>
+</html>

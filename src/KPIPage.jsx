@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { Target } from 'lucide-react'
-import { Modal as FKModal } from './components/ui/FormKit.jsx'
+import { Modal as FKModal, ModalSection, ActionButton, GRID, NumberField, CurrencyField } from './components/ui/FormKit.jsx'
+import { Shimmer } from './components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { dk: '#171717', md: '#222222', fm: '#1e1e1e', gold: '#D4A017', gl: '#dcc06e', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -31,6 +32,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
   const [editPop, setEditPop] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
+  const [editErr, setEditErr] = useState(null)
   const [history, setHistory] = useState([])
 
   const METRICS = [
@@ -89,11 +91,13 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
       form[m.key] = existing?.target_value || ''
     })
     setEditForm(form)
+    setEditErr(null)
     setEditPop(true)
   }
 
   const saveTargets = async () => {
     setSaving(true)
+    setEditErr(null)
     const monthDate = month + '-01'
     try {
       for (const m of METRICS) {
@@ -119,7 +123,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
       toast(T('تم حفظ الأهداف', 'Targets saved'))
       setEditPop(false)
       load()
-    } catch (e) { toast(T('خطأ: ', 'Error: ') + (e.message || '')) }
+    } catch (e) { setEditErr(T('خطأ: ', 'Error: ') + (e.message || '')) }
     setSaving(false)
   }
 
@@ -148,22 +152,74 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
     return Object.values(map).sort((a, b) => a.month.localeCompare(b.month))
   })()
 
-  const fS = {
-    width: '100%', height: 40, padding: '0 14px',
-    background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
-    border: '1px solid rgba(255,255,255,.06)', borderRadius: 11,
-    fontFamily: F, fontSize: 14, fontWeight: 500,
-    color: 'var(--tx)', outline: 'none',
-    boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
-    transition: '.2s', textAlign: 'right', direction: 'ltr'
-  }
-
   const monthLabel = (() => {
     const d = new Date(month + '-01')
     return d.toLocaleDateString(isAr ? 'ar-SA' : 'en', { month: 'long', year: 'numeric' })
   })()
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx5)', fontFamily: F }}>...</div>
+  if (loading) return <div style={{ fontFamily: F }}>
+    <style>{`@keyframes sk-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
+    {/* Header skeleton — title + toolbar */}
+    <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Shimmer w={200} h={24} r={8} />
+        <Shimmer w={280} h={13} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Shimmer w={140} h={40} r={11} />
+        <Shimmer w={140} h={40} r={11} />
+        <Shimmer w={100} h={40} r={11} />
+        <Shimmer w={130} h={40} r={11} />
+      </div>
+    </div>
+
+    {/* Month divider skeleton */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      <Shimmer w={10} h={10} r={'50%'} />
+      <Shimmer w={120} h={13} />
+      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.07)' }} />
+    </div>
+
+    {/* KPI card placeholders — match the 6 real cards */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px,100%), 1fr))', gap: 14, marginBottom: 24 }}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} style={{ padding: '16px 18px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', position: 'relative', overflow: 'hidden' }}>
+          {/* Glow bar at top */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent)' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <Shimmer w="42%" h={13} />
+            <Shimmer w={48} h={18} r={6} />
+          </div>
+          {/* inner stat pill */}
+          <div style={{ padding: '7px 12px', borderRadius: 10, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+            <Shimmer w="50%" h={20} />
+            <Shimmer w={32} h={12} />
+          </div>
+          {/* Progress bar */}
+          <Shimmer w="100%" h={8} r={4} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+            <Shimmer w={40} h={12} />
+            <Shimmer w="35%" h={11} />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Chart card placeholder */}
+    <div style={{ padding: '16px 18px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', marginBottom: 14 }}>
+      <Shimmer w="35%" h={13} style={{ marginBottom: 16 }} />
+      <Shimmer w="100%" h={220} r={10} />
+    </div>
+
+    {/* Summary bar placeholder */}
+    <div style={{ padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <Shimmer w={140} h={13} />
+        <Shimmer w={180} h={12} />
+      </div>
+      <Shimmer w={80} h={34} r={10} />
+    </div>
+  </div>
 
   return <div>
     {/* Header */}
@@ -344,35 +400,25 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
 
     {/* Edit Modal — FormKit */}
     {editPop && (
-      <FKModal open onClose={() => setEditPop(false)} accent={C.gold} width={520} scroll
+      <FKModal open onClose={() => { setEditErr(null); setEditPop(false) }} variant="edit" width={560}
         title={T('تحديد الأهداف', 'Set Targets')} subtitle={monthLabel} Icon={Target}
-        footer={<>
-          <button onClick={() => setEditPop(false)}
-            style={{ height: 40, padding: '0 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)', color: 'rgba(255,255,255,.78)', fontFamily: F, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }}>
-            {T('إلغاء', 'Cancel')}
-          </button>
-          <button onClick={saveTargets} disabled={saving}
-            style={{ height: 40, padding: '0 24px', borderRadius: 11, border: '1px solid rgba(212,160,23,.45)', background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)', transition: '.2s', opacity: saving ? .6 : 1 }}>
-            {saving ? '...' : T('حفظ الأهداف', 'Save Targets')}
-          </button>
-        </>}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {METRICS.map(m => (
-            <div key={m.key}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: m.color, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, boxShadow: '0 0 5px ' + m.color }} />
-                {m.l}
-                {m.unit === 'currency' && <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--tx5)' }}>(ر.س)</span>}
-              </div>
-              <input
-                type="number" value={editForm[m.key] || ''}
-                onChange={e => setEditForm(p => ({ ...p, [m.key]: e.target.value }))}
-                placeholder={m.unit === 'currency' ? '0.00' : '0'}
-                style={fS}
-              />
-            </div>
-          ))}
-        </div>
+        errorMsg={editErr}
+        footer={
+          <ActionButton onClick={saveTargets} disabled={saving}>
+            {saving ? T('جاري الحفظ...', 'Saving...') : T('حفظ الأهداف', 'Save Targets')}
+          </ActionButton>
+        }>
+        <ModalSection Icon={Target} label={T('الأهداف الشهرية', 'Monthly Targets')} hint={monthLabel}>
+          <div style={GRID}>
+            {METRICS.map(m => m.unit === 'currency'
+              ? <CurrencyField key={m.key} label={m.l} unit={T('ر.س', 'SAR')} placeholder="0.00"
+                  value={editForm[m.key]}
+                  onChange={v => { setEditErr(null); setEditForm(p => ({ ...p, [m.key]: v })) }} />
+              : <NumberField key={m.key} label={m.l} placeholder="0"
+                  value={editForm[m.key]}
+                  onChange={v => { setEditErr(null); setEditForm(p => ({ ...p, [m.key]: v })) }} />)}
+          </div>
+        </ModalSection>
       </FKModal>
     )}
   </div>

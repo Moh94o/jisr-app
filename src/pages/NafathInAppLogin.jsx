@@ -135,8 +135,8 @@ export default function NafathInAppLogin({ T, lang, operator }) {
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
           </svg>
           <span>
-            {T('بوابة نفاذ تقبل الطلبات من IP سعودي فقط، لذلك التحقق يتم من متصفّحك مباشرة. كلمة المرور لا تُرسل لجسر أبداً — تُكتب على iam.gov.sa فقط.',
-               'The Nafath portal accepts only Saudi IPs, so verification runs from your own browser. Your password never reaches Jisr — it stays on iam.gov.sa.')}
+            {T('بوابة نفاذ تقبل الطلبات من IP سعودي فقط، لذلك التحقق يتم من متصفّحك مباشرة. كلمة المرور لا تُرسل لخوادمنا أبداً — تُكتب على iam.gov.sa فقط.',
+               'The Nafath portal accepts only Saudi IPs, so verification runs from your own browser. Your password never reaches our servers — it stays on iam.gov.sa.')}
           </span>
         </div>
       </div>

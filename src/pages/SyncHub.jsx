@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import ReactDOM from 'react-dom'
+import { UserPlus, Search, X as XIcon } from 'lucide-react'
+import { Modal as FKModal, ModalSection, ActionButton, TextField, ScrollBox, C as FKC } from '../components/ui/FormKit.jsx'
 import BackButton from '../components/BackButton'
 import SbcFacilities from './SbcFacilities.jsx'
 import { buildBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildNafathBookmarklet } from './nafathSyncBookmarklet.js'
 import NafathInAppLogin from './NafathInAppLogin.jsx'
 import * as rolesService from '../services/rolesService.js'
+import { Shimmer, SkeletonList } from '../components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', purple: '#9b59b6' }
@@ -126,11 +128,11 @@ function HeaderBookmarklet({ url, accent, label, buttonLabel, onMoreOptions, T }
           height: 34, width: 34, borderRadius: 8,
           background: copied ? '#22c55e18' : 'transparent',
           border: `1px solid ${copied ? '#22c55e88' : accent}`,
-          color: copied ? '#22c55e' : accent,
-          cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s',
+          color: copied ? C.ok : accent,
+          cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s',
         }}
-        onMouseEnter={e => { if (!copied) e.currentTarget.style.background = `${accent}14` }}
-        onMouseLeave={e => { if (!copied) e.currentTarget.style.background = 'transparent' }}>
+        onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
+        onMouseLeave={e => { if (!copied) e.currentTarget.style.color = accent }}>
         {copied ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         ) : (
@@ -185,6 +187,59 @@ const SOURCE_META = {
   chambers: { badgeAr: 'الغرف التجارية',         badgeEn: 'Chambers',             descAr: 'مزامنة شهادات الغرف التجارية والعضويات.',                                              descEn: 'Sync chamber certifications and memberships.' },
 }
 
+// Shimmer keyframes for the hub skeletons — SkeletonList/Shimmer rely on the
+// sk-shimmer animation that PageSkeleton normally self-injects; since we use the
+// primitives directly here, inject it once at the top of each skeleton.
+const SK_KEYFRAMES = `@keyframes sk-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`
+
+// Bespoke hub skeleton — mirrors the real overview: one tall facilities hero
+// card (big number + coverage bar) followed by the activities feed card. Used
+// on initial load before the first data fetch resolves.
+function HubOverviewSkeleton() {
+  return (
+    <div>
+      <style>{SK_KEYFRAMES}</style>
+      {/* Facilities hero card */}
+      <div style={{ ...HUB_CARD, padding: '22px 26px', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+          <Shimmer w={52} h={52} r={14} />
+          <Shimmer w={120} h={18} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+          <Shimmer w={150} h={52} r={10} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+            <Shimmer w={60} h={11} />
+            <Shimmer w={48} h={20} />
+          </div>
+        </div>
+        <Shimmer w="100%" h={6} r={999} />
+      </div>
+      {/* Activities feed card */}
+      <div style={{ ...HUB_CARD, padding: '16px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <Shimmer w={36} h={36} r={10} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Shimmer w={130} h={14} />
+            <Shimmer w={200} h={10} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
+              <Shimmer w={30} h={30} r={8} />
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <Shimmer w="42%" h={12} />
+                <Shimmer w="60%" h={9} />
+              </div>
+              <Shimmer w={40} h={18} r={999} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function SyncHub({ sb, toast, user, lang, initialFocus = null }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
@@ -192,6 +247,7 @@ export default function SyncHub({ sb, toast, user, lang, initialFocus = null }) 
   const [sources, setSources] = useState([])
   const [runs, setRuns] = useState([])
   const [changes, setChanges] = useState([])
+  const [loading, setLoading] = useState(true)
   const [focused, setFocused] = useState(initialFocus)    // source.id being viewed in drill-down
   // Canonical totals + provenance rows for facilities — drives the
   // Facilities overview card on the hub.
@@ -234,6 +290,7 @@ export default function SyncHub({ sb, toast, user, lang, initialFocus = null }) 
     setSources(merged)
     setRuns(rn.data || [])
     setChanges(ch.data || [])
+    setLoading(false)
   }, [sb])
 
   useEffect(() => { load() }, [load])
@@ -286,7 +343,9 @@ export default function SyncHub({ sb, toast, user, lang, initialFocus = null }) 
           personsCount={0} />
       )}
 
-      {!focused && (
+      {!focused && (loading && runs.length === 0 ? (
+        <HubOverviewSkeleton />
+      ) : (
         <>
           <FacilitiesOverviewCard
             totalFacilities={totalFacilities}
@@ -302,7 +361,7 @@ export default function SyncHub({ sb, toast, user, lang, initialFocus = null }) 
             T={T} lang={lang}
           />
         </>
-      )}
+      ))}
 
       {focused === 'sbc' && (
         <SbcDrilldown
@@ -715,6 +774,7 @@ export function SyncActivitiesPage({ sb, lang }) {
   const [sources, setSources] = useState([])
   const [runs, setRuns] = useState([])
   const [changes, setChanges] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!sb) return
@@ -741,6 +801,7 @@ export function SyncActivitiesPage({ sb, lang }) {
       setSources(fallbackSources.map(fb => dbSources.find(d => d.id === fb.id) || fb))
       setRuns(rn.data || [])
       setChanges(ch.data || [])
+      setLoading(false)
     })()
     return () => { alive = false }
   }, [sb])
@@ -753,7 +814,21 @@ export function SyncActivitiesPage({ sb, lang }) {
           {T('سجل كل عمليات المزامنة والتغييرات التي حصلت في كل مصدر.', 'A log of every sync run and the changes it made, per source.')}
         </div>
       </div>
-      <SyncActivitiesCard runs={runs} changes={changes} sources={sources} persons={persons} T={T} lang={lang} />
+      {loading && runs.length === 0 ? (
+        <div style={{ ...HUB_CARD, padding: '16px 18px' }}>
+          <style>{SK_KEYFRAMES}</style>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <Shimmer w={36} h={36} r={10} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <Shimmer w={130} h={14} />
+              <Shimmer w={200} h={10} />
+            </div>
+          </div>
+          <SkeletonList rows={6} />
+        </div>
+      ) : (
+        <SyncActivitiesCard runs={runs} changes={changes} sources={sources} persons={persons} T={T} lang={lang} />
+      )}
     </div>
   )
 }
@@ -798,6 +873,8 @@ function RolePersonTabs({ sb, toast, allowedRoles, T, tabs, setTabs, active, set
   const [candidates, setCandidates] = useState([])
   const [loadingCands, setLoadingCands] = useState(false)
   const [search, setSearch] = useState('')
+
+  const closePicker = () => { setPickerOpen(false); setSearch('') }
 
   const openPicker = async () => {
     setPickerOpen(true)
@@ -872,77 +949,56 @@ function RolePersonTabs({ sb, toast, allowedRoles, T, tabs, setTabs, active, set
         {T('إضافة شخص', 'Add person')}
       </button>
 
-      {pickerOpen && ReactDOM.createPortal(
-        <div onClick={() => setPickerOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(6px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} dir="rtl"
-            style={{ background: '#1a1a1a', borderRadius: 14, width: 480, maxWidth: '95vw',
-              maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-              border: '1px solid rgba(212,160,23,.2)', boxShadow: '0 24px 60px rgba(0,0,0,.5)',
-              fontFamily: F }}>
-            <div style={{ padding: '14px 18px 10px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)', marginBottom: 8 }}>
-                {T('اختر شخصاً', 'Pick a person')}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 10 }}>
-                {T(`الأشخاص المعيّنون كـ${allowedRoles.map(r => ({ owner: 'مالك', manager: 'مدير', beneficiary: 'مستفيد', supervisor: 'مشرف' })[r] || r).join(' أو ')}`,
-                   `Persons assigned as ${allowedRoles.join(' or ')}`)}
-              </div>
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder={T('ابحث بالاسم أو الجوال أو الهوية...', 'Search by name, phone, or ID...')}
-                style={{ width: '100%', height: 36, padding: '0 12px', borderRadius: 8,
-                  background: '#141414', border: '1px solid rgba(255,255,255,.08)',
-                  color: 'var(--tx)', fontFamily: F, fontSize: 12, outline: 'none' }} />
-            </div>
-            <div style={{ flex: 1, overflow: 'auto', padding: 10 }}>
+      <FKModal open={pickerOpen} onClose={closePicker} width={480} variant="add"
+        title={T('اختر شخصاً', 'Pick a person')} Icon={UserPlus}
+        subtitle={T(`الأشخاص المعيّنون كـ${allowedRoles.map(r => ({ owner: 'مالك', manager: 'مدير', beneficiary: 'مستفيد', supervisor: 'مشرف' })[r] || r).join(' أو ')}`,
+                    `Persons assigned as ${allowedRoles.join(' or ')}`)}
+        footer={<ActionButton variant="ghost" Icon={XIcon} onClick={closePicker}>{T('إغلاق', 'Close')}</ActionButton>}>
+        <ModalSection Icon={Search} label={T('بحث واختيار', 'Search & pick')} hint={T('اضغط على الشخص لإضافته', 'click a person to add')}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <TextField value={search} onChange={setSearch}
+              placeholder={T('ابحث بالاسم أو الجوال أو الهوية...', 'Search by name, phone, or ID...')} />
+            <ScrollBox maxHeight={300}>
               {loadingCands ? (
-                <div style={{ padding: 30, textAlign: 'center', color: 'var(--tx5)', fontSize: 12 }}>
+                <div style={{ padding: 30, textAlign: 'center', color: FKC.tx4, fontSize: 12, fontWeight: 600 }}>
                   {T('جاري التحميل...', 'Loading...')}
                 </div>
               ) : filteredCands.length === 0 ? (
-                <div style={{ padding: 30, textAlign: 'center', color: 'var(--tx5)', fontSize: 12 }}>
+                <div style={{ padding: 30, textAlign: 'center', color: FKC.tx4, fontSize: 12, fontWeight: 600 }}>
                   {T('لا يوجد أشخاص معيّنون بعد', 'No assigned persons yet')}
                 </div>
-              ) : filteredCands.map(p => {
-                const already = tabIds.includes(p.person_id)
-                return (
-                  <div key={p.person_id} onClick={() => !already && addTab(p)}
-                    style={{ padding: '10px 12px', borderRadius: 8, marginBottom: 4,
-                      cursor: already ? 'default' : 'pointer',
-                      opacity: already ? .5 : 1,
-                      background: 'rgba(255,255,255,.025)',
-                      border: '1px solid rgba(255,255,255,.05)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                      transition: '.12s' }}
-                    onMouseEnter={e => { if (!already) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.025)' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{p.name_ar}</div>
-                      <div style={{ fontSize: 10.5, color: 'var(--tx4)', marginTop: 2,
-                        display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        {(p.roles_summary || []).filter(r => ['مالك', 'مدير', 'مستفيد', 'مشرف'].includes(r))
-                          .map(r => <span key={r} style={{ color: C.gold }}>{r}</span>)}
-                        {p.id_number && <span style={{ direction: 'ltr' }}>{p.id_number}</span>}
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {filteredCands.map(p => {
+                    const already = tabIds.includes(p.person_id)
+                    return (
+                      <div key={p.person_id} onClick={() => !already && addTab(p)}
+                        style={{ padding: '10px 12px', borderRadius: 9,
+                          cursor: already ? 'default' : 'pointer', opacity: already ? .5 : 1,
+                          background: FKC.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                          transition: '.12s' }}
+                        onMouseEnter={e => { if (!already) e.currentTarget.style.background = FKC.ok + '14' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = FKC.inputBg }}>
+                        <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: FKC.tx }}>{p.name_ar}</div>
+                          <div style={{ fontSize: 10.5, fontWeight: 500, color: FKC.tx4, marginTop: 2,
+                            display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {(p.roles_summary || []).filter(r => ['مالك', 'مدير', 'مستفيد', 'مشرف'].includes(r))
+                              .map(r => <span key={r} style={{ color: FKC.gold }}>{r}</span>)}
+                            {p.id_number && <span style={{ direction: 'ltr' }}>{p.id_number}</span>}
+                          </div>
+                        </div>
+                        {already && <span style={{ fontSize: 10, color: FKC.ok, fontWeight: 600 }}>✓ {T('مُضاف', 'added')}</span>}
                       </div>
-                    </div>
-                    {already && <span style={{ fontSize: 10, color: C.ok, fontWeight: 800 }}>✓ {T('مُضاف', 'added')}</span>}
-                  </div>
-                )
-              })}
-            </div>
-            <div style={{ padding: '10px 18px', borderTop: '1px solid rgba(255,255,255,.06)',
-              display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setPickerOpen(false)}
-                style={{ height: 32, padding: '0 14px', borderRadius: 8,
-                  background: 'transparent', border: '1px solid rgba(255,255,255,.15)',
-                  color: 'var(--tx2)', fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                {T('إغلاق', 'Close')}
-              </button>
-            </div>
+                    )
+                  })}
+                </div>
+              )}
+            </ScrollBox>
           </div>
-        </div>, document.body
-      )}
+        </ModalSection>
+      </FKModal>
     </div>
   )
 }

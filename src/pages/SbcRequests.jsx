@@ -51,14 +51,15 @@ function CopyableNumber({ value, onToast, copyLabel }) {
     try {
       await navigator.clipboard.writeText(String(value))
       setCopied(true)
-      onToast?.(copyLabel || 'Copied')
       setTimeout(() => setCopied(false), 1500)
     } catch { /* clipboard unavailable */ }
   }
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
       <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--tx)', fontWeight: 800 }}>{value}</span>
-      <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 18, height: 18, padding: 0, border: 'none', background: 'transparent', color: copied ? C.gold : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4 }}>
+      <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 18, height: 18, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, transition: 'color .15s' }}
+        onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
+        onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
         {copied ? (
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         ) : (

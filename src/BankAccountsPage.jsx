@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Landmark, Plus, Search, CreditCard, Copy, Eye, EyeOff, ChevronLeft,
+  Landmark, Plus, Search, CreditCard, Copy, Eye, EyeOff, ChevronLeft, X,
   ArrowDownToLine, ArrowUpFromLine, Banknote, Receipt, FileText, AlertCircle, User, Wallet, Check, Building2,
 } from 'lucide-react'
 import { BankAccountFormModal, BankCardModal } from './BranchesPage.jsx'
+import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, Select as FKSelect, MultiSelect as FKMulti, ScrollBox, GRID, EmptyState, C as FKC } from './components/ui/FormKit.jsx'
 import BackButton from './components/BackButton'
+import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const MONO_F = "'JetBrains Mono','Cairo',sans-serif"
@@ -22,8 +24,8 @@ const PURPOSE_META = {
 
 const dashedBtn = (label, Icon, onClick, clr = GOLD, height = 32) => (
   <button type="button" onClick={onClick}
-    onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = `${clr}1f` }}
-    onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+    onMouseEnter={e => { e.currentTarget.style.background = `${clr}1f` }}
+    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     style={{ height, padding: '0 14px', borderRadius: 9, background: 'transparent', border: `1px dashed ${clr}80`, color: clr, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s', whiteSpace: 'nowrap' }}>
     {label} {Icon && <Icon size={14} strokeWidth={2.2} />}
   </button>
@@ -115,7 +117,9 @@ const MiniCopy = ({ onClick }) => {
   return (
     <button type="button" title="نسخ"
       onClick={() => { onClick(); setDone(true); setTimeout(() => setDone(false), 1200) }}
-      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+      onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
+      onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx4)' }}
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
       {done ? <Check size={12} /> : <Copy size={12} />}
     </button>
   )
@@ -159,26 +163,12 @@ const BodyHero = ({ account, copy }) => (
 // ─── Linked-offices editor (manage which offices use this account + purpose) ──
 const PURPOSES = ['الإيداعات النقدية', 'التحويلات الواردة', 'التحويلات الصادرة', 'سداد المدفوعات']
 const parsePurposes = s => String(s || '').split('·').map(x => x.trim()).filter(Boolean)
-
-const PurposeChips = ({ value, onChange }) => (
-  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-    {PURPOSES.map(p => {
-      const meta = PURPOSE_META[p] || { Icon: CreditCard, hue: C.blue }
-      const on = value.includes(p)
-      return (
-        <button key={p} type="button" onClick={() => onChange(on ? value.filter(x => x !== p) : [...value, p])}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${on ? meta.hue + '99' : 'rgba(255,255,255,.1)'}`, background: on ? `${meta.hue}22` : 'transparent', color: on ? meta.hue : 'var(--tx4)', transition: '.15s' }}>
-          <meta.Icon size={12} /> {p}
-        </button>
-      )
-    })}
-  </div>
-)
+const PURPOSE_SELECT_OPTS = PURPOSES.map(p => ({ k: p, l: p }))
 
 function LinkedOfficesEditor({ sb, account, branches, toast, onClose, onChanged }) {
   const [links, setLinks] = useState([])
   const [loading, setLoading] = useState(true)
-  const [newBranch, setNewBranch] = useState('')
+  const [newBranch, setNewBranch] = useState(null)
   const [newPurposes, setNewPurposes] = useState([])
   const [busy, setBusy] = useState(false)
 
@@ -198,7 +188,7 @@ function LinkedOfficesEditor({ sb, account, branches, toast, onClose, onChanged 
     const { error } = await sb.from('bank_account_branches').insert({ bank_account_id: account.id, branch_id: newBranch, account_purpose: newPurposes.join(' · ') || null, is_active: true })
     setBusy(false)
     if (error) { toast?.(error.code === '23505' ? 'هذا المكتب مربوط بالفعل' : 'تعذّر الربط', 'error'); return }
-    toast?.('تم ربط المكتب'); setNewBranch(''); setNewPurposes([]); load(); onChanged?.()
+    toast?.('تم ربط المكتب'); setNewBranch(null); setNewPurposes([]); load(); onChanged?.()
   }
   const setLinkPurpose = async (id, purposes) => {
     setLinks(ls => ls.map(l => l.id === id ? { ...l, account_purpose: purposes.join(' · ') } : l))
@@ -210,64 +200,49 @@ function LinkedOfficesEditor({ sb, account, branches, toast, onClose, onChanged 
     toast?.('تم إلغاء الربط'); load(); onChanged?.()
   }
 
-  const selStyle = { width: '100%', height: 42, padding: '0 12px', borderRadius: 10, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx)', fontFamily: F, fontSize: 14, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }
-
   return (
-    <div onClick={onClose} dir="rtl" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16, fontFamily: F }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: '95vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column', background: 'var(--modal-bg)', borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 20px 50px rgba(0,0,0,.5)', overflow: 'hidden' }}>
-        {/* Header */}
-        <div style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Wallet size={20} color={C.blue} strokeWidth={2} />
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--tx)' }}>المكاتب المرتبطة</div>
-          </div>
-          <button onClick={onClose} aria-label="إغلاق" style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={16} style={{ transform: 'rotate(45deg)' }} /></button>
-        </div>
-
-        <div style={{ padding: '16px 22px', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {/* Current links */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 10 }}>المكاتب المرتبطة حالياً ({links.length})</div>
-            {loading ? <div style={{ padding: 16, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>…</div>
-              : links.length === 0 ? <div style={{ padding: 16, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا يوجد مكاتب مرتبطة</div>
-                : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {links.map(l => (
-                      <div key={l.id} style={{ padding: '11px 13px', borderRadius: 11, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 9 }}>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: C.blue, fontFamily: MONO_F, direction: 'ltr' }}>{l.branches?.branch_code}</span>
-                          <button onClick={() => removeLink(l.id)} title="إلغاء الربط" style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', color: '#e87265', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={14} style={{ transform: 'rotate(45deg)' }} /></button>
-                        </div>
-                        <PurposeChips value={parsePurposes(l.account_purpose)} onChange={ps => setLinkPurpose(l.id, ps)} />
-                      </div>
-                    ))}
+    <FKModal open onClose={onClose} variant="edit" width={560}
+      title="المكاتب المرتبطة" subtitle={account.bank_name} Icon={Wallet}
+      footer={<FKAction variant="ghost" Icon={X} onClick={onClose}>إغلاق</FKAction>}>
+      <FKSection Icon={Building2} label="روابط المكاتب" hint={loading ? '…' : `${links.length} مكتب`}>
+        {loading ? (
+          <div style={{ padding: 16, textAlign: 'center', color: FKC.tx4, fontSize: 12 }}>…</div>
+        ) : links.length === 0 ? (
+          <div style={{ padding: 16, textAlign: 'center', color: FKC.tx4, fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا يوجد مكاتب مرتبطة</div>
+        ) : (
+          <ScrollBox maxHeight={240}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {links.map(l => (
+                <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9, background: FKC.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: FKC.blue, fontFamily: MONO_F, direction: 'ltr', flexShrink: 0, minWidth: 56, textAlign: 'center' }}>{l.branches?.branch_code}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <FKMulti searchable={false} value={parsePurposes(l.account_purpose)}
+                      onChange={arr => setLinkPurpose(l.id, arr)}
+                      options={PURPOSE_SELECT_OPTS} getKey={o => o.k} getLabel={o => o.l} placeholder="الغرض..." />
                   </div>
-                )}
-          </div>
-
-          {/* Add new link */}
-          <div style={{ paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, marginBottom: 10 }}>إضافة ربط بمكتب جديد</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6 }}>المكتب</div>
-                <select value={newBranch} onChange={e => setNewBranch(e.target.value)} style={selStyle}>
-                  <option value="">اختر المكتب…</option>
-                  {available.map(b => <option key={b.id} value={b.id}>{b.branch_code}</option>)}
-                </select>
-              </div>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, marginBottom: 8 }}>الغرض</div>
-                <PurposeChips value={newPurposes} onChange={setNewPurposes} />
-              </div>
-              <button onClick={addLink} disabled={busy || !newBranch} style={{ alignSelf: 'flex-start', height: 38, padding: '0 18px', borderRadius: 10, background: newBranch ? GOLD : 'rgba(212,160,23,.3)', border: 'none', color: '#000', fontFamily: F, fontSize: 13, fontWeight: 700, cursor: newBranch ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                <Plus size={15} strokeWidth={2.6} /> ربط المكتب
-              </button>
+                  <button onClick={() => removeLink(l.id)} title="إلغاء الربط"
+                    style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', color: FKC.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
             </div>
-          </div>
+          </ScrollBox>
+        )}
+      </FKSection>
+      <FKSection Icon={Plus} label="إضافة ربط" hint="مكتب جديد + غرضه">
+        <div style={GRID}>
+          <FKSelect label="المكتب" req searchable value={newBranch}
+            onChange={v => setNewBranch(v)}
+            options={available} getKey={o => o.id} getLabel={o => o.branch_code} placeholder="اختر المكتب..." />
+          <FKMulti label="الغرض" searchable={false} value={newPurposes} onChange={setNewPurposes}
+            options={PURPOSE_SELECT_OPTS} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر الغرض..." />
         </div>
-      </div>
-    </div>
+        <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
+          <FKAction Icon={Plus} disabled={busy || !newBranch} onClick={addLink}>{busy ? 'جاري الربط...' : 'ربط المكتب'}</FKAction>
+        </div>
+      </FKSection>
+    </FKModal>
   )
 }
 
@@ -275,7 +250,7 @@ function LinkedOfficesEditor({ sb, account, branches, toast, onClose, onChanged 
 // DETAIL PAGE — mirrors BranchDetailPage (header + brd-grid + sections)
 // ═══════════════════════════════════════════════════════════════════════════
 function BankAccountDetailPage({ sb, account, branches, toast, onBack, onEdit, onReload }) {
-  const copy = (v) => { if (!v) return; navigator.clipboard?.writeText(String(v)); toast?.('تم النسخ') }
+  const copy = (v) => { if (!v) return; navigator.clipboard?.writeText(String(v)) }
   const accActive = account.is_active !== false
   const tone = accActive ? C.ok : '#777'
   const bal = account._bal || {}
@@ -554,6 +529,10 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
   const [branches, setBranches] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [searchQ, setSearchQ] = useState('')
+  const [bankFilter, setBankFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [advOpen, setAdvOpen] = useState(false)
 
   const [bankPop, setBankPop] = useState(false)
   const [bankForm, setBankForm] = useState({})
@@ -590,11 +569,18 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
   const activeCount = useMemo(() => accounts.filter(a => a.is_active !== false).length, [accounts])
   const totalCards = useMemo(() => accounts.reduce((s, a) => s + (a._cardCount || 0), 0), [accounts])
   const selected = useMemo(() => accounts.find(a => a.id === selectedId) || null, [accounts, selectedId])
+  const bankOptions = useMemo(() => [...new Set(accounts.map(a => a.bank_name).filter(Boolean))], [accounts])
   const filtered = useMemo(() => {
     const q = searchQ.trim().toLowerCase()
-    if (!q) return accounts
-    return accounts.filter(a => `${a.bank_name || ''} ${a.account_name || ''} ${a.account_number || ''} ${a.iban || ''}`.toLowerCase().includes(q))
-  }, [accounts, searchQ])
+    return accounts.filter(a => {
+      if (bankFilter && a.bank_name !== bankFilter) return false
+      if (branchFilter && !(a._officeCodes || []).includes(branchFilter)) return false
+      if (statusFilter === 'active' && a.is_active === false) return false
+      if (statusFilter === 'inactive' && a.is_active !== false) return false
+      if (q && !`${a.bank_name || ''} ${a.account_name || ''} ${a.account_number || ''} ${a.iban || ''}`.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [accounts, searchQ, bankFilter, branchFilter, statusFilter])
 
   // Group by bank name (mirrors offices grouping by city)
   const bankGroups = useMemo(() => {
@@ -615,7 +601,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
 
   const openAdd = () => { setBankForm({ mode: 'new', is_primary: false, current_balance: 0 }); setBankPop(true) }
   const openEdit = async (account) => {
-    setBankForm({ mode: 'edit', _edit_account_id: account.id, bank_name: account.bank_name, account_name: account.account_name, account_number: account.account_number, iban: account.iban, swift_code: account.swift_code, is_primary: !!account.is_primary, expiry_date: account.expiry_date || '', sbc_facility_id: account.sbc_facility_id || null, _branch_ids: [], account_purpose: '' })
+    setBankForm({ mode: 'edit', _edit_account_id: account.id, bank_name: account.bank_name, bank_name_en: account.bank_name_en || '', account_name: account.account_name, account_name_en: account.account_name_en || '', account_number: account.account_number, iban: account.iban, swift_code: account.swift_code, is_primary: !!account.is_primary, expiry_date: account.expiry_date || '', sbc_facility_id: account.sbc_facility_id || null, _branch_ids: [], account_purpose: '' })
     setBankPop(true)
     // Load the account's current office links + their purposes so the edit modal
     // can manage them inline (it replaces the old standalone linked-offices editor).
@@ -626,7 +612,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
     const purposeStr = purposes.join(' · ')
     setBankForm(p => (p._edit_account_id === account.id ? { ...p, _branch_ids: ids, account_purpose: purposeStr,
       // Snapshot before any change so the success card can show only what changed.
-      _orig: { bank_name: account.bank_name || '', account_name: account.account_name || '', account_number: account.account_number || '', iban: account.iban || '', expiry_date: account.expiry_date || '', sbc_facility_id: account.sbc_facility_id || null, branch_ids: ids, account_purpose: purposeStr } } : p))
+      _orig: { bank_name: account.bank_name || '', bank_name_en: account.bank_name_en || '', account_name: account.account_name || '', account_name_en: account.account_name_en || '', account_number: account.account_number || '', iban: account.iban || '', expiry_date: account.expiry_date || '', sbc_facility_id: account.sbc_facility_id || null, branch_ids: ids, account_purpose: purposeStr } } : p))
   }
 
   const saveBankAccount = async () => {
@@ -645,7 +631,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
     try {
       if (bankForm.mode === 'edit') {
         const accId = bankForm._edit_account_id
-        const upd = { bank_name: bankForm.bank_name || null, account_name: bankForm.account_name || null, account_number: bankForm.account_number || null, iban: bankForm.iban || null, swift_code: bankForm.swift_code || null, is_primary: !!bankForm.is_primary, expiry_date: bankForm.expiry_date || null, sbc_facility_id: bankForm.sbc_facility_id || null }
+        const upd = { bank_name: bankForm.bank_name || null, bank_name_en: bankForm.bank_name_en || null, account_name: bankForm.account_name || null, account_name_en: bankForm.account_name_en || null, account_number: bankForm.account_number || null, iban: bankForm.iban || null, swift_code: bankForm.swift_code || null, is_primary: !!bankForm.is_primary, expiry_date: bankForm.expiry_date || null, sbc_facility_id: bankForm.sbc_facility_id || null }
         const { error } = await sb.from('bank_accounts').update(upd).eq('id', accId)
         if (error) throw error
         await uploadIban(accId)
@@ -671,7 +657,8 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
           }
         }
         setBankSuccess(true)
-        reload() // refresh behind; success card stays open until X is pressed
+        reload() // refresh behind the unified success view
+        setTimeout(() => { setBankSuccess(false); setBankPop(false) }, 1400)
         return null
       }
       const branchIds = Array.isArray(bankForm._branch_ids) ? bankForm._branch_ids.filter(Boolean) : []
@@ -692,7 +679,8 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
       if (jErr) throw jErr
       await uploadIban(bankAccountId)
       setBankSuccess(true)
-      reload() // refresh behind; success card stays open until X is pressed
+      reload() // refresh behind the unified success view
+      setTimeout(() => { setBankSuccess(false); setBankPop(false) }, 1400)
       return null
     } catch (e) {
       const msg = (e.message || '').toLowerCase()
@@ -721,6 +709,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
   }
 
   // LIST
+  const initialLoading = loading && accounts.length === 0
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
@@ -745,13 +734,15 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة الحسابات البنكية والبطاقات عبر جميع المكاتب ومتابعة أرصدتها</div>
           </div>
           <button onClick={openAdd}
-            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
             style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
             حساب بنكي جديد <Plus size={16} strokeWidth={2.2} />
           </button>
         </div>
       </div>
+
+      {initialLoading ? (<><SkeletonCards count={3} cols="2.2fr 1fr 1.5fr" minHeight={150} /><SkeletonList rows={6} /></>) : (<>
 
       {/* Hero stats */}
       <div className="brs-hero-grid">
@@ -800,21 +791,70 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search + filter (InvoicePage style) */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="ابحث بالبنك، اسم الحساب، رقم الحساب، الآيبان…"
             style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }} />
         </div>
+        {(() => {
+          const hasFilters = !!(bankFilter || branchFilter || statusFilter)
+          const active = advOpen || hasFilters
+          const clearAll = () => { setBankFilter(''); setBranchFilter(''); setStatusFilter('') }
+          return (
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.05)', color: active ? FKC.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+              تصفية
+              {hasFilters ? (
+                <span role="button" tabIndex={0} title="مسح الفلاتر"
+                  onClick={e => { e.stopPropagation(); clearAll() }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); clearAll() } }}
+                  onMouseEnter={e => { e.currentTarget.style.background = FKC.red; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = FKC.gold; e.currentTarget.style.color = '#000' }}
+                  style={{ background: FKC.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </span>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="18" y1="6" x2="20" y2="6" /><circle cx="16" cy="6" r="2" /><line x1="4" y1="12" x2="8" y2="12" /><line x1="12" y1="12" x2="20" y2="12" /><circle cx="10" cy="12" r="2" /><line x1="4" y1="18" x2="16" y2="18" /><line x1="20" y1="18" x2="20" y2="18" /><circle cx="18" cy="18" r="2" /></svg>
+              )}
+            </button>
+          )
+        })()}
       </div>
 
+      {advOpen && (() => {
+        const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
+        return (
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+              <div>
+                <div style={fLbl}>البنك</div>
+                <FKSelect searchable options={[{ v: '', l: 'كل البنوك' }, ...bankOptions.map(b => ({ v: b, l: b }))]} getKey={o => o.v} getLabel={o => o.l}
+                  value={bankFilter || null} onChange={v => setBankFilter(v || '')} placeholder="كل البنوك" />
+              </div>
+              <div>
+                <div style={fLbl}>المكتب</div>
+                <FKSelect searchable options={[{ v: '', l: 'كل المكاتب' }, ...(branches || []).map(b => ({ v: b.branch_code, l: b.branch_code }))]} getKey={o => o.v} getLabel={o => o.l}
+                  value={branchFilter || null} onChange={v => setBranchFilter(v || '')} placeholder="كل المكاتب" />
+              </div>
+              <div>
+                <div style={fLbl}>الحالة</div>
+                <FKSelect options={[{ v: '', l: 'الكل' }, { v: 'active', l: 'نشط' }, { v: 'inactive', l: 'معطّل' }]} getKey={o => o.v} getLabel={o => o.l}
+                  value={statusFilter || null} onChange={v => setStatusFilter(v || '')} placeholder="الكل" />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* List — grouped by bank */}
-      {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>…</div>}
       {!loading && filtered.length === 0 && (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
-          {accounts.length === 0 ? 'لا توجد حسابات بنكية — أضِف أول حساب' : 'لا توجد نتائج مطابقة'}
-        </div>
+        <EmptyState
+          icon={accounts.length === 0
+            ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="3" x2="21" y1="22" y2="22" /><line x1="6" x2="6" y1="18" y2="11" /><line x1="10" x2="10" y1="18" y2="11" /><line x1="14" x2="14" y1="18" y2="11" /><line x1="18" x2="18" y1="18" y2="11" /><polygon points="12 2 20 7 4 7" /></svg>
+            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>}
+          title={accounts.length === 0 ? 'لا توجد حسابات بنكية بعد' : 'لا توجد نتائج مطابقة'}
+          desc={accounts.length === 0 ? 'أضِف أول حساب بنكي لإدارة الأرصدة والبطاقات' : 'جرّب تعديل كلمة البحث'} />
       )}
       {!loading && bankGroups.map((g, gi) => {
         const c = PALETTE[gi % PALETTE.length]
@@ -833,6 +873,8 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
           </div>
         )
       })}
+
+      </>)}
 
       {modal}
     </div>

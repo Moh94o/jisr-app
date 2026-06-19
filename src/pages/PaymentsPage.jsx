@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { DateField, Sel } from './KafalaCalculator.jsx'
-import { Tag } from 'lucide-react'
-import { Modal as FKModal } from '../components/ui/FormKit.jsx'
+import { Tag, Info, CheckCircle2 } from 'lucide-react'
+import { noDash } from '../lib/utils.js'
+import { Modal as FKModal, ModalSection as FKSection, Select as FKSelect, TextField, FileField, SuccessView, InfoRow, InfoGrid, GRID, ConfirmDialog, EmptyState } from '../components/ui/FormKit.jsx'
+import { StatStripSkeleton, SkeletonTable } from '../components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -22,7 +24,13 @@ const SVC_THEME = {
   iqama_renewal:  { c: C.cyan,    bg: 'rgba(22,160,133,.12)',  bd: 'rgba(22,160,133,.32)',   label_ar: 'تجديد الإقامة',  label_en: 'Iqama Renewal' },
   ajeer:          { c: C.purple,  bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'عقد أجير',       label_en: 'Ajeer' },
   other:          { c: C.gold,    bg: 'rgba(212,160,23,.12)',  bd: 'rgba(212,160,23,.32)',  label_ar: 'الغرفة التجارية', label_en: 'Chamber' },
-  general:        { c: C.gray,    bg: 'rgba(149,165,166,.12)', bd: 'rgba(149,165,166,.32)', label_ar: 'خدمات أخرى',     label_en: 'Other' },
+  general:        { c: C.gray,    bg: 'rgba(149,165,166,.12)', bd: 'rgba(149,165,166,.32)', label_ar: 'خدمة عامة',     label_en: 'General' },
+}
+// Un-themed services show their REAL lookup name, never a generic "خدمات أخرى" bucket (that's only a wizard grouping).
+const svcThemeFor = (st) => {
+  const t = st?.code && SVC_THEME[st.code]
+  if (t) return t
+  return { ...SVC_THEME.general, label_ar: st?.value_ar || 'خدمة', label_en: st?.value_en || st?.value_ar || 'Service' }
 }
 const STATUS_THEME = {
   pending: { c: C.warn, stamp_ar: 'بانتظار السداد', stamp_en: 'PENDING' },
@@ -34,7 +42,7 @@ const STATUS_THEME = {
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
 
 /* ═════════════════════════════════════════════════════════════════════ */
-export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
+export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIcon }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
   // Lock non-GM users to their own branch so they can't view/edit other offices' fees.
@@ -64,33 +72,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
   const [modal, setModal] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
-  // Branch obligations (rent / utilities / phone) due within 7 days — surfaced live here.
-  const [dueOblig, setDueOblig] = useState([])
-  const OBLIG_LABEL = { rent: 'إيجار', utility_electricity: 'كهرباء', utility_water: 'ماء', utility_internet: 'إنترنت', phone: 'جوال' }
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      // Rent surfaces 14 days ahead of its due date; utilities (electricity/water/internet)
-      // only 7 days ahead. Fetch with the wider window, then trim per obligation type.
-      const h7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-      const h14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
-      let qb = sb.from('branch_obligation_payments')
-        .select('id,due_date,amount,status,branch_id,obligation:obligation_id(obligation_type,vendor,title,account_no),branch:branch_id(branch_code)')
-        .is('deleted_at', null).eq('status', 'pending').lte('due_date', h14).order('due_date')
-      if (scopeBranchId) qb = qb.eq('branch_id', scopeBranchId)
-      const { data } = await qb
-      const filtered = (data || []).filter(r => r.due_date <= (r.obligation?.obligation_type === 'rent' ? h14 : h7))
-      if (alive) setDueOblig(filtered)
-    })()
-    return () => { alive = false }
-  }, [sb, scopeBranchId, refreshTick])
-  const payObligation = async (row) => {
-    const { error } = await sb.from('branch_obligation_payments').update({
-      status: 'paid', paid_date: new Date().toISOString().slice(0, 10), paid_amount: row.amount,
-    }).eq('id', row.id)
-    if (error) { toast?.((isAr ? 'تعذّر السداد: ' : 'Failed: ') + error.message.slice(0, 80), 'error'); return }
-    toast?.(isAr ? 'تم تسجيل السداد' : 'Marked paid'); setRefreshTick(t => t + 1)
-  }
+  // Branch obligations moved to «سدادات خارجية» (ExternalPaymentsPage).
 
   /* Lookups */
   useEffect(() => {
@@ -162,7 +144,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
       // Only show fees explicitly sent for payment via the "تأكيد وسداد" flow (Qiwa / GOSI / Muqeem / SADAD).
       // Auto-generated or legacy rows in transaction_fees are excluded.
       let qb = sb.from('transaction_fees').select(`
-        id, fee_label_ar, fee_label_en, amount, paid_amount, status,
+        id, fee_label_ar, fee_label_en, amount, paid_amount, status, needs_review, facility_id,
         sadad_no, payment_date, expiry_date, reference_no, bank_reference, notes, sort_order, created_at,
         fee_kind:fee_kind_id(code,value_ar,value_en),
         payment_method:payment_method_id(code,value_ar,value_en),
@@ -203,6 +185,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
           { t: 'iqama_renewal_applications',sel: 'service_request_id, worker_facility_id, worker_id' },
           { t: 'iqama_issuance_applications',sel:'service_request_id, main_facility_id, worker_id' },
           { t: 'other_applications',        sel: 'service_request_id, worker_facility_id, worker_id' },
+          { t: 'supplier_payroll_applications', sel: 'service_request_id, worker_facility_id, worker_id' },
         ]
         const appResults = await Promise.all(APP_TABLES.map(({ t, sel }) =>
           sb.from(t).select(sel).in('service_request_id', srIds)
@@ -216,7 +199,10 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
             if (r.worker_id && !srToWorker[r.service_request_id]) srToWorker[r.service_request_id] = r.worker_id
           })
         })
-        const facIds = Array.from(new Set(Object.values(srToFac)))
+        // A fee carrying its own facility_id (per-file payment requests) wins over the
+        // SR-level fallback — with multi-facility transactions the SR's "first facility"
+        // isn't necessarily the one this fee belongs to.
+        const facIds = Array.from(new Set([...Object.values(srToFac), ...list.map(r => r.facility_id).filter(Boolean)]))
         const workerIds = Array.from(new Set(Object.values(srToWorker)))
         let facMap = {}, workerMap = {}
         const facPromise = facIds.length ? sb.from('facilities').select('id,name_ar,name_en,unified_number,gosi_number,hrsd_number').in('id', facIds) : Promise.resolve({ data: [] })
@@ -226,7 +212,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
         ;(workerRes.data || []).forEach(w => { workerMap[w.id] = w })
         list = list.map(r => ({
           ...r,
-          _facility: facMap[srToFac[r.service_request?.id]] || null,
+          _facility: facMap[r.facility_id] || facMap[srToFac[r.service_request?.id]] || null,
           _worker:   workerMap[srToWorker[r.service_request?.id]] || null,
         }))
       }
@@ -255,25 +241,20 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE))
 
-  // Branch obligations (rent / utilities) due within 7 days are surfaced as rows inside
-  // the payments table itself (first page only) rather than a separate card on top.
-  const obligRows = dueOblig.map(r => ({
-    _oblig: true, id: 'oblig_' + r.id, _raw: r,
-    due_date: r.due_date, amount: r.amount, status: r.status,
-    branch_code: r.branch?.branch_code || '',
-    label: OBLIG_LABEL[r.obligation?.obligation_type] || 'التزام',
-    vendor: r.obligation?.vendor || r.obligation?.title || '',
-    account_no: r.obligation?.account_no || '',
-  }))
-  const tableRows = page === 0 ? [...obligRows, ...rows] : rows
+  // Branch obligations now live in the «سدادات خارجية» (External Payments) page.
+  const tableRows = rows
 
+  const initialLoading = loading && rows.length === 0
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       {/* Hero */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('المدفوعات','Payments')}</div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('سداد رسوم المعاملات (تأمينات / قوى / مقيم / سداد)','Office fee payments per transaction stage')}</div>
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('سدادات الخدمات','Service Payments')}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('سداد رسوم المعاملات الخارجية والداخلية لدى جميع الجهات','Payment of internal and external transaction fees across all authorities')}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('كرت «بانتظار السداد» رصيد تراكمي دائم، وبقية الكروت يومية تبدأ من الساعة 5:00 فجراً بتوقيت الرياض','“Pending” is a running all-time balance; the other cards are daily, starting at 5:00 AM Riyadh time')}</div>
       </div>
+
+      {initialLoading ? (<><StatStripSkeleton breakdownRows={6} /><SkeletonTable columns={['11%','11%','12%','13%','13%','12%','10%','9%','9%']} rows={8} /></>) : (<>
 
       {/* Stats — Hero + Sidebar + Fee kinds */}
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.5fr', gap: 14, marginBottom: 24 }}>
@@ -284,18 +265,18 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
           border: '1px solid rgba(255,255,255,.05)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-          overflow: 'hidden', minHeight: 150,
+          overflow: 'hidden', minHeight: 190,
         }}>
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.ok}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.ok, boxShadow: `0 0 10px ${C.ok}aa` }} />
-            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('مدفوع اليوم','Paid Today')}</span>
+            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('اليوم','Paid Today')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
             <span style={{ fontSize: 42, fontWeight: 800, color: C.ok, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(stats.today_paid_amount)}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-            <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد المدفوعات','Payments')}</span>
+            <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد السدادات','Payments')}</span>
             <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.today_paid_count)}</span>
           </div>
         </div>
@@ -306,11 +287,11 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
           background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
           border: '1px solid rgba(255,255,255,.05)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
-          display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 150,
+          display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 190,
         }}>
           {[
             { label: T('بانتظار السداد','Pending'), val: stats.pending_amount, cnt: stats.pending_count, c: C.warn },
-            { label: T('مدفوع آخر 7 أيام','Last 7d Paid'), val: stats.week_paid_amount, cnt: stats.week_paid_count, c: C.blue },
+            { label: T('آخر 7 أيام','Last 7d Paid'), val: stats.week_paid_amount, cnt: stats.week_paid_count, c: C.blue },
           ].map((s, i) => (
             <div key={i} style={{
               position: 'relative', padding: '12px 16px', flex: 1,
@@ -322,7 +303,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.c }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{s.label}</span>
+                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{s.label}</span>
                   <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>({num(s.cnt)})</span>
                 </div>
               </div>
@@ -344,7 +325,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
               border: '1px solid rgba(255,255,255,.05)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
               padding: '12px 16px',
-              display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
+              display: 'flex', flexDirection: 'column', gap: 10, minHeight: 190,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('أنواع الرسوم — بانتظار السداد','Fee Kinds — Pending')}</span>
@@ -457,12 +438,9 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
       })()}
 
       {/* List */}
-      {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>…</div>}
       {!loading && err && <div style={{ padding: 60, textAlign: 'center', color: C.red, fontSize: 13 }}>{err}</div>}
       {!loading && !err && tableRows.length === 0 && (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
-          {T('لا توجد سجلات مطابقة','No matching records')}
-        </div>
+        <EmptyState icon={emptyIcon} title={T('لا توجد سجلات مطابقة', 'No matching records')} desc={T('جرّب تعديل التصفية أو كلمة البحث', 'Try adjusting the filter or search')} />
       )}
 
       {!loading && !err && tableRows.length > 0 && (
@@ -472,7 +450,6 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
           T={T}
           onPay={fee => setModal({ fee, action: 'pay' })}
           onEdit={fee => setModal({ fee, action: 'edit' })}
-          onPayOblig={raw => { if (confirm(T('تسجيل سداد هذا الالتزام؟', 'Mark this obligation as paid?'))) payObligation(raw) }}
         />
       )}
 
@@ -509,9 +486,12 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast }) {
         )
       })()}
 
+      </>)}
+
       {/* Pay modal */}
       {modal && <PayModal sb={sb} fee={modal.fee} action={modal.action} payMethods={payMethods} isAr={isAr} T={T} toast={toast} userId={user?.id}
                           onClose={() => setModal(null)} onSaved={() => { setModal(null); setRefreshTick(t => t + 1) }} />}
+
     </div>
   )
 }
@@ -529,8 +509,8 @@ function FacilityNumRow({ color, label, value, T }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '3px 0' }} title={label}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr', minWidth: 0 }}>
         <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
-        <button type="button" onClick={onCopy} title={T ? T('نُسخ','Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.gold : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
-          onMouseEnter={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.7)' }}
+        <button type="button" onClick={onCopy} title={T ? T('نُسخ','Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
+          onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
           onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.3)' }}>
           {copied
             ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -543,7 +523,7 @@ function FacilityNumRow({ color, label, value, T }) {
 
 /* ═════════════ Table view (matches DepositsPage chrome) ═════════════
    One row per fee. Columns: Office | Payment type | Facility | Invoice | SADAD | Amount | Action. */
-function FeesTable({ rows, isAr, T, onPay, onEdit, onPayOblig }) {
+function FeesTable({ rows, isAr, T, onPay, onEdit }) {
   return (
     <div style={{ borderRadius: 10, overflow: 'hidden' }}>
       <style>{`
@@ -573,36 +553,6 @@ function FeesTable({ rows, isAr, T, onPay, onEdit, onPayOblig }) {
         </thead>
         <tbody>
           {rows.map(fee => {
-            // Branch-obligation rows (rent / utilities due within 7 days) — rendered inline.
-            if (fee._oblig) {
-              const overdue = fee.due_date < new Date().toISOString().slice(0, 10)
-              const c = overdue ? C.red : C.gold
-              const d = fee.due_date ? new Date(fee.due_date + 'T12:00:00') : null
-              const dateFmt = d && !isNaN(d) ? `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}` : '—'
-              return (
-                <tr key={fee.id} onClick={() => onPayOblig?.(fee._raw)} title={T('تسجيل السداد', 'Record payment')}>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                      <span style={{ direction: 'ltr', fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{dateFmt}</span>
-                      {overdue && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.red }}>{T('متأخر', 'Overdue')}</span>}
-                    </div>
-                  </td>
-                  <td><span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>{fee.branch_code || '—'}</span></td>
-                  <td style={{ fontWeight: 700, color: c }}>{fee.label}</td>
-                  <td><span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{fee.vendor || '—'}</span></td>
-                  <td><span style={{ color: 'var(--tx5)' }}>—</span></td>
-                  <td><span style={{ color: 'var(--tx5)' }}>—</span></td>
-                  <td>{fee.account_no ? <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700 }}>{fee.account_no}</span> : <span style={{ color: 'var(--tx5)' }}>—</span>}</td>
-                  <td style={{ fontWeight: 900, direction: 'ltr', color: '#fff' }}>{fmtAmt(fee.amount)}</td>
-                  <td>
-                    <span className="pay-pill" style={{ color: c, background: c + '18', border: '1px solid ' + c + '38' }}>
-                      <span className="pay-dot" style={{ background: c }} />
-                      {overdue ? T('متأخر', 'Overdue') : T('بانتظار السداد', 'Pending')}
-                    </span>
-                  </td>
-                </tr>
-              )
-            }
             const sr = fee.service_request
             const fac = fee._facility
             const worker = fee._worker
@@ -610,6 +560,7 @@ function FeesTable({ rows, isAr, T, onPay, onEdit, onPayOblig }) {
             const stT = STATUS_THEME[fee.status] || STATUS_THEME.pending
             const feeLabel = isAr ? (fee.fee_label_ar || fee.fee_kind?.value_ar) : (fee.fee_label_en || fee.fee_kind?.value_en)
             const isPaid = fee.status === 'paid'
+            const review = !!fee.needs_review && !isPaid
             const dateIso = (isPaid && fee.payment_date) ? fee.payment_date : fee.created_at
             const dateD = dateIso ? new Date(dateIso) : null
             const dateFmt = dateD && !isNaN(dateD)
@@ -637,7 +588,18 @@ function FeesTable({ rows, isAr, T, onPay, onEdit, onPayOblig }) {
                     )
                   })()}
                 </td>
-                <td style={{ fontWeight: 700, color: stT.c }}>{feeLabel || '—'}</td>
+                <td style={{ fontWeight: 700, color: review ? C.red : stT.c }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                    <span>{feeLabel || '—'}</span>
+                    {review && (
+                      <span title={T('المبلغ تجاوز الحد الأعلى المحدد في الإدارة ← الرسوم','Amount exceeded the cap set in Admin → Fees')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, color: C.red, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.45)' }}>
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        {T('تحتاج مراجعة','Needs review')}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td onClick={e => e.stopPropagation()}>
                   {fac ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -663,7 +625,7 @@ function FeesTable({ rows, isAr, T, onPay, onEdit, onPayOblig }) {
                       </span>
                     )}
                     {inv?.invoice_no
-                      ? <FacilityNumRow color={'var(--tx4)'} label={T('الفاتورة','Invoice')} value={inv.invoice_no} T={T} />
+                      ? <FacilityNumRow color={'var(--tx4)'} label={T('الفاتورة','Invoice')} value={noDash(inv.invoice_no)} T={T} />
                       : <span style={{ color: 'var(--tx5)' }}>—</span>}
                   </div>
                 </td>
@@ -672,7 +634,7 @@ function FeesTable({ rows, isAr, T, onPay, onEdit, onPayOblig }) {
                     ? <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700 }}>{fee.sadad_no}</span>
                     : <span style={{ color: 'var(--tx5)' }}>—</span>}
                 </td>
-                <td style={{ fontWeight: 900, direction: 'ltr', color: isPaid ? C.ok : '#fff' }}>{fmtAmt(fee.amount)}</td>
+                <td style={{ fontWeight: 900, direction: 'ltr', color: review ? C.red : (isPaid ? C.ok : '#fff') }}>{fmtAmt(fee.amount)}</td>
                 <td>
                   <span className="pay-pill" style={{ color: stT.c, background: stT.c + '18', border: '1px solid ' + stT.c + '38' }}>
                     <span className="pay-dot" style={{ background: stT.c }} />
@@ -691,12 +653,13 @@ function FeesTable({ rows, isAr, T, onPay, onEdit, onPayOblig }) {
 /* ─────────────────────────────────────────────────────────────────── */
 function FeeCard({ fee, isAr, T, onPay, onEdit }) {
   const sr = fee.service_request
-  const svc = SVC_THEME[sr?.service_type?.code || 'general'] || SVC_THEME.general
+  const svc = svcThemeFor(sr?.service_type)
   const stT = STATUS_THEME[fee.status] || STATUS_THEME.pending
   const total = Number(fee.amount || 0)
   const paid = Number(fee.paid_amount || 0)
   const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : (fee.status === 'paid' ? 100 : 0)
   const feeLabel = isAr ? (fee.fee_label_ar || fee.fee_kind?.value_ar) : (fee.fee_label_en || fee.fee_kind?.value_en)
+  const review = !!fee.needs_review && fee.status !== 'paid'
   const phone = sr?.client?.phone
   const nat = sr?.client?.nationality
   const fl = nat?.flag_url
@@ -706,8 +669,8 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
     <div className="pay-card" style={{
       position: 'relative',
       borderRadius: 14,
-      background: 'radial-gradient(ellipse at top, rgba(212,160,23,.06) 0%, #222 60%)',
-      border: '1px solid rgba(255,255,255,.05)',
+      background: review ? 'radial-gradient(ellipse at top, rgba(232,114,101,.08) 0%, #222 60%)' : 'radial-gradient(ellipse at top, rgba(212,160,23,.06) 0%, #222 60%)',
+      border: '1px solid ' + (review ? 'rgba(232,114,101,.4)' : 'rgba(255,255,255,.05)'),
       boxShadow: '0 4px 14px rgba(0,0,0,.22)',
       overflow: 'hidden', transition: 'all .15s',
     }}
@@ -818,10 +781,8 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
   const [selBankAcc, setSelBankAcc] = useState('')
   const [bankRef, setBankRef] = useState(fee.bank_reference || '')
   const [receipt, setReceipt] = useState(null)
-  const [receiptDrag, setReceiptDrag] = useState(false)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
-  const [sadadCopied, setSadadCopied] = useState(false)
   const [done, setDone] = useState(false)
 
   // Load bank accounts (any active office account) — same source as ServiceRequestPage.
@@ -836,11 +797,6 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
     })()
     return () => { alive = false }
   }, [sb])
-
-  const copySadad = async () => {
-    if (!fee.sadad_no) return
-    try { await navigator.clipboard.writeText(String(fee.sadad_no)); setSadadCopied(true); setTimeout(() => setSadadCopied(false), 1500) } catch {}
-  }
 
   const submit = async () => {
     setSaving(true); setErr('')
@@ -879,6 +835,7 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
       if (error) throw error
       setDone(true)
       setSaving(false)
+      setTimeout(() => onSaved(), 1400)
     } catch (e) {
       setErr(e.message || T('حدث خطأ','Error'))
       setSaving(false)
@@ -886,122 +843,48 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
   }
 
   const feeLabel = isAr ? (fee.fee_label_ar || fee.fee_kind?.value_ar) : (fee.fee_label_en || fee.fee_kind?.value_en)
-  const fS = { width: '100%', height: 38, padding: '0 12px', borderRadius: 9, border: '1px solid rgba(255,255,255,.07)', background: 'var(--modal-input-bg)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', boxSizing: 'border-box' }
-  const lbl = { fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }
+  const canSubmit = !!selBankAcc && !!bankRef.trim() && (!!receipt || action === 'edit')
+
+  // ── Page 1 — read-only payment summary ──
+  const page1 = (
+    <FKSection Icon={Info} label={T('ملخص السداد','Payment Summary')}>
+      <InfoGrid>
+        <InfoRow label={T('نوع السداد','Payment Type')} value={feeLabel || ''} />
+        <InfoRow label={T('المبلغ (ريال)','Amount (SAR)')} value={fmtAmt(fee.amount)} mono />
+        <InfoRow full label={T('رقم السداد','SADAD No')} value={fee.sadad_no || ''} mono copy />
+      </InfoGrid>
+    </FKSection>
+  )
+
+  // ── Page 2 — documentation: bank account + reference + PDF receipt ──
+  const page2 = (
+    <FKSection Icon={CheckCircle2} label={T('تأكيد السداد','Confirm Payment')}>
+      <div style={GRID}>
+        <FKSelect full label={T('الحساب البنكي','Bank Account')} req
+          value={selBankAcc} onChange={setSelBankAcc}
+          placeholder={T('اختر الحساب','Choose account')}
+          options={bankAccounts} getKey={a => a.id}
+          getLabel={a => `${a.bank_name || ''} — ${a.account_name || ''}${a.account_number ? ' · ' + a.account_number : ''}`} />
+        <TextField full label={T('الرقم المرجعي للسداد','Payment Reference No')} req dir="ltr"
+          value={bankRef} onChange={setBankRef} />
+        <FileField label={T('إيصال السداد (PDF)','Receipt (PDF)')} req={action !== 'edit'}
+          value={receipt} onChange={setReceipt} accept="application/pdf"
+          hint={action === 'edit' ? T('اختياري عند التعديل','Optional when editing') : undefined} />
+      </div>
+    </FKSection>
+  )
 
   return (
-    <FKModal open onClose={onClose} accent={C.gold} width={640} scroll
+    <FKModal open onClose={done ? onSaved : onClose} width={640}
       title={action === 'edit' ? T('تعديل توثيق السداد','Edit Payment') : T('توثيق عملية السداد','Document Payment')}
-      Icon={Tag} errorMsg={done ? undefined : err}
-      footer={done
-        ? <button onClick={onSaved} style={{ height: 42, padding: '0 28px', borderRadius: 11, border: `1px solid ${C.ok}66`, background: `linear-gradient(180deg, ${C.ok}26 0%, ${C.ok}10 100%)`, color: C.ok, fontFamily: F, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>{T('إغلاق','Close')}</button>
-        : <button onClick={submit} disabled={saving} className="pm-nav-btn">
-            <span>{saving ? T('جارٍ التوثيق…','Documenting…') : T('توثيق السداد','Document Payment')}</span>
-            <span className="pm-nav-ico">
-              {saving
-                ? <span style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'pm-spin 0.7s linear infinite' }} />
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-            </span>
-          </button>}>
-      <style>{`.pm-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.pm-nav-btn .pm-nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.pm-nav-btn:hover:not(:disabled) .pm-nav-ico{background:#D4A017;color:#000}.pm-nav-btn:disabled{opacity:.5;cursor:not-allowed}@keyframes pm-spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-          {done ? (
-            <div style={{ minHeight: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 14px' }}>
-              <div style={{ width: 96, height: 96, borderRadius: '50%', background: `radial-gradient(circle, ${C.ok}33 0%, ${C.ok}00 70%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: 70, height: 70, borderRadius: '50%', background: C.ok, color: '#0a0a0a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 8px 24px ${C.ok}55` }}>
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: C.ok, fontFamily: F, textAlign: 'center' }}>{T('تم توثيق عملية السداد','Payment documented')}</div>
-              <div style={{ fontSize: 13, color: 'var(--tx4)', fontFamily: F, textAlign: 'center', maxWidth: 380 }}>{T('تم تسجيل عملية السداد بنجاح وحفظ الإيصال في النظام.','Payment recorded and the receipt has been saved.')}</div>
-            </div>
-          ) : (<>
-
-          {/* ─── Summary fieldset ─── */}
-          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '14px 18px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span>{T('ملخص السداد','Payment Summary')}</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 10 }}>
-              <div>
-                <div style={lbl}>{T('نوع السداد','Payment Type')}</div>
-                <div style={{ ...fS, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, fontWeight: 800 }}>{feeLabel || '—'}</div>
-              </div>
-              <div>
-                <div style={lbl}>{T('المبلغ (ريال)','Amount (SAR)')}</div>
-                <div style={{ ...fS, display: 'flex', alignItems: 'center', justifyContent: 'center', direction: 'ltr', color: '#fff', fontSize: 16, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(fee.amount)}</div>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div style={lbl}>{T('رقم السداد','SADAD No')}</div>
-                <div style={{ ...fS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, direction: 'ltr', fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: 'var(--tx)' }}>
-                  <span>{fee.sadad_no || '—'}</span>
-                  {fee.sadad_no && (
-                    <button type="button" onClick={copySadad} title={T('نسخ','Copy')} style={{ width: 26, height: 26, padding: 0, border: '1px solid rgba(255,255,255,.08)', borderRadius: 6, background: 'transparent', color: sadadCopied ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
-                      {sadadCopied
-                        ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ─── Confirm fieldset ─── */}
-          <div style={{ borderRadius: 12, border: '1.5px solid rgba(46,204,113,.35)', padding: '14px 18px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.ok, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>{T('تأكيد السداد','Confirm Payment')}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div style={lbl}>{T('الحساب البنكي','Bank Account')}<span style={{ color: C.red }}> *</span></div>
-                <Sel
-                  value={selBankAcc}
-                  onChange={setSelBankAcc}
-                  placeholder={T('اختر الحساب','Choose account')}
-                  options={bankAccounts.map(a => ({
-                    v: a.id,
-                    l: `${a.bank_name || ''} — ${a.account_name || ''}${a.account_number ? ' · ' + a.account_number : ''}`,
-                  }))}
-                />
-              </div>
-              <div>
-                <div style={lbl}>{T('الرقم المرجعي للسداد','Payment Reference No')}<span style={{ color: C.red }}> *</span></div>
-                <input style={{ ...fS, direction: 'ltr', fontFamily: 'monospace', textAlign: 'center' }} value={bankRef} onChange={e => setBankRef(e.target.value)} placeholder="—" />
-              </div>
-              <div>
-                <div style={lbl}>{T('إيصال السداد (PDF)','Receipt (PDF)')}{action !== 'edit' && <span style={{ color: C.red }}> *</span>}</div>
-                <div
-                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(true) }}
-                  onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(false) }}
-                  onDrop={e => { e.preventDefault(); e.stopPropagation(); setReceiptDrag(false); const f = e.dataTransfer.files?.[0]; if (f) setReceipt(f) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {!receipt ? (
-                    <label htmlFor="payRcptInput" style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 14px', height: 38, borderRadius: 9, border: `1px dashed ${receiptDrag ? C.gold : 'rgba(212,160,23,.3)'}`, background: receiptDrag ? 'rgba(212,160,23,.10)' : 'rgba(212,160,23,.03)', color: C.gold, cursor: 'pointer', transition: '.2s', fontSize: 12.5, fontWeight: 700, boxSizing: 'border-box' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                      <span>{T('اختر ملف PDF أو اسحبه هنا','Choose a PDF or drag it here')}</span>
-                    </label>
-                  ) : (
-                    <div style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 14px', height: 38, borderRadius: 9, border: '1px solid rgba(46,160,67,.3)', background: 'rgba(46,160,67,.06)', color: C.ok, fontSize: 12.5, fontWeight: 700, boxSizing: 'border-box' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        <span style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{receipt.name}</span>
-                      </span>
-                      <button type="button" onClick={() => setReceipt(null)} style={{ width: 22, height: 22, borderRadius: 5, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  )}
-                  <input id="payRcptInput" type="file" accept="application/pdf" onChange={e => setReceipt(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-          </>)}
-      </div>
-    </FKModal>
+      Icon={Tag} variant={action === 'edit' ? 'edit' : 'create'}
+      success={done ? <SuccessView title={T('تم توثيق عملية السداد','Payment documented')} /> : null}
+      onSubmit={submit} submitting={saving}
+      submitLabel={T('توثيق السداد','Document Payment')} submitIcon={CheckCircle2}
+      pages={[
+        { title: T('ملخص السداد','Payment Summary'), valid: true, content: page1 },
+        { title: T('تأكيد السداد','Confirm Payment'), valid: canSubmit, error: err, content: page2 },
+      ]}
+    />
   )
 }

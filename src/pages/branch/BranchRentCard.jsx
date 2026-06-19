@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import ReactDOM from 'react-dom'
-import { Building2, FileText, Wallet, CreditCard, Plus, ChevronDown, Trash2 } from 'lucide-react'
+import { Building2, FileText, Wallet, CreditCard, Plus, Trash2 } from 'lucide-react'
 import { can as canPerm } from '../../lib/permissions.js'
-import { ObModal, Field, SaveBtn, fText, fMono, fDate } from './ObligationModalUI.jsx'
-import { Modal as FKModal, ModalSection as FKSection, TextField, CurrencyField, DateField, Select as FKSelect, FileField, SuccessView, sF } from '../../components/ui/FormKit.jsx'
+import { Modal as FKModal, ModalSection as FKSection, TextField, CurrencyField, DateField, Select as FKSelect, FileField, SuccessView, ScrollBox, ActionButton, GRID, ConfirmDialog } from '../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = '#D4A017'
@@ -11,9 +9,6 @@ const C = { gold: GOLD, ok: '#2ecc71', warn: '#eab308', red: '#e87265', blue: '#
 const MONO = "'JetBrains Mono','Cairo',sans-serif"
 
 const fmtAmt = (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-// Live thousands-separator helpers for amount inputs: display grouped, store raw.
-const grpNum = (v) => { const s = String(v ?? '').replace(/[^\d.]/g, ''); if (s === '') return ''; const [i, d] = s.split('.'); return (i ? Number(i).toLocaleString('en-US') : '0') + (d !== undefined ? '.' + d : '') }
-const rawNum = (v) => String(v ?? '').replace(/[^\d.]/g, '')
 const todayIso = () => new Date().toISOString().slice(0, 10)
 const FREQ = [
   { k: 'monthly', l: 'شهري', step: 1 },
@@ -47,9 +42,6 @@ function payState(p) {
   if (p.due_date <= soon.toISOString().slice(0, 10)) return { k: 'soon', l: 'مستحق قريباً', c: C.gold }
   return { k: 'upcoming', l: 'قادم', c: C.gray }
 }
-
-const inp = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg, rgba(0,0,0,.18))', boxSizing: 'border-box' }
-const lbl = { fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6, display: 'block' }
 
 export default function BranchRentCard({ sb, branch, user, toast, lang }) {
   const isAr = lang !== 'en'
@@ -91,8 +83,8 @@ export default function BranchRentCard({ sb, branch, user, toast, lang }) {
     if (error) { toast?.('خطأ: ' + error.message.slice(0, 80), 'error'); return }
     load()
   }
+  const [delPayTarget, setDelPayTarget] = useState(null)   // دفعة بانتظار تأكيد الحذف
   const delPayment = async (p) => {
-    if (!confirm('حذف هذه الدفعة؟')) return
     const { error } = await sb.from('branch_obligation_payments').update({ deleted_at: new Date().toISOString() }).eq('id', p.id)
     if (error) { toast?.('خطأ: ' + error.message.slice(0, 80), 'error'); return }
     toast?.('تم الحذف', 'delete'); load()
@@ -110,8 +102,8 @@ export default function BranchRentCard({ sb, branch, user, toast, lang }) {
         </span>
         {canEdit && (
           <button onClick={() => setModal(true)}
-            onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
             style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
             {obligation ? 'تعديل' : 'عقد إيجار جديد'}
             {obligation
@@ -189,7 +181,7 @@ export default function BranchRentCard({ sb, branch, user, toast, lang }) {
                           <button onClick={() => unpay(p)} title="تراجع" style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)', background: 'transparent', border: '1px solid rgba(255,255,255,.12)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: F }}>تراجع</button>
                         )}
                         {canDelete && (
-                          <button onClick={() => delPayment(p)} title="حذف" style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(192,57,43,.25)', background: 'rgba(192,57,43,.1)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <button onClick={() => setDelPayTarget(p)} title="حذف" style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(192,57,43,.25)', background: 'rgba(192,57,43,.1)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                           </button>
                         )}
@@ -200,7 +192,7 @@ export default function BranchRentCard({ sb, branch, user, toast, lang }) {
               </div>
             )}
             <div style={{ marginTop: 10, fontSize: 10.5, color: 'var(--tx5)', lineHeight: 1.6 }}>
-              الدفعات المستحقة خلال 14 يوماً تظهر تلقائياً في صفحة «المدفوعات».
+              الدفعات المستحقة خلال 14 يوماً تظهر تلقائياً في صفحة «سدادات خارجية».
             </div>
           </>
         )}
@@ -215,6 +207,15 @@ export default function BranchRentCard({ sb, branch, user, toast, lang }) {
         <PaymentModal sb={sb} obligation={obligation} branch={branch} toast={toast}
           init={payModal} onClose={() => setPayModal(null)} onSaved={() => { setPayModal(null); load() }} />
       )}
+      {/* تأكيد حذف دفعة — موحّد */}
+      <ConfirmDialog
+        open={!!delPayTarget}
+        title="تأكيد الحذف"
+        message="هل أنت متأكد من حذف هذه الدفعة؟"
+        itemName={delPayTarget ? `${delPayTarget.due_date || ''} · ${Number(delPayTarget.amount || 0).toLocaleString('en-US')} ريال` : undefined}
+        onConfirm={() => { const p = delPayTarget; setDelPayTarget(null); delPayment(p) }}
+        onCancel={() => setDelPayTarget(null)}
+      />
     </div>
   )
 }
@@ -293,6 +294,7 @@ function ContractModal({ sb, branch, user, toast, obligation, payments, onClose,
         }
       }
       setDone(true)
+      setTimeout(() => onSaved(), 1400)
     } catch (e) {
       setErr('تعذّر الحفظ: ' + (e.message || '').slice(0, 90))
     } finally { setSaving(false) }
@@ -303,6 +305,7 @@ function ContractModal({ sb, branch, user, toast, obligation, payments, onClose,
   const accent = obligation ? '#36a8e6' : GOLD   // matches the FormKit edit/create variant tint
   // Gate the wizard's Next/Save button until each step's required fields are complete.
   const step1Ok = !!(f.vendor && f.account_no && f.amount && f.start_date && f.end_date)
+  const fileOk = !!f._file || !!obligation?.document_url
   const schedTotal = sched.reduce((s, r) => s + (Number(r.amount) || 0), 0)
   // The payment schedule total must not exceed the contract's total value (new contracts only).
   const overTotal = !obligation && (Number(f.amount) || 0) > 0 && schedTotal > (Number(f.amount) || 0) + 0.5
@@ -315,7 +318,6 @@ function ContractModal({ sb, branch, user, toast, obligation, payments, onClose,
     f.frequency !== (obligation.frequency || 'monthly') ||
     (f.start_date || '') !== (obligation.start_date || '') ||
     (f.end_date || '') !== (obligation.end_date || '')
-  const step2Ok = (!!f._file || !!obligation?.document_url) && (obligation ? true : sched.length > 0) && !overTotal && dirty
 
   // ── Step 1 — contract data ──
   const page1 = (
@@ -332,58 +334,52 @@ function ContractModal({ sb, branch, user, toast, obligation, payments, onClose,
     </FKSection>
   )
 
-  // ── Step 2 — documents + payment schedule ──
+  // ── Step 2 — contract document ──
   const page2 = (
-    <FKSection Icon={Wallet} label="المستندات والجدولة">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <FileField label="عقد الإيجار (ملف)" req value={f._file} onChange={fl => set('_file', fl)}
-          accept=".pdf,.jpg,.jpeg,.png,.webp"
-          hint={obligation?.document_url && !f._file ? 'يوجد ملف مرفوع — ارفع ملفاً جديداً لاستبداله' : undefined} />
+    <FKSection Icon={FileText} label="مستند العقد">
+      <FileField label="عقد الإيجار (ملف)" req value={f._file} onChange={fl => set('_file', fl)}
+        accept=".pdf,.jpg,.jpeg,.png,.webp"
+        hint={obligation?.document_url && !f._file ? 'يوجد ملف مرفوع — ارفع ملفاً جديداً لاستبداله' : undefined} />
+    </FKSection>
+  )
 
-        {!obligation && (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: C.tx3 || 'var(--tx3)', textAlign: 'start' }}>
-                جدول السداد <span style={{ color: C.red }}>*</span>
-                {sched.length > 0 && <span style={{ color: accent }}> ({sched.length})</span>}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <button type="button" onClick={() => setSched(buildSched(f.frequency))}
-                  style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-                  إعادة توليد
-                </button>
-                <button type="button" onClick={addRow} style={{ fontSize: 12.5, fontWeight: 700, color: accent, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F }}>+ دفعة</button>
-              </div>
-            </div>
-            {sched.length === 0 ? (
-              <div style={{ padding: 16, textAlign: 'center', color: 'var(--tx5)', fontSize: 11.5, border: '1px dashed rgba(255,255,255,.1)', borderRadius: 10 }}>أدخل القيمة والفترة لتوليد جدول السداد.</div>
-            ) : (
-              <div className="crc-sched" style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 150, overflowY: 'auto', paddingInlineStart: 2 }}>
-                <style>{`.crc-sched::-webkit-scrollbar{width:0;display:none}.crc-sched{scrollbar-width:none;-ms-overflow-style:none}`}</style>
-                {sched.map((r, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 24, textAlign: 'center', fontSize: 14, fontWeight: 800, color: 'var(--tx2)', fontFamily: MONO, flexShrink: 0 }}>{i + 1}</span>
-                    <div style={{ flex: 1 }}><DateField value={r.due_date} onChange={v => setRow(i, 'due_date', v)} /></div>
-                    <input type="text" inputMode="decimal" value={grpNum(r.amount)} onChange={e => setRow(i, 'amount', rawNum(e.target.value))}
-                      style={{ ...sF, width: 120, direction: 'ltr', fontSize: 13 }} />
-                    <button type="button" onClick={() => delRow(i)} title="حذف"
-                      style={{ width: 42, height: 42, borderRadius: 9, border: '1px solid rgba(192,57,43,.2)', background: 'rgba(192,57,43,.08)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Trash2 size={15} strokeWidth={2} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {sched.length > 0 && (
-              <div style={{ marginTop: 10, fontSize: 11, color: 'var(--tx4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>إجمالي الجدول</span>
-                <span style={{ fontFamily: MONO, direction: 'ltr', fontWeight: 800, fontSize: 18, color: overTotal ? C.red : (Math.abs(schedTotal - (Number(f.amount) || 0)) > 0.5 ? C.warn : C.ok) }}>{Math.round(schedTotal).toLocaleString('en-US')}</span>
-              </div>
-            )}
-          </div>
-        )}
+  // ── Step 3 (new contracts only) — editable payment schedule.
+  // ScrollBox is the single sanctioned inner scroll — the window itself never scrolls.
+  const page3 = (
+    <FKSection Icon={Wallet} label="جدول السداد" hint={sched.length > 0 ? `${sched.length} دفعة` : undefined}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 10 }}>
+        <button type="button" onClick={() => setSched(buildSched(f.frequency))}
+          style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
+          إعادة توليد
+        </button>
+        <button type="button" onClick={addRow} style={{ fontSize: 12.5, fontWeight: 600, color: accent, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F }}>+ دفعة</button>
       </div>
+      {sched.length === 0 ? (
+        <div style={{ padding: 16, textAlign: 'center', color: 'var(--tx5)', fontSize: 11.5, border: '1px dashed rgba(255,255,255,.1)', borderRadius: 10 }}>أدخل القيمة والفترة لتوليد جدول السداد.</div>
+      ) : (
+        <ScrollBox maxHeight={280} style={{ paddingLeft: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, paddingInlineStart: 2 }}>
+            {sched.map((r, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 24, textAlign: 'center', fontSize: 14, fontWeight: 600, color: 'var(--tx2)', fontFamily: MONO, flexShrink: 0 }}>{i + 1}</span>
+                <div style={{ flex: 1 }}><DateField value={r.due_date} onChange={v => setRow(i, 'due_date', v)} /></div>
+                <div style={{ width: 132, flexShrink: 0 }}><CurrencyField value={r.amount} onChange={v => setRow(i, 'amount', v)} /></div>
+                <button type="button" onClick={() => delRow(i)} title="حذف"
+                  style={{ width: 42, height: 42, borderRadius: 9, border: '1px solid rgba(192,57,43,.2)', background: 'rgba(192,57,43,.08)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Trash2 size={15} strokeWidth={2} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </ScrollBox>
+      )}
+      {sched.length > 0 && (
+        <div style={{ marginTop: 10, fontSize: 11, color: 'var(--tx4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>إجمالي الجدول</span>
+          <span style={{ fontFamily: MONO, direction: 'ltr', fontWeight: 600, fontSize: 18, color: overTotal ? C.red : (Math.abs(schedTotal - (Number(f.amount) || 0)) > 0.5 ? C.warn : C.ok) }}>{Math.round(schedTotal).toLocaleString('en-US')}</span>
+        </div>
+      )}
     </FKSection>
   )
 
@@ -396,9 +392,13 @@ function ContractModal({ sb, branch, user, toast, obligation, payments, onClose,
       onSubmit={save} submitting={saving}
       submitLabel={obligation ? 'تعديل' : 'إضافة'} submitIcon={obligation ? undefined : Plus}
       nextLabel="التالي" backLabel="السابق"
-      pages={[
+      pages={obligation ? [
         { title: 'بيانات العقد', valid: step1Ok, content: page1 },
-        { title: 'المستندات والجدولة', valid: step2Ok, error: overTotal ? 'إجمالي الجدول يتجاوز قيمة العقد' : err, content: page2 },
+        { title: 'مستند العقد', valid: fileOk && dirty, error: err, content: page2 },
+      ] : [
+        { title: 'بيانات العقد', valid: step1Ok, content: page1 },
+        { title: 'مستند العقد', valid: fileOk, content: page2 },
+        { title: 'جدول السداد', valid: sched.length > 0 && !overTotal, error: overTotal ? 'إجمالي الجدول يتجاوز قيمة العقد' : err, content: page3 },
       ]}
     />
   )
@@ -408,25 +408,32 @@ function ContractModal({ sb, branch, user, toast, obligation, payments, onClose,
 function PaymentModal({ sb, obligation, branch, toast, init, onClose, onSaved }) {
   const [f, setF] = useState({ due_date: init.due_date || todayIso(), amount: init.amount || '', notes: '' })
   const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
   const save = async () => {
-    if (!f.due_date || !f.amount) { toast?.('أدخل التاريخ والمبلغ', 'error'); return }
-    setSaving(true)
+    if (!f.due_date || !f.amount) { setErr('أدخل التاريخ والمبلغ'); return }
+    setErr(''); setSaving(true)
     const { error } = await sb.from('branch_obligation_payments').insert({
       obligation_id: obligation.id, branch_id: branch.id, due_date: f.due_date, amount: Number(f.amount) || 0, status: 'pending', notes: f.notes || null,
     })
     setSaving(false)
-    if (error) { toast?.('خطأ: ' + error.message.slice(0, 80), 'error'); return }
-    toast?.('تمت إضافة الدفعة'); onSaved()
+    if (error) { setErr('خطأ: ' + error.message.slice(0, 80)); return }
+    setDone(true)
+    setTimeout(() => onSaved(), 1400)
   }
   return (
-    <ObModal title="إضافة دفعة" Icon={Wallet} sectionLabel="بيانات الدفعة" SectionIcon={CreditCard}
-      width={440} onClose={onClose}
-      footer={<SaveBtn onClick={save} disabled={saving} label={saving ? '…' : 'إضافة الدفعة'} />}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Field label="تاريخ الاستحقاق" req><input type="date" style={fDate} value={f.due_date} onChange={e => setF(p => ({ ...p, due_date: e.target.value }))} /></Field>
-        <Field label="المبلغ (ر.س)" req><input type="number" style={fMono} value={f.amount} onChange={e => setF(p => ({ ...p, amount: e.target.value }))} /></Field>
-        <Field label="ملاحظات"><input style={fText} value={f.notes} onChange={e => setF(p => ({ ...p, notes: e.target.value }))} /></Field>
-      </div>
-    </ObModal>
+    <FKModal open onClose={done ? onSaved : onClose} width={440}
+      title="إضافة دفعة" Icon={Wallet} variant="create"
+      success={done ? <SuccessView title="تمت إضافة الدفعة" /> : null}
+      errorMsg={err}
+      footer={<ActionButton Icon={Plus} onClick={save} disabled={saving || !f.due_date || !f.amount}>{saving ? 'جاري الحفظ...' : 'إضافة الدفعة'}</ActionButton>}>
+      <FKSection Icon={CreditCard} label="بيانات الدفعة">
+        <div style={GRID}>
+          <DateField label="تاريخ الاستحقاق" req value={f.due_date} onChange={v => setF(p => ({ ...p, due_date: v }))} />
+          <CurrencyField label="المبلغ" req value={f.amount} onChange={v => setF(p => ({ ...p, amount: v }))} />
+          <TextField full label="ملاحظات" value={f.notes} onChange={v => setF(p => ({ ...p, notes: v }))} placeholder="اختياري" />
+        </div>
+      </FKSection>
+    </FKModal>
   )
 }

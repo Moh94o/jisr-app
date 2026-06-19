@@ -1,6 +1,8 @@
 import React,{useState,useEffect,useCallback} from 'react'
 import FormKitShowcase from './components/ui/FormKitShowcase.jsx'
-import { Modal as FKModal, ConfirmDialog } from './components/ui/FormKit.jsx'
+import { Modal as FKModal, ConfirmDialog, ModalSection, ActionButton, GRID, Field, TextField, TextArea, Select, Segmented, SuccessView, C as FKC } from './components/ui/FormKit.jsx'
+import { Briefcase, Flag, Landmark, MapPin, Tag, Banknote, Globe, FileText } from 'lucide-react'
+import PageSkeleton from './components/ui/Skeleton.jsx'
 const F="'Cairo','Tajawal',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const GLASS_CARD={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
@@ -9,7 +11,6 @@ const PILL_SHADOW='inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22
 const FORM_INPUT={height:42,padding:'0 14px',borderRadius:10,border:'1px solid rgba(255,255,255,.07)',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',color:'var(--tx)',fontFamily:F,fontSize:13,fontWeight:500,outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',width:'100%',boxSizing:'border-box'}
 
 // ═══ Components OUTSIDE main function (prevents re-creation) ═══
-const fS={width:'100%',height:42,padding:'0 14px',border:'1.5px solid rgba(255,255,255,.12)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(255,255,255,.07)',textAlign:'center'}
 const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}
 
 const ArrowIcon=({isOpen})=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.2s',transform:isOpen?'rotate(90deg)':'none',opacity:.7,flexShrink:0}}><polyline points="9 18 15 12 9 6"/></svg>
@@ -24,7 +25,8 @@ const DelBtn=({onClick})=><button onClick={e=>{e.stopPropagation();onClick()}} c
 
 const CopyIcon=()=><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
 
-const CopyBtn=({text,toast,isAr})=><button type="button" onClick={e=>{e.stopPropagation();e.preventDefault();if(!text)return;try{navigator.clipboard.writeText(String(text));toast&&toast(isAr?'تم النسخ':'Copied')}catch{toast&&toast(isAr?'تعذر النسخ':'Copy failed')}}} className="jisr-copy-btn" title={isAr?'نسخ':'Copy'} style={{width:20,height:20,borderRadius:5,border:'none',background:'transparent',color:'rgba(255,255,255,.35)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0,transition:'.15s'}}><CopyIcon/></button>
+const CheckIcon=()=><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+const CopyBtn=({text,toast,isAr})=>{const[copied,setCopied]=useState(false);return <button type="button" onClick={e=>{e.stopPropagation();e.preventDefault();if(!text)return;try{navigator.clipboard.writeText(String(text));setCopied(true);setTimeout(()=>setCopied(false),1200)}catch{}}} title={isAr?'نسخ':'Copy'} onMouseEnter={e=>{if(!copied)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copied)e.currentTarget.style.color='rgba(255,255,255,.35)'}} style={{width:20,height:20,borderRadius:5,border:'none',background:'transparent',color:copied?C.ok:'rgba(255,255,255,.35)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0,transition:'color .15s'}}>{copied?<CheckIcon/>:<CopyIcon/>}</button>}
 
 const BadgeStatus=({v,isAr})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'rgba(255,255,255,.05)',color:v?C.ok:'rgba(255,255,255,.3)'}}>{v?(isAr?'نشطة':'Active'):(isAr?'معطّلة':'Inactive')}</span>
 
@@ -45,70 +47,31 @@ itemName={itemName}
 confirmText={confirmBtn}
 cancelText={isAr?'إلغاء':'Cancel'}/>}
 
-// ═══ Custom Select Dropdown ═══
-function CustomSelect({value,onChange,options,placeholder,style:sx}){
-const[open,setOpen]=useState(false)
-const ref=React.useRef(null)
-const[pos,setPos]=useState({top:0,left:0,width:0})
-const selected=options.find(o=>String(o.v)===String(value))
-React.useEffect(()=>{if(!open)return;const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h)},[open])
-const handleOpen=()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setPos({top:r.bottom+4,left:r.left,width:r.width})};setOpen(!open)}
-return<div ref={ref} style={{position:'relative',...sx}}>
-<div onClick={handleOpen} style={{...fS,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',background:open?'rgba(255,255,255,.1)':'rgba(255,255,255,.07)',borderColor:open?'rgba(212,160,23,.35)':'rgba(255,255,255,.12)'}}>
-<span style={{color:selected?'rgba(255,255,255,.95)':'rgba(255,255,255,.3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,textAlign:'center'}}>{selected?selected.l:placeholder||'— اختر —'}</span>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,transition:'.2s',transform:open?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
+// ═══ Form Popup — generic config-driven add/edit modal (canonical FormKit) ═══
+function FormPopup({title,fields,form,setForm,onSave,onClose,saving,isAr,errorMsg,onClearError}){
+const upd=fn=>{onClearError&&onClearError();setForm(fn)}
+return<FKModal open onClose={onClose} width={560} variant={form._id?'edit':'create'} title={title} Icon={FileText} errorMsg={errorMsg}
+footer={<ActionButton onClick={onSave} disabled={saving}>{saving?'...':(form._id?(isAr?'حفظ':'Save'):(isAr?'إضافة':'Add'))}</ActionButton>}>
+<ModalSection Icon={FileText} label={isAr?'البيانات':'Details'}>
+<div style={GRID}>
+{fields.map(f=>{
+if(f.opts&&f.btn)return<Segmented key={f.k} label={f.l} req={!!f.r} value={String(form[f.k]??'')} onChange={v=>upd(p=>({...p,[f.k]:v}))}
+options={f.opts.map(o=>({v:String(o.v),l:o.l,c:String(o.v)==='true'?C.ok:String(o.v)==='false'?C.red:C.gold}))}/>
+if(f.opts)return<Select key={f.k} label={f.l} req={!!f.r} placeholder={isAr?'— اختر —':'— Select —'}
+value={form[f.k]!=null&&form[f.k]!==''?String(form[f.k]):null} onChange={v=>upd(p=>({...p,[f.k]:v}))}
+options={f.opts} getKey={o=>String(o.v)} getLabel={o=>o.l}/>
+if(f.w)return<TextArea key={f.k} label={f.l} req={!!f.r} rows={2} value={form[f.k]} onChange={v=>upd(p=>({...p,[f.k]:v}))}/>
+return<TextField key={f.k} label={f.l} req={!!f.r} value={form[f.k]} onChange={v=>upd(p=>({...p,[f.k]:v}))}/>
+})}
 </div>
-{open&&<div style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,background:'#252525',border:'1px solid rgba(255,255,255,.15)',borderRadius:10,overflow:'hidden',zIndex:9999,maxHeight:200,overflowY:'auto',boxShadow:'0 12px 32px rgba(0,0,0,.6)'}}>
-{options.map(o=><div key={o.v} onClick={()=>{onChange(String(o.v));setOpen(false)}} style={{padding:'10px 14px',fontSize:13,fontWeight:String(o.v)===String(value)?700:500,color:String(o.v)===String(value)?C.gold:'rgba(255,255,255,.8)',background:String(o.v)===String(value)?'rgba(212,160,23,.08)':'transparent',cursor:'pointer',borderBottom:'1px solid var(--bd2)',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{o.l}{String(o.v)===String(value)&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}</div>)}
-</div>}
-</div>}
-
-// ═══ Form Popup — defined outside to prevent focus loss ═══
-function FormPopup({title,fields,form,setForm,onSave,onClose,saving,isAr}){
-return<FKModal open onClose={onClose} accent={C.gold} width={520} scroll title={title}
-footer={<>
-<button onClick={onClose} style={{height:42,padding:'0 18px',background:'transparent',color:'var(--tx4)',border:'1.5px solid rgba(255,255,255,.1)',borderRadius:10,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>{isAr?'إلغاء':'Cancel'}</button>
-<button onClick={onSave} disabled={saving} style={{...bS,height:42,minWidth:130,opacity:saving?.6:1}}>{saving?'...':(form._id?(isAr?'حفظ':'Save'):(isAr?'إضافة':'Add'))}</button>
-</>}>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-{fields.map(f=><div key={f.k} style={{gridColumn:f.w?'1/-1':undefined}}>
-<div style={{fontSize:12,fontWeight:600,color:'var(--tx3)',marginBottom:5}}>{f.l}{f.r&&<span style={{color:C.red}}> *</span>}</div>
-{f.opts&&f.btn?<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>{f.opts.map(o=>{const on=String(form[f.k])===String(o.v);return<button key={o.v} type="button" onClick={()=>setForm(p=>({...p,[f.k]:o.v}))} style={{flex:1,minWidth:0,height:42,padding:'0 14px',borderRadius:10,border:'1.5px solid '+(on?(o.v==='true'||o.v===true?'rgba(39,160,70,.55)':(o.v==='false'||o.v===false?'rgba(192,57,43,.45)':'rgba(212,160,23,.5)')):'rgba(255,255,255,.1)'),background:on?(o.v==='true'||o.v===true?'rgba(39,160,70,.18)':(o.v==='false'||o.v===false?'rgba(192,57,43,.12)':'rgba(212,160,23,.12)')):'transparent',color:on?(o.v==='true'||o.v===true?'#34c759':(o.v==='false'||o.v===false?'#e06157':C.gold)):'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:on?700:600,cursor:'pointer',transition:'.15s'}}>{o.l}</button>})}</div>:
-f.opts?<CustomSelect value={form[f.k]||''} onChange={v=>setForm(p=>({...p,[f.k]:v}))} options={f.opts} placeholder={isAr?'— اختر —':'— Select —'}/>:
-f.w?<textarea value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} rows={2} style={{...fS,height:'auto',padding:12,resize:'vertical'}}/>:
-<input value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fS}/>}
-</div>)}
-</div>
+</ModalSection>
 </FKModal>}
 
-// ═══ OccupationFormPopup — styled to match KafalaCalculator modal ═══
-const kFS={width:'100%',height:38,padding:'0 14px',border:'1px solid rgba(255,255,255,.05)',borderRadius:9,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx)',outline:'none',background:'rgba(0,0,0,.18)',boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',textAlign:'center',transition:'.2s'}
-const KLbl=({children,req})=><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.58)',marginBottom:3,textAlign:'start'}}>{children}{req&&<span style={{color:C.red}}> *</span>}</div>
-const KInp=({value,onChange,placeholder,dir,maxLength,h})=><input value={value||''} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type="text" maxLength={maxLength} style={{...kFS,textAlign:'center',direction:dir||'rtl',...(h?{height:h}:{})}}/>
-function KSelect({value,onChange,options,placeholder,h=44,isAr=true}){
-const[open,setOpen]=useState(false)
-const ref=React.useRef(null)
-const[pos,setPos]=useState({top:0,left:0,width:0})
-const selected=options.find(o=>String(o.v)===String(value))
-useEffect(()=>{if(!open)return;const handler=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener('mousedown',handler);return()=>document.removeEventListener('mousedown',handler)},[open])
-const handleOpen=()=>{if(ref.current){const r=ref.current.getBoundingClientRect();setPos({top:r.bottom+6,left:r.left,width:r.width})}setOpen(o=>!o)}
-return<div ref={ref} style={{position:'relative'}}>
-<div onClick={handleOpen} style={{...kFS,height:h,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,background:open?'rgba(212,160,23,.06)':'rgba(0,0,0,.18)',borderColor:open?'rgba(212,160,23,.45)':'rgba(255,255,255,.05)',transition:'.15s'}}>
-<span style={{color:selected?'rgba(255,255,255,.95)':'rgba(255,255,255,.32)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,textAlign:'center',direction:isAr?'rtl':'ltr'}}>{selected?selected.l:(placeholder||(isAr?'— اختر —':'— Select —'))}</span>
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={open?C.gold:'rgba(212,160,23,.55)'} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,transition:'.2s',transform:open?'rotate(180deg)':'none'}}><polyline points="6 9 12 15 18 9"/></svg>
-</div>
-{open&&<div style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,background:'#1d1d1d',border:'1px solid rgba(212,160,23,.22)',borderRadius:10,overflow:'hidden',zIndex:9999,maxHeight:260,overflowY:'auto',boxShadow:'0 14px 36px rgba(0,0,0,.6)',direction:isAr?'rtl':'ltr'}}>
-{options.length===0?<div style={{padding:'14px',fontSize:12,color:'rgba(255,255,255,.4)',textAlign:'center'}}>{isAr?'لا توجد عناصر':'No items'}</div>:options.map((o,i)=>{const sel=String(o.v)===String(value);return<div key={o.v} onClick={()=>{onChange(String(o.v));setOpen(false)}} onMouseEnter={e=>{if(!sel)e.currentTarget.style.background='rgba(255,255,255,.04)'}} onMouseLeave={e=>{if(!sel)e.currentTarget.style.background='transparent'}} style={{padding:'10px 14px',fontSize:13,fontWeight:sel?700:600,color:sel?C.gold:'rgba(255,255,255,.85)',background:sel?'rgba(212,160,23,.1)':'transparent',cursor:'pointer',borderBottom:i<options.length-1?'1px solid rgba(255,255,255,.04)':'none',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .12s'}}>
-<span style={{flex:1,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{o.l}</span>
-{sel&&<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="20 6 9 17 4 12"/></svg>}
-</div>})}
-</div>}
-</div>
-}
-
+// ═══ OccupationFormPopup — canonical FormKit modal (create=gold · edit=cyan) ═══
 function OccupationFormPopup({form,setForm,onSave,onClose,saving,isAr,sb,toast,onSaved,kind='occupation',regions=[],cities=[],lLists=[],lItems=[],user,natList=[],occupationsList=[]}){
 const [savedFlash,setSavedFlash]=useState(false)
 const [localSaving,setLocalSaving]=useState(false)
+const [saveErr,setSaveErr]=useState(null)
 const [keyTouched,setKeyTouched]=useState(false)
 const [keyError,setKeyError]=useState('')
 const [keyEditing,setKeyEditing]=useState(false)
@@ -140,6 +103,7 @@ savedAdd:isEmb?(isAr?'تم حفظ السفارة':'Embassy saved'):isNat?(isAr?'
 }
 const handleSave=async()=>{
 setLocalSaving(true)
+setSaveErr(null)
 try{
 let nextSortOrder=null
 if(isCat){
@@ -201,155 +165,98 @@ for(const u of updates){await sb.from(tbl).update({sort_order:u.sort_order}).eq(
 }
 setSavedFlash(true)
 setTimeout(()=>{setSavedFlash(false);onSaved&&onSaved();onClose()},1400)
-}catch(e){const msg=(e.message||'').toLowerCase();const dup=msg.includes('duplicate')||msg.includes('unique')||e.code==='23505';const errMsg=e.message||'';const badOccCat=e.code==='23514'&&errMsg.includes('Invalid category_id for occupation');const badNatCat=e.code==='23514'&&errMsg.includes('Invalid category_id for nationality');toast&&toast(badOccCat?(isAr?'فئة المهنة غير صالحة':'Invalid occupation category'):badNatCat?(isAr?'فئة الجنسية غير صالحة':'Invalid nationality category'):dup?(isAr?'الرمز مستخدم مسبقاً':'Code already exists'):((isAr?'خطأ: ':'Error: ')+errMsg.slice(0,80)))}
+}catch(e){const msg=(e.message||'').toLowerCase();const dup=msg.includes('duplicate')||msg.includes('unique')||e.code==='23505';const errMsg=e.message||'';const badOccCat=e.code==='23514'&&errMsg.includes('Invalid category_id for occupation');const badNatCat=e.code==='23514'&&errMsg.includes('Invalid category_id for nationality');setSaveErr(badOccCat?(isAr?'فئة المهنة غير صالحة':'Invalid occupation category'):badNatCat?(isAr?'فئة الجنسية غير صالحة':'Invalid nationality category'):dup?(isAr?'الرمز مستخدم مسبقاً':'Code already exists'):((isAr?'خطأ: ':'Error: ')+errMsg.slice(0,80)))}
 setLocalSaving(false)
 }
 const isSaving=localSaving||saving
-const fieldH=isBank?38:44
 const isStyled=!isBank
-const btn=(val,cur,onClick,label,kind)=>{const on=String(cur)===String(val);const col=kind==='ok'?'#27a046':kind==='err'?'#e06157':C.gold;const bg=kind==='ok'?'rgba(39,160,70,.18)':kind==='err'?'rgba(192,57,43,.12)':'rgba(212,160,23,.12)';const bd=kind==='ok'?'rgba(39,160,70,.55)':kind==='err'?'rgba(192,57,43,.45)':'rgba(212,160,23,.5)';return<button type="button" onClick={onClick} style={{flex:1,height:fieldH,borderRadius:9,border:'1px solid '+(on?bd:'rgba(255,255,255,.05)'),background:on?bg:'rgba(0,0,0,.18)',color:on?col:'rgba(255,255,255,.58)',fontFamily:F,fontSize:13,fontWeight:on?700:600,cursor:'pointer',transition:'.2s'}}>{label}</button>}
-return<FKModal open onClose={onClose} accent={C.gold} width={520} scroll hideHeader>
-<style>{`.occ-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.occ-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.occ-nav-btn:hover .nav-ico{background:#D4A017;color:#000}.occ-nav-btn:hover .nav-ico{transform:translateX(-4px)}.occ-nav-btn:disabled{opacity:.5;cursor:not-allowed}.occ-nav-btn:disabled .nav-ico{background:rgba(212,160,23,.1);color:#D4A017;transform:none}@media(max-width:640px){.ci-form-grid{grid-template-columns:1fr!important;gap:14px!important;row-gap:14px!important}}`}</style>
-<div dir={isAr?'rtl':'ltr'} style={{fontFamily:F,color:'rgba(255,255,255,.85)',display:'flex',flexDirection:'column',height:'100%',overflow:'visible',position:'relative'}}>
-{/* Header */}
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:isStyled?'14px 24px 0':'14px 20px 18px',marginBottom:isStyled?16:0,flexShrink:0,direction:isAr?'rtl':'ltr'}}>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<div style={{width:36,height:36,borderRadius:8,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.2)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold}}>
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-3V5a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><line x1="9" y1="7" x2="15" y2="7"/></svg>
-</div>
-<div style={{fontSize:20,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{form._id?L.edit:L.add}</div>
-</div>
-<button onClick={onClose} style={{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',color:'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-</div>
-{/* Content */}
-<div style={{flex:1,overflow:'visible',padding:isStyled?'0 24px':'6px 16px 10px'}}>
-<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:isStyled?20:'18px 14px 14px',position:'relative',marginTop:isStyled?0:10}}>
-<div style={{position:'absolute',top:-9,[isAr?'right':'left']:14,background:'#1a1a1a',padding:'0 8px',fontSize:12,fontWeight:800,color:C.gold,display:'inline-flex',alignItems:'center',gap:6}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-3V5a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
-<span>{L.info}</span>
-</div>
-{isItem&&form.category_id&&(()=>{const cat=lLists.find(l=>l.id===form.category_id);if(!cat)return null;return<div style={{position:'absolute',top:-12,[isAr?'left':'right']:14,background:'#1a1a1a',padding:'0 4px',display:'inline-flex',alignItems:'center',gap:6,borderRadius:999}}>
-<div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'3px 10px',borderRadius:999,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.3)',fontSize:11,fontWeight:700,color:'rgba(255,255,255,.85)'}}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-<span>{isAr?(cat.name_ar||cat.name_en||''):(cat.name_en||cat.name_ar||'')}</span>
-</div>
-</div>})()}
-{isEmb&&form.nationality_id&&(()=>{const nat=natList.find(n=>n.id===form.nationality_id);if(!nat)return null;return<div style={{position:'absolute',top:-12,[isAr?'left':'right']:14,background:'#1a1a1a',padding:'0 4px',display:'inline-flex',alignItems:'center',gap:6,borderRadius:999}}>
-<div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'3px 10px',borderRadius:999,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.3)',fontSize:11,fontWeight:700,color:'rgba(255,255,255,.85)'}}>
-{nat.flag_url?<img src={nat.flag_url} width={14} height={9} style={{borderRadius:1,objectFit:'cover',flexShrink:0}} alt='' onError={e=>{e.target.style.display='none'}}/>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>}
-<span>{isAr?(nat.name_ar||nat.name_en||''):(nat.name_en||nat.name_ar||'')}</span>
-</div>
-</div>})()}
-{isCity&&form.region_id&&(()=>{const reg=regions.find(r=>r.id===form.region_id);if(!reg)return null;return<div style={{position:'absolute',top:-12,[isAr?'left':'right']:14,background:'#1a1a1a',padding:'0 4px',display:'inline-flex',alignItems:'center',gap:6,borderRadius:999}}>
-<div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'3px 10px',borderRadius:999,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.3)',fontSize:11,fontWeight:700,color:'rgba(255,255,255,.85)'}}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>
-<span>{isAr?(reg.name_ar||reg.name_en||''):(reg.name_en||reg.name_ar||'')}</span>
-</div>
-</div>})()}
-{isDist&&form.city_id&&(()=>{const c=cities.find(x=>x.id===form.city_id);if(!c)return null;const reg=regions.find(r=>r.id===c.region_id);return<div style={{position:'absolute',top:-12,[isAr?'left':'right']:14,background:'#1a1a1a',padding:'0 4px',display:'inline-flex',alignItems:'center',gap:6,borderRadius:999}}>
-<div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'3px 10px',borderRadius:999,background:'rgba(212,160,23,.08)',border:'1px solid rgba(212,160,23,.3)',fontSize:11,fontWeight:700,color:'rgba(255,255,255,.85)'}}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>
-<span>{isAr?(c.name_ar||c.name_en||''):(c.name_en||c.name_ar||'')}{reg?<span style={{color:'rgba(255,255,255,.55)'}}> — {isAr?(reg.name_ar||reg.name_en||''):(reg.name_en||reg.name_ar||'')}</span>:null}</span>
-</div>
-</div>})()}
-<div className={isStyled?'ci-form-grid':''} style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)',gap:isStyled?16:10,rowGap:isStyled?16:10}}>
-{isBank&&<div style={{gridColumn:'1 / span 2'}}>
-<KLbl req>{isAr?'الخانة':'Category'}</KLbl>
-{(()=>{const opts=lLists.map(l=>({v:l.id,l:isAr?(l.name_ar||l.name_en||''):(l.name_en||l.name_ar||'')}));return<KSelect value={form.category_id||''} onChange={v=>setForm(p=>({...p,category_id:v}))} options={opts} placeholder={isAr?'— اختر الخانة —':'— Select category —'} h={fieldH} isAr={isAr}/>})()}
-</div>}
-{isBank&&<div style={{gridColumn:'1 / span 2'}}>
-<KLbl>{isAr?'نوع البنك':'Bank Type'}</KLbl>
-{(()=>{const bl=lLists.find(l=>l.category_key==='bank_type');const opts=bl?lItems.filter(i=>i.category_id===bl.id).map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en||''):(i.value_en||i.value_ar||'')})):[];return<KSelect value={form.type_id||''} onChange={v=>setForm(p=>({...p,type_id:v}))} options={opts} placeholder={isAr?'— اختر النوع —':'— Select type —'} h={fieldH} isAr={isAr}/>})()}
-</div>}
-<div>
-<KLbl req>{L.nameArLabel}</KLbl>
-<KInp value={form.name_ar} onChange={v=>setForm(p=>({...p,name_ar:v.replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g,'')}))} placeholder={L.nameArPh} h={fieldH}/>
-</div>
-<div>
-<KLbl req={isStyled&&!isOcc}>{L.nameEnLabel}</KLbl>
-<KInp value={form.name_en} onChange={v=>{const clean=v.replace(/[^a-zA-Z\s'\-().]/g,'');setForm(p=>({...p,name_en:clean,...((isStyled&&!keyTouched)?{code:slugify(clean)}:{})}));if(isStyled&&!keyTouched)setKeyError('')}} placeholder={L.nameEnPh} dir="ltr" h={fieldH}/>
-</div>
-<div>
-<KLbl req={isCat||isOcc||isNat||isEmb||isItem}>{isCat?(isAr?'مفتاح الخانة':'Category Key'):(isAr?'الرمز':'Code')}</KLbl>
-{isStyled?((form._id||!keyEditing)?
-<div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:'rgba(0,0,0,.18)',borderRadius:9,border:'1px solid rgba(255,255,255,.05)',height:fieldH,minHeight:fieldH,boxSizing:'border-box',boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',overflow:'hidden'}}>
-<span style={{fontSize:13,fontFamily:'monospace',fontWeight:600,color:form.code?'rgba(255,255,255,.55)':'rgba(255,255,255,.28)',direction:'ltr',flex:1,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>{form.code||(isAr?'— المفتاح —':'— key —')}</span>
+const codeRequired=isCat||isOcc||isNat||isEmb||isItem
+const canSave=!(isSaving||!form.name_ar||(isStyled&&!isOcc&&!form.name_en)||(codeRequired&&!form.code)||(isCity&&!form.region_id)||(isDist&&!form.city_id)||((isItem||isBank||isOcc||isNat)&&!form.category_id)||(isEmb&&!form.nationality_id)||(isStyled&&!!keyError))
+const KindIcon=isEmb?Landmark:isNat?Flag:isGeo?MapPin:isBank?Banknote:isLookup?Tag:Briefcase
+const ctxSubtitle=(()=>{
+if(isItem&&form.category_id){const cat=lLists.find(l=>l.id===form.category_id);return cat?(isAr?(cat.name_ar||cat.name_en||''):(cat.name_en||cat.name_ar||'')):''}
+if(isEmb&&form.nationality_id){const nat=natList.find(n=>n.id===form.nationality_id);return nat?(isAr?(nat.name_ar||nat.name_en||''):(nat.name_en||nat.name_ar||'')):''}
+if(isCity&&form.region_id){const reg=regions.find(r=>r.id===form.region_id);return reg?(isAr?(reg.name_ar||reg.name_en||''):(reg.name_en||reg.name_ar||'')):''}
+if(isDist&&form.city_id){const ct=cities.find(x=>x.id===form.city_id);if(!ct)return'';const reg=regions.find(r=>r.id===ct.region_id);const cn=isAr?(ct.name_ar||ct.name_en||''):(ct.name_en||ct.name_ar||'');return reg?cn+' — '+(isAr?(reg.name_ar||reg.name_en||''):(reg.name_en||reg.name_ar||'')):cn}
+return ''
+})()
+const checkDupOnBlur=async()=>{const v=(form.code||'').trim();if(!v||!/^[a-z][a-z0-9_]*$/.test(v))return;let dupTable=null,dupField='code',extraEq=null,errMsg=isAr?'هذا الرمز مستخدم مسبقاً':'Code already in use';if(isCat){dupTable='lookup_categories';dupField='category_key';errMsg=isAr?'هذا المفتاح مستخدم مسبقاً':'This key is already in use'}else if(isItem&&form.category_id){dupTable='lookup_items';extraEq=['category_id',form.category_id];errMsg=isAr?'هذا الرمز مستخدم في نفس الخانة':'Code already used in this category'}else if(isOcc)dupTable='occupations';else if(isNat)dupTable='nationalities';else if(isEmb)dupTable='embassies';else if(isReg)dupTable='regions';else if(isCity&&form.region_id){dupTable='cities';extraEq=['region_id',form.region_id];errMsg=isAr?'هذا الرمز مستخدم في نفس المنطقة':'Code already used in this region'}else if(isDist&&form.city_id){dupTable='districts';extraEq=['city_id',form.city_id];errMsg=isAr?'هذا الرمز مستخدم في نفس المدينة':'Code already used in this city'}if(!dupTable)return;let qb=sb.from(dupTable).select('id').eq(dupField,v);if(extraEq)qb=qb.eq(extraEq[0],extraEq[1]);const{data}=await qb.maybeSingle();if(data&&data.id!==form._id)setKeyError(errMsg)}
+const codeLabel=isCat?(isAr?'مفتاح الخانة':'Category Key'):(isAr?'الرمز':'Code')
+const codeHint=isAr?'أحرف إنجليزية صغيرة وأرقام و _ فقط':'Lowercase letters, digits and _ only'
+const nameArField=<TextField label={L.nameArLabel} req value={form.name_ar} onChange={v=>{setSaveErr(null);setForm(p=>({...p,name_ar:v.replace(/[^؀-ۿݐ-ݿࢠ-ࣿ\s]/g,'')}))}} placeholder={L.nameArPh}/>
+const nameEnField=<TextField label={L.nameEnLabel} req={isStyled&&!isOcc} dir="ltr" value={form.name_en} onChange={v=>{setSaveErr(null);const clean=v.replace(/[^a-zA-Z\s'\-().]/g,'');setForm(p=>({...p,name_en:clean,...((isStyled&&!keyTouched)?{code:slugify(clean)}:{})}));if(isStyled&&!keyTouched)setKeyError('')}} placeholder={L.nameEnPh}/>
+const codeField=!isStyled
+?<TextField label={codeLabel} dir="ltr" value={form.code} onChange={v=>setForm(p=>({...p,code:v}))} placeholder={L.codePh}/>
+:(form._id||!keyEditing)
+?<Field label={codeLabel} req={codeRequired}>
+<div style={{display:'flex',alignItems:'center',gap:8,padding:'0 10px',height:42,borderRadius:9,background:FKC.inputBg,boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',boxSizing:'border-box',overflow:'hidden'}}>
+<span style={{fontSize:13,fontFamily:'monospace',fontWeight:600,color:form.code?FKC.tx3:FKC.tx5,direction:'ltr',flex:1,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>{form.code||(isAr?'— المفتاح —':'— key —')}</span>
 {!form._id&&<button type="button" onClick={()=>setKeyEditing(true)} title={isAr?'تعديل':'Edit key'} style={{width:28,height:26,borderRadius:6,border:'1px dashed rgba(212,160,23,.45)',background:'transparent',color:'rgba(212,160,23,.85)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
 </button>}
 </div>
-:<>
-<input value={form.code||''} onChange={e=>{const clean=e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,'');setKeyTouched(true);setForm(p=>({...p,code:clean}));const codeRequired=isCat||isOcc||isNat||isEmb||isItem;if(!clean)setKeyError(codeRequired?(isAr?'هذا الحقل مطلوب':'Required'):'');else if(!/^[a-z][a-z0-9_]*$/.test(clean))setKeyError(isAr?'يجب أن يبدأ بحرف إنجليزي صغير':'Must start with a lowercase letter');else setKeyError('')}} onBlur={async()=>{const v=(form.code||'').trim();if(!v||!/^[a-z][a-z0-9_]*$/.test(v))return;let dupTable=null,dupField='code',extraEq=null,errMsg=isAr?'هذا الرمز مستخدم مسبقاً':'Code already in use';if(isCat){dupTable='lookup_categories';dupField='category_key';errMsg=isAr?'هذا المفتاح مستخدم مسبقاً':'This key is already in use'}else if(isItem&&form.category_id){dupTable='lookup_items';extraEq=['category_id',form.category_id];errMsg=isAr?'هذا الرمز مستخدم في نفس الخانة':'Code already used in this category'}else if(isOcc)dupTable='occupations';else if(isNat)dupTable='nationalities';else if(isEmb)dupTable='embassies';else if(isReg)dupTable='regions';else if(isCity&&form.region_id){dupTable='cities';extraEq=['region_id',form.region_id];errMsg=isAr?'هذا الرمز مستخدم في نفس المنطقة':'Code already used in this region'}else if(isDist&&form.city_id){dupTable='districts';extraEq=['city_id',form.city_id];errMsg=isAr?'هذا الرمز مستخدم في نفس المدينة':'Code already used in this city'}if(!dupTable)return;let qb=sb.from(dupTable).select('id').eq(dupField,v);if(extraEq)qb=qb.eq(extraEq[0],extraEq[1]);const{data}=await qb.maybeSingle();if(data&&data.id!==form._id)setKeyError(errMsg)}} placeholder={L.codePh} dir="ltr" style={{...kFS,textAlign:'center',direction:'ltr',height:fieldH,border:'1px solid '+(keyError?'rgba(192,57,43,.55)':'rgba(255,255,255,.05)')}} autoFocus/>
-<div style={{fontSize:10,color:keyError?'rgba(192,57,43,.85)':'rgba(255,255,255,.35)',marginTop:4,textAlign:'start',direction:isAr?'rtl':'ltr',lineHeight:1.4}}>{keyError||(isAr?'أحرف إنجليزية صغيرة وأرقام و _ فقط':'Lowercase letters, digits and _ only')}</div>
-</>):<KInp value={form.code} onChange={v=>setForm(p=>({...p,code:v}))} placeholder={L.codePh} dir="ltr"/>}
+</Field>
+:<div onBlur={checkDupOnBlur}>
+<TextField label={codeLabel} req={codeRequired} dir="ltr" hint={codeHint} error={keyError} value={form.code} placeholder={L.codePh} onChange={v=>{const clean=v.toLowerCase().replace(/[^a-z0-9_]/g,'');setKeyTouched(true);setForm(p=>({...p,code:clean}));if(!clean)setKeyError(codeRequired?(isAr?'هذا الحقل مطلوب':'Required'):'');else if(!/^[a-z][a-z0-9_]*$/.test(clean))setKeyError(isAr?'يجب أن يبدأ بحرف إنجليزي صغير':'Must start with a lowercase letter');else setKeyError('')}}/>
 </div>
-{isOcc&&<div>
-<KLbl req>{isAr?'فئة المهنة':'Occupation Category'}</KLbl>
-{(()=>{const occCat=lLists.find(l=>l.category_key==='occupation_category');const items=occCat?lItems.filter(i=>i.category_id===occCat.id&&i.is_active!==false).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)):[];const opts=items.map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en||''):(i.value_en||i.value_ar||'')}));return<KSelect value={form.category_id||''} onChange={v=>setForm(p=>({...p,category_id:v}))} options={opts} placeholder={isAr?'— اختر فئة المهنة —':'— Select category —'} h={fieldH} isAr={isAr}/>})()}
-</div>}
-{isNat&&<div>
-<KLbl req>{isAr?'فئة الجنسية':'Nationality Category'}</KLbl>
-{(()=>{const natCat=lLists.find(l=>l.category_key==='nationality_classification');const items=natCat?lItems.filter(i=>i.category_id===natCat.id&&i.is_active!==false).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)):[];const opts=items.map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en||''):(i.value_en||i.value_ar||'')}));return<KSelect value={form.category_id||''} onChange={v=>setForm(p=>({...p,category_id:v}))} options={opts} placeholder={isAr?'— اختر فئة الجنسية —':'— Select category —'} h={fieldH} isAr={isAr}/>})()}
-</div>}
-{isNat&&<div>
-<KLbl>{isAr?'اسم الدولة بالعربي':'Country (Arabic)'}</KLbl>
-<KInp value={form.country_name_ar} onChange={v=>setForm(p=>({...p,country_name_ar:v}))} placeholder={isAr?'مثال: السعودية':'—'} h={fieldH}/>
-</div>}
-{isNat&&<div>
-<KLbl>{isAr?'اسم الدولة بالإنجليزي':'Country (English)'}</KLbl>
-<KInp value={form.country_name_en} onChange={v=>setForm(p=>({...p,country_name_en:v}))} placeholder="e.g. Saudi Arabia" dir="ltr" h={fieldH}/>
-</div>}
-{isNat&&<div style={{gridColumn:'1 / span 2'}}>
-<KLbl>{isAr?'رابط العلم':'Flag URL'}</KLbl>
-<div style={{display:'flex',alignItems:'center',gap:10}}>
-<input value={form.flag_url||''} onChange={e=>setForm(p=>({...p,flag_url:e.target.value}))} placeholder="https://flagcdn.com/w320/sa.png" dir="ltr" style={{...kFS,flex:1,textAlign:'center',direction:'ltr',height:fieldH}}/>
-<div style={{width:44,height:fieldH,borderRadius:8,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
-{form.flag_url?<img src={form.flag_url} alt="" style={{width:32,height:22,objectFit:'cover',borderRadius:2}} onError={e=>{e.target.style.display='none';e.target.nextSibling&&(e.target.nextSibling.style.display='flex')}}/>:null}
-<div style={{display:form.flag_url?'none':'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,.25)'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div>
-</div>
-</div>
-</div>}
-{isStyled&&isGM&&<div>
-<KLbl req>{isAr?'حماية من الحذف':'Deletion Protection'}</KLbl>
-<div style={{display:'flex',gap:8}}>
-{btn('true',form.is_system,()=>setForm(p=>({...p,is_system:'true'})),isAr?'نعم':'Yes','ok')}
-{btn('false',form.is_system,()=>setForm(p=>({...p,is_system:'false'})),isAr?'لا':'No','err')}
-</div>
-</div>}
-{!isCat&&!isItem&&<div>
-<KLbl>{isAr?'الترتيب':'Sort Order'}</KLbl>
-<KInp value={form.sort_order} onChange={v=>setForm(p=>({...p,sort_order:v.replace(/\D/g,'')}))} placeholder="0" dir="ltr" h={fieldH}/>
-</div>}
-{isBank&&<div>
-<KLbl>{isAr?'الحالة':'Status'}</KLbl>
-<div style={{display:'flex',gap:8}}>
-{btn('true',form.is_active,()=>setForm(p=>({...p,is_active:'true'})),isAr?'نشط':'Active','ok')}
-{btn('false',form.is_active,()=>setForm(p=>({...p,is_active:'false'})),isAr?'معطّل':'Inactive','err')}
-</div>
-</div>}
-</div>
-{isStyled&&form._id&&(form.created_at||form.updated_at)&&(()=>{const fmt=(iso)=>{if(!iso)return'';const d=new Date(iso);const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`};return<div style={{marginTop:16,paddingTop:12,borderTop:'1px dashed rgba(255,255,255,.06)',display:'flex',justifyContent:'center',gap:18,fontSize:10,color:'rgba(255,255,255,.4)',flexWrap:'wrap',fontWeight:500}}>
+const sortField=(!isCat&&!isItem)?<TextField label={isAr?'الترتيب':'Sort Order'} dir="ltr" value={form.sort_order} onChange={v=>setForm(p=>({...p,sort_order:v.replace(/\D/g,'')}))} placeholder="0"/>:null
+const isSystemField=(isStyled&&isGM)?<Segmented label={isAr?'حماية من الحذف':'Deletion Protection'} req value={String(form.is_system)} onChange={v=>setForm(p=>({...p,is_system:v}))} options={[{v:'true',l:isAr?'نعم':'Yes',c:C.ok},{v:'false',l:isAr?'لا':'No',c:C.red}]}/>:null
+const catSelect=isOcc?(()=>{const occCat=lLists.find(l=>l.category_key==='occupation_category');const items=occCat?lItems.filter(i=>i.category_id===occCat.id&&i.is_active!==false).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)):[];const opts=items.map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en||''):(i.value_en||i.value_ar||'')}));return<Select label={isAr?'فئة المهنة':'Occupation Category'} req placeholder={isAr?'— اختر فئة المهنة —':'— Select category —'} value={form.category_id||null} onChange={v=>setForm(p=>({...p,category_id:v}))} options={opts} getKey={o=>o.v} getLabel={o=>o.l}/>})()
+:isNat?(()=>{const natCat=lLists.find(l=>l.category_key==='nationality_classification');const items=natCat?lItems.filter(i=>i.category_id===natCat.id&&i.is_active!==false).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)):[];const opts=items.map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en||''):(i.value_en||i.value_ar||'')}));return<Select label={isAr?'فئة الجنسية':'Nationality Category'} req placeholder={isAr?'— اختر فئة الجنسية —':'— Select category —'} value={form.category_id||null} onChange={v=>setForm(p=>({...p,category_id:v}))} options={opts} getKey={o=>o.v} getLabel={o=>o.l}/>})()
+:null
+const metaDates=(isStyled&&form._id&&(form.created_at||form.updated_at))?(()=>{const fmt=(iso)=>{if(!iso)return'';const d=new Date(iso);const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`};return<div style={{marginTop:14,paddingTop:10,borderTop:'1px dashed rgba(255,255,255,.06)',display:'flex',justifyContent:'center',gap:18,fontSize:10,color:'rgba(255,255,255,.4)',flexWrap:'wrap',fontWeight:500}}>
 {form.created_at&&<span>{isAr?'تم الإنشاء':'Created'}: <span style={{direction:'ltr',fontFamily:'monospace',color:'rgba(255,255,255,.55)'}}>{fmt(form.created_at)}</span></span>}
 {form.updated_at&&<span>{isAr?'آخر تحديث':'Last update'}: <span style={{direction:'ltr',fontFamily:'monospace',color:'rgba(255,255,255,.55)'}}>{fmt(form.updated_at)}</span></span>}
-</div>})()}
+</div>})():null
+const closeAndClear=()=>{setSaveErr(null);onClose&&onClose()}
+const modalCommon={open:true,onClose:closeAndClear,width:560,variant:form._id?'edit':'create',title:form._id?L.edit:L.add,subtitle:ctxSubtitle||undefined,Icon:KindIcon,success:savedFlash?<SuccessView title={form._id?L.savedEdit:L.savedAdd}/>:null}
+if(isNat)return<FKModal {...modalCommon} onSubmit={handleSave} submitting={isSaving} submitLabel={form._id?(isAr?'تعديل':'Update'):(isAr?'إضافة':'Add')}
+pages={[
+{title:isAr?'بيانات الجنسية':'Nationality Info',valid:!!form.name_ar&&!!form.name_en&&!!form.code&&!!form.category_id&&!keyError,content:
+<ModalSection Icon={Flag} label={L.info}>
+<div style={GRID}>
+{nameArField}
+{nameEnField}
+{codeField}
+{catSelect}
 </div>
+</ModalSection>},
+{title:isAr?'بيانات الدولة والإعدادات':'Country & Settings',valid:true,error:saveErr,content:
+<ModalSection Icon={Globe} label={isAr?'بيانات الدولة':'Country Info'}>
+<div style={GRID}>
+<TextField label={isAr?'اسم الدولة بالعربي':'Country (Arabic)'} value={form.country_name_ar} onChange={v=>setForm(p=>({...p,country_name_ar:v}))} placeholder={isAr?'مثال: السعودية':'—'}/>
+<TextField label={isAr?'اسم الدولة بالإنجليزي':'Country (English)'} dir="ltr" value={form.country_name_en} onChange={v=>setForm(p=>({...p,country_name_en:v}))} placeholder="e.g. Saudi Arabia"/>
+<TextField label={isAr?'رابط العلم':'Flag URL'} dir="ltr" value={form.flag_url} onChange={v=>setForm(p=>({...p,flag_url:v}))} placeholder="https://flagcdn.com/w320/sa.png"/>
+<Field label={isAr?'معاينة العلم':'Flag Preview'}>
+<div style={{height:42,borderRadius:9,background:FKC.inputBg,boxShadow:'inset 0 1px 2px rgba(0,0,0,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+{form.flag_url?<img key={form.flag_url} src={form.flag_url} alt="" style={{width:32,height:22,objectFit:'cover',borderRadius:2}} onError={e=>{e.target.style.display='none'}}/>:<span style={{fontSize:12,fontWeight:600,color:FKC.tx5}}>—</span>}
 </div>
-{/* Footer */}
-<div style={{display:'flex',justifyContent:'flex-end',padding:isStyled?'0 24px 14px':'8px 20px 12px',marginTop:isStyled?16:0,flexShrink:0,direction:isAr?'rtl':'ltr'}}>
-<button onClick={handleSave} disabled={isSaving||!form.name_ar||(isStyled&&!isOcc&&!form.name_en)||((isCat||isOcc||isNat||isEmb||isItem)&&!form.code)||(isCity&&!form.region_id)||(isDist&&!form.city_id)||((isItem||isBank||isOcc||isNat)&&!form.category_id)||(isEmb&&!form.nationality_id)||(isStyled&&!!keyError)} className="occ-nav-btn">
-<span>{isSaving?(isAr?'جار الحفظ…':'Saving…'):(form._id?(isAr?'تعديل':'Update'):(isAr?'إضافة':'Add'))}</span>
-<span className="nav-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-</button>
+</Field>
+{isSystemField}
+{sortField}
 </div>
-{/* Saved Flash Overlay */}
-{savedFlash&&<div style={{position:'absolute',inset:0,background:'#1a1a1a',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,zIndex:10,borderRadius:18}}>
-<div style={{width:72,height:72,borderRadius:'50%',background:'rgba(39,160,70,.15)',border:'2px solid rgba(39,160,70,.5)',display:'flex',alignItems:'center',justifyContent:'center',color:'#27a046',animation:'occ-pop .3s ease-out'}}>
-<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+{metaDates}
+</ModalSection>}
+]}/>
+const bankCatSelect=isBank?(()=>{const opts=lLists.map(l=>({v:l.id,l:isAr?(l.name_ar||l.name_en||''):(l.name_en||l.name_ar||'')}));return<Select label={isAr?'الخانة':'Category'} req placeholder={isAr?'— اختر الخانة —':'— Select category —'} value={form.category_id||null} onChange={v=>setForm(p=>({...p,category_id:v}))} options={opts} getKey={o=>o.v} getLabel={o=>o.l}/>})():null
+const bankTypeSelect=isBank?(()=>{const bl=lLists.find(l=>l.category_key==='bank_type');const opts=bl?lItems.filter(i=>i.category_id===bl.id).map(i=>({v:i.id,l:isAr?(i.value_ar||i.value_en||''):(i.value_en||i.value_ar||'')})):[];return<Select label={isAr?'نوع البنك':'Bank Type'} placeholder={isAr?'— اختر النوع —':'— Select type —'} value={form.type_id||null} onChange={v=>setForm(p=>({...p,type_id:v}))} options={opts} getKey={o=>o.v} getLabel={o=>o.l}/>})():null
+const isActiveField=isBank?<Segmented label={isAr?'الحالة':'Status'} value={String(form.is_active)} onChange={v=>setForm(p=>({...p,is_active:v}))} options={[{v:'true',l:isAr?'نشط':'Active',c:C.ok},{v:'false',l:isAr?'معطّل':'Inactive',c:C.red}]}/>:null
+return<FKModal {...modalCommon} errorMsg={saveErr}
+footer={<ActionButton onClick={handleSave} disabled={!canSave}>{isSaving?(isAr?'جار الحفظ…':'Saving…'):(form._id?(isAr?'تعديل':'Update'):(isAr?'إضافة':'Add'))}</ActionButton>}>
+<ModalSection Icon={KindIcon} label={L.info}>
+<div style={GRID}>
+{bankCatSelect}
+{bankTypeSelect}
+{nameArField}
+{nameEnField}
+{codeField}
+{catSelect}
+{isSystemField}
+{sortField}
+{isActiveField}
 </div>
-<div style={{fontSize:16,fontWeight:800,color:'rgba(255,255,255,.95)'}}>{form._id?L.savedEdit:L.savedAdd}</div>
-<style>{`@keyframes occ-pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}`}</style>
-</div>}
-</div>
+{metaDates}
+</ModalSection>
 </FKModal>
 }
 
@@ -368,7 +275,7 @@ const[lLists,setLLists]=useState([]);const[lItems,setLItems]=useState([]);const[
 const[docs,setDocs]=useState([])
 const[loading,setLoading]=useState(false)
 const[q,setQ]=useState('');const[pop,setPop]=useState(null)
-const[form,setForm]=useState({});const[saving,setSaving]=useState(false)
+const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[formErr,setFormErr]=useState(null)
 const[listFilter,setListFilter]=useState('')
 const[occCatFilter,setOccCatFilter]=useState('active')
 const[natCatFilter,setNatCatFilter]=useState('all')
@@ -409,13 +316,13 @@ useEffect(()=>{loadAll()},[loadAll])
 const saveSetting=async(key,val)=>{const{error}=await sb.from('system_settings').update({setting_value:val,updated_at:new Date().toISOString()}).eq('setting_key',key);if(error)toast((isAr?'خطأ: ':'Error: ')+(error.message||'').slice(0,80));else toast(isAr?'تم الحفظ':'Saved')}
 const saveMuqeemCreds=async()=>{const u=(muqeemInputs.username||'').trim();const p=(muqeemInputs.password||'').trim();if(!u||!p){toast(isAr?'املأ الحقلين':'Fill both fields');return}setMuqeemSaving(true);const{error}=await sb.from('muqeem_credentials').upsert({id:'default',username:u,password:p,updated_at:new Date().toISOString(),updated_by:user?.id||null});setMuqeemSaving(false);if(error){toast((isAr?'خطأ: ':'Error: ')+error.message?.slice(0,80));return}setMuqeemCreds({username:u,password:p,updated_at:new Date().toISOString()});setMuqeemEditing(false);setMuqeemShowPw(false);toast(isAr?'تم حفظ بيانات دخول مقيم':'Muqeem credentials saved')}
 const cancelMuqeemEdit=()=>{setMuqeemInputs({username:muqeemCreds.username||'',password:muqeemCreds.password||''});setMuqeemEditing(false);setMuqeemShowPw(false)}
-const saveForm=async()=>{setSaving(true);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
+const saveForm=async()=>{setSaving(true);setFormErr(null);try{const t=form._table;const id=form._id;const d={...form};delete d._table;delete d._id;Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null})
 if(d.is_active!==undefined&&d.is_active!==null)d.is_active=d.is_active==='true'
 if(d.is_system!==undefined&&d.is_system!==null)d.is_system=d.is_system==='true'
 if(d.is_conditional!==undefined&&d.is_conditional!==null)d.is_conditional=d.is_conditional==='true'
 if(id){const{error}=await sb.from(t).update(d).eq('id',id);if(error)throw error;toast(isAr?'تم التعديل':'Updated')}
 else{if(['documents'].includes(t))d.created_by=user?.id;const{error}=await sb.from(t).insert(d);if(error)throw error;toast(isAr?'تمت الإضافة':'Added')}
-setPop(null);loadAll()}catch(e){toast((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setSaving(false)}
+setPop(null);loadAll()}catch(e){setFormErr((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setSaving(false)}
 const confirmDel=async()=>{if(!delTarget)return;const{table,id,cascade}=delTarget
 try{let err=null
 if(table==='documents'){const{error}=await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id);err=error}
@@ -523,8 +430,8 @@ return<div>
 <div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>{mainTab==='fields_group'?(isAr?'إدارة الخانات والمهن والجنسيات والمناطق':'Manage categories, occupations, nationalities & regions'):(isAr?'إدارة البيانات الأساسية والتصنيفات':'Manage core data & categories')}</div>
 </div>
 <button onClick={()=>setShowFormKit(true)} title={isAr?'معرض الفورمات — كل أشكال الحقول والنوافذ الموحّدة':'FormKit gallery'}
-onMouseEnter={e=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background='rgba(212,160,23,.12)'}}
-onMouseLeave={e=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}}
+onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)'}}
+onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}
 style={{height:42,padding:'0 18px',borderRadius:11,background:'transparent',border:'1px dashed rgba(212,160,23,.5)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,whiteSpace:'nowrap',flexShrink:0,transition:'background .15s ease, border-color .15s ease'}}>
 {isAr?'معرض الفورمات':'FormKit'}
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -929,6 +836,7 @@ return<>
 </div>
 <button onClick={()=>{setForm({_table:'lookup_categories',code:'',name_ar:'',name_en:'',is_system:'false',is_active:'true'});setPop('ll')}} style={{...bS,flexShrink:0}}>{isAr?'خانة':'Category'} +</button>
 </div></div>
+{loading&&lLists.length===0?<PageSkeleton variant="list" listRows={7}/>:
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد خانات':'No categories'}</div>:<>
 {filtered.map((ll,idx)=>{const cActive=ll.is_active!==false;const toggleCat=async()=>{const next=!cActive;setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:next}:o));const{error}=await sb.from('lookup_categories').update({is_active:next}).eq('id',ll.id);if(error){setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:cActive}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const li2=lItems.filter(i=>i.category_id===ll.id);const itemsKey='ll_'+ll.id;const itemsOpen=!!open[itemsKey]||(q&&catMatchChild.has(ll.id));const isBnk=ll.category_key==='bank_name';const addItem=()=>{setForm({_table:'lookup_items',category_id:ll.id,name_ar:'',name_en:'',code:'',is_active:'true',is_system:'false',...(isBnk?{type_id:''}:{})});setPop(isBnk?'bnk':'li')};return<div key={ll.id} style={{borderBottom:'1px solid rgba(255,255,255,.05)'}}>
 <div className="jisr-list-row" role="button" tabIndex={0} draggable={!q} onDragStart={e=>onDragStart(e,idx)} onDragOver={onDragOver} onDrop={e=>onDrop(e,idx)} onClick={()=>toggle(itemsKey)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle(itemsKey)}}} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:itemsOpen?'1px solid rgba(212,160,23,.15)':'none',cursor:q?'default':'pointer',opacity:cActive?1:0.55,flexWrap:'wrap'}}>
@@ -986,7 +894,7 @@ li2.map((it,iIdx)=>{const iActive=it.is_active!==false;const toggleItem=async()=
 </div>
 </div>}
 </div>})}
-</>}</div>
+</>}</div>}
 </>})()}
 
 
@@ -1026,7 +934,7 @@ docs.map((d,i)=><tr key={d.id} style={{borderBottom:'1px solid rgba(255,255,255,
 {pop==='ll'&&<OccupationFormPopup kind="category" user={user} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
 {pop==='li'&&<OccupationFormPopup kind="item" user={user} lLists={lLists} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
 {pop==='bnk'&&<OccupationFormPopup kind="bank" user={user} lLists={lLists} lItems={lItems} form={form} setForm={setForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr} sb={sb} toast={toast} onSaved={loadAll}/>}
-{pop&&!['occ','nat','emb','r','c','di','ll','li','bnk'].includes(pop)&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>setPop(null)} saving={saving} isAr={isAr}/>}
+{pop&&!['occ','nat','emb','r','c','di','ll','li','bnk'].includes(pop)&&popFields[pop]&&<FormPopup title={popTitles[pop]} fields={popFields[pop]} form={form} setForm={setForm} onSave={saveForm} onClose={()=>{setFormErr(null);setPop(null)}} saving={saving} isAr={isAr} errorMsg={formErr} onClearError={()=>setFormErr(null)}/>}
 
 {/* DELETE POPUP */}
 {delTarget&&<DeletePopup isAr={isAr} itemName={delTarget.name} cascadeCount={delTarget.childCount||0} onConfirm={confirmDel} onCancel={()=>setDelTarget(null)}/>}

@@ -39,7 +39,7 @@ export default function BranchObligationsCard({ sb, branch, user, toast, title, 
   const [paysByOb, setPaysByOb] = useState({})     // { obligationId: [payments] }
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(() => new Set())
-  const [copiedId, setCopiedId] = useState(null)   // account number just copied (shows a gold check)
+  const [copiedId, setCopiedId] = useState(null)   // account number just copied (shows a green check)
   const [modal, setModal] = useState(null)         // obligation being added/edited (or {} for new)
 
   const load = useCallback(async () => {
@@ -70,9 +70,9 @@ export default function BranchObligationsCard({ sb, branch, user, toast, title, 
   const badge = (o) => <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: `${accent}1a`, color: accent, border: `1px solid ${accent}33`, flexShrink: 0 }}>{typeMap[o.obligation_type] || 'بند'}</span>
   const copyBtn = (o, color = 'var(--tx4)') => o.account_no ? (
     <button onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(o.account_no); setCopiedId(o.id); setTimeout(() => setCopiedId(c => c === o.id ? null : c), 1500) }} title="نسخ"
-      onMouseEnter={e => { e.currentTarget.style.color = GOLD }}
-      onMouseLeave={e => { e.currentTarget.style.color = copiedId === o.id ? GOLD : color }}
-      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: copiedId === o.id ? GOLD : color, display: 'inline-flex', alignItems: 'center', padding: 2, flexShrink: 0, transition: 'color .15s' }}>
+      onMouseEnter={e => { if (copiedId !== o.id) e.currentTarget.style.color = GOLD }}
+      onMouseLeave={e => { if (copiedId !== o.id) e.currentTarget.style.color = color }}
+      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: copiedId === o.id ? C.ok : color, display: 'inline-flex', alignItems: 'center', padding: 2, flexShrink: 0, transition: 'color .15s' }}>
       {copiedId === o.id ? <Check size={13} strokeWidth={2.8} /> : <Copy size={13} strokeWidth={2} />}
     </button>
   ) : null
@@ -90,8 +90,8 @@ export default function BranchObligationsCard({ sb, branch, user, toast, title, 
           const existing = items[0]
           return (
             <button onClick={() => setModal(existing || {})}
-              onMouseEnter={e => { e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.background = 'transparent' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
               style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               {existing ? 'تعديل' : addLabel}
               {existing
@@ -163,7 +163,7 @@ export default function BranchObligationsCard({ sb, branch, user, toast, title, 
             </div>
           )
         })}
-        {items.length > 0 && <div style={{ fontSize: 10.5, color: 'var(--tx5)', lineHeight: 1.6, marginTop: 2 }}>الدفعات المستحقة خلال 7 أيام تظهر تلقائياً في صفحة «المدفوعات».</div>}
+        {items.length > 0 && <div style={{ fontSize: 10.5, color: 'var(--tx5)', lineHeight: 1.6, marginTop: 2 }}>الدفعات المستحقة خلال 7 أيام تظهر تلقائياً في صفحة «سدادات خارجية».</div>}
       </div>
 
       {modal && (

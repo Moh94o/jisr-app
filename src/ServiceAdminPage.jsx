@@ -1,9 +1,10 @@
 import React,{useState,useEffect,useRef} from 'react'
 import ReactDOM from 'react-dom'
 import BackButton from './components/BackButton'
-import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,HeartPulse,UserCog,Wallet,Plane,PlaneTakeoff,IdCard,Printer,FileStack,Sparkles,Power,PowerOff,Gift,DollarSign,Edit3,ChevronDown,ChevronUp,X,Search,Calendar as CalendarIcon} from 'lucide-react'
+import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,HeartPulse,UserCog,Wallet,Plane,PlaneTakeoff,IdCard,Printer,FileStack,BadgeCheck,Coins,Sparkles,Power,PowerOff,Gift,DollarSign,Edit3,ChevronDown,ChevronUp,X,Search,Building2,Calendar as CalendarIcon} from 'lucide-react'
 import {getSupabase} from './lib/supabase.js'
 import {hydrateSvcAdminFromDb,saveSvcAdminSetting} from './lib/serviceAdminSync.js'
+import {EmptyState,Modal,SuccessView,ActionButton,ModalSection,CurrencyField,NumberField,ScrollBox} from './components/ui/FormKit.jsx'
 
 // Shared Kafala pricing config — drives both the service-request kafala modal AND the Kafala Calculator modal
 export const KAFALA_DEFAULTS={
@@ -25,6 +26,26 @@ export function setKafalaPricingConfig(partial){
   const cur=getKafalaPricingConfig()
   const next={...cur,...partial}
   localStorage.setItem('kafalaPricingConfig',JSON.stringify(next))
+}
+
+// ─── Document types (نوع المستند) — admin-managed list for the «مستندات» service ───
+// Stored as [{value, label}]. `value` is an opaque stable key kept in saved records;
+// `label` is the Arabic name shown in the dropdown and can be renamed freely.
+export const DOC_TYPE_DEFAULTS=[
+  {value:'commercial_register',label:'السجل التجاري'},
+  {value:'resident_file',label:'ملف مقيم'},
+]
+export function getDocTypes(){
+  try{const r=JSON.parse(localStorage.getItem('docTypesConfig')||'null');return Array.isArray(r)&&r.length?r.filter(d=>d&&d.value):DOC_TYPE_DEFAULTS}catch{return DOC_TYPE_DEFAULTS}
+}
+export function setDocTypes(list){localStorage.setItem('docTypesConfig',JSON.stringify(list))}
+export const docTypeLabel=v=>{const f=getDocTypes().find(d=>d.value===v);return f?f.label:v}
+// Slug a label into a unique opaque value (allows Arabic letters); appends a counter on collision.
+export function makeDocTypeValue(label,existing=[]){
+  const base='dt_'+String(label||'').trim().toLowerCase().replace(/\s+/g,'_').replace(/[^\w؀-ۿ]/g,'')||'dt'
+  let v=base,i=2;const taken=new Set(existing.map(d=>d.value))
+  while(taken.has(v)){v=base+'_'+i;i++}
+  return v
 }
 
 const F=`'Cairo','Tajawal',sans-serif`
@@ -138,21 +159,23 @@ function DateInput({value,onChange,disabled,readOnly,style}){
 }
 
 const ALL_SERVICES=[
-{id:'work_visa_permanent',name_ar:'تأشيرة عمل (دائمة)',Icon:CalendarRange,defaultBillable:true,group:'main'},
-{id:'work_visa_temporary',name_ar:'تأشيرة عمل (مؤقتة)',Icon:CalendarClock,defaultBillable:true,group:'main'},
+{id:'work_visa_permanent',name_ar:'تأشيرة وإقامة دائمة',Icon:CalendarRange,defaultBillable:true,group:'main'},
+{id:'work_visa_temporary',name_ar:'تأشيرة وإقامة مؤقتة',Icon:CalendarClock,defaultBillable:true,group:'main'},
 {id:'kafala_transfer',name_ar:'حسبة التنازل',Icon:ArrowLeftRight,defaultBillable:true,group:'main'},
 {id:'iqama_renewal',name_ar:'تجديد الإقامة',Icon:RefreshCw,defaultBillable:true,group:'main'},
 {id:'ajeer_contract',name_ar:'عقد أجير',Icon:Users,defaultBillable:true,group:'main'},
 {id:'chamber_certification',name_ar:'الغرفة التجارية',Icon:FileCheck,defaultBillable:true,group:'main'},
 {id:'medical_insurance',name_ar:'تأمين طبي',Icon:HeartPulse,defaultBillable:true,group:'other'},
 {id:'profession_change',name_ar:'تغيير المهنة',Icon:UserCog,defaultBillable:true,group:'other'},
+{id:'external_transfer_approval',name_ar:'الموافقة للنقل الخارجي',Icon:BadgeCheck,defaultBillable:false,group:'other'},
 {id:'name_translation',name_ar:'تعديل الراتب',Icon:Wallet,defaultBillable:false,group:'other'},
 {id:'exit_reentry_visa',name_ar:'إصدار / تمديد تأشيرة خروج وعودة',Icon:Plane,defaultBillable:true,group:'other'},
-{id:'final_exit_visa',name_ar:'خروج نهائي / بلاغ تغيب',Icon:PlaneTakeoff,defaultBillable:true,group:'other'},
+{id:'final_exit_visa',name_ar:'خروج نهائي',Icon:PlaneTakeoff,defaultBillable:true,group:'other'},
 {id:'passport_update',name_ar:'تحديث بيانات الجواز',Icon:IdCard,defaultBillable:true,group:'other'},
 {id:'iqama_print',name_ar:'طباعة الإقامة',Icon:Printer,defaultBillable:true,group:'other'},
 {id:'documents',name_ar:'مستندات',Icon:FileStack,defaultBillable:false,group:'other'},
-{id:'custom',name_ar:'عام',Icon:Sparkles,defaultBillable:true,group:'other'}
+{id:'supplier_payroll',name_ar:'طلب رواتب سبلاير',Icon:Coins,defaultBillable:false,group:'other'},
+{id:'custom',name_ar:'خدمة عامة',Icon:Sparkles,defaultBillable:true,group:'other'}
 ]
 
 // ── Kafala pricing sections (grouped for editor UI) ──
@@ -263,10 +286,6 @@ return svc?.defaultBillable!==false
 // Any unset key falls back to the global service default above.
 const BRANCH_STORAGE_KEY='jisr_branch_overrides'
 export function getBranchOverrides(){try{return JSON.parse(localStorage.getItem(BRANCH_STORAGE_KEY)||'{}')}catch{return{}}}
-function writeBranchOverrides(next){
-  localStorage.setItem(BRANCH_STORAGE_KEY,JSON.stringify(next))
-  saveSvcAdminSetting(BRANCH_STORAGE_KEY,next).catch(e=>console.warn('[svcAdminSync] save branch overrides failed',e))
-}
 
 export function isServiceActiveFor(svcId,branchId){
   if(!branchId)return isServiceActive(svcId)
@@ -337,6 +356,45 @@ const [priceBranchCtx,setPriceBranchCtx]=useState(null)
 const startEditPrice=()=>{setPriceSnapshot({...priceState});setIsPriceEditable(true)}
 const cancelEditPrice=()=>{if(priceSnapshot)setPriceState(priceSnapshot);setPriceSnapshot(null);setIsPriceEditable(false)}
 const savePriceAndLock=(id)=>{savePrice(id);setPriceSnapshot(null);if(!priceBranchCtx)setIsPriceEditable(false)}
+// ── Default-pricing edit modal (non-kafala simple services) — the card stays a read-only view;
+//    editing happens in a popup so saved values are confirmed via an in-modal SuccessView, not just a toast.
+const [priceSaved,setPriceSaved]=useState(false)
+const openPriceModal=()=>{setPriceSnapshot({...priceState});setPriceSaved(false);setIsPriceEditable(true)}
+const closePriceModal=()=>{if(!priceSaved&&priceSnapshot)setPriceState(priceSnapshot);setPriceSnapshot(null);setPriceSaved(false);setIsPriceEditable(false)}
+const submitPriceModal=(id)=>{
+  const normalized={}
+  Object.entries(priceState).forEach(([k,v])=>{if(typeof v==='string'&&v!==''&&/^\d+(\.\d+)?$/.test(v))normalized[k]=Number(v);else normalized[k]=v})
+  setPricing(id,normalized)
+  setPriceSnapshot(null)
+  setPriceSaved(true)
+}
+// ── Per-branch override wizard modal (simple services) — 2 steps: pick branch(es) → set price.
+//    Same FormKit popup as the default-price edit; replaces the inline override editor for simple svcs.
+const [ovModal,setOvModal]=useState(null)      // svcId or null
+const [ovBranchIds,setOvBranchIds]=useState([])// selected branches
+const [ovPricing,setOvPricing]=useState({})    // draft pricing for the override
+const [ovSaved,setOvSaved]=useState(false)
+const openOvModal=(svcId,branchId=null)=>{
+  setOvBranchIds(branchId?[branchId]:[])
+  setOvPricing({...((branchId?getPricingFor(svcId,branchId):getPricing(svcId))||{})})
+  setOvSaved(false)
+  setOvModal(svcId)
+}
+const closeOvModal=()=>{setOvModal(null);setOvSaved(false);setOvBranchIds([]);setOvPricing({})}
+const submitOvModal=(svcId)=>{
+  const vals={}
+  ;(PRICING_SCHEMA[svcId]?.fields||[]).forEach(f=>{const v=ovPricing[f.k];if(typeof v==='string'&&v!==''&&/^\d+(\.\d+)?$/.test(v))vals[f.k]=Number(v);else if(v!==undefined&&v!=='')vals[f.k]=v})
+  const pricing=diffFromDefault(svcId,vals)
+  ovBranchIds.forEach(bid=>upsertBranchOverride(bid,svcId,{pricing}))
+  setOvSaved(true)
+}
+// ─── Document types editor state (نوع المستند for the «مستندات» service) ───
+const [docTypes,setDocTypesState]=useState(getDocTypes())
+const [newDocLabel,setNewDocLabel]=useState('')
+const persistDocTypes=async(list)=>{setDocTypesState(list);setDocTypes(list);try{await saveSvcAdminSetting('docTypesConfig',list)}catch(e){console.warn('[docTypes] save failed',e)}}
+const addDocType=()=>{const l=newDocLabel.trim();if(!l)return;if(docTypes.some(d=>d.label===l)){toast(T('هذا النوع موجود مسبقاً','This type already exists'));return}persistDocTypes([...docTypes,{value:makeDocTypeValue(l,docTypes),label:l}]);setNewDocLabel('')}
+const renameDocType=(value,label)=>{persistDocTypes(docTypes.map(d=>d.value===value?{...d,label}:d))}
+const removeDocType=(value)=>{persistDocTypes(docTypes.filter(d=>d.value!==value))}
 // Format integer-like value with thousands separators; preserves trailing decimals during typing.
 const fmtThousands=(v)=>{
   if(v===''||v==null)return ''
@@ -351,7 +409,15 @@ useEffect(()=>{
   const sb=getSupabase();if(!sb)return
   sb.from('branches').select('id,branch_code').is('deleted_at',null).order('branch_code').then(({data,error})=>{if(error){console.error('Failed to load branches',error);toast(T('تعذّر تحميل المكاتب','Failed to load branches'))}else setBranches(data||[])})
 },[])
-useEffect(()=>{writeBranchOverrides(branchOverrides)},[branchOverrides])
+// Same guard as the global overrides effect: mirror to localStorage always, but
+// skip the DB push on the initial mount run (and the post-hydration write-back)
+// so a browser's stale local copy never clobbers remote branch overrides.
+const skipNextBranchSync=useRef(true)
+useEffect(()=>{
+  localStorage.setItem(BRANCH_STORAGE_KEY,JSON.stringify(branchOverrides))
+  if(skipNextBranchSync.current){skipNextBranchSync.current=false;return}
+  saveSvcAdminSetting(BRANCH_STORAGE_KEY,branchOverrides).catch(e=>console.warn('[svcAdminSync] save branch overrides failed',e))
+},[branchOverrides])
 const getOverridesForSvc=(svcId)=>{
   const out=[]
   Object.entries(branchOverrides).forEach(([bid,svcs])=>{if(svcs[svcId])out.push({branchId:bid,...svcs[svcId]})})
@@ -525,8 +591,8 @@ const renderInlineOverrideEditor=(svc)=>{
       {/* Footer — نفس أزرار كرت التسعير الافتراضي */}
       {(()=>{
         const ghostBtnStyle=(color,enabled=true)=>({height:32,padding:'0 14px',borderRadius:9,border:`1px dashed ${enabled?color+'80':'rgba(255,255,255,.10)'}`,background:'transparent',color:enabled?color:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:700,cursor:enabled?'pointer':'not-allowed',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'none',transition:'background .15s ease, border-color .15s ease',letterSpacing:'.2px',direction:'rtl'})
-        const onHover=(e,color)=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background=`${color}1f`}
-        const offHover=(e,color)=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}
+        const onHover=(e,color)=>{e.currentTarget.style.background=`${color}1f`}
+        const offHover=(e,color)=>{e.currentTarget.style.background='transparent'}
         const singleSelected=(overrideEditor.branchIds||[]).length===1?overrideEditor.branchIds[0]:null
         const hasExisting=singleSelected&&getOverridesForSvc(svc.id).some(o=>o.branchId===singleSelected)
         return(
@@ -560,10 +626,13 @@ const [editSnapshot,setEditSnapshot]=useState({})// snapshot of priceState taken
 const startEdit=(title)=>{setEditSnapshot(p=>({...p,[title]:{...priceState}}));setEditing(p=>({...p,[title]:true}))}
 const cancelEdit=(title)=>{const snap=editSnapshot[title];if(snap)setPriceState(snap);setEditing(p=>({...p,[title]:false}))}
 const finishEdit=(title)=>setEditing(p=>({...p,[title]:false}))
-// Skip the very first effect run after hydration to avoid pushing the
-// just-fetched value back up — state update from hydration triggers this
-// effect even though nothing in the UI changed.
-const skipNextOverridesSync=useRef(false)
+// Mirror overrides to localStorage on every change, but only push to the DB
+// for genuine user edits. The ref starts `true` so the INITIAL mount run is
+// skipped — otherwise this browser's stale localStorage would be written up to
+// the DB before hydration pulls the authoritative remote value, clobbering
+// changes made on another browser. It is set back to `true` right before the
+// post-hydration setState so that write-back is skipped too.
+const skipNextOverridesSync=useRef(true)
 useEffect(()=>{
   localStorage.setItem(STORAGE_KEY,JSON.stringify(overrides))
   if(skipNextOverridesSync.current){skipNextOverridesSync.current=false;return}
@@ -577,6 +646,7 @@ useEffect(()=>{
   hydrateSvcAdminFromDb().then(()=>{
     if(cancelled)return
     skipNextOverridesSync.current=true
+    skipNextBranchSync.current=true
     setOverrides(getServiceOverrides())
     setBranchOverridesState(getBranchOverrides())
   }).catch(e=>console.warn('[svcAdminSync] hydrate failed',e))
@@ -766,7 +836,7 @@ const SectionHead=({title,badge,isCollapsed,onToggle})=>(
 )
 // Edit button positioned as a "tab" on the top-left border of the section card — sits ON the gold border.
 const EditTab=({onClick})=>(
-  <button type="button" onClick={onClick} title="تعديل" style={{position:'absolute',top:-11,insetInlineEnd:14,height:22,padding:'0 10px',borderRadius:6,border:`1px dashed ${C.gold}`,background:'#1a1a1a',color:C.gold,fontFamily:F,fontSize:10,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,transition:'.15s',zIndex:2}} onMouseEnter={e=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.boxShadow='0 0 0 2px #1a1a1a'}} onMouseLeave={e=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.boxShadow='none'}}>
+  <button type="button" onClick={onClick} title="تعديل" style={{position:'absolute',top:-11,insetInlineEnd:14,height:22,padding:'0 10px',borderRadius:6,border:`1px dashed ${C.gold}`,background:'#1a1a1a',color:C.gold,fontFamily:F,fontSize:10,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,transition:'.15s',zIndex:2}} onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 0 0 2px #1a1a1a'}} onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'}}>
     <Edit3 size={10} strokeWidth={2.4}/>
     <span>تعديل</span>
   </button>
@@ -808,10 +878,13 @@ const renderMedicalBrackets=()=>{
   </div>
 }
 
-const renderPriceEditor=(s)=>{
+const renderPriceEditor=(s,opts={})=>{
 const sch=PRICING_SCHEMA[s.id]
 if(!sch)return<div style={{padding:'12px 14px',background:'rgba(255,255,255,.02)',borderRadius:8,fontSize:11,color:'var(--tx5)',textAlign:'center'}}>لا يوجد تسعير ثابت لهذه الخدمة — يُحسب ديناميكياً</div>
 const isKafala=s.id==='kafala_transfer'
+// `editable` gates the editable inputs. opts.readOnly forces the pure view (the card);
+// the modal opens the editable copy. opts.inModal hides the inline save bar (the modal footer owns it).
+const editable=opts.readOnly?false:isPriceEditable
 const secHead={fontSize:11,fontWeight:800,color:C.gold,padding:'4px 8px',borderRight:`2px solid ${C.gold}55`,marginBottom:2}
 const secNote={fontSize:10,color:'rgba(255,255,255,.5)',marginBottom:6,paddingRight:12}
 return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'column',gap:22}}>
@@ -1256,7 +1329,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
         const tv=priceState[totalField.k]
         const onPriceChange=e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[totalField.k]:v}))}
         const heroUnit=<span style={{fontSize:12,color:'var(--tx4)',fontWeight:700,minWidth:64,textAlign:'center'}}>{totalField.sfx}</span>
-        const heroValue=(fs,h,align)=>isPriceEditable
+        const heroValue=(fs,h,align)=>editable
           ?<input type="text" inputMode="decimal" value={fmtThousands(tv??'')} onChange={onPriceChange} placeholder={String(totalField.d)}
             style={{flex:1,minWidth:0,height:h,padding:'0 14px',border:'1px solid rgba(212,160,23,.35)',borderRadius:11,fontFamily:F,fontSize:Math.min(fs,22),fontWeight:800,color:C.gold,outline:'none',background:'rgba(0,0,0,.30)',textAlign:align==='start'?'left':align,boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}/>
           :<div style={{flex:1,minWidth:0,height:h,display:'flex',alignItems:'center',justifyContent:align==='center'?'center':align==='start'?'flex-start':'flex-end',fontSize:fs,fontWeight:800,color:C.gold,fontVariantNumeric:'tabular-nums',direction:'ltr',letterSpacing:'-.5px'}}>{fmtThousands(tv??totalField.d)}</div>
@@ -1268,7 +1341,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
             {gridFields.map(f=>(
               <div key={f.k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'10px 14px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.06)'}}>
                 <label style={{fontSize:12,fontWeight:600,color:'var(--tx3)',margin:0}}>{f.l}</label>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>{isPriceEditable?minInput(f,13,false):minNum(f,14,C.gold)}<span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',minWidth:60,textAlign:'center'}}>{f.sfx}</span></div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>{editable?minInput(f,13,false):minNum(f,14,C.gold)}<span style={{fontSize:10,fontWeight:700,color:'var(--tx5)',minWidth:60,textAlign:'center'}}>{f.sfx}</span></div>
               </div>
             ))}
           </div>
@@ -1298,18 +1371,18 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
         </div>
       }
       return <div style={{display:'grid',gridTemplateColumns:gridFields.length>=3?'1fr 1fr':'1fr',gap:10}}>
-        {gridFields.map(renderField)}
+        {gridFields.map(f=>renderField(f,!editable))}
       </div>
     })()
 }
 {(() => {
   const ghostBtnStyle=(color)=>({height:32,padding:'0 14px',borderRadius:9,border:`1px dashed ${color}80`,background:'transparent',color,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'none',transition:'background .15s ease, border-color .15s ease',letterSpacing:'.2px',direction:'rtl'})
-  const onHover=(e,color)=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background=`${color}1f`}
-  const offHover=(e,color)=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}
-  return (isKafala||isPriceEditable) ? (
+  const onHover=(e,color)=>{e.currentTarget.style.background=`${color}1f`}
+  const offHover=(e,color)=>{e.currentTarget.style.background='transparent'}
+  return (!opts.inModal&&(isKafala||editable)) ? (
     <div style={{display:'flex',gap:10,justifyContent:'space-between',alignItems:'center',paddingTop:14,borderTop:'1px solid rgba(255,255,255,.06)',marginTop:8,flexWrap:'wrap'}}>
       <span style={{fontSize:11,color:'var(--tx5)',fontWeight:500}}>{isKafala?'كل قسم له زر حفظ مستقل — اضغط "حفظ" عند كل قسم لحفظ تعديلاته':''}</span>
-      {!isKafala&&isPriceEditable&&<div style={{display:'flex',gap:8}}>
+      {!isKafala&&editable&&<div style={{display:'flex',gap:8}}>
         <button type="button" onClick={cancelEditPrice}
           onMouseEnter={e=>onHover(e,'#c0392b')} onMouseLeave={e=>offHover(e,'#c0392b')}
           style={ghostBtnStyle('#c0392b')}>
@@ -1327,6 +1400,79 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
   ) : null
 })()}
 </div>
+}
+
+// A service uses the standard FormKit field layout in the edit modal when its pricing is a
+// simple flat list (no aggregate "total" footer field, no date field) — e.g. الغرفة التجارية.
+// Richer schemas (visas/iqama with a hero total) keep their bespoke editor.
+const isSimplePricing=(svcId)=>{
+  const sch=PRICING_SCHEMA[svcId]
+  return !!sch&&svcId!=='kafala_transfer'&&!sch.fields.some(f=>f._footer||f.t==='date')
+}
+// Edit-modal body in the FormKit format-gallery style — one CurrencyField/NumberField per fee.
+const renderPriceModalBody=(s)=>{
+  const sch=PRICING_SCHEMA[s.id]
+  if(!sch)return null
+  const fields=sch.fields.filter(f=>!f.k?.startsWith('__'))
+  const isMoney=f=>!f.sfx||/ريال/.test(f.sfx)
+  return(
+    <ModalSection Icon={Coins} label={T('الرسوم','Fees')} hint={`${fields.length} ${T('حقل','fields')}`}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
+        {fields.map(f=>isMoney(f)
+          ? <CurrencyField key={f.k} label={f.l} unit={f.sfx||'ريال'}
+              value={priceState[f.k]??''} placeholder={String(f.d)}
+              onChange={v=>setPriceState(p=>({...p,[f.k]:v}))}/>
+          : <NumberField key={f.k} label={f.l} placeholder={String(f.d)}
+              value={priceState[f.k]??''}
+              onChange={v=>setPriceState(p=>({...p,[f.k]:v}))}/>
+        )}
+      </div>
+    </ModalSection>
+  )
+}
+// Override wizard — step 1: branch multi-select (excludes branches that already have an override,
+// except the one currently being edited). Uses the same chip-grid look as the legacy inline editor.
+const renderOvBranchPicker=(svcId)=>{
+  const used=new Set(getOverridesForSvc(svcId).map(o=>o.branchId).filter(b=>!ovBranchIds.includes(b)))
+  const available=branches.filter(b=>!used.has(b.id))
+  const toggle=id=>setOvBranchIds(cur=>cur.includes(id)?cur.filter(x=>x!==id):[...cur,id])
+  return(
+    <ModalSection flex Icon={Building2} label={T('المكاتب','Branches')} hint={ovBranchIds.length?`${ovBranchIds.length} ${T('محدّد','selected')}`:T('اختر مكتباً أو أكثر','pick one or more')}>
+      {available.length===0
+        ? <div style={{padding:24,textAlign:'center',fontSize:12,color:'var(--tx5)',fontWeight:500}}>{T('كل المكاتب لها تخصيص بالفعل','All branches already have an override')}</div>
+        : <ScrollBox fill>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(96px,1fr))',gap:11,padding:'4px 2px 6px 18px'}}>
+              {available.map(b=>{const sel=ovBranchIds.includes(b.id);return(
+                <button key={b.id} type="button" onClick={()=>toggle(b.id)}
+                  style={{height:40,borderRadius:9,border:`1px solid ${sel?C.gold:'rgba(255,255,255,.08)'}`,background:sel?'rgba(212,160,23,.18)':'rgba(255,255,255,.03)',color:C.gold,fontFamily:'monospace',fontSize:13,fontWeight:800,cursor:'pointer',direction:'ltr',transition:'.15s',boxShadow:sel?`0 0 0 1px ${C.gold}33`:'none',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                  {sel&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  <span>{b.branch_code}</span>
+                </button>)})}
+            </div>
+          </ScrollBox>}
+    </ModalSection>
+  )
+}
+// Override wizard — step 2: pricing fields (FormKit format-gallery style), bound to ovPricing.
+const renderOvPricingFields=(svcId)=>{
+  const sch=PRICING_SCHEMA[svcId]
+  if(!sch)return null
+  const fields=sch.fields.filter(f=>!f.k?.startsWith('__'))
+  const isMoney=f=>!f.sfx||/ريال/.test(f.sfx)
+  return(
+    <ModalSection Icon={Coins} label={T('السعر الافتراضي','Default price')} hint={`${fields.length} ${T('حقل','fields')}`}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
+        {fields.map(f=>isMoney(f)
+          ? <CurrencyField key={f.k} label={f.l} unit={f.sfx||'ريال'}
+              value={ovPricing[f.k]??''} placeholder={String(f.d)}
+              onChange={v=>setOvPricing(p=>({...p,[f.k]:v}))}/>
+          : <NumberField key={f.k} label={f.l} placeholder={String(f.d)}
+              value={ovPricing[f.k]??''}
+              onChange={v=>setOvPricing(p=>({...p,[f.k]:v}))}/>
+        )}
+      </div>
+    </ModalSection>
+  )
 }
 
 // Compact row card for the list view — click opens the detail page.
@@ -1530,7 +1676,7 @@ const SVC_LIST_STYLES=(<style>{`
   @media (max-width: 720px){.svc-row-grid{grid-template-columns:1fr;gap:12px}.svc-row-divider{display:none}}
   .svc-section{background:linear-gradient(180deg,#2A2A2A 0%,#222 100%);border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;margin-bottom:14px}
   .svc-section-head{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .svc-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:#fff;letter-spacing:.2px}
+  .svc-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:#D4A017;letter-spacing:.2px}
   .svc-section-body{padding:18px 22px}
   .svc-section-count{padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:10px;font-weight:700;color:var(--tx3)}
 `}</style>)
@@ -1582,10 +1728,10 @@ if(selectedSvc){
               <span style={{width:6,height:6,borderRadius:'50%',background:C.gold,flexShrink:0}}/> التسعير الافتراضي (لكل المكاتب)
             </span>
             <span style={{display:'inline-flex',alignItems:'center',gap:12}}>
-              {s.id!=='kafala_transfer'&&!isPriceEditable&&(
-                <button type="button" onClick={startEditPrice}
-                  onMouseEnter={e=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background='rgba(212,160,23,.12)'}}
-                  onMouseLeave={e=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}}
+              {s.id!=='kafala_transfer'&&(
+                <button type="button" onClick={openPriceModal}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)'}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}
                   style={{height:32,padding:'0 14px',borderRadius:9,background:'transparent',border:'1px dashed rgba(212,160,23,.5)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,transition:'background .15s ease, border-color .15s ease'}}>
                   تعديل
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -1594,11 +1740,59 @@ if(selectedSvc){
             </span>
           </div>
           <div className="svc-section-body" style={{padding:'18px 22px'}}>
-            {renderPriceEditor(s)}
+            {renderPriceEditor(s,{readOnly:true})}
           </div>
         </div>
       )
     })()}
+
+    {/* Section: Document types (only for the «مستندات» service) — admin-managed dropdown options */}
+    {s.id==='documents'&&(
+      <div className="svc-section">
+        <div className="svc-section-head">
+          <span className="svc-section-head-l">
+            <FileStack size={16} color={C.gold} strokeWidth={1.8}/>
+            أنواع المستندات
+            <span className="svc-section-count">{docTypes.length}</span>
+          </span>
+        </div>
+        <div className="svc-section-body" style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{fontSize:11.5,color:'var(--tx5)',fontWeight:500,lineHeight:1.6}}>
+            الأنواع المضافة هنا تظهر في قائمة «نوع المستند» عند إنشاء طلب مستندات.
+          </div>
+          {/* Existing types — rename inline or delete */}
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {docTypes.map(d=>(
+              <div key={d.value} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:11,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.06)'}}>
+                <FileStack size={14} color={C.gold} strokeWidth={2} style={{flexShrink:0,opacity:.8}}/>
+                <input value={d.label} onChange={e=>renameDocType(d.value,e.target.value)}
+                  style={{...FORM_INPUT,height:36,flex:1,fontWeight:600}}/>
+                <button type="button" onClick={()=>removeDocType(d.value)} title="حذف"
+                  style={{width:30,height:30,borderRadius:8,border:'none',background:'rgba(192,57,43,.15)',color:C.red,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}}>
+                  <X size={13} strokeWidth={3}/>
+                </button>
+              </div>
+            ))}
+            {docTypes.length===0&&(
+              <div style={{padding:20,textAlign:'center',color:'var(--tx5)',fontSize:11.5,border:'1px dashed rgba(255,255,255,.08)',borderRadius:10}}>
+                لا توجد أنواع — أضف نوعاً ليظهر في قائمة «نوع المستند»
+              </div>
+            )}
+          </div>
+          {/* Add new type */}
+          <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:4,borderTop:'1px solid rgba(255,255,255,.06)'}}>
+            <input value={newDocLabel} onChange={e=>setNewDocLabel(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addDocType()}}}
+              placeholder="اسم نوع المستند الجديد…" style={{...FORM_INPUT,height:38,flex:1}}/>
+            <button type="button" onClick={addDocType} disabled={!newDocLabel.trim()}
+              style={{height:38,padding:'0 16px',borderRadius:9,border:'1px dashed rgba(212,160,23,.5)',background:'transparent',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:newDocLabel.trim()?'pointer':'not-allowed',opacity:newDocLabel.trim()?1:.5,display:'inline-flex',alignItems:'center',gap:7,whiteSpace:'nowrap'}}>
+              إضافة
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* Section: Per-branch overrides */}
     <div className="svc-section">
@@ -1608,9 +1802,9 @@ if(selectedSvc){
           التخصيصات حسب المكتب
           <span className="svc-section-count">{ovs.length}</span>
         </span>
-        <button type="button" onClick={()=>openOverrideEditor(s.id,null)}
-          onMouseEnter={e=>{e.currentTarget.style.borderStyle='solid';e.currentTarget.style.background='rgba(212,160,23,.12)'}}
-          onMouseLeave={e=>{e.currentTarget.style.borderStyle='dashed';e.currentTarget.style.background='transparent'}}
+        <button type="button" onClick={()=>isSimplePricing(s.id)?openOvModal(s.id,null):openOverrideEditor(s.id,null)}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)'}}
+          onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}
           style={{height:32,padding:'0 14px',borderRadius:9,border:'1px dashed rgba(212,160,23,.5)',background:'transparent',color:C.gold,fontFamily:F,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,transition:'background .15s ease, border-color .15s ease'}}>
           إضافة تخصيص
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1636,7 +1830,7 @@ if(selectedSvc){
               return(
                 <div key={o.branchId} style={{display:'flex',flexDirection:'column',borderRadius:12,background:'rgba(0,0,0,.22)',border:'1px solid rgba(255,255,255,.05)',overflow:'hidden'}}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'9px 11px',background:'rgba(0,0,0,.18)',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-                    <button type="button" onClick={()=>openOverrideEditor(s.id,o.branchId)} title="تعديل" style={{background:'transparent',border:'none',padding:0,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,fontFamily:F,flex:1,minWidth:0,justifyContent:'flex-start'}}>
+                    <button type="button" onClick={()=>isSimplePricing(s.id)?openOvModal(s.id,o.branchId):openOverrideEditor(s.id,o.branchId)} title="تعديل" style={{background:'transparent',border:'none',padding:0,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,fontFamily:F,flex:1,minWidth:0,justifyContent:'flex-start'}}>
                       <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace',fontWeight:800,fontSize:14}}>{code}</span>
                       {aOff&&<span style={{padding:'2px 7px',borderRadius:5,background:'rgba(192,57,43,.15)',border:'1px solid rgba(192,57,43,.35)',color:C.red,fontSize:10,fontWeight:700,display:'inline-flex',alignItems:'center',gap:3}}><PowerOff size={9} strokeWidth={2.8}/>معطّلة</span>}
                       {!aOff&&bDiff&&(o.billable===false
@@ -1671,7 +1865,7 @@ if(selectedSvc){
           </div>
           )
         })()}
-        {overrideEditor&&overrideEditor.svcId===s.id&&renderInlineOverrideEditor(s)}
+        {!isSimplePricing(s.id)&&overrideEditor&&overrideEditor.svcId===s.id&&renderInlineOverrideEditor(s)}
         {ovs.length===0&&!(overrideEditor&&overrideEditor.svcId===s.id)&&(
           <div style={{padding:28,textAlign:'center',color:'var(--tx4)',fontSize:12,border:'1px dashed rgba(255,255,255,.08)',borderRadius:10}}>
             كل المكاتب تستخدم الإعدادات الافتراضية أعلاه — اضغط «إضافة تخصيص» لتغيير الحالة أو السعر لمكتب معين
@@ -1730,6 +1924,42 @@ if(selectedSvc){
     </div>
 
     </div>{/* /grid */}
+
+    {/* Default-pricing edit — popup (the card above stays a read-only view) */}
+    <Modal
+      open={isPriceEditable && s.id!=='kafala_transfer'}
+      onClose={closePriceModal}
+      title="تعديل التسعير الافتراضي"
+      subtitle={isAr?(s.name_ar||s.name_en):(s.name_en||s.name_ar)}
+      Icon={p=>{const Ic=s.Icon||Coins;return <Ic {...p} size={34}/>}}
+      accent={C.gold}
+      width={520}
+      success={priceSaved ? <SuccessView title="تم حفظ التسعيرة" /> : undefined}
+      footer={!priceSaved && (
+        <ActionButton dir="back" color={C.gold} onClick={()=>submitPriceModal(s.id)}>حفظ التسعيرة</ActionButton>
+      )}
+    >
+      {isSimplePricing(s.id) ? renderPriceModalBody(s) : renderPriceEditor(s,{inModal:true})}
+    </Modal>
+
+    {/* Add/edit branch override — 2-step wizard popup (same FormKit modal as default-price edit) */}
+    <Modal
+      open={ovModal===s.id}
+      onClose={closeOvModal}
+      title="تخصيص حسب المكتب"
+      subtitle={isAr?(s.name_ar||s.name_en):(s.name_en||s.name_ar)}
+      Icon={p=>{const Ic=s.Icon||Coins;return <Ic {...p} size={34}/>}}
+      accent={C.gold}
+      width={520}
+      height="min(620px, 92vh)"
+      success={ovSaved ? <SuccessView title="تم حفظ التخصيص" /> : undefined}
+      submitLabel="حفظ التخصيص"
+      onSubmit={()=>submitOvModal(s.id)}
+      pages={[
+        {valid:ovBranchIds.length>0, content:renderOvBranchPicker(s.id)},
+        {content:renderOvPricingFields(s.id)},
+      ]}
+    />
   </div>
 }
 
@@ -1830,7 +2060,7 @@ return<div style={{paddingTop:0,paddingBottom:80,display:'flex',flexDirection:'c
         </div>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
-        {list.length?list.map(s=>renderRow(s)):<div style={{padding:60,textAlign:'center',color:'var(--tx4)',fontSize:13,border:'1px dashed rgba(255,255,255,.08)',borderRadius:14}}>لا توجد نتائج</div>}
+        {list.length?list.map(s=>renderRow(s)):<EmptyState title="لا توجد نتائج" desc="جرّب تعديل البحث أو الفلاتر" />}
       </div>
     </div>
   )
@@ -1853,7 +2083,7 @@ return<div style={{paddingTop:0,paddingBottom:80,display:'flex',flexDirection:'c
         </div>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
-        {list.length?list.map(s=>renderRow(s)):<div style={{padding:60,textAlign:'center',color:'var(--tx4)',fontSize:13,border:'1px dashed rgba(255,255,255,.08)',borderRadius:14}}>لا توجد نتائج</div>}
+        {list.length?list.map(s=>renderRow(s)):<EmptyState title="لا توجد نتائج" desc="جرّب تعديل البحث أو الفلاتر" />}
       </div>
     </div>
   )

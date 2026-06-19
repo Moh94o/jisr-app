@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send } from 'lucide-react'
+import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send, Lock } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
-import { Modal as FKModal } from '../components/ui/FormKit.jsx'
+import { noDash } from '../lib/utils.js'
+import { Modal as FKModal, Select as FKSelect, Flag, ActionButton } from '../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', bg: '#171717', sf: '#1e1e1e', bd: 'rgba(255,255,255,.06)' }
@@ -75,14 +76,25 @@ function daysSinceExpiry(dateStr) {
   return diff > 0 ? diff : 0
 }
 
-const NATIONALITIES = ['يمني', 'مصري', 'باكستاني', 'هندي', 'بنغلاديشي', 'إثيوبي', 'فلبيني', 'سوداني', 'سوري', 'أردني', 'لبناني', 'عراقي', 'فلسطيني', 'إندونيسي', 'سريلانكي', 'نيبالي', 'إريتري', 'أخرى']
+// Nationality options carry an ISO code so the FormKit Select can show a flag (same as «معرض الفورمات»).
+// The form value stays the Arabic name (name_ar) so the submit contract is unchanged.
+const NATIONALITIES = [
+  { code: 'YE', name_ar: 'يمني' }, { code: 'EG', name_ar: 'مصري' }, { code: 'PK', name_ar: 'باكستاني' },
+  { code: 'IN', name_ar: 'هندي' }, { code: 'BD', name_ar: 'بنغلاديشي' }, { code: 'ET', name_ar: 'إثيوبي' },
+  { code: 'PH', name_ar: 'فلبيني' }, { code: 'SD', name_ar: 'سوداني' }, { code: 'SY', name_ar: 'سوري' },
+  { code: 'JO', name_ar: 'أردني' }, { code: 'LB', name_ar: 'لبناني' }, { code: 'IQ', name_ar: 'عراقي' },
+  { code: 'PS', name_ar: 'فلسطيني' }, { code: 'ID', name_ar: 'إندونيسي' }, { code: 'LK', name_ar: 'سريلانكي' },
+  { code: 'NP', name_ar: 'نيبالي' }, { code: 'ER', name_ar: 'إريتري' }, { code: '', name_ar: 'أخرى' },
+]
 const OCCUPATIONS = ['عامل بناء', 'نجار', 'حداد', 'كهربائي', 'سباك', 'دهان', 'مشغل معدات', 'سائق', 'مقاول', 'فني تكييف', 'حارس أمن', 'عامل نظافة', 'بائع', 'موظف إداري', 'أخرى']
 
 // ═══ Shared UI Components — matches register modal style ═══
-const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', boxSizing: 'border-box', textAlign: 'center', transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)' }
-const sFRO = { ...sF, border: '1px solid rgba(255,255,255,.05)', cursor: 'not-allowed' }
+// ستايل الحقل — مطابق لـ FormKit: خلفية مسطّحة غائرة، بلا حدّ، ظل داخلي، وزن 600.
+const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', textAlign: 'center', transition: '.2s', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }
+const sFRO = { ...sF, cursor: 'not-allowed', opacity: .6 }
 
-const Lbl = ({ children, req }) => <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red, marginRight: 2 }}>*</span>}</div>
+// عنوان الحقل — مطابق لـ FormKit: وزن 600، نص أساسي، نجمة حمراء بمسافة.
+const Lbl = ({ children, req }) => <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red }}> *</span>}</div>
 
 const CAPTCHA_TTL = 30
 const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
@@ -165,22 +177,22 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang, min }) => 
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   const isToday = (y, m, d) => today.getFullYear() === y && today.getMonth() === m && today.getDate() === d
   const navBtn = { width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: '.15s' }
-  const POPUP_H = 310, POPUP_W = Math.max(260, anchor.width)
+  const POPUP_H = 320, POPUP_W = Math.max(392, anchor.width)
   const spaceBelow = window.innerHeight - anchor.bottom
   const flipUp = spaceBelow < POPUP_H + 10
   const top = flipUp ? Math.max(8, anchor.top - POPUP_H - 6) : anchor.bottom + 6
   const left = Math.max(8, Math.min(window.innerWidth - POPUP_W - 8, anchor.left + anchor.width/2 - POPUP_W/2))
   return (
-    <div style={{ position: 'fixed', top, left, width: POPUP_W, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
+    <div style={{ position: 'fixed', top, left, width: POPUP_W, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, direction: 'ltr' }}>
         <button type="button" onClick={prevMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--tx)' }}>{(lang === 'en' ? MONTH_NAMES_EN : MONTH_NAMES_AR)[cur.m]} {cur.y}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{(lang === 'en' ? MONTH_NAMES_EN : MONTH_NAMES_AR)[cur.m]} {cur.y}</div>
         <button type="button" onClick={nextMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.4)', marginBottom: 4 }}>
-        {(lang === 'en' ? DAY_ABBR_EN : DAY_ABBR_AR).map(d => <div key={d} style={{ textAlign: 'center', padding: '4px 0' }}>{d}</div>)}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.4)', marginBottom: 6 }}>
+        {(lang === 'en' ? DAY_ABBR_EN : DAY_ABBR_AR).map(d => <div key={d} style={{ textAlign: 'center', padding: '4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d}</div>)}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />
           const s = fmtDate(cur.y, cur.m, d)
@@ -191,7 +203,7 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang, min }) => 
             <button key={i} type="button" disabled={dis} onClick={() => { if (dis) return; onPick(s); onClose() }}
               onMouseEnter={e => { if (!isSel && !dis) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
               onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = isTd ? 'rgba(212,160,23,.04)' : 'transparent' }}
-              style={{ height: 30, borderRadius: 6, border: isTd && !isSel ? `1px solid ${C.gold}55` : '1px solid transparent', background: isSel ? C.gold : (isTd ? 'rgba(212,160,23,.04)' : 'transparent'), color: isSel ? '#000' : (isTd ? C.gold : 'rgba(255,255,255,.8)'), fontFamily: F, fontSize: 10, fontWeight: isSel || isTd ? 800 : 500, cursor: dis ? 'not-allowed' : 'pointer', opacity: dis ? .25 : 1, transition: '.15s', padding: 0 }}>
+              style={{ height: 30, borderRadius: 6, border: isTd && !isSel ? `1px solid ${C.gold}55` : '1px solid transparent', background: isSel ? C.gold : (isTd ? 'rgba(212,160,23,.04)' : 'transparent'), color: isSel ? '#000' : (isTd ? C.gold : 'rgba(255,255,255,.8)'), fontFamily: F, fontSize: 12, fontWeight: isSel || isTd ? 600 : 500, cursor: dis ? 'not-allowed' : 'pointer', opacity: dis ? .25 : 1, transition: '.15s', padding: 0 }}>
               {d}
             </button>
           )
@@ -288,12 +300,12 @@ export const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
   }, [open])
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
-        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>{value || placeholder || '...'}</span>
+      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: value ? 'var(--tx)' : 'var(--tx5)', padding: '0 32px', position: 'relative' }}>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: value ? 600 : 500 }}>{value || placeholder || '...'}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={popRef} className="occ-sel-pop" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
+        <div ref={popRef} className="occ-sel-pop" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
           <div style={{ padding: 10, flexShrink: 0, position: 'relative' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="occ-sel-icon" style={{ position: 'absolute', top: '50%', left: 22, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input value={q} onChange={e => setQ(e.target.value)} placeholder={isAr ? 'ابحث بالاسم...' : 'Search by name...'} autoFocus className="occ-sel-search" style={{ width: '100%', height: 34, padding: '0 34px', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8, background: 'var(--modal-bg)', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
@@ -310,8 +322,8 @@ export const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
                   onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.name_ar}</span>
-                    {o.name_en && <span style={{ fontSize: 14, fontWeight: 400, color: 'rgba(255,255,255,.5)', textAlign: 'center', width: '100%', unicodeBidi: 'plaintext' }}>{o.name_en}</span>}
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.name_ar}</span>
+                    {o.name_en && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.5)', textAlign: 'center', width: '100%', unicodeBidi: 'plaintext' }}>{o.name_en}</span>}
                   </div>
                   {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </div>
@@ -326,7 +338,7 @@ export const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
   )
 }
 
-export const Sel = ({ value, onChange, options, placeholder, maxVisible, searchable, searchPlaceholder, multiple }) => {
+export const Sel = ({ value, onChange, options, placeholder, maxVisible, searchable, searchPlaceholder, multiple, joinSummary }) => {
   const opts = options.map(o => typeof o === 'string' ? { v: o, l: o } : o)
   const selectedSet = useMemo(() => new Set(multiple ? (Array.isArray(value) ? value : []) : []), [multiple, value])
   const isSelected = (v) => multiple ? selectedSet.has(v) : value === v
@@ -334,6 +346,9 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
     if (multiple) {
       const picks = opts.filter(o => !o.divider && selectedSet.has(o.v))
       if (picks.length === 0) return ''
+      // joinSummary: list every chosen label (e.g. «٠، ٢، أكثر من ١٠») instead of
+      // the «first +N» overflow form, which reads ambiguously for numeric options.
+      if (joinSummary) return picks.map(p => p.l).join('، ')
       if (picks.length === 1) return picks[0].l
       return `${picks[0].l} +${picks.length - 1}`
     }
@@ -412,12 +427,12 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
   }, [open])
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: selectedLabel ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${open ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.08)'}`, padding: '0 32px', position: 'relative' }}>
-        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>{selectedLabel || placeholder || '...'}</span>
+      <button ref={btnRef} type="button" onClick={toggle} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: selectedLabel ? 'var(--tx)' : 'var(--tx5)', padding: '0 32px', position: 'relative' }}>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: selectedLabel ? 600 : 500 }}>{selectedLabel || placeholder || '...'}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
+        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
           <style>{`.sel-pop-scroll{scrollbar-width:none;-ms-overflow-style:none}.sel-pop-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
           {searchable && (
             <div style={{ padding: 6, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.18)', position: 'relative', flexShrink: 0 }}>
@@ -457,7 +472,7 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
                   onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.l}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.l}</span>
                     {o.sub && <span style={{ fontSize: 11, fontWeight: 500, color: isSel ? 'rgba(212,160,23,.7)' : 'var(--tx4)', textAlign: 'center', width: '100%', direction: 'ltr', fontVariantNumeric: 'tabular-nums', whiteSpace: 'pre-line', lineHeight: 1.4 }}>{typeof o.sub === 'function' ? o.sub(isSel) : o.sub}</span>}
                   </div>
                   {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
@@ -480,11 +495,11 @@ const ToggleGroup = ({ options, value, onChange, disabled, height = 36 }) => (
       return (
         <button key={String(o.v)} type="button" disabled={disabled} onClick={() => !disabled && onChange(o.v)} style={{
           flex: 1, borderRadius: 9, border: `1.5px solid ${sel ? clr : 'rgba(255,255,255,.07)'}`,
-          background: sel ? `linear-gradient(180deg, ${clr}22 0%, ${clr}0a 100%)` : 'linear-gradient(180deg,#2C2C2C 0%,#222 100%)',
+          background: sel ? `linear-gradient(180deg, ${clr}22 0%, ${clr}0a 100%)` : 'rgba(0,0,0,.18)',
           color: sel ? clr : 'var(--tx3)',
-          fontFamily: F, fontSize: 14, fontWeight: sel ? 700 : 500,
+          fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500,
           cursor: disabled ? 'not-allowed' : 'pointer', transition: '.18s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-          boxShadow: sel ? `inset 0 1px 0 ${clr}26` : '0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)',
+          boxShadow: sel ? `inset 0 1px 0 ${clr}26` : 'inset 0 1px 2px rgba(0,0,0,.2)',
           opacity: disabled && !sel ? 0.4 : 1
         }}>
           <span>{o.l}</span>
@@ -502,14 +517,14 @@ const YesNo = ({ value, onChange, lang, disabled, height }) => (
   ]} />
 )
 
-const KCard = ({ Icon, label, hint, children, span }) => (
-  <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '12px 14px 10px', position: 'relative', transition: '.2s' }}>
-    <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      {Icon && <Icon size={11} strokeWidth={2.2} />}
+const KCard = ({ Icon, label, hint, children, span, style, bodyStyle }) => (
+  <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '12px 14px 10px', position: 'relative', transition: '.2s', ...style }}>
+    <div style={{ position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      {Icon && <Icon size={12} strokeWidth={2.2} />}
       <span>{label}</span>
       {hint && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.4)', marginInlineStart: 4 }}>· {hint}</span>}
     </div>
-    <div>{children}</div>
+    <div style={bodyStyle}>{children}</div>
   </div>
 )
 
@@ -520,18 +535,18 @@ const RenewalPill = ({ selected, onClick, children, flex }) => (
       height: 36,
       borderRadius: 10,
       border: `1.5px solid ${selected ? C.gold : 'rgba(255,255,255,.07)'}`,
-      background: selected ? 'linear-gradient(180deg, rgba(212,160,23,.18) 0%, rgba(212,160,23,.06) 100%)' : 'linear-gradient(180deg,#2C2C2C 0%,#222 100%)',
+      background: selected ? 'linear-gradient(180deg, rgba(212,160,23,.18) 0%, rgba(212,160,23,.06) 100%)' : 'rgba(0,0,0,.18)',
       color: selected ? C.gold : 'rgba(255,255,255,.65)',
       fontFamily: F,
       fontSize: 14,
-      fontWeight: selected ? 700 : 500,
+      fontWeight: selected ? 600 : 500,
       cursor: 'pointer',
       transition: '.18s',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 4,
-      boxShadow: selected ? 'inset 0 1px 0 rgba(212,160,23,.22)' : '0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)'
+      boxShadow: selected ? 'inset 0 1px 0 rgba(212,160,23,.22)' : 'inset 0 1px 2px rgba(0,0,0,.2)'
     }}
     onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)'; e.currentTarget.style.color = 'rgba(255,255,255,.85)' } }}
     onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'rgba(255,255,255,.65)' } }}>
@@ -603,6 +618,15 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   })
   const HRSD_MAX_ATTEMPTS = 3
 
+  // ═══ Muqeem (auto resident lookup) state ═══
+  // Lookup goes through a Supabase Edge Function (query-muqeem) on the PROD project, which reads
+  // the live session — captured by the bot (bot/muqeem-bot.mjs) — SERVER-SIDE. So the calculator
+  // queries Muqeem the moment a valid iqama is typed, from any environment, with no captcha
+  // (unlike the HRSD/labor-office inquiry) and with no session handling in the browser.
+  // Muqeem-fetched worker data (iqama expiry, occupation, status, sponsor changes). No name — HRSD provides that.
+  const [muqeemData, setMuqeemData] = useState(null)
+  const [muqeemFetchStatus, setMuqeemFetchStatus] = useState('idle') // idle | loading | ok | error | unavailable
+
   // Success modal shown after "إصدار" — carries the saved quote info + copy/navigate actions.
   const [issuedQuote, setIssuedQuote] = useState(null) // { quoteNo, workerName, iqNo, total }
 
@@ -611,10 +635,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   useEffect(() => {
     const sb = getSupabase()
     if (!sb) return
-    sb.from('countries').select('nationality_ar').eq('is_active', true).order('sort_order', { nullsFirst: false }).order('nationality_ar').then(({ data }) => {
+    // `nationalities.code` is a numeric internal code, NOT ISO alpha-2 — so the flag must come
+    // from `flag_url` (e.g. https://flagcdn.com/w320/bd.png). Extract the alpha-2 for <Flag/>.
+    sb.from('nationalities').select('id,name_ar,flag_url').eq('is_active', true).order('sort_order', { nullsFirst: false }).order('name_ar').then(({ data }) => {
       if (!data || data.length === 0) return
       const seen = new Set()
-      const list = data.filter(d => d.nationality_ar && !seen.has(d.nationality_ar) && seen.add(d.nationality_ar)).map(d => d.nationality_ar)
+      const isoOf = url => (String(url || '').match(/\/[a-z]\d+\/([a-z]{2})\.png/i)?.[1] || '').toLowerCase()
+      const list = data.filter(d => d.name_ar && !seen.has(d.name_ar) && seen.add(d.name_ar)).map(d => ({ id: d.id, code: isoOf(d.flag_url), name_ar: d.name_ar }))
       if (list.length) setNationalities(list)
     })
   }, [])
@@ -797,6 +824,38 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     setF(p => ({ ...p, workPermitRate: String(Math.round(total)) }))
   }, [f.renewalMonths, f.iqamaExpiry, cfg])
 
+  // Transfer fee auto-set from Muqeem sponsor changes (number of previous sponsor transfers):
+  //   0 → transferFee1 (first time), 1 → transferFee2 (second), 2+ → transferFee3 (more).
+  // The user can still override it manually on the pricing tab afterwards.
+  const muqeemSponsorChanges = typeof muqeemData?.sponsorChanges === 'number' ? muqeemData.sponsorChanges : null
+  useEffect(() => {
+    if (muqeemSponsorChanges === null) return
+    const fee = muqeemSponsorChanges === 0 ? cfg.transferFee1
+              : muqeemSponsorChanges === 1 ? cfg.transferFee2
+              : cfg.transferFee3
+    if (fee != null) setF(p => ({ ...p, transferFeeInput: String(Math.round(fee)) }))
+  }, [muqeemSponsorChanges, cfg])
+
+  // When Muqeem has supplied the worker's data, the fields it provides (iqama expiry,
+  // occupation, transfer fee) render LOCKED (read-only) instead of editable inputs.
+  // Name + DOB + phone always stay editable (Muqeem doesn't return them — HRSD gives the name).
+  // Falls back to manual entry when Muqeem is unavailable.
+  const mqLocked = !!muqeemData
+  const MqLocked = ({ label, value, sub, req }) => (
+    <div>
+      {label && <Lbl req={req}>{label}</Lbl>}
+      <div style={{ ...sF, height: 'auto', minHeight: 42, paddingTop: 5, paddingBottom: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', cursor: 'default', color: value ? 'var(--tx)' : 'var(--tx5)' }}>
+        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.3 }}>
+          <span>{value || '—'}</span>
+          {sub && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)' }}>{sub}</span>}
+        </span>
+        <span title={T('من مقيم — لا يمكن تعديله','From Muqeem — locked')} style={{ position: 'absolute', insetInlineStart: 8, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, color: '#F47B20', background: 'rgba(244,123,32,.12)', padding: '2px 6px', borderRadius: 6 }}>
+          <Lock size={10} strokeWidth={2.5} /> {T('مقيم','Muqeem')}
+        </span>
+      </div>
+    </div>
+  )
+
   // Transfer fee is chosen manually on the pricing tab via the "رسوم النقل" card
   // (transferFee1 / transferFee2 / transferFee3 tiers) and can be fine-tuned inline.
 
@@ -898,7 +957,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       if (r.status === 'invalid_captcha' || r.status === 'unknown') {
         const nextAttempts = (hrsdCheck.attempts || 0) + 1
         if (nextAttempts >= HRSD_MAX_ATTEMPTS) {
-          setHrsdCheck({ phase: 'result', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 })
+          setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 })
+          setErrors({}); setTab(1)
           return
         }
         const fresh = await callHrsdFn({ action: 'init' })
@@ -922,7 +982,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       if (r.status === 'found' && r.name) {
         setF(p => ({ ...p, name: r.name }))
       }
-      setHrsdCheck(c => ({ ...c, phase: 'result', result: r }))
+      // No intermediate result popup — keep the result (name/status feed the details tab) and advance straight to the next tab.
+      setHrsdCheck(c => ({ ...c, phase: 'idle', result: r }))
+      setErrors({}); setTab(1)
     } catch (e) {
       setHrsdCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? 'انتهت مهلة التحقق' : (e.message || 'خطأ في التحقق') }))
     }
@@ -943,11 +1005,81 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     }
   }
 
+  // ═══ Muqeem query helpers ═══
+  // No local caching by iqama — each transfer estimate is for a different worker, must always be fresh.
+  // Supabase Edge Function on PROD — reads the live Muqeem session server-side, so it works
+  // from any environment (sandbox/prod/local). The prod anon key is publishable.
+  const MUQEEM_FN_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/query-muqeem'
+  const MUQEEM_FN_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
+
+  async function queryMuqeem(iqama) {
+    try {
+      const res = await fetch(MUQEEM_FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: MUQEEM_FN_KEY, Authorization: `Bearer ${MUQEEM_FN_KEY}` },
+        body: JSON.stringify({ iqama }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.code === 'NO_SESSION' || data.code === 'SESSION_EXPIRED' || data.code === 'SESSION_INVALID') {
+        return { ok: false, code: data.code, error: data.error }
+      }
+      if (!res.ok || !data.ok) return { ok: false, error: data.error || `HTTP ${res.status}` }
+      return { ok: true, result: data.result }
+    } catch (e) {
+      return { ok: false, error: e.message }
+    }
+  }
+
+  // Apply the Muqeem result to the form. Muqeem does NOT return the worker name — HRSD does.
+  function applyMuqeemToForm(m) {
+    const STATUS_MAP = { 'صالح': 'صالح', 'هروب': 'هروب', 'خروج نهائي': 'خروج نهائي', 'منقطع عن العمل': 'منقطع عن العمل' }
+    const occMatch = m.occupationAr ? (occupations || []).find(o => o.name_ar === m.occupationAr) : null
+    setF(p => ({
+      ...p,
+      iqamaExpiry: m.iqamaExpiryGregorian || p.iqamaExpiry,
+      occupation: m.occupationAr || p.occupation,
+      occupationId: occMatch ? occMatch.id : p.occupationId,
+      legalStatus: STATUS_MAP[m.statusAr] || p.legalStatus,
+      transferCount: m.sponsorChanges != null ? String(Math.max(0, m.sponsorChanges)) : p.transferCount,
+    }))
+    setMuqeemData(m)
+  }
+
+  // Auto-fetch Muqeem data the moment a valid iqama is typed. Silent + debounced.
+  useEffect(() => {
+    const iq = (f.iqama || '').trim()
+    if (!/^[12]\d{9}$/.test(iq)) {
+      setMuqeemFetchStatus(prev => (prev === 'idle' ? prev : 'idle'))
+      return
+    }
+    if (muqeemData && muqeemData.iqama === iq) {
+      setMuqeemFetchStatus('ok')
+      return
+    }
+    let cancelled = false
+    setMuqeemFetchStatus('loading')
+    const timer = setTimeout(async () => {
+      const r = await queryMuqeem(iq)
+      if (cancelled) return
+      if (r.ok) {
+        applyMuqeemToForm(r.result)
+        setMuqeemFetchStatus('ok')
+      } else if (r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID') {
+        setMuqeemFetchStatus('unavailable')
+      } else {
+        setMuqeemFetchStatus('error')
+      }
+    }, 500)
+    return () => { cancelled = true; clearTimeout(timer) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.iqama])
 
   // Issue the quote without printing — save to DB and show the success modal with copy + navigate actions.
   const [issuing, setIssuing] = useState(false)
+  const [issueErr, setIssueErr] = useState(null)
   async function issueQuote() {
     if (issuing) return
+    setIssueErr(null)
     setIssuing(true)
     try {
       await issueQuoteImpl()
@@ -998,7 +1130,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       if (daysLeft <= 30 && daysLeft >= 0) warnings.push({ level: 'warn', text: T(`الإقامة ستنتهي خلال ${daysLeft} يوم — يُنصح بالتجديد قبل الانتهاء.`, `Iqama expires in ${daysLeft} day(s) — renew before expiry.`) })
     }
     if (f.changeProfession && !f.newOccupation) warnings.push({ level: 'warn', text: T('لم يتم تحديد المهنة الجديدة.','New occupation not specified.') })
-    if (!sb) { toast && toast(T('قاعدة البيانات غير متاحة','Database unavailable')); return }
+    if (!sb) { setIssueErr(T('قاعدة البيانات غير متاحة','Database unavailable')); return }
     const phoneRaw = (f.phone || '').replace(/^\+?966/, '').trim()
     const payload = {
       iqama_number: iqNo,
@@ -1007,14 +1139,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       dob: f.dob || null,
       nationality: f.nationality || null,
       gender: f.gender || null,
-      muqeem_fetched_at: null,
+      muqeem_fetched_at: muqeemData ? new Date().toISOString() : null,
       iqama_expiry_gregorian: f.iqamaExpiry || null,
-      iqama_expiry_hijri: null,
-      iqama_expired: f.iqamaExpiry ? new Date(f.iqamaExpiry) < new Date() : null,
+      iqama_expiry_hijri: muqeemData?.iqamaExpiryHijri || null,
+      iqama_expired: typeof muqeemData?.iqamaExpired === 'boolean' ? muqeemData.iqamaExpired : (f.iqamaExpiry ? new Date(f.iqamaExpiry) < new Date() : null),
       occupation_id: f.occupationId || null,
       occupation_name_ar: f.occupation || null,
       resident_status_code: null,
-      resident_status_ar: f.legalStatus || null,
+      resident_status_ar: muqeemData?.statusAr || f.legalStatus || null,
       sponsor_changes: (() => { const n = parseInt(f.transferCount); return isNaN(n) ? null : Math.max(0, n) })(),
       hrsd_worker_status: hrsdCheck.result?.workerStatus || null,
       hrsd_verified_at: hrsdCheck.result?.status === 'found' ? new Date().toISOString() : null,
@@ -1046,7 +1178,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       warnings,
     }
     const { data: { session } } = await sb.auth.getSession()
-    if (!session) { toast && toast(T('انتهت الجلسة — أعد تسجيل الدخول','Session expired — please sign in again')); return }
+    if (!session) { setIssueErr(T('انتهت الجلسة — أعد تسجيل الدخول','Session expired — please sign in again')); return }
     const fnUrl = `${import.meta.env.VITE_SUPABASE_URL || sb.supabaseUrl}/functions/v1/issue-quotation`
     const res = await fetch(fnUrl, {
       method: 'POST',
@@ -1056,7 +1188,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     const data = await res.json().catch(() => ({}))
     if (!res.ok || !data.ok) {
       const msg = data?.detail || data?.error || `HTTP ${res.status}`
-      toast && toast(T('تعذّر حفظ التسعيرة: ', 'Failed to save quote: ') + String(msg).slice(0, 100))
+      setIssueErr(T('تعذّر حفظ التسعيرة: ', 'Failed to save quote: ') + String(msg).slice(0, 100))
       return
     }
     setIssuedQuote({ quoteNo: data.row.quote_no, workerName, iqNo, total: Number(data.row.total_amount), warnings })
@@ -1100,33 +1232,43 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px', flexShrink: 0, fontFamily: F, direction: 'rtl' }
 
   // ═══════════════════════════════════════
-  // SCREEN 2: FORM WITH TABS
+  // SCREEN 2: FORM WITH TABS — FormKit chrome (identical to the invoice wizard)
   // ═══════════════════════════════════════
-  return (
-    <FKModal open onClose={() => onClose && onClose()} hideHeader height={720} width={640} scroll>
-    <div dir={lang === 'en' ? 'ltr' : 'rtl'} style={{ fontFamily: F, color: 'rgba(255,255,255,.85)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header — Premium Arabic admin */}
-      <div style={{ padding: '20px 24px 0', flexShrink: 0, display: 'flex', flexDirection: 'column', direction: lang === 'en' ? 'ltr' : 'rtl' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-            <Tag size={22} strokeWidth={1.8} color={C.gold} style={{ flexShrink: 0 }} />
-            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', fontFamily: F, lineHeight: 1.2 }}>{T('تسعيرة تنازل','Transfer Calculator')}</div>
-          </div>
-          <button onClick={() => onClose && onClose()} onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(180deg,rgba(192,57,43,.18) 0%,rgba(192,57,43,.08) 100%)';e.currentTarget.style.borderColor='rgba(192,57,43,.4)';e.currentTarget.style.color='#e5867a'}} onMouseLeave={e=>{e.currentTarget.style.background='linear-gradient(180deg,#323232 0%,#262626 100%)';e.currentTarget.style.borderColor='rgba(255,255,255,.07)';e.currentTarget.style.color='var(--tx3)'}} style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', border: '1px solid rgba(255,255,255,.07)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: F, boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', transition: '.2s' }} aria-label={T('إغلاق','Close')}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
-          {Array.from({ length: tabs.length }, (_, i) => (
-            <div key={i} style={{ flex: 1, height: 3, borderRadius: 4, background: i <= tab ? 'linear-gradient(90deg, #D4A017, #F0C040)' : 'rgba(255,255,255,0.06)', transition: '.35s' }} />
-          ))}
-        </div>
-      </div>
-
-
-      {/* ═══ Scrollable Content ═══ */}
-      <style>{`.kc-scroll::-webkit-scrollbar{width:0;display:none}.kc-scroll{scrollbar-width:none;-ms-overflow-style:none}.kc-scroll input:focus,.kc-scroll select:focus,.kc-scroll textarea:focus,.kc-scroll .kc-phone-wrap:focus-within,.kc-captcha-input:focus{border-color:rgba(255,255,255,.16)!important;box-shadow:none!important}`}</style>
-      <div className="kc-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+  // Live validation for step 0 (gates «التالي» + drives the footer error line, like the invoice wizard).
+  const tab0Errors = (() => {
+    const errs = []
+    const iqama = (f.iqama || '').trim()
+    const phone = (f.phone || '').trim()
+    if (!iqama) errs.push(T('أدخل رقم الإقامة','Enter the Iqama number'))
+    else if (!/^[12]\d{9}$/.test(iqama)) errs.push(T('رقم الإقامة يجب أن يكون 10 أرقام ويبدأ بـ 1 أو 2','Iqama must be 10 digits starting with 1 or 2'))
+    if (!f.dob) errs.push(T('أدخل تاريخ الميلاد','Enter the date of birth'))
+    if (!phone) errs.push(T('أدخل رقم الجوال','Enter the mobile number'))
+    else if (phone.length !== 9) errs.push(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'))
+    else if (!/^5[013-9]\d{7}$/.test(phone)) errs.push(T('بادئة الجوال غير صحيحة (50, 51, 53–59)','Invalid mobile prefix (50, 51, 53–59)'))
+    else if (/^(.)\1{8}$/.test(phone) || '012345678'.includes(phone) || '987654321'.includes(phone)) errs.push(T('رقم الجوال غير صحيح','Invalid mobile number'))
+    if (!f.iqamaExpiry) errs.push(T('أدخل تاريخ انتهاء الإقامة','Enter the Iqama expiry date'))
+    if (!f.occupation) errs.push(T('اختر المهنة','Select occupation'))
+    return errs
+  })()
+  // Live validation for step 2 (pricing) — gates «التالي» the same way step 0 does.
+  const tab2Errors = (() => {
+    const errs = []
+    if (!f.transferOnly && !(f.renewIqama && f.renewalMonths)) errs.push(T('اختر مدة التجديد أو «نقل فقط»','Select a renewal period or "Transfer only"'))
+    if (!mqLocked && !(parseFloat(f.transferFeeInput) > 0)) errs.push(T('أدخل رسوم النقل','Enter the transfer fee'))
+    if (f.changeProfession && !f.newOccupation) errs.push(T('اختر المهنة الجديدة','Select the new occupation'))
+    return errs
+  })()
+  const onNextClick = () => {
+    if (tab === 0 && tab0Errors.length > 0) { setTried(t => { const n = [...t]; n[tab] = true; return n }); return }
+    if (tab === 2 && tab2Errors.length > 0) { setTried(t => { const n = [...t]; n[tab] = true; return n }); return }
+    tryNextTab()
+  }
+  // The wizard body is shared across all pages — only the active `tab` renders, so FKModal's built-in
+  // header/stepper/footer (same component as the invoice modal) drive the chrome.
+  const wizardBody = (
+    <>
+      <style>{`@keyframes mq-spin{to{transform:rotate(360deg)}}`}</style>
+      <div className="kc-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '6px 4px 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* ═══════════════════════════════════════ */}
       {/* TAB 0: بيانات العامل — matches ServiceRequest kafala step 3 page 1 */}
@@ -1149,14 +1291,27 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             </div>
           </div>
         }
-        return <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: -10, [lang === 'en' ? 'left' : 'right']: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        return <div style={{ borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '18px 14px 14px', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <User size={12} strokeWidth={2.2} />
             <span>{T('بيانات العامل','Worker Data')}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 16 }}>
-            <div style={{ gridColumn: '1 / -1' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 14, rowGap: 14 }}>
+            <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
               <Lbl req>{T('رقم الإقامة','Iqama Number')}</Lbl>
+              {/* مؤشّر مقيم — عائم (absolute) فوق صف العنوان فلا يزيح الحقول عند ظهوره/اختفائه */}
+              {muqeemFetchStatus !== 'idle' && (
+                <div style={{ position: 'absolute', top: -2, left: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 7, direction: 'rtl', pointerEvents: 'none',
+                  ...(muqeemFetchStatus === 'loading' ? { background: 'rgba(52,131,180,.12)', color: C.blue }
+                    : muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046' }
+                    : muqeemFetchStatus === 'unavailable' ? { background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.4)' }
+                    : { background: 'rgba(192,57,43,.12)', color: C.red }) }}>
+                  {muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span><span style={{ width: 9, height: 9, border: '1.6px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite' }} /></>}
+                  {muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
+                  {muqeemFetchStatus === 'unavailable' && <><span>{T('خدمة مقيم غير متاحة','Muqeem unavailable')}</span><span>•</span></>}
+                  {muqeemFetchStatus === 'error' && <><span>{T('تعذّر الاتصال بمقيم','Muqeem connection failed')}</span><span>!</span></>}
+                </div>
+              )}
               <Inp value={f.iqama} onChange={v => {
                 const cleaned = v.replace(/\D/g,'').slice(0,10)
                 // Changing the iqama invalidates the previous worker's data — clear it.
@@ -1172,11 +1327,23 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                     name: '',
                   }))
                   setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
+                  setMuqeemData(null)
                 }
               }} placeholder="2XXXXXXXXX" dir="ltr" maxLength={10}/>
             </div>
             <div>
               <DateField value={f.dob} onChange={v=>set('dob',v)} label={T('تاريخ الميلاد','Date of Birth')} req lang={lang}/>
+            </div>
+            <div>
+              <FKSelect label={T('الجنسية','Nationality')} req placeholder={T('اختر الجنسية…','Select nationality…')}
+                value={f.nationality || ''} onChange={v=>set('nationality',v)} options={nationalities}
+                getKey={o=>o.name_ar} getLabel={o=>o.name_ar}
+                renderSelected={o=><>{o.name_ar} <Flag code={o.code} size={16} /></>}
+                renderCell={(o,sel)=>(
+                  <span style={{ fontSize: 14, fontWeight: 600, color: sel ? C.gold : 'rgba(255,255,255,.92)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {o.name_ar} <Flag code={o.code} size={16} />
+                  </span>
+                )} />
             </div>
             {(() => {
               const ph = (f.phone || '').trim()
@@ -1192,23 +1359,31 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               return (
             <div>
               <Lbl req>{T('رقم الجوال','Mobile Number')}</Lbl>
-              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: `1px solid ${isErr ? 'rgba(192,57,43,.5)' : 'rgba(255,255,255,.08)'}`, borderRadius: 8, overflow: 'hidden', background: 'var(--modal-input-bg)', height: 40, transition: 'border-color .2s' }}>
-                <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 500, color: C.gold, flexShrink: 0 }}>+966</div>
+              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: isErr ? `inset 0 0 0 1.6px ${C.red}, inset 0 1px 2px rgba(0,0,0,.2)` : 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42, transition: '.2s' }}>
+                <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: C.gold, flexShrink: 0 }}>+966</div>
                 <input value={f.phone || ''} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
-                  style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
+                  style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
               </div>
-              <style>{`.kc-phone-wrap:focus-within{border-color:${isErr ? 'rgba(192,57,43,.6)' : 'rgba(255,255,255,.18)'}!important}.kc-phone-wrap input{border-width:0!important}`}</style>
+              <style>{`.kc-phone-wrap input{border-width:0!important}`}</style>
             </div>
               )
             })()}
             {/* Occupation and iqama expiry — entered manually. The transfer fee is set
                 directly (and is editable) on the pricing tab. */}
             <div>
-              <Lbl req>{T('المهنة','Occupation')}</Lbl>
-              <OccSelect value={f.occupation || ''} onChange={(v,item)=>setF(p=>({...p,occupation:v,occupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')}/>
+              {mqLocked ? (
+                <MqLocked label={T('المهنة','Occupation')} value={muqeemData.occupationAr || f.occupation} req />
+              ) : (<>
+                <Lbl req>{T('المهنة','Occupation')}</Lbl>
+                <OccSelect value={f.occupation || ''} onChange={(v,item)=>setF(p=>({...p,occupation:v,occupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')}/>
+              </>)}
             </div>
             <div>
-              <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
+              {mqLocked ? (
+                <MqLocked label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData.iqamaExpiryGregorian || f.iqamaExpiry} sub={muqeemData.iqamaExpiryHijri ? muqeemData.iqamaExpiryHijri + ' هـ' : null} req />
+              ) : (
+                <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
+              )}
             </div>
           </div>
         </div>
@@ -1218,20 +1393,20 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       {/* TAB 1: تفاصيل العامل */}
       {/* ═══════════════════════════════════════ */}
       {tab === 1 && (()=>{
-        // Match review-tab visual: subtle blue panel, key-value rows, no colored boxes per field.
-        const Row = ({ label, value, color }) => (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 14, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-            <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 500 }}>{label}</span>
-            <span style={{ fontWeight: 500, color: color || 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value || '—'}</span>
+        // Field tile — small label on top, value below — laid out as a card grid (سبلاير style) inside framed groups.
+        const Field = ({ label, value, color, span, ltr }) => (
+          <div style={{ gridColumn: span === 2 ? '1 / -1' : 'auto', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+            <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: color || 'var(--tx)', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(ltr ? { direction: 'ltr' } : {}) }}>{value || '—'}</span>
           </div>
         )
         const Group = ({ title, Icon, children }) => (
-          <div style={{ borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', padding: '20px 22px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -10, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '16px 12px 12px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {Icon && <Icon size={12} strokeWidth={2.2} />}
               <span>{title}</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 0 }}>{children}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>{children}</div>
           </div>
         )
 
@@ -1243,44 +1418,34 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         const greenBg = 'rgba(39,160,70,.06)'; const greenBorder = 'rgba(39,160,70,.3)'; const GREEN = '#27a046'
         const redBg = 'rgba(192,57,43,.06)'; const redBorder = 'rgba(192,57,43,.3)'
 
+        const hijriFormatted = hijriExpiry || null
+        const dateColor = iqamaExpiredFlag === true ? C.red : iqamaExpiredFlag === false ? GREEN : null
+        let ageStr = null
+        if (f.dob) {
+          const dob = new Date(f.dob)
+          const today = new Date()
+          let years = today.getFullYear() - dob.getFullYear()
+          let months = today.getMonth() - dob.getMonth()
+          if (today.getDate() < dob.getDate()) months -= 1
+          if (months < 0) { years -= 1; months += 12 }
+          ageStr = lang === 'en'
+            ? `${years} years ${months} months`
+            : (<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, direction: 'rtl' }}><span>{years}</span><span>سنة</span><span>{months}</span><span>شهر</span></span>)
+        }
         return (<div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Group title={T('هوية العامل','Worker Identity')} Icon={User}>
-            <Row label={T('الإسم','Name')} value={hrsdCheck.result?.name || f.name} />
-            <Row label={T('رقم الإقامة','Iqama Number')} value={f.iqama} />
-            <Row label={T('حالة العامل','Worker Status')} value={hrsdCheck.result?.workerStatus} />
-            <Row label={T('المهنة','Occupation')} value={f.occupation} />
+            <Field label={T('الإسم','Name')} value={hrsdCheck.result?.name || f.name} span={2} ltr />
+            <Field label={T('رقم الإقامة','Iqama Number')} value={f.iqama} ltr />
+            <Field label={T('العمر','Age')} value={ageStr} />
+            <Field label={T('المهنة','Occupation')} value={f.occupation} span={2} />
           </Group>
 
-          {(() => {
-            const hijriFormatted = hijriExpiry || null
-            const dateColor = iqamaExpiredFlag === true ? C.red : iqamaExpiredFlag === false ? GREEN : null
-            return (
-              <Group title={T('الإقامة','Iqama')} Icon={Building2}>
-                <Row label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={f.iqamaExpiry} color={dateColor} />
-                <Row label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={hijriFormatted} color={dateColor} />
-              </Group>
-            )
-          })()}
-
-          {(() => {
-            let ageStr = null
-            if (f.dob) {
-              const dob = new Date(f.dob)
-              const today = new Date()
-              let years = today.getFullYear() - dob.getFullYear()
-              let months = today.getMonth() - dob.getMonth()
-              if (today.getDate() < dob.getDate()) months -= 1
-              if (months < 0) { years -= 1; months += 12 }
-              ageStr = lang === 'en'
-                ? `${years} years ${months} months`
-                : (<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, direction: 'rtl' }}><span>{years}</span><span>سنة</span><span>{months}</span><span>شهر</span></span>)
-            }
-            return (
-              <Group title={T('العمر','Age')} Icon={User}>
-                <Row label={T('العمر','Age')} value={ageStr} />
-              </Group>
-            )
-          })()}
+          <Group title={T('الإقامة والحالة','Iqama & Status')} Icon={Building2}>
+            <Field label={T('حالة العامل','Worker Status')} value={hrsdCheck.result?.workerStatus} />
+            <Field label={T('حالة مقيم','Muqeem Status')} value={muqeemData?.statusAr} />
+            <Field label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={f.iqamaExpiry} color={dateColor} ltr />
+            <Field label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={hijriFormatted} color={dateColor} />
+          </Group>
         </div>)
       })()}
 
@@ -1293,14 +1458,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           const c = clr || C.gold
           return <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-              <label style={{ fontSize: 14, fontWeight: 500, color: on ? c : 'var(--tx4)', fontFamily: F, transition: '.2s' }}>{label}</label>
+              <label style={{ fontSize: 14, fontWeight: 600, color: on ? c : 'var(--tx4)', fontFamily: F, transition: '.2s' }}>{label}</label>
               <button type="button" onClick={() => set(stateKey + '_on', !on)} style={{ width: 28, height: 16, borderRadius: 999, border: 'none', background: on ? c : 'rgba(255,255,255,.15)', cursor: 'pointer', position: 'relative', transition: '.2s', padding: 0, flexShrink: 0 }}>
                 <span style={{ position: 'absolute', width: 12, height: 12, borderRadius: '50%', background: '#fff', top: 2, right: on ? 2 : 14, transition: '.2s' }} />
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', background: on ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.02)', border: `1px solid ${on ? c + '4d' : 'rgba(255,255,255,.05)'}`, borderRadius: 8, boxShadow: on ? 'inset 0 1px 2px rgba(0,0,0,.2)' : 'none', height: 36, opacity: on ? 1 : .5, transition: '.2s' }}>
-              <input type="text" inputMode="decimal" disabled={!on} value={f[stateKey] || ''} onChange={e => set(stateKey, e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 10px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 500, color: on ? 'var(--tx)' : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center' }} />
-              <span style={{ fontSize: 14, color: 'var(--tx5)', fontWeight: 500, padding: '0 8px 0 4px', fontFamily: F, flexShrink: 0 }}>{T('ريال','SAR')}</span>
+              <input type="text" inputMode="decimal" disabled={!on} value={f[stateKey] || ''} onChange={e => set(stateKey, e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 10px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: on ? 'var(--tx)' : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center' }} />
+              <span style={{ fontSize: 14, color: on ? c : 'var(--tx5)', fontWeight: 600, padding: '0 8px 0 4px', fontFamily: F, flexShrink: 0 }}>{T('ريال','SAR')}</span>
             </div>
           </div>
         }
@@ -1310,8 +1475,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         const total = Math.max(0, subtotal - discount - absher)
         // Card-based: each option is a tile with icon + label + control. Cleaner visual hierarchy.
         const Card = KCard
-        return <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 10px' }}>
+        return <div style={{display:'flex',flexDirection:'column',gap:8, flex:1, minHeight:0}}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '13px 10px', flexShrink: 0 }}>
             {/* فترة التجديد — «نقل فقط» يختفي إذا المتبقي في الإقامة أقل من الحد الأدنى أو منتهية */}
             {(() => {
               const transferOnlyAllowed = (() => {
@@ -1349,66 +1514,73 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               )
             })()}
 
-            {/* رسوم النقل — اختيار شريحة الرسوم يدوياً (المرة الأولى/الثانية/أكثر) */}
-            <Card Icon={CreditCard} label={T('رسوم النقل','Transfer Fee')} span={2}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {transferOptions.map(v => {
-                  const sel = String(Math.round(parseFloat(f.transferFeeInput) || 0)) === v
-                  return (
-                    <RenewalPill key={v} selected={sel} onClick={() => set('transferFeeInput', v)}>
-                      <span style={{ fontSize: 14 }}>{Number(v).toLocaleString('en-US')}</span>
-                      <span style={{ fontSize: 14, fontWeight: 500, opacity: .75 }}>{T('ريال','SAR')}</span>
-                    </RenewalPill>
-                  )
-                })}
-              </div>
-            </Card>
-
-            {/* تغيير المهنة */}
-            <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Profession')} span={2}>
-              <YesNo value={f.changeProfession} onChange={v => set('changeProfession', v)} lang={lang} />
-            </Card>
-
-            {/* المهنة الجديدة — بطاقة مستقلة تظهر عند اختيار نعم */}
-            {f.changeProfession && (
-              <Card Icon={Briefcase} label={T('المهنة الجديدة','New Occupation')} span={2}>
-                <OccSelect value={f.newOccupation || ''} onChange={(v,item) => setF(p => ({...p,newOccupation:v,newOccupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')} />
+            {/* رسوم النقل — للإدخال اليدوي فقط. عند توفّر مقيم تُحتسب تلقائيًا من عدد مرات النقل
+                وتظهر في صفحة المراجعة، فنخفي الكرت هنا لتقليل الازدحام. */}
+            {!mqLocked && (
+              <Card Icon={CreditCard} label={T('رسوم النقل','Transfer Fee')} span={2}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {transferOptions.map(v => {
+                    const sel = String(Math.round(parseFloat(f.transferFeeInput) || 0)) === v
+                    return (
+                      <RenewalPill key={v} selected={sel} onClick={() => set('transferFeeInput', v)}>
+                        <span style={{ fontSize: 14 }}>{Number(v).toLocaleString('en-US')}</span>
+                        <span style={{ fontSize: 14, fontWeight: 500, opacity: .75 }}>{T('ريال','SAR')}</span>
+                      </RenewalPill>
+                    )
+                  })}
+                </div>
               </Card>
             )}
 
-            {/* رسوم إضافية */}
-            <Card Icon={Plus} label={T('رسوم إضافية','Additional Fees')} hint={f.extras.length ? (lang === 'en' ? `${f.extras.length} items added` : `${f.extras.length} بنود مضافة`) : T('اختياري','Optional')} span={2}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38, fontSize: 12 }} />
-                <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, fontSize: 12, direction: 'ltr', textAlign: 'center' }} />
-                <button onClick={addExtra} disabled={!extraName || !extraAmount} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
-              </div>
-              {f.extras.length > 0 && (
-                <div className="kc-scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, direction: 'rtl', maxHeight: 110, overflowY: 'auto' }}>
-                  {f.extras.map((ex, i) => (
-                    <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 9px', borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.25)', direction: 'rtl' }}>
-                      <span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500, fontSize: 12 }}>{ex.name}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, direction: 'ltr', color: C.gold, fontWeight: 500, fontSize: 12 }}>
-                        <span style={{ fontSize: 12, fontWeight: 500 }}>{T('ريال','SAR')}</span>
-                        <span>{Number(ex.amount).toLocaleString('en-US')}</span>
-                      </span>
-                      <button onClick={() => removeExtra(i)} title={T('حذف','Remove')} style={{ width: 18, height: 18, borderRadius: 5, color: C.red, cursor: 'pointer', background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}><X size={10} strokeWidth={2} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* تغيير المهنة + المهنة الجديدة — جنب بعض عند اختيار «نعم» لتوفير المساحة بلا تمرير */}
+            <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Profession')} span={f.changeProfession ? 1 : 2}>
+              <YesNo value={f.changeProfession} onChange={v => set('changeProfession', v)} lang={lang} height={42} />
             </Card>
+            {f.changeProfession && (
+              <Card Icon={Briefcase} label={T('المهنة الجديدة','New Occupation')} span={1}>
+                <OccSelect value={f.newOccupation || ''} onChange={(v,item) => setF(p => ({...p,newOccupation:v,newOccupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')} />
+              </Card>
+            )}
           </div>
 
-          {/* Total — emphasized */}
-          <div style={{ marginTop: 2, padding: '10px 18px', borderRadius: 11, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.35)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(212,160,23,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>
-                <Calculator size={15} strokeWidth={2.2} />
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 500, color: C.gold }}>{T('الإجمالي المتوقع','Expected Total')}</span>
+          {/* رسوم إضافية — تملأ المساحة المتبقية، والبنود المضافة تمرّر داخليًا فقط (فلا يظهر تمرير خارجي مهما زادت) */}
+          <Card Icon={Plus} label={T('رسوم إضافية','Additional Fees')} hint={f.extras.length ? (lang === 'en' ? `${f.extras.length} items added` : `${f.extras.length} بنود مضافة`) : T('اختياري','Optional')} span={2} style={{ flex: 1, minHeight: 96, display: 'flex', flexDirection: 'column' }} bodyStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38, fontSize: 12 }} />
+              <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, fontSize: 12, direction: 'ltr', textAlign: 'center' }} />
+              <button onClick={addExtra} disabled={!extraName || !extraAmount} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
             </div>
-            <span style={{ fontSize: 14, fontWeight: 500, color: C.gold, lineHeight: 1 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(total.toFixed(2))}</span> <span style={{ fontSize: 14, fontWeight: 500 }}>{T('ريال','SAR')}</span></span>
+            {f.extras.length > 0 && (
+              <div className="kc-scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, direction: 'rtl', flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'flex-start' }}>
+                {f.extras.map((ex, i) => (
+                  <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 9px', borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.25)', direction: 'rtl', height: 'fit-content' }}>
+                    <span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500, fontSize: 12 }}>{ex.name}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, direction: 'ltr', color: C.gold, fontWeight: 500, fontSize: 12 }}>
+                      <span style={{ fontSize: 12, fontWeight: 500 }}>{T('ريال','SAR')}</span>
+                      <span>{Number(ex.amount).toLocaleString('en-US')}</span>
+                    </span>
+                    <button onClick={() => removeExtra(i)} title={T('حذف','Remove')} style={{ width: 18, height: 18, borderRadius: 5, color: C.red, cursor: 'pointer', background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}><X size={10} strokeWidth={2} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Total — hero (مثبّت أسفل، دائمًا ظاهر) */}
+          <div style={{ flexShrink: 0, padding: '14px 18px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(212,160,23,.17) 0%, rgba(212,160,23,.05) 100%)', border: '1px solid rgba(212,160,23,.45)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06), 0 4px 16px rgba(212,160,23,.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(212,160,23,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, flexShrink: 0 }}>
+                <Calculator size={19} strokeWidth={2.2} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.gold }}>{T('الإجمالي المتوقع','Expected Total')}</span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.4)' }}>{T('شامل جميع الرسوم','All fees included')}</span>
+              </div>
+            </div>
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, color: C.gold, direction: 'rtl' }}>
+              <span style={{ fontSize: 27, fontWeight: 700, lineHeight: 1, letterSpacing: '.5px' }}>{nm(total.toFixed(2))}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, opacity: .7 }}>{T('ريال','SAR')}</span>
+            </span>
           </div>
         </div>
       })()}
@@ -1514,7 +1686,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   {/* Items in 2 columns */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 2 }}>
                     {items.map(([l, v, k], i) => {
-                      const transferEditable = k === 'transferFee'
+                      const transferEditable = k === 'transferFee' && !mqLocked
                       const showRenewalFineToggle = k === 'iqamaRenewal' && (iqamaExpired || iqamaInGracePeriod)
                       return (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.04)', fontSize: 12, gap: 8 }}>
@@ -1573,82 +1745,42 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       )}
 
       </div>{/* end scrollable */}
+    </>
+  )
 
-      {/* ═══ Footer Navigation — register-modal style ═══ */}
-      <style>{`.kc-nav-btn{height:40px;padding:0 6px;background:transparent;border:none;color:#D4A017;font-family:${F};font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:.2s}.kc-nav-btn .nav-ico{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);display:flex;align-items:center;justify-content:center;transition:.2s;color:#D4A017}.kc-nav-btn:hover:not(:disabled) .nav-ico{background:#D4A017;color:#000}.kc-nav-btn.dir-fwd:hover:not(:disabled) .nav-ico{transform:translateX(-4px)}.kc-nav-btn.dir-back:hover:not(:disabled) .nav-ico{transform:translateX(4px)}[dir=rtl] .kc-nav-btn.dir-fwd:hover:not(:disabled) .nav-ico{transform:translateX(4px)}[dir=rtl] .kc-nav-btn.dir-back:hover:not(:disabled) .nav-ico{transform:translateX(-4px)}.kc-nav-btn:disabled{opacity:.5;cursor:not-allowed}`}</style>
-      {(() => {
-        const tabErrors = (() => {
-          if (tab !== 0) return []
-          const errs = []
-          const iqama = (f.iqama || '').trim()
-          const phone = (f.phone || '').trim()
-          if (!iqama) errs.push(T('أدخل رقم الإقامة','Enter the Iqama number'))
-          else if (!/^[12]\d{9}$/.test(iqama)) errs.push(T('رقم الإقامة يجب أن يكون 10 أرقام ويبدأ بـ 1 أو 2','Iqama must be 10 digits starting with 1 or 2'))
-          if (!f.dob) errs.push(T('أدخل تاريخ الميلاد','Enter the date of birth'))
-          if (!phone) errs.push(T('أدخل رقم الجوال','Enter the mobile number'))
-          else if (phone.length !== 9) errs.push(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'))
-          else if (!/^5[013-9]\d{7}$/.test(phone)) errs.push(T('بادئة الجوال غير صحيحة (50, 51, 53–59)','Invalid mobile prefix (50, 51, 53–59)'))
-          else if (/^(.)\1{8}$/.test(phone) || '012345678'.includes(phone) || '987654321'.includes(phone)) errs.push(T('رقم الجوال غير صحيح','Invalid mobile number'))
-          if (!f.iqamaExpiry) errs.push(T('أدخل تاريخ انتهاء الإقامة','Enter the Iqama expiry date'))
-          if (!f.occupation) errs.push(T('اختر المهنة','Select occupation'))
-          return errs
-        })()
-        const hasErrors = tab === 0 && tabErrors.length > 0
-        const showErr = hasErrors && tried[tab]
-        const onNextClick = () => {
-          if (hasErrors) { setTried(t => { const n = [...t]; n[tab] = true; return n }); return }
-          tryNextTab()
-        }
-        return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '4px 24px 16px', flexShrink: 0 }}>
-        <div style={{ justifySelf: 'start' }}>
-        {tab === 1 ? (
-          <button onClick={() => { setTab(0) }} className="kc-nav-btn dir-fwd">
-            <span className="nav-ico">{lang === 'en' ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}</span>
-            <span>{T('السابق','Previous')}</span>
-          </button>
-        ) : tab > 1 ? (
-          <button onClick={() => {
-            setTab(tab - 1)
-          }} className="kc-nav-btn dir-fwd">
-            <span className="nav-ico">{lang === 'en' ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}</span>
-            <span>{T('السابق','Previous')}</span>
-          </button>
-        ) : null}
-        </div>
-        <div style={{ justifySelf: 'center', textAlign: 'center', minHeight: 16 }}>
-          {showErr && tabErrors[0] && (
-            <span style={{ fontSize: 12, fontWeight: 400, color: C.red, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              {tabErrors[0]}
-            </span>
-          )}
-        </div>
-        <div style={{ justifySelf: 'end' }}>
-        {tab < 3 ? (
-          <button onClick={onNextClick} className="kc-nav-btn dir-back">
-            <span>{T('التالي','Next')}</span>
-            <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2} /> : <ChevronLeft size={14} strokeWidth={2} />}</span>
-          </button>
-        ) : (
-          <button onClick={issueQuote} disabled={issuing} className="kc-nav-btn dir-back">
-            <span>{issuing ? T('جاري الإصدار…','Issuing…') : T('إصدار','Issue')}</span>
-            <span className="nav-ico">{issuing ? <span style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'kc-spin 0.7s linear infinite' }} /> : <Send size={14} strokeWidth={2} />}</span>
-          </button>
-        )}
-        </div>
-      </div>
-        )
-      })()}
+  // Build the FKModal pages (header + stepper + footer come from FKModal — same chrome as the invoice modal).
+  const pages = tabs.map((t, i) => ({
+    title: t.title,
+    content: wizardBody,
+    valid: i === 0 ? tab0Errors.length === 0 : i === 2 ? tab2Errors.length === 0 : true,
+    error: i === 2 ? (tab2Errors[0] || '') : i === 3 ? (issueErr || '') : '',
+  }))
+
+  return (
+    <>
+      <FKModal open onClose={() => { setIssueErr(null); onClose && onClose() }}
+        title={T('تسعيرة تنازل','Transfer Quote')} Icon={Tag} variant="create"
+        width={640} height={720}
+        page={tab} pages={pages}
+        onNext={onNextClick} onBack={() => { setErrors({}); setIssueErr(null); setTab(Math.max(0, tab - 1)) }}
+        onSubmit={issueQuote} submitting={issuing}
+        submitLabel={T('إصدار','Issue')} submitIcon={Send} />
 
       {/* ═══ Quote Issued Success Modal ═══ */}
       {issuedQuote && (() => {
-        const copy = (text) => { try { navigator.clipboard.writeText(text); toast && toast(T('تم النسخ','Copied')) } catch { toast && toast(T('تعذّر النسخ','Copy failed')) } }
-        const CopyBtn = ({ text }) => (
-          <button onClick={() => copy(text)} title={T('نسخ','Copy')} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        const CopyBtn = ({ text }) => {
+          const [copied, setCopied] = useState(false)
+          return (
+          <button onClick={() => { try { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch {} }} title={T('نسخ','Copy')}
+            onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
+            onMouseLeave={e => { if (!copied) e.currentTarget.style.color = C.gold }}
+            style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: copied ? C.ok : C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'color .15s' }}>
+            {copied
+              ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
           </button>
-        )
+          )
+        }
         const row = (label, value, withCopy, amountSplit) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: amountSplit ? 'rgba(212,160,23,.08)' : 'rgba(255,255,255,.03)', border: `1px solid ${amountSplit ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.06)'}` }}>
             <span style={{ flex: 1, fontSize: 14, color: amountSplit ? C.gold : 'rgba(255,255,255,.5)', fontWeight: 600 }}>{label}</span>
@@ -1685,15 +1817,12 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {row(T('رقم طلب التسعيرة','Quote No.'), issuedQuote.quoteNo, true)}
+                {row(T('رقم طلب التسعيرة','Quote No.'), noDash(issuedQuote.quoteNo), true)}
                 {row(T('رقم الإقامة','Iqama Number'), issuedQuote.iqNo, true)}
                 {row(T('الإجمالي','Total'), `${nm(issuedQuote.total.toFixed(2))} ${T('ريال','SAR')}`, false, { unit: T('ريال','SAR'), num: nm(issuedQuote.total.toFixed(2)) })}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-                <button onClick={() => { setIssuedQuote(null); if (typeof onGoToTransferCalc === 'function') onGoToTransferCalc(issuedQuote.quoteNo); else onClose && onClose() }} className="kc-nav-btn dir-back">
-                  <span>{T('التسعيرة','Quote')}</span>
-                  <span className="nav-ico">{lang === 'en' ? <ChevronRight size={14} strokeWidth={2} /> : <ChevronLeft size={14} strokeWidth={2} />}</span>
-                </button>
+                <ActionButton dir="back" Icon={lang === 'en' ? ChevronRight : ChevronLeft} color={C.gold} onClick={() => { setIssuedQuote(null); if (typeof onGoToTransferCalc === 'function') onGoToTransferCalc(issuedQuote.quoteNo); else onClose && onClose() }}>{T('التسعيرة','Quote')}</ActionButton>
               </div>
             </div>
           </div>
@@ -1767,31 +1896,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               </div>
             )}
 
-            {hrsdCheck.phase === 'result' && (() => {
-              const r = hrsdCheck.result || {}
-              const found = r.status === 'found'
-              const advance = () => { setHrsdCheck(c => ({ ...c, phase: 'idle' })); setErrors({}); setTab(1) }
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '6px 0' }}>
-                    <div style={{ width: 58, height: 58, borderRadius: '50%', background: found ? 'rgba(11,109,61,.18)' : 'rgba(212,160,23,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: found ? '#3bb27a' : C.gold }}>{found ? <CheckCircle2 size={28} /> : <AlertCircle size={26} />}</div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: found ? '#3bb27a' : C.gold }}>{found ? T('تم الاستعلام','Inquiry complete') : T('تم تخطّي الاستعلام','Inquiry skipped')}</div>
-                  </div>
-                  {found && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                      {r.name && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}><span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{T('الإسم','Name')}</span><span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500 }}>{r.name}</span></div>}
-                      {r.workerStatus && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}><span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{T('حالة العامل','Worker Status')}</span><span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500 }}>{r.workerStatus}</span></div>}
-                    </div>
-                  )}
-                  <button onClick={advance} style={{ height: 44, borderRadius: 10, border: 'none', background: C.gold, color: '#000', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('متابعة','Continue')}</button>
-                </div>
-              )
-            })()}
           </div>
         </div>
       )}
-
-    </div>
-    </FKModal>
+    </>
   )
 }
+
