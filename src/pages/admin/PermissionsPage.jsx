@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
-import { Search, X, Check, ShieldCheck, Building2, Phone, Mail, CreditCard, ChevronDown, Eye, EyeOff, Copy, User, Globe, Lock } from 'lucide-react'
+import { Search, X, Check, ShieldCheck, Building2, Phone, Mail, CreditCard, ChevronDown, ChevronLeft, Eye, EyeOff, Copy, User, Globe, Lock, Layers, SlidersHorizontal, MousePointerClick } from 'lucide-react'
 import BackButton from '../../components/BackButton'
 import {
   Modal as FKModal, ModalSection, ActionButton, SuccessView, Lbl, GRID, FULL,
   TextField, IdField, PhoneField, Select, MultiSelect, EmptyState,
 } from '../../components/ui/FormKit.jsx'
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
+import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, tabModule as catTabModule } from '../../lib/permCatalog.js'
+import { isGM as isGmUser } from '../../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -561,6 +563,316 @@ function VisToggle({ on, locked, onClick }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// PermissionsPanel — the full per-user control panel. For every sidebar
+// tab it exposes four independent controls, all persisted to the DB:
+//   1. إظهار التبويب   → users.ui_visibility[tabId]            (show/hide)
+//   2. المكاتب         → users.ui_visibility['office:'+tabId]  (office scope)
+//   3. الأزرار         → user_permissions grants per action     (effective role+user)
+//   4. بطاقات التفاصيل → users.ui_visibility['card:'+tabId+':'+key] (per-card)
+// The GM bypasses every check (App.jsx), so a GM account is shown read-only.
+// ═══════════════════════════════════════════════════════════════════
+const ACTION_DOT = { view: '#7f8c8d', create: C.ok, edit: C.blue, delete: C.red, special: C.gold }
+const actionKind = (action) => action === 'view' || action === 'access' ? 'view'
+  : action === 'create' ? 'create' : action === 'edit' ? 'edit' : action === 'delete' ? 'delete' : 'special'
+
+function Seg({ value, options, onChange, disabled }) {
+  return (
+    <div style={{ display: 'inline-flex', background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 9, padding: 3, gap: 3 }}>
+      {options.map(o => {
+        const on = o.v === value
+        return (
+          <button key={o.v} type="button" disabled={disabled} onClick={() => onChange(o.v)}
+            style={{ padding: '5px 11px', borderRadius: 7, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: on ? 'rgba(212,160,23,.16)' : 'transparent', color: on ? C.gold : 'var(--tx3)', transition: '.15s' }}>
+            {o.l}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// A single action button toggle (with effective-source hint).
+function ActionRow({ p, on, source, locked, onToggle }) {
+  const dot = ACTION_DOT[actionKind(p.action)] || C.gold
+  const hint = source === 'role' ? 'مكتسبة من الدور' : source === 'user_grant' ? 'مخصصة لهذا المستخدم' : source === 'user_deny' ? 'موقوفة لهذا المستخدم' : ''
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px', borderRadius: 9, background: on ? 'rgba(39,160,70,.05)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (on ? 'rgba(39,160,70,.18)' : 'rgba(255,255,255,.05)'), transition: '.15s' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot, flexShrink: 0, boxShadow: on ? `0 0 7px ${dot}99` : 'none' }} />
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: on ? 'var(--tx)' : 'var(--tx3)' }}>{p.label_ar}</span>
+          {hint && <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)' }}>{hint}</span>}
+        </span>
+      </span>
+      <VisToggle on={on} locked={locked} onClick={onToggle} />
+    </div>
+  )
+}
+
+function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules, toast }) {
+  const userIsGM = isGmUser(u)
+  const [vis, setVis] = useState(() => ({ ...(u.ui_visibility || {}) }))
+  const visRef = useRef(vis)
+  const [eff, setEff] = useState(null)   // permId -> { is_granted, source }
+  const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState(() => new Set())   // expanded tab ids
+
+  // Effective permissions for this user (role grants ∪ user overrides).
+  useEffect(() => {
+    let live = true
+    sb.from('v_user_effective_permissions').select('permission_id,is_granted,source').eq('user_id', u.id)
+      .then(({ data }) => { if (!live) return; const m = {}; (data || []).forEach(r => { m[r.permission_id] = { is_granted: r.is_granted, source: r.source } }); setEff(m) })
+    return () => { live = false }
+  }, [sb, u.id])
+
+  const moduleByName = useMemo(() => { const m = {}; (modules || []).forEach(x => { m[x.module] = x }); return m }, [modules])
+  const moduleForTab = (tabId) => moduleByName[catTabModule(tabId)] || null
+
+  // ── writers ──
+  const patchVis = async (patch) => {
+    const next = { ...visRef.current, ...patch }
+    visRef.current = next; setVis(next)
+    const { error } = await sb.from('users').update({ ui_visibility: next, updated_at: new Date().toISOString() }).eq('id', u.id)
+    if (error) toast('خطأ: ' + error.message.slice(0, 80))
+  }
+  const toggleTab = (tabId) => patchVis({ [tabId]: !(visRef.current[tabId] === true) })
+  const toggleCard = (tabId, key) => { const k = `card:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
+  const toggleCardAct = (tabId, key, action) => { const k = `cardact:${tabId}:${key}:${action}`; patchVis({ [k]: visRef.current[k] === false }) }
+  const setOffice = (tabId, policy) => patchVis({ [`office:${tabId}`]: policy })
+
+  const togglePerm = async (p) => {
+    if (busy || !eff) return
+    const cur = eff[p.id] || { is_granted: false, source: 'none' }
+    const isOn = cur.is_granted === true
+    setBusy(true)
+    try {
+      if (isOn) {
+        if (cur.source === 'role') {
+          const { error } = await sb.from('user_permissions').upsert({ user_id: u.id, permission_id: p.id, is_granted: false, created_by: currentUser?.id || null }, { onConflict: 'user_id,permission_id' })
+          if (error) throw error
+          setEff(e => ({ ...e, [p.id]: { is_granted: false, source: 'user_deny' } }))
+        } else {
+          const { error } = await sb.from('user_permissions').delete().eq('user_id', u.id).eq('permission_id', p.id)
+          if (error) throw error
+          setEff(e => ({ ...e, [p.id]: { is_granted: false, source: 'none' } }))
+        }
+      } else {
+        const { error } = await sb.from('user_permissions').upsert({ user_id: u.id, permission_id: p.id, is_granted: true, created_by: currentUser?.id || null }, { onConflict: 'user_id,permission_id' })
+        if (error) throw error
+        setEff(e => ({ ...e, [p.id]: { is_granted: true, source: 'user_grant' } }))
+      }
+    } catch (e) { toast('خطأ: ' + (e.message || '').slice(0, 80)) }
+    setBusy(false)
+  }
+
+  // ── per-tab summary helpers ──
+  const officePolicy = (tabId) => { const r = vis[`office:${tabId}`]; return (r && r.mode) ? r : { mode: 'inherit', ids: [] } }
+  const officeLabel = (tabId) => { const p = officePolicy(tabId); return p.mode === 'all' ? 'كل المكاتب' : p.mode === 'specific' ? `${(p.ids || []).length} مكتب محدد` : 'مكاتب الحساب' }
+  const grantedCount = (tabId) => { const mod = moduleForTab(tabId); if (!mod || !eff) return [0, 0]; const on = mod.perms.filter(p => eff[p.id]?.is_granted).length; return [on, mod.perms.length] }
+  const hiddenCards = (tabId) => (TAB_CARDS[tabId] || []).filter(c => vis[`card:${tabId}:${c.key}`] === false).length
+
+  const totalShown = (nav || []).reduce((acc, n) => {
+    const leaves = hubTabs?.[n.id]
+    if (leaves) return acc + leaves.filter(t => vis[t.id] === true).length
+    return acc + (vis[n.id] === true ? 1 : 0)
+  }, 0)
+
+  // ── one tab's expandable control block ──
+  const TabBlock = (tab) => {
+    const id = tab.id
+    const label = tab.l || tab.label
+    const mod = moduleForTab(id)
+    const cards = TAB_CARDS[id] || []
+    const shown = vis[id] === true
+    const isOpen = open.has(id)
+    const [gOn, gTot] = grantedCount(id)
+    const pol = officePolicy(id)
+    return (
+      <div key={id} style={{ borderRadius: 11, background: 'rgba(255,255,255,.015)', border: '1px solid rgba(255,255,255,.05)', overflow: 'hidden' }}>
+        {/* header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+          <button type="button" onClick={() => setOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', color: 'var(--tx4)', transition: '.2s', transform: isOpen ? 'rotate(-90deg)' : 'none' }}>
+            <ChevronLeft size={16} />
+          </button>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0, cursor: 'pointer' }}
+            onClick={() => setOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: shown ? 'var(--tx)' : 'var(--tx3)' }}>{label}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10, fontWeight: 600, color: 'var(--tx5)', flexWrap: 'wrap' }}>
+              {gTot > 0 && <span><span style={{ color: gOn ? C.ok : 'var(--tx5)' }}>{gOn}</span>/{gTot} صلاحية</span>}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Building2 size={9} />{officeLabel(id)}</span>
+              {cards.length > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Layers size={9} />{cards.length - hiddenCards(id)}/{cards.length} كرت</span>}
+            </span>
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+            {shown ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
+            <VisToggle on={shown} locked={busy || userIsGM} onClick={() => toggleTab(id)} />
+          </span>
+        </div>
+        {/* body */}
+        {isOpen && (
+          <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid rgba(255,255,255,.05)' }}>
+            {/* offices */}
+            <div style={{ paddingTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                <Building2 size={13} color={C.gold} />
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>المكاتب المسموح بها</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                <Seg value={pol.mode} disabled={busy || userIsGM}
+                  onChange={(m) => setOffice(id, { mode: m, ids: m === 'specific' ? (pol.ids || []) : [] })}
+                  options={[{ v: 'inherit', l: 'مكاتب الحساب' }, { v: 'all', l: 'كل المكاتب' }, { v: 'specific', l: 'مكاتب محددة' }]} />
+                {pol.mode === 'specific' && (
+                  <MultiSelect placeholder="اختر المكاتب…" value={pol.ids || []}
+                    onChange={(ids) => setOffice(id, { mode: 'specific', ids })}
+                    options={branches || []} getKey={b => b.id} getLabel={b => b.branch_code} />
+                )}
+                {pol.mode === 'inherit' && <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>يستخدم المكاتب المسندة للحساب افتراضياً.</span>}
+              </div>
+            </div>
+            {/* actions */}
+            {mod && mod.perms.length > 0 && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                  <MousePointerClick size={13} color={C.gold} />
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>الأزرار والصلاحيات</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 7 }}>
+                  {mod.perms.map(p => (
+                    <ActionRow key={p.id} p={p} on={!!eff?.[p.id]?.is_granted} source={eff?.[p.id]?.source}
+                      locked={busy || userIsGM} onToggle={() => togglePerm(p)} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* cards */}
+            {cards.length > 0 && <CardsSection tabId={id} cards={cards} vis={vis} disabled={busy || userIsGM} onToggle={toggleCard} onToggleAct={toggleCardAct} />}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={cardChrome}>
+      <div style={cardHeader}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+        <span style={cardTitle}>الصلاحيات والتحكم</span>
+        <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 600 }}>{totalShown} تبويب ظاهر</span>
+      </div>
+      {userIsGM ? (
+        <div style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <ShieldCheck size={20} color={C.gold} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>مدير عام — صلاحية كاملة</div>
+            <div style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, marginTop: 3 }}>يملك هذا المستخدم كل الصلاحيات على جميع التبويبات والمكاتب تلقائياً.</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {!eff && <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{Array.from({ length: 4 }).map((_, i) => <Shimmer key={i} w="100%" h={52} r={11} />)}</div>}
+          {eff && (nav || []).map(n => {
+            const leaves = hubTabs?.[n.id] || null
+            const hubOn = vis[n.id] === true
+            return (
+              <div key={n.id}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--tx2)' }}>{n.l}</span>
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    {hubOn ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: hubOn ? 'var(--tx3)' : 'var(--tx5)' }}>{leaves ? 'إظهار القسم' : 'إظهار التبويب'}</span>
+                    <VisToggle on={hubOn} locked={busy} onClick={() => toggleTab(n.id)} />
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingInlineStart: leaves ? 6 : 0 }}>
+                  {(leaves || [{ id: n.id, l: n.l }]).map(t => TabBlock(t))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Compact mini toggle for per-card action buttons.
+function MiniToggle({ on, locked, onClick }) {
+  return (
+    <button type="button" disabled={locked} onClick={onClick}
+      style={{ width: 30, height: 17, borderRadius: 999, border: 'none', background: on ? C.ok : 'rgba(255,255,255,.15)', cursor: locked ? 'not-allowed' : 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, opacity: locked ? .5 : 1 }}>
+      <span style={{ position: 'absolute', width: 12, height: 12, borderRadius: '50%', background: '#fff', top: 2.5, right: on ? 2.5 : 15.5, transition: '.2s' }} />
+    </button>
+  )
+}
+
+// Per-card visibility + per-card action buttons. Each card is a tile: a
+// show/hide toggle for the card, plus a toggle for every action button inside
+// it (edit/add/delete/special) so the GM can allow editing but exclude a card.
+function CardsSection({ tabId, cards, vis, disabled, onToggle, onToggleAct }) {
+  const groups = useMemo(() => {
+    const g = {}
+    cards.forEach(c => { const key = c.group || 'core'; (g[key] = g[key] || []).push(c) })
+    return g
+  }, [cards])
+  const groupKeys = Object.keys(groups)
+  const multiGroup = groupKeys.length > 1
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+        <Layers size={13} color={C.gold} />
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>بطاقات صفحة التفاصيل</span>
+        <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>رؤية كل كرت وأزراره</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {groupKeys.map(gk => (
+          <div key={gk}>
+            {multiGroup && <div style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, marginBottom: 6, opacity: .85 }}>{CARD_GROUP_LABELS[gk] || gk}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
+              {groups[gk].map(c => {
+                const shown = vis[`card:${tabId}:${c.key}`] !== false
+                const acts = c.actions || []
+                return (
+                  <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'rgba(255,255,255,.06)' : 'rgba(192,57,43,.16)') }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        {shown ? <Eye size={12} color={C.ok} /> : <EyeOff size={12} color="var(--tx5)" />}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: shown ? 'var(--tx)' : 'var(--tx4)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.label_ar}>{c.label_ar}</span>
+                      </span>
+                      <VisToggle on={shown} locked={disabled} onClick={() => onToggle(tabId, c.key)} />
+                    </div>
+                    {acts.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed rgba(255,255,255,.07)', opacity: shown ? 1 : .45 }}>
+                        {acts.map(a => {
+                          const aOn = vis[`cardact:${tabId}:${c.key}:${a.action}`] !== false
+                          const dot = ACTION_DOT[a.kind] || C.gold
+                          return (
+                            <div key={a.action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+                                <span style={{ fontSize: 11, fontWeight: 600, color: aOn ? 'var(--tx2)' : 'var(--tx5)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.label_ar}>{a.label_ar}</span>
+                              </span>
+                              <MiniToggle on={aOn} locked={disabled} onClick={() => onToggleAct(tabId, c.key, a.action)} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // EmployeeInfoCards — three standalone stacked cards (الهوية / بيانات العمل
 // / بيانات الدخول) for the detail page sidebar. `fields` is the shared field
 // list; `pwNode` is the interactive password control.
@@ -644,87 +956,9 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
   const initial = (name || '—').trim().charAt(0)
   const natName = nationalities.find(n => n.id === u.person?.nationality_id)?.name_ar || '—'
 
-  // Per-user permission overrides — a Set of permission_ids explicitly granted.
-  const grantSet = new Set(grants.filter(g => g.is_granted).map(g => g.permission_id))
-  const vis = u.ui_visibility || {}
-
-  // The permissions card mirrors the real sidebar tree (nav → hubTabs): every hub,
-  // tab, and transaction section gets its own "إظهار التبويب" toggle, and any tab that
-  // maps to a permission module also shows that module's granular action toggles.
-  // Tab id → permission module name (most match 1:1; the transfer-calc tab is served
-  // by the active `quotations` domain, not the legacy `transfer_calc` module).
-  const TAB_MODULE_ALIAS = { transfer_calc: 'quotations' }
-  const moduleByName = {}
-  modules.forEach(m => { moduleByName[m.module] = m })
-  const moduleForTab = (tabId) => moduleByName[TAB_MODULE_ALIAS[tabId] || tabId] || null
-  // Hubs (nav items with sub-tabs) and standalone tabs (nav items without), in order.
-  const navTree = (nav || []).map(n => ({ id: n.id, label: n.l, leaves: hubTabs?.[n.id] || null }))
-  // Modules already surfaced under a tab; the rest go to "صلاحيات أخرى" so no granular
-  // permission becomes uneditable. The legacy transfer_calc duplicate is dropped.
-  const usedModules = new Set()
-  navTree.forEach(h => (h.leaves || [{ id: h.id }]).forEach(t => { const m = moduleForTab(t.id); if (m) usedModules.add(m.module) }))
-  const extraModules = modules.filter(m => !usedModules.has(m.module) && m.module !== 'transfer_calc')
-
-  // Granular action toggles for one permission module.
-  const permActionRows = (mod) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-      {mod.perms.map(p => {
-        const on = grantSet.has(p.id)
-        return (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: on ? 'var(--tx)' : 'var(--tx3)' }}>{p.label_ar}</span>
-            <VisToggle on={on} locked={busy} onClick={() => togglePerm(p.id)} />
-          </div>
-        )
-      })}
-    </div>
-  )
-  // One leaf tab — its show/hide toggle plus (if mapped) its module's action toggles.
-  const permLeafBlock = (tab) => {
-    const mod = moduleForTab(tab.id)
-    const on = vis[tab.id] === true   // hidden by default — shown only when explicitly enabled
-    return (
-      <div key={tab.id}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.015)' }}>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{tab.l}</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            {on ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
-            <span style={{ fontSize: 10.5, fontWeight: 600, color: on ? 'var(--tx3)' : 'var(--tx5)' }}>إظهار التبويب</span>
-            <VisToggle on={on} locked={busy} onClick={() => toggleVisible(tab.id)} />
-          </span>
-        </div>
-        {mod && permActionRows(mod)}
-      </div>
-    )
-  }
-
-  const togglePerm = async (permId) => {
-    if (busy) return
-    setBusy(true)
-    try {
-      if (grantSet.has(permId)) {
-        const { error } = await sb.from('user_permissions').delete().eq('user_id', u.id).eq('permission_id', permId)
-        if (error) throw error
-      } else {
-        const { error } = await sb.from('user_permissions').upsert({ user_id: u.id, permission_id: permId, is_granted: true, created_by: currentUser?.id || null }, { onConflict: 'user_id,permission_id' })
-        if (error) throw error
-      }
-      await onChanged?.()
-    } catch (e) { toast('خطأ: ' + (e.message || '').slice(0, 80)) }
-    setBusy(false)
-  }
-
-  const toggleVisible = async (id) => {
-    if (busy || VIS_LOCKED.includes(id)) return
-    const currentlyVisible = vis[id] === true   // hidden by default
-    const next = { ...vis, [id]: !currentlyVisible }
-    setBusy(true)
-    const { error } = await sb.from('users').update({ ui_visibility: next, updated_at: new Date().toISOString() }).eq('id', u.id)
-    setBusy(false)
-    if (error) { toast('خطأ: ' + error.message.slice(0, 80)); return }
-    toast(currentlyVisible ? 'تم إخفاء التبويب لهذا الموظف' : 'تم إظهار التبويب لهذا الموظف')
-    await onChanged?.()
-  }
+  // The full permissions control panel lives in <PermissionsPanel> below — it
+  // manages per-tab visibility, per-tab office scope, action grants and per-card
+  // visibility, all persisted to the DB (user_permissions + users.ui_visibility).
 
   // Activate / deactivate the account (الهوية card header toggle).
   const toggleActive = async () => {
@@ -811,53 +1045,9 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
         <div className="usrd-main" style={{ gridColumn: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <InfoSectionCard title="بيانات العمل" items={infoFields.slice(4, 8)} pwNode={pwValueNode}
             headerAction={<EditAction onEdit={() => setEditing(true)} />} />
-          {/* Permissions */}
-          <div style={cardChrome}>
-            <div style={cardHeader}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={cardTitle}>الصلاحيات</span>
-              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 600 }}>{grantSet.size} مفعّلة</span>
-            </div>
-            <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {navTree.map(hub => {
-                const hubOn = vis[hub.id] === true   // hidden by default
-                const isHub = !!hub.leaves
-                return (
-                  <div key={hub.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{hub.label}</span>
-                      </span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                        {hubOn ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
-                        <span style={{ fontSize: 10.5, fontWeight: 600, color: hubOn ? 'var(--tx3)' : 'var(--tx5)' }}>{isHub ? 'إظهار القسم' : 'إظهار التبويب'}</span>
-                        <VisToggle on={hubOn} locked={busy} onClick={() => toggleVisible(hub.id)} />
-                      </span>
-                    </div>
-                    {isHub
-                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingInlineStart: 8 }}>{hub.leaves.map(t => permLeafBlock(t))}</div>
-                      : (moduleForTab(hub.id) && permActionRows(moduleForTab(hub.id)))}
-                  </div>
-                )
-              })}
-              {extraModules.length > 0 && (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--tx5)' }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>صلاحيات أخرى</span>
-                    <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>غير مرتبطة بتبويب</span>
-                  </div>
-                  {extraModules.map(mod => (
-                    <div key={mod.module} style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 2 }}>{mod.label_ar}</div>
-                      {permActionRows(mod)}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Permissions — full control panel (visibility · offices · actions · cards) */}
+          <PermissionsPanel sb={sb} currentUser={currentUser} u={u} branches={branches}
+            nav={nav} hubTabs={hubTabs} modules={modules} toast={toast} />
         </div>
 
         {/* Left column — الهوية (sticky) */}

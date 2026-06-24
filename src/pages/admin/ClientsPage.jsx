@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
 import { Drop } from './PermissionsPage.jsx'
-import { can as canPerm } from '../../lib/permissions.js'
+import { can as canPerm, cardVisible, canCardBtn } from '../../lib/permissions.js'
 import { noDash, clientEditChanges } from '../../lib/utils.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, Select, MultiSelect, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
@@ -569,8 +569,9 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
 
         {/* Right column — client info + requests */}
         <div className="cld-main" style={{ gridColumn: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {cardVisible(user, 'admin_clients', 'client_info') && (
           <InfoSectionCard title={T('بيانات العميل', 'Client')} items={infoItems}
-            headerAction={!canEdit ? null : (
+            headerAction={!canCardBtn(user, 'admin_clients', 'client_info', 'edit') ? null : (
               <button onClick={() => setEditing(true)}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
@@ -579,8 +580,10 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
               </button>
             )} />
+          )}
 
           {/* Invoices log */}
+          {cardVisible(user, 'admin_clients', 'invoices_log') && (
           <div style={cardChrome}>
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD }} />
@@ -599,11 +602,13 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
               )}
             </div>
           </div>
+          )}
         </div>
 
         {/* Left column — financial summary + stats (sticky) */}
         <div className="cld-side" style={{ gridColumn: 2, position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Financial summary */}
+          {cardVisible(user, 'admin_clients', 'financial_summary') && (
           <div style={cardChrome}>
             <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('الملخص المالي', 'Financial Summary')}</span></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>
@@ -622,6 +627,8 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
               </div>
             </div>
           </div>
+          )}
+          {cardVisible(user, 'admin_clients', 'stats') && (
           <div style={cardChrome}>
             <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={cardTitle}>{T('إحصاءات', 'Stats')}</span></div>
             <div style={{ padding: '6px 22px 12px' }}>
@@ -639,6 +646,7 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
               ))}
             </div>
           </div>
+          )}
         </div>
       </div>
       {editing && (

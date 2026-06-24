@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Building2, FileText, Wallet, CreditCard, Plus, Trash2 } from 'lucide-react'
-import { can as canPerm } from '../../lib/permissions.js'
+import { can as canPerm, canCardBtn } from '../../lib/permissions.js'
 import { Modal as FKModal, ModalSection as FKSection, TextField, CurrencyField, DateField, Select as FKSelect, FileField, SuccessView, ScrollBox, ActionButton, GRID, ConfirmDialog } from '../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -43,10 +43,14 @@ function payState(p) {
   return { k: 'upcoming', l: 'قادم', c: C.gray }
 }
 
-export default function BranchRentCard({ sb, branch, user, toast, lang }) {
+export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contract', toast, lang }) {
   const isAr = lang !== 'en'
   const canEdit = canPerm(user, 'admin_offices.edit') || canPerm(user, 'admin_offices.create')
   const canDelete = canPerm(user, 'admin_offices.delete')
+  // Per-card action gates (catalog: rent_contract → edit/create/delete).
+  const canCardEdit = canCardBtn(user, 'admin_offices', cardKey, 'edit')
+  const canCardCreate = canCardBtn(user, 'admin_offices', cardKey, 'create')
+  const canCardDelete = canCardBtn(user, 'admin_offices', cardKey, 'delete')
 
   const [obligation, setObligation] = useState(null)
   const [payments, setPayments] = useState([])
@@ -100,7 +104,7 @@ export default function BranchRentCard({ sb, branch, user, toast, lang }) {
           <span className="brd-section-dot" style={{ background: GOLD }} />
           الإيجار
         </span>
-        {canEdit && (
+        {canEdit && (obligation ? canCardEdit : canCardCreate) && (
           <button onClick={() => setModal(true)}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
@@ -156,7 +160,7 @@ export default function BranchRentCard({ sb, branch, user, toast, lang }) {
             {/* Payment schedule */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>جدول السداد ({payments.length})</span>
-              {canEdit && (
+              {canEdit && canCardCreate && (
                 <button onClick={() => setPayModal({ due_date: todayIso(), amount: '' })}
                   style={{ fontSize: 11, fontWeight: 700, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F }}>+ دفعة</button>
               )}
@@ -180,7 +184,7 @@ export default function BranchRentCard({ sb, branch, user, toast, lang }) {
                         {canEdit && p.status === 'paid' && (
                           <button onClick={() => unpay(p)} title="تراجع" style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)', background: 'transparent', border: '1px solid rgba(255,255,255,.12)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: F }}>تراجع</button>
                         )}
-                        {canDelete && (
+                        {canDelete && canCardDelete && (
                           <button onClick={() => setDelPayTarget(p)} title="حذف" style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(192,57,43,.25)', background: 'rgba(192,57,43,.1)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                           </button>

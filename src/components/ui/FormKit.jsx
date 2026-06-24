@@ -418,6 +418,7 @@ export const TextField = ({ label, req, error, hint, value, onChange, placeholde
     let s = v
     if (filter === 'ar') s = s.replace(RE_AR, '')
     else if (filter === 'en') s = s.replace(RE_EN, '')
+    else if (filter === 'digits') s = s.replace(RE_DIGITS, '')
     if (upper) s = s.toUpperCase()
     if (maxLength) s = s.slice(0, maxLength)
     return s
@@ -476,6 +477,52 @@ export const PhoneField = ({ label, req, error, hint, value, onChange, full, sil
         <input value={value || ''} onChange={e => onChange(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
           style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left' }} />
       </div>
+    </Field>
+  )
+}
+
+// قائمة جوالات سعودية — مصفوفة أرقام مخزّنة بصيغة 9665XXXXXXXX (نفس صيغة عمود phone
+// في الموقع). الإدخال محلي (5XXXXXXXX) ثم زر «إضافة» أو Enter؛ كل رقم يظهر كشريحة
+// قابلة للحذف بصيغة العرض 05XXXXXXXX. تتفادى تكرار نفس الرقم تلقائياً.
+export const PhoneListField = ({ label, req, error, hint, value, onChange, full, addTitle = 'إضافة رقم' }) => {
+  const ac = useContext(AccentContext)
+  const list = Array.isArray(value) ? value.filter(Boolean) : []
+  const [draft, setDraft] = useState('')
+  const localOf = v => String(v || '').replace(RE_DIGITS, '').replace(/^966/, '').replace(/^0/, '').slice(-9)
+  const disp = v => { const s = localOf(v); return s ? '0' + s : '' }
+  const ready = /^5\d{8}$/.test(draft)
+  const add = () => {
+    if (!ready) return
+    if (list.some(x => localOf(x) === draft)) { setDraft(''); return }   // تفادي التكرار
+    onChange([...list, '966' + draft]); setDraft('')
+  }
+  return (
+    <Field label={label} req={req} error={error} hint={hint} full={full}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ flex: 1, display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(error), height: 42 }}>
+          <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
+          <input value={draft} onChange={e => setDraft(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }} placeholder="5X XXX XXXX" maxLength={9}
+            style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left' }} />
+        </div>
+        <button type="button" onClick={add} disabled={!ready} title={addTitle}
+          style={{ width: 42, height: 42, flexShrink: 0, borderRadius: 9, border: 'none', background: ac + '1f', color: ac, cursor: ready ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: ready ? 1 : .4, transition: '.15s' }}>
+          <Plus size={18} strokeWidth={2.4} />
+        </button>
+      </div>
+      {list.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          {list.map((v, i) => (
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 6px 5px 11px', borderRadius: 8, border: `1px solid ${ac}40`, background: `${ac}0d` }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.tx, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{disp(v)}</span>
+              <button type="button" onClick={() => onChange(list.filter((_, idx) => idx !== i))}
+                style={{ width: 18, height: 18, borderRadius: 5, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </Field>
   )
 }
@@ -547,14 +594,15 @@ export const FileField = ({ label, req, error, hint, value, onChange, accept = '
             ))}
           </div>
         ) : (
-          // عرض مفرد — صف كامل بالاسم والحجم.
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', height: 44, borderRadius: 10, border: `1px solid ${C.ok}40`, background: `${C.ok}0d` }}>
-            <Paperclip size={16} color={C.ok} strokeWidth={2} style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files[0].name}</div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: C.tx4 }}>{fmtSize(files[0].size)}</div>
+          // عرض مفرد — يأخذ نفس مساحة كرت الإرفاق (نفس الارتفاع والحشو والشكل) فلا يقفز الحجم عند الإرفاق.
+          <div style={{ position: 'relative', display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: compact ? 10 : 8, minHeight: compact ? 44 : 96, padding: compact ? '8px 14px' : '16px', borderRadius: 10, border: `1px solid ${C.ok}40`, background: `${C.ok}0d` }}>
+            <Paperclip size={compact ? 16 : 22} color={C.ok} strokeWidth={2} style={{ flexShrink: 0 }} />
+            <div style={{ minWidth: 0, maxWidth: '100%', flex: compact ? 1 : 'none', textAlign: compact ? 'start' : 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{files[0].name}</div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: C.tx4, marginTop: compact ? 0 : 2 }}>{fmtSize(files[0].size)}</div>
             </div>
-            <button type="button" onClick={() => removeAt(0)} style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <button type="button" onClick={() => removeAt(0)}
+              style={{ ...(compact ? { position: 'static' } : { position: 'absolute', top: 8, insetInlineEnd: 8 }), width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <X size={13} />
             </button>
           </div>
@@ -939,7 +987,7 @@ export const ScrollBox = ({ children, maxHeight = 300, fill = false, style }) =>
 // اللون الأساسي للنافذة حسب نوعها: إنشاء=ذهبي · تعديل=سماوي · حذف=أحمر · إضافة=أخضر
 export const VARIANT_COLORS = { create: C.gold, edit: '#36a8e6', delete: C.red, add: C.ok }
 
-export function Modal({ open, onClose, title, subtitle, Icon, width = 720, children, footer, errorMsg,
+export function Modal({ open, onClose, title, subtitle, Icon, width = 720, children, footer, footerStart, errorMsg,
   closeOnOverlay = false, headerExtra, variant = 'create', accent, scroll = false,
   hideHeader = false, height, success,
   tabs, tab, onTab,
@@ -977,7 +1025,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   const goNext = controlled ? (() => onNext?.()) : (() => setPage(p => p + 1))
   const backNode = hasPages && cur > 0
     ? <ActionButton variant="ghost" dir="fwd" Icon={ChevronRight} onClick={goBack}>{backLabel}</ActionButton>
-    : null
+    : (footerStart || null)
   const forwardNode = hasPages
     ? (isLast
         ? <ActionButton dir="back" Icon={submitIcon || Save} color={AC} disabled={!curValid || submitting} onClick={() => onSubmit?.()}>{submitting ? 'جاري الحفظ...' : submitLabel}</ActionButton>

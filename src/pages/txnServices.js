@@ -29,21 +29,22 @@ export const TXN_SERVICES = {
     theme: { c: '#5dade2', label_ar: 'تحديث بيانات الجواز', label_en: 'Passport Update' },
     hero: { ar: 'تحديث بيانات الجواز', en: 'Passport Update', dAr: 'إصدار ومتابعة طلبات تحديث بيانات جوازات العمّال', dEn: 'Issue and track worker passport-data update requests' },
     party: 'worker', billable: true, listMode: 'worker',
-    inputs: [
-      { key: 'passport_number', label_ar: 'رقم الجواز', type: 'text', required: true, direction: 'ltr' },
-      { key: 'passport_expiry', label_ar: 'تاريخ انتهاء الجواز', type: 'date', required: true },
-    ],
+    // مفاتيح الحقول مطابقة لنموذج المعالج المخصّص (update_mode · new_passport_*) وتُحفظ في
+    // other_applications.details عبر passportDetails في مُنشئ الطلب — فتُقرأ هنا وفي تفصيل الفاتورة وطباعتها.
     detail: [
       { src: 'w_name', l_ar: 'العامل', l_en: 'Worker' },
       { src: 'w_iqama', l_ar: 'رقم الإقامة', l_en: 'Iqama No', mono: true },
       { src: 'f_name', l_ar: 'المنشأة', l_en: 'Facility' },
-      { src: 'd:passport_number', l_ar: 'رقم الجواز', l_en: 'Passport No', mono: true },
-      { src: 'd:passport_expiry', l_ar: 'انتهاء الجواز', l_en: 'Passport Expiry', mono: true, date: true },
+      { src: 'd:update_mode', l_ar: 'نوع التحديث', l_en: 'Update Type', opts: { extend: 'تمديد الانتهاء', renew: 'تجديد (جواز جديد)' } },
+      { src: 'd:new_passport_no', l_ar: 'رقم الجواز الجديد', l_en: 'New Passport No', mono: true },
+      { src: 'd:new_passport_issue_city_name', l_ar: 'مكان الإصدار', l_en: 'Issue Place' },
+      { src: 'd:new_passport_issue_date', l_ar: 'تاريخ الإصدار', l_en: 'Issue Date', mono: true, date: true },
+      { src: 'd:new_passport_expiry', l_ar: 'انتهاء الجواز', l_en: 'Passport Expiry', mono: true, date: true },
     ],
   },
   profession_change: {
-    theme: { c: '#bb8fce', label_ar: 'تغيير المهنة', label_en: 'Profession Change' },
-    hero: { ar: 'تغيير المهنة', en: 'Profession Change', dAr: 'إصدار ومتابعة طلبات تغيير مهن العمّال', dEn: 'Issue and track worker profession-change requests' },
+    theme: { c: '#bb8fce', label_ar: 'تغيير المهنة', label_en: 'Occupation Change' },
+    hero: { ar: 'تغيير المهنة', en: 'Occupation Change', dAr: 'إصدار ومتابعة طلبات تغيير مهن العمّال', dEn: 'Issue and track worker profession-change requests' },
     party: 'worker', billable: true, listMode: 'worker',
     inputs: [
       { key: 'current_occupation', label_ar: 'المهنة الحالية', type: 'text' },
@@ -124,7 +125,7 @@ export const TXN_SERVICES = {
   name_translation: {
     theme: { c: '#27ae60', label_ar: 'تعديل الراتب', label_en: 'Salary Adjustment' },
     hero: { ar: 'تعديل الراتب', en: 'Salary Adjustment', dAr: 'إصدار ومتابعة طلبات تعديل رواتب العمّال', dEn: 'Issue and track worker salary-adjustment requests' },
-    party: 'worker', billable: false, listMode: 'worker',
+    party: 'worker', billable: true, listMode: 'worker',
     inputs: [
       { key: 'new_salary', label_ar: 'الراتب الجديد', type: 'number', required: true, placeholder: '0' },
       { key: 'salary_months', label_ar: 'مدة الراتب', type: 'select', required: true, options: months(24) },
@@ -168,13 +169,30 @@ export const TXN_SERVICES = {
       { src: 'd:chamber_text', l_ar: 'نص الطلب', l_en: 'Request Text', wide: true },
     ],
   },
-  // عقد أجير وتجديد الإقامة: تُخزَّنان في جدولين خاصين (ajeer_applications / iqama_renewal_applications)،
-  // وتُعرَض تفاصيلهما عبر فرعيهما المخصّصين في ApplicationDetails — فلا inputs/detail هنا (لئلا نلمس مدخلات
-  // المعالج). وجودهما في السجل يمنحهما الـ hero + نمط القائمة (عامل) + بطاقة الإجراءات مثل بقية الخدمات.
+  // عقد أجير: خدمة مُدارة بالكامل عبر السجل مثل «الغرفة التجارية» — تُخزَّن في other_applications
+  // وتُعرَض تفاصيلها عبر مُحرّك السجل العام. وقت إنشاء الفاتورة يجمع المعالج: الرقم الموحد للمنشأة
+  // المستعارة + المدينة + مدة العقد بالأشهر (فرع ajeer_contract المخصّص). أمّا «رقم العقد» ومرفق
+  // «تصريح عقد أجير» فيُدخَلان لاحقًا في صفحة المعاملة عبر بطاقة المتابعة (مرّة واحدة) — مثل رقم معاملة
+  // الغرفة وملفها. تجديد الإقامة وحده يبقى في جدوله الخاص.
   ajeer: {
     theme: { c: '#bb8fce', label_ar: 'عقد أجير', label_en: 'Ajeer Contract' },
     hero: { ar: 'عقد أجير', en: 'Ajeer Contract', dAr: 'إصدار ومتابعة عقود الأجير للعمّال بين المنشآت', dEn: 'Issue and track worker Ajeer contracts between facilities' },
     party: 'worker', billable: true, listMode: 'worker',
+    // يرسمها المعالج عبر فرع ajeer_contract المخصّص؛ وجودها هنا يجعل مُنشئ الطلب يحفظها ضمن details
+    // (المدينة تُحفظ كـ id؛ يُضاف city_name منفصلًا في الحفظ ليُعرض في التفاصيل).
+    inputs: [
+      { key: 'borrower_700', label_ar: 'الرقم الموحد للمنشأة المستعارة', type: 'text', required: true, direction: 'ltr' },
+      { key: 'city', label_ar: 'المدينة', type: 'select', required: true, source: 'cities' },
+      { key: 'contract_months', label_ar: 'مدة العقد', type: 'select', required: true },
+    ],
+    detail: [
+      { src: 'w_name', l_ar: 'العامل', l_en: 'Worker' },
+      { src: 'w_iqama', l_ar: 'رقم الإقامة', l_en: 'Iqama No', mono: true },
+      { src: 'f_name', l_ar: 'المنشأة', l_en: 'Facility' },
+      { src: 'd:borrower_700', l_ar: 'الرقم الموحد للمنشأة المستعارة', l_en: 'Borrower Unified No', mono: true, wide: true },
+      { src: 'd:city_name', l_ar: 'المدينة', l_en: 'City' },
+      { src: 'd:contract_months', l_ar: 'مدة العقد', l_en: 'Duration', months: true },
+    ],
   },
   iqama_renewal: {
     theme: { c: '#16a085', label_ar: 'تجديد الإقامة', label_en: 'Iqama Renewal' },

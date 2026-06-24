@@ -569,7 +569,7 @@ const QUOTE_LANGS = [
 ]
 const QUOTE_TEXTS = {
   ar: { title:'عرض سعر — حسبة التنازل', quoteNo:'رقم التسعيرة', date:'التاريخ', workerData:'بيانات العامل', workerName:'اسم العامل', iqamaNo:'رقم الإقامة', mobile:'رقم الجوال', currentIqamaExpiry:'انتهاء الإقامة الحالي', expectedIqamaExpiry:'انتهاء الإقامة المتوقع', expectedDuration:'المدة المتوقعة', months:'شهر', days:'يوم', and:'و', costSummary:'ملخص التكاليف', item:'البند', amount:'المبلغ', sar:'ريال', transferFee:'رسوم نقل الكفالة', iqamaRenewal:'تجديد الإقامة', workPermit:'رخصة العمل', changeProf:'تغيير المهنة', medical:'التأمين الطبي', office:'رسوم المكتب', extras:'رسوم إضافية', subtotal:'إجمالي الرسوم', absher:'رصيد أبشر (خصم)', grandTotal:'الإجمالي النهائي', warnings:'تنبيهات وملاحظات', warnExpired:'الإقامة منتهية منذ {d} يوم — تم إضافة غرامة التأخير. تجديد الإقامة قبل الانتهاء يُسقط الغرامة.', warnExpiringSoon:'الإقامة ستنتهي خلال {d} يوم — يُنصح بالتجديد قبل الانتهاء لتجنّب غرامة التأخير.', warnValid:'الإقامة سارية — لا توجد غرامة.', signature:'التوقيع', stamp:'الختم', footer:'هذه تسعيرة تقديرية صالحة لمدة 7 أيام من تاريخ الإصدار.', print:'طباعة' },
-  en: { title:'Quote — Sponsorship Transfer', quoteNo:'Quote No.', date:'Date', workerData:'Worker Data', workerName:'Worker Name', iqamaNo:'Iqama Number', mobile:'Mobile', currentIqamaExpiry:'Current Iqama Expiry', expectedIqamaExpiry:'Expected Iqama Expiry', expectedDuration:'Expected Duration', months:'month(s)', days:'day(s)', and:'and', costSummary:'Cost Summary', item:'Item', amount:'Amount', sar:'SAR', transferFee:'Sponsorship Transfer Fee', iqamaRenewal:'Iqama Renewal', workPermit:'Work Permit', changeProf:'Profession Change', medical:'Medical Insurance', office:'Office Fees', extras:'Additional Fees', subtotal:'Subtotal', absher:'Absher Balance (discount)', grandTotal:'Grand Total', warnings:'Notes & Warnings', warnExpired:'Iqama expired {d} day(s) ago — late fine applied. Renewing before expiry removes the fine.', warnExpiringSoon:'Iqama expires in {d} day(s) — renew before expiry to avoid the late fine.', warnValid:'Iqama is valid — no fine applies.', signature:'Signature', stamp:'Stamp', footer:'This is an estimated quote valid for 7 days from issue date.', print:'Print' },
+  en: { title:'Quote — Sponsorship Transfer', quoteNo:'Quote No.', date:'Date', workerData:'Worker Data', workerName:'Worker Name', iqamaNo:'Iqama Number', mobile:'Mobile', currentIqamaExpiry:'Current Iqama Expiry', expectedIqamaExpiry:'Expected Iqama Expiry', expectedDuration:'Expected Duration', months:'month(s)', days:'day(s)', and:'and', costSummary:'Cost Summary', item:'Item', amount:'Amount', sar:'SAR', transferFee:'Sponsorship Transfer Fee', iqamaRenewal:'Iqama Renewal', workPermit:'Work Permit', changeProf:'Occupation Change', medical:'Medical Insurance', office:'Office Fees', extras:'Additional Fees', subtotal:'Subtotal', absher:'Absher Balance (discount)', grandTotal:'Grand Total', warnings:'Notes & Warnings', warnExpired:'Iqama expired {d} day(s) ago — late fine applied. Renewing before expiry removes the fine.', warnExpiringSoon:'Iqama expires in {d} day(s) — renew before expiry to avoid the late fine.', warnValid:'Iqama is valid — no fine applies.', signature:'Signature', stamp:'Stamp', footer:'This is an estimated quote valid for 7 days from issue date.', print:'Print' },
   bn: { title:'উদ্ধৃতি — স্পনসরশিপ স্থানান্তর', quoteNo:'উদ্ধৃতি নং', date:'তারিখ', workerData:'কর্মীর তথ্য', workerName:'কর্মীর নাম', iqamaNo:'ইকামা নম্বর', mobile:'মোবাইল', currentIqamaExpiry:'বর্তমান ইকামা মেয়াদ', expectedIqamaExpiry:'প্রত্যাশিত ইকামা মেয়াদ', expectedDuration:'প্রত্যাশিত সময়কাল', months:'মাস', days:'দিন', and:'এবং', costSummary:'খরচের সারাংশ', item:'বিবরণ', amount:'পরিমাণ', sar:'SAR', transferFee:'স্পনসরশিপ স্থানান্তর ফি', iqamaRenewal:'ইকামা নবায়ন', workPermit:'কাজের অনুমতিপত্র', changeProf:'পেশা পরিবর্তন', medical:'চিকিৎসা বীমা', office:'অফিস ফি', extras:'অতিরিক্ত ফি', subtotal:'উপমোট', absher:'আবশের ব্যালেন্স (ছাড়)', grandTotal:'সর্বমোট', warnings:'বিজ্ঞপ্তি ও সতর্কতা', warnExpired:'ইকামার মেয়াদ {d} দিন আগে শেষ হয়েছে — বিলম্ব জরিমানা প্রযোজ্য। মেয়াদ শেষ হওয়ার আগে নবায়ন জরিমানা বাদ দেয়।', warnExpiringSoon:'ইকামা {d} দিনের মধ্যে শেষ হবে — বিলম্ব জরিমানা এড়াতে মেয়াদ শেষ হওয়ার আগে নবায়ন করুন।', warnValid:'ইকামা বৈধ — কোন জরিমানা নেই।', signature:'স্বাক্ষর', stamp:'সিল', footer:'এটি একটি আনুমানিক উদ্ধৃতি, ইস্যুর তারিখ থেকে ৭ দিনের জন্য বৈধ।', print:'মুদ্রণ' },
   hi: { title:'उद्धरण — प्रायोजन स्थानांतरण', quoteNo:'उद्धरण संख्या', date:'दिनांक', workerData:'कर्मचारी डेटा', workerName:'कर्मचारी का नाम', iqamaNo:'इकामा संख्या', mobile:'मोबाइल', currentIqamaExpiry:'वर्तमान इकामा समाप्ति', expectedIqamaExpiry:'अपेक्षित इकामा समाप्ति', expectedDuration:'अपेक्षित अवधि', months:'माह', days:'दिन', and:'और', costSummary:'लागत सारांश', item:'मद', amount:'राशि', sar:'SAR', transferFee:'प्रायोजन स्थानांतरण शुल्क', iqamaRenewal:'इकामा नवीनीकरण', workPermit:'कार्य परमिट', changeProf:'पेशा परिवर्तन', medical:'चिकित्सा बीमा', office:'कार्यालय शुल्क', extras:'अतिरिक्त शुल्क', subtotal:'उप-योग', absher:'अबशेर बैलेंस (छूट)', grandTotal:'कुल योग', warnings:'सूचनाएं और चेतावनियां', warnExpired:'इकामा {d} दिन पहले समाप्त हो गया — विलंब जुर्माना लागू। समाप्ति से पहले नवीनीकरण जुर्माना हटाता है।', warnExpiringSoon:'इकामा {d} दिन में समाप्त होगा — विलंब जुर्माना से बचने हेतु समाप्ति से पहले नवीनीकरण करें।', warnValid:'इकामा वैध है — कोई जुर्माना नहीं।', signature:'हस्ताक्षर', stamp:'मुहर', footer:'यह एक अनुमानित उद्धरण है, जारी होने की तिथि से 7 दिनों तक वैध।', print:'प्रिंट' },
   ur: { title:'اقتباس — کفالت کی منتقلی', quoteNo:'اقتباس نمبر', date:'تاریخ', workerData:'ملازم کا ڈیٹا', workerName:'ملازم کا نام', iqamaNo:'اقامہ نمبر', mobile:'موبائل', currentIqamaExpiry:'موجودہ اقامہ میعاد', expectedIqamaExpiry:'متوقع اقامہ میعاد', expectedDuration:'متوقع مدت', months:'ماہ', days:'دن', and:'اور', costSummary:'اخراجات کا خلاصہ', item:'مد', amount:'رقم', sar:'ریال', transferFee:'کفالت کی منتقلی کی فیس', iqamaRenewal:'اقامہ تجدید', workPermit:'ورک پرمٹ', changeProf:'پیشہ کی تبدیلی', medical:'طبی انشورنس', office:'دفتری فیس', extras:'اضافی فیس', subtotal:'ذیلی کل', absher:'ابشر بیلنس (رعایت)', grandTotal:'کل رقم', warnings:'تنبیہات اور نوٹس', warnExpired:'اقامہ {d} دن پہلے ختم ہو چکا — تاخیر کا جرمانہ شامل ہے۔ ختم ہونے سے پہلے تجدید جرمانہ ختم کر دیتی ہے۔', warnExpiringSoon:'اقامہ {d} دن میں ختم ہو جائے گا — جرمانے سے بچنے کے لیے ختم ہونے سے پہلے تجدید کریں۔', warnValid:'اقامہ درست ہے — کوئی جرمانہ نہیں۔', signature:'دستخط', stamp:'مہر', footer:'یہ ایک تخمینی اقتباس ہے، اجراء کی تاریخ سے 7 دن کے لیے درست۔', print:'پرنٹ' },
@@ -793,17 +793,17 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     const months = parseInt(f.renewalMonths) || 12
     const defaultProc = parseFloat(cfg.workPermitProcDays) || 7
     const today = new Date(); today.setHours(0, 0, 0, 0)
-    const exp = f.iqamaExpiry ? new Date(f.iqamaExpiry) : null
+    // أساس احتساب رخصة العمل (سياسة الأدمن): انتهاء الإقامة أو انتهاء كرت العمل
+    const baseStr = (cfg.kafalaWpBasis === 'workcard' && f.wpExpiry) ? f.wpExpiry : f.iqamaExpiry
+    const exp = baseStr ? new Date(baseStr) : null
     if (exp && !isNaN(exp)) exp.setHours(0, 0, 0, 0)
+    const expired = !!(exp && !isNaN(exp) && exp < today)
+    const daysSinceExpiry = expired ? Math.floor((today - exp) / 86400000) : 0
+    // قاعدة المنتهية من مدة طويلة: عند تفعيلها وتجاوز التأخّر الحدّ ← إصدار جديد من اليوم + أيام الإصدار
+    const longExpired = cfg.kafalaWpResetEnabled === true && expired && daysSinceExpiry > (parseFloat(cfg.kafalaWpResetAfterDays) || 365)
     const start = (() => {
-      if (exp && !isNaN(exp) && exp > today) {
-        return new Date(exp)
-      }
-      const daysSinceExpiry = exp && !isNaN(exp) ? Math.floor((today - exp) / 86400000) : 0
-      const thr = parseFloat(cfg.workPermitExpiredThreshold) || 30
-      const procDays = daysSinceExpiry >= thr
-        ? (parseFloat(cfg.workPermitExpiredProcDays) || defaultProc)
-        : defaultProc
+      if (exp && !isNaN(exp) && exp > today) return new Date(exp)
+      const procDays = longExpired ? (parseFloat(cfg.kafalaWpIssuanceDays) || 5) : defaultProc
       const s = new Date(today); s.setDate(s.getDate() + procDays)
       return s
     })()
@@ -822,7 +822,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       total = bracketFee + Math.ceil((end - cutoff) / 86400000) * dailyRate
     }
     setF(p => ({ ...p, workPermitRate: String(Math.round(total)) }))
-  }, [f.renewalMonths, f.iqamaExpiry, cfg])
+  }, [f.renewalMonths, f.iqamaExpiry, f.wpExpiry, cfg])
+
+  // وضع رسوم المكتب (سياسة الأدمن): في الوضع اليومي يُحسب رسم المكتب تلقائياً = سعر اليوم × أيام التجديد (الشهور × 30)
+  useEffect(() => {
+    if (cfg.kafalaOfficeFeeMode !== 'daily') return
+    const days = (parseInt(f.renewalMonths) || 0) * 30
+    setF(p => ({ ...p, officeFee: String(Math.round((parseFloat(cfg.officeDailyRate) || 0) * days)) }))
+  }, [f.renewalMonths, cfg])
 
   // Transfer fee auto-set from Muqeem sponsor changes (number of previous sponsor transfers):
   //   0 → transferFee1 (first time), 1 → transferFee2 (second), 2+ → transferFee3 (more).
@@ -864,7 +871,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const transferFee = parseFloat(f.transferFeeInput) || 0
   const iqamaRenewalFee = f.transferOnly ? 0 : (parseFloat(f.iqamaRenewalFee) || 0)
   const workPermitFee = f.transferOnly ? 0 : (parseFloat(f.workPermitRate) || 0)
-  // Profession change fee — waived if either the current or the new occupation is in the free-change list
+  // Occupation change fee — waived if either the current or the new occupation is in the free-change list
   const profChangeFreeIds = Array.isArray(cfg.profChangeFreeOccupations) ? cfg.profChangeFreeOccupations : []
   const profChangeIsFree = profChangeFreeIds.length > 0 && (profChangeFreeIds.includes(f.occupationId) || profChangeFreeIds.includes(f.newOccupationId))
   const profChangeFee = (f.changeProfession && !profChangeIsFree) ? (parseFloat(f.profChangeInput) || 0) : 0
@@ -886,14 +893,11 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     }
     return { months: Math.max(0, months), days: Math.max(0, days) }
   })()
-  // Office fee: flat general price up to the configured monthly cap; any excess days
-  // are billed at the daily rate and added on top of the general price.
+  // Office fee: flat general price (no monthly cap / daily excess). The daily rate
+  // is kept only for the hidden discount floor used at approval time.
   const officeDailyRate = parseFloat(cfg.officeDailyRate) || 0
   const baseOfficeFee = parseFloat(cfg.officeFee) || 0
-  const officeFlatMonths = parseFloat(cfg.officeFlatMonths) || 12
-  const officeFlatDays = Math.round(officeFlatMonths * 30)
-  const officeExcessDays = Math.max(0, expectedIqamaDays - officeFlatDays)
-  const officeAutoFee = baseOfficeFee + officeExcessDays * officeDailyRate
+  const officeAutoFee = baseOfficeFee
   const officeFee = parseFloat(f.officeFee) || officeAutoFee
   // Hidden discount floor — daily rate × expected iqama duration (calendar days). Stored for the approval-side logic.
   const officeDiscountFloor = officeDailyRate * expectedIqamaDays
@@ -1115,7 +1119,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       [T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee],
       !f.transferOnly && renewalMos > 0 ? [T('تجديد الإقامة','Iqama Renewal'), iqamaRenewalFee] : null,
       !f.transferOnly ? [T('رخصة العمل','Work Permit'), workPermitFee] : null,
-      profChangeFee > 0 ? [T('تغيير المهنة','Change Profession'), profChangeFee] : null,
+      profChangeFee > 0 ? [T('تغيير المهنة','Change Occupation'), profChangeFee] : null,
       !f.transferOnly ? [T('التأمين الطبي','Medical Insurance'), medicalFee] : null,
       [T('رسوم المكتب','Office Fees'), officeFee],
       ...f.extras.map(ex => [ex.name, Number(ex.amount)]),
@@ -1372,18 +1376,18 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 directly (and is editable) on the pricing tab. */}
             <div>
               {mqLocked ? (
+                <MqLocked label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData.iqamaExpiryGregorian || f.iqamaExpiry} sub={muqeemData.iqamaExpiryHijri ? muqeemData.iqamaExpiryHijri + ' هـ' : null} req />
+              ) : (
+                <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
+              )}
+            </div>
+            <div>
+              {mqLocked ? (
                 <MqLocked label={T('المهنة','Occupation')} value={muqeemData.occupationAr || f.occupation} req />
               ) : (<>
                 <Lbl req>{T('المهنة','Occupation')}</Lbl>
                 <OccSelect value={f.occupation || ''} onChange={(v,item)=>setF(p=>({...p,occupation:v,occupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')}/>
               </>)}
-            </div>
-            <div>
-              {mqLocked ? (
-                <MqLocked label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData.iqamaExpiryGregorian || f.iqamaExpiry} sub={muqeemData.iqamaExpiryHijri ? muqeemData.iqamaExpiryHijri + ' هـ' : null} req />
-              ) : (
-                <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
-              )}
             </div>
           </div>
         </div>
@@ -1533,7 +1537,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             )}
 
             {/* تغيير المهنة + المهنة الجديدة — جنب بعض عند اختيار «نعم» لتوفير المساحة بلا تمرير */}
-            <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Profession')} span={f.changeProfession ? 1 : 2}>
+            <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Occupation')} span={f.changeProfession ? 1 : 2}>
               <YesNo value={f.changeProfession} onChange={v => set('changeProfession', v)} lang={lang} height={42} />
             </Card>
             {f.changeProfession && (
@@ -1675,7 +1679,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 const sum = f.extras.reduce((s, ex) => s + (Number(ex.amount) || 0), 0)
                 return [[T('مجموع الرسوم الإضافية','Additional Fees Total'), sum]]
               })()
-              const items = [[T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee, 'transferFee'], [T('تجديد الإقامة','Iqama Renewal') + renewalLabelSuffix, iqamaRenewalFee, 'iqamaRenewal'], [T('رخصة العمل','Work Permit') + renewalLabelSuffix, workPermitFee], ...(profChangeFee > 0 ? [[T('تغيير المهنة','Change Profession'), profChangeFee]] : []), [T('التأمين الطبي','Medical Insurance'), medicalFee], [T('رسوم المكتب','Office Fees'), officeFee], ...extrasRows]
+              const items = [[T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee, 'transferFee'], [T('تجديد الإقامة','Iqama Renewal') + renewalLabelSuffix, iqamaRenewalFee, 'iqamaRenewal'], [T('رخصة العمل','Work Permit') + renewalLabelSuffix, workPermitFee], ...(profChangeFee > 0 ? [[T('تغيير المهنة','Change Occupation'), profChangeFee]] : []), [T('التأمين الطبي','Medical Insurance'), medicalFee], [T('رسوم المكتب','Office Fees'), officeFee], ...extrasRows]
               const subtotal = items.reduce((s, [, v]) => s + (Number(v) || 0), 0)
               const absherOn = !!f.absherBalance_on
               const absher = absherOn ? (parseFloat(f.absherBalance) || 0) : 0

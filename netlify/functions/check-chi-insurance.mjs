@@ -131,24 +131,33 @@ function parseResult(html) {
   }
 
   const datePattern = /(\d{4}[-\/]\d{1,2}[-\/]\d{1,2}|\d{1,2}[-\/]\d{1,2}[-\/]\d{4})/
-  const textInCell = /<(?:td|span|div|b|strong|p)[^>]*>\s*([^<]{2,80}?)\s*<\/(?:td|span|div|b|strong|p)>/i
+
+  // CHI يعرض النتيجة كصفوف جدول [خانة العنوان][خانة القيمة] — نعيد الخانة التي ليست العنوان.
+  function cellValueForLabel(labelTexts) {
+    for (const label of labelTexts) {
+      const re = new RegExp(escape(label).replace(/\s+/g, '\\s*'), 'i')
+      for (const tr of cleaned.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+        const cells = [...tr[1].matchAll(/<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi)].map(c => stripTags(c[1])).filter(Boolean)
+        if (cells.length < 2) continue
+        const li = cells.findIndex(c => re.test(c))
+        if (li === -1) continue
+        const val = cells.find((c, i) => i !== li && !re.test(c))
+        if (val) return val
+      }
+    }
+    return null
+  }
 
   const expiry = valueInRow(
     ['تاريخ انتهاء التأمين', 'تاريخ انتهاء الوثيقة', 'تاريخ الإنتهاء', 'تاريخ الانتهاء', 'expiry date', 'policy end'],
     datePattern,
   )
   const uploadDate = valueInRow(['تاريخ الرفع', 'upload date'], datePattern)
-  const company = valueInRow(
-    ['اسم شركة التأمين', 'شركة التأمين', 'insurance company', 'company name'],
-    textInCell,
-  )
-  const policy = valueInRow(
-    ['رقم الوثيقة', 'policy number', 'رقم وثيقة'],
-    textInCell,
-  )
-  const planClass = valueInRow(['الفئة', 'فئة الوثيقة', 'class'], textInCell)
-  const coverage = valueInRow(['حدود التغطية', 'coverage limit'], /(\d{1,3}(?:,\d{3})*|\d+)/)
-  const deductible = valueInRow(['نسبة التحمل', 'deductible'], /(\d+\s*%?)/)
+  const company = cellValueForLabel(['اسم شركة التأمين', 'شركة التأمين', 'insurance company', 'company name'])
+  const policy = cellValueForLabel(['رقم بوليصة التأمين', 'رقم الوثيقة', 'رقم البوليصة', 'رقم وثيقة', 'policy number'])
+  const planClass = cellValueForLabel(['الفئة', 'فئة الوثيقة', 'class'])
+  const coverage = cellValueForLabel(['حدود التغطية', 'coverage limit'])
+  const deductible = cellValueForLabel(['نسبة التحمل', 'deductible'])
 
   if (expiry || company || policy) {
     return {

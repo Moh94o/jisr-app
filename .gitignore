@@ -22,3 +22,14 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Temp / scratch
+tmp/
+
+# WhatsApp bot session & cache (NEVER commit — contains the WhatsApp login)
+.wwebjs_auth/
+.wwebjs_cache/
+# WhatsApp bot runtime artifacts (QR pairing codes / status — not source)
+qr.txt
+qr.dataurl.txt
+status.txt

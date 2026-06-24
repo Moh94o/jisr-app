@@ -4,7 +4,7 @@ import { Sel, DateField } from './KafalaCalculator'
 import { Modal as FKModal, ModalSection, SuccessView, ScrollBox, GRID, CurrencyField, TextArea, Select as FKSelect, DateField as FKDateField, TimeField as FKTimeField, EmptyState, C as FK } from '../components/ui/FormKit.jsx'
 import BackButton from '../components/BackButton'
 import { SkeletonTable, StatStripSkeleton } from '../components/ui/Skeleton.jsx'
-import { can as canPerm } from '../lib/permissions.js'
+import { can as canPerm, cardVisible, canCardBtn } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -1018,9 +1018,11 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
         {/* Left column (order 2): transaction info + attachments — 340px, matches invoice financial summary */}
         <div style={{ order: 2, position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {cardVisible(user, 'deposits', 'operation_details') && (
           <OperationCard T={T} isBank={isBank} st={st} verifyDuration={verifyDuration} depositorName={depositorName} row={row} total={total} fmtAmt={fmtAmt} fmtDate={fmtDate} fmtTime={fmtTime} />
+          )}
 
-          {atts.length > 0 && (() => {
+          {cardVisible(user, 'deposits', 'attachments') && atts.length > 0 && (() => {
             // Verification files are tagged 'bank_statement'; everything else (cash_slip / legacy) belongs to the deposit operation.
             const verifyAtts = atts.filter(a => a.notes === 'bank_statement')
             const depositAtts = atts.filter(a => a.notes !== 'bank_statement')
@@ -1052,11 +1054,12 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
         {/* Right column (order 1): verification card — wide (1fr) */}
         <div style={{ order: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Card 1 — بيانات التحقق: الأرقام المرجعية + مرفقات الإيداع */}
+          {cardVisible(user, 'deposits', 'verification_details') && (
           <div style={depCardChrome}>
             <div style={{ ...depCardHeader, gap: 10, flexWrap: 'wrap' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: isVerified ? C.ok : C.gold }} />
               <span style={depCardTitle}>{T('بيانات التحقق', 'Verification details')}</span>
-              {!isVerified && (
+              {!isVerified && canCardBtn(user, 'deposits', 'verification_details', 'edit') && (
                 <button onClick={() => setDataModal(true)} style={{ ...pill(C.gold), marginInlineStart: 'auto' }}
                   onMouseEnter={e => { e.currentTarget.style.background = C.gold + '1f' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                   <span>{hasVData ? T('تعديل البيانات', 'Edit data') : T('تعبئة البيانات', 'Fill data')}</span>
@@ -1113,26 +1116,30 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
               )}
             </div>
           </div>
+          )}
 
           {/* Card 2 — الإجراء: الملاحظات + أزرار الإجراء (نمط رواتب سبلاير) */}
+          {cardVisible(user, 'deposits', 'action') && (
           <div style={depCardChrome}>
             <div style={{ ...depCardHeader, gap: 10, flexWrap: 'wrap' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
               <span style={{ ...depCardTitle, color: C.blue }}>{T('الإجراء', 'Action')}</span>
               {!isVerified && (
                 <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {depositId && (
+                  {depositId && canCardBtn(user, 'deposits', 'action', 'add_note') && (
                     <button onClick={() => { setNoteErr(null); setNoteModal(true) }} style={pill(C.gold)}
                       onMouseEnter={e => { e.currentTarget.style.background = C.gold + '1f' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                       <span>{T('إضافة ملاحظة', 'Add note')}</span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                     </button>
                   )}
+                  {canCardBtn(user, 'deposits', 'action', 'edit') && (
                   <button onClick={() => { if (canSubmit) { setConfirmErr(null); setConfirmModal(true) } }} disabled={!canSubmit} style={pill(C.ok, !canSubmit)}
                     onMouseEnter={e => { if (canSubmit) e.currentTarget.style.background = C.ok + '1f' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                     <span>{T('تأكيد التحقق', 'Confirm verification')}</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
                   </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1180,6 +1187,7 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
               )}
             </div>
           </div>
+          )}
         </div>
       </div>
 

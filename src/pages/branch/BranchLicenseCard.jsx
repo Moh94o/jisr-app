@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { can as canPerm } from '../../lib/permissions.js'
+import { can as canPerm, canCardBtn } from '../../lib/permissions.js'
 import { Modal as FKModal, ModalSection as FKSection, TextField, DateField, SuccessView } from '../../components/ui/FormKit.jsx'
 import { FileText, Plus } from 'lucide-react'
 
@@ -21,11 +21,14 @@ function expiryState(exp) {
   return { l: 'سارية', c: C.ok }
 }
 
-export default function BranchLicenseCard({ sb, branch, user, toast, title, licenseType, accent = GOLD, addLabel = 'إضافة' }) {
+export default function BranchLicenseCard({ sb, branch, user, cardKey = 'municipal_license', toast, title, licenseType, accent = GOLD, addLabel = 'إضافة' }) {
   const [lic, setLic] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const canEdit = canPerm(user, 'admin_offices.edit') || canPerm(user, 'admin_offices.create')
+  // Per-card action gates (catalog: license cards → edit/create).
+  const canCardEdit = canCardBtn(user, 'admin_offices', cardKey, 'edit')
+  const canCardCreate = canCardBtn(user, 'admin_offices', cardKey, 'create')
 
   const load = useCallback(async () => {
     if (!sb || !branch?.id) return
@@ -47,7 +50,7 @@ export default function BranchLicenseCard({ sb, branch, user, toast, title, lice
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
           {st && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: `${st.c}1a`, color: st.c, border: `1px solid ${st.c}33` }}>{st.l}</span>}
-          {canEdit && (
+          {canEdit && (lic ? canCardEdit : canCardCreate) && (
             <button onClick={() => setModal(true)}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}

@@ -4,7 +4,7 @@ import { buildBookmarklet, buildPdfBookmarklet } from './pages/sbcSyncBookmarkle
 import { buildGosiBookmarklet } from './pages/gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './pages/qiwaSyncBookmarklet.js'
 import { Sel } from './pages/KafalaCalculator.jsx'
-import { can as canPerm, isGM, userOffices } from './lib/permissions.js'
+import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
 import { Building2, Hash, Plus, Ban, Trash2, Pencil } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, Segmented, Select, DateField, Switch, EmptyState } from './components/ui/FormKit.jsx'
 
@@ -427,7 +427,7 @@ function FacEditLog({ entries, created, T }) {
 // Full-page facility details — same visual language as the invoice details page
 // (back button, gold-titled header, status hero + info cards each with «تعديل»).
 // Opened on row click; «تعديل» buttons hand off to the shared edit modal.
-function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEdit, onStrikeToggle, onDelete, onDeleted, canEdit }) {
+function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEdit, onStrikeToggle, onDelete, onDeleted, canEdit, user }) {
   const sc = f._basicCode
   const statusColor = sc ? BASIC_STATUS_COLOR[sc] : C.gray
   const statusLabel = sc ? T(BASIC_STATUS_AR[sc], BASIC_STATUS_EN[sc]) : T('غير محدد', 'Undetermined')
@@ -517,7 +517,7 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />{statusLabel}
     </span>
   )
-  const EditBtn = ({ onClick }) => canEdit ? (
+  const EditBtn = ({ onClick, cardKey }) => canCardBtn(user, 'facilities', cardKey, 'edit') ? (
     <button onClick={onClick} title={T('تعديل', 'Edit')}
       style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
@@ -538,12 +538,12 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
       </div>
     )
   }
-  const CardHead = ({ children, onEdit }) => (
+  const CardHead = ({ children, onEdit, cardKey }) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
       <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />{children}
       </span>
-      <EditBtn onClick={onEdit} />
+      <EditBtn onClick={onEdit} cardKey={cardKey} />
     </div>
   )
 
@@ -567,17 +567,21 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
                'Core facility data, official numbers, status and its associated branch.')}
           </div>
         </div>
-        {canEdit && (
+        {(canPerm(user, 'facilities.edit') || canPerm(user, 'facilities.delete')) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+            {canPerm(user, 'facilities.edit') && (
             <HeaderBtn onClick={() => setConfirm('strike')} color={isStruck ? C.ok : AMBER}
               label={isStruck ? T('إلغاء الشطب', 'Un-strike') : T('شطب المنشأة', 'Strike off')}>
               {isStruck
                 ? (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>)
                 : (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>)}
             </HeaderBtn>
+            )}
+            {canPerm(user, 'facilities.delete') && (
             <HeaderBtn onClick={() => setConfirm('delete')} color={C.red} label={T('حذف المنشأة', 'Delete')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
             </HeaderBtn>
+            )}
           </div>
         )}
       </div>
@@ -608,8 +612,9 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
       <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(280px, 340px)', gap: 16, alignItems: 'start' }}>
         {/* Info cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          {cardVisible(user, 'facilities', 'facility_data') && (
           <div style={cardChrome}>
-            <CardHead onEdit={() => onEdit('data')}>{T('بيانات المنشأة', 'Facility Data')}</CardHead>
+            <CardHead cardKey="facility_data" onEdit={() => onEdit('data')}>{T('بيانات المنشأة', 'Facility Data')}</CardHead>
             <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('الاسم بالعربي', 'Arabic Name')} v={nameAr} />
               <Field k={T('الاسم بالإنجليزي', 'English Name')} v={nameEn} />
@@ -619,8 +624,10 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
               <Field k={T('المركز السعودي', 'Saudi Center')} v={f.saudi_center ? T('نعم', 'Yes') : T('لا', 'No')} color={f.saudi_center ? C.ok : 'var(--tx3)'} noCopy />
             </div>
           </div>
+          )}
+          {cardVisible(user, 'facilities', 'facility_numbers') && (
           <div style={cardChrome}>
-            <CardHead onEdit={() => onEdit('numbers')}>{T('أرقام المنشأة', 'Facility Numbers')}</CardHead>
+            <CardHead cardKey="facility_numbers" onEdit={() => onEdit('numbers')}>{T('أرقام المنشأة', 'Facility Numbers')}</CardHead>
             <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('الرقم الموحد', 'Unified No.')} v={f.unified_number} mono color={C.gold} />
               <Field k={T('رقم التأمينات', 'GOSI No.')} v={f.gosi_number} mono color={C.ok} />
@@ -628,8 +635,10 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
               <Field k={T('رقم الموارد البشرية الإضافي', 'HRSD No. 2')} v={f.hrsd_number_2} mono color={C.purple} />
             </div>
           </div>
+          )}
 
           {/* كرت العمالة — العمال المرتبطون بالمنشأة (الاسم + الإقامة، نقرة → صفحة العامل). */}
+          {cardVisible(user, 'facilities', 'workforce') && (
           <div style={cardChrome}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
@@ -655,8 +664,10 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
               ))}
             </div>
           </div>
+          )}
 
           {/* كرت الفواتير والخدمات — إجماليات + قائمة (نقرة على الفاتورة → تفاصيل الفاتورة). */}
+          {cardVisible(user, 'facilities', 'invoices_services') && (
           <div style={cardChrome}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
@@ -709,10 +720,14 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
               </div>
             </div>
           </div>
+          )}
 
+          {cardVisible(user, 'facilities', 'activity_log') && (
           <FacEditLog entries={f.edit_log} created={f.created_at ? { at: f.created_at, by_name: creatorName, label: nameAr } : null} T={T} />
+          )}
         </div>
         {/* Status hero — تصميم «حالة كبيرة»: الحالة كلمة كبيرة بلونها + التأكيد والمتبقّي. */}
+        {cardVisible(user, 'facilities', 'facility_status') && (
         <div style={cardChrome}>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx4)', letterSpacing: '.5px' }}>{T('حالة المنشأة', 'Facility Status')}</span>
@@ -730,6 +745,7 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* تأكيد شطب المنشأة (تبديل struck_off) */}
@@ -4610,6 +4626,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           onStrikeToggle={(next) => toggleStruckOff(viewFacility, next)}
           onDelete={() => deleteFacility(viewFacility)}
           onDeleted={() => { setViewId(null); load() }}
+          user={user}
           canEdit={canPerm(user, 'facilities.create')} />
       )}
       {!viewFacility && !detail && (<>
@@ -7566,7 +7583,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           errorMsg={editErr}
           success={editDone ? <SuccessView title={T('تم حفظ التعديلات', 'Changes saved')} /> : undefined}
           footer={
-            <ActionButton Icon={Pencil} disabled={savingEdit || !(editForm.name_ar || '').trim() || !canPerm(user, 'facilities.create')} onClick={saveEdit}>
+            <ActionButton Icon={Pencil} disabled={savingEdit || !(editForm.name_ar || '').trim() || !canPerm(user, 'facilities.edit')} onClick={saveEdit}>
               {savingEdit ? T('جاري الحفظ…', 'Saving…') : T('تعديل', 'Save changes')}
             </ActionButton>
           }>

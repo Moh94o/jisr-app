@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Receipt, FileText, Plus, Copy, Check, Zap, Wifi, Droplets, CalendarClock } from 'lucide-react'
-import { can as canPerm } from '../../lib/permissions.js'
+import { can as canPerm, canCardBtn } from '../../lib/permissions.js'
 import { Modal as FKModal, ModalSection as FKSection, TextField, CurrencyField, DateField, Select as FKSelect, SuccessView } from '../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -30,10 +30,13 @@ function payState(p) {
 
 // Generic card for branch obligations of one or more types (utilities / phones).
 // `typeOptions`: [{k,l}] selectable types; `accent`; `vendorLabel`/`accountLabel`/`addLabel`.
-export default function BranchObligationsCard({ sb, branch, user, toast, title, accent = GOLD, typeOptions, vendorLabel = 'المزود', accountLabel = 'رقم الحساب', addLabel = 'إضافة', editLabel = 'تعديل', fixedMonthly = false, withAmount = false }) {
+export default function BranchObligationsCard({ sb, branch, user, cardKey = 'electricity_bills', toast, title, accent = GOLD, typeOptions, vendorLabel = 'المزود', accountLabel = 'رقم الحساب', addLabel = 'إضافة', editLabel = 'تعديل', fixedMonthly = false, withAmount = false }) {
   const types = typeOptions.map(t => t.k)
   const typeMap = Object.fromEntries(typeOptions.map(t => [t.k, t.l]))
   const canEdit = canPerm(user, 'admin_offices.edit') || canPerm(user, 'admin_offices.create')
+  // Per-card action gates (catalog: utility bill cards → edit/create).
+  const canCardEdit = canCardBtn(user, 'admin_offices', cardKey, 'edit')
+  const canCardCreate = canCardBtn(user, 'admin_offices', cardKey, 'create')
 
   const [items, setItems] = useState([])          // obligations
   const [paysByOb, setPaysByOb] = useState({})     // { obligationId: [payments] }
@@ -88,6 +91,8 @@ export default function BranchObligationsCard({ sb, branch, user, toast, title, 
         {canEdit && (() => {
           // One bill per office: if it already exists, the button edits it instead of adding another.
           const existing = items[0]
+          // Gate by the matching catalog action for this card (edit when one exists, else create).
+          if (!(existing ? canCardEdit : canCardCreate)) return null
           return (
             <button onClick={() => setModal(existing || {})}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}

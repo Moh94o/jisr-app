@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Edit3, Power, PowerOff, Plus, Wallet, ShieldAlert, ShieldCheck, X, Landmark, Briefcase, IdCard, Fingerprint, Scale, FolderOpen } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
+import { can, cardVisible } from '../lib/permissions.js'
 import { Shimmer } from '../components/ui/Skeleton.jsx'
 
 // الإدارة ← الرسوم — admin catalog for payment-request fees, grouped into one card per
@@ -75,7 +76,7 @@ const Seg = ({ value, onChange, options, disabled }) => (
   </div>
 )
 
-export default function FeesAdminPage({ toast, lang }) {
+export default function FeesAdminPage({ toast, lang, user }) {
   const isAr = lang !== 'en'
   const T = (a, e) => isAr ? a : e
   const sb = getSupabase()
@@ -204,7 +205,7 @@ export default function FeesAdminPage({ toast, lang }) {
     const variable = r.amount_type === 'variable'
     return (
       <div key={r.id} style={{ ...feeRowStyle, borderInlineEnd: `5px solid ${accent}`, opacity: r.is_active ? 1 : .55 }}>
-        {!isEdit && <EditTab onClick={() => startEdit(r)} />}
+        {!isEdit && can(user, 'admin_fees.edit') && <EditTab onClick={() => startEdit(r)} />}
         {isEdit && <EditActionTabs onSave={saveDraft} onCancel={cancelEdit} saving={saving} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', letterSpacing: '-.2px' }}>{isAr ? r.label_ar : (r.label_en || r.label_ar)}</span>
@@ -213,7 +214,7 @@ export default function FeesAdminPage({ toast, lang }) {
             {variable ? T('متغير', 'Variable') : T('ثابت', 'Fixed')}
           </span>
           <span style={{ flex: 1 }} />
-          <Toggle on={r.is_active} onChange={() => toggleActive(r)} />
+          {can(user, 'admin_fees.edit') && <Toggle on={r.is_active} onChange={() => toggleActive(r)} />}
         </div>
         {isEdit ? renderEditor(false) : (
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -323,7 +324,7 @@ export default function FeesAdminPage({ toast, lang }) {
                 {catRows.map(r => renderFeeRow(r, cat.c))}
 
                 {/* Add fee inside this category */}
-                {adding ? (
+                {can(user, 'admin_fees.create') && (adding ? (
                   <div style={{ ...feeRowStyle, borderInlineEnd: `5px solid ${cat.c}` }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: cat.c, display: 'flex', alignItems: 'center', gap: 7 }}>
                       <Plus size={14} strokeWidth={2.6} />
@@ -339,7 +340,7 @@ export default function FeesAdminPage({ toast, lang }) {
                     <Plus size={13} strokeWidth={2.6} />
                     <span>{T('إضافة رسم في ', 'Add a fee to ')}{T(cat.ar, cat.en)}</span>
                   </button>
-                )}
+                ))}
               </div>
             )
           })}

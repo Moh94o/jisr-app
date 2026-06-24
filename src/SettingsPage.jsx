@@ -3,6 +3,7 @@ import FormKitShowcase from './components/ui/FormKitShowcase.jsx'
 import { Modal as FKModal, ConfirmDialog, ModalSection, ActionButton, GRID, Field, TextField, TextArea, Select, Segmented, SuccessView, C as FKC } from './components/ui/FormKit.jsx'
 import { Briefcase, Flag, Landmark, MapPin, Tag, Banknote, Globe, FileText } from 'lucide-react'
 import PageSkeleton from './components/ui/Skeleton.jsx'
+import { can, cardVisible } from './lib/permissions.js'
 const F="'Cairo','Tajawal',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const GLASS_CARD={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
@@ -566,7 +567,7 @@ return<>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?14:'auto',left:isAr?'auto':14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 <input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<button onClick={()=>{const maxOrder=regions.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'regions',name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',is_system:'false'});setPop('r')}} style={{...bS,flexShrink:0}}>{isAr?'منطقة':'Region'} +</button>
+{can(user,'settings_fields.create')&&<button onClick={()=>{const maxOrder=regions.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'regions',name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',is_system:'false'});setPop('r')}} style={{...bS,flexShrink:0}}>{isAr?'منطقة':'Region'} +</button>}
 </div></div>
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد مناطق':'No regions'}</div>:<>
 {filtered.map((r,idx)=>{const rActive=r.is_active!==false;const toggleRegion=async()=>{const next=!rActive;setRegions(p=>p.map(o=>o.id===r.id?{...o,is_active:next}:o));const{error}=await sb.from('regions').update({is_active:next}).eq('id',r.id);if(error){setRegions(p=>p.map(o=>o.id===r.id?{...o,is_active:rActive}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const rcAll=cities.filter(c=>c.region_id===r.id);const regSelfMatch=q&&((r.name_ar||'').includes(q)||(r.name_en||'').toLowerCase().includes(qLower)||(r.code||'').includes(q));const rc=q&&!regSelfMatch?rcAll.filter(c=>(c.name_ar||'').includes(q)||(c.name_en||'').toLowerCase().includes(qLower)||(c.code||'').includes(q)||cityMatchDist.has(c.id)):rcAll;const citiesKey='r_'+r.id;const citiesOpen=!!open[citiesKey]||(q&&regMatchChild.has(r.id));const addCity=()=>{const maxOrder=rcAll.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'cities',region_id:r.id,name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',is_system:'false'});setPop('c')};return<div key={r.id} style={{borderBottom:'1px solid rgba(255,255,255,.05)'}}>
@@ -590,8 +591,8 @@ return<>
 <button type="button" onClick={(e)=>{e.stopPropagation();toggleRegion()}} title={rActive?(isAr?'نشطة (تظهر في القوائم)':'Active (visible in dropdowns)'):(isAr?'إخفاء من القوائم':'Hide from dropdowns')} style={{width:36,height:20,borderRadius:999,border:'none',background:rActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
 <span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:2,right:rActive?2:18,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
 </button>
-<EditBtn onClick={()=>{setForm({_table:'regions',_id:r.id,name_ar:r.name_ar||'',name_en:r.name_en||'',code:r.code||'',sort_order:r.sort_order||'',_origSortOrder:r.sort_order||'',is_active:String(r.is_active!==false),is_system:String(r.is_system===true),created_at:r.created_at||'',updated_at:r.updated_at||''});setPop('r')}}/>
-{!r.is_system&&<DelBtn onClick={()=>askDel('regions',r.id,r.name_ar)}/>}
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'regions',_id:r.id,name_ar:r.name_ar||'',name_en:r.name_en||'',code:r.code||'',sort_order:r.sort_order||'',_origSortOrder:r.sort_order||'',is_active:String(r.is_active!==false),is_system:String(r.is_system===true),created_at:r.created_at||'',updated_at:r.updated_at||''});setPop('r')}}/>}
+{!r.is_system&&can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('regions',r.id,r.name_ar)}/>}
 </div></div>
 {citiesOpen&&<div style={{background:'rgba(52,131,180,.03)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 16px 10px'}}>
 {rc.length===0?<div style={{padding:'10px 44px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد مدن لهذه المنطقة':'No cities for this region'}</div>:
@@ -615,8 +616,8 @@ rc.map(c=>{const cActive=c.is_active!==false;const toggleCity=async()=>{const ne
 <button type="button" onClick={(ev)=>{ev.stopPropagation();toggleCity()}} title={cActive?(isAr?'نشطة':'Active'):(isAr?'معطّلة':'Inactive')} style={{width:32,height:18,borderRadius:999,border:'none',background:cActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
 <span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:2,right:cActive?2:16,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
 </button>
-<EditBtn onClick={()=>{setForm({_table:'cities',_id:c.id,name_ar:c.name_ar||'',name_en:c.name_en||'',code:c.code||'',region_id:c.region_id||r.id,sort_order:c.sort_order||'',_origSortOrder:c.sort_order||'',is_active:String(c.is_active!==false),is_system:String(c.is_system===true),created_at:c.created_at||'',updated_at:c.updated_at||''});setPop('c')}}/>
-{!c.is_system&&<DelBtn onClick={()=>askDel('cities',c.id,c.name_ar)}/>}
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'cities',_id:c.id,name_ar:c.name_ar||'',name_en:c.name_en||'',code:c.code||'',region_id:c.region_id||r.id,sort_order:c.sort_order||'',_origSortOrder:c.sort_order||'',is_active:String(c.is_active!==false),is_system:String(c.is_system===true),created_at:c.created_at||'',updated_at:c.updated_at||''});setPop('c')}}/>}
+{!c.is_system&&can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('cities',c.id,c.name_ar)}/>}
 </div></div>
 {distOpen&&<div style={{background:'rgba(39,160,70,.02)',padding:'6px 28px 10px'}}>
 {cd.length===0?<div style={{padding:'10px 28px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد أحياء لهذه المدينة':'No districts for this city'}</div>:
@@ -635,22 +636,22 @@ cd.map(d=>{const dActive=d.is_active!==false;const toggleDist=async()=>{const ne
 <button type="button" onClick={(ev)=>{ev.stopPropagation();toggleDist()}} title={dActive?(isAr?'نشط':'Active'):(isAr?'معطّل':'Inactive')} style={{width:28,height:16,borderRadius:999,border:'none',background:dActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
 <span style={{position:'absolute',width:12,height:12,borderRadius:'50%',background:'#fff',top:2,right:dActive?2:14,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
 </button>
-<EditBtn onClick={()=>{setForm({_table:'districts',_id:d.id,city_id:d.city_id||c.id,name_ar:d.name_ar||'',name_en:d.name_en||'',code:d.code||'',sort_order:d.sort_order||'',_origSortOrder:d.sort_order||'',is_active:String(d.is_active!==false),is_system:String(d.is_system===true),created_at:d.created_at||'',updated_at:d.updated_at||''});setPop('di')}}/>
-{!d.is_system&&<DelBtn onClick={()=>askDel('districts',d.id,d.name_ar)}/>}
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'districts',_id:d.id,city_id:d.city_id||c.id,name_ar:d.name_ar||'',name_en:d.name_en||'',code:d.code||'',sort_order:d.sort_order||'',_origSortOrder:d.sort_order||'',is_active:String(d.is_active!==false),is_system:String(d.is_system===true),created_at:d.created_at||'',updated_at:d.updated_at||''});setPop('di')}}/>}
+{!d.is_system&&can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('districts',d.id,d.name_ar)}/>}
 </div></div>})}
 <div style={{padding:'8px 12px 2px 28px'}}>
-<button type="button" onClick={()=>{const maxOrder=cd.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'districts',city_id:c.id,name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',is_system:'false'});setPop('di')}} style={{display:'inline-flex',alignItems:'center',gap:6,height:28,padding:'0 12px',borderRadius:7,border:'1px dashed rgba(39,160,70,.45)',background:'rgba(39,160,70,.08)',color:'rgba(39,160,70,.95)',fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
+{can(user,'settings_fields.create')&&<button type="button" onClick={()=>{const maxOrder=cd.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'districts',city_id:c.id,name_ar:'',name_en:'',code:'',sort_order:String(maxOrder+1),is_active:'true',is_system:'false'});setPop('di')}} style={{display:'inline-flex',alignItems:'center',gap:6,height:28,padding:'0 12px',borderRadius:7,border:'1px dashed rgba(39,160,70,.45)',background:'rgba(39,160,70,.08)',color:'rgba(39,160,70,.95)',fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 <span>{isAr?'إضافة حي':'Add District'}</span>
-</button>
+</button>}
 </div>
 </div>}
 </div>})}
 <div style={{padding:'8px 14px 2px 20px'}}>
-<button type="button" onClick={addCity} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
+{can(user,'settings_fields.create')&&<button type="button" onClick={addCity} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 <span>{isAr?'إضافة مدينة':'Add City'}</span>
-</button>
+</button>}
 </div>
 </div>}
 </div>})}
@@ -690,7 +691,7 @@ return<>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?14:'auto',left:isAr?'auto':14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 <input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<button onClick={()=>{const maxOrder=occupationsList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);const occCat=lLists.find(l=>l.category_key==='occupation_category');const establishment=occCat?lItems.find(i=>i.category_id===occCat.id&&i.code==='establishment'):null;setForm({_table:'occupations',name_ar:'',name_en:'',code:'',qiwa_id:'',category_id:establishment?.id||'',is_active:'true',is_system:'false',sort_order:String(maxOrder+1)});setPop('occ')}} style={{...bS,flexShrink:0}}>{isAr?'مهنة':'Occupation'} +</button>
+{can(user,'settings_fields.create')&&<button onClick={()=>{const maxOrder=occupationsList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);const occCat=lLists.find(l=>l.category_key==='occupation_category');const establishment=occCat?lItems.find(i=>i.category_id===occCat.id&&i.code==='establishment'):null;setForm({_table:'occupations',name_ar:'',name_en:'',code:'',qiwa_id:'',category_id:establishment?.id||'',is_active:'true',is_system:'false',sort_order:String(maxOrder+1)});setPop('occ')}} style={{...bS,flexShrink:0}}>{isAr?'مهنة':'Occupation'} +</button>}
 </div></div>
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد مهن':'No occupations'}</div>:<>
 {shown.map((it,idx)=>{const active=it.is_active!==false;const toggleActive=async()=>{const next=!active;setOccupationsList(p=>p.map(o=>o.id===it.id?{...o,is_active:next}:o));const{error}=await sb.from('occupations').update({is_active:next}).eq('id',it.id);if(error){setOccupationsList(p=>p.map(o=>o.id===it.id?{...o,is_active:active}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};return<div key={it.id} className="jisr-list-row" draggable={!q} onDragStart={e=>onDragStart(e,idx)} onDragOver={onDragOver} onDrop={e=>onDrop(e,idx)} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:'1px solid rgba(255,255,255,.05)',cursor:q?'default':'grab',opacity:active?1:0.55,flexWrap:'wrap'}}>
@@ -709,8 +710,8 @@ return<>
 <button type="button" onClick={(e)=>{e.stopPropagation();toggleActive()}} title={active?(isAr?'نشط (يظهر في القوائم)':'Active (visible in dropdowns)'):(isAr?'إخفاء من القوائم':'Hide from dropdowns')} style={{width:36,height:20,borderRadius:999,border:'none',background:active?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
 <span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:2,right:active?2:18,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
 </button>
-<EditBtn onClick={()=>{setForm({_table:'occupations',_id:it.id,name_ar:it.name_ar||'',name_en:it.name_en||'',code:it.code||'',qiwa_id:it.qiwa_id||'',category_id:it.category_id||'',is_active:String(it.is_active!==false),is_system:String(it.is_system===true),sort_order:it.sort_order||'',_origSortOrder:it.sort_order||'',created_at:it.created_at||'',updated_at:it.updated_at||''});setPop('occ')}}/>
-{!it.is_system&&<DelBtn onClick={()=>askDel('occupations',it.id,it.name_ar)}/>}
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'occupations',_id:it.id,name_ar:it.name_ar||'',name_en:it.name_en||'',code:it.code||'',qiwa_id:it.qiwa_id||'',category_id:it.category_id||'',is_active:String(it.is_active!==false),is_system:String(it.is_system===true),sort_order:it.sort_order||'',_origSortOrder:it.sort_order||'',created_at:it.created_at||'',updated_at:it.updated_at||''});setPop('occ')}}/>}
+{!it.is_system&&can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('occupations',it.id,it.name_ar)}/>}
 </div></div>})}
 {filtered.length>maxShow&&<div style={{textAlign:'center',padding:16,color:'var(--tx6)',fontSize:11}}>{isAr?`… و ${filtered.length-maxShow} مهنة أخرى. استخدم البحث لتضييق النتائج.`:`… and ${filtered.length-maxShow} more. Use search to narrow.`}</div>}
 </>}</div>
@@ -752,7 +753,7 @@ return<>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?14:'auto',left:isAr?'auto':14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 <input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو الكود...':'Search AR/EN/code...'} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<button onClick={()=>{const maxOrder=natList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'nationalities',name_ar:'',name_en:'',code:'',qiwa_id:'',country_name_ar:'',country_name_en:'',flag_url:'',category_id:foreignNatItem?.id||'',is_active:'true',is_system:'false',sort_order:String(maxOrder+1)});setPop('nat')}} style={{...bS,flexShrink:0}}>{isAr?'جنسية':'Nationality'} +</button>
+{can(user,'settings_fields.create')&&<button onClick={()=>{const maxOrder=natList.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'nationalities',name_ar:'',name_en:'',code:'',qiwa_id:'',country_name_ar:'',country_name_en:'',flag_url:'',category_id:foreignNatItem?.id||'',is_active:'true',is_system:'false',sort_order:String(maxOrder+1)});setPop('nat')}} style={{...bS,flexShrink:0}}>{isAr?'جنسية':'Nationality'} +</button>}
 </div></div>
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد جنسيات':'No nationalities'}</div>:<>
 {shown.map((it,idx)=>{const active=it.is_active!==false;const toggleActive=async()=>{const next=!active;setNatList(p=>p.map(o=>o.id===it.id?{...o,is_active:next}:o));const{error}=await sb.from('nationalities').update({is_active:next}).eq('id',it.id);if(error){setNatList(p=>p.map(o=>o.id===it.id?{...o,is_active:active}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const embs=embList.filter(e=>e.nationality_id===it.id);const embKey='nat_'+it.id;const embOpen=!!open[embKey]||(q&&natMatchEmb.has(it.id));const addEmbassy=()=>{setForm({_table:'embassies',nationality_id:it.id,name_ar:'',name_en:'',code:'',qiwa_id:'',is_active:'true',is_system:'false',sort_order:''});setPop('emb')};return<div key={it.id} style={{borderBottom:'1px solid rgba(255,255,255,.05)'}}>
@@ -779,8 +780,8 @@ return<>
 <button type="button" onClick={(e)=>{e.stopPropagation();toggleActive()}} title={active?(isAr?'نشطة (تظهر في القوائم)':'Active (visible in dropdowns)'):(isAr?'إخفاء من القوائم':'Hide from dropdowns')} style={{width:36,height:20,borderRadius:999,border:'none',background:active?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
 <span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:2,right:active?2:18,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
 </button>
-<EditBtn onClick={()=>{setForm({_table:'nationalities',_id:it.id,name_ar:it.name_ar||'',name_en:it.name_en||'',code:it.code||'',qiwa_id:it.qiwa_id||'',country_name_ar:it.country_name_ar||'',country_name_en:it.country_name_en||'',flag_url:it.flag_url||'',category_id:it.category_id||'',is_active:String(it.is_active!==false),is_system:String(it.is_system===true),sort_order:it.sort_order||'',_origSortOrder:it.sort_order||'',created_at:it.created_at||'',updated_at:it.updated_at||''});setPop('nat')}}/>
-{!it.is_system&&<DelBtn onClick={()=>askDel('nationalities',it.id,it.name_ar)}/>}
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'nationalities',_id:it.id,name_ar:it.name_ar||'',name_en:it.name_en||'',code:it.code||'',qiwa_id:it.qiwa_id||'',country_name_ar:it.country_name_ar||'',country_name_en:it.country_name_en||'',flag_url:it.flag_url||'',category_id:it.category_id||'',is_active:String(it.is_active!==false),is_system:String(it.is_system===true),sort_order:it.sort_order||'',_origSortOrder:it.sort_order||'',created_at:it.created_at||'',updated_at:it.updated_at||''});setPop('nat')}}/>}
+{!it.is_system&&can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('nationalities',it.id,it.name_ar)}/>}
 </div></div>
 {embOpen&&<div style={{background:'rgba(52,131,180,.03)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 16px 10px'}}>
 {embs.length===0?<div style={{padding:'10px 44px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد سفارات لهذه الجنسية':'No embassies for this nationality'}</div>:
@@ -799,14 +800,14 @@ embs.map(e=>{const eAct=e.is_active!==false;const toggleEmb=async()=>{const next
 <button type="button" onClick={(ev)=>{ev.stopPropagation();toggleEmb()}} title={eAct?(isAr?'نشطة':'Active'):(isAr?'معطّلة':'Inactive')} style={{width:32,height:18,borderRadius:999,border:'none',background:eAct?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
 <span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:2,right:eAct?2:16,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
 </button>
-<EditBtn onClick={()=>{setForm({_table:'embassies',_id:e.id,nationality_id:e.nationality_id||it.id,name_ar:e.name_ar||'',name_en:e.name_en||'',code:e.code||'',qiwa_id:e.qiwa_id||'',is_active:String(e.is_active!==false),is_system:String(e.is_system===true),sort_order:e.sort_order||'',_origSortOrder:e.sort_order||'',created_at:e.created_at||'',updated_at:e.updated_at||''});setPop('emb')}}/>
-{!e.is_system&&<DelBtn onClick={()=>askDel('embassies',e.id,e.name_ar)}/>}
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'embassies',_id:e.id,nationality_id:e.nationality_id||it.id,name_ar:e.name_ar||'',name_en:e.name_en||'',code:e.code||'',qiwa_id:e.qiwa_id||'',is_active:String(e.is_active!==false),is_system:String(e.is_system===true),sort_order:e.sort_order||'',_origSortOrder:e.sort_order||'',created_at:e.created_at||'',updated_at:e.updated_at||''});setPop('emb')}}/>}
+{!e.is_system&&can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('embassies',e.id,e.name_ar)}/>}
 </div></div>})}
 <div style={{padding:'8px 14px 2px 44px'}}>
-<button type="button" onClick={addEmbassy} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
+{can(user,'settings_fields.create')&&<button type="button" onClick={addEmbassy} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 <span>{isAr?'إضافة سفارة':'Add Embassy'}</span>
-</button>
+</button>}
 </div>
 </div>}
 </div>})}
@@ -834,7 +835,7 @@ return<>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',right:isAr?14:'auto',left:isAr?'auto':14,transform:'translateY(-50%)',pointerEvents:'none'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 <input value={q} onChange={e=>setQ(e.target.value)} placeholder={isAr?'ابحث بالعربي أو الإنجليزي أو المفتاح...':'Search AR/EN/key...'} style={{width:'100%',height:40,padding:isAr?'0 36px 0 14px':'0 14px 0 36px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',minWidth:0,boxSizing:'border-box'}}/>
 </div>
-<button onClick={()=>{setForm({_table:'lookup_categories',code:'',name_ar:'',name_en:'',is_system:'false',is_active:'true'});setPop('ll')}} style={{...bS,flexShrink:0}}>{isAr?'خانة':'Category'} +</button>
+{can(user,'settings_fields.create')&&<button onClick={()=>{setForm({_table:'lookup_categories',code:'',name_ar:'',name_en:'',is_system:'false',is_active:'true'});setPop('ll')}} style={{...bS,flexShrink:0}}>{isAr?'خانة':'Category'} +</button>}
 </div></div>
 {loading&&lLists.length===0?<PageSkeleton variant="list" listRows={7}/>:
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد خانات':'No categories'}</div>:<>
@@ -859,8 +860,8 @@ return<>
 <button type="button" onClick={(e)=>{e.stopPropagation();toggleCat()}} title={cActive?(isAr?'نشطة (تظهر في القوائم)':'Active (visible in dropdowns)'):(isAr?'إخفاء من القوائم':'Hide from dropdowns')} style={{width:36,height:20,borderRadius:999,border:'none',background:cActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
 <span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:2,right:cActive?2:18,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
 </button>
-<EditBtn onClick={()=>{setForm({_table:'lookup_categories',_id:ll.id,code:ll.category_key||'',name_ar:ll.name_ar||'',name_en:ll.name_en||'',is_system:String(ll.is_system===true),is_active:String(ll.is_active!==false),created_at:ll.created_at||'',updated_at:ll.updated_at||''});setPop('ll')}}/>
-{!ll.is_system&&<DelBtn onClick={()=>askDel('lookup_categories',ll.id,ll.name_ar)}/>}
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'lookup_categories',_id:ll.id,code:ll.category_key||'',name_ar:ll.name_ar||'',name_en:ll.name_en||'',is_system:String(ll.is_system===true),is_active:String(ll.is_active!==false),created_at:ll.created_at||'',updated_at:ll.updated_at||''});setPop('ll')}}/>}
+{!ll.is_system&&can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('lookup_categories',ll.id,ll.name_ar)}/>}
 </div></div>
 {itemsOpen&&<div style={{background:'rgba(52,131,180,.03)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 16px 10px'}}>
 {li2.length===0?<div style={{padding:'10px 44px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد عناصر لهذه الخانة':'No items for this category'}</div>:
@@ -883,14 +884,14 @@ li2.map((it,iIdx)=>{const iActive=it.is_active!==false;const toggleItem=async()=
 <button type="button" onClick={(ev)=>{ev.stopPropagation();toggleItem()}} title={iActive?(isAr?'نشط':'Active'):(isAr?'معطّل':'Inactive')} style={{width:32,height:18,borderRadius:999,border:'none',background:iActive?'#27a046':'rgba(255,255,255,.15)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,flexShrink:0}}>
 <span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:2,right:iActive?2:16,transition:'.2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}}/>
 </button>
-<EditBtn onClick={()=>{setForm({_table:'lookup_items',_id:it.id,category_id:it.category_id||ll.id,name_ar:it.value_ar||'',name_en:it.value_en||'',code:it.code||'',is_active:String(it.is_active!==false),is_system:String(it.is_system===true),created_at:it.created_at||'',updated_at:it.updated_at||'',...(isBnk?{type_id:it.type_id||''}:{})});setPop(isBnk?'bnk':'li')}}/>
-{!it.is_system&&<DelBtn onClick={()=>askDel('lookup_items',it.id,it.value_ar)}/>}
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'lookup_items',_id:it.id,category_id:it.category_id||ll.id,name_ar:it.value_ar||'',name_en:it.value_en||'',code:it.code||'',is_active:String(it.is_active!==false),is_system:String(it.is_system===true),created_at:it.created_at||'',updated_at:it.updated_at||'',...(isBnk?{type_id:it.type_id||''}:{})});setPop(isBnk?'bnk':'li')}}/>}
+{!it.is_system&&can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('lookup_items',it.id,it.value_ar)}/>}
 </div></div>})}
 <div style={{padding:'8px 14px 2px 20px'}}>
-<button type="button" onClick={addItem} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
+{can(user,'settings_fields.create')&&<button type="button" onClick={addItem} style={{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 14px',borderRadius:8,border:'1px dashed rgba(52,131,180,.45)',background:'rgba(52,131,180,.08)',color:'rgba(52,131,180,.95)',fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer',transition:'.15s'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 <span>{isAr?'إضافة عنصر':'Add Item'}</span>
-</button>
+</button>}
 </div>
 </div>}
 </div>})}
@@ -902,7 +903,7 @@ li2.map((it,iIdx)=>{const iActive=it.is_active!==false;const toggleItem=async()=
 {tab==='documents'&&<>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
 <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><span style={{fontSize:15,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{isAr?'الوثائق':'Documents'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{docs.length} {isAr?'وثيقة':'documents'}</span></div>
-<button onClick={()=>{setForm({_table:'documents',title:'',document_type:'',entity_type:'',description:''});setPop('doc')}} style={bS}>{isAr?'وثيقة':'Document'} +</button>
+{can(user,'settings_fields.create')&&<button onClick={()=>{setForm({_table:'documents',title:'',document_type:'',entity_type:'',description:''});setPop('doc')}} style={bS}>{isAr?'وثيقة':'Document'} +</button>}
 </div>
 <div style={cardS}>
 <table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
@@ -920,8 +921,8 @@ docs.map((d,i)=><tr key={d.id} style={{borderBottom:'1px solid rgba(255,255,255,
 <td style={{padding:'14px 22px',fontSize:12,color:'var(--tx3)'}}>{d.document_type||'—'}</td>
 <td style={{padding:'14px 22px',fontSize:12,color:'var(--tx3)'}}>{d.entity_type||'—'}</td>
 <td style={{padding:'8px',textAlign:'center'}}><div style={{display:'flex',gap:4,justifyContent:'center'}}>
-<EditBtn onClick={()=>{setForm({_table:'documents',_id:d.id,title:d.title||'',document_type:d.document_type||'',entity_type:d.entity_type||'',description:d.description||''});setPop('doc')}}/>
-<DelBtn onClick={()=>askDel('documents',d.id,d.title)}/>
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'documents',_id:d.id,title:d.title||'',document_type:d.document_type||'',entity_type:d.entity_type||'',description:d.description||''});setPop('doc')}}/>}
+{can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('documents',d.id,d.title)}/>}
 </div></td></tr>)}</tbody></table></div></>}
 
 {/* FORM POPUP */}

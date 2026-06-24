@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Modal, TextField, Select, EmptyState, ConfirmDialog, GRID } from '../components/ui/FormKit.jsx'
 import { StatStripSkeleton, SkeletonTable } from '../components/ui/Skeleton.jsx'
+import { can, cardVisible } from '../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -113,11 +114,13 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
           <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('سدادات خارجية', 'External Payments')}</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('الحوالات المدفوعة لحسابات بنكية خارجية — التزامات الفروع (الإيجار والخدمات) والحوالات البنكية.', 'Transfers paid to external bank accounts — branch obligations (rent & utilities) and bank transfers.')}</div>
         </div>
+        {can(user, 'ext_payments.create') && (
         <button onClick={() => setAddOpen(true)} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease' }}>
           {T('إضافة حوالة بنكية', 'Add bank transfer')}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
+        )}
       </div>
 
       {loading ? (<><StatStripSkeleton breakdownRows={4} /><SkeletonTable columns={['14%','11%','13%','20%','20%','12%','10%']} rows={8} /></>) : (<>

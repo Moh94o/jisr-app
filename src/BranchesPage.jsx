@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 // Forced reparse marker — InvoicePage-styled detail page
 import BackButton from './components/BackButton'
-import { can as canPerm } from './lib/permissions.js'
+import { can as canPerm, cardVisible, canCardBtn } from './lib/permissions.js'
 import BranchRentCard from './pages/branch/BranchRentCard.jsx'
 import BranchObligationsCard from './pages/branch/BranchObligationsCard.jsx'
 import BranchLicenseCard from './pages/branch/BranchLicenseCard.jsx'
@@ -1091,13 +1091,14 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         <div className="brd-main" style={{ order: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* Location card — right column, above the operations */}
+          {cardVisible(user, 'admin_offices', 'location_and_address') && (
           <div className="brd-section">
             <div className="brd-section-head">
               <span className="brd-section-head-l">
                 <span className="brd-section-dot" style={{ background: GOLD }} />
                 العنوان والموقع
               </span>
-              {onEdit && (
+              {onEdit && canCardBtn(user, 'admin_offices', 'location_and_address', 'edit') && (
               <button onClick={onEdit}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
@@ -1111,34 +1112,48 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
               <LocationBody branch={branch} />
             </div>
           </div>
+          )}
 
           {/* Rent contract + payment schedule */}
-          <BranchRentCard sb={sb} branch={branch} user={user} lang={lang} toast={toast} />
+          {cardVisible(user, 'admin_offices', 'rent_contract') && (
+          <BranchRentCard sb={sb} branch={branch} user={user} cardKey="rent_contract" lang={lang} toast={toast} />
+          )}
 
           {/* Licenses */}
-          <BranchLicenseCard sb={sb} branch={branch} user={user} toast={toast} title="رخصة بلدي" licenseType="balady" accent="#5dade2" addLabel="إضافة رخصة بلدي جديدة" />
-          <BranchLicenseCard sb={sb} branch={branch} user={user} toast={toast} title="شهادة السلامة" licenseType="safety" accent="#e67e22" addLabel="إضافة شهادة سلامة جديدة" />
+          {cardVisible(user, 'admin_offices', 'municipal_license') && (
+          <BranchLicenseCard sb={sb} branch={branch} user={user} cardKey="municipal_license" toast={toast} title="رخصة بلدي" licenseType="balady" accent="#5dade2" addLabel="إضافة رخصة بلدي جديدة" />
+          )}
+          {cardVisible(user, 'admin_offices', 'safety_certificate') && (
+          <BranchLicenseCard sb={sb} branch={branch} user={user} cardKey="safety_certificate" toast={toast} title="شهادة السلامة" licenseType="safety" accent="#e67e22" addLabel="إضافة شهادة سلامة جديدة" />
+          )}
 
           {/* Utility bills — a separate card + popup per service */}
-          <BranchObligationsCard sb={sb} branch={branch} user={user} toast={toast}
+          {cardVisible(user, 'admin_offices', 'electricity_bills') && (
+          <BranchObligationsCard sb={sb} branch={branch} user={user} cardKey="electricity_bills" toast={toast}
             title="الكهرباء" accent="#eab308" addLabel="فاتورة كهرباء جديدة" editLabel="تعديل فاتورة الكهرباء"
             vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد"
             fixedMonthly
             typeOptions={[{ k: 'utility_electricity', l: 'كهرباء' }]} />
+          )}
 
-          <BranchObligationsCard sb={sb} branch={branch} user={user} toast={toast}
+          {cardVisible(user, 'admin_offices', 'internet_bills') && (
+          <BranchObligationsCard sb={sb} branch={branch} user={user} cardKey="internet_bills" toast={toast}
             title="الإنترنت" accent="#5dade2" addLabel="فاتورة إنترنت جديدة" editLabel="تعديل فاتورة الإنترنت"
             vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد"
             fixedMonthly withAmount
             typeOptions={[{ k: 'utility_internet', l: 'إنترنت' }]} />
+          )}
 
-          <BranchObligationsCard sb={sb} branch={branch} user={user} toast={toast}
+          {cardVisible(user, 'admin_offices', 'water_bills') && (
+          <BranchObligationsCard sb={sb} branch={branch} user={user} cardKey="water_bills" toast={toast}
             title="الماء" accent="#27ae60" addLabel="فاتورة ماء جديدة" editLabel="تعديل فاتورة الماء"
             vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد"
             fixedMonthly
             typeOptions={[{ k: 'utility_water', l: 'ماء' }]} />
+          )}
 
       {/* Staff section — full management: activate + role + permissions */}
+      {cardVisible(user, 'admin_offices', 'users_and_staff') && (
       <div className="brd-section">
         <div className="brd-section-head">
           <span className="brd-section-head-l">
@@ -1162,9 +1177,10 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
           )}
         </div>
       </div>
+      )}
 
       {/* Documents section (only if any) */}
-      {docs.length > 0 && (
+      {cardVisible(user, 'admin_offices', 'documents') && docs.length > 0 && (
         <div className="brd-section">
           <div className="brd-section-head">
             <span className="brd-section-head-l">
@@ -1205,12 +1221,14 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         {/* Left column — overview stats, sticky and alone */}
         <div className="brd-side" style={{ order: 2, position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Overview stats — relocated from the KPI hero cards */}
+          {cardVisible(user, 'admin_offices', 'overview_stats') && (
           <div className="brd-section">
             <div className="brd-section-head">
               <span className="brd-section-head-l">
                 <span className="brd-section-dot" style={{ background: C.blue }} />
                 نظرة عامة
               </span>
+              {canCardBtn(user, 'admin_offices', 'overview_stats', 'toggle') && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? C.ok : 'var(--tx5)' }}>{isActive ? 'نشط' : 'معطّل'}</span>
                 <button type="button" disabled={activeBusy} onClick={toggleBranchActive} title={isActive ? 'تعطيل المكتب' : 'تفعيل المكتب'}
@@ -1218,6 +1236,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                   <span style={{ position: 'absolute', width: 18, height: 18, borderRadius: '50%', background: '#fff', top: 3, right: isActive ? 3 : 23, transition: '.2s', boxShadow: '0 2px 4px rgba(0,0,0,.3)' }} />
                 </button>
               </div>
+              )}
             </div>
             <div className="brd-section-body" style={{ paddingTop: 6, paddingBottom: 12 }}>
               <div className="brd-irow">
@@ -1279,6 +1298,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
               })()}
             </div>
           </div>
+          )}
         </div>{/* /brd-side */}
       </div>{/* /brd-grid */}
     </div>

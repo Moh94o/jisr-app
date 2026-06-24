@@ -4,6 +4,7 @@ import { Tag, Info, CheckCircle2 } from 'lucide-react'
 import { noDash } from '../lib/utils.js'
 import { Modal as FKModal, ModalSection as FKSection, Select as FKSelect, TextField, FileField, SuccessView, InfoRow, InfoGrid, GRID, ConfirmDialog, EmptyState } from '../components/ui/FormKit.jsx'
 import { StatStripSkeleton, SkeletonTable } from '../components/ui/Skeleton.jsx'
+import { can, cardVisible, canCardBtn } from '../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -448,8 +449,8 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
           rows={tableRows}
           isAr={isAr}
           T={T}
-          onPay={fee => setModal({ fee, action: 'pay' })}
-          onEdit={fee => setModal({ fee, action: 'edit' })}
+          onPay={fee => { if (can(user, 'payments.pay')) setModal({ fee, action: 'pay' }) }}
+          onEdit={fee => { if (can(user, 'payments.edit')) setModal({ fee, action: 'edit' }) }}
         />
       )}
 
@@ -489,7 +490,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
       </>)}
 
       {/* Pay modal */}
-      {modal && <PayModal sb={sb} fee={modal.fee} action={modal.action} payMethods={payMethods} isAr={isAr} T={T} toast={toast} userId={user?.id}
+      {modal && <PayModal sb={sb} fee={modal.fee} action={modal.action} payMethods={payMethods} isAr={isAr} T={T} toast={toast} user={user} userId={user?.id}
                           onClose={() => setModal(null)} onSaved={() => { setModal(null); setRefreshTick(t => t + 1) }} />}
 
     </div>
@@ -776,7 +777,7 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
    Two fieldsets:
    • ملخص السداد (gold)    — read-only: payment type + amount + SADAD with copy
    • تأكيد السداد (green) — bank account + reference + PDF receipt upload */
-function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose, onSaved }) {
+function PayModal({ sb, fee, action, payMethods, isAr, T, toast, user, userId, onClose, onSaved }) {
   const [bankAccounts, setBankAccounts] = useState([])
   const [selBankAcc, setSelBankAcc] = useState('')
   const [bankRef, setBankRef] = useState(fee.bank_reference || '')
@@ -843,7 +844,10 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
   }
 
   const feeLabel = isAr ? (fee.fee_label_ar || fee.fee_kind?.value_ar) : (fee.fee_label_en || fee.fee_kind?.value_en)
-  const canSubmit = !!selBankAcc && !!bankRef.trim() && (!!receipt || action === 'edit')
+  // Per-card action gate: the «توثيق السداد» button on the confirm_payment card can be
+  // excluded for this user even when they hold the tab-level payments permission.
+  const canPayBtn = canCardBtn(user, 'payments', 'confirm_payment', 'pay')
+  const canSubmit = canPayBtn && !!selBankAcc && !!bankRef.trim() && (!!receipt || action === 'edit')
 
   // ── Page 1 — read-only payment summary ──
   const page1 = (
@@ -882,8 +886,8 @@ function PayModal({ sb, fee, action, payMethods, isAr, T, toast, userId, onClose
       onSubmit={submit} submitting={saving}
       submitLabel={T('توثيق السداد','Document Payment')} submitIcon={CheckCircle2}
       pages={[
-        { title: T('ملخص السداد','Payment Summary'), valid: true, content: page1 },
-        { title: T('تأكيد السداد','Confirm Payment'), valid: canSubmit, error: err, content: page2 },
+        { title: T('ملخص السداد','Payment Summary'), valid: true, content: cardVisible(user, 'payments', 'payment_summary') ? page1 : null },
+        { title: T('تأكيد السداد','Confirm Payment'), valid: canSubmit, error: err, content: cardVisible(user, 'payments', 'confirm_payment') ? page2 : null },
       ]}
     />
   )

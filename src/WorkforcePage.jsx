@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import BackButton from './components/BackButton'
-import { can as canPerm } from './lib/permissions.js'
-import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, MapPin, Check, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, FileField, EmptyState } from './components/ui/FormKit.jsx'
+import { can as canPerm, cardVisible, canCardBtn } from './lib/permissions.js'
+import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, MapPin, Check, Plus, Pencil, Trash2, Phone, ChevronLeft, ChevronRight, HeartPulse, RefreshCw, AlertCircle, LogOut } from 'lucide-react'
+import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, FileField, PhoneField, PhoneListField, EmptyState } from './components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -16,6 +16,9 @@ const num = (v) => Number(v || 0).toLocaleString('en-US')
 // صيغة العدد العربية: 3–10 تأخذ الجمع، وغيرها المفرد (نفس منطق صفحة المنشآت).
 const arCount = (n, one, few) => (Number(n) >= 3 && Number(n) <= 10) ? few : one
 const fmtDate = (s) => { if (!s) return '—'; try { return new Date(s).toISOString().slice(0,10) } catch { return '—' } }
+// جوال: مخزَّن بصيغة 9665XXXXXXXX؛ الحقول تُدخِل/تُخرِج المحلّي 5XXXXXXXX، والعرض 05XXXXXXXX.
+const phoneLocal = (v) => String(v || '').replace(/\D/g, '').replace(/^966/, '').replace(/^0/, '').slice(-9)
+const fmtMobile = (v) => { const s = phoneLocal(v); return s ? '0' + s : '' }
 // تاريخ + وقت لسجل التعديلات (نفس صيغة صفحة المنشآت/الفواتير).
 const fmtDateTime = (iso) => {
   if (!iso) return '—'
@@ -29,7 +32,10 @@ const fmtDateTime = (iso) => {
 const WORKER_LBL = {
   name: ['اسم العامل', 'Worker name'],
   nationality_id: ['الجنسية', 'Nationality'],
-  occupation_id: ['المهنة', 'Occupation'],
+  occupation_id: ['المهنة الرسمية', 'Official Occupation'],
+  official_occupation_id: ['المهنة الفعلية', 'Actual Occupation'],
+  official_mobile: ['رقم جوال ابشر', 'Absher mobile'],
+  billing_mobiles: ['أرقام جوال الفواتير', 'Billing mobiles'],
   birth_date: ['تاريخ الميلاد', 'Date of birth'],
   iqama_number: ['رقم الإقامة', 'Iqama no.'],
   iqama_expiry_date: ['تاريخ انتهاء الإقامة', 'Iqama expiry'],
@@ -37,7 +43,18 @@ const WORKER_LBL = {
   border_number: ['رقم الحدود', 'Border no.'],
   passport_number: ['رقم الجواز', 'Passport no.'],
   passport_expiry: ['تاريخ انتهاء الجواز', 'Passport expiry'],
+  insurance_company: ['شركة التأمين', 'Insurance company'],
+  insurance_policy_number: ['رقم البوليصة', 'Policy no.'],
+  insurance_expiry_date: ['تاريخ انتهاء التأمين', 'Insurance expiry'],
+  hq_city_id: ['مدينة المقر', 'HQ city'],
+  exit_visa_type: ['نوع تأشيرة الخروج', 'Exit visa type'],
+  exit_visa_number: ['رقم التأشيرة', 'Visa no.'],
+  exit_visa_expiry: ['تاريخ انتهاء التأشيرة', 'Visa expiry'],
+  final_exit_kind: ['نوع الخروج النهائي', 'Final exit kind'],
   muqeem_file: ['ملف مقيم', 'Muqeem file'],
+  work_visa_file: ['ملف تأشيرة العمل', 'Work visa file'],
+  work_permit_file: ['ملف رخصة العمل', 'Work permit file'],
+  exit_visa_file: ['ملف التأشيرة', 'Visa file'],
 }
 const fmtAgo = (iso, isAr) => {
   if (!iso) return '—'
@@ -193,6 +210,41 @@ const FacAvatar = ({ size, sel }) => (
 )
 // تسمية الفرع: «كود الفرع — المدينة» إن وُجدت.
 const facBranchLabel = (f, T) => f?.branch ? [f.branch.branch_code, f.branch.city ? T(f.branch.city.name_ar, f.branch.city.name_en || f.branch.city.name_ar) : null].filter(Boolean).join(' — ') : null
+// تسمية نوع تأشيرة الخروج: خروج وعودة / خروج نهائي.
+const exitVisaTypeLabel = (t, T = (a) => a) => t === 'exit_reentry' ? T('خروج وعودة', 'Exit & Re-entry') : t === 'final_exit' ? T('خروج نهائي', 'Final Exit') : null
+// نوع الخروج النهائي: دائم / مؤقت.
+const finalExitKindLabel = (k, T = (a) => a) => k === 'permanent' ? T('دائمة', 'Permanent') : k === 'temporary' ? T('مؤقتة', 'Temporary') : null
+
+// ═══ استعلام التأمين الطبي (CHI) — كابتشا مثل تسعيرة تجديد الإقامة ═══
+const CHI_FN_URL = '/.netlify/functions/check-chi-insurance'
+const CHI_CAPTCHA_TTL = 120
+const CHI_MAX_ATTEMPTS = 3
+// توحيد تاريخ الانتهاء لصيغة YYYY-MM-DD (CHI قد يعيد YYYY/M/D أو D/M/YYYY)
+const chiNormDate = s => {
+  if (!s) return ''
+  const t = String(s).trim()
+  let m = t.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`
+  m = t.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+  if (m) return `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`
+  return ''
+}
+const ChiCountdown = ({ captchaKey, onExpire, color = '#3bb27a' }) => {
+  const [rem, setRem] = useState(CHI_CAPTCHA_TTL)
+  const fired = useRef(false)
+  useEffect(() => {
+    fired.current = false; setRem(CHI_CAPTCHA_TTL)
+    const start = Date.now()
+    const iv = setInterval(() => {
+      const r = Math.max(0, CHI_CAPTCHA_TTL - Math.floor((Date.now() - start) / 1000))
+      setRem(r)
+      if (r === 0 && !fired.current) { fired.current = true; clearInterval(iv); onExpire && onExpire() }
+    }, 250)
+    return () => clearInterval(iv)
+  }, [captchaKey])
+  const urgent = rem <= 10
+  return <div style={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: urgent ? C.red : color, border: `2px solid ${urgent ? 'rgba(192,57,43,.4)' : 'rgba(59,178,122,.35)'}` }}>{rem}</div>
+}
 
 // المنتقي: حقل بحث ثم كروت نتائج؛ وعند الاختيار يُستبدل بكرت المنشأة كاملاً + زر إلغاء.
 function FacilityPicker({ facilities, value, onChange, T }) {
@@ -215,10 +267,10 @@ function FacilityPicker({ facilities, value, onChange, T }) {
     return (
       <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <button onClick={() => { onChange(null); setQ('') }} title={T('تغيير المنشأة', 'Change facility')}
-          style={{ position: 'absolute', top: 8, left: 8, width: 28, height: 28, borderRadius: 8, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.35)', color: C.red, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, transition: '.15s' }}
+          style={{ position: 'absolute', top: 8, left: 8, height: 28, padding: '0 12px', borderRadius: 8, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.35)', color: C.red, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, transition: '.15s', fontFamily: F, fontSize: 12, fontWeight: 600 }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,114,101,.22)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(232,114,101,.12)' }}>
-          <X size={14} strokeWidth={2.4} />
+          {T('تغيير', 'Change')}
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <FacAvatar size={52} sel />
@@ -354,23 +406,29 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   const [addDone, setAddDone] = useState(null)
   const [addPage, setAddPage] = useState(0)        // ويزارد متحكَّم — للتحقق من تكرار الإقامة عند «التالي»
   const [checkingDup, setCheckingDup] = useState(false)
-  const [addForm, setAddForm] = useState({ name: '', iqama_number: '', iqama_expiry_date: '', birth_date: '', nationality_id: null, nationality_ar: '', occupation_id: null, occupation_ar: '', facility_id: null })
+  const [addForm, setAddForm] = useState({ name: '', iqama_number: '', iqama_expiry_date: '', birth_date: '', nationality_id: null, nationality_ar: '', occupation_id: null, occupation_ar: '', official_occupation_id: null, official_occupation_ar: '', official_mobile: '', facility_id: null })
   const setAdd = (k, v) => setAddForm(p => ({ ...p, [k]: v }))
   const [nationalities, setNationalities] = useState([])
   const [occupations, setOccupations] = useState([])
+  const [cities, setCities] = useState([])
   // تعديل العامل — نفس نمط صفحة المنشآت: editRow + editForm + editSection ('data' | 'docs').
   const [editRow, setEditRow] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [editSection, setEditSection] = useState(null)
+  const [docStep, setDocStep] = useState(1)   // معالج البيانات المهنية على خطوتين: 1 الحقول، 2 رفع الملفات
   const [savingEdit, setSavingEdit] = useState(false)
   const [editErr, setEditErr] = useState(null)
   const [editDone, setEditDone] = useState(null)   // نجاح التعديل يُعرض داخل النافذة (SuccessView) لا توستر
   const [muqeemFile, setMuqeemFile] = useState(null)   // ملف مقيم المُرفق في نافذة التعديل
+  const [workVisaFile, setWorkVisaFile] = useState(null)     // ملف تأشيرة العمل
+  const [workPermitFile, setWorkPermitFile] = useState(null) // ملف رخصة العمل
+  const [exitVisaFile, setExitVisaFile] = useState(null)     // ملف تأشيرة الخروج
   const [attKey, setAttKey] = useState(0)              // يُحدّث عند رفع مرفق لإعادة جلبه في صفحة التفاصيل
   useEffect(() => {
     if (!sb) return
     sb.from('nationalities').select('id,name_ar,name_en,code').eq('is_active', true).order('sort_order', { nullsFirst: false }).order('name_ar').then(({ data }) => { if (data) setNationalities(data) })
     sb.from('occupations').select('id,name_ar,name_en,code').eq('is_active', true).order('sort_order', { nullsFirst: false }).order('name_ar').limit(5000).then(({ data }) => { if (data) setOccupations(data) })
+    sb.from('cities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar').limit(5000).then(({ data }) => { if (data) setCities(data) })
   }, [sb])
   const saveManualWorker = useCallback(async () => {
     if (!sb || adding) return
@@ -390,6 +448,9 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         nationality_ar: addForm.nationality_ar || null,
         current_occupation_id: addForm.occupation_id || null,
         occupation_ar: addForm.occupation_ar || null,
+        official_occupation_id: addForm.official_occupation_id || null,
+        official_occupation_ar: addForm.official_occupation_ar || null,
+        official_mobile: (addForm.official_mobile || '').trim() ? '966' + addForm.official_mobile.trim() : null,
         current_facility_id: addForm.facility_id || null,
         created_by: user?.id || null,
       }
@@ -493,7 +554,8 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   const openWorkerEdit = useCallback((r, section = null) => {
     if (!r) return
     setEditErr(null)
-    setMuqeemFile(null)
+    setMuqeemFile(null); setWorkVisaFile(null); setWorkPermitFile(null); setExitVisaFile(null)
+    setDocStep(1)
     setEditRow(r)
     setEditSection(section)
     setEditForm({
@@ -502,6 +564,12 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
       nationality_ar: r.nationality_ar || '',
       occupation_id: r.current_occupation_id || '',
       occupation_ar: r.occupation_ar || '',
+      official_occupation_id: r.official_occupation_id || '',
+      official_occupation_ar: r.official_occupation_ar || '',
+      hq_city_id: r.hq_city_id || '',
+      hq_city_ar: r.hq_city_ar || '',
+      official_mobile: phoneLocal(r.official_mobile),
+      billing_mobiles: Array.isArray(r.billing_mobiles) ? r.billing_mobiles : [],
       birth_date: r.birth_date ? String(r.birth_date).slice(0, 10) : '',
       iqama_number: r.iqama_number || '',
       iqama_expiry_date: r.iqama_expiry_date ? String(r.iqama_expiry_date).slice(0, 10) : '',
@@ -509,6 +577,13 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
       border_number: r.border_number || '',
       passport_number: r.passport_number || '',
       passport_expiry: r.passport_expiry ? String(r.passport_expiry).slice(0, 10) : '',
+      insurance_company: r.insurance_company || '',
+      insurance_policy_number: r.insurance_policy_number || '',
+      insurance_expiry_date: r.insurance_expiry_date ? String(r.insurance_expiry_date).slice(0, 10) : '',
+      exit_visa_type: r.exit_visa_type || '',
+      exit_visa_number: r.exit_visa_number || '',
+      exit_visa_expiry: r.exit_visa_expiry ? String(r.exit_visa_expiry).slice(0, 10) : '',
+      final_exit_kind: r.final_exit_kind || '',
     })
   }, [])
 
@@ -527,6 +602,12 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         nationality_ar: editForm.nationality_ar || null,
         current_occupation_id: editForm.occupation_id || null,
         occupation_ar: editForm.occupation_ar || null,
+        official_occupation_id: editForm.official_occupation_id || null,
+        official_occupation_ar: editForm.official_occupation_ar || null,
+        hq_city_id: editForm.hq_city_id || null,
+        hq_city_ar: editForm.hq_city_ar || null,
+        official_mobile: (editForm.official_mobile || '').trim() ? '966' + editForm.official_mobile.trim() : null,
+        billing_mobiles: Array.isArray(editForm.billing_mobiles) ? editForm.billing_mobiles : [],
         birth_date: editForm.birth_date || null,
         iqama_number: (editForm.iqama_number || '').trim() || null,
         iqama_expiry_date: editForm.iqama_expiry_date || null,
@@ -534,6 +615,12 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         border_number: (editForm.border_number || '').trim() || null,
         passport_number: (editForm.passport_number || '').trim() || null,
         passport_expiry: editForm.passport_expiry || null,
+        // ملاحظة: حقول التأمين (الشركة/البوليصة/الانتهاء) تُدار حصراً عبر «استعلام التأمين» (CHI)
+        // ولا تُكتب من نافذة التعديل، حتى لا يُمحى ما جلبه الاستعلام عند حفظ أي تعديل آخر.
+        exit_visa_type: editForm.exit_visa_type || null,
+        exit_visa_number: (editForm.exit_visa_number || '').trim() || null,
+        exit_visa_expiry: editForm.exit_visa_expiry || null,
+        final_exit_kind: editForm.exit_visa_type === 'final_exit' ? (editForm.final_exit_kind || null) : null,
         updated_by: user?.id || null,
       }
       // فرق القيم (قديم/جديد) لسجل التعديلات — بقيم مقروءة (لا معرّفات).
@@ -542,10 +629,17 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
       const oldIqExp = editRow.iqama_expiry_date ? String(editRow.iqama_expiry_date).slice(0, 10) : null
       const oldWpExp = editRow.work_permit_expiry ? String(editRow.work_permit_expiry).slice(0, 10) : null
       const oldPpExp = editRow.passport_expiry ? String(editRow.passport_expiry).slice(0, 10) : null
+      const oldExitExp = editRow.exit_visa_expiry ? String(editRow.exit_visa_expiry).slice(0, 10) : null
+      const oldBilling = (Array.isArray(editRow.billing_mobiles) ? editRow.billing_mobiles : []).map(fmtMobile).join('، ')
+      const newBilling = (patch.billing_mobiles || []).map(fmtMobile).join('، ')
       const changes = [
         ['name', oldName, name],
         ['nationality_id', editRow.nationality_ar || null, patch.nationality_ar],
         ['occupation_id', editRow.occupation_ar || null, patch.occupation_ar],
+        ['official_occupation_id', editRow.official_occupation_ar || null, patch.official_occupation_ar],
+        ['hq_city_id', editRow.hq_city_ar || null, patch.hq_city_ar],
+        ['official_mobile', fmtMobile(editRow.official_mobile) || null, fmtMobile(patch.official_mobile) || null],
+        ['billing_mobiles', oldBilling || null, newBilling || null],
         ['birth_date', oldBirth, patch.birth_date],
         ['iqama_number', editRow.iqama_number || null, patch.iqama_number],
         ['iqama_expiry_date', oldIqExp, patch.iqama_expiry_date],
@@ -553,30 +647,60 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         ['border_number', editRow.border_number || null, patch.border_number],
         ['passport_number', editRow.passport_number || null, patch.passport_number],
         ['passport_expiry', oldPpExp, patch.passport_expiry],
+        ['exit_visa_type', exitVisaTypeLabel(editRow.exit_visa_type), exitVisaTypeLabel(patch.exit_visa_type)],
+        ['exit_visa_number', editRow.exit_visa_number || null, patch.exit_visa_number],
+        ['exit_visa_expiry', oldExitExp, patch.exit_visa_expiry],
+        ['final_exit_kind', finalExitKindLabel(editRow.final_exit_kind), finalExitKindLabel(patch.final_exit_kind)],
       ].filter(([, from, to]) => String(from ?? '') !== String(to ?? ''))
        .map(([field, from, to]) => ({ field, from: from ?? null, to: to ?? null }))
-      // إرفاق ملف مقيم — يُسجَّل في سجل التعديلات أيضاً.
-      const muqeem = (muqeemFile && (!muqeemFile.type || /pdf/i.test(muqeemFile.type))) ? muqeemFile : null
-      if (muqeem) changes.push({ field: 'muqeem_file', from: null, to: muqeem.name || T('ملف مقيم', 'Muqeem file') })
+      // الملفات المرفقة في النافذة (PDF) — تُسجَّل في سجل التعديلات وتُرفع بعد حفظ العامل.
+      const fileUploads = [
+        { notes: 'muqeem_file', folder: 'muqeem', file: muqeemFile, label: T('ملف مقيم', 'Muqeem file') },
+        { notes: 'work_visa_file', folder: 'work_visa', file: workVisaFile, label: T('ملف تأشيرة العمل', 'Work visa file') },
+        { notes: 'work_permit_file', folder: 'work_permit', file: workPermitFile, label: T('ملف رخصة العمل', 'Work permit file') },
+        { notes: 'exit_visa_file', folder: 'exit_visa', file: exitVisaFile, label: T('ملف التأشيرة', 'Visa file') },
+      ].filter(u => u.file && (!u.file.type || /pdf/i.test(u.file.type)))
+      // الملفات الحالية لكل خانة — لتسجيل «الملف السابق» عند الاستبدال، وحذف الملف المُستبدَل.
+      const prevFileNames = {}     // أحدث اسم ملف لكل خانة (للسجل)
+      const prevFileIds = {}       // كل المعرّفات السابقة لكل خانة (للحذف الناعم)
+      if (fileUploads.length) {
+        const { data: exAtt } = await sb.from('attachments')
+          .select('id,file_name,notes,created_at')
+          .eq('entity_type', 'worker').eq('entity_id', editRow.id)
+          .in('notes', fileUploads.map(u => u.notes)).is('deleted_at', null)
+          .order('created_at', { ascending: false })
+        for (const r of (exAtt || [])) {
+          if (!prevFileNames[r.notes]) prevFileNames[r.notes] = r.file_name
+          ;(prevFileIds[r.notes] = prevFileIds[r.notes] || []).push(r.id)
+        }
+      }
+      for (const u of fileUploads) changes.push({ field: u.notes, from: prevFileNames[u.notes] || null, to: u.file.name || u.label })
       if (changes.length) {
-        const prevLog = Array.isArray(editRow.edit_log) ? editRow.edit_log : []
+        // نقرأ السجل الحالي من القاعدة (لا اللقطة المخزّنة عند فتح النافذة) حتى لا نمحو
+        // قيوداً أُضيفت بعد الفتح (مثل قيد «استعلام التأمين»).
+        const { data: freshRow } = await sb.from('workers').select('edit_log').eq('id', editRow.id).maybeSingle()
+        const prevLog = Array.isArray(freshRow?.edit_log) ? freshRow.edit_log : (Array.isArray(editRow.edit_log) ? editRow.edit_log : [])
         patch.edit_log = [...prevLog, { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, changes }]
       }
       const { error } = await sb.from('workers').update(patch).eq('id', editRow.id)
       if (error) throw new Error(error.message)
-      // رفع ملف مقيم (PDF) إلى bucket «attachments» وربطه بالعامل (entity_type='worker', notes='muqeem_file').
-      if (muqeem) {
-        const safe = (muqeem.name || 'muqeem.pdf').replace(/[^\w.\-]+/g, '_')
-        const path = `workers/${editRow.id}/muqeem/${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${safe}`
-        const { error: upErr } = await sb.storage.from('attachments').upload(path, muqeem, { cacheControl: '3600', upsert: false })
-        if (upErr) { toast?.(T('تعذّر رفع ملف مقيم: ' + (upErr.message || ''), 'Muqeem upload failed: ' + (upErr.message || ''))) }
+      // رفع الملفات (PDF) إلى bucket «attachments» وربطها بالعامل (entity_type='worker', notes=<النوع>).
+      for (const u of fileUploads) {
+        const safe = (u.file.name || `${u.folder}.pdf`).replace(/[^\w.\-]+/g, '_')
+        const path = `workers/${editRow.id}/${u.folder}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${safe}`
+        const { error: upErr } = await sb.storage.from('attachments').upload(path, u.file, { cacheControl: '3600', upsert: false })
+        if (upErr) { toast?.(T('تعذّر رفع ' + u.label + ': ' + (upErr.message || ''), 'Upload failed for ' + u.label + ': ' + (upErr.message || ''))) }
         else {
           const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
           await sb.from('attachments').insert({
             entity_type: 'worker', entity_id: editRow.id,
-            file_name: muqeem.name, file_url: pub?.publicUrl || path, storage_path: path,
-            mime_type: muqeem.type || null, size_bytes: muqeem.size || null, notes: 'muqeem_file', uploaded_by: user?.id || null,
+            file_name: u.file.name, file_url: pub?.publicUrl || path, storage_path: path,
+            mime_type: u.file.type || null, size_bytes: u.file.size || null, notes: u.notes, uploaded_by: user?.id || null,
           })
+          // حذف ناعم للملف المُستبدَل في نفس الخانة (يبقى المرفق الجديد فقط).
+          if (prevFileIds[u.notes]?.length) {
+            await sb.from('attachments').update({ deleted_at: new Date().toISOString() }).in('id', prevFileIds[u.notes])
+          }
         }
       }
       // النجاح يُعرض داخل النافذة (SuccessView)، لا توستر؛ ويبقى النافذة مفتوحة حتى يغلقها المستخدم.
@@ -587,11 +711,15 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
       if (fresh) setDetail(fresh)
       load()
     } catch (e) {
-      setEditErr(T('فشل الحفظ: ' + (e.message || e), 'Save failed: ' + (e.message || e)))
+      const m = String(e.message || e)
+      // حارس قاعدة البيانات للأرقام الفريدة (الإقامة/الحدود) — رسالة ودّية بدل خطأ Postgres الخام.
+      if (/border_number_unique/i.test(m)) setEditErr(T('رقم الحدود مسجّل مسبقاً لعامل آخر', 'This border number is already registered to another worker'))
+      else if (/iqama_number_unique|duplicate key/i.test(m)) setEditErr(T('رقم الإقامة مسجّل مسبقاً لعامل آخر', 'This Iqama number is already registered to another worker'))
+      else setEditErr(T('فشل الحفظ: ' + m, 'Save failed: ' + m))
     } finally {
       setSavingEdit(false)
     }
-  }, [sb, editRow, editForm, savingEdit, user, toast, T, load, muqeemFile])
+  }, [sb, editRow, editForm, savingEdit, user, toast, T, load, muqeemFile, workVisaFile, workPermitFile, exitVisaFile])
 
   // Deep-link: فتح تفاصيل عامل معيّن عند الانتقال من صفحة أخرى (مثل صفحة المنشأة).
   useEffect(() => {
@@ -657,14 +785,22 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
       }
       if (search.trim()) {
         const s = search.toLowerCase()
+        // أرقام المنشأة التابع لها العامل — البحث بالرقم الموحّد/التأمينات/الموارد البشرية/السجل يُظهر كل عمالتها.
+        const fac = facById[w.current_facility_id]
+        const facMatch = fac && [fac.unified_number, fac.gosi_number, fac.hrsd_number, fac.cr_number]
+          .some(n => String(n || '').toLowerCase().includes(s))
+        // أي من أرقام جوال العامل (الرسمي أو أرقام الفواتير) — مطابقة بالأرقام فقط.
+        const sDigits = s.replace(/\D/g, '')
+        const phoneMatch = sDigits.length >= 3 && [w.official_mobile, ...(Array.isArray(w.billing_mobiles) ? w.billing_mobiles : [])]
+          .some(p => String(p || '').replace(/\D/g, '').includes(sDigits))
         if (!((w.name_ar || '').includes(s) || (w.name_en || '').toLowerCase().includes(s) ||
               (w.iqama_number || '').includes(s) || (w.border_number || '').includes(s) ||
               (w.passport_number || '').toLowerCase().includes(s) || (w.occupation_ar || '').includes(s) ||
-              (w.gosi_registration_no || '').includes(s))) return false
+              (w.gosi_registration_no || '').includes(s) || facMatch || phoneMatch)) return false
       }
       return true
     })
-  }, [scopedRows, adv, search])
+  }, [scopedRows, adv, search, facById])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE))
   const paged = filtered.slice(page * PAGE, page * PAGE + PAGE)
@@ -679,21 +815,41 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         onEdit={(section) => openWorkerEdit(detail, section)}
         onDelete={() => deleteWorker(detail)}
         onTransfer={() => transferToTemp(detail)}
-        canEdit={canPerm(user, 'workers.create')}
+        canEdit={canPerm(user, 'workers.edit')}
+        canDelete={canPerm(user, 'workers.delete')}
+        user={user}
         attKey={attKey}
       />
       {editRow && editForm && (
-        <FKModal open onClose={() => { if (!savingEdit) { setEditErr(null); setEditDone(null); setEditRow(null); setEditForm(null); setEditSection(null); setMuqeemFile(null) } }} width={640}
-          title={editSection === 'docs' ? T('تعديل الإقامة والوثائق', 'Edit Iqama & Documents') : editSection === 'data' ? T('تعديل بيانات العامل', 'Edit Worker Data') : T('تعديل العامل', 'Edit Worker')} Icon={Pencil}
+        <FKModal open onClose={() => { if (!savingEdit) { setEditErr(null); setEditDone(null); setEditRow(null); setEditForm(null); setEditSection(null); setDocStep(1); setMuqeemFile(null); setWorkVisaFile(null); setWorkPermitFile(null); setExitVisaFile(null) } }} width={520}
+          height={editSection === 'docs' && !editDone ? 'min(560px, 92vh)' : undefined} scroll={editSection === 'docs' && !editDone}
+          footerStart={editSection === 'docs' && !editDone && docStep === 2 ? (
+            <ActionButton variant="ghost" dir="fwd" Icon={ChevronRight} disabled={savingEdit} onClick={() => setDocStep(1)}>
+              {T('السابق', 'Back')}
+            </ActionButton>
+          ) : undefined}
+          title={editSection === 'docs' ? T('تعديل البيانات المهنية', 'Edit Professional Data') : editSection === 'passport' ? T('تعديل بيانات الجواز', 'Edit Passport Data') : editSection === 'insurance' ? T('تعديل بيانات التأمين الطبي', 'Edit Medical Insurance Data') : editSection === 'data' ? T('تعديل البيانات الشخصية', 'Edit Personal Data') : editSection === 'contact' ? T('تعديل بيانات التواصل الفاتورية', 'Edit Billing Contact Data') : editSection === 'actual' ? T('تعديل البيانات الفعلية', 'Edit Actual Data') : editSection === 'exit_visa' ? T('تعديل بيانات تأشيرات الخروج', 'Edit Exit Visa Data') : T('تعديل العامل', 'Edit Worker')} Icon={Pencil}
           errorMsg={editErr}
           success={editDone ? <SuccessView title={editDone.title} /> : undefined}
           footer={
-            <ActionButton Icon={Pencil} disabled={savingEdit || !(editForm.name || '').trim()} onClick={saveWorkerEdit}>
-              {savingEdit ? T('جاري الحفظ…', 'Saving…') : T('تعديل', 'Save changes')}
-            </ActionButton>
+            editSection === 'docs' && !editDone ? (
+              docStep === 1 ? (
+                <ActionButton dir="back" Icon={ChevronLeft} disabled={savingEdit} onClick={() => setDocStep(2)}>
+                  {T('التالي', 'Next')}
+                </ActionButton>
+              ) : (
+                <ActionButton Icon={Pencil} disabled={savingEdit || !(editForm.name || '').trim()} onClick={saveWorkerEdit}>
+                  {savingEdit ? T('جاري الحفظ…', 'Saving…') : T('تعديل', 'Save changes')}
+                </ActionButton>
+              )
+            ) : (
+              <ActionButton Icon={Pencil} disabled={savingEdit || !(editForm.name || '').trim()} onClick={saveWorkerEdit}>
+                {savingEdit ? T('جاري الحفظ…', 'Saving…') : T('تعديل', 'Save changes')}
+              </ActionButton>
+            )
           }>
-          {editSection !== 'docs' && (
-            <ModalSection Icon={UserPlus} label={T('بيانات العامل', 'Worker Data')}>
+          {(!editSection || editSection === 'data') && (
+            <ModalSection Icon={UserPlus} label={T('البيانات الشخصية', 'Personal Data')}>
               <div style={GRID}>
                 <TextField full req label={T('اسم العامل (عربي أو إنجليزي)', 'Worker Name (Arabic or English)')}
                   value={editForm.name} onChange={v => { setEditErr(null); setEditForm(p => ({ ...p, name: v })) }} placeholder={T('الاسم الكامل', 'Full Name')} />
@@ -701,33 +857,113 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
                   options={nationalities} getKey={o => o.id} getLabel={o => o.name_ar || o.name_en || ''} getSub={o => o.name_en || ''}
                   value={editForm.nationality_id}
                   onChange={(id, item) => setEditForm(p => ({ ...p, nationality_id: id, nationality_ar: item?.name_ar || '' }))} />
-                <Select label={T('المهنة', 'Occupation')} placeholder={T('اختر المهنة…', 'Select occupation…')}
-                  options={occupations} getKey={o => o.id} getLabel={o => o.name_ar || o.name_en || ''} getSub={o => o.name_en || ''}
-                  value={editForm.occupation_id}
-                  onChange={(id, item) => setEditForm(p => ({ ...p, occupation_id: id, occupation_ar: item?.name_ar || '' }))} />
                 <DateField label={T('تاريخ الميلاد', 'Date of Birth')}
                   value={editForm.birth_date} onChange={v => setEditForm(p => ({ ...p, birth_date: v }))} />
               </div>
             </ModalSection>
           )}
-          {editSection !== 'data' && (
-            <ModalSection Icon={ShieldCheck} label={T('الإقامة والوثائق', 'Iqama & Documents')}>
+          {(!editSection || editSection === 'actual') && (
+            <ModalSection Icon={UserPlus} label={T('البيانات الفعلية', 'Actual Data')}>
+              <div style={GRID}>
+                <PhoneField label={T('رقم جوال ابشر', 'Absher Mobile')}
+                  value={editForm.official_mobile} onChange={v => setEditForm(p => ({ ...p, official_mobile: v }))} />
+                <Select label={T('مدينة المقر', 'HQ City')} placeholder={T('اختر المدينة…', 'Select city…')}
+                  options={cities} getKey={o => o.id} getLabel={o => o.name_ar || o.name_en || ''} getSub={o => o.name_en || ''}
+                  value={editForm.hq_city_id}
+                  onChange={(id, item) => setEditForm(p => ({ ...p, hq_city_id: id, hq_city_ar: item?.name_ar || '' }))} />
+                <Select full label={T('المهنة الفعلية', 'Actual Occupation')} placeholder={T('اختر المهنة الفعلية…', 'Select actual occupation…')}
+                  options={occupations} getKey={o => o.id} getLabel={o => o.name_ar || o.name_en || ''} getSub={o => o.name_en || ''}
+                  value={editForm.official_occupation_id}
+                  onChange={(id, item) => setEditForm(p => ({ ...p, official_occupation_id: id, official_occupation_ar: item?.name_ar || '' }))} />
+              </div>
+            </ModalSection>
+          )}
+          {(!editSection || editSection === 'contact') && (
+            <ModalSection Icon={Phone} label={T('بيانات التواصل الفاتورية', 'Billing Contact Data')}>
+              <div style={GRID}>
+                <PhoneListField full label={T('أرقام جوال الفواتير', 'Billing Mobiles')}
+                  hint={T('تُضاف تلقائياً من جوال الفاتورة', 'auto-added from invoice phone')}
+                  value={editForm.billing_mobiles} onChange={v => setEditForm(p => ({ ...p, billing_mobiles: v }))} />
+              </div>
+            </ModalSection>
+          )}
+          {(!editSection || editSection === 'docs') && (
+            <ModalSection Icon={ShieldCheck} label={editSection === 'docs'
+              ? (docStep === 1 ? T('البيانات المهنية — ١. البيانات', 'Professional Data — 1. Details') : T('البيانات المهنية — ٢. الملفات', 'Professional Data — 2. Files'))
+              : T('البيانات المهنية', 'Professional Data')}>
               <div style={{ ...GRID, gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                <IdField label={T('رقم الإقامة', 'Iqama Number')} placeholder="2XXXXXXXXX"
-                  value={editForm.iqama_number} onChange={v => setEditForm(p => ({ ...p, iqama_number: v }))} />
-                <DateField label={T('تاريخ انتهاء الإقامة', 'Iqama Expiry')}
-                  value={editForm.iqama_expiry_date} onChange={v => setEditForm(p => ({ ...p, iqama_expiry_date: v }))} />
-                <DateField label={T('تاريخ انتهاء كرت العمل', 'Work Permit Expiry')}
-                  value={editForm.work_permit_expiry} onChange={v => setEditForm(p => ({ ...p, work_permit_expiry: v }))} />
-                <IdField label={T('رقم الحدود', 'Border Number')} placeholder="3XXXXXXXXX"
-                  value={editForm.border_number} onChange={v => setEditForm(p => ({ ...p, border_number: v }))} />
+                {(editSection !== 'docs' || docStep === 1) && (<>
+                  <IdField label={T('رقم الإقامة', 'Iqama Number')} placeholder="2XXXXXXXXX"
+                    value={editForm.iqama_number} onChange={v => setEditForm(p => ({ ...p, iqama_number: v }))} />
+                  <IdField label={T('رقم الحدود', 'Border Number')} placeholder="3XXXXXXXXX"
+                    value={editForm.border_number} onChange={v => setEditForm(p => ({ ...p, border_number: v }))} />
+                  <DateField label={T('تاريخ انتهاء الإقامة', 'Iqama Expiry')}
+                    value={editForm.iqama_expiry_date} onChange={v => setEditForm(p => ({ ...p, iqama_expiry_date: v }))} />
+                  <DateField label={T('تاريخ انتهاء كرت العمل', 'Work Permit Expiry')}
+                    value={editForm.work_permit_expiry} onChange={v => setEditForm(p => ({ ...p, work_permit_expiry: v }))} />
+                  <Select full label={T('المهنة الرسمية', 'Official Occupation')} placeholder={T('اختر المهنة الرسمية…', 'Select official occupation…')}
+                    options={occupations} getKey={o => o.id} getLabel={o => o.name_ar || o.name_en || ''} getSub={o => o.name_en || ''}
+                    value={editForm.occupation_id}
+                    onChange={(id, item) => setEditForm(p => ({ ...p, occupation_id: id, occupation_ar: item?.name_ar || '' }))} />
+                </>)}
+                {(editSection !== 'docs' || docStep === 2) && (<>
+                  <FileField compact accept="application/pdf" label={T('ملف تأشيرة العمل (PDF)', 'Work visa file (PDF)')}
+                    hint={T('ارفق ملف تأشيرة العمل بصيغة PDF', 'Attach the work visa as a PDF')}
+                    value={workVisaFile} onChange={setWorkVisaFile} />
+                  <FileField compact accept="application/pdf" label={T('ملف رخصة العمل (PDF)', 'Work permit file (PDF)')}
+                    hint={T('ارفق ملف رخصة العمل بصيغة PDF', 'Attach the work permit as a PDF')}
+                    value={workPermitFile} onChange={setWorkPermitFile} />
+                  <FileField compact accept="application/pdf" label={T('ملف مقيم (PDF)', 'Muqeem file (PDF)')}
+                    hint={T('ارفق ملف مقيم بصيغة PDF', 'Attach the Muqeem report as a PDF')}
+                    value={muqeemFile} onChange={setMuqeemFile} />
+                </>)}
+              </div>
+            </ModalSection>
+          )}
+          {(!editSection || editSection === 'passport') && (
+            <ModalSection Icon={FileText} label={T('جواز السفر', 'Passport')}>
+              <div style={{ ...GRID, gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 <TextField dir="ltr" label={T('رقم الجواز', 'Passport Number')} placeholder={T('اختياري', 'Optional')}
                   value={editForm.passport_number} onChange={v => setEditForm(p => ({ ...p, passport_number: v }))} />
                 <DateField label={T('تاريخ انتهاء الجواز', 'Passport Expiry')}
                   value={editForm.passport_expiry} onChange={v => setEditForm(p => ({ ...p, passport_expiry: v }))} />
-                <FileField full accept="application/pdf" label={T('ملف مقيم (PDF)', 'Muqeem file (PDF)')}
-                  hint={T('ارفق ملف مقيم بصيغة PDF', 'Attach the Muqeem report as a PDF')}
-                  value={muqeemFile} onChange={setMuqeemFile} />
+              </div>
+            </ModalSection>
+          )}
+          {(!editSection || editSection === 'insurance') && (
+            <ModalSection Icon={ShieldCheck} label={T('التأمين الطبي', 'Medical Insurance')}>
+              <div style={{ ...GRID, gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                <TextField label={T('شركة التأمين', 'Insurance Company')} placeholder={T('اختياري', 'Optional')}
+                  value={editForm.insurance_company} onChange={v => setEditForm(p => ({ ...p, insurance_company: v }))} />
+                <TextField dir="ltr" label={T('رقم البوليصة', 'Policy Number')} placeholder={T('اختياري', 'Optional')}
+                  value={editForm.insurance_policy_number} onChange={v => setEditForm(p => ({ ...p, insurance_policy_number: v }))} />
+                <DateField label={T('تاريخ انتهاء التأمين', 'Insurance Expiry')}
+                  value={editForm.insurance_expiry_date} onChange={v => setEditForm(p => ({ ...p, insurance_expiry_date: v }))} />
+              </div>
+            </ModalSection>
+          )}
+          {(!editSection || editSection === 'exit_visa') && (
+            <ModalSection Icon={ShieldCheck} label={T('تأشيرات الخروج والعودة والخروج النهائي', 'Exit & Final Exit Visas')}>
+              <div style={{ ...GRID, gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                <Select label={T('نوع التأشيرة', 'Visa Type')} placeholder={T('اختر نوع التأشيرة…', 'Select visa type…')}
+                  options={[{ id: 'exit_reentry', label: T('خروج وعودة', 'Exit & Re-entry') }, { id: 'final_exit', label: T('خروج نهائي', 'Final Exit') }]}
+                  getKey={o => o.id} getLabel={o => o.label}
+                  value={editForm.exit_visa_type}
+                  onChange={(id) => setEditForm(p => ({ ...p, exit_visa_type: id, final_exit_kind: id === 'final_exit' ? p.final_exit_kind : '' }))} />
+                {editForm.exit_visa_type === 'final_exit' && (
+                  <Select label={T('نوع الخروج النهائي', 'Final Exit Kind')} placeholder={T('دائمة أو مؤقتة…', 'Permanent or temporary…')}
+                    options={[{ id: 'permanent', label: T('دائمة', 'Permanent') }, { id: 'temporary', label: T('مؤقتة', 'Temporary') }]}
+                    getKey={o => o.id} getLabel={o => o.label}
+                    value={editForm.final_exit_kind}
+                    onChange={(id) => setEditForm(p => ({ ...p, final_exit_kind: id }))} />
+                )}
+                <TextField dir="ltr" label={T('رقم التأشيرة', 'Visa Number')} placeholder={T('اختياري', 'Optional')}
+                  value={editForm.exit_visa_number} onChange={v => setEditForm(p => ({ ...p, exit_visa_number: v }))} />
+                <DateField full={editForm.exit_visa_type !== 'final_exit'} label={T('تاريخ انتهاء التأشيرة', 'Visa Expiry Date')}
+                  value={editForm.exit_visa_expiry} onChange={v => setEditForm(p => ({ ...p, exit_visa_expiry: v }))} />
+                <FileField compact accept="application/pdf" label={T('ملف التأشيرة (PDF)', 'Visa file (PDF)')}
+                  hint={T('ارفق ملف التأشيرة بصيغة PDF', 'Attach the visa as a PDF')}
+                  value={exitVisaFile} onChange={setExitVisaFile} />
               </div>
             </ModalSection>
           )}
@@ -926,7 +1162,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
-            placeholder={T('ابحث بالاسم، رقم الإقامة، الحدود، الجواز، المهنة، رقم التسجيل…','Search by name, iqama, border, passport, occupation, registration…')}
+            placeholder={T('ابحث بالاسم، الإقامة، الحدود، الجواز، المهنة، رقم الجوال، أو رقم المنشأة (موحّد/تأمينات/موارد)…','Search by name, iqama, border, passport, occupation, mobile, or facility no. (unified/GOSI/HRSD)…')}
             style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
         </div>
         <button type="button" onClick={() => setAdvOpen(v => !v)} style={btnFilter(advOpen || advCount > 0)}>
@@ -978,7 +1214,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
                 {facilities.map(f => <option key={f.id} value={f.id}>{f.name_ar || f.cr_number}</option>)}
               </select>
             </FilterField>
-            <FilterField label={T('المهنة','Occupation')}>
+            <FilterField label={T('المهنة الرسمية','Official Occupation')}>
               <input value={adv.occupation} onChange={e => { setAdv(a => ({ ...a, occupation: e.target.value })); setPage(0) }} placeholder={T('سائق، بناء…','Driver, builder…')} style={selStyle}/>
             </FilterField>
           </div>
@@ -1032,7 +1268,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
                   <th>{T('الاسم','Name')}</th>
                   <th>{T('رقم الإقامة','Iqama')}</th>
                   <th>{T('الجنسية','Nationality')}</th>
-                  <th>{T('المهنة','Occupation')}</th>
+                  <th>{T('المهنة الرسمية','Official Occupation')}</th>
                   <th>{T('انتهاء الإقامة','Iqama Expiry')}</th>
                   <th>{T('الفرع','Branch')}</th>
                 </tr>
@@ -1137,7 +1373,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         <FKModal open onClose={() => {
             if (adding) return
             setAddErr(null); setAddPage(0); setShowAdd(false)
-            if (addDone) { setAddDone(null); setAddForm({ name: '', iqama_number: '', iqama_expiry_date: '', birth_date: '', nationality_id: null, nationality_ar: '', occupation_id: null, occupation_ar: '', facility_id: null }) }
+            if (addDone) { setAddDone(null); setAddForm({ name: '', iqama_number: '', iqama_expiry_date: '', birth_date: '', nationality_id: null, nationality_ar: '', occupation_id: null, occupation_ar: '', official_occupation_id: null, official_occupation_ar: '', official_mobile: '', facility_id: null }) }
           }} variant="create" width={640}
           title={T('إضافة عامل دائم', 'Add Permanent Worker')} Icon={UserPlus}
           success={addDone ? <SuccessView title={addDone.title} /> : undefined}
@@ -1163,17 +1399,17 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
                   <div style={GRID}>
                     <TextField full req dir="rtl" align="right" label={T('اسم العامل (عربي أو إنجليزي)', 'Worker Name (Arabic or English)')}
                       value={addForm.name} onChange={v => { setAddErr(null); setAdd('name', v) }} placeholder={T('الاسم الكامل', 'Full Name')} />
-                    <IdField req label={T('رقم الإقامة', 'Iqama Number')} placeholder="2XXXXXXXXX"
-                      value={addForm.iqama_number} onChange={v => { setAddErr(null); setAdd('iqama_number', v) }} />
-                    <DateField req label={T('تاريخ انتهاء الإقامة', 'Iqama Expiry Date')}
-                      value={addForm.iqama_expiry_date} onChange={v => setAdd('iqama_expiry_date', v)} />
                     <Select req label={T('الجنسية', 'Nationality')} placeholder={T('اختر الجنسية…', 'Select nationality…')}
                       options={nationalities} getKey={o => o.id} getLabel={o => o.name_ar || o.name_en || ''} getSub={o => o.name_en || ''}
                       value={addForm.nationality_id}
                       onChange={(id, item) => setAddForm(p => ({ ...p, nationality_id: id, nationality_ar: item?.name_ar || '' }))} />
                     <DateField req label={T('تاريخ الميلاد', 'Date of Birth')}
                       value={addForm.birth_date} onChange={v => setAdd('birth_date', v)} />
-                    <Select req full label={T('المهنة', 'Occupation')} placeholder={T('اختر المهنة…', 'Select occupation…')}
+                    <IdField req label={T('رقم الإقامة', 'Iqama Number')} placeholder="2XXXXXXXXX"
+                      value={addForm.iqama_number} onChange={v => { setAddErr(null); setAdd('iqama_number', v) }} />
+                    <DateField req label={T('تاريخ انتهاء الإقامة', 'Iqama Expiry Date')}
+                      value={addForm.iqama_expiry_date} onChange={v => setAdd('iqama_expiry_date', v)} />
+                    <Select full req label={T('المهنة الرسمية', 'Official Occupation')} placeholder={T('اختر المهنة الرسمية…', 'Select official occupation…')}
                       options={occupations} getKey={o => o.id} getLabel={o => o.name_ar || o.name_en || ''} getSub={o => o.name_en || ''}
                       value={addForm.occupation_id}
                       onChange={(id, item) => setAddForm(p => ({ ...p, occupation_id: id, occupation_ar: item?.name_ar || '' }))} />
@@ -1225,7 +1461,14 @@ function Empty({ T, hasData }) {
 
 // سجل إضافات وتعديلات العامل — يطابق FacEditLog في صفحة المنشآت: حدث الإضافة (مَن
 // أضاف العامل ومتى) ثم كل تعديل لاحق. `created` = { at, by_name, label }.
-function WorkerEditLog({ entries, created, T }) {
+const FILE_FIELDS = new Set(['muqeem_file', 'work_visa_file', 'work_permit_file', 'exit_visa_file'])
+function WorkerEditLog({ entries, created, fileUrls = {}, T }) {
+  // اسم ملف ← رابط؛ يجعل أسماء الملفات في السجل قابلة للفتح.
+  const fileLink = (name) => {
+    const url = name && fileUrls[name]
+    if (!url) return <>{name}</>
+    return <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 2, cursor: 'pointer' }} onClick={e => e.stopPropagation()}>{name}</a>
+  }
   const logEntries = Array.isArray(entries) ? entries.filter(e => e && (e.kind === 'transfer' || (Array.isArray(e.changes) && e.changes.length))) : []
   const createdEntry = created?.at ? { at: created.at, by_name: created.by_name, label: created.label, kind: 'created' } : null
   const chrono = [...(createdEntry ? [createdEntry] : []), ...logEntries]
@@ -1233,11 +1476,11 @@ function WorkerEditLog({ entries, created, T }) {
   return (
     <div style={{ background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 16, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-        <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold }}>{T('سجل الإضافات والتعديلات', 'Activity log')}</span>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
+        <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.blue }}>{T('سجل الإضافات والتعديلات', 'Activity log')}</span>
       </div>
       <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {[...chrono].reverse().map((c, i) => {
+        {[...chrono].sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0)).map((c, i) => {
           const isCreate = c.kind === 'created'
           const isTransfer = c.kind === 'transfer'
           const accent = isCreate ? C.ok : isTransfer ? C.blue : C.gold
@@ -1254,6 +1497,9 @@ function WorkerEditLog({ entries, created, T }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
                     <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700 }}>{isCreate ? T('تمت الإضافة', 'Added') : isTransfer ? T('تم النقل', 'Transferred') : T('تم التعديل', 'Edited')}</span>
+                    {c.via === 'insurance_check' && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.ok, background: C.ok + '1a', border: '1px solid ' + C.ok + '47', borderRadius: 6, padding: '1px 7px' }}>{T('عبر استعلام التأمين', 'via insurance check')}</span>
+                    )}
                     {c.by_name && <span style={{ fontSize: 11, color: accent, fontWeight: 700 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
                   </div>
                   <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', flexShrink: 0 }}>{fmtDateTime(c.at)}</span>
@@ -1267,15 +1513,17 @@ function WorkerEditLog({ entries, created, T }) {
                   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{c.from === 'permanent' ? T('نُقل من العمالة الدائمة', 'Moved from permanent workforce') : T('نُقل من العمالة المؤقتة', 'Moved from temporary workforce')}</span>
                   </div>
-                ) : c.changes.map((ch, j) => (
+                ) : c.changes.map((ch, j) => {
+                  const isFile = FILE_FIELDS.has(ch.field)
+                  return (
                   <div key={j} style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     <span>{T(WORKER_LBL[ch.field]?.[0] || ch.field, WORKER_LBL[ch.field]?.[1] || ch.field)}:</span>
-                    <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{(ch.to == null || ch.to === '') ? '—' : ch.to}</span>
+                    <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{(ch.to == null || ch.to === '') ? '—' : (isFile ? fileLink(ch.to) : ch.to)}</span>
                     {(ch.from == null || ch.from === '')
                       ? <span style={{ color: 'var(--tx5)' }}>({T('جديد', 'new')})</span>
-                      : <span style={{ color: 'var(--tx5)' }}>({T('كان', 'was')}: <span style={{ textDecoration: 'line-through' }}>{ch.from}</span>)</span>}
+                      : <span style={{ color: 'var(--tx5)' }}>({T('كان', 'was')}: <span style={{ textDecoration: 'line-through' }}>{isFile ? fileLink(ch.from) : ch.from}</span>)</span>}
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           )
@@ -1286,11 +1534,22 @@ function WorkerEditLog({ entries, created, T }) {
 }
 
 /* ═══════════════════════ Worker Detail (mirrors Facility detail) ═══════════════════════ */
-function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEdit, onDelete, onTransfer, canEdit, attKey }) {
+function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEdit, onDelete, onTransfer, canEdit, canDelete, user, attKey }) {
   const t = themeForStatus(w.worker_status)
   const iqamaDays = daysUntil(w.iqama_expiry_date)
 
   const branchLabel = f?.branch ? ((f.branch.branch_code || '—') + (f.branch.city ? ' — ' + T(f.branch.city.name_ar, f.branch.city.name_en || f.branch.city.name_ar) : '')) : null
+  // أرقام جوال الفواتير = جوال العامل نفسه + أي أرقام مخزّنة + كل أرقام عملاء فواتير العامل، منزوعة التكرار.
+  const [invPhones, setInvPhones] = useState([])
+  const billingList = useMemo(() => {
+    const out = [], seen = new Set()
+    const last9 = s => String(s || '').replace(/\D/g, '').slice(-9)
+    const push = v => { const k = last9(v); if (k.length === 9 && !seen.has(k)) { seen.add(k); out.push(v) } }
+    push(w.official_mobile)                                                   // جوال العامل نفسه أولاً
+    ;(Array.isArray(w.billing_mobiles) ? w.billing_mobiles : []).forEach(push) // الأرقام المخزّنة
+    invPhones.forEach(push)                                                    // أرقام عملاء كل الفواتير المرتبطة
+    return out
+  }, [w.official_mobile, w.billing_mobiles, invPhones])
   const goFacility = (id) => { try { window.dispatchEvent(new CustomEvent('app-navigate-facility', { detail: { id } })) } catch { /* ignore */ } }
   const goInvoice = (id) => { try { window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) } catch { /* ignore */ } }
 
@@ -1305,14 +1564,24 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   // إغلاق نافذة التأكيد: بعد النجاح نعود للقائمة (onBack)، وإلا نكتفي بإلغاء التأكيد.
   const closeConfirm = () => { if (busy) return; const wasDone = !!done; setDone(null); setConfirm(null); if (wasDone) onBack?.() }
 
+  // تصفير الحالة المؤقتة (override التأمين + قيود السجل المضافة) عند تبديل العامل المعروض.
+  useEffect(() => { setInsOverride(null); setLogExtra([]) }, [w.id])
   // فواتير وخدمات العامل (تُحمّل عند فتح الصفحة) — نفس كرت صفحة المنشأة.
   const [facRows, setFacRows] = useState(null)
   useEffect(() => {
-    if (!sb || !w?.id) { setFacRows([]); return }
+    if (!sb || !w?.id) { setFacRows([]); setInvPhones([]); return }
     let cancelled = false
     ;(async () => {
       const { data } = await sb.from('v_worker_invoices').select('*').eq('worker_id', w.id)
-      if (!cancelled) setFacRows(data || [])
+      if (cancelled) return
+      setFacRows(data || [])
+      // أرقام جوال عملاء كل طلبات/فواتير العامل — للعرض ضمن «أرقام جوال الفواتير».
+      const srIds = [...new Set((data || []).map(r => r.service_request_id).filter(Boolean))]
+      if (!srIds.length) { setInvPhones([]); return }
+      const { data: srRows } = await sb.from('service_requests')
+        .select('client:clients!service_requests_client_id_fkey(phone)').in('id', srIds)
+      if (cancelled) return
+      setInvPhones([...new Set((srRows || []).map(r => r.client?.phone).filter(Boolean))])
     })()
     return () => { cancelled = true }
   }, [sb, w?.id])
@@ -1338,20 +1607,106 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   }, { tot: 0, paid: 0, rem: 0 })
   const facListRows = [...(facRows || [])].sort((a, b) => (b.invoice_no ? 1 : 0) - (a.invoice_no ? 1 : 0))
 
-  // ملف مقيم المرفق بالعامل (entity_type='worker', notes='muqeem_file') — أحدث نسخة.
-  const [muqeemAtt, setMuqeemAtt] = useState(null)
+  // ملفات الوثائق المرفقة بالعامل (entity_type='worker') — ملف مقيم/تأشيرة العمل/رخصة العمل، أحدث نسخة لكل نوع.
+  const [docFiles, setDocFiles] = useState({})
+  const [attUrls, setAttUrls] = useState({})   // اسم الملف ← الرابط (يشمل المُستبدَلة) لجعل أسماء الملفات في السجل قابلة للفتح
   useEffect(() => {
-    if (!sb || !w?.id) { setMuqeemAtt(null); return }
+    if (!sb || !w?.id) { setDocFiles({}); setAttUrls({}); return }
     let cancelled = false
     ;(async () => {
       const { data } = await sb.from('attachments')
-        .select('id,file_name,file_url,created_at')
-        .eq('entity_type', 'worker').eq('entity_id', w.id).eq('notes', 'muqeem_file').is('deleted_at', null)
-        .order('created_at', { ascending: false }).limit(1)
-      if (!cancelled) setMuqeemAtt((data && data[0]) || null)
+        .select('id,file_name,file_url,created_at,notes,deleted_at')
+        .eq('entity_type', 'worker').eq('entity_id', w.id)
+        .in('notes', ['muqeem_file', 'work_visa_file', 'work_permit_file', 'exit_visa_file'])
+        .order('created_at', { ascending: false })
+      if (!cancelled) {
+        const map = {}, urls = {}
+        for (const r of (data || [])) {
+          if (r.file_name && r.file_url && !urls[r.file_name]) urls[r.file_name] = r.file_url
+          if (!r.deleted_at && !map[r.notes]) map[r.notes] = r   // أحدث نسخة غير محذوفة لكل نوع
+        }
+        setDocFiles(map); setAttUrls(urls)
+      }
     })()
     return () => { cancelled = true }
   }, [sb, w?.id, attKey])
+  const muqeemAtt = docFiles.muqeem_file || null
+
+  // ═══ استعلام التأمين الطبي (CHI) — نفس آلية تسعيرة تجديد الإقامة (كابتشا) ═══
+  const [chi, setChi] = useState({ phase: 'idle', session: null, captchaImage: null, captchaInput: '', error: null, attempts: 0, result: null })
+  const [insOverride, setInsOverride] = useState(null)   // قيم التأمين بعد الجلب — تُحدّث الكرت فوراً
+  const [logExtra, setLogExtra] = useState([])           // قيود سجل أُضيفت في هذه الجلسة (استعلام التأمين) — تظهر فوراً
+  async function callChiFn(body, timeoutMs = 25000) {
+    const ctrl = new AbortController(); const tid = setTimeout(() => ctrl.abort(), timeoutMs)
+    try {
+      const res = await fetch(CHI_FN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+      return json
+    } finally { clearTimeout(tid) }
+  }
+  async function startChiCheck() {
+    if (!w?.iqama_number) { toast?.(T('لا يوجد رقم إقامة للعامل', 'Worker has no Iqama number')); return }
+    setChi(c => ({ ...c, phase: 'loading', error: null, captchaInput: '', attempts: 0, result: null }))
+    try {
+      const r = await callChiFn({ action: 'init' })
+      setChi(c => ({ ...c, phase: 'captcha', session: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
+    } catch (e) {
+      setChi(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة الاتصال بمنصة التأمين', 'CHI connection timed out') : (e.message || T('خطأ في الاتصال', 'Connection error')) }))
+    }
+  }
+  async function refreshChiCaptcha() {
+    setChi(c => ({ ...c, captchaImage: null, captchaInput: '', error: null }))
+    try { const r = await callChiFn({ action: 'init' }); setChi(c => ({ ...c, phase: 'captcha', session: r.session, captchaImage: r.captchaImage, captchaInput: '' })) } catch { /* تُعرض رسالة عند الإرسال */ }
+  }
+  const closeChi = () => setChi({ phase: 'idle', session: null, captchaImage: null, captchaInput: '', error: null, attempts: 0, result: null })
+  async function submitChiCaptcha() {
+    if (!chi.captchaInput || chi.captchaInput.length < 3) return
+    setChi(c => ({ ...c, phase: 'verifying', error: null }))
+    try {
+      const r = await callChiFn({ action: 'verify', iqama: w.iqama_number, captcha: chi.captchaInput, session: chi.session })
+      if (r.status === 'invalid_captcha') {
+        const next = (chi.attempts || 0) + 1
+        if (next >= CHI_MAX_ATTEMPTS) { setChi(c => ({ ...c, phase: 'error', error: T('تعذّر التحقق من رمز الكابتشا بعد عدة محاولات', 'Captcha verification failed after several attempts') })); return }
+        const fresh = await callChiFn({ action: 'init' })
+        setChi(c => ({ ...c, phase: 'captcha', session: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: T(`رمز التحقق غير صحيح — المحاولة ${next + 1} من ${CHI_MAX_ATTEMPTS}`, `Wrong code — attempt ${next + 1}/${CHI_MAX_ATTEMPTS}`), attempts: next }))
+        return
+      }
+      if (r.code === 'SESSION_EXPIRED' || /expired/i.test(r.error || '')) {
+        const fresh = await callChiFn({ action: 'init' })
+        setChi(c => ({ ...c, phase: 'captcha', session: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: T('انتهت الجلسة — تم تحديث الرمز', 'Session expired — code refreshed') }))
+        return
+      }
+      if (r.status === 'insured') {
+        const end = chiNormDate(r.expiryDate)
+        const company = r.company || null
+        const policy = r.policyNumber || null
+        const patch = { insurance_expiry_date: end || null, insurance_company: company, insurance_policy_number: policy, insurance_checked_at: new Date().toISOString() }
+        // تسجيل الاستعلام في سجل التعديلات — القيم قبل/بعد، موسومة بأنها عبر «استعلام التأمين».
+        const oldInsExp = w.insurance_expiry_date ? String(w.insurance_expiry_date).slice(0, 10) : null
+        const insChanges = [
+          ['insurance_company', w.insurance_company || null, company],
+          ['insurance_policy_number', w.insurance_policy_number || null, policy],
+          ['insurance_expiry_date', oldInsExp, end || null],
+        ].filter(([, from, to]) => String(from ?? '') !== String(to ?? ''))
+         .map(([field, from, to]) => ({ field, from: from ?? null, to: to ?? null }))
+        let logEntry = null
+        if (insChanges.length) {
+          logEntry = { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, via: 'insurance_check', changes: insChanges }
+          const prevLog = Array.isArray(w.edit_log) ? w.edit_log : []
+          patch.edit_log = [...prevLog, logEntry]
+        }
+        try { await sb.from('workers').update(patch).eq('id', w.id) } catch { /* العرض يبقى من النتيجة */ }
+        if (logEntry) setLogExtra(prev => [...prev, logEntry])   // إظهار القيد في السجل فوراً دون إعادة تحميل
+        setInsOverride({ insurance_expiry_date: end || null, insurance_company: company, insurance_policy_number: policy })
+        setChi(c => ({ ...c, phase: 'done', result: { insured: true, end, company, policy } }))
+      } else {
+        setChi(c => ({ ...c, phase: 'done', result: { insured: false } }))
+      }
+    } catch (e) {
+      setChi(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة الاستعلام', 'Check timed out') : (e.message || T('خطأ في الاستعلام', 'Check error')) }))
+    }
+  }
   // حقل بنفس تصميم صفحة تفاصيل المنشأة (صندوق داكن، التسمية أعلى، القيمة أسفل + نسخ).
   const Field = ({ k, v, mono, color, link, full }) => {
     const empty = v == null || v === ''
@@ -1369,7 +1724,24 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
       </div>
     )
   }
-  const EditBtn = ({ onClick }) => canEdit && onClick ? (
+  // بطاقة ملف وثيقة (تصميم مربّع) — عرض الملف إن وُجد، وإلا «لا يوجد» (الرفع يتم من نافذة التعديل).
+  const FileTile = ({ label, att }) => (
+    <div style={{ background: 'rgba(0,0,0,.25)', border: att ? '1px solid rgba(212,160,23,.25)' : '1px dashed rgba(255,255,255,.12)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
+      {att ? (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
+      ) : (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5a5a55" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+      )}
+      <span style={{ fontSize: 11, color: att ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{label}</span>
+      {att ? (
+        <a href={att.file_url} target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, textDecoration: 'none' }}>{T('عرض الملف','View file')}</a>
+      ) : (
+        <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('لا يوجد','None')}</span>
+      )}
+    </div>
+  )
+  const EditBtn = ({ onClick, allow }) => (allow !== undefined ? allow : canEdit) && onClick ? (
     <button onClick={onClick} title={T('تعديل', 'Edit')}
       style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
@@ -1378,12 +1750,12 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </button>
   ) : null
-  const CardHead = ({ children, onEdit: onEditCard }) => (
+  const CardHead = ({ children, onEdit: onEditCard, action, allowEdit }) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
       <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />{children}
       </span>
-      <EditBtn onClick={onEditCard} />
+      {action !== undefined ? action : <EditBtn onClick={onEditCard} allow={allowEdit} />}
     </div>
   )
   // زر إجراء في الترويسة — نفس تصميم زر «حذف المنشأة» (إطار متقطّع بلون قابل للتمرير).
@@ -1400,6 +1772,12 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   // حالة الإقامة: أخضر >30، ذهبي 1–30، أحمر ≤0 (نفس عتبات IqamaCell).
   const iqColor = iqamaDays == null ? C.gray : iqamaDays <= 0 ? C.red : iqamaDays <= 30 ? C.gold : C.ok
   const iqShort = iqamaDays == null ? T('غير محدد', '—') : iqamaDays <= 0 ? T('منتهية', 'Expired') : iqamaDays <= 30 ? T('قريبة الانتهاء', 'Expiring') : T('سارية', 'Valid')
+  // حالة التأمين الطبي: نفس عتبات الإقامة.
+  const insDays = daysUntil(w.insurance_expiry_date)
+  const insColor = insDays == null ? C.gray : insDays <= 0 ? C.red : insDays <= 30 ? C.gold : C.ok
+  // حالة تأشيرة الخروج: نفس عتبات الإقامة.
+  const exitVisaDays = daysUntil(w.exit_visa_expiry)
+  const exitColor = exitVisaDays == null ? C.gray : exitVisaDays <= 0 ? C.red : exitVisaDays <= 30 ? C.gold : C.ok
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
@@ -1413,21 +1791,21 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
-            <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{T('تفاصيل العامل','Worker Details')}</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{T('تفاصيل العامل الدائم','Permanent Worker Details')}</div>
           </div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
             {T('البيانات الشخصية والوثائق وحالة الإقامة والمنشأة والفرع التابع له.',
                'Personal data, documents, iqama status and the facility & branch he belongs to.')}
           </div>
         </div>
-        {canEdit && (onDelete || onTransfer) && (
+        {((canEdit && onTransfer) || (canDelete && onDelete)) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
-            {onTransfer && (
+            {canEdit && onTransfer && (
               <HeaderBtn onClick={() => setConfirm('transfer')} color={C.blue} label={T('نقل إلى العمالة المؤقتة', 'Move to Temporary')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H7"/><path d="m7 13-4 4 4 4"/><path d="M3 17h14"/></svg>
               </HeaderBtn>
             )}
-            {onDelete && (
+            {canDelete && onDelete && (
               <HeaderBtn onClick={() => setConfirm('delete')} color={C.red} label={T('حذف العامل', 'Delete')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
               </HeaderBtn>
@@ -1440,42 +1818,146 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
       <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(280px, 340px)', gap: 16, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
           {/* بيانات العامل */}
+          {cardVisible(user, 'workers', 'personal_data') && (
           <div style={cardChrome}>
-            <CardHead onEdit={onEdit ? () => onEdit('data') : undefined}>{T('بيانات العامل','Worker Data')}</CardHead>
+            <CardHead onEdit={onEdit ? () => onEdit('data') : undefined} allowEdit={canCardBtn(user, 'workers', 'personal_data', 'edit')}>{T('البيانات الشخصية','Personal Data')}</CardHead>
             <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field full k={T('اسم العامل','Worker Name')} v={w.name_ar || w.name_en} />
               <Field k={T('الجنسية','Nationality')} v={w.nationality_ar} />
-              <Field k={T('المهنة','Occupation')} v={w.occupation_ar} />
-              <Field k={T('تاريخ الميلاد','Date of Birth')} v={w.birth_date ? fmtDate(w.birth_date) : null} mono />
-              <Field k={T('العمر','Age')} v={calcAge(w.birth_date) != null ? T(`${calcAge(w.birth_date)} سنة`, `${calcAge(w.birth_date)} yrs`) : null} />
+              {/* تاريخ الميلاد — العمر كتاق بأيقونة كيكة بجانب التاريخ */}
+              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('تاريخ الميلاد','Date of Birth')}</span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
+                  {w.birth_date && calcAge(w.birth_date) != null && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', fontFamily: F, flexShrink: 0 }}>
+                      {T(`${calcAge(w.birth_date)} سنة`, `${calcAge(w.birth_date)} yrs`)}
+                    </span>
+                  )}
+                  {w.birth_date && <CopyBtn value={fmtDate(w.birth_date)} toast={toast} T={T} />}
+                  <span style={{ fontSize: 13, color: w.birth_date ? 'var(--tx1)' : 'var(--tx4)', fontWeight: 600, lineHeight: 1.4, direction: 'ltr', fontFamily: 'ui-monospace, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{w.birth_date ? fmtDate(w.birth_date) : '—'}</span>
+                </span>
+              </div>
             </div>
           </div>
-          {/* الإقامة والوثائق */}
+          )}
+          {/* الإقامة وتصريح العمل — وثائق الإقامة السعودية (الإقامة + رخصة العمل + الحدود + ملف مقيم) */}
+          {cardVisible(user, 'workers', 'professional_data') && (
           <div style={cardChrome}>
-            <CardHead onEdit={onEdit ? () => onEdit('docs') : undefined}>{T('الإقامة والوثائق','Iqama & Documents')}</CardHead>
+            <CardHead onEdit={onEdit ? () => onEdit('docs') : undefined} allowEdit={canCardBtn(user, 'workers', 'professional_data', 'edit')}>{T('البيانات المهنية','Professional Data')}</CardHead>
             <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('رقم الإقامة','Iqama No.')} v={w.iqama_number} mono color={C.gold} />
+              <Field k={T('رقم الحدود','Border No.')} v={w.border_number} mono color={C.blue} />
               <Field k={T('تاريخ انتهاء الإقامة','Iqama Expiry')} v={w.iqama_expiry_date ? fmtDate(w.iqama_expiry_date) : null} mono color={iqColor} />
               <Field k={T('تاريخ انتهاء كرت العمل','Work Permit Expiry')} v={w.work_permit_expiry ? fmtDate(w.work_permit_expiry) : null} mono />
-              <Field k={T('رقم الحدود','Border No.')} v={w.border_number} mono color={C.blue} />
+              <Field full k={T('المهنة الرسمية','Official Occupation')} v={w.occupation_ar} />
+              {/* ملفات الوثائق — بطاقات مربّعة: تأشيرة العمل + رخصة العمل + ملف مقيم (عرض أو رفع PDF). */}
+              <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                <FileTile label={T('ملف تأشيرة العمل','Work visa file')} att={docFiles.work_visa_file || null} />
+                <FileTile label={T('ملف رخصة العمل','Work permit file')} att={docFiles.work_permit_file || null} />
+                <FileTile label={T('ملف مقيم','Muqeem file')} att={muqeemAtt} />
+              </div>
+            </div>
+          </div>
+          )}
+          {/* جواز السفر — وثيقة سفر مستقلة عن الإقامة السعودية */}
+          {cardVisible(user, 'workers', 'passport_data') && (
+          <div style={cardChrome}>
+            <CardHead onEdit={onEdit ? () => onEdit('passport') : undefined} allowEdit={canCardBtn(user, 'workers', 'passport_data', 'edit')}>{T('بيانات الجواز','Passport Data')}</CardHead>
+            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('رقم الجواز','Passport No.')} v={w.passport_number} mono color={C.purple} />
               <Field k={T('تاريخ انتهاء الجواز','Passport Expiry')} v={w.passport_expiry ? fmtDate(w.passport_expiry) : null} mono />
-              {/* ملف مقيم — يفتح ملف PDF المرفق إن وُجد، وإلا «لا يوجد». */}
-              <div style={{ gridColumn: '1 / -1', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('ملف مقيم','Muqeem file')}</span>
-                {muqeemAtt ? (
-                  <a href={muqeemAtt.file_url} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: C.gold, textDecoration: 'none', direction: 'ltr' }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-                    {T('عرض الملف','View file')}
-                  </a>
+            </div>
+          </div>
+          )}
+          {/* التأمين الطبي — استعلام من منصة CHI بكابتشا (نفس تسعيرة تجديد الإقامة) */}
+          {cardVisible(user, 'workers', 'medical_insurance_data') && (() => {
+            const insCompany = insOverride?.insurance_company ?? w.insurance_company
+            const insPolicy = insOverride?.insurance_policy_number ?? w.insurance_policy_number
+            const insExpiry = insOverride?.insurance_expiry_date ?? w.insurance_expiry_date
+            const insD = daysUntil(insExpiry)
+            const insClr = insD == null ? C.gray : insD <= 0 ? C.red : insD <= 30 ? C.gold : C.ok
+            return (
+              <div style={cardChrome}>
+                <CardHead action={canCardBtn(user, 'workers', 'medical_insurance_data', 'check_insurance') ? (
+                  <button onClick={startChiCheck} disabled={!w.iqama_number} title={!w.iqama_number ? T('لا يوجد رقم إقامة', 'No Iqama number') : T('استعلام التأمين من منصة CHI', 'Check insurance via CHI')}
+                    style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(59,178,122,.1)', border: '1px solid rgba(59,178,122,.5)', color: '#3bb27a', cursor: w.iqama_number ? 'pointer' : 'not-allowed', opacity: w.iqama_number ? 1 : .5, fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
+                    onMouseEnter={e => { if (w.iqama_number) e.currentTarget.style.background = 'rgba(59,178,122,.18)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,178,122,.1)' }}>
+                    {T('استعلام التأمين', 'Check insurance')}
+                    <HeartPulse size={13} />
+                  </button>
+                ) : null}>{T('بيانات التأمين الطبي','Medical Insurance Data')}</CardHead>
+                <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field k={T('تاريخ انتهاء التأمين','Insurance Expiry')} v={insExpiry ? fmtDate(insExpiry) : null} mono color={insClr} />
+                  <Field k={T('رقم البوليصة','Policy No.')} v={insPolicy} mono color={C.purple} />
+                  <Field full k={T('شركة التأمين','Insurance Company')} v={insCompany} />
+                </div>
+              </div>
+            )
+          })()}
+          {/* تأشيرات الخروج والعودة والخروج النهائي — النوع + رقم التأشيرة + تاريخ الانتهاء */}
+          {cardVisible(user, 'workers', 'exit_visa_data') && (
+          <div style={cardChrome}>
+            <CardHead onEdit={onEdit ? () => onEdit('exit_visa') : undefined} allowEdit={canCardBtn(user, 'workers', 'exit_visa_data', 'edit')}>{T('بيانات تأشيرات الخروج والعودة والخروج النهائي','Exit & Final Exit Visas Data')}</CardHead>
+            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {/* نوع التأشيرة — مع تاق نوع الخروج النهائي (دائمة/مؤقتة) بجانب القيمة عند الخروج النهائي */}
+              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('نوع التأشيرة','Visa Type')}</span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
+                  {w.exit_visa_type === 'final_exit' && finalExitKindLabel(w.final_exit_kind, T) && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', fontFamily: F, flexShrink: 0 }}>
+                      {finalExitKindLabel(w.final_exit_kind, T)}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 13, color: w.exit_visa_type ? (w.exit_visa_type === 'final_exit' ? C.red : C.blue) : 'var(--tx4)', fontWeight: 600, lineHeight: 1.4, direction: 'rtl', fontFamily: F, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                    {exitVisaTypeLabel(w.exit_visa_type, T) || '—'}
+                  </span>
+                </span>
+              </div>
+              <Field k={T('رقم التأشيرة','Visa No.')} v={w.exit_visa_number} mono color={C.blue} />
+              <Field full k={T('تاريخ انتهاء التأشيرة','Visa Expiry Date')} v={w.exit_visa_expiry ? fmtDate(w.exit_visa_expiry) : null} mono color={exitColor} />
+              <div style={{ gridColumn: '1 / -1' }}>
+                <FileTile label={T('ملف التأشيرة','Visa file')} att={docFiles.exit_visa_file || null} />
+              </div>
+            </div>
+          </div>
+          )}
+          {/* أرقام التواصل — رقم جوال رسمي + أرقام جوال الفواتير (مصفوفة، تُضاف تلقائياً من جوال الفاتورة) */}
+          {cardVisible(user, 'workers', 'billing_contact_data') && (
+          <div style={cardChrome}>
+            <CardHead>{T('بيانات التواصل الفاتورية','Billing Contact Data')}</CardHead>
+            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ gridColumn: '1 / -1', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('أرقام جوال الفواتير','Billing Mobiles')}</span>
+                {billingList.length ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {billingList.map((p, i) => (
+                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 11px', borderInlineStart: `3px solid ${C.gold}`, background: 'rgba(212,160,23,.1)' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.gold, direction: 'ltr', fontFamily: 'ui-monospace, monospace', letterSpacing: '.3px' }}>{fmtMobile(p)}</span>
+                        <CopyBtn value={fmtMobile(p)} toast={toast} T={T} />
+                      </span>
+                    ))}
+                  </div>
                 ) : (
                   <span style={{ fontSize: 12.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('لا يوجد','None')}</span>
                 )}
               </div>
             </div>
           </div>
+          )}
+          {/* البيانات الفعلية — رقم الجوال الرسمي + المهنة الفعلية + مدينة المقر */}
+          {cardVisible(user, 'workers', 'actual_data') && (
+          <div style={cardChrome}>
+            <CardHead onEdit={onEdit ? () => onEdit('actual') : undefined} allowEdit={canCardBtn(user, 'workers', 'actual_data', 'edit')}>{T('البيانات الفعلية','Actual Data')}</CardHead>
+            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Field k={T('رقم جوال ابشر','Absher Mobile')} v={fmtMobile(w.official_mobile) || null} mono color={C.ok} />
+              <Field k={T('مدينة المقر','HQ City')} v={w.hq_city_ar} />
+              <Field full k={T('المهنة الفعلية','Actual Occupation')} v={w.official_occupation_ar} />
+            </div>
+          </div>
+          )}
           {/* المنشأة والفرع */}
+          {cardVisible(user, 'workers', 'facility_branch') && (
           <div style={cardChrome}>
             <CardHead>{T('المنشأة والفرع','Facility & Branch')}</CardHead>
             <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -1483,12 +1965,14 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
               <Field k={T('الفرع التابع','Branch')} v={branchLabel} />
             </div>
           </div>
+          )}
 
           {/* كرت الفواتير والخدمات — إجماليات + قائمة (نقرة على الفاتورة → تفاصيل الفاتورة). نفس صفحة المنشأة. */}
+          {cardVisible(user, 'workers', 'invoices_services') && (
           <div style={cardChrome}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold }}>{T('الفواتير والخدمات', 'Invoices & Services')}</span>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
+              <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.blue }}>{T('الفواتير والخدمات', 'Invoices & Services')}</span>
               <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx4)' }}>{facRows ? `${num(facListRows.length)} ${T('طلب', 'requests')}` : '—'}</span>
             </div>
             <div style={{ padding: 14 }}>
@@ -1512,24 +1996,27 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 ) : facListRows.map((r, i) => {
                   const cancelled = r.invoice_status === 'cancelled'
                   const paidUp = r.invoice_id && Number(r.remaining_amount) <= 0 && !cancelled
-                  const stt = cancelled ? { t: T('ملغاة', 'Cancelled'), c: C.red } : paidUp ? { t: T('مدفوعة', 'Paid'), c: C.ok } : r.invoice_id ? { t: `${T('متبقٍ', 'Due')} ${num(Math.round(Number(r.remaining_amount) || 0))}`, c: C.gold } : null
+                  const stt = cancelled ? { t: T('ملغاة', 'Cancelled'), c: C.red } : paidUp ? { t: T('مدفوعة', 'Paid'), c: C.ok } : r.invoice_id ? { t: `${num(Math.round(Number(r.remaining_amount) || 0))} ${T('متبقٍ', 'Due')}`, c: C.red } : null
                   return (
                     <div key={i} onClick={r.invoice_id ? () => goInvoice(r.invoice_id) : undefined} title={r.invoice_id ? T('عرض تفاصيل الفاتورة', 'View invoice') : ''}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', opacity: cancelled ? .65 : 1, transition: 'border-color .15s' }}
-                      onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
-                      <div style={{ minWidth: 0 }}>
+                      style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: cancelled ? 'rgba(232,114,101,.07)' : 'rgba(0,0,0,.18)', border: `1px solid ${cancelled ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.05)'}`, borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', transition: 'border-color .15s' }}
+                      onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.7)' : 'rgba(212,160,23,.5)' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.05)' }}>
+                      {cancelled && (
+                        <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%, -50%) rotate(-16deg)', fontSize: 30, fontWeight: 800, letterSpacing: 2, color: 'rgba(232,114,101,.13)', border: '3px solid rgba(232,114,101,.16)', borderRadius: 10, padding: '2px 24px', pointerEvents: 'none', whiteSpace: 'nowrap', fontFamily: F }}>{T('ملغاة', 'Cancelled')}</div>
+                      )}
+                      <div style={{ position: 'relative', minWidth: 0 }}>
                         <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.service_ar || T('خدمة', 'Service')}</div>
                         <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', marginTop: 2 }}>{T('مرجع', 'Ref')}: {r.request_ref_no || '—'}</div>
                       </div>
-                      <div style={{ textAlign: 'end', flexShrink: 0 }}>
+                      <div style={{ position: 'relative', textAlign: 'end', flexShrink: 0 }}>
                         {r.invoice_no ? (
-                          <div style={{ fontSize: 11.5, fontWeight: 600, color: C.gold, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: cancelled ? C.red : C.gold, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
                             {r.invoice_no}
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
                           </div>
                         ) : <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('بدون فاتورة', 'No invoice')}</span>}
-                        {stt && <div style={{ fontSize: 10.5, fontWeight: 600, color: stt.c, marginTop: 2, direction: 'rtl' }}>{stt.t}</div>}
+                        {stt && !cancelled && <div style={{ fontSize: 10.5, fontWeight: 600, color: stt.c, marginTop: 2, direction: 'rtl' }}>{stt.t}</div>}
                       </div>
                     </div>
                   )
@@ -1537,28 +2024,67 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
               </div>
             </div>
           </div>
+          )}
 
           {/* سجل التعديلات — يظهر فقط عند وجود تعديلات (نفس صفحة المنشأة). */}
-          <WorkerEditLog entries={w.edit_log} created={w.created_at ? { at: w.created_at, by_name: creatorName, label: wName } : null} T={T} />
+          {cardVisible(user, 'workers', 'activity_log') && (
+          <WorkerEditLog entries={[...(Array.isArray(w.edit_log) ? w.edit_log : []), ...logExtra]} created={w.created_at ? { at: w.created_at, by_name: creatorName, label: wName } : null} fileUrls={attUrls} T={T} />
+          )}
         </div>
 
-        {/* هيرو الحالة — حالة الإقامة (تصميم «حالة كبيرة») */}
-        <div style={cardChrome}>
-          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx4)', letterSpacing: '.5px' }}>{T('حالة الإقامة','Iqama Status')}</span>
-            <div style={{ margin: '10px 0 2px', fontSize: 28, fontWeight: 600, color: iqColor, lineHeight: 1.1 }}>{iqShort}</div>
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 20, marginTop: 18 }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{T('تاريخ الانتهاء','Expiry')}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: w.iqama_expiry_date ? iqColor : 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace' }}>{w.iqama_expiry_date ? fmtDate(w.iqama_expiry_date) : '—'}</div>
-              </div>
-              <div style={{ width: 1, background: 'rgba(255,255,255,.1)' }} />
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{iqamaDays != null && iqamaDays < 0 ? T('منذ','Since') : T('متبقٍ','Remaining')}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: iqamaDays == null ? 'var(--tx4)' : iqColor, direction: 'rtl' }}>{iqamaDays != null ? `${Math.abs(iqamaDays)} ${T('يوم','days')}` : '—'}</div>
+        {/* هيرو الحالة — حالة الإقامة (تصميم «حالة كبيرة») + تاق تأشيرة الخروج أسفله */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {cardVisible(user, 'workers', 'iqama_status') && (
+          <div style={cardChrome}>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx4)', letterSpacing: '.5px' }}>{T('حالة الإقامة','Iqama Status')}</span>
+              <div style={{ margin: '10px 0 2px', fontSize: 28, fontWeight: 600, color: iqColor, lineHeight: 1.1 }}>{iqShort}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 20, marginTop: 18 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{T('تاريخ الانتهاء','Expiry')}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: w.iqama_expiry_date ? iqColor : 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace' }}>{w.iqama_expiry_date ? fmtDate(w.iqama_expiry_date) : '—'}</div>
+                </div>
+                <div style={{ width: 1, background: 'rgba(255,255,255,.1)' }} />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{iqamaDays != null && iqamaDays < 0 ? T('منذ','Since') : T('متبقٍ','Remaining')}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: iqamaDays == null ? 'var(--tx4)' : iqColor, direction: 'rtl' }}>{iqamaDays != null ? `${Math.abs(iqamaDays)} ${T('يوم','days')}` : '—'}</div>
+                </div>
               </div>
             </div>
           </div>
+          )}
+          {/* تاق تأشيرة الخروج — يظهر فقط عند وجود تأشيرة خروج وعودة / خروج نهائي */}
+          {cardVisible(user, 'workers', 'exit_visa_status') && w.exit_visa_type && (() => {
+            // لون التاق حسب النوع: خروج وعودة ذهبي، خروج نهائي دائمة أحمر، خروج نهائي مؤقتة أحمر+ذهبي.
+            const isFinal = w.exit_visa_type === 'final_exit'
+            const isTemp = isFinal && w.final_exit_kind === 'temporary'
+            const c1 = isFinal ? C.red : C.gold        // اللون الأساسي (النوع)
+            const c2 = isTemp ? C.gold : c1            // اللون الثانوي (نوع الخروج النهائي)
+            const cdTxt = exitVisaDays == null ? null
+              : exitVisaDays < 0 ? `${T('منذ','since')} ${Math.abs(exitVisaDays)} ${T('يوم','days')}`
+              : exitVisaDays === 0 ? T('ينتهي اليوم','expires today')
+              : `${T('متبقٍ','left')} ${exitVisaDays} ${T('يوم','days')}`
+            // تصميم «مُحدّد بأيقونة» (Outline) — توزيع «العدّاد جانبي»: النوع+التاريخ مكدّسان والعدّاد على الجانب (وزن الخط ≤ 600)
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 11, background: 'transparent', border: `1.5px solid ${c1}70`, borderRadius: 14, padding: '9px 13px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <LogOut size={15} style={{ color: c1, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12.5, fontWeight: 600, direction: 'rtl' }}>
+                      <span style={{ color: c1 }}>{exitVisaTypeLabel(w.exit_visa_type, T)}</span>
+                      {isFinal && finalExitKindLabel(w.final_exit_kind, T) ? <span style={{ color: c2 }}>{` - ${finalExitKindLabel(w.final_exit_kind, T)}`}</span> : null}
+                    </span>
+                  </div>
+                  {w.exit_visa_expiry && (
+                    <span style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 600, color: '#d6d6d6', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace' }}>{fmtDate(w.exit_visa_expiry)}</span>
+                  )}
+                </div>
+                {cdTxt && (
+                  <span style={{ background: exitColor, color: '#10100c', borderRadius: 10, padding: '6px 11px', fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', direction: 'rtl', flexShrink: 0 }}>{cdTxt}</span>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
 
@@ -1596,6 +2122,97 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                `The worker “${wName}” will be moved to the temporary workforce and removed from the permanent list.`)}
           </div>
         </FKModal>
+      )}
+
+      {/* ═══ نافذة استعلام التأمين الطبي (CHI) — كابتشا، مثل تسعيرة تجديد الإقامة ═══ */}
+      {chi.phase !== 'idle' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2200, padding: 16, fontFamily: F }} dir={isAr ? 'rtl' : 'ltr'}>
+          <style>{`@keyframes rnw-spin{to{transform:rotate(360deg)}}`}</style>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(11,109,61,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
+            <button onClick={closeChi} style={{ position: 'absolute', top: 12, [isAr ? 'left' : 'right']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+            <div style={{ textAlign: isAr ? 'right' : 'left', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,.06)', [isAr ? 'paddingLeft' : 'paddingRight']: 36 }}>
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.94)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
+                <HeartPulse size={22} style={{ color: '#3bb27a' }} />
+                <span>{T('التأمين الطبي (CHI)', 'Medical Insurance (CHI)')}</span>
+              </div>
+            </div>
+
+            {chi.phase === 'loading' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
+                <div style={{ width: 36, height: 36, border: '3px solid rgba(11,109,61,.18)', borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'rnw-spin 0.8s linear infinite' }} />
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بمنصة التأمين…', 'Connecting to insurance platform…')}</div>
+              </div>
+            )}
+
+            {chi.phase === 'captcha' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: isAr ? 'right' : 'left' }}>{T('أدخل رمز التحقق الظاهر بالصورة', 'Enter the captcha shown in the image')}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
+                  {chi.captchaImage
+                    ? <ChiCountdown captchaKey={chi.captchaImage} onExpire={refreshChiCaptcha} color="#3bb27a" />
+                    : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
+                  {chi.captchaImage
+                    ? <img src={chi.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, background: '#fff', padding: 4 }} />
+                    : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل', 'Loading...')}</span>}
+                  <button type="button" onClick={refreshChiCaptcha} title={T('رمز تحقق جديد', 'New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(11,109,61,.12)', color: '#3bb27a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <RefreshCw size={16} strokeWidth={2.2} />
+                  </button>
+                </div>
+                <input value={chi.captchaInput} onChange={e => setChi(c => ({ ...c, captchaInput: e.target.value.replace(/\s/g, '').slice(0, 8) }))}
+                  onKeyDown={e => { if (e.key === 'Enter') submitChiCaptcha() }} placeholder="______" autoFocus maxLength={8}
+                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.25)', textAlign: 'center', letterSpacing: '8px', direction: 'ltr' }} />
+                {chi.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{chi.error}</div>}
+                <button onClick={submitChiCaptcha} disabled={!chi.captchaInput || chi.captchaInput.length < 3} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 700, cursor: (!chi.captchaInput || chi.captchaInput.length < 3) ? 'not-allowed' : 'pointer', opacity: (!chi.captchaInput || chi.captchaInput.length < 3) ? 0.45 : 1 }}>{T('استعلام', 'Check')}</button>
+              </div>
+            )}
+
+            {chi.phase === 'verifying' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
+                <div style={{ width: 36, height: 36, border: '3px solid rgba(11,109,61,.18)', borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'rnw-spin 0.8s linear infinite' }} />
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاستعلام…', 'Checking…')}</div>
+              </div>
+            )}
+
+            {chi.phase === 'done' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {chi.result?.insured ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(39,160,70,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#27a046' }}><Check size={30} strokeWidth={2.5} /></div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#27a046' }}>{T('تم جلب بيانات التأمين', 'Insurance data fetched')}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {[[T('شركة التأمين', 'Company'), chi.result.company], [T('رقم البوليصة', 'Policy No.'), chi.result.policy], [T('تاريخ انتهاء التأمين', 'Expiry'), chi.result.end ? fmtDate(chi.result.end) : null]].map(([k, v], i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
+                          <span style={{ flex: 1, fontSize: 13, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>{k}</span>
+                          <span style={{ fontSize: 13.5, fontWeight: 600, color: v ? 'rgba(255,255,255,.92)' : 'rgba(255,255,255,.4)', direction: 'ltr' }}>{v || '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}><AlertCircle size={28} /></div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.gold, textAlign: 'center' }}>{T('لا يوجد تأمين ساري للعامل', 'No active insurance found')}</div>
+                  </div>
+                )}
+                <button onClick={closeChi} style={{ height: 44, borderRadius: 11, border: '1px solid rgba(59,178,122,.4)', background: 'rgba(59,178,122,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{T('تم', 'Done')}</button>
+              </div>
+            )}
+
+            {chi.phase === 'error' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+                  <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red }}><AlertCircle size={28} /></div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: C.red, textAlign: 'center' }}>{T('تعذّر الاستعلام', 'Check failed')}</div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{chi.error}</div>
+                </div>
+                <button onClick={startChiCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(11,109,61,.4)', background: 'rgba(11,109,61,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة', 'Retry')}</button>
+                <button onClick={closeChi} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('إغلاق', 'Close')}</button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

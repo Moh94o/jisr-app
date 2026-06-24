@@ -7,6 +7,7 @@ import { BankAccountFormModal, BankCardModal } from './BranchesPage.jsx'
 import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, Select as FKSelect, MultiSelect as FKMulti, ScrollBox, GRID, EmptyState, C as FKC } from './components/ui/FormKit.jsx'
 import BackButton from './components/BackButton'
 import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
+import { can, cardVisible, canCardBtn } from './lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const MONO_F = "'JetBrains Mono','Cairo',sans-serif"
@@ -64,7 +65,7 @@ const Section = ({ title, Icon, dot = GOLD, count, action, children }) => (
 )
 
 // ─── Card chip (full visual, reveal/edit/toggle) ─────────────────────────────
-const CardChip = ({ card, bankName, shown, onReveal, onEdit, onToggle }) => {
+const CardChip = ({ card, bankName, shown, onReveal, onEdit, onToggle, canEdit = true, canToggle = true }) => {
   const inactive = card.is_active === false
   const cardBtn = (extra = {}) => ({ width: 26, height: 26, borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, ...extra })
   return (
@@ -74,7 +75,7 @@ const CardChip = ({ card, bankName, shown, onReveal, onEdit, onToggle }) => {
         <span style={{ fontSize: 10.5, fontWeight: 800, color: GOLD, letterSpacing: '.4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bankName}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <button type="button" onClick={onReveal} title={shown ? 'إخفاء' : 'إظهار'} style={cardBtn({ border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' })}>{shown ? <EyeOff size={13} /> : <Eye size={13} />}</button>
-          <button type="button" onClick={onEdit} title="تعديل البطاقة" style={cardBtn({ border: `1px solid ${GOLD}40`, background: `${GOLD}1f`, color: GOLD })}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>
+          {canEdit && <button type="button" onClick={onEdit} title="تعديل البطاقة" style={cardBtn({ border: `1px solid ${GOLD}40`, background: `${GOLD}1f`, color: GOLD })}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}
         </div>
       </div>
       <div style={{ position: 'relative', width: 38, height: 28, borderRadius: 6, margin: '16px 0 14px', background: 'linear-gradient(135deg,#e9d089 0%,#b5903a 50%,#8c6c25 100%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.3)' }}>
@@ -87,7 +88,7 @@ const CardChip = ({ card, bankName, shown, onReveal, onEdit, onToggle }) => {
           <div style={{ fontSize: 7.5, fontWeight: 800, color: 'var(--tx5)', letterSpacing: '.6px', marginBottom: 2 }}>حامل البطاقة</div>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.86)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{card.holder_name || '—'}</div>
         </div>
-        {switchBtn(card.is_active !== false, onToggle, card.is_active !== false ? 'تعطيل البطاقة' : 'تفعيل البطاقة')}
+        {canToggle && switchBtn(card.is_active !== false, onToggle, card.is_active !== false ? 'تعطيل البطاقة' : 'تفعيل البطاقة')}
       </div>
       {shown && (card.pin || card.cvv) && (
         <div style={{ position: 'relative', marginTop: 11, paddingTop: 9, borderTop: '1px solid rgba(255,255,255,.09)', display: 'flex', gap: 16, fontSize: 11, color: 'var(--tx3)', direction: 'ltr', fontFamily: MONO_F }}>
@@ -249,7 +250,7 @@ function LinkedOfficesEditor({ sb, account, branches, toast, onClose, onChanged 
 // ═══════════════════════════════════════════════════════════════════════════
 // DETAIL PAGE — mirrors BranchDetailPage (header + brd-grid + sections)
 // ═══════════════════════════════════════════════════════════════════════════
-function BankAccountDetailPage({ sb, account, branches, toast, onBack, onEdit, onReload }) {
+function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onEdit, onReload }) {
   const copy = (v) => { if (!v) return; navigator.clipboard?.writeText(String(v)) }
   const accActive = account.is_active !== false
   const tone = accActive ? C.ok : '#777'
@@ -334,11 +335,14 @@ function BankAccountDetailPage({ sb, account, branches, toast, onBack, onEdit, o
         {/* MAIN */}
         <div className="brd-main" style={{ order: 1, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
           {/* Identity — «ترويسة بنكية» */}
-          <Section title="بيانات الحساب" Icon={Landmark} action={dashedBtn('تعديل', null, () => onEdit?.(account))}>
+          {cardVisible(user, 'admin_bank_accounts', 'account_data') && (
+          <Section title="بيانات الحساب" Icon={Landmark} action={canCardBtn(user, 'admin_bank_accounts', 'account_data', 'edit') ? dashedBtn('تعديل', null, () => onEdit?.(account)) : null}>
             <BodyHero account={account} copy={copy} />
           </Section>
+          )}
 
           {/* Linked offices */}
+          {cardVisible(user, 'admin_bank_accounts', 'linked_offices') && (
           <Section title="المكاتب المرتبطة" Icon={Wallet} dot={C.blue} count={links.length}>
             {links.length === 0 ? (
               <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>غير مرتبط بأي مكتب</div>
@@ -356,24 +360,30 @@ function BankAccountDetailPage({ sb, account, branches, toast, onBack, onEdit, o
               </div>
             )}
           </Section>
+          )}
 
           {/* Cards */}
+          {cardVisible(user, 'admin_bank_accounts', 'bank_cards') && (
           <Section title="البطاقات البنكية" Icon={CreditCard} count={cards.length}
-            action={dashedBtn('بطاقة جديدة', Plus, () => setCardModal({ open: true, card: null }))}>
+            action={canCardBtn(user, 'admin_bank_accounts', 'bank_cards', 'create') ? dashedBtn('بطاقة جديدة', Plus, () => setCardModal({ open: true, card: null })) : null}>
             {cards.length === 0 ? (
               <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد بطاقات</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
                 {cards.map(card => (
                   <CardChip key={card.id} card={card} bankName={account.bank_name}
+                    canEdit={canCardBtn(user, 'admin_bank_accounts', 'bank_cards', 'edit')}
+                    canToggle={canCardBtn(user, 'admin_bank_accounts', 'bank_cards', 'toggle')}
                     shown={!!reveal[card.id]} onReveal={() => setReveal(p => ({ ...p, [card.id]: !p[card.id] }))}
                     onEdit={() => setCardModal({ open: true, card })} onToggle={() => toggleCard(card)} />
                 ))}
               </div>
             )}
           </Section>
+          )}
 
           {/* Attachments */}
+          {cardVisible(user, 'admin_bank_accounts', 'attachments') && (
           <Section title="المرفقات" Icon={FileText} count={atts.length}>
             {atts.length === 0 ? (
               <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد مرفقات</div>
@@ -393,17 +403,21 @@ function BankAccountDetailPage({ sb, account, branches, toast, onBack, onEdit, o
               </div>
             )}
           </Section>
+          )}
         </div>
 
         {/* SIDE */}
         <div className="brd-side" style={{ order: 2, position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {cardVisible(user, 'admin_bank_accounts', 'overview') && (
           <Section title="نظرة عامة" Icon={Wallet} dot={C.blue} action={
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: accActive ? C.ok : 'var(--tx5)' }}>{accActive ? 'نشط' : 'معطّل'}</span>
+              {canCardBtn(user, 'admin_bank_accounts', 'overview', 'toggle') && (
               <button type="button" disabled={accBusy} onClick={toggleAccount} title={accActive ? 'تعطيل الحساب' : 'تفعيل الحساب'}
                 style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: accActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'linear-gradient(180deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.10) 100%)', cursor: accBusy ? 'not-allowed' : 'pointer', opacity: accBusy ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: accActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
                 <span style={{ position: 'absolute', width: 18, height: 18, borderRadius: '50%', background: '#fff', top: 3, right: accActive ? 3 : 23, transition: '.2s', boxShadow: '0 2px 4px rgba(0,0,0,.3)' }} />
               </button>
+              )}
             </div>
           }>
             <div style={{ textAlign: 'center', padding: '6px 0 14px' }}>
@@ -427,6 +441,7 @@ function BankAccountDetailPage({ sb, account, branches, toast, onBack, onEdit, o
               ))}
             </div>
           </Section>
+          )}
         </div>
       </div>
 
@@ -701,7 +716,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
   if (selected) {
     return (
       <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
-        <BankAccountDetailPage sb={sb} account={selected} branches={branches} toast={toast}
+        <BankAccountDetailPage sb={sb} user={user} account={selected} branches={branches} toast={toast}
           onBack={() => setSelectedId(null)} onEdit={openEdit} onReload={reload} />
         {modal}
       </div>
@@ -733,12 +748,14 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
             <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>الحسابات البنكية</div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة الحسابات البنكية والبطاقات عبر جميع المكاتب ومتابعة أرصدتها</div>
           </div>
+          {can(user, 'admin_bank_accounts.create') && (
           <button onClick={openAdd}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
             style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
             حساب بنكي جديد <Plus size={16} strokeWidth={2.2} />
           </button>
+          )}
         </div>
       </div>
 

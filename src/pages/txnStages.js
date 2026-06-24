@@ -67,7 +67,7 @@ export const STAGE_DEFS = {
     ],
   },
   profession_change: {
-    ar: 'تغيير المهنة', en: 'Profession Change', c: '#bb8fce',
+    ar: 'تغيير المهنة', en: 'Occupation Change', c: '#bb8fce',
     fields: [
       { key: 'muqeem_file', label_ar: 'ملف مقيم بالمهنة الجديدة', label_en: 'Muqeem File (new occupation)', type: 'file', accept: 'pdf' },
     ],
