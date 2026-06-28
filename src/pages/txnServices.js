@@ -75,8 +75,8 @@ export const TXN_SERVICES = {
     ],
   },
   exit_reentry_visa: {
-    theme: { c: '#5dade2', label_ar: 'تأشيرة خروج وعودة', label_en: 'Exit / Re-entry Visa' },
-    hero: { ar: 'تأشيرة خروج وعودة', en: 'Exit / Re-entry Visa', dAr: 'إصدار ومتابعة طلبات تأشيرات الخروج والعودة للعمّال ومدّتها — تمرّ على موافقة المحاسب', dEn: 'Issue and track worker exit / re-entry visa requests and their duration — routed through accountant approval' },
+    theme: { c: '#5dade2', label_ar: 'خروج وعودة', label_en: 'Exit / Re-entry Visa' },
+    hero: { ar: 'خروج وعودة', en: 'Exit / Re-entry Visa', dAr: 'إصدار ومتابعة طلبات تأشيرات الخروج والعودة للعمّال ومدّتها — تمرّ على موافقة المحاسب', dEn: 'Issue and track worker exit / re-entry visa requests and their duration — routed through accountant approval' },
     party: 'worker', billable: true, listMode: 'worker', needs_accountant_approval: true,
     // مفاتيح الحقول مطابقة لما يقرأه حاسب السعر (exit_type · duration_months) كي لا يتأثر التسعير،
     // وتُحفظ الآن في other_applications.details فتظهر في صفحة التفاصيل.

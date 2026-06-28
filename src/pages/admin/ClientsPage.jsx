@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
 import { Drop } from './PermissionsPage.jsx'
-import { can as canPerm, cardVisible, canCardBtn } from '../../lib/permissions.js'
+import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../../lib/permissions.js'
 import { noDash, clientEditChanges } from '../../lib/utils.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, Select, MultiSelect, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
@@ -86,7 +86,7 @@ function HeroStat({ tone, label, value, footer }) {
 }
 
 /* ─── Nationality distribution donut card — matches the Users page ─── */
-function NatDonutCard({ items, totalLabel, title }) {
+function NatDonutCard({ items, totalLabel, title, T = (a) => a }) {
   const total = items.reduce((s, r) => s + r.cnt, 0)
   const denom = total || 1 // guard the donut arc math against divide-by-zero when empty
   const topN = items.slice(0, 6)
@@ -103,7 +103,7 @@ function NatDonutCard({ items, totalLabel, title }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{title}</span>
         <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-          <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{num(total)}</span>{totalLabel}
+          <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginInlineEnd: 6 }}>{num(total)}</span>{totalLabel}
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
@@ -137,7 +137,7 @@ function NatDonutCard({ items, totalLabel, title }) {
                 <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{num(r.cnt)}</span>
               </div>
             )
-          }) : <span style={{ fontSize: 12, color: 'var(--tx4)' }}>لا توجد بيانات</span>}
+          }) : <span style={{ fontSize: 12, color: 'var(--tx4)' }}>{T('لا توجد بيانات', 'No data found')}</span>}
         </div>
       </div>
     </div>
@@ -145,14 +145,14 @@ function NatDonutCard({ items, totalLabel, title }) {
 }
 
 /* ─── Copyable info row helpers (match the Users page) ─── */
-function CopyBtn({ value, toast }) {
+function CopyBtn({ value, toast, T = (a) => a }) {
   const [done, setDone] = useState(false)
   const copy = async (e) => {
     e.stopPropagation()
-    try { await navigator.clipboard.writeText(String(value)); setDone(true); setTimeout(() => setDone(false), 1200) } catch (_) { toast?.('تعذّر النسخ') }
+    try { await navigator.clipboard.writeText(String(value)); setDone(true); setTimeout(() => setDone(false), 1200) } catch (_) { toast?.(T('تعذّر النسخ', 'Copy failed')) }
   }
   return (
-    <button type="button" onClick={copy} title="نسخ"
+    <button type="button" onClick={copy} title={T('نسخ', 'Copy')}
       onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
       onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx4)' }}
       style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
@@ -161,7 +161,7 @@ function CopyBtn({ value, toast }) {
   )
 }
 
-function InfoSectionCard({ title, items, headerAction }) {
+function InfoSectionCard({ title, items, headerAction, T = (a) => a }) {
   return (
     <div style={cardChrome}>
       <div style={cardHeader}>
@@ -174,8 +174,8 @@ function InfoSectionCard({ title, items, headerAction }) {
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
             <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{f.label}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-              {f.copy && f.value && <CopyBtn value={f.value} toast={f.toast} />}
-              <span style={{ fontSize: 13, color: f.value ? (f.color || 'var(--tx2)') : 'var(--tx5)', fontWeight: 600, direction: f.mono ? 'ltr' : 'rtl', fontFamily: f.mono ? 'monospace' : 'inherit', textAlign: 'end', overflow: 'hidden', textOverflow: f.wrap ? 'clip' : 'ellipsis', whiteSpace: f.wrap ? 'normal' : 'nowrap', wordBreak: f.wrap ? 'break-word' : 'normal' }} title={f.value || ''}>{f.value || '—'}</span>
+              {f.copy && f.value && <CopyBtn value={f.value} toast={f.toast} T={T} />}
+              <span style={{ fontSize: 13, color: f.value ? (f.color || 'var(--tx2)') : 'var(--tx5)', fontWeight: 600, direction: f.mono ? 'ltr' : T('rtl', 'ltr'), fontFamily: f.mono ? 'monospace' : 'inherit', textAlign: 'end', overflow: 'hidden', textOverflow: f.wrap ? 'clip' : 'ellipsis', whiteSpace: f.wrap ? 'normal' : 'nowrap', wordBreak: f.wrap ? 'break-word' : 'normal' }} title={f.value || ''}>{f.value || '—'}</span>
             </span>
           </div>
         ))}
@@ -198,6 +198,10 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
   const isAr = lang !== 'en'
   const T = (a, e) => isAr ? a : e
 
+  // مكاتب المستخدم لتبويب العملاء: null = بلا قيد (المدير العام / «كل المكاتب»)؛
+  // غير ذلك = قائمة الفروع المسموح للمستخدم رؤية عملائها فقط.
+  const officeScope = useMemo(() => tabOffices(user, 'admin_clients'), [user])
+
   const [rows, setRows] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -208,74 +212,92 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
 
   const [branches, setBranches] = useState([])
   const [nationalities, setNationalities] = useState([])
-  const [stats, setStats] = useState(null)
-  const [perClientStats, setPerClientStats] = useState({})
+  // البيانات الخام (مقيّدة بمكتب المستخدم) — تُجمّع لاحقاً في useMemo حسب التصفية النشطة.
+  const [raw, setRaw] = useState({ clients: [], srs: [], invs: [], pays: [] })
 
   const [selectedId, setSelectedId] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
   /* ─── Bootstrap: branches, nationalities, headline stats ─── */
   useEffect(() => {
-    sb.from('branches').select('id,branch_code').order('branch_code').then(({ data }) => setBranches(data || []))
+    sb.from('branches').select('id,branch_code').order('branch_code').then(({ data }) => {
+      // المستخدم المقيّد بمكاتب لا يرى في التصفية إلا مكاتبه.
+      const all = data || []
+      setBranches(officeScope ? all.filter(b => officeScope.includes(b.id)) : all)
+    })
     sb.from('nationalities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar').then(({ data }) => setNationalities(data || []))
 
+    // قيد المكتب على كروت الإحصاء: المستخدم غير المدير العام يحتسب مكاتبه + السجلات بلا مكتب
+    // (السجل بلا مكتب مسموح للجميع — مطابقةً لـ canTabBranch).
+    const inOffice = (qb) => officeScope ? qb.or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`) : qb
     Promise.all([
-      sb.from('clients').select('id,branch_id,created_at,nationality:nationality_id(name_ar,name_en)', { count: 'exact' }).is('deleted_at', null),
-      sb.from('service_requests').select('id,client_id,request_date,branch_id,quantity').is('deleted_at', null),
-      sb.from('invoices').select('total_amount,paid_amount,service_request_id').is('deleted_at', null),
+      inOffice(sb.from('clients').select('id,branch_id,created_at,nationality_id,name_ar,name_en,id_number,phone,nationality:nationality_id(name_ar,name_en)').is('deleted_at', null)),
+      inOffice(sb.from('service_requests').select('id,client_id,request_date,branch_id,quantity').is('deleted_at', null)),
+      inOffice(sb.from('invoices').select('total_amount,paid_amount,service_request_id').is('deleted_at', null)),
       sb.from('payments').select('service_request_id,payment_date').is('deleted_at', null),
     ]).then(([cR, srR, invR, payR]) => {
-      const cs = cR.data || []
-      const srs = srR.data || []
-      const invs = invR.data || []
-      const pays = payR.data || []
-      const byNat = {}
-      cs.forEach(c => { const k = c.nationality?.name_ar || 'غير محدد'; byNat[k] = (byNat[k] || 0) + 1 })
-      const topNats = Object.entries(byNat).sort((a, b) => b[1] - a[1])
-      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
-      const newThisMonth = cs.filter(c => c.created_at && new Date(c.created_at) >= monthStart).length
-      const byBranch = {}
-      cs.forEach(c => { if (c.branch_id) byBranch[c.branch_id] = (byBranch[c.branch_id] || 0) + 1 })
-      const branchDist = Object.entries(byBranch).sort((a, b) => b[1] - a[1])
-      const topBranchEntry = branchDist[0]
-      const totalInv = invs.reduce((s, i) => s + Number(i.total_amount || 0), 0)
-      const totalPaid = invs.reduce((s, i) => s + Number(i.paid_amount || 0), 0)
-      const srToClient = {}
-      const srByClient = {}
-      srs.forEach(sr => {
-        if (!sr.client_id) return
-        srToClient[sr.id] = sr.client_id
-        if (!srByClient[sr.client_id]) srByClient[sr.client_id] = { count: 0, lastReq: null, workerCount: 0 }
-        srByClient[sr.client_id].count += 1
-        srByClient[sr.client_id].workerCount += Number(sr.quantity || 0)
-        if (sr.request_date && (!srByClient[sr.client_id].lastReq || sr.request_date > srByClient[sr.client_id].lastReq)) {
-          srByClient[sr.client_id].lastReq = sr.request_date
-        }
-      })
-      const invByClient = {}
-      invs.forEach(inv => {
-        const cid = srToClient[inv.service_request_id]
-        if (!cid) return
-        if (!invByClient[cid]) invByClient[cid] = { invoiced: 0, paid: 0, invCount: 0, paidCount: 0, dueCount: 0 }
-        const t = Number(inv.total_amount || 0), p = Number(inv.paid_amount || 0)
-        invByClient[cid].invoiced += t
-        invByClient[cid].paid += p
-        invByClient[cid].invCount += 1
-        if (t > 0 && p >= t) invByClient[cid].paidCount += 1
-        else if (t > p) invByClient[cid].dueCount += 1
-      })
-      // آخر دفعة لكل عميل — من جدول المدفوعات عبر ربط الطلب بالعميل
-      const lastPayByClient = {}
-      pays.forEach(p => {
-        const cid = srToClient[p.service_request_id]
-        if (!cid || !p.payment_date) return
-        if (!lastPayByClient[cid] || p.payment_date > lastPayByClient[cid]) lastPayByClient[cid] = p.payment_date
-      })
-      const merged = {}
-      Object.keys(srByClient).forEach(cid => { merged[cid] = { ...srByClient[cid], ...(invByClient[cid] || {}), lastPayment: lastPayByClient[cid] || null } })
+      setRaw({ clients: cR.data || [], srs: srR.data || [], invs: invR.data || [], pays: payR.data || [] })
+    })
+  }, [sb, officeScope])
 
-      setStats({
-        total: cR.count || 0,
+  /* ─── Headline stats — تُحسب من البيانات الخام وتعكس التصفية النشطة (مكتب/جنسية/بحث) ─── */
+  const { stats, perClientStats } = useMemo(() => {
+    const qq = q.trim().toLowerCase()
+    const cs = raw.clients.filter(c =>
+      (!filters.branch_id || c.branch_id === filters.branch_id) &&
+      (!filters.nationality_id || c.nationality_id === filters.nationality_id) &&
+      (!qq || [c.name_ar, c.name_en, c.id_number, c.phone].some(v => String(v || '').toLowerCase().includes(qq)))
+    )
+    const clientIds = new Set(cs.map(c => c.id))
+    const srs = raw.srs.filter(sr => sr.client_id && clientIds.has(sr.client_id))
+    const srIds = new Set(srs.map(sr => sr.id))
+    const invs = raw.invs.filter(i => srIds.has(i.service_request_id))
+    const pays = raw.pays.filter(p => srIds.has(p.service_request_id))
+    const byNat = {}
+    cs.forEach(c => { const k = (isAr ? c.nationality?.name_ar : (c.nationality?.name_en || c.nationality?.name_ar)) || T('غير محدد', 'Not set'); byNat[k] = (byNat[k] || 0) + 1 })
+    const topNats = Object.entries(byNat).sort((a, b) => b[1] - a[1])
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
+    const newThisMonth = cs.filter(c => c.created_at && new Date(c.created_at) >= monthStart).length
+    const byBranch = {}
+    cs.forEach(c => { if (c.branch_id) byBranch[c.branch_id] = (byBranch[c.branch_id] || 0) + 1 })
+    const branchDist = Object.entries(byBranch).sort((a, b) => b[1] - a[1])
+    const topBranchEntry = branchDist[0]
+    const totalInv = invs.reduce((s, i) => s + Number(i.total_amount || 0), 0)
+    const totalPaid = invs.reduce((s, i) => s + Number(i.paid_amount || 0), 0)
+    const srToClient = {}
+    const srByClient = {}
+    srs.forEach(sr => {
+      srToClient[sr.id] = sr.client_id
+      if (!srByClient[sr.client_id]) srByClient[sr.client_id] = { count: 0, lastReq: null, workerCount: 0 }
+      srByClient[sr.client_id].count += 1
+      srByClient[sr.client_id].workerCount += Number(sr.quantity || 0)
+      if (sr.request_date && (!srByClient[sr.client_id].lastReq || sr.request_date > srByClient[sr.client_id].lastReq)) {
+        srByClient[sr.client_id].lastReq = sr.request_date
+      }
+    })
+    const invByClient = {}
+    invs.forEach(inv => {
+      const cid = srToClient[inv.service_request_id]
+      if (!cid) return
+      if (!invByClient[cid]) invByClient[cid] = { invoiced: 0, paid: 0, invCount: 0, paidCount: 0, dueCount: 0 }
+      const t = Number(inv.total_amount || 0), p = Number(inv.paid_amount || 0)
+      invByClient[cid].invoiced += t
+      invByClient[cid].paid += p
+      invByClient[cid].invCount += 1
+      if (t > 0 && p >= t) invByClient[cid].paidCount += 1
+      else if (t > p) invByClient[cid].dueCount += 1
+    })
+    const lastPayByClient = {}
+    pays.forEach(p => {
+      const cid = srToClient[p.service_request_id]
+      if (!cid || !p.payment_date) return
+      if (!lastPayByClient[cid] || p.payment_date > lastPayByClient[cid]) lastPayByClient[cid] = p.payment_date
+    })
+    const merged = {}
+    Object.keys(srByClient).forEach(cid => { merged[cid] = { ...srByClient[cid], ...(invByClient[cid] || {}), lastPayment: lastPayByClient[cid] || null } })
+    return {
+      stats: {
+        total: cs.length,
         topNats, branchDist,
         newThisMonth,
         topBranchId: topBranchEntry?.[0],
@@ -284,10 +306,10 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
         totalInvoiced: totalInv,
         totalPaid,
         totalRemaining: Math.max(0, totalInv - totalPaid),
-      })
-      setPerClientStats(merged)
-    })
-  }, [sb])
+      },
+      perClientStats: merged,
+    }
+  }, [raw, filters, q, isAr])
 
   /* ─── List query (paginated) ─── */
   useEffect(() => {
@@ -300,6 +322,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
       .is('deleted_at', null)
       .order('created_at', { ascending: false, nullsFirst: false })
       .range(page * PAGE, page * PAGE + PAGE - 1)
+    if (officeScope) qb = qb.or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`)
     if (filters.branch_id) qb = qb.eq('branch_id', filters.branch_id)
     if (filters.nationality_id) qb = qb.eq('nationality_id', filters.nationality_id)
     if (q.trim()) {
@@ -308,7 +331,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
     }
     qb.then(({ data, count }) => { if (alive) { setRows(data || []); setTotal(count || 0); setLoading(false) } })
     return () => { alive = false }
-  }, [sb, page, q, filters, refreshTick])
+  }, [sb, page, q, filters, officeScope, refreshTick])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE))
   const hasFilters = filters.branch_id || filters.nationality_id
@@ -363,7 +386,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
       <div className="clp-hero" style={{ marginBottom: 24 }}>
         <HeroStat tone={GOLD} label={T('العملاء', 'Clients')} value={num(stats?.total || 0)}
           footer={T(`${num(stats?.newThisMonth || 0)} جديد هذا الشهر`, `${num(stats?.newThisMonth || 0)} new this month`)} />
-        <NatDonutCard items={natDist} totalLabel={T('عميل', 'clients')} title={T('التوزّع حسب الجنسيات', 'By nationality')} />
+        <NatDonutCard items={natDist} totalLabel={T('عميل', 'clients')} title={T('التوزّع حسب الجنسيات', 'By nationality')} T={T} />
       </div>
 
       {/* Search + filter */}
@@ -371,7 +394,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={q} onChange={e => { setQ(e.target.value); setPage(0) }} placeholder={T('ابحث بالاسم، رقم الهوية، الجوال…', 'Search by name, ID or phone…')}
-            style={{ width: '100%', height: 44, padding: '0 40px 0 14px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
+            style={{ width: '100%', height: 44, paddingBlock: 0, paddingInlineStart: 14, paddingInlineEnd: 40, borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
         <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
           {T('تصفية', 'Filter')}
@@ -401,7 +424,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
             <div>
               <Lbl>{T('الجنسية', 'Nationality')}</Lbl>
               <Drop value={filters.nationality_id} onChange={v => { setFilters(f => ({ ...f, nationality_id: v })); setPage(0) }} placeholder={T('كل الجنسيات', 'All nationalities')}
-                options={[{ v: '', l: T('كل الجنسيات', 'All nationalities') }, ...nationalities.map(n => ({ v: n.id, l: isAr ? n.name_ar : n.name_en }))]} />
+                options={[{ v: '', l: T('كل الجنسيات', 'All nationalities') }, ...nationalities.map(n => ({ v: n.id, l: isAr ? n.name_ar : (n.name_en || n.name_ar) }))]} />
             </div>
           </div>
         </div>
@@ -449,14 +472,14 @@ function ClientRow({ client, clientStats, onClick, T, isAr }) {
   const due = Math.max(0, invoiced - paid)
   const ps = payState(invoiced, paid)
   const accent = colorFor(client.id)
-  const name = client.name_ar || client.name_en || '—'
+  const name = (isAr ? client.name_ar : (client.name_en || client.name_ar)) || client.name_ar || client.name_en || '—'
   const invCount = c.invCount || 0
   const workerCount = c.workerCount || 0
   const inv = num(Math.round(invoiced))
 
   /* ── reusable pieces ── */
   const flagAvatar = (size = 42, radius = 12) => (
-    <div title={client.nationality?.name_ar || ''} style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.42), fontWeight: 800, flexShrink: 0 }}>
+    <div title={(isAr ? client.nationality?.name_ar : (client.nationality?.name_en || client.nationality?.name_ar)) || ''} style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.42), fontWeight: 800, flexShrink: 0 }}>
       {client.nationality?.flag_url ? <img src={client.nationality.flag_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial(name)}
     </div>
   )
@@ -470,29 +493,29 @@ function ClientRow({ client, clientStats, onClick, T, isAr }) {
 
   /* ── granular pieces for the content-layout variants ── */
   const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 700, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-  const idText = client.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><IdCard size={13} color="rgba(255,255,255,.45)" /><span style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace' }}>{client.id_number}</span></span> : null
-  const phoneBit = client.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><Phone size={12} color="rgba(255,255,255,.45)" /><span style={{ fontFamily: 'monospace', color: 'var(--tx4)' }}>{fmtPhone(client.phone)}</span></span> : null
+  const idText = client.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><IdCard size={15} color="rgba(255,255,255,.5)" /><span style={{ direction: 'ltr', fontSize: 13, color: 'var(--tx3)', fontFamily: 'monospace', letterSpacing: '.3px' }}>{client.id_number}</span></span> : null
+  const phoneBit = client.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Phone size={15} color="rgba(255,255,255,.5)" /><span style={{ direction: 'ltr', fontSize: 13, fontFamily: 'monospace', color: 'var(--tx3)', letterSpacing: '.3px' }}>{fmtPhone(client.phone)}</span></span> : null
   const mline = (children, gap = 12) => <div style={{ display: 'inline-flex', alignItems: 'center', gap, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, flexWrap: 'wrap' }}>{children}</div>
 
   return card(
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 160px', gap: 16, alignItems: 'center', padding: '14px 18px' }}>
-      {/* Content — عمودي: avatar + name/branch, then id+phone, then invoice pills */}
-      <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
-        {flagAvatar(40, 11)}
-        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{nameText(15)}</div>
-          {mline(<>{idText}{phoneBit}</>, 10)}
-          <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-            {pill(<Wallet size={11} />, `${num(invCount)} ${T('فاتورة', 'inv')}`, GOLD, 'rgba(212,160,23,.10)', 'rgba(212,160,23,.28)')}
-            {workerCount > 0 && pill(<Users size={11} />, `${num(workerCount)} ${T('عامل', 'workers')}`, C.blue, 'rgba(52,152,219,.10)', 'rgba(52,152,219,.28)')}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 184px', gap: 18, alignItems: 'stretch', padding: '18px 20px' }}>
+      {/* Content — avatar + name/badge, then id, then phone (3 balanced lines) */}
+      <div style={{ display: 'flex', gap: 15, minWidth: 0, alignItems: 'flex-start' }}>
+        {flagAvatar(58, 16)}
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {nameText(18)}
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, padding: '3px 11px', borderRadius: 5, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', whiteSpace: 'nowrap' }}><b style={{ color: GOLD, fontSize: 14, fontWeight: 800 }}>{num(invCount)}</b><span style={{ color: 'rgba(232,199,122,.85)', fontSize: 10, fontWeight: 600 }}>{T('فاتورة', 'inv')}</span></span>
           </div>
+          {idText}
+          {phoneBit}
         </div>
       </div>
       <div className="cl-row-vdiv" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', borderRadius: 10, background: `linear-gradient(160deg, ${ps.c}14 0%, rgba(0,0,0,.25) 100%)`, border: `1px solid ${ps.c}26` }}>
-        <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.4px' }}>{T('إجمالي الفوترة', 'Invoiced')}</span>
-        <span style={{ fontSize: 24, fontWeight: 800, color: ps.c, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{inv}</span>
-        <span style={{ fontSize: 10.5, fontWeight: 700, direction: 'ltr', color: due > 0 ? C.warn : C.ok }}>{due > 0 ? `− ${num(Math.round(due))}` : (invoiced > 0 ? `✓ ${T('مسدّد بالكامل', 'fully paid')}` : '—')}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, padding: '14px 16px', borderRadius: 12, background: `linear-gradient(160deg, ${GOLD}14 0%, rgba(0,0,0,.25) 100%)`, border: `1px solid ${GOLD}26` }}>
+        <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.4px' }}>{T('إجمالي الفوترة', 'Invoiced')}</span>
+        <span style={{ fontSize: 27, fontWeight: 800, color: GOLD, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{inv}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, direction: 'ltr', color: due > 0 ? C.red : C.ok }}>{due > 0 ? `− ${num(Math.round(due))}` : (invoiced > 0 ? `✓ ${T('مسدّد بالكامل', 'fully paid')}` : '—')}</span>
       </div>
     </div>
   )
@@ -502,6 +525,7 @@ function ClientRow({ client, clientStats, onClick, T, isAr }) {
    Detail page — Users-page UserDetailPage layout
    ═══════════════════════════════════════════════════════════════ */
 function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isAr, branches = [], nationalities = [], onReload, canEdit = true }) {
+  const dir = isAr ? 'rtl' : 'ltr'
   const [requests, setRequests] = useState(null)
   const [editing, setEditing] = useState(false)
 
@@ -517,7 +541,7 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
   }, [sb, client.id])
 
   const accent = colorFor(client.id)
-  const name = client.name_ar || client.name_en || '—'
+  const name = (isAr ? client.name_ar : (client.name_en || client.name_ar)) || client.name_ar || client.name_en || '—'
   const totalAmt = requests?.reduce((s, r) => s + (r.invoice?.[0] ? Number(r.invoice[0].total_amount || 0) : 0), 0) || 0
   const paidAmt = requests?.reduce((s, r) => s + (r.invoice?.[0] ? Number(r.invoice[0].paid_amount || 0) : 0), 0) || 0
   const due = Math.max(0, totalAmt - paidAmt)
@@ -535,18 +559,20 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
     .map(r => ({ ...r.invoice[0], service_type: r.service_type, quantity: r.quantity, branch: r.branch }))
   const openInvoice = (id) => { if (id) window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) }
 
+  // per-field visibility (users.ui_visibility 'field:admin_clients:<key>')
+  const fVis = (k) => fieldVisible(user, 'admin_clients', k)
   const infoItems = [
-    { label: T('الاسم', 'Name'), value: client.name_ar || client.name_en },
-    client.name_en && client.name_ar ? { label: T('الاسم بالإنجليزية', 'Name (EN)'), value: client.name_en, mono: true } : null,
-    { label: T('رقم الهوية', 'ID number'), value: client.id_number, mono: true, copy: true },
-    { label: T('الجوال', 'Phone'), value: fmtPhone(client.phone), mono: true, copy: true },
-    { label: T('الجنسية', 'Nationality'), value: client.nationality?.name_ar },
-    { label: T('المكتب', 'Branch'), value: ((client.branch_ids && client.branch_ids.length) ? client.branch_ids.map(id => branches.find(b => b.id === id)?.branch_code).filter(Boolean).join('، ') : '') || client.branch?.branch_code, mono: true, wrap: true },
-    { label: T('تاريخ الإضافة', 'Joined'), value: fmtGreg(client.created_at), mono: true },
-  ].filter(Boolean).map(f => ({ ...f, toast }))
+    { fk: 'ci_name', label: T('الاسم', 'Name'), value: (isAr ? client.name_ar : (client.name_en || client.name_ar)) || client.name_ar || client.name_en },
+    client.name_en && client.name_ar ? { fk: 'ci_name_en', label: T('الاسم بالإنجليزية', 'Name (EN)'), value: client.name_en, mono: true } : null,
+    { fk: 'ci_id_number', label: T('رقم الهوية', 'ID number'), value: client.id_number, mono: true, copy: true },
+    { fk: 'ci_phone', label: T('الجوال', 'Phone'), value: fmtPhone(client.phone), mono: true, copy: true },
+    { fk: 'ci_nationality', label: T('الجنسية', 'Nationality'), value: isAr ? client.nationality?.name_ar : (client.nationality?.name_en || client.nationality?.name_ar) },
+    { fk: 'ci_branch', label: T('المكتب', 'Branch'), value: ((client.branch_ids && client.branch_ids.length) ? client.branch_ids.map(id => branches.find(b => b.id === id)?.branch_code).filter(Boolean).join(T('، ', ', ')) : '') || client.branch?.branch_code, mono: true, wrap: true },
+    { fk: 'ci_joined', label: T('تاريخ الإضافة', 'Joined'), value: fmtGreg(client.created_at), mono: true },
+  ].filter(Boolean).filter(it => fVis(it.fk)).map(f => ({ ...f, toast }))
 
   return (
-    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>
+    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: dir }}>
       {/* Back */}
       <div style={{ marginBottom: 16 }}>
         <BackButton onBack={onBack} label={T('رجوع', 'Back')} />
@@ -570,8 +596,8 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
         {/* Right column — client info + requests */}
         <div className="cld-main" style={{ gridColumn: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {cardVisible(user, 'admin_clients', 'client_info') && (
-          <InfoSectionCard title={T('بيانات العميل', 'Client')} items={infoItems}
-            headerAction={!canCardBtn(user, 'admin_clients', 'client_info', 'edit') ? null : (
+          <InfoSectionCard title={T('بيانات العميل', 'Client')} items={infoItems} T={T}
+            headerAction={!(canCardBtn(user, 'admin_clients', 'client_info', 'edit') && modalAllowed(user, 'admin_clients', 'client_edit')) ? null : (
               <button onClick={() => setEditing(true)}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
@@ -596,7 +622,7 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
               {invoiceRows.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {invoiceRows.map(invoice => (
-                    <InvoiceRow key={invoice.id} invoice={invoice} openInvoice={openInvoice} T={T} isAr={isAr} />
+                    <InvoiceRow key={invoice.id} invoice={invoice} openInvoice={openInvoice} T={T} isAr={isAr} fv={fVis} />
                   ))}
                 </div>
               )}
@@ -611,12 +637,15 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
           {cardVisible(user, 'admin_clients', 'financial_summary') && (
           <div style={cardChrome}>
             <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('الملخص المالي', 'Financial Summary')}</span></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>
-              <AmountBox label={T('الفوترة', 'Invoiced')} value={num(Math.round(totalAmt))} color={GOLD} />
-              <AmountBox label={T('المسدّد', 'Paid')} value={num(Math.round(paidAmt))} color={C.ok} />
-              <AmountBox label={T('المتبقي', 'Remaining')} color={due > 0 ? C.red : 'var(--tx)'}
-                value={num(Math.round(due))} />
-            </div>
+            {(() => {
+              const boxes = [
+                fVis('fs_invoiced') && <AmountBox key="i" label={T('الفوترة', 'Invoiced')} value={num(Math.round(totalAmt))} color={GOLD} />,
+                fVis('fs_paid') && <AmountBox key="p" label={T('المسدّد', 'Paid')} value={num(Math.round(paidAmt))} color={C.ok} />,
+                fVis('fs_remaining') && <AmountBox key="r" label={T('المتبقي', 'Remaining')} color={due > 0 ? C.red : 'var(--tx)'} value={num(Math.round(due))} />,
+              ].filter(Boolean)
+              return boxes.length ? <div style={{ display: 'grid', gridTemplateColumns: `repeat(${boxes.length},1fr)`, gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>{boxes}</div> : null
+            })()}
+            {fVis('fs_paid_pct') && (
             <div style={{ padding: '14px 22px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--tx3)' }}>
                 <span>{T('نسبة السداد', 'Paid')}</span>
@@ -626,6 +655,7 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
                 <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${ps.c}, ${ps.c}dd)`, transition: 'width .3s' }} />
               </div>
             </div>
+            )}
           </div>
           )}
           {cardVisible(user, 'admin_clients', 'stats') && (
@@ -633,12 +663,12 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
             <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={cardTitle}>{T('إحصاءات', 'Stats')}</span></div>
             <div style={{ padding: '6px 22px 12px' }}>
               {[
-                { Icon: Users, label: T('عدد العمال', 'Workers'), value: requests === null ? '…' : num(workerCount) },
-                { Icon: StickyNote, label: T('عدد التأشيرات', 'Visas'), value: requests === null ? '…' : num(visaCount) },
-                { Icon: ArrowLeftRight, label: T('نقل الكفالة', 'Kafala transfers'), value: requests === null ? '…' : num(kafalaCount) },
-                { Icon: Wallet, label: T('عدد الفواتير', 'Invoices'), value: num(invCount) },
-                { Icon: Calendar, label: T('آخر فاتورة', 'Last invoice'), value: lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—', color: GOLD },
-              ].map((row, i, arr) => (
+                { fk: 'st_workers', Icon: Users, label: T('عدد العمال', 'Workers'), value: requests === null ? '…' : num(workerCount) },
+                { fk: 'st_visas', Icon: StickyNote, label: T('عدد التأشيرات', 'Visas'), value: requests === null ? '…' : num(visaCount) },
+                { fk: 'st_kafala', Icon: ArrowLeftRight, label: T('نقل الكفالة', 'Kafala transfers'), value: requests === null ? '…' : num(kafalaCount) },
+                { fk: 'st_invoices', Icon: Wallet, label: T('عدد الفواتير', 'Invoices'), value: num(invCount) },
+                { fk: 'st_last_invoice', Icon: Calendar, label: T('آخر فاتورة', 'Last invoice'), value: lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—', color: GOLD },
+              ].filter(row => fVis(row.fk)).map((row, i, arr) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
                   <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><row.Icon size={13} color="rgba(255,255,255,.4)" />{row.label}</span>
                   <span style={{ fontSize: 13, color: row.color || 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
@@ -650,7 +680,7 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
         </div>
       </div>
       {editing && (
-        <ClientEditModal sb={sb} client={client} branches={branches} nationalities={nationalities} toast={toast} user={user}
+        <ClientEditModal sb={sb} client={client} branches={branches} nationalities={nationalities} toast={toast} user={user} T={T} isAr={isAr}
           onClose={() => setEditing(false)} onSaved={() => { setEditing(false); onReload?.() }} />
       )}
     </div>
@@ -660,7 +690,7 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
 /* ═══════════════════════════════════════════════════════════════
    Invoice row — 8 selectable layouts for the client's invoice log
    ═══════════════════════════════════════════════════════════════ */
-function InvoiceRow({ invoice, openInvoice, T, isAr }) {
+function InvoiceRow({ invoice, openInvoice, T, isAr, fv = () => true }) {
   const total = Number(invoice.total_amount || 0)
   const paid = Number(invoice.paid_amount || 0)
   const remaining = Number(invoice.remaining_amount || 0)
@@ -701,18 +731,20 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
         <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: ps.c, marginInlineEnd: 12 }} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>{noBtn()}<div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{serviceChip}</div></div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>{fv('il_invoice_no') && noBtn()}<div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{fv('il_service') && serviceChip}</div></div>
+            {fv('il_total') && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('الإجمالي', 'Total')}</span>
               <b style={{ fontSize: 18, lineHeight: 1, color: GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</b>
             </div>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            {branchChip || <span />}
+            {(fv('il_branch') && branchChip) || <span />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               {remaining > 0
-                ? <>{amtPill(T('المدفوع', 'Paid'), paid, C.ok)}{amtPill(T('المتبقي', 'Remaining'), remaining, C.red)}</>
-                : paidLabel}
+                ? <>{fv('il_paid') && amtPill(T('المدفوع', 'Paid'), paid, C.ok)}{fv('il_remaining') && amtPill(T('المتبقي', 'Remaining'), remaining, C.red)}</>
+                : (fv('il_paid') && paidLabel)}
             </div>
           </div>
         </div>
@@ -724,7 +756,7 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
 /* ═══════════════════════════════════════════════════════════════
    Client edit modal — canonical FormKit edit window (variant="edit")
    ═══════════════════════════════════════════════════════════════ */
-function ClientEditModal({ sb, client, branches, nationalities, toast, user, onClose, onSaved }) {
+function ClientEditModal({ sb, client, branches, nationalities, toast, user, onClose, onSaved, T = (a) => a, isAr = true }) {
   const [f, setF] = useState({
     name_ar: client.name_ar || client.name_en || '',
     id_number: client.id_number || '',
@@ -736,11 +768,21 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
   const [done, setDone] = useState(false)
   const [errMsg, setErrMsg] = useState('')
   const set = (k, v) => { setErrMsg(''); setF(p => ({ ...p, [k]: v })) }
+  // per-field gates — hide a field entirely, or lock it read-only (DB-backed)
+  const fVis = (k) => fieldVisible(user, 'admin_clients', k)
+  const fEd = (k) => fieldEditable(user, 'admin_clients', k)
 
-  // All fields are required — the «تعديل» button stays disabled until every input is valid.
+  // All VISIBLE fields are required — the «تعديل» button stays disabled until every
+  // shown input is valid. Hidden fields keep their existing value and never block save.
   const idDigits = (f.id_number || '').replace(/\D/g, '')
   const phoneDigits = (f.phone || '').replace(/\D/g, '')
-  const valid = !!(f.name_ar.trim() && idDigits.length === 10 && phoneDigits.length === 9 && f.nationality_id && (f.branch_ids || []).length > 0)
+  const valid = !!(
+    (!fVis('ci_name') || f.name_ar.trim()) &&
+    (!fVis('ci_id_number') || idDigits.length === 10) &&
+    (!fVis('ci_phone') || phoneDigits.length === 9) &&
+    (!fVis('ci_nationality') || f.nationality_id) &&
+    (!fVis('ci_branch') || (f.branch_ids || []).length > 0)
+  )
 
   // إغلاق تلقائي بعد ظهور شاشة النجاح الموحّدة
   useEffect(() => {
@@ -750,12 +792,12 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
   }, [done])
 
   const save = async () => {
-    if (!f.name_ar.trim()) { setErrMsg('الاسم مطلوب'); return }
-    if (idDigits.length !== 10) { setErrMsg('رقم الهوية يجب أن يكون 10 أرقام'); return }
+    if (fVis('ci_name') && !f.name_ar.trim()) { setErrMsg(T('الاسم مطلوب', 'Name is required')); return }
+    if (fVis('ci_id_number') && idDigits.length !== 10) { setErrMsg(T('رقم الهوية يجب أن يكون 10 أرقام', 'ID number must be 10 digits')); return }
     const phone9 = phoneDigits
-    if (phone9.length !== 9) { setErrMsg('رقم الجوال يجب أن يكون 9 أرقام بعد +966'); return }
-    if (!f.nationality_id) { setErrMsg('الجنسية مطلوبة'); return }
-    if (!(f.branch_ids || []).length) { setErrMsg('يجب اختيار مكتب واحد على الأقل'); return }
+    if (fVis('ci_phone') && phone9.length !== 9) { setErrMsg(T('رقم الجوال يجب أن يكون 9 أرقام بعد +966', 'Mobile must be 9 digits after +966')); return }
+    if (fVis('ci_nationality') && !f.nationality_id) { setErrMsg(T('الجنسية مطلوبة', 'Nationality is required')); return }
+    if (fVis('ci_branch') && !(f.branch_ids || []).length) { setErrMsg(T('يجب اختيار مكتب واحد على الأقل', 'Select at least one branch')); return }
     setSaving(true)
     const nowIso = new Date().toISOString()
     const newPhone = phone9 ? '966' + phone9 : null
@@ -779,27 +821,27 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
     }
     const { data, error } = await sb.from('clients').update(patch).eq('id', client.id).select()
     if (error) { setErrMsg(error.message.slice(0, 100)); setSaving(false); return }
-    if ((data || []).length === 0) { setErrMsg('لم يتم الحفظ — ليست لديك صلاحية كافية'); setSaving(false); return }
+    if ((data || []).length === 0) { setErrMsg(T('لم يتم الحفظ — ليست لديك صلاحية كافية', 'Not saved — insufficient permission')); setSaving(false); return }
     setSaving(false)
     setDone(true)
   }
 
   return (
     <FKModal open onClose={() => (done ? onSaved?.() : onClose())} width={560} height="auto"
-      title="تعديل بيانات العميل" Icon={User} variant="edit"
-      success={done ? <SuccessView title="تم تعديل البيانات بنجاح" /> : null}
-      onSubmit={save} submitting={saving} submitLabel="تعديل"
+      title={T('تعديل بيانات العميل', 'Edit client details')} Icon={User} variant="edit"
+      success={done ? <SuccessView title={T('تم تعديل البيانات بنجاح', 'Profile updated successfully')} /> : null}
+      onSubmit={save} submitting={saving} submitLabel={T('تعديل', 'Edit')}
       pages={[{
         valid, error: errMsg, content: (
-          <ModalSection Icon={User} label="بيانات العميل">
+          <ModalSection Icon={User} label={T('بيانات العميل', 'Client Details')}>
             <div style={GRID}>
-              <TextField label="الاسم" req full value={f.name_ar} onChange={v => set('name_ar', v)} placeholder="اسم العميل" />
-              <IdField label="رقم الهوية" req value={f.id_number} onChange={v => set('id_number', v)} placeholder="0000000000" />
-              <PhoneField label="رقم الجوال" req value={f.phone} onChange={v => set('phone', v)} />
-              <Select label="الجنسية" req value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder="— اختر —"
-                options={nationalities} getKey={n => n.id} getLabel={n => n.name_ar} />
-              <MultiSelect label="المكتب" req hint="يمكن اختيار أكثر من مكتب" value={f.branch_ids} onChange={v => set('branch_ids', v)} placeholder="— اختر —"
-                options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />
+              {fVis('ci_name') && <TextField label={T('الاسم', 'Name')} req full value={f.name_ar} onChange={v => set('name_ar', v)} placeholder={T('اسم العميل', 'Client name')} disabled={!fEd('ci_name')} />}
+              {fVis('ci_id_number') && <IdField label={T('رقم الهوية', 'ID Number')} req value={f.id_number} onChange={v => set('id_number', v)} placeholder="0000000000" disabled={!fEd('ci_id_number')} />}
+              {fVis('ci_phone') && <PhoneField label={T('رقم الجوال', 'Mobile Number')} req value={f.phone} onChange={v => set('phone', v)} disabled={!fEd('ci_phone')} />}
+              {fVis('ci_nationality') && <Select label={T('الجنسية', 'Nationality')} req value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder={T('— اختر —', '— Select —')} disabled={!fEd('ci_nationality')}
+                options={nationalities} getKey={n => n.id} getLabel={n => isAr ? n.name_ar : (n.name_en || n.name_ar)} />}
+              {fVis('ci_branch') && <MultiSelect label={T('المكتب', 'Branch')} req hint={T('يمكن اختيار أكثر من مكتب', 'You can select more than one branch')} value={f.branch_ids} onChange={v => set('branch_ids', v)} placeholder={T('— اختر —', '— Select —')} disabled={!fEd('ci_branch')}
+                options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />}
             </div>
           </ModalSection>
         ),

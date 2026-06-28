@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
-import { Search, X, Check, ShieldCheck, Building2, Phone, Mail, CreditCard, ChevronDown, ChevronLeft, Eye, EyeOff, Copy, User, Globe, Lock, Layers, SlidersHorizontal, MousePointerClick } from 'lucide-react'
+import { Search, X, Check, ShieldCheck, Building2, Phone, Mail, CreditCard, ChevronDown, ChevronLeft, Eye, EyeOff, Copy, User, Globe, Lock, Layers, SlidersHorizontal, MousePointerClick, Pencil, AppWindow, Wand2 } from 'lucide-react'
 import BackButton from '../../components/BackButton'
 import {
   Modal as FKModal, ModalSection, ActionButton, SuccessView, Lbl, GRID, FULL,
   TextField, IdField, PhoneField, Select, MultiSelect, EmptyState,
 } from '../../components/ui/FormKit.jsx'
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
-import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, tabModule as catTabModule } from '../../lib/permCatalog.js'
+import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, groupFields, tabModule as catTabModule } from '../../lib/permCatalog.js'
 import { isGM as isGmUser } from '../../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -616,6 +616,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
   const [eff, setEff] = useState(null)   // permId -> { is_granted, source }
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(() => new Set())   // expanded tab ids
+  const [serviceTypes, setServiceTypes] = useState([]) // for the service-scope picker
 
   // Effective permissions for this user (role grants ∪ user overrides).
   useEffect(() => {
@@ -624,6 +625,15 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
       .then(({ data }) => { if (!live) return; const m = {}; (data || []).forEach(r => { m[r.permission_id] = { is_granted: r.is_granted, source: r.source } }); setEff(m) })
     return () => { live = false }
   }, [sb, u.id])
+
+  // Service types (for the per-user invoice service-type scope control).
+  useEffect(() => {
+    let live = true
+    sb.from('lookup_items').select('id,value_ar,value_en,category:lookup_categories!inner(category_key)')
+      .eq('category.category_key', 'service_type')
+      .then(({ data }) => { if (live) setServiceTypes(data || []) })
+    return () => { live = false }
+  }, [sb])
 
   const moduleByName = useMemo(() => { const m = {}; (modules || []).forEach(x => { m[x.module] = x }); return m }, [modules])
   const moduleForTab = (tabId) => moduleByName[catTabModule(tabId)] || null
@@ -638,7 +648,14 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
   const toggleTab = (tabId) => patchVis({ [tabId]: !(visRef.current[tabId] === true) })
   const toggleCard = (tabId, key) => { const k = `card:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
   const toggleCardAct = (tabId, key, action) => { const k = `cardact:${tabId}:${key}:${action}`; patchVis({ [k]: visRef.current[k] === false }) }
+  // granular layer — fields (show + edit-lock), modals (open), wizard stages (show)
+  const toggleField = (tabId, key) => { const k = `field:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
+  const toggleFieldEdit = (tabId, key) => { const k = `fieldedit:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
+  const toggleModal = (tabId, key) => { const k = `modal:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
+  const toggleStage = (tabId, key) => { const k = `stage:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
   const setOffice = (tabId, policy) => patchVis({ [`office:${tabId}`]: policy })
+  const setServiceScope = (tabId, policy) => patchVis({ [`svc:${tabId}`]: policy })
+  const setStatsMode = (tabId, mode) => patchVis({ [`stats:${tabId}`]: mode })
 
   const togglePerm = async (p) => {
     if (busy || !eff) return
@@ -687,6 +704,8 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
     const isOpen = open.has(id)
     const [gOn, gTot] = grantedCount(id)
     const pol = officePolicy(id)
+    const svcPol = (vis[`svc:${id}`] && vis[`svc:${id}`].mode) ? vis[`svc:${id}`] : { mode: 'all', ids: [] }
+    const statMode = vis[`stats:${id}`] || 'real'
     return (
       <div key={id} style={{ borderRadius: 11, background: 'rgba(255,255,255,.015)', border: '1px solid rgba(255,255,255,.05)', overflow: 'hidden' }}>
         {/* header */}
@@ -730,6 +749,38 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
                 {pol.mode === 'inherit' && <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>يستخدم المكاتب المسندة للحساب افتراضياً.</span>}
               </div>
             </div>
+            {/* service-type scope (which service types this user may see) */}
+            {TAB_SERVICE_SCOPE.includes(id) && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                  <Layers size={13} color={C.gold} />
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>أنواع الخدمات المسموح بها</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  <Seg value={svcPol.mode} disabled={busy || userIsGM}
+                    onChange={(m) => setServiceScope(id, { mode: m, ids: m === 'specific' ? (svcPol.ids || []) : [] })}
+                    options={[{ v: 'all', l: 'كل الأنواع' }, { v: 'specific', l: 'أنواع محددة' }]} />
+                  {svcPol.mode === 'specific' && (
+                    <MultiSelect placeholder="اختر أنواع الخدمات…" value={svcPol.ids || []}
+                      onChange={(ids) => setServiceScope(id, { mode: 'specific', ids })}
+                      options={serviceTypes} getKey={s => s.id} getLabel={s => s.value_ar || s.value_en} />
+                  )}
+                  {svcPol.mode === 'all' && <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>يرى فواتير كل أنواع الخدمات.</span>}
+                </div>
+              </div>
+            )}
+            {/* stat-cards mode (real / always-zero / hidden) */}
+            {TAB_STATS_MODE.includes(id) && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                  <SlidersHorizontal size={13} color={C.gold} />
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>كروت الإحصاء</span>
+                </div>
+                <Seg value={statMode} disabled={busy || userIsGM} onChange={(m) => setStatsMode(id, m)}
+                  options={[{ v: 'real', l: 'أرقام حقيقية' }, { v: 'zero', l: 'أصفار دائماً' }, { v: 'hidden', l: 'مخفية' }]} />
+                {statMode === 'zero' && <span style={{ display: 'block', marginTop: 7, fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>تظهر الكروت لكن بقيم صفرية (الأرقام أصلاً محصورة في مكاتب/خدمات المستخدم عبر قاعدة البيانات).</span>}
+              </div>
+            )}
             {/* actions */}
             {mod && mod.perms.length > 0 && (
               <div>
@@ -745,8 +796,12 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
                 </div>
               </div>
             )}
-            {/* cards */}
-            {cards.length > 0 && <CardsSection tabId={id} cards={cards} vis={vis} disabled={busy || userIsGM} onToggle={toggleCard} onToggleAct={toggleCardAct} />}
+            {/* cards (+ their fields) */}
+            {cards.length > 0 && <CardsSection tabId={id} cards={cards} fields={TAB_FIELDS[id] || []} vis={vis} disabled={busy || userIsGM} onToggle={toggleCard} onToggleAct={toggleCardAct} onToggleField={toggleField} onToggleFieldEdit={toggleFieldEdit} />}
+            {/* wizard stages (+ their fields) */}
+            {(TAB_STAGES[id] || []).length > 0 && <StagesSection tabId={id} stages={TAB_STAGES[id]} fields={TAB_FIELDS[id] || []} vis={vis} disabled={busy || userIsGM} onToggleStage={toggleStage} onToggleField={toggleField} onToggleFieldEdit={toggleFieldEdit} />}
+            {/* modals / popups */}
+            {(TAB_MODALS[id] || []).length > 0 && <ModalsSection tabId={id} modals={TAB_MODALS[id]} vis={vis} disabled={busy || userIsGM} onToggleModal={toggleModal} />}
           </div>
         )}
       </div>
@@ -809,10 +864,50 @@ function MiniToggle({ on, locked, onClick }) {
   )
 }
 
-// Per-card visibility + per-card action buttons. Each card is a tile: a
-// show/hide toggle for the card, plus a toggle for every action button inside
-// it (edit/add/delete/special) so the GM can allow editing but exclude a card.
-function CardsSection({ tabId, cards, vis, disabled, onToggle, onToggleAct }) {
+// A field list rendered inside a card/stage tile: one row per field with an
+// "إظهار" (visibility) toggle and, for editable fields, a "تعديل" (edit-lock)
+// toggle. A hidden field implicitly can't be edited (its edit toggle locks off).
+function FieldList({ tabId, groupKey, fields, vis, disabled, parentShown, onToggleField, onToggleFieldEdit }) {
+  const list = (fields || []).filter(f => f.group === groupKey)
+  if (!list.length) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed rgba(255,255,255,.07)', opacity: parentShown ? 1 : .4 }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
+        <SlidersHorizontal size={9} color="var(--tx5)" />
+        <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)' }}>الحقول</span>
+      </div>
+      {list.map(f => {
+        const fVis = vis[`field:${tabId}:${f.key}`] !== false
+        const fEdit = vis[`fieldedit:${tabId}:${f.key}`] !== false
+        return (
+          <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: fVis ? C.blue : 'var(--tx5)', flexShrink: 0 }} />
+              <span title={f.label_ar} style={{ fontSize: 11, fontWeight: 600, color: fVis ? 'var(--tx2)' : 'var(--tx5)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label_ar}</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
+              {f.edit && (
+                <span title="السماح بتعديل الحقل" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <Pencil size={9} color={fEdit && fVis ? C.gold : 'var(--tx5)'} />
+                  <MiniToggle on={fEdit && fVis} locked={disabled || !fVis} onClick={() => onToggleFieldEdit(tabId, f.key)} />
+                </span>
+              )}
+              <span title="إظهار الحقل" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <Eye size={9} color={fVis ? C.ok : 'var(--tx5)'} />
+                <MiniToggle on={fVis} locked={disabled} onClick={() => onToggleField(tabId, f.key)} />
+              </span>
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Per-card visibility + per-card action buttons + per-field controls. Each card
+// is a tile: a show/hide toggle for the card, a toggle for every action button
+// inside it (edit/add/delete/special), and a row per field (show + edit-lock).
+function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleAct, onToggleField, onToggleFieldEdit }) {
   const groups = useMemo(() => {
     const g = {}
     cards.forEach(c => { const key = c.group || 'core'; (g[key] = g[key] || []).push(c) })
@@ -825,7 +920,7 @@ function CardsSection({ tabId, cards, vis, disabled, onToggle, onToggleAct }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
         <Layers size={13} color={C.gold} />
         <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>بطاقات صفحة التفاصيل</span>
-        <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>رؤية كل كرت وأزراره</span>
+        <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>رؤية كل كرت وأزراره وحقوله</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {groupKeys.map(gk => (
@@ -861,12 +956,70 @@ function CardsSection({ tabId, cards, vis, disabled, onToggle, onToggleAct }) {
                         })}
                       </div>
                     )}
+                    <FieldList tabId={tabId} groupKey={c.key} fields={fields} vis={vis} disabled={disabled} parentShown={shown} onToggleField={onToggleField} onToggleFieldEdit={onToggleFieldEdit} />
                   </div>
                 )
               })}
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// Wizard stages — one tile per step (show/hide) with its own fields beneath.
+function StagesSection({ tabId, stages, fields, vis, disabled, onToggleStage, onToggleField, onToggleFieldEdit }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+        <Wand2 size={13} color={C.gold} />
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>مراحل الحاسبة</span>
+        <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>رؤية كل مرحلة وحقولها</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
+        {stages.map(s => {
+          const shown = vis[`stage:${tabId}:${s.key}`] !== false
+          return (
+            <div key={s.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'rgba(255,255,255,.06)' : 'rgba(192,57,43,.16)') }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  {shown ? <Eye size={12} color={C.ok} /> : <EyeOff size={12} color="var(--tx5)" />}
+                  <span style={{ fontSize: 12, fontWeight: 700, color: shown ? 'var(--tx)' : 'var(--tx4)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.label_ar}>{s.label_ar}</span>
+                </span>
+                <VisToggle on={shown} locked={disabled} onClick={() => onToggleStage(tabId, s.key)} />
+              </div>
+              <FieldList tabId={tabId} groupKey={s.key} fields={fields} vis={vis} disabled={disabled} parentShown={shown} onToggleField={onToggleField} onToggleFieldEdit={onToggleFieldEdit} />
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// Modals / popups — one tile per popup with an open/use toggle.
+function ModalsSection({ tabId, modals, vis, disabled, onToggleModal }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+        <AppWindow size={13} color={C.gold} />
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>النوافذ المنبثقة</span>
+        <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>السماح بفتح كل نافذة</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 7 }}>
+        {modals.map(m => {
+          const on = vis[`modal:${tabId}:${m.key}`] !== false
+          return (
+            <div key={m.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 12px', borderRadius: 9, background: on ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (on ? 'rgba(255,255,255,.05)' : 'rgba(192,57,43,.16)') }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                <AppWindow size={11} color={on ? C.gold : 'var(--tx5)'} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: on ? 'var(--tx2)' : 'var(--tx5)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.label_ar}>{m.label_ar}</span>
+              </span>
+              <MiniToggle on={on} locked={disabled} onClick={() => onToggleModal(tabId, m.key)} />
+            </div>
+          )
+        })}
       </div>
     </div>
   )

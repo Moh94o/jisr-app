@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { RefreshCw, Printer, BadgeCheck, MessageSquare, Plus, Paperclip, User, FileText, Banknote } from 'lucide-react'
+import { RefreshCw, Printer, BadgeCheck, MessageSquare, Plus, Paperclip, User, FileText, Banknote, Building2, AlertCircle } from 'lucide-react'
 import { C, F, EmptyState, Modal as FKModal, ModalSection, TextArea, TextField, FileField, CurrencyField, YesNo, Select as FKSelect, DateField as FKDateField, GRID, SuccessView } from '../components/ui/FormKit.jsx'
-import { can as canPerm, cardVisible, canCardBtn } from '../lib/permissions.js'
+import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
+import { computeRenewalDerived } from '../lib/renewalDerived.js'
 import OfficialStampBadge from '../components/ui/OfficialStampBadge.jsx'
 import BackButton from '../components/BackButton'
 
 const nm = v => Number(v || 0).toLocaleString('en-US')
 
 // زر نسخ صغير — يظهر علامة صح للحظة بعد النسخ
-const CopyBtn = ({ text }) => {
+const CopyBtn = ({ text, lang }) => {
   const [done, setDone] = useState(false)
   if (text === null || text === undefined || text === '' || text === '—') return null
-  return <button type="button" title="نسخ" onClick={() => { try { navigator.clipboard?.writeText(String(text)); setDone(true); setTimeout(() => setDone(false), 1200) } catch {} }}
+  return <button type="button" title={(lang || 'ar') !== 'en' ? 'نسخ' : 'Copy'} onClick={() => { try { navigator.clipboard?.writeText(String(text)); setDone(true); setTimeout(() => setDone(false), 1200) } catch {} }}
     style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: done ? '#2ecc71' : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, flexShrink: 0, transition: 'color .15s' }}>
     {done
       ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -92,7 +93,7 @@ function RnwSkeleton({ listRows = 6 }) {
       </div>
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {Array.from({ length: listRows }).map((_, i) => <div key={i} style={{ borderRadius: 14, background: 'radial-gradient(ellipse at top, rgba(212,160,23,.05) 0%, #222 60%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: '0 4px 14px rgba(0,0,0,.22)', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center' }}>
+      {Array.from({ length: listRows }).map((_, i) => <div key={i} style={{ borderRadius: 18, background: 'linear-gradient(180deg,#2b2b2b 0%,#1e1e1e 100%)', border: '1px solid rgba(255,255,255,.07)', boxShadow: '0 14px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center' }}>
         <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{bar('30%', 14)}{bar(24, 16, 3)}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '9px 16px' }}>
@@ -110,7 +111,11 @@ function RnwSkeleton({ listRows = 6 }) {
 
 /* RenewalCalcPage — قائمة تسعيرات تجديد الإقامة بنفس تصميم تسعيرات التنازل. */
 export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNewCalc }) {
-  const T = (a, e) => (lang || 'ar') !== 'en' ? a : e
+  const isAr = (lang || 'ar') !== 'en'
+  const T = (a, e) => isAr ? a : e
+  const dir = isAr ? 'rtl' : 'ltr'
+  // مكاتب المستخدم لتبويب حسبة التجديد: null = بلا قيد (المدير العام / «كل المكاتب»).
+  const officeScope = useMemo(() => tabOffices(user, 'renewal_calc'), [user])
   const [rows, setRows] = useState([])
   const [nationalities, setNationalities] = useState([])
   const [loading, setLoading] = useState(true)
@@ -123,6 +128,9 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   const [approveForm, setApproveForm] = useState(null)
   const [approveSaving, setApproveSaving] = useState(false)
   const [approveSaved, setApproveSaved] = useState(false)
+  const [cancelForm, setCancelForm] = useState(null)
+  const [cancelSaving, setCancelSaving] = useState(false)
+  const [cancelSaved, setCancelSaved] = useState(false)
   const [usersById, setUsersById] = useState({})
   const [detailsAudit, setDetailsAudit] = useState({})   // سجل التغييرات/المصادر مرتّب حسب اسم الحقل
   const [cardEdit, setCardEdit] = useState(null)          // تعديل كرت مفرد (نفس تفاصيل نقل الكفالة)
@@ -130,17 +138,17 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   const [quoteNotes, setQuoteNotes] = useState([])        // تعليقات التسعيرة
   const [quoteNoteModal, setQuoteNoteModal] = useState(false)
   const [detailFacility, setDetailFacility] = useState(null)   // منشأة العامل (تُشتق من worker_id)
+  const [detailWorkerOcc, setDetailWorkerOcc] = useState(null) // مهنة العامل الرسمية (احتياطي لو حقل التسعيرة فاضي)
   // إعدادات التسعير — لحساب أرضية خصم المكتب (سعر اليوم × أيام التجديد) عند التصديق
   const cfg = useMemo(() => getIqamaRenewalPricingConfig(), [])
   // هل خصم المكتب مسموح (سياسة الأدمن في الخدمات)؟
   const discountEnabled = cfg.iqamaOfficeDiscountEnabled !== false
-  // خصم المكتب: مبلغ فقط، بحدّ أدنى لا ينزل رسوم المكتب تحت (سعر اليوم × الشهور × 30)
+  // خصم المكتب: مبلغ فقط، مفتوح بدون أرضية — يُسمح بخصم كامل رسوم المكتب حتى الصفر
   const computeApprovalDiscount = (af) => {
     const officeFee = Number(af?._officeFee || 0)
     const renewalMonths = Number(af?._renewalMonths || 0)
-    const dailyRate = parseFloat(cfg.officeDailyRate) || 0
-    const floor = Math.round(dailyRate * renewalMonths * 30)
-    const maxDiscount = discountEnabled ? Math.max(0, officeFee - floor) : 0
+    const floor = 0
+    const maxDiscount = discountEnabled ? officeFee : 0
     const want = Math.round(parseFloat(af?.discValue) || 0)
     const applied = Math.min(Math.max(0, want), maxDiscount)
     const newTotal = Math.max(0, Math.round(Number(af?._total || 0)) - applied)
@@ -161,8 +169,11 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   const load = async () => {
     if (!sb) return
     setLoading(true)
+    // قيد المكتب: المستخدم غير المدير العام يرى حسبات مكاتبه فقط (القائمة والإحصاءات معاً، فهي محسوبة من الصفوف).
+    let calcQ = sb.from('iqama_renewal_calculation').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500)
+    if (officeScope) calcQ = calcQ.or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`)
     const [rRes, uRes, bRes, nRes] = await Promise.all([
-      sb.from('iqama_renewal_calculation').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
+      calcQ,
       sb.from('users').select(USER_SELECT).is('deleted_at', null),
       sb.from('branches').select('id,code:branch_code').is('deleted_at', null),
       sb.from('nationalities').select('id,name_ar,name_en,flag_url'),
@@ -176,6 +187,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       approved_user: flat(userMap[r.approved_by]),
       invoiced_user: flat(userMap[r.invoiced_by]),
       created_user: flat(userMap[r.created_by]),
+      cancelled_user: flat(userMap[r.cancelled_by]),
       _branchCode: (r.branch_id && branchMap[r.branch_id]) || null,
     }))
     setRows(list)
@@ -183,7 +195,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     setNationalities(nRes.data || [])
     setLoading(false)
   }
-  useEffect(() => { load() }, [sb])
+  useEffect(() => { load() }, [sb, officeScope])
 
   // ── سجل التغييرات/المصادر للحقول (يُحمَّل عند فتح التفاصيل) ──
   const loadDetailAudit = useCallback(async () => {
@@ -203,13 +215,14 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   }, [sb, detailsRow?.id])
   useEffect(() => { loadQuoteNotes() }, [loadQuoteNotes])
 
-  // ── منشأة العامل — تُشتق من worker_id → workers.current_facility_id ──
+  // ── منشأة العامل + مهنته الرسمية — تُشتق من worker_id → workers ──
   useEffect(() => {
     let alive = true
-    if (!detailsRow?.worker_id) { setDetailFacility(null); return }
+    if (!detailsRow?.worker_id) { setDetailFacility(null); setDetailWorkerOcc(null); return }
     ;(async () => {
-      const { data: w } = await sb.from('workers').select('current_facility_id').eq('id', detailsRow.worker_id).maybeSingle()
+      const { data: w } = await sb.from('workers').select('current_facility_id,occupation_ar,occ:current_occupation_id(name_ar,name_en)').eq('id', detailsRow.worker_id).maybeSingle()
       if (!alive) return
+      setDetailWorkerOcc(w ? (w.occ?.name_ar || w.occ?.name_en || w.occupation_ar || null) : null)
       if (!w?.current_facility_id) { setDetailFacility(null); return }
       const { data: f } = await sb.from('facilities').select('id,name_ar,name_en,unified_number,hrsd_number,gosi_number').eq('id', w.current_facility_id).maybeSingle()
       if (alive) setDetailFacility(f || null)
@@ -231,13 +244,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  // ── إحصاءات (تراكمية على كامل التسعيرات) ──
-  const sCounts = useMemo(() => { const c = { priced: 0, approved: 0, invoiced: 0, completed: 0, cancelled: 0 }; rows.forEach(r => { if (c[r.status] !== undefined) c[r.status]++ }); return c }, [rows])
-  // متوسط قيمة التسعيرة (إجمالي تراكمي يشمل جميع التسعيرات)
-  const avgStats = useMemo(() => {
-    const total = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0)
-    return { value: rows.length ? Math.round(total / rows.length) : 0, count: rows.length }
-  }, [rows])
+  // ── إحصاءات ── تُحسب أدناه من المجموعة المفلترة (searched) لتعكس البحث/الفلاتر الحالية.
 
   // بناء أختام المراحل (مسعّرة → مصدّقة → مفوترة) لكرت واحد
   const buildStamps = (r) => {
@@ -248,7 +255,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const isApprovedLike = ['approved', 'invoiced', 'completed'].includes(r.status)
     const isInvoicedLike = ['invoiced', 'completed'].includes(r.status)
     if (r.status === 'cancelled') {
-      stamps.push({ key: 'x', label: stLabel.cancelled, name: pricedBy, branch: r._branchCode, date: r.updated_at || r.created_at, color: stClr.cancelled })
+      stamps.push({ key: 'x', label: stLabel.cancelled, name: nameOf(r.cancelled_user) || pricedBy, branch: r.cancelled_user?.branch?.code || r._branchCode, date: r.cancelled_at || r.updated_at || r.created_at, color: stClr.cancelled })
       return stamps
     }
     if (r.priced_at && pricedBy) stamps.push({ key: 'p', label: stLabel.priced, name: pricedBy, branch: r.priced_user?.branch?.code || r._branchCode, date: r.priced_at, color: stClr.priced })
@@ -270,7 +277,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   // أوسمة الخدمة لكل تسعيرة
   const tagsOf = (r) => {
     const tags = []
-    if (Number(r.renewal_months) > 0) tags.push(T('تجديد ' + r.renewal_months + ' شهر', 'Renew ' + r.renewal_months + 'mo'))
+    if (Number(r.renewal_months) > 0) tags.push(T(r.renewal_months + ' شهر', r.renewal_months + 'mo'))
     if (Number(r.work_permit_fee || 0) > 0) tags.push(T('رخصة عمل', 'Work Permit'))
     if (Number(r.medical_fee || 0) > 0) tags.push(T('تأمين طبي', 'Medical'))
     if (r.change_profession) tags.push(T('تغيير مهنة', 'Prof Chg'))
@@ -289,6 +296,8 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       patch.total_amount = d.newTotal
       const note = (approveForm.approval_note || '').trim()
       if (note) patch.approval_note = note
+      // إعادة تجميد القيم المشتقّة بعد خصم المكتب (يتأثّر صافي رسوم المكتب)
+      Object.assign(patch, computeRenewalDerived({ ...detailsRow, ...patch }))
       const { error } = await sb.from('iqama_renewal_calculation').update(patch).eq('id', approveForm._id).is('deleted_at', null)
       if (error) throw error
       setApproveSaved(true)
@@ -296,6 +305,23 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       toast((lang === 'ar' ? 'خطأ: ' : 'Error: ') + (e.message || '').slice(0, 90))
     }
     setApproveSaving(false)
+  }
+
+  // ── إلغاء الحسبة — تحديث مباشر يضبط الحالة «ملغاة» + من ألغاها ومتى وسبب اختياري ──
+  const submitCancel = async () => {
+    if (!cancelForm || cancelSaving) return
+    setCancelSaving(true)
+    try {
+      const now = new Date().toISOString()
+      const reason = (cancelForm.reason || '').trim()
+      const patch = { status: 'cancelled', cancelled_at: now, cancelled_by: user?.id || null, cancel_reason: reason || null, updated_at: now, updated_by: user?.id || null }
+      const { error } = await sb.from('iqama_renewal_calculation').update(patch).eq('id', cancelForm._id).is('deleted_at', null)
+      if (error) throw error
+      setCancelSaved(true)
+    } catch (e) {
+      toast((lang === 'ar' ? 'خطأ: ' : 'Error: ') + (e.message || '').slice(0, 90))
+    }
+    setCancelSaving(false)
   }
 
   // ── تعديل لكل كرت (نفس تفاصيل نقل الكفالة) — تحديث مباشر + كتابة سجل التغييرات ──
@@ -343,6 +369,8 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
         patch.total_amount = newTotal
       }
       if (!auditRows.length) { setCardEdit(null); setCardSaving(false); return }
+      // إعادة تجميد القيم المشتقّة بعد التعديل (الرسوم/مدة التجديد/انتهاء الإقامة كلها تؤثّر عليها)
+      Object.assign(patch, computeRenewalDerived({ ...r, ...patch }))
       patch.updated_at = now; patch.updated_by = user?.id || null
       const { error } = await sb.from('iqama_renewal_calculation').update(patch).eq('id', r.id).is('deleted_at', null)
       if (error) throw error
@@ -367,7 +395,19 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const nm2 = v => { const n = Number(v || 0); return (n < 0 ? '- ' : '') + Math.abs(n).toLocaleString('en-US') }
     const fmtD2 = d => { if (!d) return '—'; const dt = new Date(d); if (isNaN(dt)) return '—'; return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}` }
     const L = {
-      renewalQuote: { ar: 'تسعيرة تجديد', en: 'Renewal Quote', hi: 'नवीनीकरण कोटेशन', ur: 'تجدید کوٹیشن', bn: 'নবায়ন কোটেশন' },
+      renewalQuote: { ar: 'حسبة تجديد إقامة', en: 'Iqama Renewal Calc', hi: 'इक़ामा नवीनीकरण', ur: 'اقامہ تجدید حساب', bn: 'ইকামা নবায়ন হিসাব' },
+      workerSection: { ar: 'بيانات العامل والمنشأة والتجديد', en: 'Worker, Facility & Renewal', hi: 'कर्मचारी, प्रतिष्ठान और नवीनीकरण', ur: 'ملازم، ادارہ اور تجدید', bn: 'কর্মী, প্রতিষ্ঠান ও নবায়ন' },
+      workerCard: { ar: 'بيانات العامل', en: 'Worker Data', hi: 'कर्मचारी', ur: 'ملازم', bn: 'কর্মী' },
+      facilityCard: { ar: 'بيانات المنشأة', en: 'Facility Data', hi: 'प्रतिष्ठान', ur: 'ادارہ', bn: 'প্রতিষ্ঠান' },
+      renewalCard: { ar: 'بيانات التجديد', en: 'Renewal Data', hi: 'नवीनीकरण', ur: 'تجدید', bn: 'নবায়ন' },
+      facilityName: { ar: 'اسم المنشأة', en: 'Facility', hi: 'प्रतिष्ठान', ur: 'ادارہ', bn: 'প্রতিষ্ঠান' },
+      unifiedNo: { ar: 'الرقم الموحد', en: 'Unified No.', hi: 'एकीकृत संख्या', ur: 'متحدہ نمبر', bn: 'ইউনিফাইড নম্বর' },
+      molNo: { ar: 'رقم وزارة العمل', en: 'MOL No.', hi: 'श्रम मंत्रालय', ur: 'محنت نمبر', bn: 'শ্রম নম্বর' },
+      gosiNo: { ar: 'رقم التأمينات', en: 'GOSI No.', hi: 'जीओएसआई', ur: 'جوسی نمبر', bn: 'গোসি নম্বর' },
+      changeOccupation: { ar: 'تغيير المهنة', en: 'Change Occupation', hi: 'पेशा परिवर्तन', ur: 'پیشہ تبدیلی', bn: 'পেশা পরিবর্তন' },
+      exemptionLbl: { ar: 'الإعفاء', en: 'Exemption', hi: 'छूट', ur: 'استثنا', bn: 'অব্যাহতি' },
+      yes: { ar: 'نعم', en: 'Yes', hi: 'हाँ', ur: 'ہاں', bn: 'হ্যাঁ' },
+      no: { ar: 'لا', en: 'No', hi: 'नहीं', ur: 'نہیں', bn: 'না' },
       quoteNoLbl: { ar: 'رقم التسعيرة', en: 'Quote No.', hi: 'कोटेशन संख्या', ur: 'کوٹیشن نمبر', bn: 'কোটেশন নম্বর' },
       issueDate: { ar: 'تاريخ الإصدار', en: 'Issue Date', hi: 'जारी तिथि', ur: 'تاریخ اجرا', bn: 'ইস্যু তারিখ' },
       finalTotal: { ar: 'المجموع النهائي', en: 'Final Total', hi: 'कुल योग', ur: 'حتمی مجموعہ', bn: 'চূড়ান্ত মোট' },
@@ -389,6 +429,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       iqamaExpiryG: { ar: 'انتهاء الإقامة (ميلادي)', en: 'Iqama Expiry (G)', hi: 'इक़ामा समाप्ति', ur: 'اقامہ میعاد', bn: 'ইকামা মেয়াদ' },
       iqamaExpiryH: { ar: 'انتهاء الإقامة (هجري)', en: 'Iqama Expiry (H)', hi: 'इक़ामा (हिजरी)', ur: 'اقامہ (ہجری)', bn: 'ইকামা (হিজরি)' },
       renewalPeriod: { ar: 'مدة التجديد', en: 'Renewal Period', hi: 'नवीनीकरण अवधि', ur: 'تجدید مدت', bn: 'নবায়ন মেয়াদ' },
+      expectedExpiry: { ar: 'انتهاء الإقامة المتوقع', en: 'Expected Iqama Expiry', hi: 'अपेक्षित समाप्ति', ur: 'متوقع میعاد', bn: 'প্রত্যাশিত মেয়াদ' },
       officeFee: { ar: 'رسوم المكتب', en: 'Office Fee', hi: 'कार्यालय शुल्क', ur: 'دفتر فیس', bn: 'অফিস ফি' },
       iqamaRenewal: { ar: 'تجديد الإقامة', en: 'Iqama Renewal', hi: 'इक़ामा नवीनीकरण', ur: 'اقامہ تجدید', bn: 'ইকামা নবায়ন' },
       workPermit: { ar: 'رخصة العمل', en: 'Work Permit', hi: 'कार्य परमिट', ur: 'ورک پرمٹ', bn: 'ওয়ার্ক পারমিট' },
@@ -426,7 +467,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const nat = natOf(r)
     const natObj = { ar: nat?.name_ar || r.nationality || '', en: nat?.name_en || '', flag: nat?.flag_url || '' }
     const pickNat = (printLang === 'ar' || printLang === 'ur') ? (natObj.ar || natObj.en) : (natObj.en || natObj.ar)
-    const occ = r.occupation_name_ar || ''
+    const occ = r.occupation_name_ar || detailWorkerOcc || ''
     const changeProf = !!r.change_profession
     const newOcc = r.new_occupation_name_ar || ''
     const renMo = Number(r.renewal_months || 0)
@@ -437,8 +478,8 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const fLate = Number(r.late_fine_amount || 0)
     const officeFee = Number(r.office_fee || 0)
     const govExcess = Number(r.gov_excess || 0)
-    // الخصم = ما يغطيه المكتب من الرسوم الحكومية = (تجديد الإقامة + رخصة العمل + التأمين) − الزائد عن الحدود الحكومية
-    const cover = Math.max(0, fIqama + fWP + fMed - govExcess)
+    // الخصم = ما يغطيه المكتب من الرسوم الحكومية — مجمّد في عمود office_cover؛ الحساب احتياطي للسجلات القديمة
+    const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, fIqama + fWP + fMed - govExcess)
     const absher = Number(r.absher_discount || 0)
     const manualDisc = Number(r.manual_discount || 0)
     const finalTotal = Number(r.total_amount || 0)
@@ -449,7 +490,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const stKey = r.status === 'approved' ? 'statusApproved' : (r.status === 'invoiced' || r.status === 'completed') ? 'statusInvoiced' : r.status === 'cancelled' ? 'cancelled' : 'statusPriced'
     const moWord = printLang === 'ar' ? 'شهر' : printLang === 'en' ? (renMo === 1 ? 'month' : 'months') : printLang === 'hi' ? 'माह' : printLang === 'bn' ? 'মাস' : 'ماہ'
     const durLabel = renMo > 0 ? `${renMo} ${moWord}` : ''
-    const billedMos = (() => { let billed = renMo; const exp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null; if (exp && !isNaN(exp)) { const ref = dateVal ? new Date(dateVal) : new Date(); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0); if (exp < ref) { const end = new Date(ref); end.setMonth(end.getMonth() + renMo); let mm = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth()); let d = end.getDate() - exp.getDate(); if (d < 0) { mm -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() } billed = d > 0 ? mm + 1 : mm } } return billed })()
+    const billedMos = r.billed_renewal_months != null ? Number(r.billed_renewal_months) : (() => { let billed = renMo; const exp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null; if (exp && !isNaN(exp)) { const ref = dateVal ? new Date(dateVal) : new Date(); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0); if (exp < ref) { const end = new Date(ref); end.setMonth(end.getMonth() + renMo); let mm = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth()); let d = end.getDate() - exp.getDate(); if (d < 0) { mm -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() } billed = d > 0 ? mm + 1 : mm } } return billed })()
     const renIqamaSuffix = billedMos > 0 ? ` (${num2(billedMos)} ${moWord})` : ''
     const renSuffix = renMo > 0 ? ` (${num2(renMo)} ${moWord})` : ''
     const lineItems = [fIqama > 0 ? ['iqamaRenewal', fIqama] : null, fWP > 0 ? ['workPermit', fWP] : null, fProf > 0 ? ['profChange', fProf] : null, fMed > 0 ? ['medical', fMed] : null, fLate > 0 ? ['lateFine', fLate] : null].filter(Boolean)
@@ -464,12 +505,11 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
 <div class="hero-main">
 <div class="hero-eyebrow"><span class="star">★</span> ${lab('finalTotal')}</div>
 <div class="hero-amount"><span class="val">${num2(nm2(finalTotal))}</span><span class="cur">${curTxt}</span></div>
-<div class="hero-sub"><b>${esc(workerName)}</b></div>
 </div>
 <div class="hero-side">
 <div class="hero-fact"><div class="k">${lab('date')}</div><div class="v">${num2(fmtD2(dateVal))}</div></div>
 <div class="hero-fact"><div class="k">${lab('status')}</div><div class="v">${lab(stKey)}</div></div>
-${durLabel ? `<div class="hero-fact full"><div class="k">${lab('expectedDuration')}</div><div class="v remain">${esc(durLabel)}</div><div class="dur-note">${lab('notGuaranteed')}</div></div>` : ''}
+${durLabel ? `<div class="hero-fact full"><div class="k">${lab('expectedDuration')}</div><div class="v remain">${esc(durLabel)}</div></div>` : ''}
 </div>
 </section></div>`
 
@@ -477,35 +517,82 @@ ${durLabel ? `<div class="hero-fact full"><div class="k">${lab('expectedDuration
 
     const idLine = (iqamaNo && iqamaNo !== '—') ? kvRow(lab('iqamaNo'), num2(iqamaNo)) : ''
     const phoneLine = (phone && phone !== '—') ? kvRow(lab('phoneLbl'), num2(phone)) : ''
-    const personalCard = `<div class="card"><h4>${lab('personalInfo')}${natBadge()}</h4>${kvRow(lab('name'), esc(workerName), true)}${idLine}${phoneLine}${dob ? kvRow(lab('birthDate'), num2(fmtD2(dob))) : ''}${ageY != null ? kvRow(lab('age'), num2(ageY)) : ''}</div>`
-    const profRows = [
-      occ ? kvRow(lab('occupation'), esc(occ)) : '',
-      (changeProf && newOcc) ? kvRow(lab('newOccupation'), esc(newOcc)) : '',
-      renMo > 0 ? kvRow(lab('renewalPeriod'), `${num2(renMo)} ${moWord}`) : '',
-      r.iqama_expiry_gregorian ? kvRow(lab('iqamaExpiryG'), num2(fmtD2(r.iqama_expiry_gregorian))) : '',
-      r.iqama_expiry_hijri ? kvRow(lab('iqamaExpiryH'), num2(r.iqama_expiry_hijri)) : '',
+    // كرت العامل (تصميم الاسم البارز): الاسم في الترويسة، والحقول خلايا مكدّسة (التسمية فوق والقيمة تحتها).
+    const yrWord = printLang === 'ar' ? 'سنة' : printLang === 'en' ? 'yrs' : printLang === 'hi' ? 'वर्ष' : printLang === 'bn' ? 'বছর' : 'سال'
+    const dobVal = dob ? `${ageY != null ? `<span style="font-size:8px;color:var(--ink-soft)">(${num2(ageY)} ${yrWord})</span> ` : ''}${num2(fmtD2(dob))}` : ''
+    const nameDir = /[A-Za-z]/.test(workerName) ? 'ltr' : 'rtl'
+    const wcell = (k, v) => v ? `<div class="wh-cell"><span class="wh-cl">${k}</span><span class="wh-cv">${v}</span></div>` : ''
+    const workerFields = [
+      wcell(lab('iqamaNo'), (iqamaNo && iqamaNo !== '—') ? num2(iqamaNo) : ''),
+      wcell(lab('iqamaExpiryG'), r.iqama_expiry_gregorian ? num2(fmtD2(r.iqama_expiry_gregorian)) : ''),
+      wcell(lab('occupation'), occ ? esc(occ) : '—'),
+      wcell(lab('birthDate'), dobVal),
+      wcell(lab('phoneLbl'), (phone && phone !== '—') ? num2(phone) : ''),
     ].filter(Boolean).join('')
-    const profCard = profRows ? `<div class="card"><h4>${lab('professional')}</h4>${profRows}</div>` : ''
-    const workerBlk = secTitle('workerData') + `<div class="cards">${personalCard}${profCard}</div>`
+    const workerCard = `<div class="card"><div class="wh-head"><span class="wh-name" style="direction:rtl">${natBadge()}<span style="direction:${nameDir}">${esc(workerName)}</span></span><span class="wh-tag">${lab('workerCard')}</span><span class="wh-line"></span></div><div class="wh-grid">${workerFields}</div></div>`
+    // كرت المنشأة: منشأة العامل (مُشتقّة من سجل العامل)
+    const fac = detailFacility
+    const facName = fac ? ((printLang === 'en' ? (fac.name_en || fac.name_ar) : fac.name_ar) || '') : ''
+    const facFields = [
+      wcell(lab('unifiedNo'), fac && fac.unified_number ? num2(fac.unified_number) : ''),
+      wcell(lab('molNo'), fac && fac.hrsd_number ? num2(fac.hrsd_number) : ''),
+      wcell(lab('gosiNo'), fac && fac.gosi_number ? num2(fac.gosi_number) : ''),
+    ].filter(Boolean).join('')
+    const facIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b8932c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>`
+    const facilityCard = fac ? `<div class="card"><div class="wh-head"><span class="wh-name" style="direction:rtl">${facIcon}${esc(facName)}</span><span class="wh-tag">${lab('facilityCard')}</span><span class="wh-line"></span></div><div class="wh-grid">${facFields}</div></div>` : ''
+    // كرت التجديد (تصميم الاسم البارز): الإعفاء + مدة التجديد + التأمين الطبي + تغيير المهنة + المهنة الجديدة + انتهاء الإقامة
+    const yesNoTxt = v => v === true ? lab('yes') : v === false ? lab('no') : '—'
+    // تاريخ انتهاء الإقامة المتوقع = (تاريخ الانتهاء الحالي إن كان مستقبلاً، وإلا تاريخ التسعير) + مدة التجديد.
+    // تاريخ الانتهاء المتوقع — مجمّد في عمود expected_expiry_date؛ الحساب احتياطي للسجلات القديمة
+    const expExpiry = r.expected_expiry_date ? new Date(r.expected_expiry_date) : (() => {
+      if (!renMo) return null
+      const exp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null
+      const ref = dateVal ? new Date(dateVal) : new Date(today)
+      const base = (exp && !isNaN(exp) && exp > ref) ? new Date(exp) : new Date(ref)
+      if (isNaN(base)) return null
+      base.setMonth(base.getMonth() + renMo)
+      return base
+    })()
+    const renewalFields = [
+      wcell(lab('exemptionLbl'), yesNoTxt(r.exemption)),
+      wcell(lab('renewalPeriod'), renMo > 0 ? `${num2(renMo)} ${moWord}` : ''),
+      wcell(lab('expectedExpiry'), expExpiry ? num2(fmtD2(expExpiry)) : ''),
+      // التأمين الطبي إجباري ويُحتسب دائماً — يظهر كرسم في جدول الأسعار، فلا داعي لصف «نعم/لا» المضلّل
+      wcell(lab('changeOccupation'), yesNoTxt(r.change_profession)),
+      (changeProf && newOcc) ? wcell(lab('newOccupation'), esc(newOcc)) : '',
+      r.iqama_expiry_hijri ? wcell(lab('iqamaExpiryH'), num2(r.iqama_expiry_hijri)) : '',
+    ].filter(Boolean).join('')
+    const renIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b8932c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`
+    const renewalCard = renewalFields ? `<div class="card"${facilityCard ? ' style="grid-column:1/-1"' : ''}><div class="wh-head"><span class="wh-name" style="direction:rtl">${renIcon}${lab('renewalCard')}</span><span class="wh-line"></span></div><div class="wh-grid">${renewalFields}</div></div>` : ''
+    const workerBlk = secTitle('workerSection') + `<div class="cards">${workerCard}${facilityCard}${renewalCard}</div>`
 
     const priceRows = lineItems.map(([k, amt]) => `<tr><td>${lab(k)}${k === 'iqamaRenewal' ? renIqamaSuffix : k === 'workPermit' ? renSuffix : ''}</td><td class="l">${num2(nm2(amt))} ${cur}</td></tr>`).join('')
     const extraRows = extras.map(e => `<tr><td>${esc(e.name || '')}</td><td class="l">${num2(nm2(Number(e.amount)))} ${cur}</td></tr>`).join('')
-    const coverRow = cover > 0 ? `<tr><td>${lab('discount')}</td><td class="l" style="color:var(--ok)">- ${num2(nm2(cover))} ${cur}</td></tr>` : ''
+    const coverRow = cover > 0 ? `<tr><td>${lab('discount')}</td><td class="l" style="color:var(--ok)">${num2(nm2(cover))} ${cur}</td></tr>` : ''
     const officeRow = officeFee > 0 ? `<tr><td>${lab('officeFee')}</td><td class="l">${num2(nm2(officeFee))} ${cur}</td></tr>` : ''
-    const priceTbl = `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${priceRows}${extraRows}${coverRow}${officeRow}<tr class="total-row"><td>${lab('subtotal')}</td><td class="l">${num2(nm2(subtotalV))} ${cur}</td></tr></tbody></table>`
-    const sumRows = `<div class="sum-row"><span class="k">${lab('subtotal')}</span><span class="v">${num2(nm2(subtotalV))} ${cur}</span></div>` + (absher > 0 ? `<div class="sum-row paid"><span class="k">${lab('absherDiscount')}</span><span class="v">- ${num2(nm2(absher))} ${cur}</span></div>` : '') + (manualDisc > 0 ? `<div class="sum-row paid"><span class="k">${lab('officeDiscount')}</span><span class="v">- ${num2(nm2(manualDisc))} ${cur}</span></div>` : '') + `<div class="sum-row remain"><span class="k">${lab('finalTotal')}</span><span class="v">${num2(nm2(finalTotal))} ${cur}</span></div>`
+    const priceTbl = `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${priceRows}${extraRows}${officeRow}${coverRow}<tr class="total-row"><td>${lab('subtotal')}</td><td class="l">${num2(nm2(subtotalV))} ${cur}</td></tr></tbody></table>`
+    const sumRows = `<div class="sum-row"><span class="k">${lab('subtotal')}</span><span class="v">${num2(nm2(subtotalV))} ${cur}</span></div>` + (absher > 0 ? `<div class="sum-row paid"><span class="k">${lab('absherDiscount')}</span><span class="v">${num2(nm2(absher))} ${cur}</span></div>` : '') + (manualDisc > 0 ? `<div class="sum-row paid"><span class="k">${lab('officeDiscount')}</span><span class="v">${num2(nm2(manualDisc))} ${cur}</span></div>` : '') + `<div class="sum-row remain"><span class="k">${lab('finalTotal')}</span><span class="v">${num2(nm2(finalTotal))} ${cur}</span></div>`
     const summaryBlk = `<div class="summary-card">${sumRows}</div>`
     const priceSummaryBlk = secTitle('pricing') + `<div class="price-summary">${priceTbl}${summaryBlk}</div>`
 
     const noticeByLang = {
-      ar: 'هذه التسعيرة تقديرية وقابلة للتغيير وفق الرسوم الحكومية وقت تنفيذ المعاملة، وصلاحيتها محدودة من تاريخ إصدارها.',
-      en: 'This quotation is an estimate, subject to change per government fees at the time of processing, and valid for a limited period from its issue date.',
-      hi: 'यह कोटेशन एक अनुमान है, जो प्रसंस्करण के समय सरकारी शुल्क के अनुसार बदल सकता है, और जारी होने की तिथि से सीमित अवधि के लिए वैध है।',
-      ur: 'یہ کوٹیشن تخمینی ہے، کارروائی کے وقت سرکاری فیس کے مطابق تبدیل ہو سکتی ہے، اور اجرا کی تاریخ سے محدود مدت کے لیے کارآمد ہے۔',
-      bn: 'এই কোটেশনটি একটি প্রাক্কলন, যা প্রক্রিয়াকরণের সময় সরকারি ফি অনুযায়ী পরিবর্তিত হতে পারে এবং ইস্যু তারিখ থেকে সীমিত সময়ের জন্য বৈধ।',
+      ar: 'هذه التسعيرة تقديرية وقابلة للتغيير وفق الرسوم الحكومية وقت تنفيذ المعاملة، وصلاحيتها 4 أيام من تاريخ إصدارها.',
+      en: 'This quotation is an estimate, subject to change per government fees at the time of processing, and valid for 4 days from its issue date.',
+      hi: 'यह कोटेशन एक अनुमान है, जो प्रसंस्करण के समय सरकारी शुल्क के अनुसार बदल सकता है, और जारी होने की तिथि से 4 दिनों के लिए वैध है।',
+      ur: 'یہ کوٹیشن تخمینی ہے، کارروائی کے وقت سرکاری فیس کے مطابق تبدیل ہو سکتی ہے، اور اجرا کی تاریخ سے 4 دن کے لیے کارآمد ہے۔',
+      bn: 'এই কোটেশনটি একটি প্রাক্কলন, যা প্রক্রিয়াকরণের সময় সরকারি ফি অনুযায়ী পরিবর্তিত হতে পারে এবং ইস্যু তারিখ থেকে ৪ দিনের জন্য বৈধ।',
     }
-    const noticePrimary = noticeByLang[printLang] || noticeByLang.en
-    const noticeBlk = `<div class="notice"><div class="ttl">⚠ ${lab('importantNotice')}</div><div class="ar">${esc(noticePrimary)}</div>${printLang === 'en' ? '' : `<div class="en">${esc(noticeByLang.en)}</div>`}</div>`
+    const noticeFullByLang = {
+      ar: 'هذه التسعيرة تقديرية وقابلة للتغيير وفق الرسوم الحكومية وقت تنفيذ المعاملة وصلاحيتها 4 أيام من تاريخ إصدارها، وتتأكد بعد التصديق عليها، والمستند المعتمد للمحاسبة هو الفاتورة الصادرة بعدها وليست هذه الحسبة.',
+      en: 'This quotation is an estimate, subject to change per government fees at the time of processing and valid for 4 days from its issue date, confirmed only upon certification, with the invoice issued thereafter — not this quote — being the accountable document for billing.',
+      hi: 'यह कोटेशन एक अनुमान है, जो प्रसंस्करण के समय सरकारी शुल्क के अनुसार बदल सकता है और जारी होने की तिथि से 4 दिनों के लिए वैध है, प्रमाणन के बाद ही पुष्ट होता है, तथा बिलिंग के लिए उत्तरदायी दस्तावेज़ बाद में जारी चालान है, यह कोटेशन नहीं।',
+      ur: 'یہ کوٹیشن تخمینی ہے، کارروائی کے وقت سرکاری فیس کے مطابق تبدیل ہو سکتی ہے اور اجرا کی تاریخ سے 4 دن کے لیے کارآمد ہے، تصدیق کے بعد ہی حتمی ہوتی ہے، اور حساب کتاب کے لیے معتبر دستاویز بعد میں جاری ہونے والا انوائس ہے، یہ کوٹیشن نہیں۔',
+      bn: 'এই কোটেশনটি একটি প্রাক্কলন, যা প্রক্রিয়াকরণের সময় সরকারি ফি অনুযায়ী পরিবর্তিত হতে পারে এবং ইস্যু তারিখ থেকে ৪ দিনের জন্য বৈধ, অনুমোদনের পরেই নিশ্চিত হয়, এবং বিলিংয়ের জন্য দায়বদ্ধ নথি হলো পরে ইস্যু করা চালান, এই কোটেশন নয়।',
+    }
+    const showBinding = !cancelled && r.status !== 'invoiced' && r.status !== 'completed'
+    const noticeSrc = showBinding ? noticeFullByLang : noticeByLang
+    const noticePrimary = noticeSrc[printLang] || noticeSrc.en
+    const noticeBlk = `<div class="notice"><div class="ttl">⚠ ${lab('importantNotice')}</div><div class="ar">${esc(noticePrimary)}</div></div>`
     const wm = cancelled ? `<div class="cancel-wm">${lab('cancelled')}</div>` : ''
 
     const html = `<!DOCTYPE html><html dir="${rtl ? 'rtl' : 'ltr'}" lang="${printLang}"><head><meta charset="utf-8"><title>${lab('renewalQuote')} ${esc(quoteNo)}</title>
@@ -531,7 +618,7 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .masthead .corner.tr{top:5mm;left:5mm;border-top:1.5px solid var(--gold);border-left:1.5px solid var(--gold)}
 .mast-row{display:flex;justify-content:space-between;align-items:stretch;gap:14px}
 .inv-id{display:flex;flex-direction:column}
-.inv-id .office-code{margin-top:auto;align-self:flex-end}
+.inv-id .office-code{margin-top:8px;align-self:flex-end}
 .brand{display:flex;flex-direction:column;align-items:flex-start}
 .brand .group{font-family:'Playfair Display',serif;font-weight:700;font-size:23px;color:var(--gold);letter-spacing:.5px;direction:ltr;line-height:1.05;margin-bottom:16px}
 .brand .name-ar{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:16.5px;color:var(--gold-soft);letter-spacing:.3px;line-height:1.2}
@@ -552,7 +639,7 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .hero-wrap{padding:5mm 14mm 0}
 .svc-type{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:3.5mm}
 .svc-type .svc-name{font-family:'Reem Kufi',sans-serif;font-size:24px;font-weight:700;color:var(--charcoal);letter-spacing:.3px}
-.hero{background:linear-gradient(140deg,#1c1810 0%,#14110b 60%,#0c0904 100%);color:#fff;position:relative;padding:6mm 8mm 5.5mm;display:flex;gap:8mm;align-items:stretch;border:1px solid #2c2517}
+.hero{background:linear-gradient(140deg,#1c1810 0%,#14110b 60%,#0c0904 100%);color:#fff;position:relative;padding:3.5mm 8mm 3.5mm;display:flex;gap:8mm;align-items:center;border:1px solid #2c2517}
 .hero::before{content:"";position:absolute;inset:0;border:1px solid rgba(212,175,55,.32);margin:5px;pointer-events:none}
 .hero .corner{position:absolute;width:20px;height:20px;z-index:2}
 .hero .corner.tl{top:0;right:0;border-top:2px solid var(--gold);border-right:2px solid var(--gold)}
@@ -562,8 +649,8 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .hero-main{flex:0 0 auto;min-width:72mm;position:relative;z-index:1}
 .hero-eyebrow{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:15.5px;letter-spacing:.5px;color:var(--gold-soft)}
 .hero-eyebrow .star{color:var(--gold);font-size:14.5px}
-.hero-amount{display:flex;align-items:baseline;gap:9px;margin-top:5px}
-.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:48px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+.hero-amount{display:flex;align-items:baseline;gap:9px;margin-top:3px}
+.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:40px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
 .hero-amount .cur{font-size:19px;color:var(--gold-soft);font-weight:500;font-family:'Reem Kufi',sans-serif}
 .riyal{margin-inline-start:5px;white-space:nowrap}
 .flag{width:21px;height:14px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.18);vertical-align:middle;margin-inline-start:7px}
@@ -584,7 +671,15 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .sec-title .ln{flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--hair))}
 [dir=ltr] .sec-title .ln{background:linear-gradient(90deg,var(--hair),transparent)}
 .cards{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
-.card{border:1px solid var(--line);border-top:2px solid var(--gold);background:#fff;padding:3.5mm 4mm 3mm}
+.card{border:1px solid var(--line);background:#fff;padding:3.5mm 4mm 3mm}
+.wh-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.wh-name{font-size:13px;font-weight:700;color:var(--ink);display:inline-flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
+.wh-tag{font-size:9px;color:#9a917b;letter-spacing:.5px;white-space:nowrap;flex:0 0 auto}
+.wh-line{flex:1;height:1px;background:#ece5d3;min-width:8px;align-self:center}
+.wh-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 6mm}
+.wh-cell{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:1.5px 0;border-bottom:1px dotted #ece5d3}
+.wh-cl{font-size:9px;color:var(--ink-soft);white-space:nowrap}
+.wh-cv{font-size:10px;font-weight:600;color:var(--ink);text-align:end}
 .card h4{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;color:var(--gold-deep);margin-bottom:2.5mm;letter-spacing:.3px;display:flex;justify-content:flex-start;align-items:center}
 .kv{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;border-bottom:1px dotted #ece5d3}
 .kv:last-child{border-bottom:0}
@@ -683,7 +778,7 @@ ${noticeBlk}
     </div>
   )
 
-  if (loading) return <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, direction: 'rtl' }}>{listHeader}<RnwSkeleton /></div>
+  if (loading) return <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, direction: dir }}>{listHeader}<RnwSkeleton /></div>
 
   // ═══════════════ شاشة التفاصيل ═══════════════
   if (detailsRow) {
@@ -702,8 +797,9 @@ ${noticeBlk}
     const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
     const cardTitle = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }
     const srcLabel = m => (m.l[lang === 'en' ? 'en' : 'ar'])
-    // زر «تعديل» موحّد لرأس الكرت
-    const editBtn = (card) => <button onClick={() => openCardEdit(card)} style={{ marginInlineStart: 'auto', height: 28, padding: '0 12px', borderRadius: 8, background: 'transparent', border: '1px dashed ' + C.gold + '80', color: C.gold, fontFamily: F, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.background = C.gold + '1a' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>{T('تعديل', 'Edit')}</button>
+    // زر «تعديل» موحّد لرأس الكرت — مُقيَّد بصلاحية تعديل الكرت + السماح بفتح نافذة التعديل
+    const EDIT_CARD_MAP = { worker: 'worker_data', professional: 'worker_data', renewal: 'renewal_options', pricing: 'pricing' }
+    const editBtn = (card) => { const ck = EDIT_CARD_MAP[card] || card; return (!canCardBtn(user, 'renewal_calc', ck, 'edit') || !modalAllowed(user, 'renewal_calc', 'edit_card')) ? null : <button onClick={() => openCardEdit(card)} style={{ marginInlineStart: 'auto', height: 28, padding: '0 12px', borderRadius: 8, background: 'transparent', border: '1px dashed ' + C.gold + '80', color: C.gold, fontFamily: F, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.background = C.gold + '1a' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>{T('تعديل', 'Edit')}</button> }
     // سجل تغييرات الكرت — يجمع قيود iqama_renewal_calculation_audit لحقول الكرت (الشخص · كان→صار · التاريخ والوقت)
     const fmtAuditVal = (k, v) => {
       if (v === null || v === undefined || v === '') return '—'
@@ -721,7 +817,7 @@ ${noticeBlk}
         <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>{T('سجل التغييرات', 'Change Log')}</div>
         {entries.map((a, i) => { const who = nameOf(usersById[a.changed_by]); const dt = new Date(a.changed_at); const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); return <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.7, wordBreak: 'break-word' }}>{rcFieldLabel(a._k)}: <span style={{ color: 'var(--tx4)' }}>{T('كان', 'was')} </span><span style={{ color: '#e5867a', textDecoration: 'line-through' }}>{fmtAuditVal(a._k, a.old_value)}</span><span style={{ color: 'var(--tx4)' }}> {T('صار', '→')} </span><span style={{ color: '#27a046' }}>{fmtAuditVal(a._k, a.new_value)}</span></div>
-          <div style={{ display: 'flex', direction: 'rtl', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--tx5)' }}>{who ? <span style={{ fontWeight: 600, color: C.gold }}>{who}</span> : <span />}<span style={{ display: 'inline-flex', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtD(a.changed_at)}</span><span>{hhmm}</span></span></div>
+          <div style={{ display: 'flex', direction: dir, justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--tx5)' }}>{who ? <span style={{ fontWeight: 600, color: C.gold }}>{who}</span> : <span />}<span style={{ display: 'inline-flex', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtD(a.changed_at)}</span><span>{hhmm}</span></span></div>
         </div> })}
       </div>
     }
@@ -734,14 +830,14 @@ ${noticeBlk}
       return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 600, background: m.c + '18', color: m.c, letterSpacing: '.2px', whiteSpace: 'nowrap', flexShrink: 0 }}>{ents.length > 1 ? '✎ ' : ''}{editorName || srcLabel(m)}</span>
     }
     const gridCard = (title, nameField, cells, flagUrl, dotColor, editCard, auditKeys) => {
-      const ff = cells.filter(Boolean)
+      const ff = cells.filter(Boolean).filter(c => fieldVisible(user, 'renewal_calc', c.fk || c.key))
       return <div style={cardChrome}>
         <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor || C.gold }} /><span style={cardTitle}>{title}</span>{flagUrl && <img src={flagUrl} alt="" style={{ width: 22, height: 16, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />}{editCard && editBtn(editCard)}</div>
         <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {nameField && <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{nameField.label}</span>{srcBadge(nameField.key)}</span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
-              <CopyBtn text={nameField.value} />
+              <CopyBtn text={nameField.value} lang={lang} />
               <span style={{ fontSize: 14, color: 'var(--tx1)', fontWeight: 600, lineHeight: 1.4, direction: nameField.ltr ? 'ltr' : 'rtl', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>{nameField.value || '—'}</span>
             </span>
           </div>}
@@ -750,7 +846,7 @@ ${noticeBlk}
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{f.label}</span>{srcBadge(f.key)}</span>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
                 {f.tag && <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', flexShrink: 0 }}>{f.tag}</span>}
-                <CopyBtn text={f.copy != null ? f.copy : f.value} />
+                <CopyBtn text={f.copy != null ? f.copy : f.value} lang={lang} />
                 <span style={{ fontSize: 13, color: f.color || 'var(--tx2)', fontWeight: 600, lineHeight: 1.4, wordBreak: 'break-word', minWidth: 0, ...(f.mono ? { fontFamily: 'monospace', direction: 'ltr', fontVariantNumeric: 'tabular-nums' } : { direction: 'rtl', textAlign: 'right' }) }}>{f.value || '—'}</span>
               </span>
             </div>)}
@@ -759,6 +855,35 @@ ${noticeBlk}
         </div>
       </div>
     }
+
+    // بطاقة «هيرو» للعامل/المنشأة — مطابقة لتصميم كرت «العامل والمنشأة» في تفاصيل الفاتورة.
+    const EntityHero = ({ icon, primary, secondary, latin, cells }) => (
+      <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>{icon}</div>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+              <CopyBtn text={primary} lang={lang} />
+              <span style={{ minWidth: 0, fontSize: 15.5, fontWeight: 600, color: C.gold, letterSpacing: '-.2px', direction: latin ? 'ltr' : 'rtl', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primary || '—'}</span>
+            </span>
+            {secondary && <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: 'right', opacity: .7 }}>{secondary}</span>}
+          </div>
+        </div>
+        {cells.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, cells.length))},1fr)`, gap: 8 }}>
+            {cells.map((c, i) => (
+              <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, ...(c.span ? { gridColumn: `span ${c.span}` } : {}) }}>
+                <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+                  {!c.rtl && <CopyBtn text={c.value} lang={lang} />}
+                  <span style={{ minWidth: 0, fontSize: 13, color: c.color || (c.value ? 'var(--tx2)' : 'var(--tx4)'), fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(c.value && !c.rtl ? { direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : { direction: 'rtl', textAlign: 'right' }) }}>{c.value || '—'}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
 
     // بطاقة التسعير — سطر لكل رسم، ثم الإجمالي
     const feeLine = (label, amount, opts = {}) => { if (!amount && !opts.always) return null; return <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed rgba(255,255,255,.05)', gap: 10 }}>
@@ -779,7 +904,7 @@ ${noticeBlk}
       return s
     })()
 
-    return <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)', direction: 'rtl' }}>
+    return <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)', direction: dir }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 }}>
           <BackButton onBack={() => setDetailsRow(null)} label={T('رجوع', 'Back')} />
@@ -833,34 +958,51 @@ ${noticeBlk}
         </div>
       </div>
 
-      <div style={{ direction: 'rtl', display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+      <div style={{ direction: dir, display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-          {cardVisible(user, 'renewal_calc', 'worker_data') && gridCard(T('بيانات العامل', 'Worker'), { label: T('الاسم', 'Name'), value: r.worker_name, ltr: /[A-Za-z]/.test(r.worker_name || ''), key: 'worker_name' }, [
-            { label: T('رقم الإقامة', 'Iqama No'), value: r.iqama_number, mono: true, key: 'iqama_number' },
-            { label: T('رقم الجوال', 'Phone'), value: r.phone ? String(r.phone).replace(/^\+?966/, '0') : null, mono: true, key: 'phone' },
-            { label: T('تاريخ الميلاد', 'Birth Date'), value: r.dob ? fmtD(r.dob) : null, copy: r.dob ? fmtD(r.dob) : null, mono: true, key: 'dob', tag: ageYears != null ? ageYears + ' ' + T('سنة', 'y') : null },
-          ], natFlag, C.gold, 'worker', CARD_FIELDS.worker)}
+          {/* كرت «العامل والمنشأة» — تصميم هيرو مطابق لتفاصيل الفاتورة (هيرو العامل + هيرو المنشأة) */}
+          {cardVisible(user, 'renewal_calc', 'worker_data') && (
+            <div style={cardChrome}>
+              <div style={cardHeader}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+                <span style={cardTitle}>{T('العامل والمنشأة', 'Worker & Facility')}</span>
+                {natFlag && <img src={natFlag} alt="" style={{ width: 22, height: 16, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />}
+                {editBtn('worker')}
+              </div>
+              <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <EntityHero
+                  icon={natFlag ? <img src={natFlag} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 11 }} /> : <User size={24} color={C.gold} strokeWidth={1.8} />}
+                  primary={fieldVisible(user, 'renewal_calc', 'worker_name') ? r.worker_name : '—'} secondary={null} latin={/[A-Za-z]/.test(r.worker_name || '')}
+                  cells={[
+                    { fk: 'iqama_number', label: T('رقم الإقامة', 'Iqama No'), value: r.iqama_number },
+                    { fk: 'rd_iqama_expiry', label: T('انتهاء الإقامة', 'Iqama Expiry'), value: r.iqama_expiry_gregorian ? fmtD(r.iqama_expiry_gregorian) : null, color: r.iqama_expired ? C.red : (r.iqama_expiry_gregorian ? '#27a046' : undefined) },
+                    { fk: 'rd_occupation', label: T('المهنة الحالية', 'Current Occupation'), value: r.occupation_name_ar || detailWorkerOcc || null, rtl: true },
+                    { fk: 'dob', label: T('العمر', 'Age'), value: ageYears != null ? ageYears + ' ' + T('سنة', 'y') : null, rtl: true },
+                    { fk: 'phone', label: T('رقم الجوال', 'Phone'), value: r.phone ? String(r.phone).replace(/^\+?966/, '0') : null, span: 2 },
+                  ].filter(c => fieldVisible(user, 'renewal_calc', c.fk))} />
+                {detailFacility && (
+                  <EntityHero
+                    icon={<Building2 size={24} color={C.gold} strokeWidth={1.8} />}
+                    primary={lang === 'en' ? (detailFacility.name_en || detailFacility.name_ar) : detailFacility.name_ar} secondary={null} latin={false}
+                    cells={[
+                      { fk: 'rd_fac_unified', label: T('الرقم الموحد', 'Unified No'), value: detailFacility.unified_number },
+                      { fk: 'rd_fac_hrsd', label: T('رقم وزارة العمل', 'MOL No'), value: detailFacility.hrsd_number },
+                      { fk: 'rd_fac_gosi', label: T('رقم التأمينات', 'GOSI No'), value: detailFacility.gosi_number },
+                    ].filter(c => fieldVisible(user, 'renewal_calc', c.fk))} />
+                )}
+                {auditLog(CARD_FIELDS.worker)}
+              </div>
+            </div>
+          )}
 
-          {cardVisible(user, 'renewal_calc', 'professional_data') && gridCard(T('البيانات المهنية', 'Professional Data'), null, [
-            { label: T('انتهاء الإقامة (ميلادي)', 'Iqama Expiry (G)'), value: r.iqama_expiry_gregorian ? fmtD(r.iqama_expiry_gregorian) : null, mono: true, key: 'iqama_expiry_gregorian', color: r.iqama_expired ? C.red : (r.iqama_expiry_gregorian ? '#27a046' : undefined) },
-            { label: T('انتهاء الإقامة (هجري)', 'Iqama Expiry (H)'), value: r.iqama_expiry_hijri || null, mono: true, key: 'iqama_expiry_hijri' },
-            { label: T('المهنة', 'Occupation'), value: r.occupation_name_ar, key: 'occupation_name_ar' },
-          ], null, C.gold, 'professional', CARD_FIELDS.professional)}
-
-          {cardVisible(user, 'renewal_calc', 'renewal_options') && gridCard(T('خيارات التجديد', 'Renewal Options'), null, [
+          {cardVisible(user, 'renewal_calc', 'renewal_options') && gridCard(T('التجديد', 'Renewal'), null, [
+            { label: T('الإعفاء', 'Exemption'), value: yesNo(r.exemption), color: r.exemption === true ? C.gold : (r.exemption === false ? 'var(--tx2)' : 'var(--tx5)'), key: 'exemption' },
             { label: T('مدة التجديد', 'Renewal Period'), value: r.renewal_months ? r.renewal_months + ' ' + T('شهر', 'mo') : null, color: C.gold, key: 'renewal_months' },
             { label: T('تغيير المهنة', 'Change Occupation'), value: yesNo(r.change_profession), color: r.change_profession === true ? C.gold : (r.change_profession === false ? 'var(--tx2)' : 'var(--tx5)'), key: 'change_profession' },
             r.change_profession && r.new_occupation_name_ar ? { label: T('المهنة الجديدة', 'New Occupation'), value: r.new_occupation_name_ar, color: C.gold, key: 'new_occupation_name_ar' } : null,
-            { label: T('الإعفاء', 'Exemption'), value: yesNo(r.exemption), color: r.exemption === true ? C.gold : (r.exemption === false ? 'var(--tx2)' : 'var(--tx5)'), key: 'exemption' },
             r.work_permit_expiry ? { label: T('انتهاء رخصة العمل', 'Work Permit Expiry'), value: fmtD(r.work_permit_expiry), mono: true, key: 'work_permit_expiry' } : null,
           ], null, C.gold, 'renewal', CARD_FIELDS.renewal)}
 
-          {/* كرت المنشأة — منشأة العامل (مُشتقّة من سجل العامل) */}
-          {detailFacility && gridCard(T('المنشأة', 'Establishment'), { label: T('اسم المنشأة', 'Establishment Name'), value: lang === 'en' ? (detailFacility.name_en || detailFacility.name_ar) : detailFacility.name_ar }, [
-            { label: T('الرقم الموحد', 'Unified No'), value: detailFacility.unified_number, mono: true },
-            { label: T('رقم وزارة العمل', 'MOL No'), value: detailFacility.hrsd_number, mono: true },
-            { label: T('رقم التأمينات', 'GOSI No'), value: detailFacility.gosi_number, mono: true },
-          ], null, C.gold)}
 
           {cardVisible(user, 'renewal_calc', 'pricing') && (
           <div style={{ background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }}>
@@ -874,10 +1016,11 @@ ${noticeBlk}
             {(() => {
               const nmSar = v => (v === null || v === undefined || v === '') ? '—' : nm(v) + ' ' + T('ريال', 'SAR')
               const renMonths = Number(r.renewal_months || 0)
-              const billedIqamaMos = (() => { let billed = renMonths; const exp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null; if (exp && !isNaN(exp)) { const ref = r.priced_at ? new Date(r.priced_at) : new Date(); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0); if (exp < ref) { const end = new Date(ref); end.setMonth(end.getMonth() + renMonths); let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth()); let d = end.getDate() - exp.getDate(); if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() } billed = d > 0 ? m + 1 : m } } return billed })()
+              // القيم المشتقّة مجمّدة في أعمدة وقت الإصدار؛ الحساب أدناه احتياطي للسجلات القديمة فقط.
+              const billedIqamaMos = r.billed_renewal_months != null ? Number(r.billed_renewal_months) : (() => { let billed = renMonths; const exp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null; if (exp && !isNaN(exp)) { const ref = r.priced_at ? new Date(r.priced_at) : new Date(); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0); if (exp < ref) { const end = new Date(ref); end.setMonth(end.getMonth() + renMonths); let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth()); let d = end.getDate() - exp.getDate(); if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() } billed = d > 0 ? m + 1 : m } } return billed })()
               const renIqamaSuffix = billedIqamaMos > 0 ? T(` (${billedIqamaMos} شهر)`, ` (${billedIqamaMos} mo)`) : ''
               const renSuffix = renMonths > 0 ? T(` (${renMonths} شهر)`, ` (${renMonths} mo)`) : ''
-              const cover = Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0))
+              const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0))
               const officeFeeV = Number(r.office_fee || 0); const subtotalV = Number(r.subtotal || 0); const totalV = Number(r.total_amount || 0)
               const lineItems = [
                 Number(r.iqama_renewal_fee || 0) > 0 ? [T('تجديد الإقامة', 'Iqama Renewal') + renIqamaSuffix, r.iqama_renewal_fee, null] : null,
@@ -897,7 +1040,7 @@ ${noticeBlk}
                   {Number(r.absher_discount || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(r.absher_discount || 0))}</span></div>}
                   {Number(r.manual_discount || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(r.manual_discount || 0))}</span></div>}
                 </div>}
-                <div style={{ margin: '10px 22px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#1b1b1b', borderRadius: 12, borderRight: '3px solid ' + C.gold }}><span style={{ color: C.gold, fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{nm(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>
+                <div style={{ margin: '10px 22px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#1b1b1b', borderRadius: 12, borderInlineStart: '3px solid ' + C.gold }}><span style={{ color: C.gold, fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{nm(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>
                 <div style={{ padding: '0 22px 16px' }}>{auditLog(CARD_FIELDS.pricing)}</div>
               </>
             })()}
@@ -905,7 +1048,7 @@ ${noticeBlk}
           )}
 
           {/* كرت التعليقات — خط زمني يدمج التعليقات مع معالم المراحل (تسعير/تصديق/فوترة) */}
-          <div style={cardChrome}>
+          {cardVisible(user, 'renewal_calc', 'comments') && (<div style={cardChrome}>
             <div style={{ padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.blue, letterSpacing: '.2px' }}>{T('التعليقات', 'Comments')}</span></div>
             <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(() => {
@@ -917,7 +1060,7 @@ ${noticeBlk}
                 const timeline = [...quoteNotes.map(n => ({ kind: 'note', ts: n.created_at, n })), ...milestones].sort((a, b) => new Date(a.ts) - new Date(b.ts))
                 return timeline.map((ev, i) => {
                   if (ev.kind === 'ms') { const md = new Date(ev.ts); const mhhmm = String(md.getHours()).padStart(2, '0') + ':' + String(md.getMinutes()).padStart(2, '0'); return (
-                    <div key={'ms-' + i} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0', direction: 'rtl' }}>
+                    <div key={'ms-' + i} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0', direction: dir }}>
                       <span style={{ flex: 1, height: 1, background: ev.color + '33' }} />
                       <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '0 6px', flexShrink: 0 }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: ev.color }} /><span style={{ fontSize: 11, fontWeight: 700, color: ev.color }}>{ev.label}</span></span>
@@ -929,13 +1072,13 @@ ${noticeBlk}
                     <div key={n.id} style={{ background: 'rgba(0,0,0,.18)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid rgba(255,255,255,.05)' }}>
                       <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>
                       {Array.isArray(n.attachments) && n.attachments.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{n.attachments.map((a, j) => <a key={a.id || j} href={a.file_url} target="_blank" rel="noreferrer" title={a.file_name || T('مرفق', 'Attachment')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: C.gold, textDecoration: 'none' }}><Paperclip size={12} strokeWidth={2} /><span style={{ textDecoration: 'underline', textUnderlineOffset: 3, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{a.file_name || (T('مرفق', 'Attachment') + ' ' + (j + 1))}</span></a>)}</div>}
-                      <div style={{ display: 'flex', direction: 'rtl', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)' }}>{who ? <span style={{ fontWeight: 600, color: C.gold }}>{who}</span> : <span />}<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtD(n.created_at)}</span><span>{hhmm}</span></span></div>
+                      <div style={{ display: 'flex', direction: dir, justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)' }}>{who ? <span style={{ fontWeight: 600, color: C.gold }}>{who}</span> : <span />}<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtD(n.created_at)}</span><span>{hhmm}</span></span></div>
                     </div>) })
               })()}
               {quoteNotes.length === 0 && <span style={{ fontSize: 11.5, color: 'var(--tx5)' }}>{T('لا توجد تعليقات بعد', 'No comments yet')}</span>}
-              <button onClick={() => setQuoteNoteModal(true)} onMouseEnter={e => { e.currentTarget.style.background = C.blue + '1f' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }} style={{ alignSelf: 'stretch', justifyContent: 'center', height: 42, padding: '0 16px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + C.blue + '80', color: C.blue, fontFamily: F, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: '.15s' }}>{T('إضافة تعليق', 'Add comment')}<Plus size={15} strokeWidth={2.4} /></button>
+              {modalAllowed(user, 'renewal_calc', 'add_comment') && <button onClick={() => setQuoteNoteModal(true)} onMouseEnter={e => { e.currentTarget.style.background = C.blue + '1f' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }} style={{ alignSelf: 'stretch', justifyContent: 'center', height: 42, padding: '0 16px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + C.blue + '80', color: C.blue, fontFamily: F, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: '.15s' }}>{T('إضافة تعليق', 'Add comment')}<Plus size={15} strokeWidth={2.4} /></button>}
             </div>
-          </div>
+          </div>)}
         </div>
 
         {/* العمود الجانبي — الملخص المالي + التصديق + الطباعة + سجل المراحل */}
@@ -948,11 +1091,12 @@ ${noticeBlk}
             const manual = Number(r.manual_discount || 0)
             const govExcess = Number(r.gov_excess || 0)
             const renMo = Number(r.renewal_months || 0)
+            // القيم المشتقّة مجمّدة في أعمدة وقت الإصدار/التصديق/التعديل؛ الحساب احتياطي للسجلات القديمة فقط.
             // الخصم (تغطية المكتب من الرسوم الحكومية) = (تجديد الإقامة + رخصة العمل + التأمين) − الزائد عن الحدود الحكومية
-            const cover = Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - govExcess)
-            const officeNet = Math.max(0, officeFee - cover - manual)
+            const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - govExcess)
+            const officeNet = r.office_fee_net != null ? Number(r.office_fee_net) : Math.max(0, officeFee - cover - manual)
             // كل الرسوم الحكومية الكاملة (تجديد الإقامة + رخصة العمل + التأمين + غرامة التأخّر + تغيير المهنة)
-            const govFeesTotal = Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) + Number(r.late_fine_amount || 0) + Number(r.prof_change_fee || 0)
+            const govFeesTotal = r.government_fees != null ? Number(r.government_fees) : Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) + Number(r.late_fine_amount || 0) + Number(r.prof_change_fee || 0)
             const twoNames = (nameOf(r.priced_user || r.created_user) || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ')
             // بطاقة داكنة بشريط لون عمودي — مطابقة لبطاقات كرت المبلغ الإجمالي في الفاتورة
             const Pill = ({ color, label, value }) => (
@@ -992,16 +1136,18 @@ ${noticeBlk}
               </div>
               {/* فوتر: الخصومات + المدة المتوقعة + الإنتهاء المتوقع + الفاتورة — مطابق لتفاصيل نقل الكفالة */}
               {(() => {
+                // القيم المشتقّة مجمّدة في أعمدة؛ الحساب احتياطي للسجلات القديمة فقط.
                 const iqExp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null
                 const base = (iqExp && !isNaN(iqExp) && iqExp > new Date()) ? new Date(iqExp) : new Date()
-                const expExpiry = renMo > 0 ? (() => { const d = new Date(base); d.setMonth(d.getMonth() + renMo); return d.toISOString().slice(0, 10) })() : null
+                const expExpiry = r.expected_expiry_date || (renMo > 0 ? (() => { const d = new Date(base); d.setMonth(d.getMonth() + renMo); return d.toISOString().slice(0, 10) })() : null)
+                const durMo = r.expected_duration_months != null ? Number(r.expected_duration_months) : renMo
                 const invoiced = ['invoiced', 'completed'].includes(r.status)
-                const cover = Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0))
+                const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0))
                 return <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {cover > 0 && <Meta label={T('الخصم', 'Discount')} color={C.ok} value={<span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{nm(cover)}</span>} />}
                   {absher > 0 && <Meta label={T('خصم أبشر', 'Absher Discount')} color={C.ok} value={<span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{nm(absher)}</span>} />}
                   {manual > 0 && <Meta label={T('خصم المكتب', 'Office Discount')} color={C.gold} value={<span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{nm(manual)}</span>} />}
-                  <Meta label={T('المدة المتوقعة', 'Expected Duration')} color={C.gold} value={renMo > 0 ? renMo + ' ' + T('شهر', 'mo') : '—'} />
+                  <Meta label={T('المدة المتوقعة', 'Expected Duration')} color={C.gold} value={durMo > 0 ? durMo + ' ' + T('شهر', 'mo') : '—'} />
                   <Meta label={T('الإنتهاء المتوقع', 'Expected Expiry')} color={C.gold} value={expExpiry ? <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{fmtD(expExpiry)}</span> : '—'} />
                   {r.invoice_id && invoiced && <Meta label={T('الفاتورة', 'Invoice')} color={C.gold} value={<span onClick={() => { try { window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id: r.invoice_id } })) } catch {} }} title={T('فتح تفاصيل الفاتورة', 'Open invoice details')} style={{ direction: 'ltr', unicodeBidi: 'isolate', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3, fontVariantNumeric: 'tabular-nums' }}>{'INV-' + String(r.invoice_id).slice(0, 8).toUpperCase()}</span>} />}
                 </div>
@@ -1010,19 +1156,27 @@ ${noticeBlk}
           })()}
 
           {/* الإجراءات + الطباعة */}
-          {(() => {
-            const canApprove = canCardBtn(user, 'renewal_calc', 'timeline', 'approve')
+          {cardVisible(user, 'renewal_calc', 'actions_print') && (() => {
+            const canApprove = canCardBtn(user, 'renewal_calc', 'actions_print', 'approve')
             const pricedAtMs = r.priced_at ? new Date(r.priced_at).getTime() : 0
             const expired = pricedAtMs ? (Date.now() - pricedAtMs) > 5 * 86400000 : false
-            const showApprove = r.status === 'priced' && canApprove
+            const showApprove = r.status === 'priced' && canApprove && modalAllowed(user, 'renewal_calc', 'approve_quote')
+            const showCancel = ['priced', 'approved'].includes(r.status) && canApprove && canCardBtn(user, 'renewal_calc', 'actions_print', 'cancel') && modalAllowed(user, 'renewal_calc', 'cancel_quote')
             return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
               {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), discValue: '', approval_note: '' }) }} disabled={expired}
                 onMouseEnter={e => { if (!expired) e.currentTarget.style.background = 'rgba(52,131,180,.12)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                style={{ height: 44, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(52,131,180,.5)', color: C.blue, cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
+                style={{ flex: 1, height: 44, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(52,131,180,.5)', color: C.blue, cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
                 <span>{T('تصديق الحسبة', 'Approve Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </button>}
+              {showCancel && <button onClick={() => { setCancelSaved(false); setCancelForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, reason: '' }) }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.12)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                style={{ flex: 1, height: 44, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(192,57,43,.5)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
+                <span>{T('إلغاء الحسبة', 'Cancel Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+              </button>}
+              </div>}
               {/* رأس قسم الطباعة */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: showApprove ? 6 : 0, paddingBottom: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: (showApprove || showCancel) ? 6 : 0, paddingBottom: 2 }}>
                 <Printer size={13} strokeWidth={2} style={{ color: C.gold }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: C.gold, letterSpacing: '.3px' }}>{T('طباعة', 'Print')}</span>
                 <span style={{ flex: 1, height: 1, background: 'rgba(212,160,23,.18)' }} />
@@ -1044,34 +1198,51 @@ ${noticeBlk}
       {approveForm && (() => {
         const f = approveForm
         const setF = (k, v) => setApproveForm(p => ({ ...p, [k]: v }))
+        const d = discountEnabled ? computeApprovalDiscount(f) : null
+        const belowFloor = !!(d && d.capped)
         return <FKModal open onClose={() => { if (approveSaving) return; setApproveForm(null); if (approveSaved) { setApproveSaved(false); setDetailsRow(null); load() } }} width={520} variant="edit"
           success={approveSaved ? <SuccessView title={T('تم تصديق الحسبة', 'Quote approved')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
           title={T('تصديق الحسبة', 'Approve Quote') + (f._quoteNo ? ' — ' + noDash(f._quoteNo) : '')} subtitle={f._workerName || undefined} Icon={BadgeCheck}
           onSubmit={submitApproval} submitting={approveSaving} submitLabel={T('تصديق الحسبة', 'Approve Quote')}
-          pages={[{ valid: true, content: (
+          pages={[{ valid: !belowFloor, content: (
             <ModalSection Icon={BadgeCheck} label={T('تأكيد التصديق', 'Confirm Approval')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 10, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.75)' }}>{T('إجمالي التسعيرة', 'Quote Total')}</span>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.round(Number(f._total || 0)))} <span style={{ fontSize: 11, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                  <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 18, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.round(Number(f._total || 0)))}</span><span style={{ fontSize: 11, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
                 </div>
-                {discountEnabled && (() => {
-                  const d = computeApprovalDiscount(f)
-                  return (
+                {discountEnabled && d && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.08)' }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--tx2)' }}>{T('خصم المكتب (اختياري · مبلغ بالريال)', 'Office Discount (optional · SAR)')}</div>
-                      <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,.1)', borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 700, color: C.gold, outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
-                      <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T(`الحد الأقصى للخصم ${nm(d.maxDiscount)} ريال · الأرضية ${nm(d.floor)} (سعر اليوم × ${Number(f._renewalMonths || 0)} شهر × 30)`, `Max discount ${nm(d.maxDiscount)} SAR · floor ${nm(d.floor)}`)}</div>
-                      {d.capped && <div style={{ fontSize: 10.5, fontWeight: 700, color: C.red, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 7, padding: '6px 9px' }}>{T(`تجاوزت الأرضية — سيُطبَّق الحد الأقصى ${nm(d.maxDiscount)} ريال فقط`, `Below floor — only ${nm(d.maxDiscount)} SAR will apply`)}</div>}
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('خصم المكتب', 'Office Discount')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
+                      <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: `1px solid ${belowFloor ? 'rgba(192,57,43,.55)' : 'rgba(255,255,255,.1)'}`, borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(212,160,23,.3)' }}>
                         <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
-                        <span style={{ fontSize: 16, fontWeight: 800, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)} <span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                        <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
                       </div>
                     </div>
-                  )
-                })()}
+                )}
                 <div style={{ fontSize: 12, color: 'var(--tx3)', lineHeight: 1.7 }}>{T('بالتصديق تنتقل الحسبة إلى حالة «مصدّقة» ويُسجَّل اسمك وتاريخ التصديق.', 'Approving moves the quote to “Approved” and records your name and the approval date.')}</div>
-                <TextArea label={T('ملاحظة (اختياري)', 'Note (optional)')} rows={2} value={f.approval_note || ''} onChange={v => setF('approval_note', v.slice(0, 500))} placeholder={T('أي ملاحظة تتعلق بهذه التسعيرة…', 'Any note related to this quote…')} />
+              </div>
+            </ModalSection>
+          ) }]} />
+      })()}
+
+      {/* ═══ نافذة إلغاء الحسبة — FormKit (نجاح داخل النافذة) ═══ */}
+      {cancelForm && (() => {
+        const f = cancelForm
+        const setF = (k, v) => setCancelForm(p => ({ ...p, [k]: v }))
+        return <FKModal open onClose={() => { if (cancelSaving) return; setCancelForm(null); if (cancelSaved) { setCancelSaved(false); setDetailsRow(null); load() } }} width={520} variant="edit"
+          success={cancelSaved ? <SuccessView title={T('تم إلغاء الحسبة', 'Quote cancelled')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
+          title={T('إلغاء الحسبة', 'Cancel Quote') + (f._quoteNo ? ' — ' + noDash(f._quoteNo) : '')} subtitle={f._workerName || undefined} Icon={AlertCircle}
+          onSubmit={submitCancel} submitting={cancelSaving} submitLabel={T('تأكيد الإلغاء', 'Confirm Cancellation')}
+          pages={[{ valid: true, content: (
+            <ModalSection Icon={AlertCircle} label={T('تأكيد الإلغاء', 'Confirm Cancellation')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.08)' }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('سبب الإلغاء', 'Cancellation reason')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
+                  <textarea value={f.reason} onChange={e => setF('reason', e.target.value.slice(0, 500))} placeholder={T('سبب الإلغاء (اختياري)…', 'Reason (optional)…')} rows={3} style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(255,255,255,.1)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', resize: 'vertical', direction: dir }} />
+                </div>
+                <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.25)', borderRadius: 9, padding: '10px 12px' }}>{T('بالإلغاء تنتقل الحسبة إلى حالة «ملغاة» ويُسجَّل اسمك وتاريخ الإلغاء. ولا يمكن استخدامها في فاتورة بعد ذلك.', 'Cancelling moves the quote to “Cancelled”, records your name and the date, and it can no longer be invoiced.')}</div>
               </div>
             </ModalSection>
           ) }]} />
@@ -1080,14 +1251,15 @@ ${noticeBlk}
       {/* ═══ نافذة تعديل كرت — FormKit (نفس تفاصيل نقل الكفالة) ═══ */}
       {cardEdit && (() => {
         const f = cardEdit; const setF = (k, v) => setCardEdit(p => ({ ...p, [k]: v }))
+        const fVis = (k) => fieldVisible(user, 'renewal_calc', k), fEd = (k) => fieldEditable(user, 'renewal_calc', k)
         const titles = { worker: T('تعديل بيانات العامل', 'Edit Worker Data'), professional: T('تعديل البيانات المهنية', 'Edit Professional Data'), renewal: T('تعديل خيارات التجديد', 'Edit Renewal Options'), pricing: T('تعديل التسعيرة', 'Edit Pricing') }
         let content
         if (f.card === 'worker') content = <ModalSection Icon={User} label={T('بيانات العامل', 'Worker Data')}><div style={GRID}>
-          <TextField full label={T('الاسم', 'Name')} value={f.worker_name || ''} onChange={v => setF('worker_name', v)} />
-          <TextField label={T('رقم الإقامة', 'Iqama Number')} dir="ltr" value={f.iqama_number || ''} onChange={v => setF('iqama_number', v)} />
-          <TextField label={T('رقم الجوال', 'Mobile')} dir="ltr" value={f.phone || ''} onChange={v => setF('phone', v)} />
-          <FKSelect label={T('الجنسية', 'Nationality')} value={f.nationality_id || ''} onChange={v => setF('nationality_id', v)} placeholder={'— ' + T('اختر', 'Select') + ' —'} options={nationalities} getKey={x => x.id} getLabel={x => lang === 'en' ? (x.name_en || x.name_ar) : x.name_ar} />
-          <FKDateField label={T('تاريخ الميلاد', 'Date of Birth')} value={f.dob || ''} onChange={v => setF('dob', v)} />
+          {fVis('worker_name') && <TextField full label={T('الاسم', 'Name')} value={f.worker_name || ''} onChange={v => setF('worker_name', v)} disabled={!fEd('worker_name')} />}
+          {fVis('iqama_number') && <TextField label={T('رقم الإقامة', 'Iqama Number')} dir="ltr" value={f.iqama_number || ''} onChange={v => setF('iqama_number', v)} disabled={!fEd('iqama_number')} />}
+          {fVis('phone') && <TextField label={T('رقم الجوال', 'Mobile')} dir="ltr" value={f.phone || ''} onChange={v => setF('phone', v)} disabled={!fEd('phone')} />}
+          {fVis('nationality_id') && <FKSelect label={T('الجنسية', 'Nationality')} value={f.nationality_id || ''} onChange={v => setF('nationality_id', v)} placeholder={'— ' + T('اختر', 'Select') + ' —'} options={nationalities} getKey={x => x.id} getLabel={x => lang === 'en' ? (x.name_en || x.name_ar) : x.name_ar} disabled={!fEd('nationality_id')} />}
+          {fVis('dob') && <FKDateField label={T('تاريخ الميلاد', 'Date of Birth')} value={f.dob || ''} onChange={v => setF('dob', v)} disabled={!fEd('dob')} />}
         </div></ModalSection>
         else if (f.card === 'professional') content = <ModalSection Icon={FileText} label={T('البيانات المهنية', 'Professional Data')}><div style={GRID}>
           <TextField full label={T('المهنة', 'Occupation')} value={f.occupation_name_ar || ''} onChange={v => setF('occupation_name_ar', v)} />
@@ -1095,14 +1267,14 @@ ${noticeBlk}
           <TextField label={T('انتهاء الإقامة (هجري)', 'Iqama Expiry (H)')} dir="ltr" value={f.iqama_expiry_hijri || ''} onChange={v => setF('iqama_expiry_hijri', v)} />
         </div></ModalSection>
         else if (f.card === 'renewal') content = <ModalSection Icon={RefreshCw} label={T('خيارات التجديد', 'Renewal Options')}><div style={GRID}>
-          <TextField label={T('مدة التجديد (شهر)', 'Renewal Period (months)')} dir="ltr" value={f.renewal_months ?? ''} onChange={v => setF('renewal_months', String(v).replace(/[^0-9]/g, ''))} />
-          <YesNo label={T('تغيير المهنة', 'Change Occupation')} value={f.change_profession} onChange={v => setF('change_profession', v)} />
-          {f.change_profession ? <TextField label={T('المهنة الجديدة', 'New Occupation')} value={f.new_occupation_name_ar || ''} onChange={v => setF('new_occupation_name_ar', v)} /> : null}
-          <YesNo label={T('الإعفاء', 'Exemption')} value={f.exemption} onChange={v => setF('exemption', v)} />
-          <FKDateField label={T('انتهاء رخصة العمل', 'Work Permit Expiry')} value={f.work_permit_expiry || ''} onChange={v => setF('work_permit_expiry', v)} />
+          {fVis('renewal_months') && <TextField label={T('مدة التجديد (شهر)', 'Renewal Period (months)')} dir="ltr" value={f.renewal_months ?? ''} onChange={v => setF('renewal_months', String(v).replace(/[^0-9]/g, ''))} disabled={!fEd('renewal_months')} />}
+          {fVis('change_profession') && <YesNo label={T('تغيير المهنة', 'Change Occupation')} value={f.change_profession} onChange={v => setF('change_profession', v)} disabled={!fEd('change_profession')} />}
+          {f.change_profession && fVis('new_occupation_name_ar') ? <TextField label={T('المهنة الجديدة', 'New Occupation')} value={f.new_occupation_name_ar || ''} onChange={v => setF('new_occupation_name_ar', v)} disabled={!fEd('new_occupation_name_ar')} /> : null}
+          {fVis('exemption') && <YesNo label={T('الإعفاء', 'Exemption')} value={f.exemption} onChange={v => setF('exemption', v)} disabled={!fEd('exemption')} />}
+          {fVis('work_permit_expiry') && <FKDateField label={T('انتهاء رخصة العمل', 'Work Permit Expiry')} value={f.work_permit_expiry || ''} onChange={v => setF('work_permit_expiry', v)} disabled={!fEd('work_permit_expiry')} />}
         </div></ModalSection>
         else content = <ModalSection Icon={Banknote} label={T('الرسوم', 'Fees')}><div style={GRID}>
-          {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخّر الإقامة', 'Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} />)}
+          {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخّر الإقامة', 'Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
           <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 700, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee', 'gov_excess'].reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
         </div></ModalSection>
         return <FKModal open onClose={() => { if (!cardSaving) setCardEdit(null) }} width={560} variant="edit" title={titles[f.card]} Icon={FileText}
@@ -1131,6 +1303,9 @@ ${noticeBlk}
   }
   const searched = rows.filter(matches)
   const filteredData = listFilter === 'all' ? searched : listFilter === 'invoiced' ? searched.filter(r => r.status === 'invoiced' || r.status === 'completed') : searched.filter(r => r.status === listFilter)
+  // الإحصاءات تعكس التصفية: محسوبة من المجموعة المفلترة (البحث/التاريخ/الموظف/الرسوم) قبل تبويب الحالة.
+  const sCounts = (() => { const c = { priced: 0, approved: 0, invoiced: 0, completed: 0, cancelled: 0 }; searched.forEach(r => { if (c[r.status] !== undefined) c[r.status]++ }); return c })()
+  const avgStats = (() => { const total = searched.reduce((s, r) => s + Number(r.total_amount || 0), 0); return { value: searched.length ? Math.round(total / searched.length) : 0, count: searched.length } })()
 
   // تجميع حسب اليوم
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -1151,7 +1326,7 @@ ${noticeBlk}
 
   const hasAdv = Object.values(advFilter).some(Boolean)
 
-  return <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, direction: 'rtl' }}>
+  return <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, direction: dir }}>
     {/* ═══ العنوان ═══ */}
     {listHeader}
 
@@ -1217,8 +1392,8 @@ ${noticeBlk}
     {/* ═══ البحث + التصفية ═══ */}
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
       <div style={{ flex: '1 1 280px', position: 'relative' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 14, right: 'auto', top: '50%', transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-        <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={T('ابحث باسم العامل أو رقم الإقامة أو رقم التسعيرة...', 'Search by worker name, iqama, or quote no...')} style={{ width: '100%', height: 44, padding: '0 14px 0 38px', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 12, fontFamily: F, fontSize: 13, fontWeight: 400, color: '#fff', outline: 'none', direction: lang === 'en' ? 'ltr' : 'rtl', boxSizing: 'border-box', transition: '.2s' }} />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+        <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={T('ابحث باسم العامل أو رقم الإقامة أو رقم التسعيرة...', 'Search by worker name, iqama, or quote no...')} style={{ width: '100%', height: 44, paddingBlock: 0, paddingInlineStart: 14, paddingInlineEnd: 38, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 12, fontFamily: F, fontSize: 13, fontWeight: 400, color: '#fff', outline: 'none', direction: dir, boxSizing: 'border-box', transition: '.2s' }} />
       </div>
       <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, border: advOpen || hasAdv ? '1px solid rgba(212,160,23,.3)' : '1px solid rgba(255,255,255,.05)', background: advOpen || hasAdv ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', color: advOpen || hasAdv ? C.gold : 'var(--tx2)', fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0, transition: '.2s', boxSizing: 'border-box' }}>
         {T('تصفية', 'Filter')}
@@ -1273,11 +1448,13 @@ ${noticeBlk}
             const remainingMs = pricedAtMs ? (5 * 86400000) - (Date.now() - pricedAtMs) : 0
             const showValidity = (r.status === 'priced' || r.status === 'approved') && pricedAtMs > 0
             const isExpired = showValidity && remainingMs <= 0
-            return <div key={r.id} onClick={() => setDetailsRow(r)} style={{ background: `radial-gradient(ellipse at top, ${sc}10 0%, #222 60%)`, borderRadius: 14, overflow: 'hidden', transition: 'all .15s', border: '1px solid ' + (isExpired ? 'rgba(192,57,43,.35)' : 'rgba(255,255,255,.05)'), position: 'relative', cursor: 'pointer', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center', opacity: isExpired ? .7 : 1, boxShadow: '0 4px 14px rgba(0,0,0,.22)' }}
+            const isInvoiced = r.status === 'invoiced' || r.status === 'completed'
+            const isCancelled = r.status === 'cancelled'
+            return <div key={r.id} onClick={() => setDetailsRow(r)} style={{ background: 'linear-gradient(180deg,#2b2b2b 0%,#1e1e1e 100%)', borderRadius: 18, overflow: 'hidden', transition: 'all .15s', border: '1px solid ' + (isExpired ? 'rgba(192,57,43,.35)' : 'rgba(255,255,255,.07)'), position: 'relative', cursor: 'pointer', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center', opacity: isExpired ? .7 : 1, boxShadow: '0 14px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = sc + '55' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = isExpired ? 'rgba(192,57,43,.35)' : 'rgba(255,255,255,.05)' }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor = isExpired ? 'rgba(192,57,43,.35)' : 'rgba(255,255,255,.07)' }}>
               {/* مؤشّر الصلاحية (5 أيام) */}
-              <div title={showValidity ? (isExpired ? T('انتهت الصلاحية', 'Expired') : T('صالحة ضمن 5 أيام', 'Valid within 5 days')) : T('تفاصيل التسعيرة', 'Quote details')} style={{ position: 'absolute', top: 10, left: 10, width: 28, height: 28, borderRadius: '50%', background: showValidity ? 'transparent' : 'rgba(212,160,23,.12)', border: showValidity ? 'none' : '1px solid rgba(212,160,23,.3)', color: C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 2 }}>
+              <div title={showValidity ? (isExpired ? T('انتهت الصلاحية', 'Expired') : T('صالحة ضمن 5 أيام', 'Valid within 5 days')) : isCancelled ? T('ملغاة', 'Cancelled') : T('تفاصيل التسعيرة', 'Quote details')} style={{ position: 'absolute', top: 10, insetInlineEnd: 10, width: 28, height: 28, borderRadius: '50%', background: showValidity ? 'transparent' : (isCancelled ? 'rgba(192,57,43,.12)' : isInvoiced ? 'rgba(39,160,70,.12)' : 'rgba(212,160,23,.12)'), border: showValidity ? 'none' : '1px solid ' + (isCancelled ? 'rgba(192,57,43,.35)' : isInvoiced ? 'rgba(39,160,70,.35)' : 'rgba(212,160,23,.3)'), color: isCancelled ? C.red : isInvoiced ? '#27a046' : C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 2 }}>
                 {showValidity ? (() => {
                   const total = 5; const active = isExpired ? 0 : Math.min(total, Math.ceil(remainingMs / 86400000))
                   const sw = 2.4, size = 24, rr = (size - sw) / 2, cx = size / 2, cy = size / 2
@@ -1288,7 +1465,7 @@ ${noticeBlk}
                     {Array.from({ length: total }).map((_, i) => <path key={i} d={arc(i * segDeg)} fill="none" stroke={i < active ? onClr : 'rgba(255,255,255,.12)'} strokeWidth={sw} strokeLinecap="round" />)}
                     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight="700" fontFamily={F} fill={onClr}>{active}</text>
                   </svg>
-                })() : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>}
+                })() : isCancelled ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg> : isInvoiced ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>}
               </div>
 
               {/* القسم 1: الاسم + العلم + شبكة الحقول */}
@@ -1307,17 +1484,16 @@ ${noticeBlk}
                 {warn && <div style={{ fontSize: 10.5, fontWeight: 600, color: C.red, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.2)', borderRadius: 7, padding: '4px 10px', display: 'inline-flex', alignSelf: 'flex-start', gap: 5 }}>⚠ {warn}</div>}
               </div>
 
-              {/* القسم 2: الأختام الرسمية */}
-              {(() => { const scale = stamps.length >= 2 ? 0.62 : 0.85; return <div style={{ display: 'flex', flexDirection: stamps.length >= 2 ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '0 6px' }}>
-                {stamps.map(s => <div key={s.key} style={{ transform: `scale(${scale})`, transformOrigin: 'center', margin: stamps.length >= 2 ? '-10px 0' : 0 }}>
+              {/* القسم 2: الختم الرسمي — آخر مرحلة فقط */}
+              {(() => { const s = stamps[stamps.length - 1]; return s ? <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '0 6px' }}>
+                <div style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}>
                   <OfficialStampBadge status={s.label} employeeName={s.name} branchCode={s.branch} date={s.date} color={s.color} rotate={-5} variant="double" />
-                </div>)}
-              </div> })()}
+                </div>
+              </div> : null })()}
 
-              {/* القسم 3: الإجمالي + مدة التجديد */}
+              {/* القسم 3: الإجمالي */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, borderInlineStart: '1px dashed rgba(255,255,255,.18)', paddingInlineStart: 24, paddingInlineEnd: 6, paddingTop: 18, minWidth: 120 }}>
-                <div style={{ lineHeight: 1, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}><bdi style={{ fontSize: 28, fontWeight: 600, color: C.gold, letterSpacing: '-.5px' }}>{nm(Math.round(cc))}</bdi></div>
-                {Number(r.renewal_months) > 0 && <div style={{ fontSize: 11, color: '#dcc06e', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap', opacity: .85 }}>{r.renewal_months} {T('شهر', 'mo')}</div>}
+                <div style={{ lineHeight: 1, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}><bdi style={{ fontSize: 38, fontWeight: 600, color: C.gold, letterSpacing: '-.5px' }}>{nm(Math.round(cc))}</bdi></div>
               </div>
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 5, background: 'rgba(255,255,255,.05)' }}><div style={{ height: '100%', width: '100%', background: sc, opacity: .7 }} /></div>
             </div>

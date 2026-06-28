@@ -5,6 +5,7 @@
 // the invoice design — edit here, both consumers update.
 import { noDash } from './utils.js'
 import { TXN_SERVICES } from '../pages/txnServices.js'
+import { DONE_INPUTS, SELF_PARTY_DONE_SVCS } from './doneInputs.js'
 
 const C = {
   gold: '#D4A017', goldSoft: '#e8c77a',
@@ -22,7 +23,7 @@ const SVC_THEME = {
   work_visa_permanent: { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة وإقامة دائمة',   label_en: 'Permanent Visa & Iqama', label_ar_full: 'تأشيرة وإقامة دائمة', label_en_full: 'Permanent Visa & Iqama' },
   work_visa_temporary: { c: '#85c1e9',bg: 'rgba(133,193,233,.12)', bd: 'rgba(133,193,233,.32)', label_ar: 'تأشيرة وإقامة مؤقتة',   label_en: 'Temporary Visa & Iqama', label_ar_full: 'تأشيرة وإقامة مؤقتة', label_en_full: 'Temporary Visa & Iqama' },
   iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة',    label_en: 'Iqama Issuance' },
-  exit_reentry_visa: { c: '#5dade2',bg: 'rgba(93,173,226,.12)', bd: 'rgba(93,173,226,.32)', label_ar: 'تأشيرة خروج وعودة', label_en: 'Exit / Re-entry Visa' },
+  exit_reentry_visa: { c: '#5dade2',bg: 'rgba(93,173,226,.12)', bd: 'rgba(93,173,226,.32)', label_ar: 'خروج وعودة', label_en: 'Exit / Re-entry Visa' },
   transfer:       { c: C.orange, bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',      label_en: 'Transfer' },
   iqama_renewal:  { c: C.cyan,   bg: 'rgba(22,160,133,.12)',  bd: 'rgba(22,160,133,.32)',  label_ar: 'تجديد الإقامة',  label_en: 'Iqama Renewal' },
   ajeer:          { c: C.purple, bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'عقد أجير',       label_en: 'Ajeer Contract' },
@@ -69,7 +70,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     embassy: { ar: 'السفارة', en: 'Embassy', hi: 'दूतावास', ur: 'سفارت خانہ', bn: 'দূতাবাস' },
     occupation: { ar: 'المهنة', en: 'Occupation', hi: 'पेशा', ur: 'پیشہ', bn: 'পেশা' },
     professional: { ar: 'البيانات المهنية والنقل', en: 'Professional & Transfer', hi: 'पेशेवर एवं स्थानांतरण', ur: 'پیشہ ورانہ و منتقلی', bn: 'পেশাগত ও স্থানান্তর' },
-    transferData: { ar: 'بيانات النقل', en: 'Transfer Data', hi: 'स्थानांतरण विवरण', ur: 'منتقلی کی تفصیل', bn: 'স্থানান্তর তথ্য' },
+    transferData: { ar: 'النقل', en: 'Transfer', hi: 'स्थानांतरण', ur: 'منتقلی', bn: 'স্থানান্তর' },
     personalInfo: { ar: 'البيانات الرئيسية', en: 'Personal Info', hi: 'मुख्य विवरण', ur: 'بنیادی معلومات', bn: 'মূল তথ্য' },
     birthDate: { ar: 'الميلاد', en: 'Birth Date', hi: 'जन्म', ur: 'پیدائش', bn: 'জন্ম' },
     age: { ar: 'العمر', en: 'Age', hi: 'आयु', ur: 'عمر', bn: 'বয়স' },
@@ -80,6 +81,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     iqamaExpiry: { ar: 'الانتهاء', en: 'Expiry', hi: 'समाप्ति', ur: 'میعاد', bn: 'মেয়াদ' },
     expectedDuration: { ar: 'المدة المتوقعة في الإقامة', en: 'Expected Duration', hi: 'अपेक्षित अवधि', ur: 'متوقع مدت', bn: 'প্রত্যাশিত সময়কাল' },
     notGuaranteed: { ar: 'تقديرية وغير مضمونة', en: 'estimated · not guaranteed', hi: 'अनुमानित · गारंटीकृत नहीं', ur: 'تخمینی · ضمانت نہیں', bn: 'আনুমানিক · নিশ্চিত নয়' },
+    notGuaranteedNote: { ar: 'مدة تقديرية غير مضمونة، وقد تختلف عند التنفيذ.', en: 'Estimated duration, not guaranteed and may vary at execution.', hi: 'अनुमानित अवधि, गारंटीकृत नहीं और निष्पादन के समय भिन्न हो सकती है।', ur: 'تخمینی مدت، ضمانت نہیں اور تنفیذ کے وقت مختلف ہو سکتی ہے۔', bn: 'আনুমানিক সময়কাল, নিশ্চিত নয় এবং বাস্তবায়নের সময় ভিন্ন হতে পারে।' },
     currentOccupation: { ar: 'المهنة الحالية', en: 'Current Occupation', hi: 'वर्तमान पेशा', ur: 'موجودہ پیشہ', bn: 'বর্তমান পেশা' },
     noticePeriod: { ar: 'فترة الإشعار', en: 'Notice Period', hi: 'नोटिस अवधि', ur: 'نوٹس مدت', bn: 'নোটিশ পিরিয়ড' },
     employerConsent: { ar: 'موافقة صاحب العمل الحالي', en: 'Current Employer Consent', hi: 'वर्तमान नियोक्ता की सहमति', ur: 'موجودہ آجر کی رضامندی', bn: 'বর্তমান নিয়োগকর্তার সম্মতি' },
@@ -101,6 +103,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     startDate: { ar: 'تاريخ البدء', en: 'Start Date', hi: 'आरंभ तिथि', ur: 'آغاز کی تاریخ', bn: 'শুরুর তারিখ' },
     endDate: { ar: 'تاريخ الانتهاء', en: 'End Date', hi: 'समाप्ति तिथि', ur: 'اختتام کی تاریخ', bn: 'শেষ তারিখ' },
     currentExpiry: { ar: 'الانتهاء الحالي', en: 'Current Expiry', hi: 'वर्तमान समाप्ति', ur: 'موجودہ میعاد', bn: 'বর্তমান মেয়াদ' },
+    currentIqamaExpiry: { ar: 'انتهاء الإقامة الحالي', en: 'Current Iqama Expiry', hi: 'वर्तमान इक़ामा समाप्ति', ur: 'موجودہ اقامہ میعاد', bn: 'বর্তমান ইকামা মেয়াদ' },
     newExpiry: { ar: 'الانتهاء الجديد', en: 'New Expiry', hi: 'नई समाप्ति', ur: 'نئی میعاد', bn: 'নতুন মেয়াদ' },
     months: { ar: 'شهر', en: 'months', hi: 'माह', ur: 'ماہ', bn: 'মাস' },
     installments: { ar: 'الدفعات', en: 'Installments', hi: 'किस्तें', ur: 'اقساط', bn: 'কিস্তি' },
@@ -124,6 +127,11 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     mVisaIssue: { ar: 'إصدار التأشيرة', en: 'Visa Issuance', hi: 'वीज़ा जारी', ur: 'ویزا اجراء', bn: 'ভিসা ইস্যু' },
     mWakalah: { ar: 'الوكالة', en: 'Wakalah', hi: 'वकालह', ur: 'وکالہ', bn: 'ওয়াকালাহ' },
     mIqamaIssue: { ar: 'إصدار الإقامة', en: 'Iqama Issuance', hi: 'इक़ामा जारी', ur: 'اقامہ اجراء', bn: 'ইকামা ইস্যু' },
+    tagIqamaIssued: { ar: 'تم إصدار الإقامة', en: 'Iqama issued', hi: 'इक़ामा जारी', ur: 'اقامہ جاری', bn: 'ইকামা ইস্যু হয়েছে' },
+    tagVisaIssued: { ar: 'تم إصدار التأشيرة', en: 'Visa issued', hi: 'वीज़ा जारी', ur: 'ویزا جاری', bn: 'ভিসা ইস্যু হয়েছে' },
+    tagPending: { ar: 'جديد', en: 'New', hi: 'नया', ur: 'نیا', bn: 'নতুন' },
+    iqamaNo: { ar: 'رقم الإقامة', en: 'Iqama No', hi: 'इक़ामा नं', ur: 'اقامہ نمبر', bn: 'ইকামা নং' },
+    iqamaExp: { ar: 'انتهاء الإقامة', en: 'Iqama Expiry', hi: 'इक़ामा समाप्ति', ur: 'اقامہ میعاد', bn: 'ইকামা মেয়াদ' },
     pricing: { ar: 'بيانات التسعير', en: 'Pricing', hi: 'मूल्य निर्धारण', ur: 'قیمتوں کی تفصیل', bn: 'মূল্য নির্ধারণ' },
     officeAccount: { ar: 'حساب المكتب', en: 'Office Bank Account', hi: 'कार्यालय बैंक खाता', ur: 'دفتر کا بینک اکاؤنٹ', bn: 'অফিস ব্যাংক অ্যাকাউন্ট' },
     bankName: { ar: 'البنك', en: 'Bank', hi: 'बैंक', ur: 'بینک', bn: 'ব্যাংক' },
@@ -162,6 +170,54 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     pricingSummary: { ar: 'بيانات التسعير والملخّص المالي', en: 'Pricing & Summary', hi: 'मूल्य एवं सारांश', ur: 'قیمت اور خلاصہ', bn: 'মূল্য ও সারসংক্ষেপ' },
     bankDetails: { ar: 'الحساب البنكي', en: 'Bank Details', hi: 'बैंक विवरण', ur: 'بینک تفصیلات', bn: 'ব্যাংক বিবরণ' },
     serviceDetails: { ar: 'الخدمة', en: 'Service', hi: 'सेवा', ur: 'خدمت', bn: 'সেবা' },
+    unpaidSalariesMonths: { ar: 'أشهر الرواتب غير المدفوعة', en: 'Unpaid salary months', hi: 'अवैतनिक वेतन माह', ur: 'غیر ادا شدہ تنخواہ ماہ', bn: 'অপরিশোধিত বেতনের মাস' },
+    totalSalaries: { ar: 'إجمالي الرواتب', en: 'Total Salaries', hi: 'कुल वेतन', ur: 'کل تنخواہیں', bn: 'মোট বেতন' },
+    zeroInvoice: { ar: 'فاتورة صفرية', en: 'Zero Invoice', hi: 'शून्य चालान', ur: 'صفر انوائس', bn: 'শূন্য চালান' },
+    stNew: { ar: 'جديد', en: 'New', hi: 'नया', ur: 'نیا', bn: 'নতুন' },
+    stInProgress: { ar: 'قيد التنفيذ', en: 'In Progress', hi: 'प्रगति में', ur: 'جاری', bn: 'চলমান' },
+    stDone: { ar: 'منجز', en: 'Completed', hi: 'पूर्ण', ur: 'مکمل', bn: 'সম্পন্ন' },
+    stCancelled: { ar: 'ملغي', en: 'Cancelled', hi: 'रद्द', ur: 'منسوخ', bn: 'বাতিল' },
+    stAwaitingAcct: { ar: 'في انتظار موافقة المحاسب', en: 'Awaiting accountant approval', hi: 'लेखाकार स्वीकृति प्रतीक्षित', ur: 'اکاؤنٹنٹ کی منظوری کا انتظار', bn: 'অ্যাকাউন্ট্যান্ট অনুমোদনের অপেক্ষায়' },
+    stAcctApproved: { ar: 'تمت الموافقة من المحاسب', en: 'Approved by accountant', hi: 'लेखाकार द्वारा स्वीकृत', ur: 'اکاؤنٹنٹ کی جانب سے منظور', bn: 'অ্যাকাউন্ট্যান্ট কর্তৃক অনুমোদিত' },
+    stAcctRejected: { ar: 'تم الإلغاء من المحاسب', en: 'Rejected by accountant', hi: 'लेखाकार द्वारा अस्वीकृत', ur: 'اکاؤنٹنٹ کی جانب سے مسترد', bn: 'অ্যাকাউন্ট্যান্ট কর্তৃক প্রত্যাখ্যাত' },
+    // وسوم مرحلتي النقل الخارجي (تطابق الشاشة): المحاسب · المعاملة + نصوص مختصرة.
+    phaseAccountant: { ar: 'المحاسب', en: 'Accountant', hi: 'लेखाकार', ur: 'اکاؤنٹنٹ', bn: 'অ্যাকাউন্ট্যান্ট' },
+    phaseTransaction: { ar: 'المعاملة', en: 'Transaction', hi: 'लेन-देन', ur: 'ٹرانزیکشن', bn: 'লেনদেন' },
+    stApprovedShort: { ar: 'تمت الموافقة', en: 'Approved', hi: 'स्वीकृत', ur: 'منظور', bn: 'অনুমোদিত' },
+    stRejectedShort: { ar: 'تم الرفض', en: 'Rejected', hi: 'अस्वीकृत', ur: 'مسترد', bn: 'প্রত্যাখ্যাত' },
+    stCompletedShort: { ar: 'منجزة', en: 'Completed', hi: 'पूर्ण', ur: 'مکمل', bn: 'সম্পন্ন' },
+    stCancelledShort: { ar: 'ملغاة', en: 'Cancelled', hi: 'रद्द', ur: 'منسوخ', bn: 'বাতিল' },
+    stPendingShort: { ar: 'بالانتظار', en: 'Pending', hi: 'लंबित', ur: 'زیر التواء', bn: 'অপেক্ষমাণ' },
+    stSkippedShort: { ar: 'لا يحتاج', en: 'Not Needed', hi: 'आवश्यक नहीं', ur: 'ضرورت نہیں', bn: 'প্রয়োজন নেই' },
+    insCompanyLbl: { ar: 'شركة التأمين', en: 'Insurance Co.', hi: 'बीमा कंपनी', ur: 'انشورنس کمپنی', bn: 'বীমা কোম্পানি' },
+    insPolicyLbl: { ar: 'رقم البوليصة', en: 'Policy No', hi: 'पॉलिसी नं', ur: 'پالیسی نمبر', bn: 'পলিসি নং' },
+    // وسوم مراحل نقل الكفالة في قسم «المعاملة» بالطباعة (التأمين · رخصة العمل · الإقامة تعيد استخدام مفتاح iqama).
+    stgTransfer: { ar: 'النقل', en: 'Transfer', hi: 'स्थानांतरण', ur: 'منتقلی', bn: 'স্থানান্তর' },
+    stgInsurance: { ar: 'التأمين', en: 'Insurance', hi: 'बीमा', ur: 'انشورنس', bn: 'বীমা' },
+    stgWorkPermit: { ar: 'رخصة العمل', en: 'Work Permit', hi: 'वर्क परमिट', ur: 'ورک پرمٹ', bn: 'ওয়ার্ক পারমিট' },
+    // قسم «المعاملة» في الطباعة (للخدمات الصفرية): الحالة + بيانات الإنجاز/الموافقة.
+    transactionSec: { ar: 'المعاملة', en: 'Transaction', hi: 'लेन-देन', ur: 'ٹرانزیکشن', bn: 'লেনদেন' },
+    txnBy: { ar: 'بواسطة', en: 'By', hi: 'द्वारा', ur: 'بذریعہ', bn: 'দ্বারা' },
+    txnDate: { ar: 'التاريخ', en: 'Date', hi: 'तारीख', ur: 'تاریخ', bn: 'তারিখ' },
+    transferCompanyNo: { ar: 'الرقم الموحد للشركة الناقلة', en: 'Transferring company no', hi: 'स्थानांतरण कंपनी संख्या', ur: 'منتقل کرنے والی کمپنی نمبر', bn: 'স্থানান্তর কোম্পানি নম্বর' },
+    managerName: { ar: 'اسم المدير', en: 'Manager name', hi: 'प्रबंधक का नाम', ur: 'منیجر کا نام', bn: 'ম্যানেজারের নাম' },
+    accountantNote: { ar: 'ملاحظة المحاسب', en: 'Accountant note', hi: 'लेखाकार टिप्पणी', ur: 'اکاؤنٹنٹ نوٹ', bn: 'অ্যাকাউন্ট্যান্ট নোট' },
+    completionNote: { ar: 'ملاحظة الإنجاز', en: 'Completion note', hi: 'पूर्णता टिप्पणी', ur: 'تکمیل نوٹ', bn: 'সম্পন্নের নোট' },
+    cancelNote: { ar: 'سبب الإلغاء', en: 'Cancellation reason', hi: 'रद्द करने का कारण', ur: 'منسوخی کی وجہ', bn: 'বাতিলের কারণ' },
+    iqamaReceivedDate: { ar: 'تاريخ استلام الإقامة', en: 'Iqama Receipt Date', hi: 'इक़ामा प्राप्ति तिथि', ur: 'اقامہ وصولی کی تاریخ', bn: 'ইকামা প্রাপ্তির তারিখ' },
+    iqamaPhotoLabel: { ar: 'صورة الإقامة', en: 'Iqama Photo', hi: 'इक़ामा फोटो', ur: 'اقامہ کی تصویر', bn: 'ইকামা ছবি' },
+    attachedYes: { ar: 'مرفقة', en: 'Attached', hi: 'संलग्न', ur: 'منسلک', bn: 'সংযুক্ত' },
+    salaryPhase: { ar: 'المرحلة', en: 'Phase', hi: 'चरण', ur: 'مرحلہ', bn: 'পর্যায়' },
+    salaryAwaitingReturn: { ar: 'بانتظار إرجاع الراتب الأساسي', en: 'Awaiting base-salary return', hi: 'मूल वेतन वापसी की प्रतीक्षा', ur: 'بنیادی تنخواہ کی واپسی کا انتظار', bn: 'মূল বেতন ফেরতের অপেক্ষায়' },
+    salaryReturned: { ar: 'تم إرجاع الراتب الأساسي', en: 'Base salary returned', hi: 'मूल वेतन वापस किया गया', ur: 'بنیادی تنخواہ واپس کر دی گئی', bn: 'মূল বেতন ফেরত দেওয়া হয়েছে' },
+    salaryReturnDate: { ar: 'تاريخ إرجاع الراتب', en: 'Salary Return Date', hi: 'वेतन वापसी तिथि', ur: 'تنخواہ واپسی کی تاریخ', bn: 'বেতন ফেরতের তারিখ' },
+    baseSalary: { ar: 'الراتب الأساسي', en: 'Base Salary', hi: 'मूल वेतन', ur: 'بنیادی تنخواہ', bn: 'মূল বেতন' },
+    baseSalaryScreenshot: { ar: 'صورة شاشة الراتب الأساسي', en: 'Base-salary screenshot', hi: 'मूल वेतन स्क्रीनशॉट', ur: 'بنیادی تنخواہ اسکرین شاٹ', bn: 'মূল বেতন স্ক্রিনশট' },
+    newSalaryScreenshot: { ar: 'صورة شاشة الراتب الجديد', en: 'New-salary screenshot', hi: 'नया वेतन स्क्रीनशॉट', ur: 'نئی تنخواہ اسکرین شاٹ', bn: 'নতুন বেতন স্ক্রিনশট' },
+    phaseSalaryEdit: { ar: 'تعديل الراتب', en: 'Salary Edit', hi: 'वेतन संशोधन', ur: 'تنخواہ ترمیم', bn: 'বেতন সম্পাদনা' },
+    phaseSalaryReturn: { ar: 'إرجاع الراتب', en: 'Salary Return', hi: 'वेतन वापसी', ur: 'تنخواہ واپسی', bn: 'বেতন ফেরত' },
+    salaryEditedNew: { ar: 'تم التعديل للراتب الجديد', en: 'Changed to new salary', hi: 'नए वेतन में बदला', ur: 'نئی تنخواہ پر تبدیل', bn: 'নতুন বেতনে পরিবর্তিত' },
+    zeroInvoiceNote: { ar: 'لا توجد مبالغ مستحقة — هذه الفاتورة للتوثيق وحفظ بيانات الطلب فقط', en: 'No amount due — this invoice documents the request only', hi: 'कोई राशि देय नहीं — यह चालान केवल अनुरोध के दस्तावेज़ हेतु है', ur: 'کوئی رقم واجب الادا نہیں — یہ انوائس صرف درخواست کے ریکارڈ کے لیے ہے', bn: 'কোনো বকেয়া নেই — এই চালান শুধু অনুরোধের নথির জন্য' },
     operation: { ar: 'العملية', en: 'Operation', hi: 'संक्रिया', ur: 'عمل', bn: 'অপারেশন' },
     opIssue: { ar: 'إصدار', en: 'Issuance', hi: 'जारी करना', ur: 'اجرا', bn: 'ইস্যু' },
     opExtend: { ar: 'تمديد', en: 'Extension', hi: 'विस्तार', ur: 'توسیع', bn: 'এক্সটেনশন' },
@@ -170,11 +226,15 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     exitReentryShort: { ar: 'خروج وعودة', en: 'Exit / Re-entry', hi: 'निकास / पुनः प्रवेश', ur: 'خروج و واپسی', bn: 'এক্সিট / রি-এন্ট্রি' },
     visaNo: { ar: 'رقم التأشيرة', en: 'Visa No', hi: 'वीज़ा नं', ur: 'ویزا نمبر', bn: 'ভিসা নং' },
     officeFee: { ar: 'رسوم المكتب (تشمل رسوم السجل التجاري وقوى ومقيم والغرفة التجارية والسعودة)', en: 'Office Fee (incl. Commercial Registration, Qiwa, Muqeem, Chamber of Commerce & Saudization)', hi: 'कार्यालय शुल्क (वाणिज्यिक रजिस्टर, क़िवा, मुक़ीम, वाणिज्य चैंबर और सऊदीकरण शुल्क सहित)', ur: 'دفتر فیس (تجارتی رجسٹریشن، قوی، مقیم، چیمبر آف کامرس اور سعودائزیشن کی فیسوں سمیت)', bn: 'অফিস ফি (বাণিজ্যিক রেজিস্ট্রেশন, কিওয়া, মুকিম, চেম্বার অফ কমার্স ও সৌদিকরণ ফি সহ)' },
+    officeFeeSaudization: { ar: 'رسوم المكتب (تشمل السعودة)', en: 'Office Fee (incl. Saudization)', hi: 'कार्यालय शुल्क (सऊदीकरण सहित)', ur: 'دفتر فیس (سعودائزیشن سمیت)', bn: 'অফিস ফি (সৌদিকরণ সহ)' },
+    officeFeeShort: { ar: 'رسوم المكتب', en: 'Office Fee', hi: 'कार्यालय शुल्क', ur: 'دفتر فیس', bn: 'অফিস ফি' },
     professionChangeFee: { ar: 'رسم تغيير المهنة', en: 'Occupation Change Fee', hi: 'पेशा परिवर्तन शुल्क', ur: 'پیشہ تبدیلی فیس', bn: 'পেশা পরিবর্তন ফি' },
+    salaryAdjFee: { ar: 'رسم تعديل الراتب', en: 'Salary Adjustment Fee', hi: 'वेतन समायोजन शुल्क', ur: 'تنخواہ ایڈجسٹمنٹ فیس', bn: 'বেতন সমন্বয় ফি' },
     contractFee: { ar: 'رسوم العقد', en: 'Contract Fee', hi: 'अनुबंध शुल्क', ur: 'معاہدہ فیس', bn: 'চুক্তি ফি' },
     transferFee: { ar: 'رسوم نقل الكفالة', en: 'Sponsorship Transfer', hi: 'प्रायोजन स्थानांतरण', ur: 'کفالہ منتقلی', bn: 'স্পনসরশিপ স্থানান্তর' },
     iqamaRenewal: { ar: 'تجديد الإقامة', en: 'Iqama Renewal', hi: 'इक़ामा नवीनीकरण', ur: 'اقامہ تجدید', bn: 'ইকামা নবায়ন' },
     workPermit: { ar: 'رخصة العمل', en: 'Work Permit', hi: 'कार्य परमिट', ur: 'ورک پرمٹ', bn: 'ওয়ার্ক পারমিট' },
+    iqamaPrintFee: { ar: 'طباعة الإقامة', en: 'Iqama Print', hi: 'इक़ामा प्रिंट', ur: 'اقامہ پرنٹ', bn: 'ইকামা প্রিন্ট' },
     medicalIns: { ar: 'التأمين الطبي', en: 'Medical Insurance', hi: 'चिकित्सा बीमा', ur: 'طبی بیمہ', bn: 'চিকিৎসা বীমা' },
     lateFine: { ar: 'غرامة الإقامة', en: 'Iqama Late Fine', hi: 'इक़ामा विलंब जुर्माना', ur: 'تاخیر جرمانہ', bn: 'বিলম্ব জরিমানা' },
     saudizationFactor: { ar: 'معامل السعودة', en: 'Saudization Factor', hi: 'सऊदीकरण कारक', ur: 'سعودائزیشن عنصر', bn: 'সৌদিকরণ গুণক' },
@@ -228,7 +288,8 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const isChamber = code === 'other'
   // رقم جوال العامل المُدخل في هذه الفاتورة (other_applications.worker_phone) — يُطبّع لصيغة 966… كبقية الأرقام.
   const otherApp0 = Array.isArray(sr.other_applications) ? sr.other_applications[0] : sr.other_applications
-  const invWorkerPhone = (() => { const d = String(otherApp0?.worker_phone || '').replace(/\D/g, ''); return d ? (d.startsWith('966') ? d : '966' + d.slice(-9)) : null })()
+  const spApp0 = Array.isArray(sr.supplier_payroll_applications) ? sr.supplier_payroll_applications[0] : sr.supplier_payroll_applications
+  const invWorkerPhone = (() => { const d = String(otherApp0?.worker_phone || spApp0?.worker_phone || '').replace(/\D/g, ''); return d ? (d.startsWith('966') ? d : '966' + d.slice(-9)) : null })()
   const det = data?.det || []
   const d0 = det[0] || {}
   const agent = inv.agent || sr.service_request_agents?.[0]?.agent || null
@@ -292,16 +353,20 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const nameBoth = p => kvRow(lab('name'), esc(personName(p)), true)
   // مرحلة الدفعة للتأشيرة الدائمة تُشتق هيكلياً (من الرابط بالتأشيرة + نص الملاحظة)، لا من ترتيب الدفعة —
   // كي لا تفقد دفعةُ الإقامة الثانية فأكثر مسمّاها (permKeys ثلاثة عناصر فقط فكان order≥4 يعطي undefined).
+  // الترتيب مهم: نُقدّم نص الملاحظة (توكيل/إقامة/تأشيرة) على رابط التأشيرة، لأن دفعة التوكيل في المؤقتة
+  // مرتبطة بتأشيرة أيضاً — فلو فحصنا الرابط أولاً لظهرت «إقامة» بدل «الوكالة».
   const milestoneKeyFor = (it) => {
     const note = it.notes || ''
-    if (it.visa_application_id || /إقامة|اقامة|iqama|residence/i.test(note)) return 'mIqamaIssue'
     if (/توكيل|تفويض|wakal|authoriz/i.test(note)) return 'mWakalah'
+    if (/إقامة|اقامة|iqama|residence/i.test(note)) return 'mIqamaIssue'
     if (/تأشيرة|visa/i.test(note)) return 'mVisaIssue'
+    if (it.visa_application_id) return 'mIqamaIssue'   // احتياط: دفعة لكل تأشيرة بلا ملاحظة واضحة
     return null
   }
+  const isStagedVisa = code === 'work_visa_permanent' || code === 'work_visa_temporary'
   const milestoneOf = (it, i) => {
     const ord = it.installment_order || (i + 1)
-    const k = (code === 'work_visa_permanent') ? milestoneKeyFor(it) : null
+    const k = isStagedVisa ? milestoneKeyFor(it) : null
     return (k ? lab(k) : null) || localize(it.payment_milestone) || (insts.length === 1 ? lab('singlePayment') : instOrdLabel(ord))
   }
 
@@ -347,8 +412,10 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const isProfessionChange = code === 'profession_change'
   // جوال الطرف: للغرفة التجارية وعقد أجير وطباعة الإقامة وخروج وعودة وتغيير المهنة نُفضّل جوال العامل المُدخل بالفاتورة (other_applications.worker_phone)،
   // ثم جوال سجل العميل/العامل — لأن «العميل هو نفس العامل» يُخزَّن جواله في الفاتورة لا في سجل العميل.
-  const clientPhone = ((isChamber || isAjeer || isIqamaPrint || isExitReentry || isProfessionChange) ? invWorkerPhone : null) || (client && client.phone) || ''
-  const clientHdr = (workerIsClient || ((isChamber || isAjeer) && !distinctWorker) || isIqamaPrint || isExitReentry || isProfessionChange) ? 'clientWorkerData' : 'clientData'
+  const clientPhone = ((isChamber || isAjeer || isIqamaPrint || isExitReentry || isProfessionChange || code === 'final_exit_visa' || code === 'medical_insurance' || code === 'supplier_payroll' || code === 'documents' || code === 'external_transfer_approval') ? invWorkerPhone : null) || (client && client.phone) || ''
+  // طباعة الإقامة/التأمين/تغيير المهنة/تعديل الراتب: الطرف هو العامل نفسه — العنوان «العامل» فقط.
+  const clientHdr = SELF_PARTY_DONE_SVCS.includes(code) ? 'workerData'
+    : (workerIsClient || ((isChamber || isAjeer) && !distinctWorker) || isExitReentry) ? 'clientWorkerData' : 'clientData'
   // كرت بيانات العامل ضمن الأطراف (لفواتير نقل الكفالة) — بنفس تنسيق كرت العميل/الوسيط مع العلم في الترويسة.
   const tcParty = (code === 'transfer' && data?.tc && data.tc.worker_name) ? data.tc : null
   let workerPartyCard = ''
@@ -356,7 +423,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     const wPhoneP = tcParty.phone ? '0' + String(tcParty.phone).replace(/^0+/, '') : ''
     const ageP = (() => { if (!tcParty.dob) return null; const b = new Date(tcParty.dob); if (isNaN(b)) return null; const t = new Date(); let a = t.getFullYear() - b.getFullYear(); const mo = t.getMonth() - b.getMonth(); if (mo < 0 || (mo === 0 && t.getDate() < b.getDate())) a--; return a >= 0 ? a : null })()
     const natObjP = { flag_url: tcParty.nationality_flag, name_ar: tcParty.nationality, name_en: tcParty.nationality }
-    workerPartyCard = `<div class="card full"><h4>${lab('workerData')}${natBadge(natObjP)}</h4>${kvRow(lab('name'), esc(tcParty.worker_name), true)}${tcParty.iqama_number ? kvRow(lab('iqama'), num2(tcParty.iqama_number)) : ''}${tcParty.iqama_expiry_gregorian ? kvRow(lab('iqamaExpiry'), num2(fmtD(tcParty.iqama_expiry_gregorian))) : ''}${wPhoneP ? kvRow(lab('phone'), num2(wPhoneP)) : ''}${tcParty.dob ? kvRow(lab('birthDate'), num2(fmtD(tcParty.dob))) : ''}${ageP != null ? kvRow(lab('age'), num2(ageP)) : ''}</div>`
+    workerPartyCard = `<div class="card full"><h4>${lab('workerData')}${natBadge(natObjP)}</h4>${kvRow(lab('name'), esc(tcParty.worker_name), true)}${tcParty.iqama_number ? kvRow(lab('iqama'), num2(tcParty.iqama_number)) : ''}${tcParty.iqama_expiry_gregorian ? kvRow(lab('iqamaExpiry'), num2(fmtD(tcParty.iqama_expiry_gregorian))) : ''}${tcParty.dob ? kvRow(lab('birthDate'), `<span style="display:inline-flex;align-items:baseline;gap:5px;direction:ltr">${num2(fmtD(tcParty.dob))}${ageP != null ? ` <span style="color:var(--ink-soft)">(${num2(ageP)})</span>` : ''}</span>`) : ''}${wPhoneP ? kvRow(lab('phone'), num2(wPhoneP)) : ''}</div>`
   }
   const clientCard = `<div class="card${agent ? '' : ' full'}"><h4>${lab(clientHdr)}${natBadge(client && client.nationality)}</h4>${nameBoth(client)}${clientId ? kvRow(isWorker ? lab('iqama') : lab('id'), num2(clientId)) : ''}${clientPhone ? kvRow(lab('phone'), num2(fmtPhone(clientPhone))) : ''}</div>`
   let agentCard = ''
@@ -368,7 +435,9 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   let workerCard = ''
   if (distinctWorker) {
     const w = distinctWorker
-    workerCard = `<div class="card"><h4>${lab('workerData')}${natBadge(w.nationality)}</h4>${nameBoth(w)}${w.iqama_number ? kvRow(lab('iqama'), num2(w.iqama_number)) : ''}${w.phone ? kvRow(lab('phone'), num2(fmtPhone(w.phone))) : ''}${w.occupation ? kvRow(lab('occupation'), esc(localize(w.occupation) || '')) : ''}</div>`
+    // تجديد الإقامة: تاريخ انتهاء الإقامة الحالي يظهر تحت رقم الإقامة في كرت العامل (بدل قسم الخدمة).
+    const renewCurExp = (code === 'iqama_renewal' && d0?.current_expire_date) ? kvRow(lab('iqamaExpiry'), num2(fmtD(d0.current_expire_date))) : ''
+    workerCard = `<div class="card"><h4>${lab('workerData')}${natBadge(w.nationality)}</h4>${nameBoth(w)}${w.iqama_number ? kvRow(lab('iqama'), num2(w.iqama_number)) : ''}${renewCurExp}${w.phone ? kvRow(lab('phone'), num2(fmtPhone(w.phone))) : ''}${w.occupation ? kvRow(lab('occupation'), esc(localize(w.occupation) || '')) : ''}</div>`
   }
   let estCard = ''
   const estF = facilityFromApp
@@ -401,8 +470,8 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     const residentCombined = [tc.resident_status_ar, tc.hrsd_worker_status].filter(s => s && String(s).trim()).map(tVal).join(' · ')
     // المدة المتوقعة في الإقامة — نفس منطق طباعة الحسبة (أشهر/أيام مع جمع صحيح حسب اللغة).
     const durLabel = (() => {
-      const moU = n => printLang === 'ar' ? ((n >= 3 && n <= 9) ? 'شهر' : 'شهور') : printLang === 'en' ? (n === 1 ? 'month' : 'months') : printLang === 'hi' ? 'माह' : printLang === 'bn' ? 'মাস' : 'ماہ'
-      const dyU = n => printLang === 'ar' ? ((n >= 3 && n <= 9) ? 'يوم' : 'أيام') : printLang === 'en' ? (n === 1 ? 'day' : 'days') : printLang === 'hi' ? 'दिन' : printLang === 'bn' ? 'দিন' : 'دن'
+      const moU = n => printLang === 'ar' ? ((n >= 3 && n <= 10) ? 'أشهر' : 'شهر') : printLang === 'en' ? (n === 1 ? 'month' : 'months') : printLang === 'hi' ? 'माह' : printLang === 'bn' ? 'মাস' : 'ماہ'
+      const dyU = n => printLang === 'ar' ? ((n >= 3 && n <= 10) ? 'أيام' : 'يوم') : printLang === 'en' ? (n === 1 ? 'day' : 'days') : printLang === 'hi' ? 'दिन' : printLang === 'bn' ? 'দিন' : 'دن'
       const join = printLang === 'ar' ? ' و ' : ' · '
       const dm = Number(tc.duration_months || 0), dd = Number(tc.duration_days || 0), ed = Number(tc.expected_iqama_days || 0), rm = Number(tc.renewal_months || 0)
       if (dm > 0 || dd > 0) { const p = []; if (dm > 0) p.push(dm + ' ' + moU(dm)); if (dd > 0) p.push(dd + ' ' + dyU(dd)); return p.join(join) }
@@ -415,10 +484,12 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
       (tc.sponsor_changes != null && tc.sponsor_changes !== '') ? kvRow(lab('transferTimes'), num2(String(tc.sponsor_changes))) : '',
       tc.occupation_name_ar ? kvRow(lab('currentOccupation'), esc(tc.occupation_name_ar)) : '',
       (tc.change_profession && tc.new_occupation_name_ar) ? kvRow(lab('newOccupation'), esc(tc.new_occupation_name_ar)) : '',
-      durLabel ? kvRow(`${lab('expectedDuration')} <span style="font-size:8.5px;color:#b9a86a;font-weight:400">(${lab('notGuaranteed')})</span>`, esc(durLabel)) : '',
-      tc.expected_expiry_date ? kvRow(lab('expectedIqamaExpiry'), num2(fmtD(tc.expected_expiry_date))) : '',
       typeof tc.has_notice_period === 'boolean' ? kvRow(lab('noticePeriod'), lab(tc.has_notice_period ? 'yesV' : 'noV')) : '',
       typeof tc.employer_consent === 'boolean' ? kvRow(lab('employerConsent'), lab(tc.employer_consent ? 'yesV' : 'noV')) : '',
+      (durLabel || tc.expected_expiry_date) ? (
+        `<div class="kv" style="border-bottom:0"><span class="k">${lab('expectedDuration')}</span><span class="v">${[durLabel ? esc(durLabel) : '', tc.expected_expiry_date ? `<span style="direction:ltr;font-family:monospace">${num2(fmtD(tc.expected_expiry_date))}</span>` : ''].filter(Boolean).join(' <span style="color:var(--ink-soft)">·</span> ')}</span></div>`
+        + `<div style="display:flex;align-items:center;gap:5px;color:var(--warn);font-size:9px;font-weight:600;padding:1px 0 0">⚠ ${lab('notGuaranteedNote')}</div>`
+      ) : '',
     ].filter(Boolean).join('')
     // بيانات النقل فقط في صفحة 2 — البيانات الرئيسية للعامل انتقلت إلى قسم «الأطراف» في صفحة 1.
     profBlk = profRows ? secTitle('transferData') + `<div class="card full">${profRows}</div>` : ''
@@ -437,15 +508,23 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (rows) svcExtra += `<div class="est-grid" style="margin-top:2.5mm">${rows}</div>`
   }
   if (code === 'iqama_renewal' && d0) {
+    // «الانتهاء الحالي» نُقل لكرت العامل (تحت رقم الإقامة)؛ هنا يبقى مدة التجديد + الانتهاء الجديد.
     const rows = [
       d0.duration_months ? kvRow(lab('renewalDuration'), `${num2(d0.duration_months)} ${lab('months')}`) : '',
-      d0.current_expire_date ? kvRow(lab('currentExpiry'), num2(fmtD(d0.current_expire_date))) : '',
       d0.new_expire_date ? kvRow(lab('newExpiry'), num2(fmtD(d0.new_expire_date))) : '',
     ].filter(Boolean).join('')
     if (rows) svcExtra += `<div class="est-grid" style="margin-top:2.5mm">${rows}</div>`
   }
   if (code === 'iqama_print' && d0?.details?.print_reason) {
     svcExtra += `<div class="est-grid" style="margin-top:2.5mm">${kvRow(lab('printReason'), esc(d0.details.print_reason))}</div>`
+  }
+  if (code === 'supplier_payroll' && d0) {
+    // رواتب سبلاير: عدد أشهر الرواتب غير المدفوعة + إجمالي الرواتب (أعمدة على الجدول المخصّص لا details).
+    const rows = [
+      (d0.unpaid_salaries_count != null && d0.unpaid_salaries_count !== '') ? kvRow(lab('unpaidSalariesMonths'), `${num2(d0.unpaid_salaries_count)} ${lab('months')}`) : '',
+      (d0.total_amount != null && Number(d0.total_amount) > 0) ? kvRow(lab('totalSalaries'), `${num2(nm(d0.total_amount))} ${cur}`) : '',
+    ].filter(Boolean).join('')
+    if (rows) svcExtra += `<div class="est-grid" style="margin-top:2.5mm">${rows}</div>`
   }
   // ── Registry-driven services (passport_update · final_exit_visa · exit_reentry_visa · تعديل الراتب ·
   // profession_change …) — print their service-specific fields from other_applications.details using the
@@ -458,6 +537,8 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
       const regLab = f => esc((rtl ? f.l_ar : f.l_en) || f.l_ar || f.l_en || '')
       const rows = reg.detail.map(f => {
         if (!f.src || !f.src.startsWith('d:')) return ''
+        // تغيير المهنة: «المهنة الحالية» تُطبع عبر الكتلة المخصّصة أدناه (مع بديل من سجل العامل) — نتجنّب تكرارها هنا.
+        if (code === 'profession_change' && f.src === 'd:current_occupation') return ''
         let v = dt[f.src.slice(2)]
         if (v == null || v === '') return ''
         // exit_type (single/multiple) خرائط opts عربية فقط — نترجمها حسب لغة الفاتورة
@@ -487,6 +568,13 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
       if (rowsHtml) svcExtra += `<div class="est-grid" style="margin-top:2.5mm">${rowsHtml}</div>`
     }
   }
+  // التأمين الطبي: تاريخ ميلاد العامل وعمره (من سجل العامل) — تُطبع ضمن قسم الخدمة (مطابقة للشاشة). الجوال يظهر في كرت العامل.
+  if (code === 'medical_insurance' && client && client.birth_date) {
+    const rows = [kvRow(lab('birthDate'), num2(fmtD(client.birth_date)))]
+    const b = new Date(client.birth_date)
+    if (!isNaN(b)) { const t = new Date(); let a = t.getFullYear() - b.getFullYear(); const mo = t.getMonth() - b.getMonth(); if (mo < 0 || (mo === 0 && t.getDate() < b.getDate())) a--; if (a >= 0) rows.push(kvRow(lab('age'), num2(a))) }
+    if (rows.length) svcExtra += `<div class="est-grid" style="margin-top:2.5mm">${rows.join('')}</div>`
+  }
   if (isChamber && d0) {
     // تفاصيل خدمة الغرفة التجارية: نوع التصديق (مطبوعات/طلب مفتوح) + نص الطلب — من other_applications.details.
     const sub = d0.details?.chamber_subtype
@@ -500,8 +588,12 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   if (isVisa && det.length === 1 && d0) {
     const rows = [
       d0.main_facility && d0.main_facility.name_ar ? kvRow(lab('facility'), esc(d0.main_facility.name_ar)) : '',
-      d0.main_facility && d0.main_facility.unified_number ? kvRow(lab('unifiedNo'), num2(d0.main_facility.unified_number)) : '',
-      d0.visa_number ? kvRow(lab('visaNo'), num2(d0.visa_number)) : '',
+      // ترتيب الطباعة: الرقم الموحّد ← رقم التأشيرة ← رقم الحدود.
+      (d0.main_facility && d0.main_facility.unified_number && !d0.unified_number) ? kvRow(lab('unifiedNo'), num2(d0.main_facility.unified_number)) : '',
+      // الرقم الموحد للمنشأة (المُدخَل على التأشيرة) قبل رقم التأشيرة ورقم الحدود.
+      (d0.file_number == null && d0.unified_number) ? kvRow(lab('unifiedNo'), num2(d0.unified_number)) : '',
+      // رقم التأشيرة يظهر داخل بطاقة توزيع الملفات عند وجود ملف — لا نكرّره هنا.
+      (d0.file_number == null && d0.visa_number) ? kvRow(lab('visaNo'), num2(d0.visa_number)) : '',
       // رقم الحدود يظهر تحت وصف التأشيرة في بطاقة توزيع الملفات عند وجود ملف — لا نكرّره كحقل هنا.
       (d0.file_number == null && d0.border_number) ? kvRow(lab('borderNo'), num2(d0.border_number)) : '',
       d0.wakalah_number ? kvRow(lab('wakalahNo'), num2(d0.wakalah_number)) : '',
@@ -520,16 +612,30 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
       const fileNos2 = Object.keys(byFile2).map(Number).sort((a, b) => a - b)
       const filesHtml2 = fileNos2.map((fn, idx) => {
         const items = byFile2[fn]
-        const agg = {}
-        items.forEach(r => { const k = [natName(r.nationality) || '—', localize(r.embassy) || '', localize(r.occupation) || '', (r.gender === 'female' ? lab('female') : r.gender === 'male' ? lab('male') : '')].filter(Boolean).join(' · '); agg[k] = (agg[k] || 0) + 1 })
         const fileLbl = fileNos2.length === 1 ? lab('oneFile') : (lab('file') + ' ' + (idx + 1))
-        const itemsHtml = Object.entries(agg).map(([k, c]) => `<div class="fd-item"><span>${esc(k)}</span><span class="fd-x">×${c}</span></div>`).join('')
-        // اسم العامل ورقم الحدود المُسجَّلان عند دفعة «إصدار الإقامة» — سطر لكل تأشيرة تحت وصفها.
+        // كرت لكل تأشيرة (تصميم: تاق جانبي + شبكة حقول معنونة): رأس (الجنسية + السفارة/المهنة/الجنس) مع تاق الحالة،
+        // ثم اسم العامل، ثم خانات معنونة لكل رقم متوفّر (الحدود/الإقامة/انتهاء الإقامة) — مطابق لتصميم الموقع.
         const entriesHtml = items.map(r => {
-          const parts = [r.worker_name ? esc(r.worker_name) : '', r.border_number ? `${lab('borderNo')} ${num2(r.border_number)}` : ''].filter(Boolean).join(' · ')
-          return parts ? `<div class="fd-sub">${parts}</div>` : ''
+          // «تم إصدار الإقامة» = رقم إقامة مُدخَل فعلاً، لا مجرد وجود صف إصدار (يُنشأ عند سداد الدفعة بلا بيانات).
+          const iqIssued = !!String((data?.iqamaByVisa || {})[r.id]?.iqama_number || '').trim()
+          const stCls = iqIssued ? 'ok' : (r.border_number ? 'visa' : 'pending')
+          const stLbl = lab(iqIssued ? 'tagIqamaIssued' : (r.border_number ? 'tagVisaIssued' : 'tagPending'))
+          const tag = `<span class="fd-tag ${stCls}"><span class="fd-tdot"></span><span>${esc(stLbl)}</span>${stCls !== 'pending' ? '<span class="fd-tchk">✓</span>' : ''}</span>`
+          const nat = natName(r.nationality) || '—'
+          const sub = [localize(r.embassy), localize(r.occupation), genLabel(r.gender)].filter(Boolean).join(' · ')
+          const iq = (data?.iqamaByVisa || {})[r.id] || null
+          const cells = [
+            // ترتيب الطباعة: الرقم الموحّد ← رقم التأشيرة ← رقم الحدود.
+            r.unified_number ? { k: lab('unifiedNo'), v: num2(r.unified_number) } : null,
+            r.visa_number ? { k: lab('visaNo'), v: num2(r.visa_number) } : null,
+            r.border_number ? { k: lab('borderNo'), v: num2(r.border_number) } : null,
+            iq?.iqama_number ? { k: lab('iqamaNo'), v: num2(iq.iqama_number) } : null,
+            iq?.iqama_expiry ? { k: lab('iqamaExp'), v: num2(fmtD(iq.iqama_expiry)) } : null,
+          ].filter(Boolean)
+          const gridHtml = cells.length ? `<div class="fd-grid" style="grid-template-columns:repeat(${cells.length},1fr)">${cells.map(c => `<div class="fd-cell"><div class="fd-cell-k">${esc(c.k)}</div><div class="fd-cell-v">${c.v}</div></div>`).join('')}</div>` : ''
+          return `<div class="fd-v"><div class="fd-vhead"><span class="fd-vname">${esc(nat)}${sub ? ` <span class="fd-vsub">· ${esc(sub)}</span>` : ''}</span>${tag}</div>${r.worker_name ? `<div class="fd-worker"><span class="fd-dot"></span>${esc(r.worker_name)}</div>` : ''}${gridHtml}</div>`
         }).join('')
-        return `<div class="fd-file"><div class="fd-flabel">${esc(fileLbl)} <span class="fd-count">${num2(items.length)} ${lab('visas')}</span></div>${itemsHtml}${entriesHtml}</div>`
+        return `<div class="fd-file"><div class="fd-flabel">${esc(fileLbl)} <span class="fd-count">${num2(items.length)} ${lab('visas')}</span></div>${entriesHtml}</div>`
       }).join('')
       fileDistBlk = `<div class="fd">${filesHtml2}</div>`
     }
@@ -542,24 +648,200 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   // قسم «الخدمة» يكرّر اسم الخدمة الظاهر كعنوان رئيسي في الصفحة الأولى — يُعرض فقط عند وجود عدد تأشيرات لبيان الكمية، وإلا يُحذف.
   // التأشيرة (دائمة/مؤقتة): الاسم والكمية يظهران أصلاً في العنوان الرئيسي (×العدد)، فالقسم مكرّر بالكامل ويُحذف.
   const serviceBlk = (showQty && code !== 'work_visa_temporary' && code !== 'work_visa_permanent') ? secTitle('service') + `<div class="card full"><div class="service-row"><div><div class="service-name">${esc(svcName || '—')}</div></div><div class="qty-badge"><span class="lbl">${lab('quantity')}</span>${num2(qty)}</div></div></div>` : ''
-  // كرت تفاصيل الخدمة (الوصف المُدخل + التفاصيل الخاصة بالخدمة) — يُعرض تحت بيانات العامل/المنشأة
-  const svcDetailsInner = (descText ? `<div class="desc-text">${esc(descText)}</div>` : '') + svcExtra + fileDistBlk
-  const svcDetailsBlk = svcDetailsInner.trim() ? secTitle('serviceDetails') + `<div class="card full">${svcDetailsInner}</div>` : ''
+  // تاغ حالة الطلب — يُعرض في رأس كرت «الخدمة» (جديد · قيد التنفيذ · منجز · ملغي) بألوان الـ pill.
+  const reqStatusCode = sr?.status?.code || ''
+  const acct = sr?.accountant_status
+  // خدمات تمرّ على بوّابة موافقة المحاسب (النقل الخارجي · خروج وعودة · خروج نهائي).
+  const needsAcct = !!TXN_SERVICES[baseSvcCode(code)]?.needs_accountant_approval
+  // شارة حالة منفردة (حد جانبي + خلفية خفيفة + نقطة + نص بلون الحالة)، مع وسم مرحلة اختياري.
+  const statusTag = (t, c, bg, phase, full, endText) =>
+    `<span class="status-bar${full ? ' status-bar-full' : ''}" style="border-inline-start:3px solid ${c};background:${bg};color:${c}"><span class="status-dot" style="background:${c}"></span>${phase ? `<span class="phase-chip" style="color:${c}">${phase}</span>` : ''}${t}${endText ? `<span class="status-when">${endText}</span>` : ''}</span>`
+  // الخدمات الصفرية (رواتب سبلاير · مستندات · موافقة النقل الخارجي): حالتها وبياناتها في قسم «المعاملة» المستقل.
+  const isZeroPrint = code === 'supplier_payroll' || code === 'documents' || code === 'external_transfer_approval' || SELF_PARTY_DONE_SVCS.includes(code)
+  const reqStatusTag = (() => {
+    // بقية الخدمات: «منجز» (أخضر) · «ملغي» (أحمر) · وإلا «جديد» (أزرق).
+    const m = reqStatusCode === 'done' ? { t: lab('stDone'), c: 'var(--ok)', bg: 'var(--ok-bg)' }
+      : reqStatusCode === 'cancelled' ? { t: lab('stCancelled'), c: 'var(--no)', bg: 'var(--no-bg)' }
+      : { t: lab('stNew'), c: '#185FA5', bg: '#E6F1FB' }
+    return statusTag(m.t, m.c, m.bg)
+  })()
+  // كرت تفاصيل الخدمة — الحالة تُنقل لقسم «المعاملة» في الخدمات الصفرية، فلا تظهر داخل رأس الخدمة.
+  const hasSvcDetails = !!(descText || svcExtra.trim() || fileDistBlk.trim())
+  // نقل الكفالة وتجديد الإقامة: الحالة تُعرض كمراحل في قسم «المعاملة»، فلا تُكرَّر شارة الحالة في رأس الخدمة.
+  // التأشيرات ذات بطاقات توزيع الملفات: كل تأشيرة تحمل تاق حالتها الخاص، فلا نكرّر تاق الحالة المجمّع في الرأس.
+  const hideSvcStatusTag = isZeroPrint || code === 'transfer' || code === 'iqama_renewal' || (isVisa && !!fileDistBlk.trim())
+  const svcHead = `<div class="svc-head">${descText ? `<span class="desc-text">${esc(descText)}</span>` : '<span></span>'}${hideSvcStatusTag ? '' : reqStatusTag}</div>`
+  const svcDetailsInner = svcHead + svcExtra + fileDistBlk
+  const svcDetailsBlk = hasSvcDetails ? secTitle('serviceDetails') + `<div class="card full">${svcDetailsInner}</div>` : ''
+  // قسم «المعاملة» (للخدمات الصفرية فقط): الحالة + بيانات الموافقة/الإنجاز/الإلغاء — مرحلتان للنقل الخارجي.
+  const txnBlk = isZeroPrint ? (() => {
+    const dt = d0?.details || {}
+    const pname = p => p ? (rtl ? (p.name_ar || p.name_en) : (p.name_en || p.name_ar)) : ''
+    const fmtDT = d => { if (!d) return ''; const x = new Date(d); if (isNaN(x)) return ''; return `${fmtD(d)} · ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}` }
+    // التاريخ صار بجانب تاق الحالة (endText) — فلم يعد ضمن صفوف البيانات.
+    const metaRows = (person, noteLbl, noteVal, extra = '') => {
+      let r = extra
+      r += kvRow(lab('txnBy'), esc(pname(person)))
+      if (noteVal) r += kvRow(noteLbl, esc(String(noteVal).trim()))
+      return r ? `<div class="est-grid" style="margin-top:2.5mm">${r}</div>` : ''
+    }
+    const whenTxt = d => { const s = fmtDT(d); return s ? num2(s) : '' }
+    const RED = '#C0392B', GREEN = '#1E7E34', BLUE = '#0C7FB8', GOLD = '#B8860B'
+    let inner = ''
+    if (needsAcct) {
+      const acctWhen = (acct === 'approved' || acct === 'rejected') ? whenTxt(sr?.accountant_at) : ''
+      const acctT = acct === 'approved' ? statusTag(lab('stApprovedShort'), GOLD, 'rgba(212,160,23,.10)', lab('phaseAccountant'), true, acctWhen)
+        : acct === 'rejected' ? statusTag(lab('stRejectedShort'), RED, 'rgba(192,57,43,.08)', lab('phaseAccountant'), true, acctWhen)
+        : statusTag(lab('stPendingShort'), BLUE, 'rgba(56,189,248,.12)', lab('phaseAccountant'), true)
+      inner += `<div>${acctT}</div>`
+      if (acct === 'approved' || acct === 'rejected') inner += metaRows(sr?.accountant?.person, lab('accountantNote'), sr?.accountant_note)
+      // مرحلة المعاملة لا تظهر إلا بعد موافقة المحاسب.
+      if (acct === 'approved') {
+        const compWhen = reqStatusCode === 'done' ? whenTxt(sr?.completed_at) : reqStatusCode === 'cancelled' ? whenTxt(sr?.cancelled_at) : ''
+        const compT = reqStatusCode === 'done' ? statusTag(lab('stCompletedShort'), GREEN, 'rgba(39,160,70,.10)', lab('phaseTransaction'), true, compWhen)
+          : reqStatusCode === 'cancelled' ? statusTag(lab('stCancelledShort'), RED, 'rgba(192,57,43,.08)', lab('phaseTransaction'), true, compWhen)
+          : statusTag(lab('stPendingShort'), BLUE, 'rgba(56,189,248,.12)', lab('phaseTransaction'), true)
+        inner += `<div style="margin-top:3mm">${compT}</div>`
+        if (reqStatusCode === 'done') {
+          // النقل الخارجي: الرقم الموحد للشركة الناقلة + اسم المدير.
+          let extra = (dt.transfer_company_700 ? kvRow(lab('transferCompanyNo'), num2(dt.transfer_company_700)) : '') + (dt.manager_name ? kvRow(lab('managerName'), esc(dt.manager_name)) : '')
+          // مدخلات الإنجاز المُدارة بالسجل (خروج وعودة/نهائي: رقم التأشيرة · انتهاء التأشيرة · مرفق التأشيرة).
+          for (const f of (DONE_INPUTS[code] || [])) {
+            if (f.type === 'file') { if (data?.doneFilesMap?.[f.key]) extra += kvRow(esc(rtl ? f.label_ar : f.label_en), lab('attachedYes')) }
+            else if (dt[f.key] != null && dt[f.key] !== '') {
+              const val = f.type === 'date' ? num2(fmtD(dt[f.key])) : (f.money ? `${num2(nm(dt[f.key]))} ${cur}` : esc(String(dt[f.key])))
+              extra += kvRow(esc(rtl ? f.label_ar : f.label_en), val)
+            }
+          }
+          inner += metaRows(sr?.completer?.person, lab('completionNote'), sr?.completion_note, extra)
+        } else if (reqStatusCode === 'cancelled') {
+          inner += metaRows(sr?.canceller?.person, lab('cancelNote'), sr?.cancelled_reason)
+        }
+      }
+    } else if (code === 'name_translation') {
+      // تعديل الراتب: مرحلتان منفصلتان — (١) تعديل الراتب للراتب الجديد (ذهبي)، (٢) إرجاع الراتب الأساسي.
+      const ph = dt.salary_phase  // undefined | 'awaiting_return' | 'returned'
+      const cancelled = reqStatusCode === 'cancelled'
+      const mod1Done = reqStatusCode === 'done' || ph === 'awaiting_return' || ph === 'returned'
+      // المرحلة ١
+      const m1When = mod1Done ? whenTxt(sr?.completed_at) : cancelled ? whenTxt(sr?.cancelled_at) : ''
+      const m1Tag = cancelled ? statusTag(lab('stCancelledShort'), RED, 'rgba(192,57,43,.08)', lab('phaseSalaryEdit'), true, m1When)
+        : mod1Done ? statusTag(lab('salaryEditedNew'), GOLD, 'rgba(212,160,23,.10)', lab('phaseSalaryEdit'), true, m1When)
+        : statusTag(lab('stNew'), BLUE, 'rgba(56,189,248,.12)', lab('phaseSalaryEdit'), true)
+      inner += `<div>${m1Tag}</div>`
+      if (mod1Done) {
+        const ex1 = data?.doneFilesMap?.salary_new_file ? kvRow(lab('newSalaryScreenshot'), lab('attachedYes')) : ''
+        inner += metaRows(sr?.completer?.person, lab('completionNote'), sr?.completion_note, ex1)
+      } else if (cancelled) {
+        inner += metaRows(sr?.canceller?.person, lab('cancelNote'), sr?.cancelled_reason)
+      }
+      // المرحلة ٢ — تظهر بعد إنجاز المرحلة ١ (غير الملغاة).
+      if (mod1Done && !cancelled) {
+        const m2When = ph === 'returned' ? whenTxt(dt.salary_returned_at) : ''
+        const m2Tag = ph === 'returned' ? statusTag(lab('salaryReturned'), GREEN, 'rgba(39,160,70,.10)', lab('phaseSalaryReturn'), true, m2When)
+          : statusTag(lab('salaryAwaitingReturn'), BLUE, 'rgba(56,189,248,.12)', lab('phaseSalaryReturn'), true)
+        inner += `<div style="margin-top:3mm">${m2Tag}</div>`
+        let ex2 = ''
+        if (dt.salary_return_date) ex2 += kvRow(lab('salaryReturnDate'), num2(fmtD(dt.salary_return_date)))
+        if (ph === 'returned' && dt.base_salary != null) ex2 += kvRow(lab('baseSalary'), `${num2(nm(dt.base_salary))} ${cur}`)
+        if (ph === 'returned' && data?.doneFilesMap?.salary_base_file) ex2 += kvRow(lab('baseSalaryScreenshot'), lab('attachedYes'))
+        if (ph === 'returned' && dt.salary_returned_by_name) ex2 += kvRow(lab('txnBy'), esc(String(dt.salary_returned_by_name)))
+        if (ex2) inner += `<div class="est-grid" style="margin-top:2.5mm">${ex2}</div>`
+      }
+    } else {
+      const stWhen = reqStatusCode === 'done' ? whenTxt(sr?.completed_at) : reqStatusCode === 'cancelled' ? whenTxt(sr?.cancelled_at) : ''
+      const st = reqStatusCode === 'done' ? statusTag(lab('stCompletedShort'), GREEN, 'rgba(39,160,70,.10)', '', true, stWhen)
+        : reqStatusCode === 'cancelled' ? statusTag(lab('stCancelledShort'), RED, 'rgba(192,57,43,.08)', '', true, stWhen)
+        : statusTag(lab('stNew'), '#185FA5', '#E6F1FB', '', true)
+      inner += `<div>${st}</div>`
+      if (reqStatusCode === 'done') {
+        // مدخلات إنجاز الخدمات المُدارة بالسجل تُطبع ضمن قسم «المعاملة» (قيم نصّية/تاريخية + إشارة «مرفقة» للملفّات).
+        let extra = ''
+        const inputs = DONE_INPUTS[code] || []
+        const dlab = f => esc(rtl ? f.label_ar : f.label_en)
+        for (const f of inputs) {
+          if (f.type === 'file') { if (data?.doneFilesMap?.[f.key]) extra += kvRow(dlab(f), lab('attachedYes')) }
+          else if (dt[f.key] != null && dt[f.key] !== '') {
+            // المهنة الجديدة مخزّنة بالعربي — تُترجم للإنجليزية في اللغات غير العربية (مثل بقية أسماء المهن).
+            const tv = (code === 'profession_change' && f.key === 'new_occupation') ? occTr(dt[f.key]) : dt[f.key]
+            const val = f.type === 'date' ? num2(fmtD(dt[f.key])) : (f.money ? `${num2(nm(dt[f.key]))} ${cur}` : esc(String(tv)))
+            extra += kvRow(dlab(f), val)
+          }
+        }
+        inner += metaRows(sr?.completer?.person, lab('completionNote'), sr?.completion_note, extra)
+      }
+      else if (reqStatusCode === 'cancelled') inner += metaRows(sr?.canceller?.person, lab('cancelNote'), sr?.cancelled_reason)
+    }
+    return secTitle('transactionSec') + `<div class="card full">${inner}</div>`
+  })() : ''
+
+  // قسم «المعاملة» لنقل الكفالة (تحت قسم «النقل»): تاقات مراحل المعاملة (التأمين · رخصة العمل · الإقامة)
+  // + حقلا بيانات الإقامة المُدخلة (تاريخ الانتهاء + المهنة). يطابق كرت «حالة المعاملة» في الشاشة.
+  const txnTransferBlk = (code === 'transfer' && data?.tc) ? (() => {
+    const tc = data.tc
+    const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
+    const transferOnly = !!tc.transfer_only
+    const TG = '#1E7E34', TR = '#C0392B', TB = '#0C7FB8' // أخضر منجز · أحمر ملغاة · أزرق بالانتظار
+    const stageTag = (phaseLbl, sObj) => {
+      if (!sObj) return statusTag(lab('stPendingShort'), TB, 'rgba(56,189,248,.12)', phaseLbl, true)
+      if (sObj.status === 'cancelled') return statusTag(lab('stCancelledShort'), TR, 'rgba(192,57,43,.08)', phaseLbl, true)
+      return statusTag(lab('stCompletedShort'), TG, 'rgba(39,160,70,.10)', phaseLbl, true)
+    }
+    const mu = sd.muqeem
+    const tags = [
+      `<div>${stageTag(lab('stgTransfer'), sd.transfer)}</div>`,
+      `<div style="margin-top:2mm">${stageTag(lab('stgInsurance'), sd.insurance)}</div>`,
+      transferOnly ? '' : `<div style="margin-top:2mm">${stageTag(lab('stgWorkPermit'), sd.work_permit)}</div>`,
+      `<div style="margin-top:2mm">${stageTag(lab('iqama'), mu)}</div>`,
+    ].filter(Boolean).join('')
+    // حقلا بيانات الإقامة بعد إنجاز مرحلة الإقامة فعلاً: تاريخ انتهاء الإقامة + المهنة.
+    const iqRows = (mu && mu.status !== 'cancelled') ? [
+      mu.iqama_expiry ? kvRow(lab('iqamaExp'), num2(fmtD(mu.iqama_expiry))) : '',
+      mu.occupation_name_ar ? kvRow(lab('occupation'), esc(mu.occupation_name_ar)) : '',
+    ].filter(Boolean).join('') : ''
+    const iqGrid = iqRows ? `<div class="est-grid" style="margin-top:2.5mm">${iqRows}</div>` : ''
+    return secTitle('transactionSec') + `<div class="card full">${tags}${iqGrid}</div>`
+  })() : ''
+
+  // قسم «المعاملة» لتجديد الإقامة: مرحلتان (التأمين · الإقامة) + حقول كل مرحلة المُدخلة. يطابق كرت «حالة المعاملة».
+  const txnRenewalBlk = (code === 'iqama_renewal' && data?.tc) ? (() => {
+    const tc = data.tc
+    const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
+    const TG = '#1E7E34', TR = '#C0392B', TB = '#0C7FB8', TY = '#B8860B' // منجز · ملغاة · بالانتظار · لا يحتاج
+    const stageTag = (phaseLbl, sObj) => {
+      if (!sObj) return statusTag(lab('stPendingShort'), TB, 'rgba(56,189,248,.12)', phaseLbl, true)
+      if (sObj.status === 'cancelled') return statusTag(lab('stCancelledShort'), TR, 'rgba(192,57,43,.08)', phaseLbl, true)
+      if (sObj.status === 'skipped') return statusTag(lab('stSkippedShort'), TY, 'rgba(184,134,11,.10)', phaseLbl, true)
+      return statusTag(lab('stCompletedShort'), TG, 'rgba(39,160,70,.10)', phaseLbl, true)
+    }
+    const ins = sd.insurance, iq = sd.iqama
+    const tags = [
+      `<div>${stageTag(lab('stgInsurance'), ins)}</div>`,
+      `<div style="margin-top:2mm">${stageTag(lab('iqama'), iq)}</div>`,
+    ].join('')
+    // بيانات الإقامة المُدخلة (عند الإنجاز): تاريخ الانتهاء + المهنة — نفس نقل الكفالة (بلا تفاصيل التأمين).
+    const iqRows = (iq && iq.status !== 'cancelled') ? [
+      iq.iqama_expiry ? kvRow(lab('iqamaExp'), num2(fmtD(iq.iqama_expiry))) : '',
+      iq.occupation_name_ar ? kvRow(lab('occupation'), esc(iq.occupation_name_ar)) : '',
+    ].filter(Boolean).join('') : ''
+    const grid = iqRows ? `<div class="est-grid" style="margin-top:2.5mm">${iqRows}</div>` : ''
+    return secTitle('transactionSec') + `<div class="card full">${tags}${grid}</div>`
+  })() : ''
 
   // ── Installments table ──
-  // عمود «رقم الحدود» — للتأشيرة الدائمة فقط: يُعرض رقم حدود التأشيرة المرتبطة عند دفعة «إصدار الإقامة».
-  const showBorderCol = code === 'work_visa_permanent'
-  const instTbl = insts.length ? secTitle('schedule') + `<table><thead><tr><th style="width:34px" class="c">#</th><th>${lab('milestone')}</th>${showBorderCol ? `<th class="c">${lab('borderNo')}</th>` : ''}<th class="c">${lab('expectedDate')}</th><th class="l">${lab('amount')}</th><th class="c">${lab('status')}</th></tr></thead><tbody>${insts.map((it, i) => {
+  // عمود «رقم الإقامة» — للتأشيرة الدائمة فقط: يُعرض رقم إقامة التأشيرة المرتبطة عند دفعة «إصدار الإقامة».
+  const showBorderCol = isStagedVisa
+  const instTbl = insts.length ? secTitle('schedule') + `<table><thead><tr><th style="width:34px" class="c">#</th><th>${lab('milestone')}</th>${showBorderCol ? `<th class="c">${lab('iqamaNo')}</th>` : ''}<th class="c">${lab('expectedDate')}</th><th class="l">${lab('amount')}</th><th class="c">${lab('status')}</th></tr></thead><tbody>${insts.map((it, i) => {
     const ord = it.installment_order || (i + 1)
     const tot = Number(it.total_amount || 0), pd = Number(it.paid_amount || 0)
     const st = pd >= tot && tot > 0 ? 'ok' : (pd > 0 ? 'partial' : 'no')
     const stTxt = lab(st === 'ok' ? 'stPaid' : st === 'partial' ? 'stPartial' : 'stUnpaid')
-    const stageKey = (code === 'work_visa_permanent') ? milestoneKeyFor(it) : null
+    const stageKey = isStagedVisa ? milestoneKeyFor(it) : null
     const stage = (stageKey ? lab(stageKey) : null) || localize(it.payment_milestone) || ''
     const mLbl = insts.length === 1 ? lab('singlePayment') : instOrdLabel(ord)
-    // خلية رقم الحدود: رقم التأشيرة المرتبطة بدفعة إصدار الإقامة فقط، وإلا شرطة.
-    const bn = (stageKey === 'mIqamaIssue') ? (it.visa_application?.border_number || '') : ''
-    const borderCell = showBorderCol ? `<td class="c">${bn ? num2(bn) : '—'}</td>` : ''
+    // خلية رقم الإقامة: تُعرض لأي دفعة مرتبطة بتأشيرة (إصدار الإقامة في الدائمة / الوكالة في المؤقتة)، وإلا شرطة.
+    const iqNo = it.visa_application_id ? ((data?.iqamaByVisa || {})[it.visa_application_id]?.iqama_number || '') : ''
+    const borderCell = showBorderCol ? `<td class="c">${iqNo ? num2(iqNo) : '—'}</td>` : ''
     // الدفعة الأولى بلا تاريخ متوقّع: تُستحقّ عند إصدار الفاتورة، فنعرض تاريخ الإصدار بدلاً من شرطة.
     const expDate = it.expected_date || ((ord === 1 || i === 0) ? inv.created_at : null)
     return `<tr><td class="c">${num2(ord)}</td><td><span class="milestone">${esc(mLbl)}</span>${stage ? ` — <span class="stage">${esc(stage)}</span>` : ''}</td>${borderCell}<td class="c">${expDate ? num2(fmtD(expDate)) : '—'}</td><td class="l"><span class="amt">${num2(nm(tot))}</span></td><td class="c"><span class="pill ${st}">${esc(stTxt)}</span></td></tr>`
@@ -583,11 +865,14 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
       const vt = s.includes('متعددة') ? 'vtMultiple' : 'vtSingle'
       return `${lab('exitReentryShort')} (${lab(op)}-${lab(vt)})`
     }
-    if (s.includes('رسوم مكتب') || s.includes('رسوم المكتب')) return lab('officeFee')
+    if (s.includes('رسوم مكتب') || s.includes('رسوم المكتب')) return lab(code === 'profession_change' ? 'officeFeeSaudization' : (code === 'exit_reentry_visa' || code === 'other') ? 'officeFeeShort' : 'officeFee')
     if (s.includes('رسم تغيير المهنة')) return lab('professionChangeFee')
+    if (s.includes('تعديل الراتب')) return lab('salaryAdjFee')
+    if (s.includes('خروج نهائي')) return lab('officeFeeShort')
     if (s.includes('نقل الكفالة') || s.includes('رسوم النقل')) return lab('transferFee')
     if (s.includes('تجديد الإقامة') || s.includes('تجديد الاقامة')) return lab('iqamaRenewal')
     if (s.includes('كرت العمل') || s.includes('رخصة العمل')) return lab('workPermit')
+    if (s.includes('طباعة الإقامة') || s.includes('طباعة الاقامة')) return lab('iqamaPrintFee')
     if (s.includes('التأمين الطبي') || s.includes('تأمين طبي')) return lab('medicalIns')
     if (s.includes('غرامة')) return lab('lateFine')
     if (s === 'رسوم أساسية' || s.includes('رسوم عقد أجير') || s.includes('رسوم العقد')) return lab('contractFee')
@@ -610,7 +895,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     return `<span style="display:inline-flex;align-items:baseline;gap:4px;direction:ltr">${curLeft ? curPart + numPart : numPart + curPart}</span>`
   }
   const priceTotalRows = disc > 0
-    ? `<tr class="sub-row"><td>${lab('subtotalInitial')}</td><td class="l">${amtCell(lineSum)}</td></tr>${absherDisc > 0 ? `<tr class="disc-row"><td>${lab('absherDiscount')}</td><td class="l">${amtCell(absherDisc, true)}</td></tr>` : ''}${officeDisc > 0 ? `<tr class="disc-row"><td>${lab('officeDiscount')}</td><td class="l">${amtCell(officeDisc, true)}</td></tr>` : ''}<tr class="total-row"><td>${lab('finalTotal')}</td><td class="l">${amtCell(totalA)}</td></tr>`
+    ? `<tr class="sub-row"><td>${lab('subtotalInitial')}</td><td class="l">${amtCell(lineSum)}</td></tr>${absherDisc > 0 ? `<tr class="disc-row"><td>${lab('absherDiscount')}</td><td class="l">${amtCell(absherDisc)}</td></tr>` : ''}${officeDisc > 0 ? `<tr class="disc-row"><td>${lab((code === 'profession_change' || code === 'exit_reentry_visa') ? 'absherDiscount' : 'officeDiscount')}</td><td class="l">${amtCell(officeDisc)}</td></tr>` : ''}<tr class="total-row"><td>${lab('finalTotal')}</td><td class="l">${amtCell(totalA)}</td></tr>`
     : `<tr class="total-row"><td>${lab('total')}</td><td class="l">${amtCell(totalA)}</td></tr>`
   // عدد الأشهر بجانب بنود تجديد الإقامة (الأشهر المُحتسبة، تشمل المتأخرة) ورسوم كرت العمل (أشهر التجديد) — نفس طباعة الحسبة.
   const monthsTc = (code === 'transfer' && data?.tc) ? data.tc : null
@@ -662,7 +947,8 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     bn: 'অফিসিয়াল চালান ছাড়া কোনো অর্থপ্রদানের জন্য অফিস দায়ী নয়। ক্লায়েন্টকে সকল লেনদেনের জন্য চালান চাইতে হবে।',
   }
   const noticePrimary = noticeByLang[printLang] || noticeByLang.en
-  const noticeBlk = `<div class="notice"><div class="ttl">⚠ ${lab('importantNotice')}</div><div class="ar">${esc(noticePrimary)}</div>${printLang === 'en' ? '' : `<div class="en">${esc(noticeByLang.en)}</div>`}</div>`
+  // العربية والإنجليزية تكتفيان بسطر واحد؛ اللغات الأخرى تُذيّل بترجمة إنجليزية مساعدة.
+  const noticeBlk = `<div class="notice"><div class="ttl">⚠ ${lab('importantNotice')}</div><div class="ar">${esc(noticePrimary)}</div>${(printLang === 'en' || printLang === 'ar') ? '' : `<div class="en">${esc(noticeByLang.en)}</div>`}</div>`
 
   // ختم مائل في خلفية الصفحتين: «ملغاة» (أحمر) للفواتير الملغاة، أو «مدفوعة بالكامل» (أخضر)
   // لأي فاتورة سُدِّدت بالكامل (المتبقي = 0 وعليها مبلغ) وليست ملغاة.
@@ -670,6 +956,86 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const wm2 = cancelled
     ? `<div class="cancel-wm">${lab('cancelled')}</div>`
     : (fullyPaid ? `<div class="paid-wm">${lab('fullyPaid')}</div>` : '')
+
+  // رواتب سبلاير: فاتورة صفرية تُطبع في صفحة واحدة — ترويسة + شارة «صفرية» + الأطراف والمنشأة وتفاصيل الطلب.
+  const isSupplierPayroll = code === 'supplier_payroll' || code === 'documents' || code === 'external_transfer_approval'
+  const mastheadHtml = `
+  <header class="masthead">
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <div class="mast-row">
+      <div class="brand">
+        ${logoImg}
+        <div class="group">HUSSAIN OFFICES</div>
+        <div class="name-ar">تأشيرة البناء والإنشاء</div>
+        <div class="name-en">VISA ALBINA &amp; ALINSHA</div>
+        <div class="meta"><span class="ar">${printLang === 'ar' ? 'المملكة العربية السعودية، الجبيل' : 'Kingdom of Saudi Arabia – Al Jubail'}</span><span class="mob"><span>${lab('phone')}:</span><span class="num">${esc(officePhone)}</span></span></div>
+      </div>
+      <div class="inv-id">
+        <div class="tag">${lab('serviceInvoice')}</div>
+        <div class="no-box"><div class="no-lbl">${lab('invoiceNoLbl')}</div><div class="no-val"><span class="num">${esc(invoiceNo)}</span></div></div>
+        <div class="date-line">${lab('issueDate')}: <span class="num">${fmtD(inv.created_at)}</span></div>
+        ${officeCodeBlk}
+      </div>
+    </div>
+  </header>`
+  const zeroBannerBlk = `
+    <div class="hero-wrap">
+      <div class="svc-type"><span class="svc-name">${esc(svcName || '—')}</span></div>
+      <div class="zero-banner">
+        <div class="zb-left"><span class="zb-badge">${lab('zeroInvoice')}</span></div>
+        <div class="zb-right"><div class="zb-note">${lab('zeroInvoiceNote')}</div></div>
+      </div>
+    </div>`
+  const onePageBody = `
+<div class="page">
+  ${wm2}
+  ${mastheadHtml}
+  ${zeroBannerBlk}
+  <div class="pad">
+    ${partiesBlk}
+    ${workerEstBlk}
+    ${svcDetailsBlk}
+    ${txnBlk}
+    ${noteBlk}
+  </div>
+  <div class="page-foot"><div class="footer-bar"><span class="kufi">تأشيرة البناء والإنشاء — VISA ALBINA &amp; ALINSHA</span><span>${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">1 / 1</span></span></div></div>
+</div>`
+  const twoPageBody = `
+<div class="page">
+  ${wm2}
+  ${mastheadHtml}
+  ${heroBlk}
+  <div class="pad">
+    ${partiesBlk}
+    ${instTbl}
+    ${payTbl}
+  </div>
+  <div class="page-foot"><div class="footer-bar"><span class="kufi">تأشيرة البناء والإنشاء — VISA ALBINA &amp; ALINSHA</span><span>${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">1 / 2</span></span></div></div>
+</div>
+<div class="page page2">
+  ${wm2}
+  <div class="mini-head">
+    <div class="l-side">${logoImg}<div><div class="mh-name">تأشيرة البناء والإنشاء</div><div class="mh-en">VISA ALBINA &amp; ALINSHA</div></div></div>
+    <div class="mh-inv"><div class="l">${lab('invoiceNoLbl')}</div><div class="v"><span class="num">${esc(invoiceNo)}</span></div></div>
+  </div>
+  <div class="pad">
+    ${serviceBlk}
+    ${workerEstBlk}
+    ${profBlk}
+    ${svcDetailsBlk}
+    ${txnTransferBlk}
+    ${txnRenewalBlk}
+    ${txnBlk}
+    ${noteBlk}
+    <div class="page2-bottom">
+    ${priceSummaryBlk}
+    ${bankBlk}
+    ${noticeBlk}
+    <div class="footer-bar" style="justify-content:center"><span class="kufi">${printLang === 'ar' ? 'شكراً لتعاملكم معنا' : lab('thankYou')}</span></div>
+    </div>
+  </div>
+  <div class="page-num"><span class="kufi">تأشيرة البناء والإنشاء</span> · ${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">2 / 2</span></div>
+</div>`
 
   const html2 = `<!DOCTYPE html><html dir="${rtl ? 'rtl' : 'ltr'}" lang="${printLang}"><head><meta charset="utf-8"><title>${esc(invoiceNo) || lab('invoice')}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -682,7 +1048,7 @@ body{font-family:'Tajawal','Noto Naskh Arabic','Noto Sans Devanagari','Noto Sans
 .num{direction:ltr;font-variant-numeric:tabular-nums;unicode-bidi:isolate;display:inline-block}
 h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 @page{size:A4;margin:0}
-.page{width:210mm;min-height:297mm;margin:0 auto;background:var(--paper);position:relative;overflow:hidden;box-shadow:0 2px 18px rgba(0,0,0,.25)}
+.page{width:210mm;min-height:297mm;margin:0 auto;background:var(--paper);position:relative;overflow:hidden;box-shadow:0 2px 18px rgba(0,0,0,.25);display:flex;flex-direction:column}
 .page+.page{margin-top:8mm;page-break-before:always;break-before:page}
 .page2{display:flex;flex-direction:column}
 .page2 .pad{flex:1;display:flex;flex-direction:column}
@@ -695,7 +1061,7 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .masthead .corner.tr{top:5mm;left:5mm;border-top:1.5px solid var(--gold);border-left:1.5px solid var(--gold)}
 .mast-row{display:flex;justify-content:space-between;align-items:stretch;gap:14px}
 .inv-id{display:flex;flex-direction:column}
-.inv-id .office-code{margin-top:auto;align-self:flex-end}
+.inv-id .office-code{margin-top:7px;align-self:stretch;justify-content:center}
 .brand{display:flex;flex-direction:column;align-items:flex-start}
 .logo{width:120px;height:auto;display:block;margin-bottom:5px}
 .brand .group{font-family:'Playfair Display',serif;font-weight:700;font-size:23px;color:var(--gold);letter-spacing:.5px;direction:ltr;line-height:1.05;margin-bottom:16px}
@@ -708,18 +1074,18 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .inv-id{text-align:end;align-items:flex-end}
 .inv-id .tag{font-family:'Reem Kufi',sans-serif;font-size:13.5px;letter-spacing:1px;color:#fff;font-weight:600}
 .inv-id .tag-en{font-size:9.5px;letter-spacing:3px;color:#9b9482;display:block;margin-top:1px}
-.inv-id .no-box{margin-top:7px;border:1px solid var(--gold);background:rgba(212,175,55,.07);padding:6px 14px;display:inline-block}
-.inv-id .no-lbl{font-size:9.5px;color:#b9b09a;letter-spacing:1.5px}
+.inv-id .no-box{margin-top:7px;border:1px solid var(--gold);background:rgba(212,175,55,.07);padding:6px 14px;display:block;text-align:center}
+.inv-id .no-lbl{font-size:9.5px;color:#b9b09a;letter-spacing:1.5px;display:block;text-align:left}
 .inv-id .no-val{font-family:'Reem Kufi',sans-serif;font-size:18px;color:var(--gold);font-weight:700}
 .inv-id .date-line{margin-top:6px;font-size:10.5px;color:#cfc8b6}
 .inv-id .date-line .num{color:#fff;font-weight:700}
-.office-code{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:5px 13px;border:1px solid var(--gold);background:rgba(212,175,55,.08);color:var(--gold-soft);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;letter-spacing:1px}
+.office-code{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:4px 14px;border:1px solid var(--gold);background:rgba(212,175,55,.08);color:var(--gold-soft);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;letter-spacing:1px}
 .office-code .num{color:var(--gold);font-weight:700;font-size:13.5px}
-.hero-wrap{padding:5mm 14mm 0}
+.hero-wrap{padding:3.5mm 14mm 0}
 .svc-type{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:3.5mm}
 .svc-type .svc-name{font-family:'Reem Kufi',sans-serif;font-size:24px;font-weight:700;color:var(--charcoal);letter-spacing:.3px}
 .svc-type .svc-qty{font-family:'Reem Kufi',sans-serif;font-size:13.5px;font-weight:700;color:var(--gold);background:var(--charcoal);padding:2px 10px}
-.hero{background:linear-gradient(140deg,#1c1810 0%,#14110b 60%,#0c0904 100%);color:#fff;position:relative;padding:6mm 8mm 5.5mm;display:flex;gap:8mm;align-items:stretch;border:1px solid #2c2517}
+.hero{background:linear-gradient(140deg,#1c1810 0%,#14110b 60%,#0c0904 100%);color:#fff;position:relative;padding:4mm 8mm 3.5mm;display:flex;gap:8mm;align-items:stretch;border:1px solid #2c2517}
 .hero::before{content:"";position:absolute;inset:0;border:1px solid rgba(212,175,55,.32);margin:5px;pointer-events:none}
 .hero .corner{position:absolute;width:20px;height:20px;z-index:2}
 .hero .corner.tl{top:0;right:0;border-top:2px solid var(--gold);border-right:2px solid var(--gold)}
@@ -730,13 +1096,13 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .hero-eyebrow{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:15.5px;letter-spacing:.5px;color:var(--gold-soft)}
 .hero-eyebrow .star{color:var(--gold);font-size:14.5px}
 .hero-eyebrow .en{font-family:'Reem Kufi',sans-serif;font-size:9.5px;letter-spacing:2.5px;color:#8d856f}
-.hero-amount{display:flex;align-items:baseline;gap:9px;margin-top:5px}
-.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:48px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+.hero-amount{display:flex;align-items:baseline;gap:9px;margin-top:3px}
+.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:42px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
 .hero-amount .cur{font-size:19px;color:var(--gold-soft);font-weight:500;font-family:'Reem Kufi',sans-serif}
 .riyal{margin-inline-start:5px;white-space:nowrap}
 .flag{width:21px;height:14px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.18);vertical-align:middle;margin-inline-start:7px}
 .nat-txt{font-size:11px;color:var(--gold-deep);font-weight:600;margin-inline-start:6px}
-.hero-sub{margin-top:7px;font-size:11px;color:#cdc6b4}
+.hero-sub{margin-top:5px;font-size:11px;color:#cdc6b4}
 .hero-sub b{color:#fff;font-weight:700}
 .hero-side{flex:1;position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;align-content:center;border-inline-start:1px solid rgba(212,175,55,.25);padding-inline-start:8mm;margin-inline-start:2mm}
 .hero-fact{padding:4px 10px 4px 0}
@@ -755,6 +1121,14 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .card{border:1px solid var(--line);border-top:2px solid var(--gold);background:#fff;padding:3.5mm 4mm 3mm}
 .card.full{grid-column:1 / -1}
 .desc-text{font-size:12.5px;line-height:1.65;color:var(--ink);font-weight:500;white-space:pre-wrap;word-break:break-word}
+.svc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.status-bar{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:11px;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}
+.status-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.status-bar-full{display:flex;width:100%}
+.status-when{margin-inline-start:auto;font-size:9.5px;font-weight:600;opacity:.85}
+/* الشارتان تبدآن من نفس الحافّة وبعرض متساوٍ (عموديًّا) — stretch يوحّد عرضهما. */
+.status-stack{display:inline-flex;flex-direction:column;gap:4px;align-items:stretch;flex-shrink:0}
+.phase-chip{font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.05);opacity:.9}
 .card h4{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;color:var(--gold-deep);margin-bottom:2.5mm;letter-spacing:.3px;display:flex;justify-content:flex-start;align-items:center}
 .card h4 .en{font-size:9px;letter-spacing:1.5px;color:#b3a576;font-weight:400}
 .kv{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;border-bottom:1px dotted #ece5d3}
@@ -774,7 +1148,23 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .fd-count{font-size:9.5px;color:#a99a6c}
 .fd-item{display:flex;justify-content:space-between;font-size:11px;color:var(--ink);padding:1px 0}
 .fd-x{font-weight:700;direction:ltr}
-.fd-sub{font-size:10.5px;color:#6b6048;font-weight:600;padding:0.5mm 0 0 3mm}
+.fd-v{padding:2mm 0 0;margin-top:1.5mm;border-top:1px dotted #ece5d3}
+.fd-v:first-child{border-top:0;margin-top:0.5mm}
+.fd-vhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:1.5mm}
+.fd-vname{font-size:11.5px;color:var(--ink);font-weight:700}
+.fd-vsub{font-size:10px;color:#6b6048;font-weight:600}
+.fd-worker{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink);font-weight:700;margin-bottom:1.5mm}
+.fd-dot{width:5px;height:5px;border-radius:50%;background:var(--gold-deep);flex-shrink:0}
+.fd-grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}
+.fd-cell{background:#fff;padding:1.5mm 2.5mm}
+.fd-cell-k{font-size:8.5px;color:#a99a6c;margin-bottom:1px}
+.fd-cell-v{font-size:11px;color:var(--ink);font-weight:600;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+.fd-tag{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:700;padding:3px 10px;letter-spacing:.2px;line-height:1.5;white-space:nowrap;flex-shrink:0;border-inline-start-width:3px;border-inline-start-style:solid}
+.fd-tdot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.fd-tchk{font-weight:800;font-size:10.5px}
+.fd-tag.ok{color:var(--ok);background:var(--ok-bg);border-inline-start-color:var(--ok)}
+.fd-tag.visa{color:var(--warn);background:var(--warn-bg);border-inline-start-color:var(--warn)}
+.fd-tag.pending{color:#1f7bc4;background:#e6f1fb;border-inline-start-color:#1f7bc4}
 table{width:100%;border-collapse:collapse}
 thead th{background:var(--charcoal);color:var(--gold-soft);font-family:'Reem Kufi',sans-serif;font-weight:500;font-size:10.5px;letter-spacing:.5px;padding:5.5px 9px;text-align:start}
 thead th.c{text-align:center}
@@ -802,33 +1192,35 @@ td .amt{font-weight:700}
 .price-table .sub-row td .num{color:var(--gold-deep)}
 .price-table .disc-row td{color:var(--ok);font-weight:700}
 .price-table .disc-row td .num{color:var(--ok)}
-.summary-card{border:1px solid var(--charcoal);background:linear-gradient(160deg,#1c1810,#14110b);color:#fff;padding:5mm}
-.summary-card .sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.09)}
+.summary-card{border:1px solid var(--charcoal);background:linear-gradient(160deg,#1c1810,#14110b);color:#fff;padding:3mm 5mm}
+.summary-card .sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.09)}
 .summary-card .sum-row .k{font-size:11.5px;color:#c9c0aa;font-family:'Reem Kufi',sans-serif}
 .summary-card .sum-row .v{font-size:14.5px;font-weight:700;color:#E6B43C}
 .summary-card .sum-row.paid .v{color:#2FA85A}
 .summary-card .sum-row.paid .k{color:#2FA85A}
-.summary-card .sum-row.remain{border-bottom:0;margin-top:2px;padding-top:7px;border-top:1.5px solid var(--gold)}
+.summary-card .sum-row.remain{border-bottom:0;margin-top:1px;padding-top:5px;border-top:1.5px solid var(--gold)}
 .summary-card .sum-row.remain .k{color:var(--gold-soft);font-size:13px}
-.summary-card .sum-row.remain .v{color:#D83A3A;font-family:'Reem Kufi',sans-serif;font-size:25px}
-.progress{margin-top:4mm}
-.progress .track{height:7px;background:rgba(255,255,255,.12);position:relative;overflow:hidden}
+.summary-card .sum-row.remain .v{color:#D83A3A;font-family:'Reem Kufi',sans-serif;font-size:19px}
+.progress{margin-top:2.5mm}
+.progress .track{height:6px;background:rgba(255,255,255,.12);position:relative;overflow:hidden}
 .progress .fill{position:absolute;top:0;inset-inline-start:0;bottom:0;background:linear-gradient(90deg,var(--gold-deep),var(--gold))}
-.progress .cap{display:flex;justify-content:space-between;margin-top:5px;font-size:10px;color:#b3a983}
+.progress .cap{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:#b3a983}
 .progress .cap b{color:var(--gold-soft)}
 .bank-card{border:1px solid var(--line);border-inline-start:3px solid var(--gold);background:var(--gold-faint);padding:3.5mm 4mm 3mm}
 .note-card{font-size:11.5px;line-height:1.6;color:var(--ink);white-space:pre-wrap}
-.notice{margin-top:4.5mm;background:var(--charcoal);color:#e9e2cf;padding:4mm 6mm;position:relative}
+.notice{margin-top:3mm;background:var(--charcoal);color:#e9e2cf;padding:2.5mm 6mm;position:relative}
 .notice::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-deep))}
-.notice .ttl{font-family:'Reem Kufi',sans-serif;font-weight:600;color:var(--gold);font-size:12px;letter-spacing:.5px;margin-bottom:3px;display:flex;align-items:center;gap:7px}
-.notice .ar{font-size:10.5px;line-height:1.55;color:#ddd5c1}
+.notice .ttl{font-family:'Reem Kufi',sans-serif;font-weight:600;color:var(--gold);font-size:11.5px;letter-spacing:.5px;margin-bottom:1.5px;display:flex;align-items:center;gap:7px}
+.notice .ar{font-size:10px;line-height:1.4;color:#ddd5c1}
 .notice .en{font-size:9.5px;line-height:1.5;color:#9b937e;direction:ltr;text-align:left;margin-top:4px;border-top:1px solid rgba(255,255,255,.08);padding-top:4px}
 .footer-bar{display:flex;justify-content:space-between;align-items:center;padding:4mm 0;font-size:10px;color:#8a826b}
 .footer-bar .kufi{color:var(--gold-deep);letter-spacing:1px}
 .footer-bar .signs{display:flex;gap:12mm}
 .footer-bar .sign{text-align:center}
 .footer-bar .sign .ln2{width:38mm;border-top:1px solid var(--hair);margin-bottom:3px}
-.page-foot{position:absolute;left:0;right:0;bottom:11mm;padding:0 14mm}
+/* فوتر الصفحة الأولى داخل التدفّق ومدفوع لأسفل الصفحة (margin-top:auto) بدل تموضع مطلق — فلا يتداخل مع
+   جداول الدفعات/المدفوعات مهما طالت، ويظلّ ملتصقاً بأسفل الصفحة حين يكون المحتوى قصيراً. */
+.page-foot{margin-top:auto;padding:0 14mm 5mm}
 .mini-head{background:linear-gradient(135deg,#1f1a10,#14110b);color:#fff;padding:5mm 14mm;display:flex;justify-content:space-between;align-items:center;position:relative}
 .mini-head::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2.5px;background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-deep))}
 .mini-head .l-side{display:flex;align-items:center;gap:11px}
@@ -842,57 +1234,14 @@ td .amt{font-weight:700}
 .page-num .kufi{color:var(--gold-deep)}
 .cancel-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:120px;font-weight:700;color:rgba(154,47,47,.10);letter-spacing:8px;white-space:nowrap;pointer-events:none;z-index:5}
 .paid-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:96px;font-weight:700;color:rgba(28,122,74,.10);letter-spacing:6px;white-space:nowrap;pointer-events:none;z-index:5}
+.zero-banner{border:1.4px solid var(--hair);border-radius:11px;overflow:hidden;display:flex;align-items:stretch;background:#fff}
+.zero-banner .zb-left{background:var(--charcoal);padding:5mm 7mm;display:flex;align-items:center;justify-content:center;text-align:center;min-width:46mm}
+.zero-banner .zb-badge{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:15px;letter-spacing:1px;color:var(--gold)}
+.zero-banner .zb-right{flex:1;padding:5mm 7mm;display:flex;flex-direction:column;justify-content:center}
+.zero-banner .zb-svc{font-family:'Reem Kufi',sans-serif;font-size:17px;font-weight:700;color:var(--charcoal);margin-bottom:2mm}
+.zero-banner .zb-note{font-size:11px;color:var(--ink-soft);line-height:1.55}
 @media print{html,body{background:#fff}.page{box-shadow:none;margin:0}.page+.page{margin-top:0}}
-</style></head><body>
-<div class="page">
-  ${wm2}
-  <header class="masthead">
-    <span class="corner tl"></span><span class="corner tr"></span>
-    <div class="mast-row">
-      <div class="brand">
-        ${logoImg}
-        <div class="group">HUSSAIN OFFICES</div>
-        <div class="name-ar">تأشيرة البناء والإنشاء</div>
-        <div class="name-en">VISA ALBINA &amp; ALINSHA</div>
-        <div class="meta"><span class="ar">${printLang === 'ar' ? 'المملكة العربية السعودية، الجبيل' : 'Kingdom of Saudi Arabia – Al Jubail'}</span><span class="mob"><span>${lab('phone')}:</span><span class="num">${esc(officePhone)}</span></span></div>
-      </div>
-      <div class="inv-id">
-        <div class="tag">${lab('serviceInvoice')}</div>
-        <div class="no-box"><div class="no-lbl">${lab('invoiceNoLbl')}</div><div class="no-val"><span class="num">${esc(invoiceNo)}</span></div></div>
-        <div class="date-line">${lab('issueDate')}: <span class="num">${fmtD(inv.created_at)}</span></div>
-        ${officeCodeBlk}
-      </div>
-    </div>
-  </header>
-  ${heroBlk}
-  <div class="pad">
-    ${partiesBlk}
-    ${instTbl}
-    ${payTbl}
-  </div>
-  <div class="page-foot"><div class="footer-bar"><span class="kufi">تأشيرة البناء والإنشاء — VISA ALBINA &amp; ALINSHA</span><span>${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">1 / 2</span></span></div></div>
-</div>
-<div class="page page2">
-  ${wm2}
-  <div class="mini-head">
-    <div class="l-side">${logoImg}<div><div class="mh-name">تأشيرة البناء والإنشاء</div><div class="mh-en">VISA ALBINA &amp; ALINSHA</div></div></div>
-    <div class="mh-inv"><div class="l">${lab('invoiceNoLbl')}</div><div class="v"><span class="num">${esc(invoiceNo)}</span></div></div>
-  </div>
-  <div class="pad">
-    ${serviceBlk}
-    ${workerEstBlk}
-    ${profBlk}
-    ${svcDetailsBlk}
-    ${noteBlk}
-    <div class="page2-bottom">
-    ${priceSummaryBlk}
-    ${bankBlk}
-    ${noticeBlk}
-    <div class="footer-bar" style="justify-content:center"><span class="kufi">${printLang === 'ar' ? 'شكراً لتعاملكم معنا' : lab('thankYou')}</span></div>
-    </div>
-  </div>
-  <div class="page-num"><span class="kufi">تأشيرة البناء والإنشاء</span> · ${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">2 / 2</span></div>
-</div>
+</style></head><body>${isSupplierPayroll ? onePageBody : twoPageBody}
 </body></html>`
 
   return html2

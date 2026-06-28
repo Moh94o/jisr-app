@@ -3,7 +3,7 @@ import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ell
 import {isServiceActive,isServiceBillable,isServiceActiveFor,isServiceBillableFor,getPricingFor,getDocTypes,docTypeLabel} from './ServiceAdminPage.jsx'
 import {TXN_SERVICES} from './pages/txnServices.js'
 import {noDash} from './lib/utils.js'
-import {KAFALA_DEFAULTS} from './lib/kafalaPricing.js'
+import {KAFALA_DEFAULTS,getKafalaPricingConfig} from './lib/kafalaPricing.js'
 // حدود الرسوم الحكومية المشمولة ضمن «رسوم المكتب» لتجديد الإقامة — ما يتجاوزها يُضاف للإجمالي. (الغرامة تُضاف دائمًا فوق ذلك)
 const IQAMA_COVER={iqama:650,workPermit:100,medical:1000}
 import {Modal as FKModal, SuccessView, ActionButton as FKAction, ModalSection, Field as FKField, IdField as FKId, PhoneField as FKPhone, Select as FKSelect, Segmented as FKSegmented, Stepper as FKStepper, Checkbox as FKCheckbox, CurrencyField as FKCurrency, TextArea as FKTextArea, TextField as FKText, NumberField as FKNumber, DateField as FKDate, FileField as FKFile, Dropdown as FKDropdown, Lbl as FKLbl, GRID as FKGRID, sF as fkSF, validateSaudiId, validatePhone} from './components/ui/FormKit.jsx'
@@ -21,7 +21,7 @@ const Spinner=({size=26,label,style})=>(
 const CopyBtn=({value,size=13})=>{
 const[done,setDone]=useState(false)
 if(!value)return null
-return<button type="button" title={done?'تم النسخ':'نسخ'} onClick={e=>{e.stopPropagation();try{navigator.clipboard?.writeText(String(value))}catch(_){}setDone(true);setTimeout(()=>setDone(false),1300)}} style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:done?C.ok:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{if(!done)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{e.currentTarget.style.color=done?C.ok:'var(--tx5)'}}>{done?<Check size={size+2} strokeWidth={2.4}/>:<Copy size={size}/>}</button>
+return<button type="button" title={done?T('تم النسخ','Copied'):T('نسخ','Copy')} onClick={e=>{e.stopPropagation();try{navigator.clipboard?.writeText(String(value))}catch(_){}setDone(true);setTimeout(()=>setDone(false),1300)}} style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:done?C.ok:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{if(!done)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{e.currentTarget.style.color=done?C.ok:'var(--tx5)'}}>{done?<Check size={size+2} strokeWidth={2.4}/>:<Copy size={size}/>}</button>
 }
 // Format Saudi phone: +966558908008 → 055 890 8008
 const fmtPhone=(p)=>{if(!p)return'';let n=String(p).replace(/[^0-9+]/g,'');if(n.startsWith('+966'))n='0'+n.slice(4);else if(n.startsWith('966'))n='0'+n.slice(3);if(n.length===10)return`${n.slice(0,3)} ${n.slice(3,6)} ${n.slice(6)}`;return n}
@@ -101,27 +101,60 @@ return files
 
 // ═══════ Service Types (Bento Grid) ═══════
 const MAIN_SERVICES=[
-{id:'work_visa_permanent',name_ar:'تأشيرة وإقامة دائمة',Icon:CalendarRange,featured:true,billable:true},
-{id:'work_visa_temporary',name_ar:'تأشيرة وإقامة مؤقتة',Icon:CalendarClock,billable:true},
-{id:'kafala_transfer',name_ar:'نقل كفالة',Icon:ArrowLeftRight,billable:true},
-{id:'iqama_renewal',name_ar:'تجديد الإقامة',Icon:RefreshCw,billable:true},
-{id:'ajeer_contract',name_ar:'عقد أجير',Icon:Users,billable:true},
-{id:'chamber_certification',name_ar:'الغرفة التجارية',Icon:FileCheck,billable:true}
+{id:'work_visa_permanent',name_ar:'تأشيرة وإقامة دائمة',name_en:'Permanent Visa & Iqama',Icon:CalendarRange,featured:true,billable:true},
+{id:'work_visa_temporary',name_ar:'تأشيرة وإقامة مؤقتة',name_en:'Temporary Visa & Iqama',Icon:CalendarClock,billable:true},
+{id:'kafala_transfer',name_ar:'نقل كفالة',name_en:'Sponsorship Transfer',Icon:ArrowLeftRight,billable:true},
+{id:'iqama_renewal',name_ar:'تجديد الإقامة',name_en:'Iqama Renewal',Icon:RefreshCw,billable:true},
+{id:'ajeer_contract',name_ar:'عقد أجير',name_en:'Ajeer Contract',Icon:Users,billable:true},
+{id:'chamber_certification',name_ar:'الغرفة التجارية',name_en:'Chamber of Commerce',Icon:FileCheck,billable:true}
 ]
 const OTHER_SERVICES=[
-{id:'medical_insurance',name_ar:'تأمين طبي',Icon:HeartPulse,billable:true},
-{id:'profession_change',name_ar:'تغيير المهنة',Icon:UserCog,billable:true},
-{id:'external_transfer_approval',name_ar:'الموافقة للنقل الخارجي',Icon:BadgeCheck,billable:false},
-{id:'name_translation',name_ar:'تعديل الراتب',Icon:Wallet,billable:true},
-{id:'exit_reentry_visa',name_ar:'خروج وعودة',Icon:Plane,billable:true},
-{id:'final_exit_visa',name_ar:'خروج نهائي',Icon:PlaneTakeoff,billable:true},
-{id:'passport_update',name_ar:'تحديث بيانات الجواز',Icon:IdCard,billable:true},
-{id:'iqama_print',name_ar:'طباعة الإقامة',Icon:Printer,billable:true},
-{id:'documents',name_ar:'مستندات',Icon:FileStack,billable:true},
-{id:'supplier_payroll',name_ar:'طلب رواتب سبلاير',Icon:Coins,billable:false},
-{id:'custom',name_ar:'خدمة عامة',Icon:Sparkles,billable:true}
+{id:'medical_insurance',name_ar:'تأمين طبي',name_en:'Medical Insurance',Icon:HeartPulse,billable:true},
+{id:'profession_change',name_ar:'تغيير المهنة',name_en:'Occupation Change',Icon:UserCog,billable:true},
+{id:'external_transfer_approval',name_ar:'الموافقة للنقل الخارجي',name_en:'External Transfer Approval',Icon:BadgeCheck,billable:false},
+{id:'name_translation',name_ar:'تعديل الراتب',name_en:'Salary Edit',Icon:Wallet,billable:true},
+{id:'exit_reentry_visa',name_ar:'خروج وعودة',name_en:'Exit & Re-entry',Icon:Plane,billable:true},
+{id:'final_exit_visa',name_ar:'خروج نهائي',name_en:'Final Exit',Icon:PlaneTakeoff,billable:true},
+{id:'passport_update',name_ar:'تحديث بيانات الجواز',name_en:'Passport Update',Icon:IdCard,billable:true},
+{id:'iqama_print',name_ar:'طباعة الإقامة',name_en:'Iqama Print',Icon:Printer,billable:true},
+{id:'documents',name_ar:'مستندات',name_en:'Documents',Icon:FileStack,billable:false},
+{id:'supplier_payroll',name_ar:'طلب رواتب سبلاير',name_en:'Supplier Payroll',Icon:Coins,billable:false},
+{id:'custom',name_ar:'خدمة عامة',name_en:'General Service',Icon:Sparkles,billable:true}
 ]
-const ALL_SERVICES=[...MAIN_SERVICES,...OTHER_SERVICES]
+// Resolve a service-config display name by current language (falls back to Arabic).
+const svcName=(s,isAr)=>!s?'':(isAr?s.name_ar:(s.name_en||s.name_ar))
+// Resolve a SERVICE_INPUTS field label by current language (falls back to Arabic).
+const inpLabel=(inp,isAr)=>!inp?'':(isAr?inp.label_ar:(inp.label_en||inp.label_ar))
+// Resolve a static option list's labels by current language (option.label_en overrides option.label).
+const inpOpts=(opts,isAr)=>(opts||[]).map(o=>isAr||!o.label_en?o:{...o,label:o.label_en})
+// Resolve a SERVICE_INPUTS placeholder by current language (falls back to Arabic).
+const inpPh=(inp,isAr)=>!inp?'':(isAr?(inp.placeholder||''):(inp.placeholder_en||inp.placeholder||''))
+// Display translation for computed pricing-line labels (the stored label stays Arabic; this only flips the display).
+const PRICE_LABEL_EN={'رسوم العقد':'Contract Fee','رسوم مكتب':'Office Fee','رسوم المكتب':'Office Fee','رسوم خروج نهائي':'Final Exit Fee','رسم تغيير المهنة':'Occupation Change Fee','رسم تحديث بيانات الجواز':'Passport Update Fee','رسم تعديل الراتب':'Salary Edit Fee','طباعة الإقامة':'Iqama Print','التأمين الطبي':'Medical Insurance','تصديق المطبوعات':'Printout Certification','تصديق طلب مفتوح':'Open-Request Certification','الغرفة التجارية':'Chamber of Commerce','خدمة عامة':'General Service','رسوم النقل':'Transfer Fee','تجديد الإقامة':'Iqama Renewal','رخصة العمل':'Work Permit','تغيير المهنة':'Occupation Change','غرامة تأخّر الإقامة':'Iqama Late Fine','الخصم':'Discount','إضافي':'Extra'}
+const priceLabel=(lbl,isAr)=>{if(isAr||!lbl)return lbl;if(PRICE_LABEL_EN[lbl])return PRICE_LABEL_EN[lbl];
+  // handle parameterized labels like "خروج وعودة (تمديد-مفردة)", "تجديد الإقامة (12 شهر)", "معامل السعودة ×N"
+  let m;
+  if((m=lbl.match(/^تجديد الإقامة \((\d+) شهر\)$/)))return `Iqama Renewal (${m[1]} mo)`;
+  if((m=lbl.match(/^رخصة العمل \((\d+) شهر\)$/)))return `Work Permit (${m[1]} mo)`;
+  if((m=lbl.match(/^خروج وعودة \(تمديد-(.+)\)$/)))return `Exit & Re-entry (extend-${m[1]==='متعددة'?'multiple':'single'})`;
+  if((m=lbl.match(/^خروج وعودة \(إصدار-(.+)\)$/)))return `Exit & Re-entry (issue-${m[1]==='متعددة'?'multiple':'single'})`;
+  if((m=lbl.match(/^معامل السعودة ×(.+)$/)))return `Saudization factor ×${m[1]}`;
+  return lbl}
+export const ALL_SERVICES=[...MAIN_SERVICES,...OTHER_SERVICES]
+
+// خريطة: معرّف الخدمة في المعالج → كود service_type في lookup_items. (مُصدَّرة لإعادة استخدامها في فلتر الفواتير.)
+export const SVC_CODE_MAP={
+  work_visa_permanent:'work_visa_permanent',work_visa_temporary:'work_visa_temporary',
+  kafala_transfer:'transfer',iqama_renewal:'iqama_renewal',ajeer_contract:'ajeer',
+  supplier_payroll:'supplier_payroll',external_transfer_approval:'external_transfer_approval',
+  // ids whose service_type code differs from the wizard id, or that have no registry entry of their own:
+  chamber_certification:'other',   // "الغرفة التجارية" is stored under the legacy 'other' code
+  custom:'general',                // "عام" — the generic service bucket
+  medical_insurance:'medical_insurance',name_translation:'name_translation',
+  exit_reentry_visa:'exit_reentry_visa',final_exit_visa:'final_exit_visa',iqama_print:'iqama_print',
+  // Registry-driven tabs: wizard id is already the service_type code, so map each to itself.
+  ...Object.fromEntries(Object.keys(TXN_SERVICES).map(c=>[c,c])),
+}
 
 // ═══════ Visa services (custom inputs) ═══════
 const VISA_SERVICES=new Set(['work_visa_permanent','work_visa_temporary'])
@@ -134,6 +167,9 @@ const CLIENT_SERVICES=new Set(['work_visa_permanent','work_visa_temporary','kafa
 // (نقل الكفالة → transfer_calculation · تجديد الإقامة → iqama_renewal_calculation) and attaches an invoice to it.
 // Both reorder the wizard (quote = step 2 «التفاصيل», client = step 3 «العميل») and share the same party/payment UI.
 const QUOTE_SVCS=new Set(['kafala_transfer','iqama_renewal'])
+// الرسوم الحكومية لحسبة تجديد الإقامة — نفس قيمة صفحة التفاصيل (government_fees المجمّد) مع حساب احتياطي للسجلات القديمة.
+// تُستخدم في عرض الكرت + الحد الأدنى للدفعة الواحدة + الحد الأدنى للدفعة الأولى في الدفعات المتعددة.
+const iqamaQuoteGovFees=q=>q?.government_fees!=null?Number(q.government_fees):Math.max(0,Number(q?.iqama_renewal_fee||0)+Number(q?.work_permit_fee||0)+Number(q?.medical_fee||0)+Number(q?.late_fine_amount||0)+Number(q?.prof_change_fee||0))
 
 // Shared column projection for worker queries (workers / temproryworkers share the same FK shape).
 const WORKER_SELECT='id,name_ar,name_en,phone,iqama_number,iqama_expiry_date,passport_number,passport_expiry,occupation_ar,nationality_ar,birth_date,nationality:nationality_id(id,name_ar,code:code,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,unified_number,gosi_number,hrsd_number)'
@@ -160,78 +196,78 @@ const toHijri=(dateStr)=>{
 // Each service defines its own appropriate fields
 const SERVICE_INPUTS={
   iqama_renewal:[
-    {key:'renewal_months',label_ar:'عدد أشهر التجديد',type:'number',required:true,placeholder:'عدد الأشهر'},
-    {key:'change_profession',label_ar:'تغيير المهنة',type:'toggle',required:true},
-    {key:'new_occupation',label_ar:'المهنة الجديدة',type:'select',show_if:'change_profession',source:'occupations'}
+    {key:'renewal_months',label_ar:'عدد أشهر التجديد',label_en:'Renewal Months',type:'number',required:true,placeholder:'عدد الأشهر',placeholder_en:'No. of months'},
+    {key:'change_profession',label_ar:'تغيير المهنة',label_en:'Occupation Change',type:'toggle',required:true},
+    {key:'new_occupation',label_ar:'المهنة الجديدة',label_en:'New Occupation',type:'select',show_if:'change_profession',source:'occupations'}
   ],
   ajeer_contract:[
-    {key:'borrower_700',label_ar:'الرقم الموحد للمنشأة المستعارة',type:'text',required:true,placeholder:'7XX XXX XXXX',direction:'ltr'},
+    {key:'borrower_700',label_ar:'الرقم الموحد للمنشأة المستعارة',label_en:'Borrower Unified No',type:'text',required:true,placeholder:'7XX XXX XXXX',direction:'ltr'},
     // Region was dropped because city already implies its region — see the rendered
     // UI in `bيانات عقد أجير` fieldset; cities are shown unfiltered.
-    {key:'city',label_ar:'المدينة',type:'select',required:true,source:'cities'},
+    {key:'city',label_ar:'المدينة',label_en:'City',type:'select',required:true,source:'cities'},
     // 1-24 month dropdown; matches the Ajeer contract's allowed contract length.
-    {key:'contract_months',label_ar:'مدة العقد',type:'select',required:true,options:Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)})),grid_col:'1'}
+    {key:'contract_months',label_ar:'مدة العقد',label_en:'Duration',type:'select',required:true,options:Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)})),grid_col:'1'}
   ],
   exit_reentry_visa:[
-    {key:'exit_type',label_ar:'نوع التأشيرة',type:'select',required:true,
-      options:[{value:'single',label:'مفردة'},{value:'multiple',label:'متعددة'}]},
+    {key:'exit_type',label_ar:'نوع التأشيرة',label_en:'Visa Type',type:'select',required:true,
+      options:[{value:'single',label:'مفردة',label_en:'Single'},{value:'multiple',label:'متعددة',label_en:'Multiple'}]},
     // Dropdown 1-12 — exit/reentry visas are issued in whole-month increments.
-    {key:'duration_months',label_ar:'المدة',type:'select',required:true,options:Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)}))}
+    {key:'duration_months',label_ar:'المدة',label_en:'Duration',type:'select',required:true,options:Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)}))}
   ],
   final_exit_visa:[
-    {key:'reason',label_ar:'السبب',type:'textarea',placeholder:'اكتب سبب طلب تأشيرة الخروج النهائي...'}
+    {key:'reason',label_ar:'السبب',label_en:'Reason',type:'textarea',placeholder:'اكتب سبب طلب تأشيرة الخروج النهائي...',placeholder_en:'Reason for the final-exit visa request...'}
   ],
   profession_change:[
-    {key:'new_occupation',label_ar:'المهنة الجديدة',type:'select',required:true,source:'occupations'}
+    {key:'new_occupation',label_ar:'المهنة الجديدة',label_en:'New Occupation',type:'select',required:true,source:'occupations'}
   ],
   passport_update:[],
   external_transfer_approval:[
-    {key:'reason',label_ar:'السبب',type:'textarea',placeholder:'اكتب سبب طلب الموافقة على النقل الخارجي...'}
+    {key:'reason',label_ar:'السبب',label_en:'Reason',type:'textarea',placeholder:'اكتب سبب طلب الموافقة على النقل الخارجي...',placeholder_en:'Reason for the external-transfer approval request...'}
   ],
   name_translation:[
-    {key:'new_salary',label_ar:'الراتب الجديد',type:'number',required:true,placeholder:'0'},
+    {key:'new_salary',label_ar:'الراتب الجديد',label_en:'New Salary',type:'number',required:true,placeholder:'0'},
     // Switched from weeks to months at the user's request — easier to pick + matches HR norms.
-    {key:'salary_months',label_ar:'مدة الراتب',type:'select',required:true,options:Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)}))}
+    {key:'salary_months',label_ar:'مدة الراتب',label_en:'Salary Duration',type:'select',required:true,options:Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)}))}
   ],
   custom:[
-    {key:'custom_note',label_ar:'وصف الخدمة',type:'textarea',required:true,placeholder:'اكتب تفاصيل الخدمة المطلوبة...'}
+    {key:'custom_note',label_ar:'وصف الخدمة',label_en:'Service Description',type:'textarea',required:true,placeholder:'اكتب تفاصيل الخدمة المطلوبة...',placeholder_en:'Describe the requested service...'}
   ],
   // طلب رواتب سبلاير — العامل مُختار مسبقاً في الخطوة السابقة، فلا حاجة لتكرار اسمه. تُرسم الحقول الثلاثة
   // بمكوّنات FormKit داخل إطار (فرع supplier_payroll في الخطوة 3): جوال العامل للتواصل، عدد أشهر الرواتب
   // غير المدفوعة (قائمة منسدلة)، والمبلغ الإجمالي لهذه الرواتب. هذه القائمة تخدم التحقق فقط (نفس المفاتيح).
   supplier_payroll:[
-    {key:'worker_phone',label_ar:'رقم جوال العامل',type:'text',required:true},
-    {key:'unpaid_salaries_count',label_ar:'عدد أشهر الرواتب غير المدفوعة',type:'select',required:true},
-    {key:'total_amount',label_ar:'المبلغ الإجمالي',type:'number',required:true}
+    {key:'worker_phone',label_ar:'رقم جوال العامل',label_en:'Worker Mobile',type:'text',required:true},
+    {key:'unpaid_salaries_count',label_ar:'عدد أشهر الرواتب غير المدفوعة',label_en:'Unpaid salary months',type:'select',required:true},
+    {key:'total_amount',label_ar:'المبلغ الإجمالي',label_en:'Total Amount',type:'number',required:true}
   ],
   iqama_print:[
-    {key:'print_reason',label_ar:'السبب',type:'textarea',required:true,placeholder:'اكتب سبب طلب طباعة الإقامة...'}
+    {key:'print_reason',label_ar:'السبب',label_en:'Reason',type:'textarea',required:true,placeholder:'اكتب سبب طلب طباعة الإقامة...',placeholder_en:'Reason for the Iqama-print request...'}
   ],
   medical_insurance:[],
   documents:[
-    {key:'doc_type',label_ar:'نوع المستند',type:'select',required:true,
-      options:[{value:'commercial_register',label:'السجل التجاري'},{value:'resident_file',label:'ملف مقيم'}]},
-    {key:'doc_lang',label_ar:'لغة المستند',type:'select',required:true,
-      options:[{value:'ar',label:'عربي'},{value:'en',label:'إنجليزي'}]}
+    {key:'doc_type',label_ar:'نوع المستند',label_en:'Document Type',type:'select',required:true,
+      options:[{value:'commercial_register',label:'السجل التجاري',label_en:'Commercial Register'},{value:'resident_file',label:'ملف مقيم',label_en:'Resident File'}]},
+    {key:'doc_lang',label_ar:'لغة المستند',label_en:'Document Language',type:'select',required:true,
+      options:[{value:'ar',label:'عربي',label_en:'Arabic'},{value:'en',label:'إنجليزي',label_en:'English'}]}
   ],
   kafala_transfer:[
     // ═══ Section 1: بيانات العامل ═══
-    {key:'nationality',label_ar:'الجنسية',type:'select',required:true,section:1,source:'countries'},
-    {key:'birth_date',label_ar:'تاريخ الميلاد',type:'date_hijri',required:true,section:1},
-    {key:'worker_status',label_ar:'حالة العامل',type:'select',required:true,section:1,
-      options:[{value:'valid',label:'صالح'},{value:'huroob',label:'هروب'},{value:'final_exit',label:'خروج نهائي'},{value:'absent',label:'منقطع عن العمل'}]},
-    {key:'current_profession',label_ar:'المهنة الحالية',type:'select',required:true,section:1,source:'occupations'},
-    {key:'iqama_expiry',label_ar:'تاريخ انتهاء الإقامة',type:'date_hijri',required:true,section:1,prefill_from:'iqama_expiry_date',hijri:true},
-    {key:'work_card_expiry',label_ar:'تاريخ نهاية كرت العمل',type:'date_hijri',required:true,section:1,hijri:true},
+    {key:'nationality',label_ar:'الجنسية',label_en:'Nationality',type:'select',required:true,section:1,source:'countries'},
+    {key:'birth_date',label_ar:'تاريخ الميلاد',label_en:'Birth Date',type:'date_hijri',required:true,section:1},
+    {key:'worker_status',label_ar:'حالة العامل',label_en:'Worker Status',type:'select',required:true,section:1,
+      options:[{value:'valid',label:'صالح',label_en:'Valid'},{value:'huroob',label:'هروب',label_en:'Absconded'},{value:'final_exit',label:'خروج نهائي',label_en:'Final Exit'},{value:'absent',label:'منقطع عن العمل',label_en:'Absent from Work'}]},
+    {key:'current_profession',label_ar:'المهنة الحالية',label_en:'Current Occupation',type:'select',required:true,section:1,source:'occupations'},
+    {key:'iqama_expiry',label_ar:'تاريخ انتهاء الإقامة',label_en:'Iqama Expiry',type:'date_hijri',required:true,section:1,prefill_from:'iqama_expiry_date',hijri:true},
+    {key:'work_card_expiry',label_ar:'تاريخ نهاية كرت العمل',label_en:'Work Card Expiry',type:'date_hijri',required:true,section:1,hijri:true},
     // ═══ Section 2: تفاصيل النقل ═══
-    {key:'has_notice_period',label_ar:'فترة إشعار',type:'toggle',required:true,section:2},
-    {key:'employer_consent',label_ar:'موافقة صاحب العمل',type:'toggle',required:true,section:2},
-    {key:'change_profession',label_ar:'تغيير المهنة',type:'toggle',required:true,section:2},
-    {key:'new_occupation',label_ar:'المهنة الجديدة',type:'select',show_if:'change_profession',section:2,
+    {key:'has_notice_period',label_ar:'فترة إشعار',label_en:'Notice Period',type:'toggle',required:true,section:2},
+    {key:'employer_consent',label_ar:'موافقة صاحب العمل',label_en:'Employer Consent',type:'toggle',required:true,section:2},
+    {key:'change_profession',label_ar:'تغيير المهنة',label_en:'Occupation Change',type:'toggle',required:true,section:2},
+    {key:'new_occupation',label_ar:'المهنة الجديدة',label_en:'New Occupation',type:'select',show_if:'change_profession',section:2,
       options:KAFALA_OCCUPATIONS.map(o=>({value:o,label:o}))},
-    {key:'renew_iqama',label_ar:'تجديد الإقامة',type:'toggle',required:true,grid_col:'1',section:2},
-    {key:'expected_iqama_months',label_ar:'أشهر الإقامة المتوقعة بعد التجديد',type:'number',show_if:'renew_iqama',section:2,placeholder:'عدد الأشهر'},
-    {key:'renewal_months',label_ar:'مدة التجديد (أشهر)',type:'number',show_if:'renew_iqama',section:2,placeholder:'عدد الأشهر'},
+    {key:'renew_iqama',label_ar:'تجديد الإقامة',label_en:'Iqama Renewal',type:'toggle',required:true,grid_col:'1',section:2},
+    {key:'expected_iqama_months',label_ar:'أشهر الإقامة المتوقعة بعد التجديد',label_en:'Expected Iqama months after renewal',type:'number',show_if:'renew_iqama',section:2,placeholder:'عدد الأشهر',placeholder_en:'No. of months'},
+    {key:'renewal_months',label_ar:'مدة التجديد (أشهر)',label_en:'Renewal Period (months)',type:'number',show_if:'renew_iqama',section:2,placeholder:'عدد الأشهر',placeholder_en:'No. of months'},
   ]
 }
 // Registry-driven tabs supply their own step-3 inputs; the wizard id == the service_type code,
@@ -271,7 +307,7 @@ function KafalaSel({value,onChange,options,placeholder='اختر...',disabled=fa
 }
 
 export default function ServiceRequestPage({sb,toast,user,lang,branchId,onClose,preselectedService}){
-const isAr=lang!=='en';const T=(a,e)=>isAr?a:e
+const isAr=lang!=='en';const T=(a,e)=>isAr?a:e;const dir=isAr?'rtl':'ltr'
 const[step,setStep]=useState(preselectedService?2:1)
 const[services,setServices]=useState([])
 const[regions,setRegions]=useState([])
@@ -496,7 +532,7 @@ if(!selSvc)return null
 const sv=ALL_SERVICES.find(s=>s.id===selSvc)
 if(!sv)return services.find(s=>s.id===selSvc)||null
 const db=services.find(s=>s.name_ar===sv.name_ar)
-const displayName=sv.id==='custom'?(customName.trim()||'خدمة عامة'):sv.name_ar
+const displayName=sv.id==='custom'?(customName.trim()||T('خدمة عامة','General Service')):svcName(sv,isAr)
 return{id:db?.id||sv.id,service_type:sv.id,name_ar:displayName,
 category:db?.category||'general',default_price:db?.default_price||0,
 gov_fee:db?.gov_fee||0,pricing_rules:db?.pricing_rules||{},inputs:db?.inputs||[]}
@@ -517,11 +553,17 @@ const hasBrokerStep=!!selSvc
 // worker themselves, so only the four CLIENT_SERVICES keep the dedicated client step.
 const skipClientStep=!!selSvc&&!CLIENT_SERVICES.has(selSvc)
 // Free services skip invoice + payment (steps 4 & 5)
-const isFreeSvc=!!selSvc&&!isServiceBillable(selSvc)
+// المستندات مجانية دائمًا (مثل رواتب سبلاير) — نفرضها صراحةً تحسّبًا لأي override قديم للتسعير.
+const isFreeSvc=!!selSvc&&(selSvc==='documents'||!isServiceBillable(selSvc))
 // All STEPS + الوسيط (if applicable) - merged field - (free svc skips 2 steps)
-const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)-(isFreeSvc?2:0)
+// تجديد الإقامة يحذف خطوة العميل، فينقص عدد الخطوات بواحد.
+const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)-(isFreeSvc?2:0)-(selSvc==='iqama_renewal'?1:0)-((selSvc==='medical_insurance'||selSvc==='name_translation')?1:0)
 const displayStep=(()=>{
 let d=hasMergedField&&step>=4?step-1:(hasMergedField&&step===3?2:step)
+// تجديد الإقامة: لا خطوة عميل (3)، فكل خطوة بعد التفاصيل تُزاح مؤشّرها بواحد.
+if(selSvc==='iqama_renewal'&&step>=4)d=step-1
+// التأمين الطبي / تعديل الراتب: لا خطوة تسعيرة (4)، فالدفع وما بعده يُزاح مؤشّره بواحد.
+if((selSvc==='medical_insurance'||selSvc==='name_translation')&&step>=5)d=step-1
 // Note sub-screen sits right before the summary (always the second-to-last step)
 if(step===5&&showBrokerNoteScreen)d=totalSteps-1
 // Summary is the last step (7 with broker, 6 without; minus 1 if merged field)
@@ -531,7 +573,7 @@ return d
 
 // Client search (name AR / EN, phone, ID)
 const filteredClients=useMemo(()=>{
-if(!clientQ.trim())return clients.slice(0,2)
+if(!clientQ.trim())return[]
 const q=clientQ.trim().toLowerCase()
 return clients.filter(c=>(c.name_ar||'').toLowerCase().includes(q)||(c.name_en||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.id_number||'').includes(q)).slice(0,2)
 },[clients,clientQ])
@@ -560,6 +602,30 @@ setSelWorker(m)
 // الاسم والجنسية مخفيان في هذا الوضع — نملؤهما تلقائياً من سجل العامل المطابق ليُحفظ العميل بهما.
 if(m)setNewClient(p=>({...p,name_ar:m.name_ar||'',name_en:m.name_en||'',nationality_id:m.nationality_id||p.nationality_id||null}))
 },[clientMode,workerIsClient,newClient.id_number,workers])
+
+// تجديد الإقامة: العامل هو نفسه العميل دائماً — لا خطوة عميل. عند اختيار حسبة التجديد نربط/ننشئ العميل
+// من بيانات العامل تلقائياً (نفس منطق «العميل هو نفس العامل») ليُحفظ client_id عند الإصدار.
+const renewalLinkedQuoteRef=useRef(null)
+useEffect(()=>{
+if(selSvc!=='iqama_renewal'){renewalLinkedQuoteRef.current=null;return}
+const qid=selKafalaQuote?.id||null
+if(!qid){renewalLinkedQuoteRef.current=null;return}
+if(renewalLinkedQuoteRef.current===qid)return
+renewalLinkedQuoteRef.current=qid
+let cancelled=false
+;(async()=>{
+const qt=selKafalaQuote;const note=qt._notes||qt._meta||{}
+const wName=qt.worker_name||'—';const wIq=qt.iqama_number||''
+const wPh=String(qt.phone||note.phone||'').replace(/^\+?966/,'')
+setKafalaSameClient(true);setWorkerIsClient(true);setSelClient(null)
+let mc=null
+if(wIq){try{const{data}=await sb.from('clients').select('id,name_ar,name_en,id_number,phone,nationality_id').eq('id_number',wIq).is('deleted_at',null).limit(1);mc=data&&data[0]}catch{}}
+if(cancelled)return
+if(mc){setSelClient(mc);setClientMode('existing')}
+else{setSelClient(null);setClientMode('new');setNewClient(p=>({...p,name_ar:/[؀-ۿ]/.test(wName)?wName:p.name_ar,name_en:/^[A-Za-z\s]+$/.test(wName)?wName:p.name_en,id_number:wIq||p.id_number,phone:wPh||p.phone,nationality_id:note.nationality_id||p.nationality_id}))}
+})()
+return()=>{cancelled=true}
+},[selSvc,selKafalaQuote,sb])
 
 // Broker search
 const filteredBrokers=useMemo(()=>{
@@ -778,29 +844,30 @@ if(selSvc==='passport_update'){
   return{lines:[{label:'رسم تحديث بيانات الجواز',amount:cfg.passportUpdate.fee}]}
 }
 if(selSvc==='name_translation'){
-  // السعر = نسبة من الراتب الجديد المُدخل في الفاتورة، مقرَّب لأقرب رقم صحيح.
+  // السعر = نسبة من الراتب الجديد × عدد أشهر استمرار الراتب، مقرَّب لأقرب رقم صحيح.
+  // مثال: راتب 1000 ونسبة 5% = 50 للشهر → شهرين = 100.
   const pct=parseFloat(cfg.nameTranslation.pct)||0
   const newSalary=parseFloat(fields.new_salary)||0
-  const amount=Math.round(newSalary*pct/100)
+  const months=Math.max(1,parseInt(fields.salary_months)||1)
+  const amount=Math.round(newSalary*pct/100*months)
   return{lines:[{label:'رسم تعديل الراتب',amount}]}
 }
 if(selSvc==='iqama_print'){
   return{lines:[{label:'طباعة الإقامة',amount:cfg.iqamaPrint.perCopy||0}]}
 }
 if(selSvc==='medical_insurance'){
-  // Uses kafala medicalAge × multiplier, based on worker age (annual policy — no duration input)
-  const kcfg=getKafalaConfig('kafala_transfer')
+  // التسعير بالعمر — نفس فئات الأعمار والأسعار المستخدمة في حسبة تجديد الإقامة ونقل الكفالة (medicalBrackets).
+  const kcfg=getKafalaPricingConfig()
   const dob=selWorker?.birth_date||''
   let ageRate=0,age=0
-  if(dob){const bd=new Date(dob);age=Math.floor((new Date()-bd)/31557600000);const grp=kcfg.medicalAge.find(g=>age>=g.min&&age<g.max);ageRate=grp?grp.rate:(kcfg.medicalAge[kcfg.medicalAge.length-1]?.rate||0)}
+  if(dob){const bd=new Date(dob);age=Math.floor((new Date()-bd)/31557600000);const brk=kcfg.medicalBrackets||[];const grp=brk.find(g=>age>=g.min&&age<g.max);ageRate=grp?grp.rate:0}
   const mult=cfg.medicalInsurance.perMonthMultiplier||1
   const fee=Math.round(ageRate*mult)
-  return{lines:[{label:'التأمين الطبي',amount:fee,detail:dob?`${age} سنة × ${ageRate}/سنة × ${mult}`:''}]}
+  return{lines:[{label:'التأمين الطبي',amount:fee,detail:dob?`${age} سنة → ${ageRate} ريال/سنة${mult!==1?` × ${mult}`:''}`:''}]}
 }
 if(selSvc==='documents'){
-  const copies=parseInt(fields.copies)||1
-  const per=cfg.documents.perDoc||0
-  return{lines:[{label:'إصدار مستند',amount:per*copies,detail:copies>1?`${copies} نسخ × ${per}`:''}]}
+  // خدمة المستندات مجانية — لا تسعير ولا دفع (فاتورة صفرية مثل رواتب سبلاير).
+  return{lines:[]}
 }
 if(selSvc==='chamber_certification'){
   const sub=fields.chamber_subtype
@@ -835,7 +902,7 @@ setLoadingKafalaQuotes(true)
 const cutoff=new Date(Date.now()-5*86400000).toISOString()
 // ── تجديد الإقامة: حسبة تجديد مصدّقة من iqama_renewal_calculation — تُرفَق كما هي بلا إعادة حساب ──
 if(selSvc==='iqama_renewal'){
-sb.from('iqama_renewal_calculation').select('id,worker_id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,office_fee,gov_excess,late_fine_amount,prof_change_fee,iqama_renewal_fee,work_permit_fee,medical_fee,absher_discount,extras,renewal_months,change_profession,new_occupation_name_ar,iqama_expiry_gregorian,nationality_id,dob,priced_at').eq('status','approved').gte('priced_at',cutoff).is('deleted_at',null).order('priced_at',{ascending:false}).limit(200).then(({data})=>{
+sb.from('iqama_renewal_calculation').select('id,worker_id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,office_fee,gov_excess,late_fine_amount,prof_change_fee,iqama_renewal_fee,work_permit_fee,medical_fee,absher_discount,manual_discount,extras,renewal_months,change_profession,new_occupation_name_ar,iqama_expiry_gregorian,nationality_id,dob,priced_at,government_fees,office_cover,office_fee_net,billed_renewal_months').eq('status','approved').gte('priced_at',cutoff).is('deleted_at',null).order('priced_at',{ascending:false}).limit(200).then(({data})=>{
 const parsed=(data||[]).map(q=>({
 id:q.id,
 worker_id:q.worker_id||null,
@@ -850,12 +917,17 @@ iqama_renewal_fee:Number(q.iqama_renewal_fee||0),
 work_permit_fee:Number(q.work_permit_fee||0),
 medical_fee:Number(q.medical_fee||0),
 absher_discount:Number(q.absher_discount||0),
+manual_discount:Number(q.manual_discount||0),
 extras:Array.isArray(q.extras)?q.extras:[],
 renewal_months:q.renewal_months||null,
 change_profession:!!q.change_profession,
 new_occupation_name_ar:q.new_occupation_name_ar||null,
 iqama_expiry_gregorian:q.iqama_expiry_gregorian||null,
 priced_at:q.priced_at,
+government_fees:q.government_fees,
+office_cover:q.office_cover,
+office_fee_net:q.office_fee_net,
+billed_renewal_months:q.billed_renewal_months,
 nationality_id:q.nationality_id||null,
 quote_no:q.quote_no||'',
 worker_name:q.worker_name||'',
@@ -868,20 +940,33 @@ setLoadingKafalaQuotes(false)
 })
 return
 }
-sb.from('transfer_calculation').select('id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,transfer_fee,iqama_renewal_fee,work_permit_fee,medical_fee,office_fee,prof_change_fee,priced_at,approved_at,transfer_only,nationality_id,dob,renew_iqama,renewal_months,duration_months,duration_days').eq('status','approved').gte('priced_at',cutoff).is('deleted_at',null).order('priced_at',{ascending:false}).limit(200).then(({data})=>{
+sb.from('transfer_calculation').select('id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,transfer_fee,iqama_renewal_fee,work_permit_fee,medical_fee,office_fee,prof_change_fee,late_fine_amount,absher_discount,manual_discount,extras,priced_at,approved_at,transfer_only,nationality_id,dob,renew_iqama,renewal_months,duration_months,duration_days,expected_duration_months,expected_duration_days,billed_renewal_months,government_fees,office_fee_net').eq('status','approved').gte('priced_at',cutoff).is('deleted_at',null).order('priced_at',{ascending:false}).limit(200).then(({data})=>{
 const parsed=(data||[]).map(q=>({
 id:q.id,
 new_employer_name:q.worker_name||'',
 client_charge:Number(q.total_amount||0),
+subtotal:Number(q.subtotal||0),
+office_fee:Number(q.office_fee||0),
+absher_discount:Number(q.absher_discount||0),
+manual_discount:Number(q.manual_discount||0),
 transfer_fee:Number(q.transfer_fee||0),
 iqama_cost:Number(q.iqama_renewal_fee||0),
 work_permit_cost:Number(q.work_permit_fee||0),
 insurance_cost:Number(q.medical_fee||0),
+prof_change_fee:Number(q.prof_change_fee||0),
+late_fine_amount:Number(q.late_fine_amount||0),
+extras:Array.isArray(q.extras)?q.extras:[],
 other_costs:Number(q.office_fee||0)+Number(q.prof_change_fee||0),
 priced_at:q.priced_at,
 transfer_type:q.transfer_only?'transfer_only':'sponsorship',
 renewal_months:q.renewal_months||null,
-_notes:{nationality_id:q.nationality_id||null,dob:q.dob||null,renew_iqama:!!q.renew_iqama,renewal_months:q.renewal_months||null,duration_months:q.duration_months||null,duration_days:q.duration_days||null,expected_iqama_days:((Number(q.duration_months)||0)*30+(Number(q.duration_days)||0))||null},
+// المدة المتوقعة في الإقامة مجمّدة وقت الإصدار في expected_duration_*؛ duration_* احتياطي للسجلات القديمة.
+expected_duration_months:q.expected_duration_months,
+expected_duration_days:q.expected_duration_days,
+billed_renewal_months:q.billed_renewal_months,
+government_fees:q.government_fees,
+office_fee_net:q.office_fee_net,
+_notes:{nationality_id:q.nationality_id||null,dob:q.dob||null,renew_iqama:!!q.renew_iqama,renewal_months:q.renewal_months||null,duration_months:q.duration_months||null,duration_days:q.duration_days||null,expected_duration_months:q.expected_duration_months,expected_duration_days:q.expected_duration_days,expected_iqama_days:((Number(q.expected_duration_months??q.duration_months)||0)*30+(Number(q.expected_duration_days??q.duration_days)||0))||null},
 nationality_id:q.nationality_id||null,
 quote_no:q.quote_no||'',
 worker_name:q.worker_name||'',
@@ -909,13 +994,11 @@ const lines=ac.lines.map((l,i)=>{
   return{...l,amount:isNaN(u)?(l.amount||0):u}
 })
 const extras=(otherServicePricing.extras||[]).map(e=>({label:e.name||'إضافي',amount:parseFloat(e.amount)||0}))
-// بند إضافي مكتوب في الحقول لكن لم يُضغط زر «✓» بعد — يُحتسب ضمن الإجمالي ويُحفظ عند الإصدار حتى لا يضيع.
-const pendAmt=parseFloat(otherExtraAmount)||0
-if(pendAmt>0)extras.push({label:(otherExtraName||'').trim()||'إضافي',amount:pendAmt})
+// بند إضافي مكتوب في الحقول لا يُحتسب ولا يُضاف حتى يُضغط زر «+» — عندها فقط يدخل في otherServicePricing.extras.
 const absherBalance=otherServicePricing.absherBalance_on?(parseFloat(otherServicePricing.absherBalance)||0):0
 const discount=otherServicePricing.discount_on?(parseFloat(otherServicePricing.discount)||0):0
 return{lines,extras,absherBalance,discount}
-},[selSvc,otherServiceAutoCalc,otherServicePricing,otherExtraName,otherExtraAmount])
+},[selSvc,otherServiceAutoCalc,otherServicePricing])
 
 // Thousand-separator formatting helpers for amount inputs
 const fmtAmt=(v)=>{if(v===''||v==null||v===undefined)return'';const s=String(v);const parts=s.split('.');parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');return parts.join('.')}
@@ -927,6 +1010,33 @@ if(!selectedService)return{price:0,govFee:0,vat:0,total:0}
 const rules=selectedService.pricing_rules||{}
 const vatRate=0
 // ── Kafala transfer: build pricing from kafalaLines ──
+// نقل الكفالة: مرتبط بحسبة تنازل مصدّقة — الفاتورة تعكس الحسبة حرفياً بلا أي إعادة حساب
+// (نفس منطق تجديد الإقامة). كل البنود والخصومات والإجمالي من أعمدة transfer_calculation المخزّنة.
+if(selSvc==='kafala_transfer'&&selKafalaQuote){
+const q=selKafalaQuote
+const office=Number(q.office_fee||0)
+const govFee=Number(q.transfer_fee||0)+Number(q.iqama_cost||0)+Number(q.work_permit_cost||0)+Number(q.prof_change_fee||0)
+const medical=Number(q.insurance_cost||0)
+const lateFine=Number(q.late_fine_amount||0)
+const extras=Array.isArray(q.extras)?q.extras:[]
+const extrasTotal=extras.reduce((s,e)=>s+(Number(e.amount)||0),0)
+const subtotal=q.subtotal!=null?Number(q.subtotal):(office+govFee+medical+lateFine+extrasTotal)
+const absherBalance=Number(q.absher_discount||0)
+const discount=Number(q.manual_discount||0)
+const total=q.client_charge!=null?Number(q.client_charge):Math.max(0,subtotal-absherBalance-discount)
+const rulesDisplay={rules:[
+{label:'رسوم النقل',amount:Number(q.transfer_fee||0)},
+{label:'تجديد الإقامة',amount:Number(q.iqama_cost||0)},
+{label:'رخصة العمل',amount:Number(q.work_permit_cost||0)},
+{label:'تغيير المهنة',amount:Number(q.prof_change_fee||0)},
+{label:'التأمين الطبي',amount:medical},
+{label:'رسوم المكتب',amount:office},
+{label:'غرامة تأخّر الإقامة',amount:lateFine},
+...extras.map(e=>({label:e.name||e.label||'إضافي',amount:Number(e.amount)||0})),
+],subtotal,absherBalance,discount}
+return{price:office,govFee,vatRate,vat:0,subtotal,total,rules:rulesDisplay}
+}
+// نقل الكفالة بلا حسبة مرتبطة (إدخال يدوي): التسعير من kafalaLines — خصم أبشر وخصم المكتب منفصلان.
 if(selSvc==='kafala_transfer'&&kafalaLines){
 const k=kafalaLines
 const price=k.officeFee
@@ -934,13 +1044,9 @@ const govFee=k.transferFee+k.iqamaRenewalFee+k.workPermitFee+k.profChangeFee
 const extrasTotal=k.extras.reduce((s,e)=>s+e.amount,0)
 const subtotal=price+govFee+k.medicalFee+extrasTotal
 const vat=Math.round(subtotal*vatRate*100)/100
-// نقل الكفالة مرتبط بحسبة تنازل مصدّقة: الإجمالي النهائي هو إجمالي الحسبة المصدّق (يشمل خصمها)،
-// وليس مجموع البنود (الذي هو الإجمالي الابتدائي قبل الخصم). نشتق الخصم كفرق بينهما لتبقى البنود متّسقة.
-const quoteTotal=selKafalaQuote&&selKafalaQuote.client_charge!=null?Number(selKafalaQuote.client_charge):null
-const discount=quoteTotal!=null?Math.max(0,subtotal+vat-quoteTotal):k.discount
-const absherBalance=quoteTotal!=null?0:k.absherBalance
-const deductions=absherBalance+discount
-const total=quoteTotal!=null?Math.max(0,quoteTotal):Math.max(0,subtotal+vat-deductions)
+const absherBalance=k.absherBalance
+const discount=k.discount
+const total=Math.max(0,subtotal+vat-absherBalance-discount)
 const rulesDisplay={rules:[
 {label:'رسوم النقل',amount:k.transferFee},
 {label:'تجديد الإقامة',amount:k.iqamaRenewalFee},
@@ -979,17 +1085,27 @@ const profChange=Number(q.prof_change_fee||0)
 const extras=Array.isArray(q.extras)?q.extras:[]
 const extrasTotal=extras.reduce((s,e)=>s+(Number(e.amount)||0),0)
 const absher=Number(q.absher_discount||0)
-// رسوم المكتب تشمل الرسوم الحكومية ضمن الحدود؛ يُضاف فقط الزائد + الغرامة + تغيير المهنة + البنود الإضافية
+const discount=Number(q.manual_discount||0)
 const govFee=govExcess+fine+profChange
 const subtotal=q.subtotal!=null?Number(q.subtotal):(office+govFee+extrasTotal)
-const total=q.total_amount!=null?Number(q.total_amount):Math.max(0,subtotal-absher)
+const total=q.total_amount!=null?Number(q.total_amount):Math.max(0,subtotal-absher-discount)
+// نفس تفصيل صفحة تفاصيل التجديد: كل رسم حكومي كامل + رسوم المكتب الكاملة ثم سطر «الخصم» (تغطية المكتب للرسوم ضمن الحدود)
+const iqamaFee=Number(q.iqama_renewal_fee||0)
+const wpFee=Number(q.work_permit_fee||0)
+const medFee=Number(q.medical_fee||0)
+const renMo=Number(q.renewal_months||0)
+const billedMo=q.billed_renewal_months!=null?Number(q.billed_renewal_months):renMo
+const cover=q.office_cover!=null?Number(q.office_cover):Math.max(0,iqamaFee+wpFee+medFee-govExcess)
 const rulesDisplay={rules:[
-{label:'رسوم المكتب (شامل الحكومية ضمن الحدود)',amount:office},
-...(govExcess>0?[{label:'زائد الرسوم الحكومية',amount:govExcess}]:[]),
-...(fine>0?[{label:'غرامة تأخّر الإقامة',amount:fine}]:[]),
+...(iqamaFee>0?[{label:`تجديد الإقامة${billedMo>0?` (${billedMo} شهر)`:''}`,amount:iqamaFee}]:[]),
+...(wpFee>0?[{label:`رخصة العمل${renMo>0?` (${renMo} شهر)`:''}`,amount:wpFee}]:[]),
 ...(profChange>0?[{label:'تغيير المهنة',amount:profChange}]:[]),
+...(medFee>0?[{label:'التأمين الطبي',amount:medFee}]:[]),
+...(fine>0?[{label:'غرامة تأخّر الإقامة',amount:fine}]:[]),
 ...extras.map(e=>({label:e.name||e.label||'إضافي',amount:Number(e.amount)||0})),
-],subtotal,absherBalance:absher,discount:0}
+...(office>0?[{label:'رسوم المكتب',amount:office}]:[]),
+...(cover>0?[{label:'الخصم',amount:cover,discount:true}]:[]),
+],subtotal,absherBalance:absher,discount}
 return{price:office,govFee,vatRate,vat:0,subtotal,total,rules:rulesDisplay}
 }
 let price=rules.base_price??Number(selectedService.default_price||0)
@@ -1005,6 +1121,16 @@ const vat=Math.round(subtotal*vatRate*100)/100
 const total=subtotal+vat
 return{price,govFee,vatRate,vat,subtotal,total,rules}
 },[selectedService,fields,selSvc,kafalaLines,otherServiceLines,selKafalaQuote])
+
+// المبلغ المدفوع يبدأ بكامل الإجمالي عند الوصول لخطوة الدفع — للخدمات ذات الدفعة الواحدة
+// (التأشيرات لها خطة أقساط، ونقل الكفالة/تجديد الإقامة لهما وضع تقسيط خاص، فنستثنيها).
+useEffect(()=>{
+if(step!==5)return
+if(VISA_SERVICES.has(selSvc)||selSvc==='kafala_transfer'||selSvc==='iqama_renewal')return
+const t=Number(pricing.total)||0
+if(t>0)setPaidAmount(String(t))
+// eslint-disable-next-line react-hooks/exhaustive-deps
+},[step,selSvc])
 
 // Installments breakdown
 const installmentsList=useMemo(()=>{
@@ -1022,61 +1148,63 @@ return{idx:i+1,amount:i===installmentsCount-1?total-(per*(installmentsCount-1)):
 // Validation
 const canNext=()=>{
 setErr('')
-if(step===1&&!selSvc){setErr('يرجى اختيار خدمة');return false}
+if(step===1&&!selSvc){setErr(T('يرجى اختيار خدمة','Please select a service'));return false}
 if(step===2){
 // Kafala: step 2 is the certified-quote selection (التفاصيل) — moved ahead of the client step.
-if(QUOTE_SVCS.has(selSvc)){if(!selKafalaQuote){setErr(selSvc==='iqama_renewal'?'يرجى اختيار حسبة تجديد مصدقة':'يرجى اختيار حسبة تنازل مصدقة');return false}return true}
+if(QUOTE_SVCS.has(selSvc)){if(!selKafalaQuote){setErr(selSvc==='iqama_renewal'?T('يرجى اختيار حسبة تجديد مصدقة','Please select a certified renewal quote'):T('يرجى اختيار حسبة تنازل مصدقة','Please select a certified transfer quote'));return false}return true}
 if(step2Mode==='client'){
-if(clientMode==='existing'&&!selClient&&!workerIsClient){setErr('يرجى اختيار عميل');return false}
+if(clientMode==='existing'&&!selClient&&!workerIsClient){setErr(T('يرجى اختيار عميل','Please select a client'));return false}
 // «العامل هو نفسه العميل» يتطلب وجود سجل عامل مسجّل — لا يُنشأ هنا (بيانات العمال تُدخل من قسم العمالة)
-if(workerIsClient&&selClient&&!selWorker){setErr('لا يوجد سجل عامل لهذا العميل — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً');return false}
+if(workerIsClient&&selClient&&!selWorker){setErr(T('لا يوجد سجل عامل لهذا العميل — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً','No worker record for this client — choose "Different person" and pick a registered worker'));return false}
 if(clientMode==='new'){
 // عند «هو نفسه العميل» يُخفى الاسم والجنسية ويأتيان من سجل العامل المطابق — فلا نتحقق منهما هنا.
 if(!workerIsClient){
 const nm=(newClient.name_ar||newClient.name_en||'').trim()
-if(!nm){setErr('يرجى إدخال اسم العميل');return false}
-{const isArN=/^[؀-ۿ\s]+$/.test(nm),isEnN=/^[A-Za-z\s]+$/.test(nm);if(!isArN&&!isEnN){setErr('اسم العميل يجب أن يكون بالعربية فقط أو بالإنجليزية فقط');return false}const w=nm.split(/\s+/).filter(Boolean);if(w.length!==2){setErr('اسم العميل يجب أن يكون من كلمتين بالضبط');return false}}
-if(!newClient.nationality_id){setErr('يرجى اختيار الجنسية');return false}
+if(!nm){setErr(T('يرجى إدخال اسم العميل','Please enter the client name'));return false}
+{const isArN=/^[؀-ۿ\s]+$/.test(nm),isEnN=/^[A-Za-z\s]+$/.test(nm);if(!isArN&&!isEnN){setErr(T('اسم العميل يجب أن يكون بالعربية فقط أو بالإنجليزية فقط','Client name must be all Arabic or all English'));return false}const w=nm.split(/\s+/).filter(Boolean);if(w.length!==2){setErr(T('اسم العميل يجب أن يكون من كلمتين بالضبط','Client name must be exactly two words'));return false}}
+if(!newClient.nationality_id){setErr(T('يرجى اختيار الجنسية','Please select a nationality'));return false}
 }
-if(!newClient.id_number||newClient.id_number.length!==10){setErr('رقم الهوية يجب أن يكون 10 أرقام');return false}
+if(!newClient.id_number||newClient.id_number.length!==10){setErr(T('رقم الهوية يجب أن يكون 10 أرقام','ID number must be 10 digits'));return false}
 {const e=validateSaudiId(newClient.id_number);if(e){setErr(e);return false}}
-if(!newClient.phone||newClient.phone.length!==9){setErr('رقم الجوال يجب أن يكون 9 أرقام');return false}
+if(!newClient.phone||newClient.phone.length!==9){setErr(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'));return false}
 {const e=validatePhone(newClient.phone);if(e){setErr(e);return false}}
 // «العامل هو نفسه العميل» لعميل جديد: يتطلب وجود عامل مسجّل بنفس رقم الهوية (لا يُنشأ هنا).
-if(workerIsClient&&!selWorker){setErr('لا يوجد عامل بنفس بيانات الهوية — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً');return false}
+if(workerIsClient&&!selWorker){setErr(T('لا يوجد عامل بنفس بيانات الهوية — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً','No worker with the same ID — choose "Different person" and pick a registered worker'));return false}
 }
 }else if(step2Mode==='worker'){
 // أي خدمة فيها بحث عن العامل يجب اختيار عامل مسجّل قبل المتابعة (ما لم يكن وضع «عامل جديد»).
 // يُستثنى فقط ما صُمّم بلا عامل: رواتب سبلاير (العميل هو العامل) والمستندات.
-if(workerMode!=='new'&&!selWorker&&selSvc!=='supplier_payroll'&&selSvc!=='documents'){setErr('يرجى اختيار العامل');return false}
+if(workerMode!=='new'&&!selWorker&&selSvc!=='supplier_payroll'&&selSvc!=='documents'){setErr(T('يرجى اختيار العامل','Please select a worker'));return false}
+// تغيير المهنة: مهنة العامل الحالية مطلوبة لإجراء التغيير — إن لم تكن مسجّلة في سجل العامل يُمنع المتابعة.
+if(selSvc==='profession_change'&&workerMode!=='new'&&selWorker&&!selWorker?.occupation?.value_ar){setErr(T('بيانات مهنة العامل غير موجودة الرجاء التواصل مع الموظف المختص','Worker occupation data is missing — please contact the responsible employee'));return false}
 if(workerMode==='new'){
 const wn=newWorker.name.trim()
-if(!wn){setErr('يرجى إدخال اسم العامل');return false}
+if(!wn){setErr(T('يرجى إدخال اسم العامل','Please enter the worker name'));return false}
 const isAr=/^[\u0600-\u06FF\s]+$/.test(wn),isEn=/^[A-Za-z\s]+$/.test(wn)
-if(!isAr&&!isEn){setErr('اسم العامل يجب أن يكون بالعربية فقط أو بالإنجليزية فقط');return false}
-{const w=wn.split(/\s+/).filter(Boolean);if(w.length<1||w.length>3){setErr('اسم العامل يجب أن يكون من كلمة إلى ثلاث كلمات');return false}}
-if(!newWorker.iqama_number||newWorker.iqama_number.length!==10){setErr('رقم الإقامة يجب أن يكون 10 أرقام');return false}
-if(!newWorker.phone||newWorker.phone.length!==9){setErr('رقم الجوال يجب أن يكون 9 أرقام');return false}
+if(!isAr&&!isEn){setErr(T('اسم العامل يجب أن يكون بالعربية فقط أو بالإنجليزية فقط','Worker name must be all Arabic or all English'));return false}
+{const w=wn.split(/\s+/).filter(Boolean);if(w.length<1||w.length>3){setErr(T('اسم العامل يجب أن يكون من كلمة إلى ثلاث كلمات','Worker name must be one to three words'));return false}}
+if(!newWorker.iqama_number||newWorker.iqama_number.length!==10){setErr(T('رقم الإقامة يجب أن يكون 10 أرقام','Iqama number must be 10 digits'));return false}
+if(!newWorker.phone||newWorker.phone.length!==9){setErr(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'));return false}
 }
 // If the service has a single merged field, validate it here (Step 3 will be skipped)
-if(svcSingleField&&svcSingleField.required&&!fields[svcSingleField.key]){setErr(`يرجى تعبئة: ${svcSingleField.label_ar}`);return false}
+if(svcSingleField&&svcSingleField.required&&!fields[svcSingleField.key]){setErr(T(`يرجى تعبئة: ${svcSingleField.label_ar}`,`Please fill in: ${inpLabel(svcSingleField,isAr)}`));return false}
 }
 }
 if(step===3){
 // Quote-driven (نقل الكفالة / تجديد الإقامة): step 3 is the client (العميل) party step — worker already came from the quote.
 // Ask whether the client is the same person as the worker (inverted «هو نفسه العميل» logic).
 if(QUOTE_SVCS.has(selSvc)){
-if(kafalaSameClient===null){setErr('حدّد هل العميل هو نفس العامل');return false}
+if(kafalaSameClient===null){setErr(T('حدّد هل العميل هو نفس العامل','Specify whether the client is the same as the worker'));return false}
 if(kafalaSameClient===false){
-if(clientMode==='existing'&&!selClient){setErr('يرجى اختيار عميل');return false}
+if(clientMode==='existing'&&!selClient){setErr(T('يرجى اختيار عميل','Please select a client'));return false}
 if(clientMode==='new'){
 const nm=(newClient.name_ar||newClient.name_en||'').trim()
-if(!nm){setErr('يرجى إدخال اسم العميل');return false}
-{const isArN=/^[؀-ۿ\s]+$/.test(nm),isEnN=/^[A-Za-z\s]+$/.test(nm);if(!isArN&&!isEnN){setErr('اسم العميل يجب أن يكون بالعربية فقط أو بالإنجليزية فقط');return false}const w=nm.split(/\s+/).filter(Boolean);if(w.length!==2){setErr('اسم العميل يجب أن يكون من كلمتين بالضبط');return false}}
-if(!newClient.nationality_id){setErr('يرجى اختيار الجنسية');return false}
-if(!newClient.id_number||newClient.id_number.length!==10){setErr('رقم الهوية يجب أن يكون 10 أرقام');return false}
+if(!nm){setErr(T('يرجى إدخال اسم العميل','Please enter the client name'));return false}
+{const isArN=/^[؀-ۿ\s]+$/.test(nm),isEnN=/^[A-Za-z\s]+$/.test(nm);if(!isArN&&!isEnN){setErr(T('اسم العميل يجب أن يكون بالعربية فقط أو بالإنجليزية فقط','Client name must be all Arabic or all English'));return false}const w=nm.split(/\s+/).filter(Boolean);if(w.length!==2){setErr(T('اسم العميل يجب أن يكون من كلمتين بالضبط','Client name must be exactly two words'));return false}}
+if(!newClient.nationality_id){setErr(T('يرجى اختيار الجنسية','Please select a nationality'));return false}
+if(!newClient.id_number||newClient.id_number.length!==10){setErr(T('رقم الهوية يجب أن يكون 10 أرقام','ID number must be 10 digits'));return false}
 {const e=validateSaudiId(newClient.id_number);if(e){setErr(e);return false}}
-if(!newClient.phone||newClient.phone.length!==9){setErr('رقم الجوال يجب أن يكون 9 أرقام');return false}
+if(!newClient.phone||newClient.phone.length!==9){setErr(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'));return false}
 {const e=validatePhone(newClient.phone);if(e){setErr(e);return false}}
 }
 }
@@ -1086,7 +1214,7 @@ return true
 // When no worker was picked the phone is mandatory and must be a valid Saudi mobile → «التالي» stays disabled.
 if(skipClientStep&&selSvc!=='supplier_payroll'&&selSvc!=='documents'){
 const ph=fields.worker_phone||''
-if(ph.length!==9){setErr('يرجى إدخال رقم جوال العامل (9 أرقام)');return false}
+if(ph.length!==9){setErr(T('يرجى إدخال رقم جوال العامل (9 أرقام)','Please enter the worker mobile (9 digits)'));return false}
 {const e=validatePhone(ph);if(e){setErr(e);return false}}
 }
 if(VISA_SERVICES.has(selSvc)){
@@ -1095,51 +1223,53 @@ if(VISA_SERVICES.has(selSvc)){
 // to manual distribution. Guards «التالي» AND the «توزيع تلقائي» toggle (which jumps to files).
 for(let i=0;i<visaGroups.length;i++){
 const g=visaGroups[i]
-const lbl=`المجموعة ${i+1}`
-if(!g.nationality){setErr(`${lbl}: يرجى اختيار الجنسية`);return false}
-if(!g.embassy){setErr(`${lbl}: يرجى اختيار السفارة`);return false}
-if(!g.profession){setErr(`${lbl}: يرجى اختيار المهنة`);return false}
-if(!g.gender){setErr(`${lbl}: يرجى اختيار الجنس`);return false}
-if((parseInt(g.count)||0)<1){setErr(`${lbl}: يرجى إدخال عدد التأشيرات`);return false}
+const lbl=T(`المجموعة ${i+1}`,`Group ${i+1}`)
+if(!g.nationality){setErr(`${lbl}: `+T('يرجى اختيار الجنسية','please select a nationality'));return false}
+if(!g.embassy){setErr(`${lbl}: `+T('يرجى اختيار السفارة','please select an embassy'));return false}
+if(!g.profession){setErr(`${lbl}: `+T('يرجى اختيار المهنة','please select an occupation'));return false}
+if(!g.gender){setErr(`${lbl}: `+T('يرجى اختيار الجنس','please select a gender'));return false}
+if((parseInt(g.count)||0)<1){setErr(`${lbl}: `+T('يرجى إدخال عدد التأشيرات','please enter the visa count'));return false}
 }
-if(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)>4){setErr('الحد الأقصى 4 تأشيرات لكل فاتورة');return false}
+if(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)>4){setErr(T('الحد الأقصى 4 تأشيرات لكل فاتورة','Maximum 4 visas per invoice'));return false}
 if(step3Mode!=='groups'){
 // Validate global file distribution
 const totalV=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)
 const fc=(f)=>Object.values(f.assignments||{}).reduce((s,n)=>s+(parseInt(n)||0),0)
 const sumF=visaFiles.reduce((s,f)=>s+fc(f),0)
-if(sumF!==totalV){setErr(`مجموع التأشيرات في الملفات (${sumF}) لا يطابق الإجمالي (${totalV})`);return false}
+if(sumF!==totalV){setErr(T(`مجموع التأشيرات في الملفات (${sumF}) لا يطابق الإجمالي (${totalV})`,`Visas across files (${sumF}) do not match the total (${totalV})`));return false}
 for(let i=0;i<visaFiles.length;i++){
 const c=fc(visaFiles[i])
-if(c<1){setErr(`الملف ${i+1}: يجب أن يحتوي على تأشيرة واحدة على الأقل`);return false}
-if(c>4){setErr(`الملف ${i+1}: الحد الأقصى 4 تأشيرات لكل ملف`);return false}
+if(c<1){setErr(T(`الملف ${i+1}: يجب أن يحتوي على تأشيرة واحدة على الأقل`,`File ${i+1}: must contain at least one visa`));return false}
+if(c>4){setErr(T(`الملف ${i+1}: الحد الأقصى 4 تأشيرات لكل ملف`,`File ${i+1}: maximum 4 visas per file`));return false}
 // Every visa in a file must share the same nationality, embassy, gender and profession
 const bks=new Set();for(const g of visaGroups){if((parseInt(visaFiles[i].assignments?.[g.id])||0)>0)bks.add(visaBucketKey(g))}
-if(bks.size>1){setErr(`الملف ${i+1}: لا يمكن دمج تأشيرات بجنسية أو سفارة أو جنس أو مهنة مختلفة في ملف واحد`);return false}
+if(bks.size>1){setErr(T(`الملف ${i+1}: لا يمكن دمج تأشيرات بجنسية أو سفارة أو جنس أو مهنة مختلفة في ملف واحد`,`File ${i+1}: cannot mix visas of different nationality, embassy, gender or occupation in one file`));return false}
 }
 for(const g of visaGroups){
 const have=visaFiles.reduce((s,f)=>s+(parseInt(f.assignments?.[g.id])||0),0)
 const need=parseInt(g.count)||0
-if(have!==need){setErr(`لم يتم توزيع جميع تأشيرات كل مجموعة على الملفات`);return false}
+if(have!==need){setErr(T(`لم يتم توزيع جميع تأشيرات كل مجموعة على الملفات`,`Not all visas of every group are distributed across files`));return false}
 }
 }
 }else if(selSvc==='chamber_certification'){
-if(!fields.chamber_subtype){setErr('يرجى اختيار نوع التصديق');return false}
-if(fields.chamber_subtype==='printed'&&!fields.chamber_file){setErr('يرجى رفع ملف المطبوعات');return false}
-if(fields.chamber_subtype==='open_request'&&!(fields.chamber_text||'').trim()){setErr('يرجى كتابة نص الطلب');return false}
+if(!fields.chamber_subtype){setErr(T('يرجى اختيار نوع التصديق','Please select a certification type'));return false}
+if(fields.chamber_subtype==='printed'&&!fields.chamber_file){setErr(T('يرجى رفع ملف المطبوعات','Please upload the printout file'));return false}
+if(fields.chamber_subtype==='open_request'&&!(fields.chamber_text||'').trim()){setErr(T('يرجى كتابة نص الطلب','Please write the request text'));return false}
 }else if(selSvc==='passport_update'){
 if(passportPage===1){
-if(!fields.update_mode){setErr('يرجى اختيار نوع التحديث');return false}
+if(!fields.update_mode){setErr(T('يرجى اختيار نوع التحديث','Please select an update type'));return false}
 }else{
 if(fields.update_mode==='renew'){
-if(!fields.new_passport_no||!fields.new_passport_no.trim()){setErr('يرجى إدخال رقم الجواز الجديد');return false}
-if(!fields.new_passport_issue_city){setErr('يرجى اختيار مكان الإصدار');return false}
-if(!fields.new_passport_issue_date){setErr('يرجى إدخال تاريخ الإصدار');return false}
-if(!fields.new_passport_expiry){setErr('يرجى إدخال تاريخ الانتهاء');return false}
+if(!fields.new_passport_no||!fields.new_passport_no.trim()){setErr(T('يرجى إدخال رقم الجواز الجديد','Please enter the new passport number'));return false}
+if(!fields.new_passport_issue_city){setErr(T('يرجى اختيار مكان الإصدار','Please select the place of issue'));return false}
+if(!fields.new_passport_issue_date){setErr(T('يرجى إدخال تاريخ الإصدار','Please enter the issue date'));return false}
+if(!fields.new_passport_expiry){setErr(T('يرجى إدخال تاريخ الانتهاء','Please enter the expiry date'));return false}
 }else{
-if(!fields.new_passport_expiry){setErr('يرجى إدخال تاريخ الانتهاء الجديد');return false}
+if(!fields.new_passport_expiry){setErr(T('يرجى إدخال تاريخ الانتهاء الجديد','Please enter the new expiry date'));return false}
 }
 }
+}else if(selSvc==='external_transfer_approval'){
+if(!(fields.reason||'').trim()){setErr(T('يرجى كتابة سبب طلب الموافقة على النقل الخارجي','Please write the reason for the external-transfer approval request'));return false}
 }else{
 const allInps=(selectedService?.inputs?.length?selectedService.inputs:SERVICE_INPUTS[selSvc])||[]
 const hasSec=allInps.some(i=>i.section)
@@ -1148,9 +1278,9 @@ for(const inp of inputs){
 if(!inp.required)continue
 if(inp.show_if&&!fields[inp.show_if])continue
 if(inp.show_if_eq&&fields[inp.show_if_eq.key]!==inp.show_if_eq.value)continue
-if(inp.type==='toggle'){if(fields[inp.key]!==true&&fields[inp.key]!==false){setErr(`يرجى تعبئة: ${inp.label_ar}`);return false}}
-else if(inp.type==='date_hijri'){if(!fields[inp.key]||!/^\d{4}-\d{2}-\d{2}$/.test(fields[inp.key])){setErr(`يرجى تعبئة: ${inp.label_ar}`);return false}}
-else if(!fields[inp.key]){setErr(`يرجى تعبئة: ${inp.label_ar}`);return false}
+if(inp.type==='toggle'){if(fields[inp.key]!==true&&fields[inp.key]!==false){setErr(T(`يرجى تعبئة: ${inp.label_ar}`,`Please fill in: ${inpLabel(inp,isAr)}`));return false}}
+else if(inp.type==='date_hijri'){if(!fields[inp.key]||!/^\d{4}-\d{2}-\d{2}$/.test(fields[inp.key])){setErr(T(`يرجى تعبئة: ${inp.label_ar}`,`Please fill in: ${inpLabel(inp,isAr)}`));return false}}
+else if(!fields[inp.key]){setErr(T(`يرجى تعبئة: ${inp.label_ar}`,`Please fill in: ${inpLabel(inp,isAr)}`));return false}
 }
 }
 }
@@ -1160,43 +1290,74 @@ const cfg=getVisaMinConfig(selSvc)
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
 const minTotalAbs=(Number(cfg.defaultTotal)||0)*numVisas
-if(minTotalAbs>0&&total<minTotalAbs){setErr('السعر الإجمالي أقل من الحد الأدنى المسموح');return false}
-// Temporary visa = single payment, only total is enforced. Permanent visa = 3 installments.
-if(selSvc!=='work_visa_temporary'){
-const defaultEach=total/3
+if(minTotalAbs>0&&total<minTotalAbs){setErr(T('السعر الإجمالي أقل من الحد الأدنى المسموح','Total price is below the minimum allowed'));return false}
+// المؤقتة: دفعتان (إصدار + توكيل). الدائمة: ثلاث (مع دفعة الإقامة لكل تأشيرة).
+{
+const hasResidence=selSvc==='work_visa_permanent'
+const defaultEach=total/(hasResidence?3:2)
 const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
-if(issuanceVal<numVisas*cfg.issuance){setErr('دفعة «عند إصدار التأشيرة» أقل من الحد المسموح');return false}
+if(issuanceVal<numVisas*cfg.issuance){setErr(T('دفعة «عند إصدار التأشيرة» أقل من الحد المسموح','The "on visa issuance" installment is below the allowed minimum'));return false}
+if(hasResidence){
+// دفعة «عند توكيل التأشيرة» (الدائمة) بلا حد أدنى — تُترك حرّة بلا تحقّق.
 const authVal=visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)
-if(authVal<numVisas*cfg.authorization){setErr('دفعة «عند توكيل التأشيرة» أقل من الحد المسموح');return false}
 const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
 const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
-if((Number(cfg.residence)||0)>0&&residencePerVisa<Number(cfg.residence)){setErr('دفعة «عند إصدار الإقامة» أقل من الحد المسموح');return false}
+if((Number(cfg.residence)||0)>0&&residencePerVisa<Number(cfg.residence)){setErr(T('دفعة «عند إصدار الإقامة» أقل من الحد المسموح','The "on Iqama issuance" installment is below the allowed minimum'));return false}
+}else{
+// المؤقتة: التوكيل هو الباقي بعد الإصدار — يُفرض ألا ينزل عن حدّه ولا أن يتجاوز الإصدار الإجمالي.
+const authVal=Math.max(0,total-issuanceVal)
+if(authVal<numVisas*cfg.authorization){setErr(T('دفعة «عند توكيل التأشيرة» أقل من الحد المسموح','The "on visa authorization" installment is below the allowed minimum'));return false}
+if(issuanceVal>total+0.01){setErr(T('دفعة «عند إصدار التأشيرة» تتجاوز الإجمالي','The "on visa issuance" installment exceeds the total'));return false}
+}
 }
 }
 // Step 4 (invoice) — the general/custom service has free-form pricing; a billable request can't total zero.
-if(step===4&&selSvc==='custom'&&(Number(pricing?.price)||0)<=0){setErr('يرجى إدخال مبلغ خدمة عامة — البند الأساسي');return false}
+if(step===4&&selSvc==='custom'&&(Number(pricing?.price)||0)<=0){setErr(T('يرجى إدخال مبلغ خدمة عامة — البند الأساسي','Please enter the general-service amount — the main item'));return false}
 // Kafala/Iqama payment plan: the first installment must cover everything except the office fee.
 if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayStep&&kafalaPayMode==='split'){
 const total=Number(pricing.total)||0
-const officeFee=selSvc==='iqama_renewal'?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0)
-const minFirst=Math.max(0,total-officeFee)
+const officeFee=(selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0)
+// الدفعة الأولى يجب ألا تقل عن الرسوم الحكومية. تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛ نقل الكفالة = subtotal − رسوم المكتب − خصم أبشر.
+const minFirst=selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote.subtotal)-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,total-officeFee))
 const rows=kafalaInstallments
 const first=parseFloat(rows[0]?.amount)||0
 // «دفعات متعددة» تتطلب دفعتين على الأقل — وإلا فهي دفعة واحدة
-if(rows.length<2){setErr('الدفعات المتعددة تتطلب دفعتين على الأقل');return false}
-if(first<minFirst){setErr(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (إجمالي الرسوم عدا رسوم المكتب)`);return false}
+if(rows.length<2){setErr(T('الدفعات المتعددة تتطلب دفعتين على الأقل','Multiple installments require at least two'));return false}
+if(first<minFirst){setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (مجموع الرسوم الحكومية)`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (total government fees)`));return false}
 // كل دفعة يجب أن تحمل مبلغاً موجباً
-if(rows.some(r=>(parseFloat(r.amount)||0)<=0)){setErr('يرجى إدخال مبلغ لكل دفعة');return false}
+if(rows.some(r=>(parseFloat(r.amount)||0)<=0)){setErr(T('يرجى إدخال مبلغ لكل دفعة','Please enter an amount for each installment'));return false}
 // كل دفعة بعد الأولى تحتاج تاريخاً
-if(rows.slice(1).some(r=>!r.date)){setErr('يرجى تحديد تاريخ لكل دفعة بعد الأولى');return false}
+if(rows.slice(1).some(r=>!r.date)){setErr(T('يرجى تحديد تاريخ لكل دفعة بعد الأولى','Please set a date for each installment after the first'));return false}
 // مجموع الدفعات يجب أن يساوي الإجمالي النهائي
 const sum=rows.reduce((s,x)=>s+(parseFloat(x.amount)||0),0)
-if(Math.abs(sum-total)>0.01){setErr(`مجموع الدفعات (${fmtAmt(sum.toFixed(2))}) يجب أن يساوي الإجمالي النهائي (${fmtAmt(total.toFixed(2))} ريال)`);return false}
+if(Math.abs(sum-total)>0.01){setErr(T(`مجموع الدفعات (${fmtAmt(sum.toFixed(2))}) يجب أن يساوي الإجمالي النهائي (${fmtAmt(total.toFixed(2))} ريال)`,`Installments total (${fmtAmt(sum.toFixed(2))}) must equal the final total (${fmtAmt(total.toFixed(2))} SAR)`));return false}
 }
-// Step 5 (payment entry) — bank transfer requires the destination account AND a receipt file before proceeding
+// Step 5 (payment entry) — تأشيرة دائمة: المبلغ المدفوع يجب أن يغطي دفعة «عند إصدار التأشيرة» (الدفعة الأولى) قبل المتابعة.
+if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&VISA_SERVICES.has(selSvc)){
+const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
+const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
+const defaultEach=total/(selSvc==='work_visa_permanent'?3:2)
+const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
+const paid=Number(paidAmount)||0
+if(paid<issuanceVal-0.01){setErr(T(`المبلغ المدفوع يجب أن يغطي دفعة «عند إصدار التأشيرة» (${fmtAmt(issuanceVal.toFixed(2))} ريال)`,`The paid amount must cover the "on visa issuance" installment (${fmtAmt(issuanceVal.toFixed(2))} SAR)`));return false}
+}
+// Step 5 (payment entry) — نقل كفالة / تجديد الإقامة (دفعة واحدة): المبلغ المدفوع يجب ألا يقل عن الرسوم الحكومية.
+// تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛ نقل الكفالة = الإجمالي الابتدائي − رسوم المكتب − خصم أبشر.
+if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayMode!=='split'){
+const _sub=Number(selKafalaQuote?.subtotal||0)
+const govFees=selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):(_sub>0?Math.max(0,_sub-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,(Number(pricing?.total)||0)-Number((kafalaLines&&kafalaLines.officeFee)||0)))
+const paid=Number(paidAmount)||0
+if(paid<govFees-0.01){setErr(T(`المبلغ المدفوع يجب ألا يقل عن الرسوم الحكومية (${fmtAmt(govFees.toFixed(2))} ريال)`,`The paid amount must not be less than the government fees (${fmtAmt(govFees.toFixed(2))} SAR)`));return false}
+}
+// Step 5 (payment entry) — نقل كفالة/تجديد (دفعات متعددة): المبلغ المدفوع (الدفعة المقدّمة) يجب ألا يقل عن الدفعة الأولى «عند الإصدار».
+if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayMode==='split'){
+const first=parseFloat((kafalaInstallments||[])[0]?.amount)||0
+const paid=Number(paidAmount)||0
+if(paid<first-0.01){setErr(T(`المبلغ المدفوع يجب ألا يقل عن الدفعة الأولى (${fmtAmt(first.toFixed(2))} ريال)`,`The paid amount must not be less than the first installment (${fmtAmt(first.toFixed(2))} SAR)`));return false}
+}
+// Step 5 (payment entry) — bank transfer requires a receipt file before proceeding
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(Number(paidAmount)||0)>0&&paymentMethod==='bank'){
-if(bankAccounts.length>0&&!selBankAcc){setErr('يرجى اختيار الحساب المحوّل إليه');return false}
-if(!transferReceipt){setErr('يرجى إرفاق ملف إيصال الحوالة');return false}
+if(!transferReceipt){setErr(T('يرجى إرفاق ملف إيصال الحوالة','Please attach the transfer receipt file'));return false}
 }
 // Step 5 (broker/note screen) — a new broker is optional, but once the user starts one it must be
 // complete and valid. Validated here (not in the field) so errors surface in the bottom bar and the
@@ -1205,12 +1366,12 @@ if(step===5&&showBrokerNoteScreen&&brokerMode==='new'&&!selBroker){
 const bn=(newBroker.name_ar||newBroker.name_en||'').trim()
 const started=!!(bn||newBroker.id_number||newBroker.phone||newBroker.nationality_id)
 if(started){
-if(!bn){setErr('يرجى إدخال اسم الوسيط');return false}
-{const isArN=/^[؀-ۿ\s]+$/.test(bn),isEnN=/^[A-Za-z\s]+$/.test(bn);if(!isArN&&!isEnN){setErr('اسم الوسيط يجب أن يكون بالعربية فقط أو بالإنجليزية فقط');return false}const w=bn.split(/\s+/).filter(Boolean);if(w.length!==2){setErr('اسم الوسيط يجب أن يكون من كلمتين بالضبط');return false}}
-if(!newBroker.nationality_id){setErr('يرجى اختيار جنسية الوسيط');return false}
-if(!newBroker.id_number||newBroker.id_number.length!==10){setErr('رقم هوية الوسيط يجب أن يكون 10 أرقام');return false}
+if(!bn){setErr(T('يرجى إدخال اسم الوسيط','Please enter the agent name'));return false}
+{const isArN=/^[؀-ۿ\s]+$/.test(bn),isEnN=/^[A-Za-z\s]+$/.test(bn);if(!isArN&&!isEnN){setErr(T('اسم الوسيط يجب أن يكون بالعربية فقط أو بالإنجليزية فقط','Agent name must be all Arabic or all English'));return false}const w=bn.split(/\s+/).filter(Boolean);if(w.length!==2){setErr(T('اسم الوسيط يجب أن يكون من كلمتين بالضبط','Agent name must be exactly two words'));return false}}
+if(!newBroker.nationality_id){setErr(T('يرجى اختيار جنسية الوسيط','Please select the agent nationality'));return false}
+if(!newBroker.id_number||newBroker.id_number.length!==10){setErr(T('رقم هوية الوسيط يجب أن يكون 10 أرقام','Agent ID number must be 10 digits'));return false}
 {const e=validateSaudiId(newBroker.id_number);if(e){setErr(e);return false}}
-if(!newBroker.phone||newBroker.phone.length!==9){setErr('رقم جوال الوسيط يجب أن يكون 9 أرقام');return false}
+if(!newBroker.phone||newBroker.phone.length!==9){setErr(T('رقم جوال الوسيط يجب أن يكون 9 أرقام','Agent mobile must be 9 digits'));return false}
 {const e=validatePhone(newBroker.phone);if(e){setErr(e);return false}}
 }
 }
@@ -1234,12 +1395,12 @@ const orParts=[]
 if(idVal)orParts.push(`id_number.eq.${idVal}`)
 if(phoneVal)orParts.push(`phone.eq.${phoneVal}`)
 const{data:dups,error:dupErr}=await sb.from('clients').select('id,name_ar,name_en,phone,id_number,nationality_id').or(orParts.join(',')).is('deleted_at',null).limit(1)
-if(dupErr){setErr('تعذر التحقق من بيانات العميل، حاول مرة أخرى');return}
+if(dupErr){setErr(T('تعذر التحقق من بيانات العميل، حاول مرة أخرى','Could not verify client data, please try again'));return}
 if(dups&&dups.length){
 const d=dups[0]
 const byId=idVal&&d.id_number===idVal
-const nm=d.name_ar||d.name_en||'عميل آخر'
-setErr(byId?`رقم الهوية مسجّل مسبقاً للعميل: ${nm} — يرجى البحث عنه واختياره من القائمة`:`رقم الجوال مسجّل مسبقاً للعميل: ${nm} — يرجى البحث عنه واختياره من القائمة`)
+const nm=d.name_ar||d.name_en||T('عميل آخر','another client')
+setErr(byId?T(`رقم الهوية مسجّل مسبقاً للعميل: ${nm} — يرجى البحث عنه واختياره من القائمة`,`ID number is already registered to client: ${nm} — please search and select them from the list`):T(`رقم الجوال مسجّل مسبقاً للعميل: ${nm} — يرجى البحث عنه واختياره من القائمة`,`Mobile is already registered to client: ${nm} — please search and select them from the list`))
 return
 }
 }
@@ -1266,12 +1427,17 @@ setForceCustomFiles(false)
 }
 setStep3Mode('files');setErr('');return
 }
+// تجديد الإقامة: لا خطوة عميل (العامل هو نفسه العميل، يُربط تلقائياً) — من التفاصيل (الخطوة 2) ننتقل مباشرة لخطة الدفع (الخطوة 4).
+if(step===2&&selSvc==='iqama_renewal'){setStep(4);setKafalaPayStep(true);setErr('');return}
 // Step 3 quote-driven sub-flow: the client party IS the whole step. Skip the pricing entry (التسعيرة) — go directly to the payment plan inside step 4.
 if(step===3&&QUOTE_SVCS.has(selSvc)){setStep(4);setKafalaPayStep(true);setErr('');return}
 // Step 3 passport sub-flow: current data+type → new passport fields
 if(step===3&&selSvc==='passport_update'&&passportPage<2){setPassportPage(2);setErr('');return}
 // Free services (documents): skip invoice + payment, jump to the note step (then summary)
 if(step===3&&isFreeSvc){setStep(5);setShowBrokerNoteScreen(true);setErr('');return}
+// التأمين الطبي / تعديل الراتب / خروج نهائي: السعر محسوب تلقائياً (رسم ثابت) — نتخطّى خطوة التسعيرة (الفاتورة) وننتقل من التفاصيل (3) مباشرة للدفع (5).
+// نُعبّئ «المبلغ المدفوع» بالكامل ضمن نفس التحديث حتى لا تومض حالة «المتبقّي» قبل أن يملأه التأثير بعد الرسم.
+if(step===3&&(selSvc==='medical_insurance'||selSvc==='name_translation'||selSvc==='final_exit_visa')){setPaidAmount(String(Number(pricing.total)||0));setStep(5);setErr('');return}
 // Step 4 kafala/iqama sub-flow: pricing → payment-plan screen (before moving to step 5)
 if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&!kafalaPayStep){setKafalaPayStep(true);setErr('');return}
 // Step 5 sub-flow: payment → note (every service) → summary
@@ -1288,12 +1454,12 @@ const orParts=[]
 if(idVal)orParts.push(`id_number.eq.${idVal}`)
 if(phoneVal)orParts.push(`phone.eq.${phoneVal}`)
 const{data:dups,error:dupErr}=await sb.from('agents').select('id,name_ar,name_en,phone,id_number').or(orParts.join(',')).is('deleted_at',null).limit(1)
-if(dupErr){setErr('تعذر التحقق من بيانات الوسيط، حاول مرة أخرى');return}
+if(dupErr){setErr(T('تعذر التحقق من بيانات الوسيط، حاول مرة أخرى','Could not verify agent data, please try again'));return}
 if(dups&&dups.length){
 const d=dups[0]
 const byId=idVal&&d.id_number===idVal
-const nm=d.name_ar||d.name_en||'وسيط آخر'
-setErr(byId?`رقم الهوية مسجّل مسبقاً للوسيط: ${nm} — يرجى البحث عنه واختياره من القائمة`:`رقم الجوال مسجّل مسبقاً للوسيط: ${nm} — يرجى البحث عنه واختياره من القائمة`)
+const nm=d.name_ar||d.name_en||T('وسيط آخر','another agent')
+setErr(byId?T(`رقم الهوية مسجّل مسبقاً للوسيط: ${nm} — يرجى البحث عنه واختياره من القائمة`,`ID number is already registered to agent: ${nm} — please search and select them from the list`):T(`رقم الجوال مسجّل مسبقاً للوسيط: ${nm} — يرجى البحث عنه واختياره من القائمة`,`Mobile is already registered to agent: ${nm} — please search and select them from the list`))
 return
 }
 }
@@ -1309,11 +1475,12 @@ if(step===2&&step2Mode==='worker'){if(skipClientStep){setStep(1);return}setStep2
 if(step===3&&selSvc==='passport_update'&&passportPage>1){setPassportPage(1);return}
 // Step 3 sub-flow: files → groups
 if(step===3&&step3Mode==='files'){setStep3Mode('groups');return}
-// Step 4 quote-driven sub-flow: payment-plan → step 3 (no pricing entry — prices come from the quote)
-if(step===4&&QUOTE_SVCS.has(selSvc)&&kafalaPayStep){setKafalaPayStep(false);setStep(3);return}
+// Step 4 quote-driven sub-flow: payment-plan → step 3 (no pricing entry — prices come from the quote).
+// تجديد الإقامة يتخطّى خطوة العميل، فالرجوع من الدفع يعود مباشرة للتفاصيل (الخطوة 2).
+if(step===4&&QUOTE_SVCS.has(selSvc)&&kafalaPayStep){setKafalaPayStep(false);setStep(selSvc==='iqama_renewal'?2:3);return}
 // Coming back from step 4 into step 3: visa → restore sub-mode, quote-driven → client party step
 if(step===4&&VISA_SERVICES.has(selSvc)){setStep(3);setStep3Mode(visaDistMode==='auto'?'groups':'files');return}
-if(step===4&&QUOTE_SVCS.has(selSvc)){setStep(3);return}
+if(step===4&&QUOTE_SVCS.has(selSvc)){setStep(selSvc==='iqama_renewal'?2:3);return}
 if(step===4&&selSvc==='passport_update'){setStep(3);setPassportPage(2);return}
 // Step 5 sub-flow: summary → note (always present now) → payment entry
 if(step===5&&showSummaryScreen){setShowSummaryScreen(false);setShowBrokerNoteScreen(true);return}
@@ -1321,6 +1488,8 @@ if(step===5&&showSummaryScreen){setShowSummaryScreen(false);setShowBrokerNoteScr
 if(step===5&&showBrokerNoteScreen){setShowBrokerNoteScreen(false);if(isFreeSvc)setStep(3);return}
 // Coming back from step 5 into step 4: kafala/iqama → restore payment-plan screen
 if(step===5&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')){setStep(4);setKafalaPayStep(true);return}
+// التأمين الطبي / تعديل الراتب / خروج نهائي: الرجوع من الدفع (5) يعود مباشرة للتفاصيل (3) — لا خطوة تسعيرة.
+if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='medical_insurance'||selSvc==='name_translation'||selSvc==='final_exit_visa')){setStep(3);return}
 // Mirror the skip on the way back
 if(step===4&&hasMergedField){setStep(2);setStep2Mode('worker');return}
 setStep(s=>Math.max(s-1,1))
@@ -1332,7 +1501,7 @@ const handleSubmit=async()=>{
 if(saving)return
 // Branch on every write follows the user's primary branch — falling back to the dashboard filter if absent.
 const userBranchId=user?.primary_branch_id||branchId||null
-if(!userBranchId){setErr('لا يوجد مكتب مرتبط بحسابك — تواصل مع مدير النظام لتعيين مكتبك');return}
+if(!userBranchId){setErr(T('لا يوجد مكتب مرتبط بحسابك — تواصل مع مدير النظام لتعيين مكتبك','No office linked to your account — contact the system admin to assign your office'));return}
 
 // ─── Hard pricing validation — enforce Service Admin minimums BEFORE any DB writes ───
 // The visa flow lets the user override the total and per-installment amounts. Block save
@@ -1342,20 +1511,27 @@ if(VISA_SERVICES.has(selSvc)&&isServiceBillable(selSvc)){
   const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
   const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
   const minTotalAbs=(Number(minCfg.defaultTotal)||0)*numVisas
-  if(minTotalAbs>0&&total<minTotalAbs){setErr('السعر الإجمالي أقل من الحد الأدنى المسموح');return}
-  // Temporary visa is a single payment — only the total is enforced. Permanent visa = 3 installments.
-  if(selSvc!=='work_visa_temporary'){
-  const defaultEach=total/3
+  if(minTotalAbs>0&&total<minTotalAbs){setErr(T('السعر الإجمالي أقل من الحد الأدنى المسموح','Total price is below the minimum allowed'));return}
+  // المؤقتة: دفعتان (إصدار + توكيل) فيُفرض حد الإصدار فقط. الدائمة: ثلاث دفعات بحدودها الكاملة.
+  {
+  const hasResidence=selSvc==='work_visa_permanent'
+  const defaultEach=total/(hasResidence?3:2)
   const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
+  const minIss=(Number(minCfg.issuance)||0)*numVisas
+  if(minIss>0&&issuanceVal<minIss){setErr(T('دفعة إصدار التأشيرة أقل من الحد الأدنى المسموح','The visa-issuance installment is below the allowed minimum'));return}
+  if(hasResidence){
   const authVal=visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)
   const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
   const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
-  const minIss=(Number(minCfg.issuance)||0)*numVisas
-  const minAuth=(Number(minCfg.authorization)||0)*numVisas
   const minRes=Number(minCfg.residence)||0
-  if(minIss>0&&issuanceVal<minIss){setErr('دفعة إصدار التأشيرة أقل من الحد الأدنى المسموح');return}
-  if(minAuth>0&&authVal<minAuth){setErr('دفعة توكيل التأشيرة أقل من الحد الأدنى المسموح');return}
-  if(minRes>0&&residencePerVisa<minRes){setErr('دفعة إصدار الإقامة أقل من الحد الأدنى المسموح');return}
+  // دفعة «توكيل التأشيرة» (الدائمة) بلا حد أدنى — لا تحقّق ولا تحمير.
+  if(minRes>0&&residencePerVisa<minRes){setErr(T('دفعة إصدار الإقامة أقل من الحد الأدنى المسموح','The Iqama-issuance installment is below the allowed minimum'));return}
+  }else{
+  // المؤقتة: التوكيل هو الباقي بعد الإصدار — يُفرض حدّه الأدنى أيضاً.
+  const authVal=Math.max(0,total-issuanceVal)
+  const minAuth=(Number(minCfg.authorization)||0)*numVisas
+  if(minAuth>0&&authVal<minAuth){setErr(T('دفعة توكيل التأشيرة أقل من الحد الأدنى المسموح','The visa-authorization installment is below the allowed minimum'));return}
+  }
   }
 }
 
@@ -1388,7 +1564,7 @@ if(idVal)orParts.push(`id_number.eq.${idVal}`)
 if(phoneVal)orParts.push(`phone.eq.${phoneVal}`)
 const{data:dup,error:dupErr}=await sb.from('clients').select('id,name_ar,name_en,id_number,phone').or(orParts.join(',')).is('deleted_at',null).limit(1)
 if(dupErr)throw dupErr
-if(dup&&dup.length){const d=dup[0];const byId=idVal&&d.id_number===idVal;const nm=d.name_ar||d.name_en||'عميل آخر';setErr(byId?`رقم الهوية مسجّل مسبقاً للعميل: ${nm} — يرجى البحث عنه واختياره`:`رقم الجوال مسجّل مسبقاً للعميل: ${nm} — يرجى البحث عنه واختياره`);setSaving(false);return}
+if(dup&&dup.length){const d=dup[0];const byId=idVal&&d.id_number===idVal;const nm=d.name_ar||d.name_en||T('عميل آخر','another client');setErr(byId?T(`رقم الهوية مسجّل مسبقاً للعميل: ${nm} — يرجى البحث عنه واختياره`,`ID number is already registered to client: ${nm} — please search and select them`):T(`رقم الجوال مسجّل مسبقاً للعميل: ${nm} — يرجى البحث عنه واختياره`,`Mobile is already registered to client: ${nm} — please search and select them`));setSaving(false);return}
 }
 }
 const{data:nc,error:ncErr}=await sb.from('clients').insert({
@@ -1402,23 +1578,8 @@ if(ncErr)throw ncErr
 finalClientId=nc.id
 }
 
-// Map page-side service id → schema service_type code (permanent/temporary variants are preserved as distinct types).
-// EVERY selectable wizard id (ALL_SERVICES) must resolve here. Ids missing from this map previously fell
-// through to the default below and were silently saved as 'other' (= "الغرفة التجارية"); e.g. picking the
-// "عام" service (id 'custom') stored it as Chamber of Commerce. Keep this in sync with ALL_SERVICES.
-const SVC_CODE_MAP={
-  work_visa_permanent:'work_visa_permanent',work_visa_temporary:'work_visa_temporary',
-  kafala_transfer:'transfer',iqama_renewal:'iqama_renewal',ajeer_contract:'ajeer',
-  supplier_payroll:'supplier_payroll',external_transfer_approval:'external_transfer_approval',
-  // ids whose service_type code differs from the wizard id, or that have no registry entry of their own:
-  chamber_certification:'other',   // "الغرفة التجارية" is stored under the legacy 'other' code
-  custom:'general',                // "عام" — the generic service bucket
-  medical_insurance:'medical_insurance',name_translation:'name_translation',
-  exit_reentry_visa:'exit_reentry_visa',final_exit_visa:'final_exit_visa',iqama_print:'iqama_print',
-  // Registry-driven tabs: wizard id is already the service_type code, so map each to itself.
-  ...Object.fromEntries(Object.keys(TXN_SERVICES).map(c=>[c,c])),
-}
-// Fall back to the generic "عام" bucket — NEVER 'other'/الغرفة التجارية — for any id not listed above.
+// SVC_CODE_MAP (page-side service id → schema service_type code) رُفِعت إلى نطاق الموديول وصُدِّرت أعلاه.
+// Fall back to the generic "عام" bucket — NEVER 'other'/الغرفة التجارية — for any id not listed.
 const serviceTypeCode=SVC_CODE_MAP[selSvc]||'general'
 // Both visa variants share the visa_applications table, so detail-table/row logic keys off the base family.
 const svcCode=(serviceTypeCode==='work_visa_permanent'||serviceTypeCode==='work_visa_temporary')?'work_visa':serviceTypeCode
@@ -1513,8 +1674,11 @@ const exitReentryDetails=selSvc==='exit_reentry_visa'?{op_mode:fields.op_mode||'
 // تغيير المهنة: التقط المهنة الحالية للعامل لحظة الطلب (snapshot) لتُعرض في تفصيل الفاتورة بجانب المهنة الجديدة.
 const profChangeDetails=selSvc==='profession_change'&&selWorker?.occupation?.value_ar?{current_occupation:selWorker.occupation.value_ar}:null
 const mergedDetails={...(regDetails||{}),...(chamberDetails||{}),...(ajeerDetails||{}),...(iqamaPrintDetails||{}),...(passportDetails||{}),...(exitReentryDetails||{}),...(profChangeDetails||{})}
+// مسار التجديد المعتمد على التسعيرة لا يمرّ بمنتقي العامل (selWorker فارغ)، فنجلب منشأة العامل الحالية من سجلّه لتُخزَّن وتظهر بطاقة المنشأة بالفاتورة.
+let renewalFacilityId=selWorker?.facility?.id||null
+if(svcCode==='iqama_renewal'&&!renewalFacilityId){const wid=selKafalaQuote?.worker_id||finalWorkerId;if(wid){try{const{data:wRow}=await sb.from('workers').select('current_facility_id').eq('id',wid).maybeSingle();renewalFacilityId=wRow?.current_facility_id||null}catch{/* جلب منشأة العامل أفضل جهد */}}}
 const detailRow=(svcCode==='transfer')?{service_request_id:sr.id,worker_id:finalWorkerId,main_facility_id:selWorker?.facility?.id||null,total_price_final:Number(pricing.total||0)||null}
-:(svcCode==='iqama_renewal')?{service_request_id:sr.id,worker_id:selKafalaQuote?.worker_id||finalWorkerId||null,worker_facility_id:selWorker?.facility?.id||null,worker_phone:(selKafalaQuote?.phone||'').replace(/^\+?966/,'')||fields.worker_phone||null,duration_months:Number(selKafalaQuote?.renewal_months)||12,current_expire_date:selKafalaQuote?.iqama_expiry_gregorian||null,new_expire_date:(()=>{const c=selKafalaQuote?.iqama_expiry_gregorian;if(!c)return null;const d=new Date(c);if(isNaN(d))return null;d.setMonth(d.getMonth()+(Number(selKafalaQuote?.renewal_months)||12));return d.toISOString().slice(0,10)})()}
+:(svcCode==='iqama_renewal')?{service_request_id:sr.id,worker_id:selKafalaQuote?.worker_id||finalWorkerId||null,worker_facility_id:renewalFacilityId,worker_phone:(selKafalaQuote?.phone||'').replace(/^\+?966/,'')||fields.worker_phone||null,duration_months:Number(selKafalaQuote?.renewal_months)||12,current_expire_date:selKafalaQuote?.iqama_expiry_gregorian||null,new_expire_date:(()=>{const c=selKafalaQuote?.iqama_expiry_gregorian;if(!c)return null;const d=new Date(c);if(isNaN(d))return null;d.setMonth(d.getMonth()+(Number(selKafalaQuote?.renewal_months)||12));return d.toISOString().slice(0,10)})()}
 :(svcCode==='supplier_payroll')?{service_request_id:sr.id,worker_id:workerIsClient?null:finalWorkerId,worker_facility_id:selWorker?.facility?.id||null,description:selectedService?.name_ar||fields.description||null,worker_phone:fields.worker_phone||null,unpaid_salaries_count:Number(fields.unpaid_salaries_count)||null,total_amount:Number(fields.total_amount)||null}
 :{service_request_id:sr.id,worker_id:workerIsClient?null:finalWorkerId,worker_facility_id:selWorker?.facility?.id||null,worker_phone:fields.worker_phone||null,description:(selSvc==='custom'?fields.custom_note:(selectedService?.name_ar||fields.description))||null,details:Object.keys(mergedDetails).length?mergedDetails:null}
 const{error:dErr}=await sb.from(detailTbl).insert(detailRow)
@@ -1563,13 +1727,13 @@ if(linkedAgentId){
   if(sraErr)throw sraErr
 }
 
-// 3. Insert invoice IF the service is billable. Free services skip the invoice (per the user's free-service flow).
+// 3. Insert invoice — كل خدمة تُنشئ فاتورة الآن، حتى المجانية: إجماليها صفر وبلا دفعات، لكنها تظهر في سجل الفواتير.
 const billable=isServiceBillable?isServiceBillable(selSvc):true
 let createdInvId=null
 let issuedInvoiceNo=null
 const effectiveTotal=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?Number(totalOverride):Number(pricing?.total||0)
-if(billable&&effectiveTotal>0){
-const total=effectiveTotal
+{
+const total=billable?effectiveTotal:0
 // Invoice number mirrors the transfer-quote scheme: INV-{branch_code}-{random}. Falls back to the
 // timestamp-based ref if the RPC is unavailable so invoice creation is never blocked by numbering.
 let invNo
@@ -1580,19 +1744,22 @@ const paidNum=Math.min(Number(paidAmount)||0,total)
 // Visa services use the visa-specific stages (issuance / authorization / residence) shown in the UI;
 // other services fall back to the generic N-equal-installments split.
 const isVisa=VISA_SERVICES.has(selSvc)
-// Permanent visa = 3 installments (issuance + authorization + residence).
-// Temporary visa = single payment (no installment split).
-const visaHasInstallments=isVisa&&selSvc!=='work_visa_temporary'
-const visaStageCount=visaHasInstallments?3:0
+// Permanent = إصدار مشتركة + توكيل مشتركة + إصدار الإقامة لكل تأشيرة.
+// Temporary = إصدار مشتركة + توكيل لكل تأشيرة (التوكيل هنا بديل دفعة الإقامة، مرتبط بكل تأشيرة).
+const hasResidence=selSvc==='work_visa_permanent'
+const visaHasInstallments=isVisa
+const visaStageCount=visaHasInstallments?(hasResidence?3:2):0
 const numVisas=isVisa?(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1):1
 // Round each stage to 2 decimals (matches the DB numeric(.,2) columns). The first two
 // stages are rounded and the residence stage absorbs the remainder, so the three stages
 // always sum to exactly `total` — otherwise total/3 = 4666.6667 stores as 4666.67 ×3 = 14000.01,
 // leaving a phantom 0.01 on the last installment while the invoice reads fully paid.
 const r2=v=>Math.round((Number(v)||0)*100)/100
-const defaultEachVisa=visaHasInstallments?total/3:0
+const defaultEachVisa=visaHasInstallments?total/visaStageCount:0
 const issuanceVal=visaHasInstallments?r2(visaInstallments.issuance===''?defaultEachVisa:(Number(visaInstallments.issuance)||0)):0
-const authVal=visaHasInstallments?r2(visaInstallments.authorization===''?defaultEachVisa:(Number(visaInstallments.authorization)||0)):0
+// التوكيل المشترك للدائمة فقط (يحرّره المستخدم). المؤقتة بلا توكيل مشترك — توكيلها لكل تأشيرة.
+const authVal=(visaHasInstallments&&hasResidence)?r2(visaInstallments.authorization===''?defaultEachVisa:(Number(visaInstallments.authorization)||0)):0
+// إجمالي الدفعة لكل تأشيرة (الباقي بعد المشتركة): إصدار الإقامة للدائمة، أو التوكيل للمؤقتة.
 const residenceVal=visaHasInstallments?r2(Math.max(0,total-issuanceVal-authVal)):0
 // نقل الكفالة (transfer) وتجديد الإقامة (iqama_renewal) وحدهما يمكن تقسيمهما لعدّة دفعات — وذلك
 // فقط إذا اختار المستخدم «دفعات متعددة». التأشيرة الدائمة تستخدم مراحلها الثلاث أعلاه. وكل خدمة
@@ -1600,7 +1767,7 @@ const residenceVal=visaHasInstallments?r2(Math.max(0,total-issuanceVal-authVal))
 const installmentSvc=selSvc==='kafala_transfer'||selSvc==='iqama_renewal'
 const splitChosen=installmentSvc&&kafalaPayMode==='split'
 const splitRows=splitChosen?kafalaInstallments.map(rw=>({amount:r2(parseFloat(rw.amount)||0),date:rw.date||null})).filter(rw=>rw.amount>0):[]
-const planCount=visaHasInstallments?(2+(createdVisaIds.length||1)):(splitRows.length>1?splitRows.length:1)
+const planCount=visaHasInstallments?((hasResidence?2:1)+(createdVisaIds.length||1)):(splitRows.length>1?splitRows.length:1)
 
 // Snapshot the التسعيرة line items (service lines + extras) so the invoice detail can show the
 // itemized breakdown later — the wizard otherwise only persists the total. Null when no line items.
@@ -1641,7 +1808,7 @@ const nowIso=new Date().toISOString()
 // stages for a permanent visa, or the user's chosen rows when transfer/iqama is split into
 // «دفعات متعددة». The down-payment is consumed across rows in order.
 let downPaymentInstId=null
-if(planCount>=1){
+if(total>0&&planCount>=1){
 let insts
 if(visaHasInstallments){
 // Two shared transaction-level tranches — «إصدار التأشيرة» then «توكيل التأشيرة» (cover all visas,
@@ -1650,9 +1817,14 @@ if(visaHasInstallments){
 const vids=createdVisaIds.length?createdVisaIds:[null]
 const N=vids.length
 const splitAmt=(amt,n)=>{const per=r2(amt/n);const a=[];let acc=0;for(let i=0;i<n;i++){if(i<n-1){a.push(per);acc+=per}else a.push(r2(amt-acc))}return a}
-const iqamaSplit=splitAmt(residenceVal,N)
-const rows=[{vid:null,amt:issuanceVal,order:1,label:'عند إصدار التأشيرة',paid:0},{vid:null,amt:authVal,order:2,label:'عند توكيل التأشيرة',paid:0}]
-vids.forEach((vid,v)=>rows.push({vid,amt:iqamaSplit[v],order:v+3,label:'عند إصدار الإقامة',paid:0}))
+const rows=[{vid:null,amt:issuanceVal,order:1,label:'عند إصدار التأشيرة',paid:0}]
+// التوكيل المشترك دفعةٌ ثانية للدائمة فقط؛ المؤقتة لا توكيل مشترك لها.
+let baseOrder=2
+if(hasResidence){rows.push({vid:null,amt:authVal,order:2,label:'عند توكيل التأشيرة',paid:0});baseOrder=3}
+// دفعة لكل تأشيرة (مرتبطة بـ visa_application_id): إصدار الإقامة للدائمة، أو التوكيل للمؤقتة.
+const perVisaLabel=hasResidence?'عند إصدار الإقامة':'عند توكيل التأشيرة'
+const perVisaSplit=splitAmt(residenceVal,N)
+vids.forEach((vid,v)=>rows.push({vid,amt:perVisaSplit[v],order:baseOrder+v,label:perVisaLabel,paid:0}))
 // Down-payment is consumed in order: issuance, then توكيل, then each visa's iqama.
 let leftover=paidNum
 rows.forEach(r=>{const p=Math.min(leftover,r.amt);leftover-=p;r.paid=p})
@@ -1733,13 +1905,13 @@ console.error(e)
 // Surface specific failure reasons so the user knows whether to retry, pick another value, or contact admin.
 const m=(e.message||'').toLowerCase()
 if(e.code==='23505'||m.includes('duplicate')||m.includes('unique')){
-  if(m.includes('id_number'))setErr('رقم الهوية مسجل مسبقاً — اختر العميل من القائمة بدلاً من تسجيله من جديد')
-  else setErr('قيمة مكررة — راجع الحقول الفريدة (رقم الفاتورة، رقم الطلب)')
+  if(m.includes('id_number'))setErr(T('رقم الهوية مسجل مسبقاً — اختر العميل من القائمة بدلاً من تسجيله من جديد','ID number already registered — pick the client from the list instead of re-registering'))
+  else setErr(T('قيمة مكررة — راجع الحقول الفريدة (رقم الفاتورة، رقم الطلب)','Duplicate value — check the unique fields (invoice no, request no)'))
 }
-else if(e.code==='23503'||m.includes('foreign key')){setErr('حقل مرجعي غير صالح — تحقق من العميل/العامل/المنشأة المختارة')}
-else if(e.code==='23502'||m.includes('not-null')){setErr('حقل مطلوب فارغ — راجع جميع الخطوات')}
-else if(m.includes('permission')||m.includes('rls')){setErr('ليست لديك صلاحية لإتمام هذا الإجراء')}
-else setErr('حدث خطأ: '+(e.message||'حاول مرة أخرى'))
+else if(e.code==='23503'||m.includes('foreign key')){setErr(T('حقل مرجعي غير صالح — تحقق من العميل/العامل/المنشأة المختارة','Invalid reference field — check the selected client/worker/facility'))}
+else if(e.code==='23502'||m.includes('not-null')){setErr(T('حقل مطلوب فارغ — راجع جميع الخطوات','A required field is empty — review all steps'))}
+else if(m.includes('permission')||m.includes('rls')){setErr(T('ليست لديك صلاحية لإتمام هذا الإجراء','You do not have permission to complete this action'))}
+else setErr(T('حدث خطأ: ','Error: ')+(e.message||T('حاول مرة أخرى','please try again')))
 }
 setSaving(false)
 }
@@ -1751,22 +1923,22 @@ const ii=issuedInvoice
 const closeSuccess=()=>{try{window.dispatchEvent(new CustomEvent('invoice-created',{detail:{id:ii.invoiceId}}))}catch{};setIssuedInvoice(null);onClose&&onClose()}
 const openInvoiceDetails=()=>{if(ii.invoiceId){try{window.dispatchEvent(new CustomEvent('app-navigate-invoice',{detail:{id:ii.invoiceId}}))}catch{}}closeSuccess()}
 return<FKModal open onClose={closeSuccess} variant="create" width={680}
-  success={<SuccessView title={ii.invoiceNo?'تم إصدار الفاتورة':'تم رفع الطلب بنجاح'} code={ii.invoiceNo?noDash(ii.invoiceNo):undefined}
-    action={ii.invoiceId?<button type="button" onClick={openInvoiceDetails} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.2)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)'}} style={{marginTop:8,width:340,maxWidth:'100%',height:52,borderRadius:13,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.45)',color:C.gold,fontFamily:F,fontSize:15.5,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,transition:'background .2s ease'}}><Receipt size={19} strokeWidth={2.4}/>عرض تفاصيل الفاتورة</button>:undefined}/>}/>
+  success={<SuccessView title={ii.invoiceNo?T('تم إصدار الفاتورة','Invoice issued'):T('تم رفع الطلب بنجاح','Request submitted successfully')} code={ii.invoiceNo?noDash(ii.invoiceNo):undefined}
+    action={ii.invoiceId?<button type="button" onClick={openInvoiceDetails} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.2)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)'}} style={{marginTop:8,width:340,maxWidth:'100%',height:52,borderRadius:13,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.45)',color:C.gold,fontFamily:F,fontSize:15.5,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,transition:'background .2s ease'}}><Receipt size={19} strokeWidth={2.4}/>{T('عرض تفاصيل الفاتورة','View invoice details')}</button>:undefined}/>}/>
 }
 // ── النافذة الموحّدة (منبثقة بالوسط، ارتفاع ثابت، بلا سكرول) — ويزارد متحكَّم:
 //    المنطق (goNext/goBack/التحقق) يبقى كما هو، والكروم كله من FormKit Modal.
 return (()=>{
-const titles=['الخدمة','العميل','التفاصيل','الفاتورة','الدفع']
-let curTitle=step===2&&step2Mode==='worker'?'العامل':(titles[step-1]||'')
+const titles=[T('الخدمة','Service'),T('العميل','Client'),T('التفاصيل','Details'),T('الفاتورة','Invoice'),T('الدفع','Payment')]
+let curTitle=step===2&&step2Mode==='worker'?T('العامل','Worker'):(titles[step-1]||'')
 // Kafala transfer reorders steps 2↔3: quote (التفاصيل) first, then the client (العميل) party step.
-if(QUOTE_SVCS.has(selSvc)){if(step===2)curTitle='التفاصيل';else if(step===3)curTitle='العميل'}
-if(step===5&&showSummaryScreen)curTitle='الملخص'
-if(step===5&&showBrokerNoteScreen)curTitle=showBroker?'الوسيط والملاحظات':'ملاحظة'
-if(step===4&&kafalaPayStep)curTitle='طريقة الدفع'
+if(QUOTE_SVCS.has(selSvc)){if(step===2)curTitle=T('التفاصيل','Details');else if(step===3)curTitle=T('العميل','Client')}
+if(step===5&&showSummaryScreen)curTitle=T('الملخص','Summary')
+if(step===5&&showBrokerNoteScreen)curTitle=showBroker?T('الوسيط والملاحظات','Agent & Notes'):T('ملاحظة','Note')
+if(step===4&&kafalaPayStep)curTitle=T('طريقة الدفع','Payment Method')
 const svcMeta=selSvc?ALL_SERVICES.find(s=>s.id===selSvc):null
 const body=(
-<div className="sr-body" style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',justifyContent:'flex-start',fontFamily:F,direction:'rtl'}}>
+<div className="sr-body" style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',justifyContent:'flex-start',fontFamily:F,direction:dir}}>
 <style>{`/* مسافة علوية ثابتة فوق أول إطار في كل خطوة — مقيّدة بجسم طلب الخدمة فقط.
    جذر المحتوى (بعد وسم style المتصدّر) وأول إطار داخله (حتى عمق مستويين) يُصفّر هامشه العلوي،
    فيقع الإطار ملاصقاً لأعلى المحتوى والمسافة تأتي فقط من هامش المغلّف (4px) — نفس القيمة في كل الخطوات. */
@@ -1850,7 +2022,7 @@ input[type=number]{-moz-appearance:textfield}
 `}</style>
 
 {/* Animated view container — fills available space */}
-<ModalSection flex Icon={FileStack} label="اختر الخدمة" hint="الخدمة المطلوبة في الفاتورة" style={{marginTop:0}}>
+<ModalSection flex Icon={FileStack} label={T('اختر الخدمة','Select service')} hint={T('الخدمة المطلوبة في الفاتورة','The service requested on the invoice')} style={{marginTop:0}}>
 <div style={{position:'relative',flex:1,minHeight:260}}>
 
 {/* ─── Main Bento Grid View ─── */}
@@ -1858,15 +2030,15 @@ input[type=number]{-moz-appearance:textfield}
 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'1fr'}}>
 {MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=isServiceActive(s.id);const billable=isServiceBillable(s.id)
 return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' disabled-card':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
-{!billable&&active&&<div className="bill-dot" data-tip="خدمة مجانية">مجانية</div>}
-{!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip="معطّلة">معطّلة</div>}
+{!billable&&active&&<div className="bill-dot" data-tip={T('خدمة مجانية','Free service')}>{T('مجانية','Free')}</div>}
+{!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip={T('معطّلة','Disabled')}>{T('معطّلة','Disabled')}</div>}
 <div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
-<div className="bento-label">{s.name_ar}</div>
+<div className="bento-label">{svcName(s,isAr)}</div>
 </div>})}
 <div className="bento-card muted" onClick={()=>setShowOthers(true)} style={{gridColumn:'span 3'}}>
 <div className="bento-icon"><Ellipsis size={22} color="rgba(255,255,255,.4)" strokeWidth={1.5}/></div>
-<div className="bento-label">خدمات أخرى</div>
-<div style={{fontSize:10,color:'rgba(255,255,255,.35)',fontFamily:F}}>{OTHER_SERVICES.length} خدمات</div>
+<div className="bento-label">{T('خدمات أخرى','Other services')}</div>
+<div style={{fontSize:10,color:'rgba(255,255,255,.35)',fontFamily:F}}>{OTHER_SERVICES.length} {T('خدمات','services')}</div>
 </div>
 </div>
 </div>
@@ -1877,14 +2049,14 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' dis
 {/* رجوع للخدمات الرئيسية — نفس حجم/مكان كرت الخدمة، بألوان خطوط وأيقونة خافتة مثل كرت "خدمات أخرى" */}
 <div onClick={()=>setShowOthers(false)} className="sub-card muted">
 <ArrowRight className="sub-icon" size={22} color="rgba(255,255,255,.4)" strokeWidth={1.5}/>
-<div className="sub-label">الرئيسية</div>
+<div className="sub-label">{T('الرئيسية','Main')}</div>
 </div>
 {OTHER_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=isServiceActive(s.id);const billable=isServiceBillable(s.id)
 return<div key={s.id} className={`sub-card${sel?' selected':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
-{!billable&&active&&<div className="bill-dot" data-tip="خدمة مجانية">مجانية</div>}
-{!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip="معطّلة">معطّلة</div>}
+{!billable&&active&&<div className="bill-dot" data-tip={T('خدمة مجانية','Free service')}>{T('مجانية','Free')}</div>}
+{!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip={T('معطّلة','Disabled')}>{T('معطّلة','Disabled')}</div>}
 <I className="sub-icon" size={22} color="#8a7a4a" strokeWidth={1.5}/>
-<div className="sub-label">{s.name_ar}</div>
+<div className="sub-label">{svcName(s,isAr)}</div>
 </div>})}
 </div>
 
@@ -1895,7 +2067,7 @@ return<div key={s.id} className={`sub-card${sel?' selected':''}`} onClick={()=>{
 </div>}
 
 {/* ═══ Step 2: Client & Worker ═══ */}
-{((step===2&&!QUOTE_SVCS.has(selSvc))||(step===3&&QUOTE_SVCS.has(selSvc)))&&<ModalSection flex Icon={User} label={step2Mode==='worker'?'العامل':'العميل'} hint="بيانات الأطراف" style={{marginTop:8}}><div className="sr-modal-scroll" style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden'}}>
+{((step===2&&!QUOTE_SVCS.has(selSvc))||(step===3&&QUOTE_SVCS.has(selSvc)))&&<ModalSection flex Icon={User} label={step2Mode==='worker'?T('العامل','Worker'):T('العميل','Client')} style={{marginTop:8}}><div className="sr-modal-scroll" style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden'}}>
 {step2Mode==='client'&&<div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
 
 {/* علاقة العميل↔العامل صارت لوحة ذكية أسفل العميل المختار (انظر أدناه) — لا تشيك بوكس علوي */}
@@ -1927,30 +2099,30 @@ setKafalaClientLoading(false)
 }else{setKafalaClientLoading(false);setWorkerIsClient(false);setSelClient(null);setClientMode('existing')}
 }
 return<div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:10}}>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)',fontFamily:F}}>هل العميل هو نفس العامل؟</span>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)',fontFamily:F}}>{T('هل العميل هو نفس العامل؟','Is the client the same as the worker?')}</span>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-{[{v:true,t:'العميل هو نفس العامل',sub:'يُربط/يُنشأ تلقائياً من بيانات العامل',Icon:User},{v:false,t:'عميل مختلف',sub:'حدّد أو سجّل العميل بالأسفل',Icon:Users}].map(opt=>{const act=kafalaSameClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>pick(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.07)',background:act?'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))':'rgba(255,255,255,.025)'}}>
+{[{v:true,t:T('العميل هو نفس العامل','Client is the worker'),sub:T('يُربط/يُنشأ تلقائياً من بيانات العامل','Linked/created automatically from worker data'),Icon:User},{v:false,t:T('عميل مختلف','Different client'),sub:T('حدّد أو سجّل العميل بالأسفل','Select or register the client below'),Icon:Users}].map(opt=>{const act=kafalaSameClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>pick(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.07)',background:act?'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))':'rgba(255,255,255,.025)'}}>
 <div style={{width:32,height:32,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,background:act?'rgba(212,160,23,.18)':'rgba(0,0,0,.2)',border:act?'1px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.06)'}}><I size={16} strokeWidth={1.9} color={act?C.bentoGold:'var(--tx4)'}/></div>
 <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0,flex:1}}><span style={{fontSize:12,fontWeight:600,color:act?C.gold:'var(--tx2)'}}>{opt.t}</span><span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{opt.sub}</span></div>
 {act&&<div style={{width:18,height:18,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
 </div>})}
 </div>
-{kafalaSameClient===true&&!kafalaClientLoading&&<div style={{fontSize:10,fontWeight:600,color:C.bentoGold,display:'inline-flex',alignItems:'center',gap:5}}><BadgeCheck size={12} strokeWidth={2}/>{selClient?'تم ربط العميل المسجّل تلقائياً':'سيُسجّل العميل تلقائياً من بيانات العامل'}</div>}
+{kafalaSameClient===true&&!kafalaClientLoading&&<div style={{fontSize:10,fontWeight:600,color:C.bentoGold,display:'inline-flex',alignItems:'center',gap:5}}><BadgeCheck size={12} strokeWidth={2}/>{selClient?T('تم ربط العميل المسجّل تلقائياً','Registered client linked automatically'):T('سيُسجّل العميل تلقائياً من بيانات العامل','Client will be registered automatically from worker data')}</div>}
 </div>
 })()}
 
 {/* Resolving the worker→client link — show a spinner before the card appears */}
-{QUOTE_SVCS.has(selSvc)&&kafalaSameClient===true&&kafalaClientLoading&&!selClient&&<Spinner label="جارٍ ربط العميل من بيانات العامل..." style={{borderRadius:16,border:'1px solid rgba(212,160,23,.18)',background:'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.01))'}}/>}
+{QUOTE_SVCS.has(selSvc)&&kafalaSameClient===true&&kafalaClientLoading&&!selClient&&<Spinner label={T('جارٍ ربط العميل من بيانات العامل...','Linking client from worker data...')} style={{borderRadius:16,border:'1px solid rgba(212,160,23,.18)',background:'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.01))'}}/>}
 
 {/* Unified search — hidden once a client is selected or in new-client mode */}
 {(!QUOTE_SVCS.has(selSvc)||kafalaSameClient===false)&&!selClient&&clientMode!=='new'&&<>
 <div style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(clientQ&&filteredClients.length===0)?16:14}}>
 <div style={{position:'relative',flex:1,minWidth:0}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none',transition:'stroke .2s'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={clientQ} onChange={e=>{setClientQ(e.target.value);setClientMode('existing')}} placeholder="ابحث بالاسم (عربي/إنجليزي) أو الجوال أو رقم الهوية..." onFocus={e=>{e.currentTarget.style.borderColor=C.bentoGold;e.currentTarget.style.boxShadow=`0 0 0 1px ${C.bentoGold}33, inset 0 1px 2px rgba(0,0,0,.2)`;e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.style.borderColor='transparent';e.currentTarget.style.boxShadow='inset 0 1px 2px rgba(0,0,0,.2)';e.currentTarget.previousElementSibling.style.stroke='rgba(255,255,255,.35)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:'right',border:'1px solid transparent'}}/>
+<input value={clientQ} onChange={e=>{setClientQ(e.target.value);setClientMode('existing')}} placeholder={T('ابحث بالاسم (عربي/إنجليزي) أو الجوال أو رقم الهوية...','Search by name (Arabic/English), mobile or ID...')} onFocus={e=>{e.currentTarget.style.borderColor=C.bentoGold;e.currentTarget.style.boxShadow=`0 0 0 1px ${C.bentoGold}33, inset 0 1px 2px rgba(0,0,0,.2)`;e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.style.borderColor='transparent';e.currentTarget.style.boxShadow='inset 0 1px 2px rgba(0,0,0,.2)';e.currentTarget.previousElementSibling.style.stroke='rgba(255,255,255,.35)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:isAr?'right':'left',border:'1px solid transparent'}}/>
 </div>
 {clientMode!=='new'&&<button onClick={()=>{setClientMode('new');setNewClient(p=>({...p,name_ar:/[\u0600-\u06FF]/.test(clientQ)?clientQ:p.name_ar,name_en:/^[A-Za-z\s]+$/.test(clientQ)?clientQ:p.name_en,phone:/^[0-9+]+$/.test(clientQ)?clientQ:p.phone,id_number:/^\d{10}$/.test(clientQ)?clientQ:p.id_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
-<span>عميل جديد</span>
+<span>{T('عميل جديد','New client')}</span>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>}
 </div>
@@ -1972,19 +2144,23 @@ const onEnter=e=>{if(!sel){e.currentTarget.style.background=G.hover;e.currentTar
 const onLeave=e=>{if(!sel){e.currentTarget.style.background=G.base;e.currentTarget.style.borderColor=G.baseB}}
 const handleClick=()=>{const mw=workers.find(w=>w.iqama_number===c.id_number);setSelClient(c);setClientMode('existing');if(mw){setSelWorker(mw);setWorkerIsClient(true)}else{setSelWorker(null);setWorkerIsClient(false)}}
 const deselect=e=>{if(e)e.stopPropagation();setSelClient(null);setWorkerIsClient(false);setSelWorker(null)}
-const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',minWidth:0}}><Icon size={13} color={C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:9,color:'var(--tx5)',fontWeight:600}}>{label}</span><span style={{fontSize:12,color:'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
+const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',minWidth:132}}><Icon size={13} color={C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:9,color:'var(--tx5)',fontWeight:600}}>{label}</span><span style={{fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(212,160,23,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
 const nameBlock=<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><span style={{fontSize:14.5,fontWeight:600,color:sel?C.gold:'rgba(255,255,255,.95)',letterSpacing:'-.2px'}}>{c.name_ar||c.name_en||'—'}</span>{c.name_ar&&c.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{c.name_en}</span>}</div>
-const boxes=<div style={{display:'flex',gap:8,flexShrink:0}}>{c.id_number&&infoBox(CreditCard,'رقم الهوية',c.id_number)}{c.phone&&infoBox(Phone,'الجوال',fmtPhone(c.phone))}</div>
+const boxes=<div style={{display:'flex',gap:8,flexShrink:0}}>{c.id_number&&infoBox(CreditCard,T('رقم الهوية','ID number'),c.id_number)}{c.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(c.phone))}</div>
 const wrapSel={position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'0 4px 16px rgba(0,0,0,.28)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',flexDirection:'column',gap:9}
 const xIcon=<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 
 // مُختار — أيقونة زاوية: زر إلغاء أحمر بالزاوية + شارة «محدد» بجانب الاسم
 if(sel)return<div key={c.id} style={{...wrapSel,flexDirection:'row',alignItems:'center',gap:10}}>
 {flagEl(40)}
-<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:2}}><span style={{fontSize:14.5,fontWeight:600,color:C.gold,letterSpacing:'-.2px'}}>{c.name_ar||c.name_en||'—'}</span>{c.name_ar&&c.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{c.name_en}</span>}</div>
+<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:2,alignSelf:'flex-start',marginTop:2}}>
+<div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+<span style={{fontSize:14.5,fontWeight:600,color:C.gold,letterSpacing:'-.2px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name_ar||c.name_en||'—'}</span>
+{!(QUOTE_SVCS.has(selSvc)&&kafalaSameClient===true)&&<button onClick={deselect} title={T('تغيير العميل','Change client')} style={{flexShrink:0,height:22,padding:'0 9px',borderRadius:6,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:4,cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>{T('تغيير','Change')}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>}
+</div>
+{c.name_ar&&c.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{c.name_en}</span>}</div>
 {boxes}
-{!(QUOTE_SVCS.has(selSvc)&&kafalaSameClient===true)&&<button onClick={deselect} title="تغيير العميل" style={{flexShrink:0,height:30,padding:'0 11px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>تغيير</button>}
 </div>
 // غير مُختار — بطاقة معلومات قابلة للضغط للاختيار
 return<div key={c.id} onClick={handleClick} onMouseEnter={onEnter} onMouseLeave={onLeave}
@@ -1994,10 +2170,10 @@ style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,backg
 </div>
 :<div style={{padding:'24px 20px',borderRadius:9,background:'transparent',border:'1px dashed rgba(255,255,255,.1)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
 <div style={{width:42,height:42,borderRadius:'50%',background:'rgba(212,160,23,.08)',border:'1px dashed rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>{clientQ.trim()&&<line x1="8" y1="11" x2="14" y2="11"/>}</svg>
 </div>
-<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:600,fontFamily:F}}>لا يوجد عميل بهذا البحث</div>
-<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>يمكنك إضافة عميل جديد من الأعلى</div>
+<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:600,fontFamily:F}}>{clientQ.trim()?T('لا يوجد عميل بهذا البحث','No client matches this search'):T('ابحث عن العميل','Search for the client')}</div>
+<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>{clientQ.trim()?T('يمكنك إضافة عميل جديد من الأعلى','You can add a new client above'):T('اكتب الاسم أو رقم الجوال أو رقم الهوية للبحث','Type the name, mobile or ID to search')}</div>
 </div>}
 </div>}
 
@@ -2006,22 +2182,22 @@ style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,backg
 const matched=workers.find(w=>w.iqama_number===selClient.id_number)
 const setSame=(val)=>{setWorkerIsClient(val);if(val){setSelWorker(matched||null);setClientMode('existing')}else{setSelWorker(null)}}
 return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
-<span style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>العامل</span>
+<span style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>{T('العامل','Worker')}</span>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-{[{v:true,t:'هو نفسه العميل',sub:matched?'تم العثور على سجل عامل مطابق':'لا يوجد سجل عامل مسجّل',Icon:User},{v:false,t:'شخص مختلف',sub:'يُحدَّد في الخطوة التالية',Icon:Users}].map(opt=>{const act=workerIsClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>setSame(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.07)',background:act?'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))':'rgba(255,255,255,.025)'}}>
+{[{v:true,t:T('هو نفسه العميل','Same as the client'),sub:matched?T('تم العثور على سجل عامل مطابق','A matching worker record was found'):T('لا يوجد سجل عامل مسجّل','No registered worker record'),Icon:User},{v:false,t:T('شخص مختلف','Different person'),sub:T('يُحدَّد في الخطوة التالية','Selected in the next step'),Icon:Users}].map(opt=>{const act=workerIsClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>setSame(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.07)',background:act?'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))':'rgba(255,255,255,.025)'}}>
 <div style={{width:32,height:32,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,background:act?'rgba(212,160,23,.18)':'rgba(0,0,0,.2)',border:act?'1px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.06)'}}><I size={16} strokeWidth={1.9} color={act?C.bentoGold:'var(--tx4)'}/></div>
 <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0,flex:1}}><span style={{fontSize:12,fontWeight:600,color:act?C.gold:'var(--tx2)'}}>{opt.t}</span><span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{opt.sub}</span></div>
 {act&&<div style={{width:18,height:18,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
 </div>})}
 </div>
-{workerIsClient&&matched&&<div style={{fontSize:10,fontWeight:600,color:C.bentoGold,display:'inline-flex',alignItems:'center',gap:5}}><BadgeCheck size={12} strokeWidth={2}/>تم ربط العامل تلقائياً من بيانات العميل</div>}
+{workerIsClient&&matched&&<div style={{fontSize:10,fontWeight:600,color:C.bentoGold,display:'inline-flex',alignItems:'center',gap:5}}><BadgeCheck size={12} strokeWidth={2}/>{T('تم ربط العامل تلقائياً من بيانات العميل','Worker linked automatically from client data')}</div>}
 </div>
 })()}
 
 {/* العامل=العميل: تفاصيل العامل ومنشأته لا تُعرض هنا — تظهر كاملةً في خطوة «العامل» التالية (تجنّب التكرار) */}
 
 {workerIsClient&&selClient&&!selWorker&&!QUOTE_SVCS.has(selSvc)&&<div style={{marginTop:10,padding:'10px 13px',borderRadius:10,background:'rgba(230,126,34,.06)',border:'1px dashed rgba(230,126,34,.25)',color:'#e67e22',fontSize:10.5,fontWeight:600,textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
-<AlertCircle size={13} strokeWidth={2}/>لا يوجد سجل عامل لهذا العميل، ولا يمكن المتابعة. بيانات العمّال تُدخل من قسم العمالة — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً.
+<AlertCircle size={13} strokeWidth={2}/>{T('لا يوجد سجل عامل لهذا العميل، ولا يمكن المتابعة. بيانات العمّال تُدخل من قسم العمالة — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً.','No worker record for this client, cannot continue. Worker data is entered from the Workforce section — choose "Different person" and pick a registered worker.')}
 </div>}
 
 {/* Mode: new client form — for kafala, only when the client is a different person (the «same» case auto-creates silently) */}
@@ -2039,12 +2215,12 @@ if(parts.length>2) v=parts.slice(0,2).join(' ')
 const isArNow=/[؀-ۿ]/.test(v)
 setNewClient(p=>({...p, name_ar: isArNow?v:'' , name_en: !isArNow&&v?v:''}))
 }
-return <FKField label="الاسم" req>
-<input value={cur} onChange={e=>handle(e.target.value)} placeholder="اسمين — عربي أو إنجليزي" style={{...fkSF,direction:isAr?'rtl':(cur?'ltr':'rtl')}}/>
+return <FKField label={T('الاسم','Name')} req>
+<input value={cur} onChange={e=>handle(e.target.value)} placeholder={T('اسمين — عربي أو إنجليزي','Two names — Arabic or English')} style={{...fkSF,direction:isAr?'rtl':(cur?'ltr':'rtl')}}/>
 </FKField>
 })()}
 {/* الجنسية — تُخفى عند «هو نفسه العميل» (تأتي تلقائياً من سجل العامل المطابق) */}
-{!workerIsClient&&<FKSelect label="الجنسية" req placeholder="اختر الجنسية..."
+{!workerIsClient&&<FKSelect label={T('الجنسية','Nationality')} req placeholder={T('اختر الجنسية...','Select nationality...')}
 value={newClient.nationality_id||null}
 onChange={(id)=>setNewClient(p=>({...p,nationality_id:id||null}))}
 options={lkCountries} getKey={o=>o.id} getLabel={o=>o.nationality_ar} getSub={o=>o.nationality_en||''}
@@ -2052,12 +2228,12 @@ renderSelected={o=>{const u=natFlagUrl(o);return <span style={{display:'inline-f
 renderCell={(o,sel)=>{const u=natFlagUrl(o);return <span style={{fontSize:14,fontWeight:600,color:sel?C.bentoGold:'rgba(255,255,255,.92)',display:'inline-flex',alignItems:'center',gap:8}}>{o.nationality_ar}{u&&<img src={u} alt="" width={16} height={12} style={{borderRadius:2,objectFit:'cover'}}/>}</span>}}
 />}
 {/* الهوية — silent: لا يحمرّ الحقل؛ التحقق يظهر في الشريط السفلي */}
-<FKId silent label="الهوية" req value={newClient.id_number} onChange={v=>setNewClient(p=>({...p,id_number:v}))}/>
+<FKId silent label={T('الهوية','ID')} req value={newClient.id_number} onChange={v=>setNewClient(p=>({...p,id_number:v}))}/>
 {/* رقم الجوال — silent: لا يحمرّ الحقل؛ التحقق يظهر في الشريط السفلي */}
-<FKPhone silent label="رقم الجوال" req value={newClient.phone} onChange={v=>setNewClient(p=>({...p,phone:v}))}/>
+<FKPhone silent label={T('رقم الجوال','Mobile')} req value={newClient.phone} onChange={v=>setNewClient(p=>({...p,phone:v}))}/>
 </div>)
-const title=<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:C.bentoGold,fontFamily:F}}><Plus size={14} strokeWidth={2.5}/>تسجيل عميل جديد</span>
-const cancel=<button onClick={onCancel} style={{height:34,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(192,57,43,.55)',borderRadius:9,color:C.red,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.07)';e.currentTarget.style.borderColor='rgba(192,57,43,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}}><span>إلغاء</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+const title=<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:C.bentoGold,fontFamily:F}}><Plus size={14} strokeWidth={2.5}/>{T('تسجيل عميل جديد','Register new client')}</span>
+const cancel=<button onClick={onCancel} style={{height:34,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(192,57,43,.55)',borderRadius:9,color:C.red,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.07)';e.currentTarget.style.borderColor='rgba(192,57,43,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}}><span>{T('إلغاء','Cancel')}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 
 // بطاقة محايدة ناعمة (حدّ رمادي خفيف، لا ذهبي — فلا ينافس الإطار الخارجي)
 return <div style={{marginTop:6,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.06)',borderRadius:12,padding:14}}>
@@ -2072,16 +2248,16 @@ const validId=newClient.id_number&&newClient.id_number.length===10
 const matched=validId?workers.find(w=>w.iqama_number===newClient.id_number):null
 const setSame=(val)=>{setWorkerIsClient(val);if(val){setSelWorker(matched||null)}else{setSelWorker(null)}}
 return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
-<span style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>العامل</span>
+<span style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>{T('العامل','Worker')}</span>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-{[{v:true,t:'هو نفسه العميل',sub:!validId?'أدخل رقم الهوية أولاً':(matched?'تم العثور على سجل عامل مطابق':'لا يوجد عامل بهذه البيانات'),Icon:User},{v:false,t:'شخص مختلف',sub:'يُحدَّد في الخطوة التالية',Icon:Users}].map(opt=>{const act=workerIsClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>setSame(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.07)',background:act?'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))':'rgba(255,255,255,.025)'}}>
+{[{v:true,t:T('هو نفسه العميل','Same as the client'),sub:!validId?T('أدخل رقم الهوية أولاً','Enter the ID number first'):(matched?T('تم العثور على سجل عامل مطابق','A matching worker record was found'):T('لا يوجد عامل بهذه البيانات','No worker with these details')),Icon:User},{v:false,t:T('شخص مختلف','Different person'),sub:T('يُحدَّد في الخطوة التالية','Selected in the next step'),Icon:Users}].map(opt=>{const act=workerIsClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>setSame(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(212,160,23,.45)':'1px solid rgba(255,255,255,.07)',background:act?'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))':'rgba(255,255,255,.025)'}}>
 <div style={{width:32,height:32,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,background:act?'rgba(212,160,23,.18)':'rgba(0,0,0,.2)',border:act?'1px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.06)'}}><I size={16} strokeWidth={1.9} color={act?C.bentoGold:'var(--tx4)'}/></div>
 <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0,flex:1}}><span style={{fontSize:12,fontWeight:600,color:act?C.gold:'var(--tx2)'}}>{opt.t}</span><span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{opt.sub}</span></div>
 {act&&<div style={{width:18,height:18,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
 </div>})}
 </div>
-{workerIsClient&&matched&&<div style={{fontSize:10,fontWeight:600,color:C.bentoGold,display:'inline-flex',alignItems:'center',gap:5}}><BadgeCheck size={12} strokeWidth={2}/>تم ربط العامل تلقائياً من بيانات العميل</div>}
-{workerIsClient&&!matched&&<div style={{marginTop:2,padding:'10px 13px',borderRadius:10,background:'rgba(230,126,34,.06)',border:'1px dashed rgba(230,126,34,.25)',color:'#e67e22',fontSize:10.5,fontWeight:600,textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}><AlertCircle size={13} strokeWidth={2}/>لا يوجد عامل بنفس بيانات الهوية — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً</div>}
+{workerIsClient&&matched&&<div style={{fontSize:10,fontWeight:600,color:C.bentoGold,display:'inline-flex',alignItems:'center',gap:5}}><BadgeCheck size={12} strokeWidth={2}/>{T('تم ربط العامل تلقائياً من بيانات العميل','Worker linked automatically from client data')}</div>}
+{workerIsClient&&!matched&&<div style={{marginTop:2,padding:'10px 13px',borderRadius:10,background:'rgba(230,126,34,.06)',border:'1px dashed rgba(230,126,34,.25)',color:'#e67e22',fontSize:10.5,fontWeight:600,textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}><AlertCircle size={13} strokeWidth={2}/>{T('لا يوجد عامل بنفس بيانات الهوية — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً','No worker with the same ID — choose "Different person" and pick a registered worker')}</div>}
 </div>
 })()}
 </div>{/* /sr-scroll — نهاية منطقة التمرير لكروت العملاء */}
@@ -2093,10 +2269,10 @@ return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
 {!selWorker&&workerMode!=='new'&&<div style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(workerQ&&workerResults.length===0)?16:14}}>
 <div style={{position:'relative',flex:1,minWidth:0}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none',transition:'stroke .2s'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={workerQ} onChange={e=>{setWorkerQ(e.target.value);setWorkerMode('existing');setSelWorker(null)}} placeholder="ابحث بالاسم أو رقم الإقامة..." onFocus={e=>{e.currentTarget.style.borderColor=C.bentoGold;e.currentTarget.style.boxShadow=`0 0 0 1px ${C.bentoGold}33, inset 0 1px 2px rgba(0,0,0,.2)`;e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.style.borderColor='transparent';e.currentTarget.style.boxShadow='inset 0 1px 2px rgba(0,0,0,.2)';e.currentTarget.previousElementSibling.style.stroke='rgba(255,255,255,.35)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:'right',border:'1px solid transparent'}}/>
+<input value={workerQ} onChange={e=>{setWorkerQ(e.target.value);setWorkerMode('existing');setSelWorker(null)}} placeholder={T('ابحث بالاسم أو رقم الإقامة...','Search by name or Iqama...')} onFocus={e=>{e.currentTarget.style.borderColor=C.bentoGold;e.currentTarget.style.boxShadow=`0 0 0 1px ${C.bentoGold}33, inset 0 1px 2px rgba(0,0,0,.2)`;e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.style.borderColor='transparent';e.currentTarget.style.boxShadow='inset 0 1px 2px rgba(0,0,0,.2)';e.currentTarget.previousElementSibling.style.stroke='rgba(255,255,255,.35)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:isAr?'right':'left',border:'1px solid transparent'}}/>
 </div>
 {false&&selSvc==='custom'&&<button onClick={()=>{setWorkerMode('new');setNewWorker(p=>({...p,name:/[\u0600-\u06FF\sA-Za-z]/.test(workerQ)?workerQ:p.name,phone:/^[0-9+]+$/.test(workerQ)?workerQ:p.phone,iqama_number:/^\d{10}$/.test(workerQ)?workerQ:p.iqama_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
-<span>عامل جديد</span>
+<span>{T('عامل جديد','New worker')}</span>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>}
 </div>}
@@ -2121,18 +2297,18 @@ const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRa
 const xIcon=<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 // مُختار — أيقونة زاوية (التفاصيل الغنية تظهر أسفله)
 if(sel)return<div key={w.id} style={{position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'0 4px 16px rgba(0,0,0,.28)',transition:'all .22s ease',padding:'14px',borderRadius:16,display:'flex',alignItems:'center',gap:14}}>
-{!workerIsClient&&<button onClick={deselect} title="تغيير العامل" style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:5,justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>تغيير</button>}
+{!workerIsClient&&<button onClick={deselect} title={T('تغيير العامل','Change worker')} style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:5,justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>{T('تغيير','Change')}</button>}
 {flagEl(48)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:4}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><span style={{fontSize:15.5,fontWeight:600,color:C.gold,letterSpacing:'-.2px'}}>{nm}</span></div>{w.name_en&&nm!==w.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{w.name_en}</span>}</div>
 </div>
 // غير مُختار — بطاقة معلومات زجاجية
 return<div key={w.id} onClick={()=>setSelWorker(w)} onMouseEnter={onEnter} onMouseLeave={onLeave}
 style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'0 4px 16px rgba(0,0,0,.28)',transition:'all .22s ease',padding:'14px',borderRadius:16,display:'flex',flexDirection:'column',gap:12}}>
-<div style={{display:'flex',alignItems:'center',gap:14}}>{flagEl(48)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}><span style={{fontSize:15.5,fontWeight:600,color:'rgba(255,255,255,.95)',letterSpacing:'-.2px'}}>{nm}</span>{w.worker_type==='temporary'&&<span style={{fontSize:9.5,fontWeight:600,color:'#5dade2',background:'rgba(93,173,226,.12)',border:'1px solid rgba(93,173,226,.3)',borderRadius:20,padding:'2px 8px',flexShrink:0}}>مؤقت</span>}</div>{w.name_en&&nm!==w.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{w.name_en}</span>}</div></div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{w.iqama_number&&infoBox(CreditCard,'رقم الإقامة',w.iqama_number)}{infoBox(Calendar,'انتهاء الإقامة',fmtDate(w.iqama_expiry_date),stColors[dateStatus(w.iqama_expiry_date)])}{w.phone&&infoBox(Phone,'الجوال',fmtPhone(w.phone))}</div>
+<div style={{display:'flex',alignItems:'center',gap:14}}>{flagEl(48)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}><span style={{fontSize:15.5,fontWeight:600,color:'rgba(255,255,255,.95)',letterSpacing:'-.2px'}}>{nm}</span>{w.worker_type==='temporary'&&<span style={{fontSize:9.5,fontWeight:600,color:'#5dade2',background:'rgba(93,173,226,.12)',border:'1px solid rgba(93,173,226,.3)',borderRadius:20,padding:'2px 8px',flexShrink:0}}>{T('مؤقت','Temp')}</span>}</div>{w.name_en&&nm!==w.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{w.name_en}</span>}</div></div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{w.iqama_number&&infoBox(CreditCard,T('رقم الإقامة','Iqama No'),w.iqama_number)}{infoBox(Calendar,T('انتهاء الإقامة','Iqama Expiry'),fmtDate(w.iqama_expiry_date),stColors[dateStatus(w.iqama_expiry_date)])}{w.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(w.phone))}</div>
 </div>})}
 
 {/* ─── Selected Worker Expanded Details ─── */}
-{selWorker&&(()=>{const w=selWorker;const stat=workerFacilityStat;const latestWP=[...(w.work_permits||[])].sort((a,b)=>new Date(b.wp_expiry_date||0)-new Date(a.wp_expiry_date||0))[0];const latestIns=[...(w.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0];const iqStat=dateStatus(w.iqama_expiry_date);const wpStat=dateStatus(latestWP?.wp_expiry_date);const insStat=dateStatus(latestIns?.end_date);const natName=w.country?.nationality_ar||w.nationality||'—';const natFlag=w.country?.flag_emoji||flagEmoji(w.country?.code)||flagEmoji(w.nationality);const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'};const ncCode=stat?.nitaqat?.code;const ncLabel=stat?.nitaqat?.value_ar||'—';const ncColor=ncCode?(ncMap[ncCode]||'#888'):'#444';const pillBase={display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:40};const lbl={fontSize:10,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2};const val={fontSize:13,color:'#fff',fontWeight:600,direction:'ltr',lineHeight:1.2,textAlign:'right'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'};const workerLabel=w.name_ar||w.name_en||w.name||'بيانات العامل';const facilityLabel=w.facility?.name_ar||'بيانات المنشأة';
+{selWorker&&(()=>{const w=selWorker;const stat=workerFacilityStat;const latestWP=[...(w.work_permits||[])].sort((a,b)=>new Date(b.wp_expiry_date||0)-new Date(a.wp_expiry_date||0))[0];const latestIns=[...(w.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0];const iqStat=dateStatus(w.iqama_expiry_date);const wpStat=dateStatus(latestWP?.wp_expiry_date);const insStat=dateStatus(latestIns?.end_date);const natName=w.country?.nationality_ar||w.nationality||'—';const natFlag=w.country?.flag_emoji||flagEmoji(w.country?.code)||flagEmoji(w.nationality);const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'};const ncCode=stat?.nitaqat?.code;const ncLabel=stat?.nitaqat?.value_ar||'—';const ncColor=ncCode?(ncMap[ncCode]||'#888'):'#444';const pillBase={display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:40};const lbl={fontSize:10,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2};const val={fontSize:13,color:'#fff',fontWeight:600,direction:'ltr',lineHeight:1.2,textAlign:'right'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'};const workerLabel=w.name_ar||w.name_en||w.name||T('بيانات العامل','Worker data');const facilityLabel=w.facility?.name_ar||T('بيانات المنشأة','Facility data');
 return<>
 {/* ─── Worker data fieldset ─── */}
 <div style={{marginTop:19,padding:'16px 14px 12px',borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',position:'relative'}}>
@@ -2140,20 +2316,20 @@ return<>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1.3fr 1fr 1fr',gap:10}}>
 <div style={pillBase}>
 <CreditCard size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم الإقامة</span><span style={{...val}}>{w.iqama_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>{T('رقم الإقامة','Iqama No')}</span><span style={{...val}}>{w.iqama_number||'—'}</span></div>
 {w.iqama_number&&<CopyBtn value={w.iqama_number}/>}
 </div>
 <div style={pillBase}>
 <Briefcase size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:5,minWidth:0}}><span style={lbl}>المهنة</span><span style={{...val,fontFamily:F,direction:'rtl',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.occupation?.value_ar||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,minWidth:0}}><span style={lbl}>{T('المهنة','Occupation')}</span><span style={{...val,fontFamily:F,direction:'rtl',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.occupation?.value_ar||'—'}</span></div>
 </div>
 <div style={pillBase}>
 <Calendar size={12} color={stColors[iqStat]} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>انتهاء الإقامة</span><span style={{...val,color:stColors[iqStat],direction:'ltr'}}>{fmtDate(w.iqama_expiry_date)}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>{T('انتهاء الإقامة','Iqama Expiry')}</span><span style={{...val,color:stColors[iqStat],direction:'ltr'}}>{fmtDate(w.iqama_expiry_date)}</span></div>
 </div>
 <div style={pillBase}>
 <BadgeCheck size={12} color={stColors[wpStat]} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>رخصة العمل</span><span style={{...val,color:stColors[wpStat],direction:'ltr'}}>{fmtDate(latestWP?.wp_expiry_date)}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>{T('رخصة العمل','Work Permit')}</span><span style={{...val,color:stColors[wpStat],direction:'ltr'}}>{fmtDate(latestWP?.wp_expiry_date)}</span></div>
 </div>
 </div>
 </div>
@@ -2168,31 +2344,31 @@ return<>
 {ncLabel}
 </span>}
 {stat&&(stat.wps_has_notes===true?<span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10,fontWeight:600,color:'#c0392b',padding:'3px 9px',borderRadius:999,background:'rgba(192,57,43,.12)',border:'1px solid rgba(192,57,43,.4)',fontFamily:F,flexShrink:0}}>
-<AlertCircle size={10}/> ملاحظة قوى
+<AlertCircle size={10}/> {T('ملاحظة قوى','Qiwa note')}
 </span>:stat.wps_has_notes===false?<span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10,fontWeight:600,color:stColors.ok,padding:'3px 9px',borderRadius:999,background:'rgba(39,160,70,.1)',border:'1px solid rgba(39,160,70,.35)',fontFamily:F,flexShrink:0}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> قوى نظيف
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {T('قوى نظيف','Qiwa clean')}
 </span>:null)}
 </div>}
 <div style={{display:'grid',gridTemplateColumns:selSvc==='ajeer_contract'?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr',gap:10}}>
 <div style={pillBase}>
 <Hash size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>الرقم الموحد</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.unified_national_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>{T('الرقم الموحد','Unified No')}</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.unified_national_number||'—'}</span></div>
 {w.facility.unified_national_number&&<CopyBtn value={w.facility.unified_national_number}/>}
 </div>
 <div style={pillBase}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.bentoGold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
-<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم الموارد البشرية</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.hrsd_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>{T('رقم الموارد البشرية','HRSD No')}</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.hrsd_number||'—'}</span></div>
 {w.facility.hrsd_number&&<CopyBtn value={w.facility.hrsd_number}/>}
 </div>
 <div style={pillBase}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.bentoGold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z"/></svg>
-<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>رقم التأمينات</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.gosi_file_number||'—'}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>{T('رقم التأمينات','GOSI No')}</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.gosi_file_number||'—'}</span></div>
 {w.facility.gosi_file_number&&<CopyBtn value={w.facility.gosi_file_number}/>}
 </div>
 {/* عدد عمال المنشأة — يُجلب لخدمة عقد أجير (يُستخدم أيضاً في حساب رسم السعودة) */}
 {selSvc==='ajeer_contract'&&<div style={pillBase}>
 <Users size={12} color={C.bentoGold} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>عدد عمال المنشأة</span><span style={{...val,direction:'rtl',textAlign:'right'}}>{ajeerWorkerCountLoading?'…':`${ajeerWorkerCount} عامل`}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>{T('عدد عمال المنشأة','Facility worker count')}</span><span style={{...val,direction:'rtl',textAlign:'right'}}>{ajeerWorkerCountLoading?'…':T(`${ajeerWorkerCount} عامل`,`${ajeerWorkerCount} workers`)}</span></div>
 </div>}
 </div>
 </div>}
@@ -2203,8 +2379,8 @@ return<>
 <div style={{width:42,height:42,borderRadius:'50%',background:'rgba(212,160,23,.08)',border:'1px dashed rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
 </div>
-<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:600,fontFamily:F,textAlign:'center',lineHeight:1.6,maxWidth:340}}>{workerSearching?'جاري البحث…':isSelf?'هذا هو العميل نفسه — لا يمكن اختياره كعامل مختلف. ارجع لخطوة العميل واختر «هو نفسه العميل».':'لا يوجد عامل بهذا البحث'}</div>
-{!workerSearching&&!isSelf&&<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>يمكنك إضافة عامل جديد من الأعلى</div>}
+<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:600,fontFamily:F,textAlign:'center',lineHeight:1.6,maxWidth:340}}>{workerSearching?T('جاري البحث…','Searching…'):isSelf?T('هذا هو العميل نفسه — لا يمكن اختياره كعامل مختلف. ارجع لخطوة العميل واختر «هو نفسه العميل».','This is the client themselves — cannot be selected as a different worker. Go back to the client step and choose "Same as the client".'):T('لا يوجد عامل بهذا البحث','No worker matches this search')}</div>
+{!workerSearching&&!isSelf&&<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>{T('يمكنك إضافة عامل جديد من الأعلى','You can add a new worker above')}</div>}
 </div>})()}
 </div>}
 
@@ -2214,22 +2390,22 @@ return<>
 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
 <div style={{fontSize:13,fontWeight:600,color:C.gold,fontFamily:F,display:'flex',alignItems:'center',gap:7}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="18" y1="2" x2="18" y2="8"/><line x1="21" y1="5" x2="15" y2="5"/></svg>
-تسجيل عامل جديد
+{T('تسجيل عامل جديد','Register new worker')}
 </div>
-<button onClick={()=>{setWorkerMode('existing');setWorkerQ('');setNewWorker({name:'',phone:'',iqama_number:''})}} style={{height:26,padding:'0 10px',borderRadius:7,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.08)',color:C.red,cursor:'pointer',fontSize:10.5,fontFamily:F,fontWeight:600}}>إلغاء</button>
+<button onClick={()=>{setWorkerMode('existing');setWorkerQ('');setNewWorker({name:'',phone:'',iqama_number:''})}} style={{height:26,padding:'0 10px',borderRadius:7,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.08)',color:C.red,cursor:'pointer',fontSize:10.5,fontFamily:F,fontWeight:600}}>{T('إلغاء','Cancel')}</button>
 </div>
 {/* Fields */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 <div style={{gridColumn:'1 / -1',display:'flex',flexDirection:'column',gap:5}}>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>الاسم <span style={{color:C.red}}>*</span></span>
-<input value={newWorker.name} onChange={e=>{let v=e.target.value;const hasAr=/[\u0600-\u06FF]/.test(v),hasEn=/[A-Za-z]/.test(v);if(hasAr&&!hasEn)v=v.replace(/[^\u0600-\u06FF\s]/g,'');else if(hasEn&&!hasAr)v=v.replace(/[^A-Za-z\s]/g,'');else if(!hasAr&&!hasEn)v='';else v=newWorker.name;v=v.replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewWorker(p=>({...p,name:v}))}} placeholder="اسم العامل" style={{...fS,height:40,textAlign:'center'}}/>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>{T('الاسم','Name')} <span style={{color:C.red}}>*</span></span>
+<input value={newWorker.name} onChange={e=>{let v=e.target.value;const hasAr=/[\u0600-\u06FF]/.test(v),hasEn=/[A-Za-z]/.test(v);if(hasAr&&!hasEn)v=v.replace(/[^\u0600-\u06FF\s]/g,'');else if(hasEn&&!hasAr)v=v.replace(/[^A-Za-z\s]/g,'');else if(!hasAr&&!hasEn)v='';else v=newWorker.name;v=v.replace(/\s+/g,' ').split(' ').slice(0,3).join(' ');setNewWorker(p=>({...p,name:v}))}} placeholder={T('اسم العامل','Worker name')} style={{...fS,height:40,textAlign:'center'}}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:5}}>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>رقم الإقامة <span style={{color:C.red}}>*</span></span>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>{T('رقم الإقامة','Iqama No')} <span style={{color:C.red}}>*</span></span>
 <input value={newWorker.iqama_number} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);setNewWorker(p=>({...p,iqama_number:v}))}} placeholder="2XXXXXXXXX" inputMode="numeric" maxLength={10} style={{...fS,height:40,direction:'ltr',textAlign:'center'}}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:5}}>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>رقم الجوال <span style={{color:C.red}}>*</span></span>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx5)',fontFamily:F,paddingRight:2}}>{T('رقم الجوال','Mobile')} <span style={{color:C.red}}>*</span></span>
 <div style={{position:'relative',display:'flex',alignItems:'center'}}>
 <span style={{position:'absolute',left:12,fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,pointerEvents:'none',direction:'ltr'}}>+966</span>
 <input value={(()=>{const r=newWorker.phone;if(!r)return'';if(r.length<=2)return r;if(r.length<=5)return r.slice(0,2)+' '+r.slice(2);return r.slice(0,2)+' '+r.slice(2,5)+' '+r.slice(5)})()} onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,'').slice(0,9);setNewWorker(p=>({...p,phone:v}))}} placeholder="5X XXX XXXX" inputMode="numeric" maxLength={12} style={{...fS,height:40,direction:'ltr',textAlign:'left',paddingLeft:54,paddingRight:14}}/>
@@ -2242,18 +2418,18 @@ return<>
 {hasMergedField&&(selWorker||(workerMode==='new'&&newWorker.name.trim()))&&(()=>{const inp=svcSingleField;const val=fields[inp.key]||'';return<div style={{marginTop:14,padding:'14px 16px',borderRadius:14,border:'1px solid rgba(212,160,23,.18)',background:'linear-gradient(135deg, rgba(212,160,23,.055), rgba(212,160,23,.02) 60%, rgba(212,160,23,.04))',boxShadow:'0 1px 0 rgba(255,255,255,.03) inset, 0 2px 8px rgba(0,0,0,.15), 0 0 0 1px rgba(212,160,23,.04)',display:'flex',flexDirection:'column',gap:10}}>
 <label style={{fontSize:11,fontWeight:600,color:C.bentoGold,letterSpacing:'.2px',display:'flex',alignItems:'center',gap:6}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-{inp.label_ar} {inp.required&&<span style={{color:C.red}}>*</span>}
+{inpLabel(inp,isAr)} {inp.required&&<span style={{color:C.red}}>*</span>}
 </label>
 {inp.type==='select'?
-<NiceSelect height={42} fontSize={13} value={val} placeholder="اختر..."
-options={inp.source==='regions'?regions.map(r=>({value:r.id,label:r.name_ar})):inp.source==='countries'?lkCountries.map(c=>({value:c.nationality_ar,label:c.nationality_ar})):inp.source==='occupations'?lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar})):(inp.options||[])}
+<NiceSelect height={42} fontSize={13} value={val} placeholder={T('اختر...','Select...')}
+options={inp.source==='regions'?regions.map(r=>({value:r.id,label:r.name_ar})):inp.source==='countries'?lkCountries.map(c=>({value:c.nationality_ar,label:c.nationality_ar})):inp.source==='occupations'?lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar})):inpOpts(inp.options,isAr)}
 onChange={v=>setFields(p=>({...p,[inp.key]:v}))}/>
 :inp.type==='date'?
 <DateField value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} lang={lang}/>
 :inp.type==='textarea'?
-<textarea value={val} onChange={e=>setFields(p=>({...p,[inp.key]:e.target.value}))} placeholder={inp.placeholder||''} rows={3} style={{...fS,height:'auto',padding:'10px 14px',resize:'vertical'}}/>
+<textarea value={val} onChange={e=>setFields(p=>({...p,[inp.key]:e.target.value}))} placeholder={inpPh(inp,isAr)} rows={3} style={{...fS,height:'auto',padding:'10px 14px',resize:'vertical'}}/>
 :<input type={inp.type==='number'?'number':'text'} value={val} onChange={e=>setFields(p=>({...p,[inp.key]:e.target.value}))}
-placeholder={inp.placeholder||''} style={{...fS,height:42,...(inp.direction==='ltr'?{direction:'ltr',textAlign:'left'}:{})}}/>
+placeholder={inpPh(inp,isAr)} style={{...fS,height:42,...(inp.direction==='ltr'?{direction:'ltr',textAlign:'left'}:{})}}/>
 }
 </div>})()}
 
@@ -2274,7 +2450,7 @@ return<div style={{flexShrink:0,marginBottom:14}}>
 <div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative'}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
 <Phone size={12} strokeWidth={2.2}/>
-<span>جوال العامل</span>
+<span>{T('جوال العامل','Worker mobile')}</span>
 </div>
 <FKPhone req value={fields.worker_phone||''} onChange={v=>setFields(p=>({...p,worker_phone:v}))}/>
 </div>
@@ -2367,25 +2543,25 @@ return<div style={{display:'flex',flexDirection:'column',gap:8,flex:1,minHeight:
 {/* ═══ Simplified header — matches other step title rows ═══ */}
 <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0,fontFamily:F,paddingBottom:8,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
 {/* Status pill */}
-<span className={`sr-pill ${isComplete?'status-ok':isOver?'status-err':'status-warn'}`} data-tip={isComplete?'تم توزيع جميع التأشيرات':isOver?`لديك ${Math.abs(activeRemaining)} زيادة عن العدد المطلوب`:`يتبقى ${activeRemaining} تأشيرة للتوزيع`}>
+<span className={`sr-pill ${isComplete?'status-ok':isOver?'status-err':'status-warn'}`} data-tip={isComplete?T('تم توزيع جميع التأشيرات','All visas distributed'):isOver?T(`لديك ${Math.abs(activeRemaining)} زيادة عن العدد المطلوب`,`You have ${Math.abs(activeRemaining)} more than required`):T(`يتبقى ${activeRemaining} تأشيرة للتوزيع`,`${activeRemaining} visas left to distribute`)}>
 <span>{sumF}/{activeTotal}</span>
 <span>·</span>
-<span>{isComplete?'مكتمل':isOver?'زيادة':'متبقي'}</span>
+<span>{isComplete?T('مكتمل','Complete'):isOver?T('زيادة','Over'):T('متبقي','Remaining')}</span>
 </span>
 {/* Progress bar */}
 <div style={{flex:1,minWidth:40,height:4,borderRadius:2,background:'rgba(255,255,255,.05)',overflow:'hidden'}}>
 <div style={{height:'100%',width:`${distPct}%`,background:isComplete?'#2ea043':isOver?'#c0392b':C.gold,borderRadius:2,transition:'width .3s cubic-bezier(.4,0,.2,1)'}}/>
 </div>
 {/* Drag hint — instructional pill */}
-{multiGroup&&activeFiles.length>1&&<span className="sr-pill info" data-tip="اسحب أي تأشيرة بين الملفات لنقلها">
+{multiGroup&&activeFiles.length>1&&<span className="sr-pill info" data-tip={T('اسحب أي تأشيرة بين الملفات لنقلها','Drag any visa between files to move it')}>
 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4M9 5v14M19 15l-4 4-4-4M15 19V5"/></svg>
-<span>اسحب للنقل</span>
+<span>{T('اسحب للنقل','Drag to move')}</span>
 </span>}
 {/* Back-to-auto */}
-<button type="button" onClick={()=>{setVisaDistMode('auto');setStep3Mode('groups');setErr('')}} className="sr-pill action">تلقائي</button>
+<button type="button" onClick={()=>{setVisaDistMode('auto');setStep3Mode('groups');setErr('')}} className="sr-pill action">{T('تلقائي','Auto')}</button>
 {/* Add file button */}
 {canAddMore&&<button type="button" onClick={addFile} className="sr-pill action">
-<span>ملف</span>
+<span>{T('ملف','File')}</span>
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>}
 </div>
@@ -2404,7 +2580,7 @@ onDragOver={e=>{if(isValidDrop){e.preventDefault();e.dataTransfer.dropEffect='mo
 onDrop={e=>{if(!dragInfo||dragInfo.fileId===f.id)return;e.preventDefault();moveVisa(dragInfo.fileId,f.id,dragInfo.groupId);setDragInfo(null)}}
 style={{position:'relative',display:'flex',flexDirection:'column',maxHeight:215,borderRadius:12,border:`1.5px ${isValidDrop?'dashed':'solid'} ${isValidDrop?'rgba(52,152,219,.6)':full?'rgba(46,160,67,.35)':c>0?'rgba(212,160,23,.25)':'rgba(255,255,255,.08)'}`,background:isValidDrop?'linear-gradient(135deg, rgba(52,152,219,.14), rgba(52,152,219,.04))':full?'linear-gradient(135deg, rgba(46,160,67,.08), rgba(46,160,67,.02))':c>0?'linear-gradient(135deg, rgba(212,160,23,.06), rgba(212,160,23,.02))':'rgba(255,255,255,.015)',overflow:'hidden',transition:'.2s',boxShadow:isValidDrop?'0 0 0 3px rgba(52,152,219,.15), 0 2px 12px rgba(52,152,219,.2)':full?'0 2px 8px rgba(46,160,67,.08)':'0 2px 8px rgba(0,0,0,.15)',opacity:isDragSource?.55:1}}>
 {/* Delete button */}
-{activeFiles.length>1&&<button type="button" onClick={()=>removeFile(f.id)} title="حذف"
+{activeFiles.length>1&&<button type="button" onClick={()=>removeFile(f.id)} title={T('حذف','Delete')}
 style={{position:'absolute',top:6,left:6,width:20,height:20,borderRadius:5,border:'none',background:'rgba(192,57,43,.15)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,zIndex:2,transition:'.15s'}}
 onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.3)'}}
 onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.15)'}}>
@@ -2412,7 +2588,7 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.15)'}}>
 </button>}
 {/* File header: label + count/4 */}
 <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'6px 8px 4px',borderBottom:'1px solid rgba(255,255,255,.05)',background:'rgba(255,255,255,.02)'}}>
-<span style={{fontSize:10.5,fontWeight:600,color:full?'#2ea043':C.gold,fontFamily:F,letterSpacing:'.3px'}}>الملف {['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'][i]||(i+1)}</span>
+<span style={{fontSize:10.5,fontWeight:600,color:full?'#2ea043':C.gold,fontFamily:F,letterSpacing:'.3px'}}>{isAr?'الملف ':'File '}{isAr?(['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'][i]||(i+1)):(i+1)}</span>
 <span style={{fontSize:9,fontWeight:600,color:'var(--tx5)'}}>•</span>
 <span style={{fontSize:14,fontWeight:600,color:full?'#2ea043':c>0?C.gold:'var(--tx5)',fontFamily:F,lineHeight:1}}><span style={{fontSize:9.5,fontWeight:600,color:'var(--tx5)'}}>4/</span>{c}</span>
 </div>
@@ -2421,7 +2597,7 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.15)'}}>
 <div style={{display:'flex',flexDirection:'column',gap:3,padding:'6px 6px 8px',flex:1,justifyContent:'center',minHeight:0}}>
 {visaGroups.map((g,gi)=>{
 const cnt=parseInt(f.assignments?.[g.id])||0
-const natLbl=g.nationality?(lkCountries.find(co=>co.id===g.nationality)?.nationality_ar||`المجموعة ${gi+1}`):`المجموعة ${gi+1}`
+const natLbl=g.nationality?(lkCountries.find(co=>co.id===g.nationality)?.nationality_ar||T(`المجموعة ${gi+1}`,`Group ${gi+1}`)):T(`المجموعة ${gi+1}`,`Group ${gi+1}`)
 const profLbl=g.profession?(lkOccupations.find(o=>o.id===g.profession)?.value_ar||''):''
 const gR=groupRem(g.id)
 const compatible=!fBk||visaBucketKey(g)===fBk
@@ -2434,29 +2610,29 @@ return<div key={g.id}
 draggable={cnt>0}
 onDragStart={e=>{if(cnt<=0){e.preventDefault();return}setDragInfo({fileId:f.id,groupId:g.id});e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',`visa:${f.id}:${g.id}`)}catch(_){}}}
 onDragEnd={()=>setDragInfo(null)}
-title={cnt>0?'اسحب لنقل تأشيرة إلى ملف آخر':''}
+title={cnt>0?T('اسحب لنقل تأشيرة إلى ملف آخر','Drag to move a visa to another file'):''}
 style={{display:'flex',alignItems:'center',gap:5,fontFamily:F,padding:'3px 5px',borderRadius:6,background:isDraggingThis?'rgba(52,152,219,.15)':cnt>0?'rgba(212,160,23,.08)':'rgba(255,255,255,.015)',border:`1px solid ${isDraggingThis?'rgba(52,152,219,.5)':cnt>0?'rgba(212,160,23,.18)':'rgba(255,255,255,.04)'}`,transition:'.15s',cursor:cnt>0?'grab':'default',opacity:isDraggingThis?.6:1}}>
-<button type="button" onClick={()=>decGroup(f.id,g.id)} disabled={!canDec} title="إنقاص"
+<button type="button" onClick={()=>decGroup(f.id,g.id)} disabled={!canDec} title={T('إنقاص','Decrease')}
 style={{width:20,height:20,borderRadius:5,border:'none',background:canDec?'rgba(192,57,43,.12)':'transparent',color:canDec?C.red:'var(--tx6)',cursor:canDec?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:13,fontWeight:600,transition:'.15s',flexShrink:0}}
 onMouseEnter={e=>{if(canDec)e.currentTarget.style.background='rgba(192,57,43,.22)'}}
 onMouseLeave={e=>{if(canDec)e.currentTarget.style.background='rgba(192,57,43,.12)'}}>−</button>
 <span style={{fontSize:12,fontWeight:600,color:cnt>0?C.gold:'var(--tx5)',minWidth:12,textAlign:'center',flexShrink:0}}>{cnt}</span>
 <span style={{fontSize:10,fontWeight:600,color:cnt>0?'var(--tx2)':'var(--tx4)',flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}} title={profLbl?`${natLbl} · ${profLbl}`:natLbl}>{natLbl}{profLbl&&<span style={{fontSize:9,fontWeight:500,color:'var(--tx5)',marginRight:4}}> · {profLbl}</span>}</span>
-<button type="button" onClick={()=>incGroup(f.id,g.id)} disabled={!canInc} title="إضافة"
+<button type="button" onClick={()=>incGroup(f.id,g.id)} disabled={!canInc} title={T('إضافة','Add')}
 style={{width:20,height:20,borderRadius:5,border:'none',background:canInc?'rgba(46,160,67,.12)':'transparent',color:canInc?'#2ea043':'var(--tx6)',cursor:canInc?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:13,fontWeight:600,transition:'.15s',flexShrink:0}}
 onMouseEnter={e=>{if(canInc)e.currentTarget.style.background='rgba(46,160,67,.22)'}}
 onMouseLeave={e=>{if(canInc)e.currentTarget.style.background='rgba(46,160,67,.12)'}}>+</button>
 </div>
 })}
 {/* Placeholder when empty file */}
-{c===0&&<div style={{fontSize:10,color:'var(--tx5)',fontFamily:F,textAlign:'center',padding:'8px 4px'}}>أضف تأشيرات من المجموعات المتاحة</div>}
+{c===0&&<div style={{fontSize:10,color:'var(--tx5)',fontFamily:F,textAlign:'center',padding:'8px 4px'}}>{T('أضف تأشيرات من المجموعات المتاحة','Add visas from the available groups')}</div>}
 </div>
 ):(
 // ── Single-group: dot slots + simple -/+ ──
 <>
 <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:4,padding:'10px 0 8px',flex:1,minHeight:0}}>
 {[1,2,3,4].map(n=>{const filled=n<=c;const gid=visaGroups[0]?.id;return<button key={n} type="button" onClick={()=>{if(!gid)return;const target=Math.min(n,c+Math.max(0,remaining));if(target<1)return;setVisaFiles(fs=>fs.map(ff=>ff.id===f.id?{...ff,assignments:{[gid]:target}}:ff));setForceCustomFiles(true)}}
-style={{width:9,height:9,borderRadius:'50%',border:'none',background:filled?(full?'#2ea043':C.gold):'rgba(255,255,255,.12)',cursor:'pointer',padding:0,transition:'.15s',boxShadow:filled?`0 0 4px ${full?'rgba(46,160,67,.5)':'rgba(212,160,23,.5)'}`:'none'}} title={`اضبط على ${n}`}/>})}
+style={{width:9,height:9,borderRadius:'50%',border:'none',background:filled?(full?'#2ea043':C.gold):'rgba(255,255,255,.12)',cursor:'pointer',padding:0,transition:'.15s',boxShadow:filled?`0 0 4px ${full?'rgba(46,160,67,.5)':'rgba(212,160,23,.5)'}`:'none'}} title={T(`اضبط على ${n}`,`Set to ${n}`)}/>})}
 </div>
 <div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.05)',marginTop:'auto'}}>
 <button type="button" onClick={()=>{const gid=visaGroups[0]?.id;if(gid)decGroup(f.id,gid)}} disabled={c<=1}
@@ -2481,7 +2657,7 @@ onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>+</button>
 const updateGroup=(id,patch)=>setVisaGroups(gs=>gs.map(g=>g.id===id?{...g,...patch}:g))
 const addGroup=()=>{
 if(visaGroups.length>=4)return // Hard limit: 4 groups max
-if(totalVisas>=MAX_VISAS){setErr(`الحد الأقصى ${MAX_VISAS} تأشيرة`);return} // Total visas capped
+if(totalVisas>=MAX_VISAS){setErr(T(`الحد الأقصى ${MAX_VISAS} تأشيرة`,`Maximum ${MAX_VISAS} visas`));return} // Total visas capped
 const newId=Math.max(0,...visaGroups.map(g=>g.id))+1
 setVisaGroups(gs=>[...gs,{id:newId,nationality:'',embassy:'',profession:'',gender:'male',count:'1'}])
 // Accordion: only the newly-added group is expanded
@@ -2507,12 +2683,12 @@ return<div style={{display:'flex',flexDirection:'column',gap:8,flex:1,minHeight:
 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
 <div style={{display:'inline-flex',alignItems:'baseline',gap:5,fontFamily:F}}>
 <span style={{fontSize:18,fontWeight:600,color:C.gold,lineHeight:1,letterSpacing:'-.5px'}}>{totalVisas}</span>
-<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)'}}>{totalVisas===1?'تأشيرة':'تأشيرة'}</span>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx4)'}}>{T('تأشيرة','visas')}</span>
 </div>
-{visaGroups.length<4&&<button type="button" onClick={addGroup} title="إضافة مجموعة جديدة"
+{visaGroups.length<4&&<button type="button" onClick={addGroup} title={T('إضافة مجموعة جديدة','Add new group')}
 style={{height:30,padding:'0 13px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}}
 onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
-<span>مجموعة</span>
+<span>{T('مجموعة','Group')}</span>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>}
 </div>
@@ -2533,8 +2709,8 @@ return<button key={gg.id} type="button" onClick={()=>setActive(gg.id)}
 style={{flex:1,minWidth:0,height:36,border:'none',background:'transparent',color:isAct?C.gold:'var(--tx4)',fontFamily:F,cursor:'pointer',transition:'color .2s, border-color .2s',display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'0 6px',borderBottom:isAct?`2px solid ${C.gold}`:'2px solid transparent',marginBottom:-1}}
 onMouseEnter={e=>{if(!isAct)e.currentTarget.style.color='var(--tx2)'}}
 onMouseLeave={e=>{if(!isAct)e.currentTarget.style.color='var(--tx4)'}}>
-<span style={{fontSize:12.5,fontWeight:600,whiteSpace:'nowrap'}}>المجموعة {['الأولى','الثانية','الثالثة','الرابعة'][i]||(i+1)}</span>
-<div title={done?'مكتملة':'ناقصة'} style={{width:6,height:6,borderRadius:'50%',background:done?'#2ea043':'var(--tx5)',flexShrink:0}}/>
+<span style={{fontSize:12.5,fontWeight:600,whiteSpace:'nowrap'}}>{isAr?'المجموعة ':'Group '}{isAr?(['الأولى','الثانية','الثالثة','الرابعة'][i]||(i+1)):(i+1)}</span>
+<div title={done?T('مكتملة','Complete'):T('ناقصة','Incomplete')} style={{width:6,height:6,borderRadius:'50%',background:done?'#2ea043':'var(--tx5)',flexShrink:0}}/>
 <span style={{fontSize:10.5,fontWeight:600,opacity:.7,whiteSpace:'nowrap'}}>{gg.count||0}×</span>
 </button>
 })}
@@ -2557,36 +2733,36 @@ const TITLE_FS=solo?12.5:12.5      // title font size
 const BTN_W=32                     // counter button width
 const CNT_FS=15                    // count value font size
 return<div key={g.id} style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:`18px 14px 12px`,marginTop:visaGroups.length>1?14:12,position:'relative',display:'flex',flexDirection:'column',gap:GAP,width:'100%',maxWidth:'100%',boxSizing:'border-box',transition:'all .25s ease'}}>
-<div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>المجموعة {['الأولى','الثانية','الثالثة','الرابعة'][idx]||(idx+1)}</div>
-{visaGroups.length>1&&<button type="button" onClick={()=>removeGroup(g.id)} title="حذف"
+<div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>{isAr?'المجموعة ':'Group '}{isAr?(['الأولى','الثانية','الثالثة','الرابعة'][idx]||(idx+1)):(idx+1)}</div>
+{visaGroups.length>1&&<button type="button" onClick={()=>removeGroup(g.id)} title={T('حذف','Delete')}
 style={{position:'absolute',top:-13,left:14,height:26,padding:'0 12px',borderRadius:9,border:'1.3px dashed rgba(192,57,43,.55)',background:'var(--modal-bg)',color:C.red,cursor:'pointer',fontSize:11,fontFamily:F,fontWeight:600,display:'inline-flex',alignItems:'center',gap:6,transition:'.15s'}}
 onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(192,57,43,.85)';e.currentTarget.style.color='#e66'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(192,57,43,.55)';e.currentTarget.style.color=C.red}}>
 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-<span>حذف</span>
+<span>{T('حذف','Delete')}</span>
 </button>}
 {/* الحقول — مكوّنات FormKit (نفس معرض الفورمات) */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<FKSelect label="الجنسية" req placeholder="اختر الجنسية..."
+<FKSelect label={T('الجنسية','Nationality')} req placeholder={T('اختر الجنسية...','Select nationality...')}
 value={g.nationality||null}
 onChange={(id)=>updateGroup(g.id,{nationality:id||'',embassy:''})}
 options={lkCountries} getKey={o=>o.id} getLabel={o=>o.nationality_ar} getSub={o=>o.nationality_en||''}
 renderSelected={o=>{const u=natFlagUrl(o);return <span style={{display:'inline-flex',alignItems:'center',gap:8}}>{o.nationality_ar}{u&&<img src={u} alt="" width={16} height={12} style={{borderRadius:2,objectFit:'cover'}}/>}</span>}}
 renderCell={(o,sel)=>{const u=natFlagUrl(o);return <span style={{fontSize:14,fontWeight:600,color:sel?C.bentoGold:'rgba(255,255,255,.92)',display:'inline-flex',alignItems:'center',gap:8}}>{o.nationality_ar}{u&&<img src={u} alt="" width={16} height={12} style={{borderRadius:2,objectFit:'cover'}}/>}</span>}}/>
-<FKSelect label="السفارة" req disabled={!g.nationality||filteredEm.length===0}
-placeholder={!g.nationality?'اختر الجنسية أولاً':(filteredEm.length===0?'لا توجد سفارة لهذه الجنسية':'اختر المدينة...')}
+<FKSelect label={T('السفارة','Embassy')} req disabled={!g.nationality||filteredEm.length===0}
+placeholder={!g.nationality?T('اختر الجنسية أولاً','Select nationality first'):(filteredEm.length===0?T('لا توجد سفارة لهذه الجنسية','No embassy for this nationality'):T('اختر المدينة...','Select city...'))}
 value={g.embassy||null}
 onChange={(id)=>updateGroup(g.id,{embassy:id||''})}
 options={filteredEm} getKey={o=>o.id} getLabel={o=>o.city_ar} getSub={o=>o.name_en||''}/>
 </div>
-<FKSelect label="المهنة" req full placeholder="اختر المهنة..."
+<FKSelect label={T('المهنة','Occupation')} req full placeholder={T('اختر المهنة...','Select occupation...')}
 value={g.profession||null}
 onChange={(id)=>updateGroup(g.id,{profession:id||''})}
 options={lkOccupations} getKey={o=>o.id} getLabel={o=>o.value_ar}/>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<FKSegmented label="الجنس" req value={g.gender}
+<FKSegmented label={T('الجنس','Gender')} req value={g.gender}
 onChange={(v)=>updateGroup(g.id,{gender:v})}
-options={[{v:'male',l:'ذكر',c:'#3483b4'},{v:'female',l:'أنثى',c:'#e078a8'}]}/>
-<FKStepper label="عدد التأشيرات" req value={parseInt(g.count)||1} min={1} max={MAX_VISAS}
+options={[{v:'male',l:T('ذكر','Male'),c:'#3483b4'},{v:'female',l:T('أنثى','Female'),c:'#e078a8'}]}/>
+<FKStepper label={T('عدد التأشيرات','Visa count')} req value={parseInt(g.count)||1} min={1} max={MAX_VISAS}
 onChange={(n)=>{const others=totalVisas-(parseInt(g.count)||0);const cap=Math.max(1,MAX_VISAS-others);updateGroup(g.id,{count:String(Math.min(Math.max(1,n),cap))})}}/>
 </div>
 </div>
@@ -2597,7 +2773,7 @@ onChange={(n)=>{const others=totalVisas-(parseInt(g.count)||0);const cap=Math.ma
 {/* Distribution mode — single checkbox: unchecking navigates to files customization view.
     Hidden when total visas ≤ 1 (one visa = one file, so there's nothing to distribute). */}
 {visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)>1&&<div style={{padding:'2px 2px'}}>
-<FKCheckbox checked={visaDistMode==='auto'} label={`توزيع تلقائي${visaDistMode==='custom'?' (اضغط للعودة)':''}`}
+<FKCheckbox checked={visaDistMode==='auto'} label={isAr?`توزيع تلقائي${visaDistMode==='custom'?' (اضغط للعودة)':''}`:`Auto distribute${visaDistMode==='custom'?' (click to revert)':''}`}
 onChange={()=>{
 // Unchecking opens manual file distribution — a forward step past the groups, so gate it on the
 // same validation as «التالي»: an incomplete group blocks it (canNext sets the error banner).
@@ -2630,17 +2806,17 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={{...fieldset,flexShrink:0}}>
 <div style={legend}>
 <FileCheck size={12} strokeWidth={2.2}/>
-<span>نوع التصديق <span style={{color:C.red}}>*</span></span>
+<span>{T('نوع التصديق','Certification type')} <span style={{color:C.red}}>*</span></span>
 </div>
 <FKSegmented value={subtype} onChange={setSubtype} height={54}
-options={[{v:'printed',l:'تصديق مطبوعات',sub:'يرفق ملف المطبوعات'},{v:'open_request',l:'طلب مفتوح',sub:'يكتب نص الطلب'}]}/>
+options={[{v:'printed',l:T('تصديق مطبوعات','Printout certification'),sub:T('يرفق ملف المطبوعات','Attach the printout file')},{v:'open_request',l:T('طلب مفتوح','Open request'),sub:T('يكتب نص الطلب','Write the request text')}]}/>
 </div>
 
 {/* ═══ Fieldset 2: ملف المطبوعات / نص الطلب ═══ */}
 {subtype==='printed'&&<div style={{...fieldset,flex:1,minHeight:0,padding:'16px 12px 12px'}}>
 <div style={legend}>
 <Upload size={12} strokeWidth={2.2}/>
-<span>ملف المطبوعات <span style={{color:C.red}}>*</span></span>
+<span>{T('ملف المطبوعات','Printout file')} <span style={{color:C.red}}>*</span></span>
 </div>
 <label htmlFor="chamberFileInput" style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,padding:'16px',borderRadius:10,border:fields.chamber_file?'1.5px solid rgba(39,160,70,.5)':'1.5px dashed rgba(212,160,23,.35)',background:fields.chamber_file?'rgba(39,160,70,.08)':'rgba(212,160,23,.04)',color:fields.chamber_file?C.ok:C.gold,cursor:'pointer',transition:'.2s',position:'relative'}}
 onMouseEnter={e=>{e.currentTarget.style.background=fields.chamber_file?'rgba(39,160,70,.12)':'rgba(212,160,23,.07)';e.currentTarget.style.borderColor=fields.chamber_file?'rgba(39,160,70,.7)':'rgba(212,160,23,.55)'}}
@@ -2651,7 +2827,7 @@ onMouseLeave={e=>{e.currentTarget.style.background=fields.chamber_file?'rgba(39,
 </div>
 <div style={{textAlign:'center'}}>
 <div style={{fontSize:13,fontWeight:600,marginBottom:3,wordBreak:'break-all'}}>{fields.chamber_file.name}</div>
-<div style={{fontSize:10.5,color:'var(--tx5)'}}>{(fields.chamber_file.size/1024).toFixed(1)} KB · اضغط لتغيير الملف</div>
+<div style={{fontSize:10.5,color:'var(--tx5)'}}>{(fields.chamber_file.size/1024).toFixed(1)} KB · {T('اضغط لتغيير الملف','click to change the file')}</div>
 </div>
 <button type="button" onClick={(e)=>{e.preventDefault();e.stopPropagation();setFields(p=>({...p,chamber_file:null}))}}
 style={{position:'absolute',top:8,left:8,width:26,height:26,borderRadius:7,border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.12)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:600}}>×</button>
@@ -2660,8 +2836,8 @@ style={{position:'absolute',top:8,left:8,width:26,height:26,borderRadius:7,borde
 <Upload size={22}/>
 </div>
 <div style={{textAlign:'center'}}>
-<div style={{fontSize:13,fontWeight:600,marginBottom:4}}>اضغط لرفع الملف</div>
-<div style={{fontSize:10.5,color:'var(--tx5)'}}>أو اسحب الملف وأفلته هنا</div>
+<div style={{fontSize:13,fontWeight:600,marginBottom:4}}>{T('اضغط لرفع الملف','Click to upload the file')}</div>
+<div style={{fontSize:10.5,color:'var(--tx5)'}}>{T('أو اسحب الملف وأفلته هنا','or drag and drop the file here')}</div>
 <div style={{fontSize:9.5,color:'var(--tx5)',marginTop:6,padding:'3px 10px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',display:'inline-block'}}>PDF · JPG · PNG</div>
 </div>
 </>}
@@ -2673,10 +2849,10 @@ style={{display:'none'}}/>
 {subtype==='open_request'&&<div style={{...fieldset,flex:1,minHeight:0,padding:'16px 12px 12px'}}>
 <div style={legend}>
 <FileText size={12} strokeWidth={2.2}/>
-<span>نص الطلب <span style={{color:C.red}}>*</span></span>
+<span>{T('نص الطلب','Request text')} <span style={{color:C.red}}>*</span></span>
 </div>
 <textarea value={fields.chamber_text||''} onChange={e=>setFields(p=>({...p,chamber_text:e.target.value}))}
-placeholder="اكتب نص طلب التصديق هنا..."
+placeholder={T('اكتب نص طلب التصديق هنا...','Write the certification request text here...')}
 style={{...fS,flex:1,height:'auto',padding:'12px 14px',resize:'none',minHeight:0}}/>
 </div>}
 
@@ -2700,24 +2876,24 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={fieldset}>
 <div style={legend}>
 <FileCheck size={12} strokeWidth={2.2}/>
-<span>بيانات عقد أجير</span>
+<span>{T('بيانات عقد أجير','Ajeer contract data')}</span>
 </div>
 {/* Row 1: borrower's unified (700) number — full width on its own row. */}
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>الرقم الموحد للمنشأة المستعارة <span style={{color:C.red}}>*</span></label>
+<label style={{...lblS,marginBottom:0}}>{T('الرقم الموحد للمنشأة المستعارة','Borrower Unified No')} <span style={{color:C.red}}>*</span></label>
 <input type="text" inputMode="numeric" maxLength={10} value={fields.borrower_700||''} onChange={e=>{let raw=e.target.value.replace(/[^0-9]/g,'').slice(0,10);if(raw&&raw[0]!=='7')raw='7'+raw.slice(1);setFields(p=>({...p,borrower_700:raw}))}} placeholder="7XXXXXXXXX" style={{...inS,direction:'ltr',textAlign:'center',letterSpacing:'.5px'}}/>
 </div>
 {/* Row 2: مدة العقد (first, right) + المدينة (left) — both dropdowns, one row. */}
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>مدة العقد <span style={{color:C.red}}>*</span></label>
-<NiceSelect compact height={inH} fontSize={13} value={fields.contract_months||''} placeholder="اختر المدة..."
+<label style={{...lblS,marginBottom:0}}>{T('مدة العقد','Duration')} <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.contract_months||''} placeholder={T('اختر المدة...','Select duration...')}
 options={Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)}))}
 onChange={v=>setFields(p=>({...p,contract_months:v}))}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>المدينة <span style={{color:C.red}}>*</span></label>
-<NiceSelect compact height={inH} fontSize={13} value={fields.city||''} placeholder="اختر المدينة..."
+<label style={{...lblS,marginBottom:0}}>{T('المدينة','City')} <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.city||''} placeholder={T('اختر المدينة...','Select city...')}
 options={cityOptions}
 onChange={v=>setFields(p=>({...p,city:v}))}/>
 </div>
@@ -2743,7 +2919,7 @@ const fmtDay=(iso)=>{if(!iso)return'—';const d=new Date(iso);if(isNaN(d))retur
 const latestIns=[...(selWorker?.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0]
 const insEnd=latestIns?.end_date||''
 const insStat=dateStatus(insEnd)
-const insStatLabel=latestIns?(insStat==='expired'?'منتهي':insStat==='soon'?'قارب الانتهاء':'ساري'):'لا يوجد'
+const insStatLabel=latestIns?(insStat==='expired'?T('منتهي','Expired'):insStat==='soon'?T('قارب الانتهاء','Expiring soon'):T('ساري','Active')):T('لا يوجد','None')
 const insStatColor=insStat==='expired'?'#c0392b':insStat==='soon'?'#e5b534':insStat==='ok'?'#27a046':'var(--tx5)'
 // Worker age from birth_date
 const dob=selWorker?.birth_date||''
@@ -2755,31 +2931,15 @@ const legend={position:'absolute',top:-9,right:14,background:'var(--modal-bg)',p
 const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'14px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:8}
 return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
 
-{/* ═══ Fieldset 1: بيانات منشأة العامل ═══ */}
-<div style={fieldset}>
-<div style={legend}>
-<Building2 size={12} strokeWidth={2.2}/>
-<span>بيانات منشأة العامل</span>
-</div>
-{origFacility&&<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:10}}>
-<InfoCard Icon={Building2} label="منشأة العامل" value={origFacility}/>
-<InfoCard Icon={Hash} label="الرقم الموحد" ltr muted={!origUnified} value={origUnified||'—'} copy={origUnified&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(origUnified);setCopiedUnified(true);setTimeout(()=>setCopiedUnified(false),1500)}catch{}}} onMouseEnter={e=>{if(!copiedUnified)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copiedUnified)e.currentTarget.style.color=C.gold}} title={copiedUnified?'تم النسخ':'نسخ'} style={{width:26,height:26,borderRadius:6,border:`1px solid ${copiedUnified?'rgba(39,160,70,.45)':'rgba(212,160,23,.3)'}`,background:copiedUnified?'rgba(39,160,70,.12)':'rgba(212,160,23,.08)',color:copiedUnified?C.ok:C.gold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'color .15s',flexShrink:0}}>{copiedUnified?<Check size={13} strokeWidth={2.4}/>:<Copy size={12} strokeWidth={2}/>}</button>}/>
-</div>}
-</div>
-
 {/* ═══ Fieldset 2: بيانات تأمين العامل ═══ */}
 <div style={fieldset}>
 <div style={legend}>
 <ShieldCheck size={12} strokeWidth={2.2}/>
-<span>بيانات تأمين العامل</span>
+<span>{T('بيانات العامل','Worker data')}</span>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<InfoCard label="وضع التأمين الحالي" lead={<ShieldCheck size={14} color={latestIns?insStatColor:'var(--tx5)'} strokeWidth={1.8} style={{flexShrink:0}}/>} value={insStatLabel} valueColor={latestIns?insStatColor:'var(--tx5)'}/>
-<InfoCard label="تاريخ انتهاء التأمين" ltr lead={<Calendar size={14} color={insEnd?insStatColor:'var(--tx5)'} strokeWidth={1.8} style={{flexShrink:0}}/>} value={fmtDay(insEnd)} valueColor={insEnd?insStatColor:'var(--tx5)'}/>
-</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<InfoCard Icon={Calendar} label="تاريخ الميلاد" ltr muted={!dob} value={fmtDay(dob)}/>
-<InfoCard Icon={User} label="عمر العامل" muted={age===null} value={age!==null?`${age} سنة`:'—'}/>
+<InfoCard Icon={Calendar} label={T('تاريخ الميلاد','Birth Date')} ltr muted={!dob} value={fmtDay(dob)}/>
+<InfoCard Icon={User} label={T('عمر العامل','Worker age')} muted={age===null} value={age!==null?T(`${age} سنة`,`${age} yr`):'—'}/>
 </div>
 </div>
 
@@ -2802,11 +2962,11 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={fieldset}>
 <div style={legend}>
 <UserCog size={12} strokeWidth={2.2}/>
-<span>بيانات المهنة الجديدة</span>
+<span>{T('بيانات المهنة الجديدة','New occupation data')}</span>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>المهنة الجديدة <span style={{color:C.red}}>*</span></label>
-<NiceSelect compact height={inH} fontSize={13} value={fields.new_occupation||''} placeholder="اختر المهنة الجديدة..."
+<label style={{...lblS,marginBottom:0}}>{T('المهنة الجديدة','New Occupation')} <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.new_occupation||''} placeholder={T('اختر المهنة الجديدة...','Select the new occupation...')}
 options={lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar}))}
 onChange={v=>setFields(p=>({...p,new_occupation:v}))}/>
 </div>
@@ -2824,20 +2984,20 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={fieldset}>
 <div style={legend}>
 <FileStack size={12} strokeWidth={2.2}/>
-<span>بيانات المستند</span>
+<span>{T('بيانات المستند','Document data')}</span>
 </div>
-<FKPhone label="رقم جوال العامل" value={fields.worker_phone||''} onChange={v=>setFields(p=>({...p,worker_phone:v}))}/>
+<FKPhone label={T('رقم جوال العامل','Worker mobile')} value={fields.worker_phone||''} onChange={v=>setFields(p=>({...p,worker_phone:v}))}/>
 <div style={{display:'flex',flexDirection:'column',gap:10}}>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>نوع المستند <span style={{color:C.red}}>*</span></label>
-<NiceSelect compact height={inH} fontSize={13} value={fields.doc_type||''} placeholder="اختر..."
+<label style={{...lblS,marginBottom:0}}>{T('نوع المستند','Document Type')} <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.doc_type||''} placeholder={T('اختر...','Select...')}
 options={getDocTypes()}
 onChange={v=>setFields(p=>({...p,doc_type:v}))}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>لغة المستند <span style={{color:C.red}}>*</span></label>
+<label style={{...lblS,marginBottom:0}}>{T('لغة المستند','Document Language')} <span style={{color:C.red}}>*</span></label>
 <FKSegmented value={fields.doc_lang||''} onChange={v=>setFields(p=>({...p,doc_lang:v}))} height={inH}
-options={[{v:'ar',l:'العربية'},{v:'en',l:'English'}]}/>
+options={[{v:'ar',l:T('العربية','Arabic')},{v:'en',l:'English'}]}/>
 </div>
 </div>
 </div>
@@ -2852,11 +3012,28 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={{...fieldset,flex:1,minHeight:0}}>
 <div style={legend}>
 <Printer size={12} strokeWidth={2.2}/>
-<span>سبب طلب طباعة الإقامة <span style={{color:C.red}}>*</span></span>
+<span>{T('سبب طلب طباعة الإقامة','Reason for the Iqama-print request')} <span style={{color:C.red}}>*</span></span>
 </div>
 <textarea value={fields.print_reason||''} onChange={e=>setFields(p=>({...p,print_reason:e.target.value}))}
-placeholder="اكتب سبب طلب طباعة الإقامة..."
-style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:'right'}}/>
+placeholder={T('اكتب سبب طلب طباعة الإقامة...','Reason for the Iqama-print request...')}
+style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:isAr?'right':'left'}}/>
+</div>
+</div>
+}
+
+// ─── external_transfer_approval: سبب الموافقة في إطار (بلا حقل الرقم الموحد) ───
+if(selSvc==='external_transfer_approval'){
+const legend={position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
+const fieldset={borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 12px 12px',position:'relative',display:'flex',flexDirection:'column',gap:10}
+return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
+<div style={{...fieldset,flex:1,minHeight:0}}>
+<div style={legend}>
+<BadgeCheck size={12} strokeWidth={2.2}/>
+<span>{T('سبب طلب الموافقة على النقل الخارجي','Reason for the external-transfer approval request')} <span style={{color:C.red}}>*</span></span>
+</div>
+<textarea value={fields.reason||''} onChange={e=>setFields(p=>({...p,reason:e.target.value}))}
+placeholder={T('اكتب سبب طلب الموافقة على النقل الخارجي...','Reason for the external-transfer approval request...')}
+style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:isAr?'right':'left'}}/>
 </div>
 </div>
 }
@@ -2869,11 +3046,11 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={{...fieldset,flex:1,minHeight:0}}>
 <div style={legend}>
 <Sparkles size={12} strokeWidth={2.2}/>
-<span>وصف الخدمة <span style={{color:C.red}}>*</span></span>
+<span>{T('وصف الخدمة','Service description')} <span style={{color:C.red}}>*</span></span>
 </div>
 <textarea value={fields.custom_note||''} onChange={e=>setFields(p=>({...p,custom_note:e.target.value}))}
-placeholder="اكتب تفاصيل الخدمة المطلوبة..."
-style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:'right'}}/>
+placeholder={T('اكتب تفاصيل الخدمة المطلوبة...','Describe the requested service...')}
+style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:isAr?'right':'left'}}/>
 </div>
 </div>
 }
@@ -2900,18 +3077,18 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={fieldset}>
 <div style={legend}>
 <Plane size={12} strokeWidth={2.2}/>
-<span>التأشيرة الحالية (فعّالة)</span>
+<span>{T('التأشيرة الحالية (فعّالة)','Current visa (active)')}</span>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>رقم الإقامة</label>
+<label style={{...lblS,marginBottom:0}}>{T('رقم الإقامة','Iqama No')}</label>
 <div style={{...roBox,justifyContent:'center'}}>
 <Hash size={12} color={C.gold} strokeWidth={1.8}/>
 <span style={{fontSize:13,fontWeight:600,color:iqamaNo?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{iqamaNo||'—'}</span>
 </div>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>رقم التأشيرة</label>
+<label style={{...lblS,marginBottom:0}}>{T('رقم التأشيرة','Visa No')}</label>
 <div style={{...roBox,justifyContent:'center'}}>
 <BadgeCheck size={12} color={C.gold} strokeWidth={1.8}/>
 <span style={{fontSize:13,fontWeight:600,color:existingVisa?.visa_number?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{existingVisa?.visa_number||'—'}</span>
@@ -2920,14 +3097,14 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>بداية التأشيرة</label>
+<label style={{...lblS,marginBottom:0}}>{T('بداية التأشيرة','Visa start')}</label>
 <div style={{...roBox,justifyContent:'center'}}>
 <Calendar size={12} color={C.gold} strokeWidth={1.8}/>
 <span style={{fontSize:13,fontWeight:600,color:existingVisa?.start_date?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(existingVisa?.start_date)}</span>
 </div>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>نهاية التأشيرة</label>
+<label style={{...lblS,marginBottom:0}}>{T('نهاية التأشيرة','Visa end')}</label>
 <div style={{...roBox,justifyContent:'center'}}>
 <Calendar size={12} color="#27a046" strokeWidth={1.8}/>
 <span style={{fontSize:13,fontWeight:600,color:existingVisa?.end_date?'#27a046':'var(--tx5)',fontFamily:F,direction:'ltr'}}>{fmtDay(existingVisa?.end_date)}</span>
@@ -2939,12 +3116,12 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={fieldset}>
 <div style={legend}>
 <CalendarClock size={12} strokeWidth={2.2}/>
-<span>مدة التمديد المطلوبة <span style={{color:C.red}}>*</span></span>
+<span>{T('مدة التمديد المطلوبة','Requested extension period')} <span style={{color:C.red}}>*</span></span>
 </div>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
 {/* Extension duration — dropdown 1-12 (months). Also defaults exit_type to "single" if it wasn't set. */}
 <div style={{flex:1}}>
-<NiceSelect compact height={inH} fontSize={13} value={fields.duration_months||''} placeholder="اختر المدة..."
+<NiceSelect compact height={inH} fontSize={13} value={fields.duration_months||''} placeholder={T('اختر المدة...','Select duration...')}
 options={Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)}))}
 onChange={v=>setFields(p=>({...p,duration_months:v,exit_type:fields.exit_type||'single'}))}/>
 </div>
@@ -2955,24 +3132,24 @@ onChange={v=>setFields(p=>({...p,duration_months:v,exit_type:fields.exit_type||'
 <div style={fieldset}>
 <div style={legend}>
 <Plane size={12} strokeWidth={2.2}/>
-<span>نوع التأشيرة ومدتها <span style={{color:C.red}}>*</span></span>
+<span>{T('نوع التأشيرة ومدتها','Visa type & duration')} <span style={{color:C.red}}>*</span></span>
 </div>
 {/* إصدار أو تمديد */}
 <FKSegmented value={fields.op_mode||'issue'} onChange={v=>setFields(p=>({...p,op_mode:v}))} height={54}
-options={[{v:'issue',l:'إصدار',sub:'تأشيرة جديدة'},{v:'extend',l:'تمديد',sub:'تمديد تأشيرة قائمة'}]}/>
+options={[{v:'issue',l:T('إصدار','Issue'),sub:T('تأشيرة جديدة','New visa')},{v:'extend',l:T('تمديد','Extend'),sub:T('تمديد تأشيرة قائمة','Extend an existing visa')}]}/>
 <FKSegmented value={fields.exit_type||'single'} onChange={v=>setFields(p=>({...p,exit_type:v}))} height={54}
-options={[{v:'single',l:'مفردة',sub:'دخول وخروج مرة واحدة'},{v:'multiple',l:'متعددة',sub:'دخول وخروج عدة مرات'}]}/>
+options={[{v:'single',l:T('مفردة','Single'),sub:T('دخول وخروج مرة واحدة','One entry and exit')},{v:'multiple',l:T('متعددة','Multiple'),sub:T('دخول وخروج عدة مرات','Multiple entries and exits')}]}/>
 {/* رقم التأشيرة — يظهر فقط عند التمديد، فوق حقل المدة */}
 {fields.op_mode==='extend'&&<div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>رقم التأشيرة <span style={{color:C.red}}>*</span></label>
+<label style={{...lblS,marginBottom:0}}>{T('رقم التأشيرة','Visa No')} <span style={{color:C.red}}>*</span></label>
 <input value={fields.visa_number||''} maxLength={11} inputMode="numeric"
 onChange={e=>setFields(p=>({...p,visa_number:e.target.value.replace(/\D/g,'').slice(0,11)}))}
-placeholder="أدخل رقم التأشيرة" style={{...inS,textAlign:'center',direction:'ltr'}}/>
+placeholder={T('أدخل رقم التأشيرة','Enter the visa number')} style={{...inS,textAlign:'center',direction:'ltr'}}/>
 </div>}
 {/* Issuance duration — dropdown 1-12 (months). */}
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>المدة <span style={{color:C.red}}>*</span></label>
-<NiceSelect compact height={inH} fontSize={13} value={fields.duration_months||''} placeholder="اختر المدة..."
+<label style={{...lblS,marginBottom:0}}>{T('المدة','Duration')} <span style={{color:C.red}}>*</span></label>
+<NiceSelect compact height={inH} fontSize={13} value={fields.duration_months||''} placeholder={T('اختر المدة...','Select duration...')}
 options={Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)}))}
 onChange={v=>setFields(p=>({...p,duration_months:v}))}/>
 </div>
@@ -2992,11 +3169,11 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={{...fieldset,flex:1,minHeight:0}}>
 <div style={legend}>
 <FileText size={12} strokeWidth={2.2}/>
-<span>سبب طلب الخروج النهائي</span>
+<span>{T('سبب طلب الخروج النهائي','Reason for the final-exit request')}</span>
 </div>
 <textarea value={fields.reason||''} onChange={e=>setFields(p=>({...p,reason:e.target.value}))}
-placeholder='اكتب سبب طلب تأشيرة الخروج النهائي...'
-style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:'right'}}/>
+placeholder={T('اكتب سبب طلب تأشيرة الخروج النهائي...','Reason for the final-exit visa request...')}
+style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:isAr?'right':'left'}}/>
 </div>
 
 </div>
@@ -3019,16 +3196,16 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={fieldset}>
 <div style={legend}>
 <TrendingUp size={12} strokeWidth={2.2}/>
-<span>بيانات الراتب الجديد</span>
+<span>{T('بيانات الراتب الجديد','New salary data')}</span>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-<FKCurrency label="الراتب الجديد" req value={fields.new_salary||''} onChange={v=>setFields(p=>({...p,new_salary:v}))}/>
+<FKCurrency label={T('الراتب الجديد','New Salary')} req value={fields.new_salary||''} onChange={v=>setFields(p=>({...p,new_salary:v}))}/>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>مدة استمرار الراتب <span style={{color:C.red}}>*</span></label>
+<label style={{...lblS,marginBottom:0}}>{T('مدة استمرار الراتب','Salary duration')} <span style={{color:C.red}}>*</span></label>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
 {/* Months dropdown 1-12. Migrated from a free-text weeks input. */}
 <div style={{flex:1}}>
-<NiceSelect compact height={inH} fontSize={13} value={fields.salary_months||''} placeholder="اختر المدة..."
+<NiceSelect compact height={inH} fontSize={13} value={fields.salary_months||''} placeholder={T('اختر المدة...','Select duration...')}
 options={Array.from({length:24},(_,i)=>({value:String(i+1),label:fmtMonths(i+1)}))}
 onChange={v=>setFields(p=>({...p,salary_months:v}))}/>
 </div>
@@ -3060,20 +3237,20 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={fieldset}>
 <div style={legend}>
 <IdCard size={12} strokeWidth={2.2}/>
-<span>بيانات الجواز الحالية</span>
+<span>{T('بيانات الجواز الحالية','Current passport data')}</span>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',minHeight:40}}>
 <Hash size={13} color={C.gold} strokeWidth={1.8} style={{flexShrink:0}}/>
 <div style={{display:'flex',flexDirection:'column',gap:4,flex:1,minWidth:0}}>
-<span style={{fontSize:10,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2}}>رقم جواز السفر الحالي</span>
+<span style={{fontSize:10,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2}}>{T('رقم جواز السفر الحالي','Current passport number')}</span>
 <span style={{fontSize:13,fontWeight:600,color:curPassportNo?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr',lineHeight:1.2,textAlign:'right'}}>{curPassportNo||'—'}</span>
 </div>
 </div>
 <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',minHeight:40}}>
 <Calendar size={13} color={C.gold} strokeWidth={1.8} style={{flexShrink:0}}/>
 <div style={{display:'flex',flexDirection:'column',gap:4,flex:1,minWidth:0}}>
-<span style={{fontSize:10,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2}}>تاريخ انتهاء الجواز الحالي</span>
+<span style={{fontSize:10,color:'var(--tx5)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2}}>{T('تاريخ انتهاء الجواز الحالي','Current passport expiry')}</span>
 <span style={{fontSize:13,fontWeight:600,color:curPassportExp?'var(--tx)':'var(--tx5)',fontFamily:F,direction:'ltr',lineHeight:1.2,textAlign:'right'}}>{fmtDay(curPassportExp)}</span>
 </div>
 </div>
@@ -3084,42 +3261,42 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={fieldset}>
 <div style={legend}>
 <RefreshCw size={12} strokeWidth={2.2}/>
-<span>نوع التحديث <span style={{color:C.red}}>*</span></span>
+<span>{T('نوع التحديث','Update type')} <span style={{color:C.red}}>*</span></span>
 </div>
 <FKSegmented value={updateMode} onChange={v=>setFields(p=>({...p,update_mode:v}))} height={54}
-options={[{v:'extend',l:'تمديد',sub:'تمديد تاريخ الانتهاء فقط'},{v:'renew',l:'تجديد',sub:'إصدار جواز جديد بكامل بياناته'}]}/>
+options={[{v:'extend',l:T('تمديد','Extend'),sub:T('تمديد تاريخ الانتهاء فقط','Extend the expiry date only')},{v:'renew',l:T('تجديد','Renew'),sub:T('إصدار جواز جديد بكامل بياناته','Issue a brand-new passport')}]}/>
 </div>
 </>:<>
 {/* ═══ Page 2: New passport fields ═══ */}
 <div style={fieldset}>
 <div style={legend}>
 <IdCard size={12} strokeWidth={2.2}/>
-<span>{isRenew?'بيانات الجواز الجديد':'تمديد تاريخ الانتهاء'}</span>
+<span>{isRenew?T('بيانات الجواز الجديد','New passport data'):T('تمديد تاريخ الانتهاء','Extend the expiry date')}</span>
 </div>
 {isRenew?<>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>رقم جواز السفر الجديد <span style={{color:C.red}}>*</span></label>
+<label style={{...lblS,marginBottom:0}}>{T('رقم جواز السفر الجديد','New passport number')} <span style={{color:C.red}}>*</span></label>
 <input type="text" value={fields.new_passport_no||''} onChange={e=>setFields(p=>({...p,new_passport_no:e.target.value.toUpperCase()}))} placeholder="T0000000" style={{...inS,direction:'ltr',textAlign:'center',letterSpacing:'.5px'}}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>مكان إصدار الجواز <span style={{color:C.red}}>*</span></label>
-<input type="text" value={fields.new_passport_issue_city||''} onChange={e=>setFields(p=>({...p,new_passport_issue_city:e.target.value}))} placeholder="مدينة الإصدار" style={{...inS,textAlign:'center'}}/>
+<label style={{...lblS,marginBottom:0}}>{T('مكان إصدار الجواز','Place of issue')} <span style={{color:C.red}}>*</span></label>
+<input type="text" value={fields.new_passport_issue_city||''} onChange={e=>setFields(p=>({...p,new_passport_issue_city:e.target.value}))} placeholder={T('مدينة الإصدار','Issue city')} style={{...inS,textAlign:'center'}}/>
 </div>
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>تاريخ إصدار الجواز <span style={{color:C.red}}>*</span></label>
+<label style={{...lblS,marginBottom:0}}>{T('تاريخ إصدار الجواز','Passport issue date')} <span style={{color:C.red}}>*</span></label>
 <CompactDatePicker value={fields.new_passport_issue_date||''} onChange={v=>setFields(p=>({...p,new_passport_issue_date:v}))} width="100%" height={inH}/>
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الجواز <span style={{color:C.red}}>*</span></label>
+<label style={{...lblS,marginBottom:0}}>{T('تاريخ انتهاء الجواز','Passport expiry date')} <span style={{color:C.red}}>*</span></label>
 <CompactDatePicker value={fields.new_passport_expiry||''} onChange={v=>setFields(p=>({...p,new_passport_expiry:v}))} width="100%" height={inH}/>
 </div>
 </div>
 </>:<>
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
-<label style={{...lblS,marginBottom:0}}>تاريخ انتهاء الجواز الجديد <span style={{color:C.red}}>*</span></label>
+<label style={{...lblS,marginBottom:0}}>{T('تاريخ انتهاء الجواز الجديد','New passport expiry date')} <span style={{color:C.red}}>*</span></label>
 <CompactDatePicker value={fields.new_passport_expiry||''} onChange={v=>setFields(p=>({...p,new_passport_expiry:v}))} width="100%" height={inH}/>
 </div>
 </>}
@@ -3132,7 +3309,7 @@ options={[{v:'extend',l:'تمديد',sub:'تمديد تاريخ الانتهاء
 // ─── Quote-driven (نقل الكفالة / تجديد الإقامة): search certified quotes by worker name / iqama / quote no ───
 if(QUOTE_SVCS.has(selSvc)){
 const isIq=selSvc==='iqama_renewal'
-const QL={title:isIq?'حسبة تجديد الإقامة':'حسبة التنازل',hint:isIq?'اختر حسبة تجديد مصدقة':'اختر حسبة تنازل مصدقة',badge:isIq?'حسبة تجديد مصدقة':'حسبة تنازل مصدقة',search:isIq?'ابحث باسم العامل أو رقم الإقامة أو رقم حسبة التجديد...':'ابحث باسم العامل أو رقم الإقامة أو رقم طلب حسبة التنازل...',loading:isIq?'جارٍ تحميل حسبات التجديد...':'جارٍ تحميل حسبات التنازل...',empty:isIq?'لا توجد حسبة تجديد مطابقة':'لا توجد حسبة تنازل مطابقة',emptyHint:isIq?'يمكنك إصدار حسبة من حاسبة تسعيرات التجديد':'يمكنك إصدار حسبة تنازل من حاسبة التنازل'}
+const QL={title:isIq?T('حسبة تجديد الإقامة','Iqama Renewal Quote'):T('حسبة التنازل','Transfer Quote'),hint:isIq?T('اختر حسبة تجديد مصدقة','Select a certified renewal quote'):T('اختر حسبة تنازل مصدقة','Select a certified transfer quote'),badge:isIq?T('حسبة تجديد مصدقة','Certified renewal quote'):T('حسبة تنازل مصدقة','Certified transfer quote'),search:isIq?T('ابحث باسم العامل أو رقم الإقامة أو رقم حسبة التجديد...','Search by worker name, Iqama, or renewal quote no...'):T('ابحث باسم العامل أو رقم الإقامة أو رقم طلب حسبة التنازل...','Search by worker name, Iqama, or transfer quote no...'),loading:isIq?T('جارٍ تحميل حسبات التجديد...','Loading renewal quotes...'):T('جارٍ تحميل حسبات التنازل...','Loading transfer quotes...'),empty:isIq?T('لا توجد حسبة تجديد مطابقة','No matching renewal quote'):T('لا توجد حسبة تنازل مطابقة','No matching transfer quote'),emptyHint:isIq?T('يمكنك إصدار حسبة من حاسبة تسعيرات التجديد','You can issue a quote from the renewal calculator'):T('يمكنك إصدار حسبة تنازل من حاسبة التنازل','You can issue a transfer quote from the transfer calculator')}
 const q=kafalaQuoteQ.trim().toLowerCase()
 const matches=q?kafalaQuotes.filter(it=>(it.worker_name||'').toLowerCase().includes(q)||(it.iqama_number||'').includes(q)||(it.quote_no||'').toLowerCase().includes(q)).slice(0,3):kafalaQuotes.slice(0,3)
 const fmtPrice=(n)=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
@@ -3173,21 +3350,25 @@ return<ModalSection flex Icon={Receipt} label={QL.title} hint={QL.hint} style={{
 {/* Search input — hidden when a quote is selected */}
 {!selKafalaQuote&&<div style={{position:'relative'}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none',transition:'stroke .2s'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={kafalaQuoteQ} onChange={e=>setKafalaQuoteQ(e.target.value)} placeholder={QL.search} onFocus={e=>{e.currentTarget.style.borderColor=C.bentoGold;e.currentTarget.style.boxShadow=`0 0 0 1px ${C.bentoGold}33, inset 0 1px 2px rgba(0,0,0,.2)`;e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.style.borderColor='transparent';e.currentTarget.style.boxShadow='inset 0 1px 2px rgba(0,0,0,.2)';e.currentTarget.previousElementSibling.style.stroke='rgba(255,255,255,.35)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:'right',border:'1px solid transparent'}}/>
+<input value={kafalaQuoteQ} onChange={e=>setKafalaQuoteQ(e.target.value)} placeholder={QL.search} onFocus={e=>{e.currentTarget.style.borderColor=C.bentoGold;e.currentTarget.style.boxShadow=`0 0 0 1px ${C.bentoGold}33, inset 0 1px 2px rgba(0,0,0,.2)`;e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.style.borderColor='transparent';e.currentTarget.style.boxShadow='inset 0 1px 2px rgba(0,0,0,.2)';e.currentTarget.previousElementSibling.style.stroke='rgba(255,255,255,.35)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:isAr?'right':'left',border:'1px solid transparent'}}/>
 </div>}
 {/* Selected quote summary */}
-{selKafalaQuote&&(()=>{const qt=selKafalaQuote;const _tot=Number((pricing&&pricing.total)||0)||Number(qt.client_charge||0);const _office=isIq?Number(qt.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0);const minFees=Math.max(0,_tot-_office);return<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.45)',background:'linear-gradient(135deg,rgba(212,160,23,.08),rgba(212,160,23,.02))',padding:14,position:'relative',display:'flex',flexDirection:'column',gap:10}}>
+{selKafalaQuote&&(()=>{const qt=selKafalaQuote;const _tot=Number((pricing&&pricing.total)||0)||Number(qt.client_charge||0);const _office=isIq?Number(qt.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0);
+// الرسوم الحكومية = نفس معادلة الحسبة: الإجمالي الابتدائي − رسوم المكتب − خصم أبشر (تُطرح أبشر من جهة الحكومية).
+const _sub=Number(qt.subtotal||0);const _gov=_sub>0?Math.max(0,_sub-Number(qt.office_fee||0)-Number(qt.absher_discount||0)):Math.max(0,_tot-_office);
+// تجديد الإقامة: الرسوم الحكومية = نفس قيمة صفحة تفاصيل التجديد (government_fees المجمّد)
+const minFees=isIq?iqamaQuoteGovFees(qt):_gov;return<div style={{borderRadius:12,border:'1.5px solid rgba(212,160,23,.45)',background:'linear-gradient(135deg,rgba(212,160,23,.08),rgba(212,160,23,.02))',padding:14,position:'relative',display:'flex',flexDirection:'column',gap:10}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 <span>{QL.badge}</span>
 </div>
-<button onClick={()=>{setSelKafalaQuote(null);setKafalaSameClient(null)}} title="تغيير الحسبة" style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>تغيير</button>
+<button onClick={()=>{setSelKafalaQuote(null);setKafalaSameClient(null)}} title={T('تغيير الحسبة','Change quote')} style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>{T('تغيير','Change')}</button>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
-<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>العامل</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{qt.worker_name||'—'}</div></div>
-<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>رقم الإقامة</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx)',direction:'ltr',textAlign:'right'}}>{qt.iqama_number||'—'}</div></div>
-<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>رقم طلب التسعيرة</div><div style={{fontSize:13,fontWeight:600,color:C.gold,direction:'ltr',textAlign:'right'}}>{qt.quote_no?noDash(qt.quote_no):'—'}</div></div>
-<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>مجموع الرسوم <span style={{opacity:.7}}>(عدا المكتب)</span></div><div style={{fontSize:13,fontWeight:600,color:C.gold,textAlign:'right'}}><bdi>{fmtPrice(minFees)}</bdi> <span style={{fontSize:10,color:'var(--tx5)'}}>ريال</span></div></div>
-<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>الإجمالي</div><div style={{fontSize:13,fontWeight:600,color:C.gold,textAlign:'right'}}><bdi>{fmtPrice(qt.client_charge)}</bdi> <span style={{fontSize:10,color:'var(--tx5)'}}>ريال</span></div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('العامل','Worker')}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{qt.worker_name||'—'}</div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('رقم الإقامة','Iqama No')}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx)',direction:'ltr',textAlign:'right'}}>{qt.iqama_number||'—'}</div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('رقم طلب التسعيرة','Quote No.')}</div><div style={{fontSize:13,fontWeight:600,color:C.gold,direction:'ltr',textAlign:'right'}}>{qt.quote_no?noDash(qt.quote_no):'—'}</div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('الرسوم الحكومية','Government Fees')}</div><div style={{fontSize:13,fontWeight:600,color:C.gold,textAlign:'right'}}><bdi>{fmtPrice(minFees)}</bdi> <span style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</span></div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('الإجمالي','Total')}</div><div style={{fontSize:13,fontWeight:600,color:C.gold,textAlign:'right'}}><bdi>{fmtPrice(qt.client_charge)}</bdi> <span style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</span></div></div>
 </div>
 </div>})()}
 {/* Results / loading / empty */}
@@ -3199,10 +3380,10 @@ onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.curr
 onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
 <span style={{fontSize:13,fontWeight:600,color:'var(--tx)',fontFamily:F,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{qt.worker_name||'—'}</span>
-<span style={{fontSize:11,fontWeight:600,color:C.gold,flexShrink:0}}><bdi>{fmtPrice(qt.client_charge)}</bdi> ريال</span>
+<span style={{fontSize:11,fontWeight:600,color:C.gold,flexShrink:0}}><bdi>{fmtPrice(qt.client_charge)}</bdi> {T('ريال','SAR')}</span>
 </div>
 <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}}>
-{qt.iqama_number&&<span style={{fontSize:10.5,color:'var(--tx4)',fontWeight:600,padding:'2px 7px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.05)',direction:'ltr'}}>إقامة: {qt.iqama_number}</span>}
+{qt.iqama_number&&<span style={{fontSize:10.5,color:'var(--tx4)',fontWeight:600,padding:'2px 7px',borderRadius:5,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.05)',direction:'ltr'}}>{T('إقامة','Iqama')}: {qt.iqama_number}</span>}
 {qt.quote_no&&<span style={{fontSize:10.5,color:C.bentoGold,fontWeight:600,padding:'2px 7px',borderRadius:5,background:'rgba(212,160,23,.06)',border:'1px solid rgba(212,160,23,.18)',direction:'ltr'}}>{noDash(qt.quote_no)}</span>}
 {qt.priced_at&&<span style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginRight:'auto',direction:'ltr'}}>{fmtPricedAt(qt.priced_at)}</span>}
 </div>
@@ -3212,7 +3393,7 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.03)';e.cur
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
 </div>
 <div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:600,fontFamily:F}}>{QL.empty}</div>
-<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>{q?'جرّب بحثاً آخر':QL.emptyHint}</div>
+<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>{q?T('جرّب بحثاً آخر','Try another search'):QL.emptyHint}</div>
 </div>}
 </div>}
 </div></ModalSection>
@@ -3227,15 +3408,15 @@ if(!prefilledRef.current.has('worker_phone')&&!fields.worker_phone&&selWorker?.p
 const lp=String(selWorker.phone).replace(/\D/g,'').replace(/^966/,'').replace(/^0/,'').slice(-9)
 if(lp){prefilledRef.current.add('worker_phone');setTimeout(()=>setFields(p=>p.worker_phone?p:{...p,worker_phone:lp}),0)}
 }
-const monthLabel=(n)=>n===1?'شهر واحد':n===2?'شهران':n<=10?`${n} أشهر`:`${n} شهراً`
+const monthLabel=(n)=>isAr?(n===1?'شهر واحد':n===2?'شهران':n<=10?`${n} أشهر`:`${n} شهراً`):`${n} mo`
 const monthOpts=Array.from({length:24},(_,i)=>({value:String(i+1),label:monthLabel(i+1)}))
-return<ModalSection flex Icon={Coins} label="تفاصيل الرواتب" hint="رواتب العامل غير المدفوعة">
+return<ModalSection flex Icon={Coins} label={T('تفاصيل الرواتب','Salary details')} hint={T('رواتب العامل غير المدفوعة','Worker unpaid salaries')}>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginTop:6}}>
-<FKPhone label="رقم جوال العامل" req value={fields.worker_phone||''} onChange={v=>setFields(p=>({...p,worker_phone:v}))}/>
-<FKSelect label="عدد أشهر الرواتب غير المدفوعة" req placeholder="اختر عدد الأشهر..." searchable={false}
+<FKPhone label={T('رقم جوال العامل','Worker mobile')} req value={fields.worker_phone||''} onChange={v=>setFields(p=>({...p,worker_phone:v}))}/>
+<FKSelect label={T('عدد أشهر الرواتب غير المدفوعة','Unpaid salary months')} req placeholder={T('اختر عدد الأشهر...','Select number of months...')} searchable={false}
 value={fields.unpaid_salaries_count||null} onChange={v=>setFields(p=>({...p,unpaid_salaries_count:v}))}
 options={monthOpts} getKey={o=>o.value} getLabel={o=>o.label}/>
-<FKCurrency label="المبلغ الإجمالي لهذه الرواتب" req full value={fields.total_amount||''} onChange={v=>setFields(p=>({...p,total_amount:v}))}/>
+<FKCurrency label={T('المبلغ الإجمالي لهذه الرواتب','Total amount of these salaries')} req full value={fields.total_amount||''} onChange={v=>setFields(p=>({...p,total_amount:v}))}/>
 </div>
 </ModalSection>
 }
@@ -3243,13 +3424,13 @@ options={monthOpts} getKey={o=>o.value} getLabel={o=>o.label}/>
 const allInputs=(selectedService?.inputs?.length?selectedService.inputs:SERVICE_INPUTS[selSvc])||[]
 if(allInputs.length===0)return<div style={{textAlign:'center',padding:40,color:'var(--tx5)',fontSize:12,background:'rgba(255,255,255,.02)',borderRadius:12,border:'1px solid rgba(255,255,255,.04)'}}>
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom:8}}><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-<div>لا توجد حقول إضافية — يمكنك المتابعة</div>
+<div>{T('لا توجد حقول إضافية — يمكنك المتابعة','No additional fields — you can continue')}</div>
 </div>
 
 // If inputs have sections, filter by current kafalaPage
 const hasSections=allInputs.some(i=>i.section)
 const inputs=hasSections?allInputs.filter(i=>i.section===kafalaPage):allInputs
-const sectionTitles={1:'بيانات العامل',2:'تفاصيل النقل'}
+const sectionTitles={1:T('بيانات العامل','Worker data'),2:T('تفاصيل النقل','Transfer details')}
 const totalSections=hasSections?Math.max(...allInputs.map(i=>i.section||1)):1
 
 const fieldsGrid=<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,flex:1,minHeight:0,gridAutoRows:'1fr',alignContent:'stretch'}}>
@@ -3269,15 +3450,15 @@ const val=fields[inp.key]
 const colSpan=inp.grid_col==='1'?{gridColumn:'1/-1'}:{}
 return<div key={inp.key} style={colSpan}>
 {inp.type==='toggle'?
-<FKSegmented label={inp.label_ar} value={val} onChange={v=>setFields(p=>({...p,[inp.key]:v}))}
-options={[{v:true,l:'نعم',c:C.ok},{v:false,l:'لا',c:C.blue}]}/>
+<FKSegmented label={inpLabel(inp,isAr)} value={val} onChange={v=>setFields(p=>({...p,[inp.key]:v}))}
+options={[{v:true,l:T('نعم','Yes'),c:C.ok},{v:false,l:T('لا','No'),c:C.blue}]}/>
 :inp.type==='select'?
-<FKSelect label={inp.label_ar} req={inp.required} placeholder="اختر..." value={val||null}
-options={inp.source==='regions'?regions.map(r=>({value:r.id,label:r.name_ar})):inp.source==='countries'?lkCountries.map(c=>({value:c.nationality_ar,label:c.nationality_ar})):inp.source==='occupations'?lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar})):(inp.options||[])}
+<FKSelect label={inpLabel(inp,isAr)} req={inp.required} placeholder={T('اختر...','Select...')} value={val||null}
+options={inp.source==='regions'?regions.map(r=>({value:r.id,label:r.name_ar})):inp.source==='countries'?lkCountries.map(c=>({value:c.nationality_ar,label:c.nationality_ar})):inp.source==='occupations'?lkOccupations.map(o=>({value:o.value_ar,label:o.value_ar})):inpOpts(inp.options,isAr)}
 getKey={o=>o.value} getLabel={o=>String(o.label??'')}
 onChange={v=>setFields(p=>({...p,[inp.key]:v}))}/>
 :inp.type==='date'?
-<FKDate label={inp.label_ar} req={inp.required} value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))}/>
+<FKDate label={inpLabel(inp,isAr)} req={inp.required} value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))}/>
 :inp.type==='date_hijri'?
 (()=>{
 const parts=val?val.split('-'):[]
@@ -3294,11 +3475,11 @@ const built=p[0]&&p[1]&&p[2]?`${p[0]}-${p[1]}-${p[2]}`:''
 setFields(prev=>({...prev,[inp.key]:built||`${p[0]||''}-${p[1]||''}-${p[2]||''}`}))
 }
 return<div style={{display:'flex',flexDirection:'column',gap:3}}>
-<FKLbl req={inp.required}>{inp.label_ar}</FKLbl>
+<FKLbl req={inp.required}>{inpLabel(inp,isAr)}</FKLbl>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1.2fr .8fr',gap:5,direction:'ltr'}}>
-<NiceSelect value={dY} placeholder="السنة" options={years} searchable={false} onChange={v=>setDatePart('y',v)}/>
-<NiceSelect value={dM} placeholder="الشهر" options={months} searchable={false} onChange={v=>setDatePart('m',v)}/>
-<NiceSelect value={dD} placeholder="اليوم" options={days} searchable={false} onChange={v=>setDatePart('d',v)}/>
+<NiceSelect value={dY} placeholder={T('السنة','Year')} options={years} searchable={false} onChange={v=>setDatePart('y',v)}/>
+<NiceSelect value={dM} placeholder={T('الشهر','Month')} options={months} searchable={false} onChange={v=>setDatePart('m',v)}/>
+<NiceSelect value={dD} placeholder={T('اليوم','Day')} options={days} searchable={false} onChange={v=>setDatePart('d',v)}/>
 </div>
 {inp.hijri&&val&&/^\d{4}-\d{2}-\d{2}$/.test(val)&&(()=>{
 const hKey=inp.key+'_hijri'
@@ -3317,10 +3498,10 @@ style={{width:80,background:'transparent',border:'none',outline:'none',color:C.g
 </div>
 })()
 :inp.type==='textarea'?
-<FKTextArea label={inp.label_ar} req={inp.required} full={false} value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} placeholder={inp.placeholder||''} rows={3}/>
+<FKTextArea label={inpLabel(inp,isAr)} req={inp.required} full={false} value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} placeholder={inpPh(inp,isAr)} rows={3}/>
 :inp.type==='number'?
-<FKNumber label={inp.label_ar} req={inp.required} value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} placeholder={inp.placeholder||''}/>
-:<FKText label={inp.label_ar} req={inp.required} value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} placeholder={inp.placeholder||''} dir={inp.direction==='ltr'?'ltr':'rtl'}/>
+<FKNumber label={inpLabel(inp,isAr)} req={inp.required} value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} placeholder={inpPh(inp,isAr)}/>
+:<FKText label={inpLabel(inp,isAr)} req={inp.required} value={val||''} onChange={v=>setFields(p=>({...p,[inp.key]:v}))} placeholder={inpPh(inp,isAr)} dir={inp.direction==='ltr'?'ltr':'rtl'}/>
 }
 </div>})}
 </div>
@@ -3328,7 +3509,7 @@ style={{width:80,background:'transparent',border:'none',outline:'none',color:C.g
 return hasSections?<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative',display:'flex',flexDirection:'column',gap:12,marginTop:10}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">{kafalaPage===1?<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>:<><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/></>}</svg>
-<span>{sectionTitles[kafalaPage]||`القسم ${kafalaPage}`}</span>
+<span>{sectionTitles[kafalaPage]||T(`القسم ${kafalaPage}`,`Section ${kafalaPage}`)}</span>
 <span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',marginRight:4}}>({kafalaPage}/{totalSections})</span>
 </div>
 {fieldsGrid}
@@ -3362,28 +3543,28 @@ return<div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0
 </div>
 <div style={{display:'flex',alignItems:'center',background:on?'rgba(0,0,0,.18)':'rgba(255,255,255,.02)',border:'1px solid transparent',borderRadius:9,boxShadow:on?'inset 0 1px 2px rgba(0,0,0,.2)':'none',height:42,opacity:on?1:.5,transition:'.2s'}}>
 <input type="text" inputMode="decimal" disabled={!on} value={fmtAmt(k[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setK(stateKey,raw)}} placeholder="0" style={{flex:1,minWidth:0,height:'100%',padding:'0 10px',border:'none',background:'transparent',fontFamily:F,fontSize:14,fontWeight:600,color:on?'var(--tx)':'var(--tx5)',outline:'none',direction:'ltr',textAlign:'center'}}/>
-<span style={{fontSize:12,color:on?c:'var(--tx5)',fontWeight:600,padding:'0 8px 0 4px',fontFamily:F,flexShrink:0}}>ريال</span>
+<span style={{fontSize:12,color:on?c:'var(--tx5)',fontWeight:600,padding:'0 8px 0 4px',fontFamily:F,flexShrink:0}}>{T('ريال','SAR')}</span>
 </div>
 </div>}
 return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative'}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
-<span>التسعيرة</span>
-{iqamaExpiredKafala&&<span style={{fontSize:9,color:C.red,background:'rgba(192,57,43,.12)',padding:'1px 6px',borderRadius:4,fontWeight:600}}>الإقامة منتهية</span>}
+<span>{T('التسعيرة','Pricing')}</span>
+{iqamaExpiredKafala&&<span style={{fontSize:9,color:C.red,background:'rgba(192,57,43,.12)',padding:'1px 6px',borderRadius:4,fontWeight:600}}>{T('الإقامة منتهية','Iqama expired')}</span>}
 </div>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px 10px'}}>
-<div><label style={{...lblS,fontSize:12,marginBottom:5}}>رسوم النقل</label>{numIn('transferFeeInput',ac.transferFee,'2,000')}</div>
-<div><label style={{...lblS,fontSize:12,marginBottom:5}}>تجديد الإقامة{ac.iqamaFine>0&&<span style={{color:C.red,fontSize:10,marginRight:4,fontWeight:600}}>(شامل الغرامة)</span>}</label>{numIn('iqamaRenewalFee',ac.iqamaRenewalFee,'0')}</div>
-<div><label style={{...lblS,fontSize:12,marginBottom:5}}>رسوم كرت العمل</label>{numIn('workPermitRate',ac.workPermit,'100')}</div>
-<div><label style={{...lblS,fontSize:12,marginBottom:5}}>التأمين الطبي</label>{numIn('medicalFee',ac.medical,'0')}</div>
-{fields.change_profession===true&&<div><label style={{...lblS,fontSize:12,marginBottom:5}}>رسم تغيير المهنة</label>{numIn('profChangeInput',ac.profChange,'200')}</div>}
-<div><label style={{...lblS,fontSize:12,marginBottom:5}}>رسوم المكتب</label>{numIn('officeFee',ac.officeFee,'0')}</div>
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>{T('رسوم النقل','Transfer Fee')}</label>{numIn('transferFeeInput',ac.transferFee,'2,000')}</div>
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>{T('تجديد الإقامة','Iqama Renewal')}{ac.iqamaFine>0&&<span style={{color:C.red,fontSize:10,marginRight:4,fontWeight:600}}>{T(' (شامل الغرامة)',' (incl. fine)')}</span>}</label>{numIn('iqamaRenewalFee',ac.iqamaRenewalFee,'0')}</div>
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>{T('رسوم كرت العمل','Work Permit Fee')}</label>{numIn('workPermitRate',ac.workPermit,'100')}</div>
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>{T('التأمين الطبي','Medical Insurance')}</label>{numIn('medicalFee',ac.medical,'0')}</div>
+{fields.change_profession===true&&<div><label style={{...lblS,fontSize:12,marginBottom:5}}>{T('رسم تغيير المهنة','Occupation Change Fee')}</label>{numIn('profChangeInput',ac.profChange,'200')}</div>}
+<div><label style={{...lblS,fontSize:12,marginBottom:5}}>{T('رسوم المكتب','Office Fee')}</label>{numIn('officeFee',ac.officeFee,'0')}</div>
 </div>
 
 {/* Extras */}
 <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)'}}>
 <div style={{display:'flex',gap:6,alignItems:'center'}}>
-<input value={kafalaExtraName} onChange={e=>setKafalaExtraName(e.target.value)} placeholder="بند إضافي" style={{...fS,flex:2}}/>
-<input type="text" inputMode="decimal" value={fmtAmt(kafalaExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setKafalaExtraAmount(raw)}} placeholder="المبلغ" style={{...fS,flex:1,direction:'ltr',textAlign:'center'}}/>
+<input value={kafalaExtraName} onChange={e=>setKafalaExtraName(e.target.value)} placeholder={T('بند إضافي','Extra item')} style={{...fS,flex:2}}/>
+<input type="text" inputMode="decimal" value={fmtAmt(kafalaExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setKafalaExtraAmount(raw)}} placeholder={T('المبلغ','Amount')} style={{...fS,flex:1,direction:'ltr',textAlign:'center'}}/>
 <button type="button" onClick={()=>{if(!kafalaExtraName||!kafalaExtraAmount)return;setKafalaPricing(p=>({...p,extras:[...(p.extras||[]),{name:kafalaExtraName,amount:kafalaExtraAmount}]}));setKafalaExtraName('');setKafalaExtraAmount('')}} style={{height:42,padding:'0 14px',borderRadius:9,border:'1px solid rgba(212,160,23,.3)',background:'rgba(212,160,23,.12)',color:C.gold,fontFamily:F,fontSize:14,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>+</button>
 </div>
 {(k.extras||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
@@ -3397,18 +3578,18 @@ return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(212,160
 {/* Subtotal + Deductions + Total */}
 <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.05)',display:'flex',flexDirection:'column',gap:10}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:12,fontWeight:600,color:'var(--tx2)'}}>إجمالي الرسوم</span>
-<span style={{fontSize:14,fontWeight:600,color:'var(--tx)'}}>{Number(pricing.subtotal||0).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>
+<span style={{fontSize:12,fontWeight:600,color:'var(--tx2)'}}>{T('إجمالي الرسوم','Subtotal')}</span>
+<span style={{fontSize:14,fontWeight:600,color:'var(--tx)'}}>{Number(pricing.subtotal||0).toLocaleString('en-US',{minimumFractionDigits:2})} {T('ريال','SAR')}</span>
 </div>
 {/* Toggle chips for deductions */}
 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-{togChip('خصم','discount',C.gold)}
-{togChip('رصيد أبشر','absherBalance','#2ea043')}
+{togChip(T('خصم','Discount'),'discount',C.gold)}
+{togChip(T('رصيد أبشر','Absher Balance'),'absherBalance','#2ea043')}
 </div>
 {/* Final total */}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:5,borderTop:'1px dashed rgba(212,160,23,.2)'}}>
-<span style={{fontSize:14,fontWeight:600,color:C.gold}}>الإجمالي</span>
-<span style={{fontSize:17,fontWeight:600,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ريال</span>
+<span style={{fontSize:14,fontWeight:600,color:C.gold}}>{T('الإجمالي','Total')}</span>
+<span style={{fontSize:17,fontWeight:600,color:C.gold}}>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} {T('ريال','SAR')}</span>
 </div>
 </div>
 </div>
@@ -3417,9 +3598,9 @@ return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(212,160
 {/* ═══ Kafala / Iqama-renewal Payment Plan: separate sub-step after pricing ═══ */}
 {(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayStep&&(()=>{
 const total=Number(pricing.total)||0
-const officeFee=selSvc==='iqama_renewal'?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0)
-// First payment must cover all fees except the office fee (only the office fee may be deferred to later installments).
-const minFirst=Math.max(0,total-officeFee)
+const officeFee=(selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0)
+// First payment must cover the government fees (subtotal − office fee − Absher); only the office fee may be deferred to later installments.
+const minFirst=(Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote.subtotal)-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,total-officeFee)
 const inst=kafalaInstallments
 const sumPaid=inst.reduce((s,x)=>s+(parseFloat(x.amount)||0),0)
 const remaining=Math.max(0,total-sumPaid)
@@ -3431,22 +3612,22 @@ const setIF=(i,k,v)=>setKafalaInstallments(p=>p.map((x,idx)=>idx===i?{...x,[k]:v
 return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'16px 14px 12px',position:'relative',marginTop:11,display:'flex',flexDirection:'column',gap:10}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-<span>طريقة الدفع</span>
+<span>{T('طريقة الدفع','Payment Method')}</span>
 </div>
 {/* Total floating on left of top border */}
-<div style={{position:'absolute',top:-9,left:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>الإجمالي: <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt(total.toFixed(2))}</span> ريال</div>
+<div style={{position:'absolute',top:-9,left:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>{T('الإجمالي','Total')}: <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt(total.toFixed(2))}</span> {T('ريال','SAR')}</div>
 <FKSegmented value={kafalaPayMode} onChange={(m)=>{setKafalaPayMode(m);if(m==='split')setKafalaInstallments(p=>p.length<2?[...p,{amount:'',date:''}]:p)}} height={42}
-options={[{v:'single',l:'دفعة واحدة'},{v:'split',l:'دفعات متعددة'}]}/>
+options={[{v:'single',l:T('دفعة واحدة','Single payment')},{v:'split',l:T('دفعات متعددة','Multiple installments')}]}/>
 {kafalaPayMode==='split'&&<div style={{display:'flex',flexDirection:'column',gap:6,flex:1,minHeight:0,paddingTop:8}}>
 {/* رأس الجدول — عناوين الأعمدة */}
 <div style={{display:'grid',gridTemplateColumns:'64px 1fr 1fr 26px',gap:8,alignItems:'center',padding:'0 2px 3px'}}>
-<span style={{fontSize:10,fontWeight:600,color:'var(--tx5)'}}>الدفعة</span>
-<span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',textAlign:'center'}}>المبلغ</span>
-<span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',textAlign:'center'}}>التاريخ</span>
+<span style={{fontSize:10,fontWeight:600,color:'var(--tx5)'}}>{T('الدفعة','Installment')}</span>
+<span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',textAlign:'center'}}>{T('المبلغ','Amount')}</span>
+<span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',textAlign:'center'}}>{T('التاريخ','Date')}</span>
 <span/>
 </div>
 {inst.map((row,i)=>{
-const idxLbl=['الأولى','الثانية','الثالثة','الرابعة','الخامسة'][i]||`${i+1}`
+const idxLbl=isAr?(['الأولى','الثانية','الثالثة','الرابعة','الخامسة'][i]||`${i+1}`):`${i+1}`
 const val=parseFloat(row.amount)||0
 const isFirst=i===0
 const under=isFirst&&val>0&&val<minFirst
@@ -3456,25 +3637,25 @@ const maxForRow=Math.max(0,total-sumOthers)
 // صف جدول لكل دفعة: الدفعة | المبلغ | التاريخ | حذف
 return<div key={i} style={{display:'grid',gridTemplateColumns:'64px 1fr 1fr 26px',gap:8,alignItems:'center'}}>
 <span style={{fontSize:11.5,fontWeight:600,color:isFirst?C.gold:'var(--tx2)',fontFamily:F}}>{idxLbl}</span>
-<input type="text" inputMode="decimal" value={fmtAmt(row.amount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setIF(i,'amount',raw!==''&&Number(raw)>maxForRow?String(maxForRow):raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)>maxForRow)setIF(i,'amount',String(maxForRow))}} placeholder="المبلغ" style={{...fS,height:42,fontSize:12,direction:'ltr',textAlign:'center',borderColor:under?C.red+'66':'rgba(255,255,255,.1)'}}/>
-{isFirst?<div style={{height:42,borderRadius:9,border:'1px solid rgba(255,255,255,.07)',background:'rgba(0,0,0,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11.5,fontWeight:600,color:'var(--tx4)'}}>عند الإصدار</div>
+<input type="text" inputMode="decimal" value={fmtAmt(row.amount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setIF(i,'amount',raw!==''&&Number(raw)>maxForRow?String(maxForRow):raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)>maxForRow)setIF(i,'amount',String(maxForRow))}} placeholder={T('المبلغ','Amount')} style={{...fS,height:42,fontSize:12,direction:'ltr',textAlign:'center',borderColor:under?C.red+'66':'rgba(255,255,255,.1)'}}/>
+{isFirst?<div style={{height:42,borderRadius:9,border:'1px solid rgba(255,255,255,.07)',background:'rgba(0,0,0,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11.5,fontWeight:600,color:'var(--tx4)'}}>{T('عند الإصدار','On issuance')}</div>
 :<CompactDatePicker value={row.date||''} onChange={(v)=>{if(v&&v<todayStr)return;setIF(i,'date',v)}} width={'100%'} min={todayStr}/>}
-{inst.length>2&&!isFirst?<button type="button" onClick={()=>rmInst(i)} title="حذف الدفعة" style={{width:26,height:26,borderRadius:7,border:'1px solid rgba(192,57,43,.25)',background:'rgba(192,57,43,.1)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.2)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.1)';e.currentTarget.style.borderColor='rgba(192,57,43,.25)'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>:<span/>}
+{inst.length>2&&!isFirst?<button type="button" onClick={()=>rmInst(i)} title={T('حذف الدفعة','Delete installment')} style={{width:26,height:26,borderRadius:7,border:'1px solid rgba(192,57,43,.25)',background:'rgba(192,57,43,.1)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.2)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.1)';e.currentTarget.style.borderColor='rgba(192,57,43,.25)'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>:<span/>}
 </div>
 })}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8,marginBottom:6}}>
 {inst.length<5&&remaining>0?<button type="button" onClick={addInst} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.12)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.06)';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}} style={{height:30,padding:'0 12px',borderRadius:8,border:'1.3px dashed rgba(212,160,23,.55)',background:'rgba(212,160,23,.06)',color:C.gold,fontFamily:F,fontSize:11.5,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5,transition:'.15s'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-<span>إضافة دفعة</span>
+<span>{T('إضافة دفعة','Add installment')}</span>
 </button>:<span/>}
 <div style={{fontSize:11,fontWeight:600}}>
-<span style={{color:'var(--tx4)'}}>متبقّي: <span style={{color:remaining>0?C.gold:C.ok,direction:'ltr',display:'inline-block'}}>{fmtAmt(remaining.toFixed(2))}</span> ريال</span>
+<span style={{color:'var(--tx4)'}}>{T('متبقّي','Remaining')}: <span style={{color:remaining>0?C.gold:C.ok,direction:'ltr',display:'inline-block'}}>{fmtAmt(remaining.toFixed(2))}</span> {T('ريال','SAR')}</span>
 </div>
 </div>
 </div>}
 {kafalaPayMode==='single'&&<div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,color:'var(--tx4)'}}>
-<div style={{fontSize:12,fontWeight:600}}>سيتم دفع الإجمالي دفعة واحدة</div>
-<div style={{fontSize:18,fontWeight:600,color:C.gold}}><span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt(total.toFixed(2))}</span> ريال</div>
+<div style={{fontSize:12,fontWeight:600}}>{T('سيتم دفع الإجمالي دفعة واحدة','The full total will be paid in one payment')}</div>
+<div style={{fontSize:18,fontWeight:600,color:C.gold}}><span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt(total.toFixed(2))}</span> {T('ريال','SAR')}</div>
 </div>}
 </div>
 })()}
@@ -3495,18 +3676,17 @@ return !on
 ?<button type="button" onClick={()=>setTK(stateKey+'_on',true)} onMouseEnter={e=>{e.currentTarget.style.background=`${c}1a`}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}} style={{width:'100%',height:42,borderRadius:10,border:`1px dashed ${c}80`,background:'transparent',color:c,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .15s ease'}}>{label}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
 :<div style={{display:'flex',gap:7,alignItems:'center',width:'100%'}}>
 <div style={{...fS,flex:2,height:42,display:'inline-flex',alignItems:'center',justifyContent:'center',color:c,fontWeight:700,cursor:'default'}}>{label}</div>
-<input autoFocus type="text" inputMode="decimal" value={fmtAmt(otherServicePricing[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setTK(stateKey,raw)}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){setTK(stateKey,'');setTK(stateKey+'_on',false)}}} placeholder="المبلغ" style={{...fS,flex:1,height:42,direction:'ltr',textAlign:'center'}}/>
-<button type="button" title="تأكيد" onClick={e=>{const inp=e.currentTarget.parentElement.querySelector('input');if(inp)inp.blur()}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(46,160,67,.24)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(46,160,67,.14)'}} style={{height:42,width:42,flexShrink:0,borderRadius:10,border:'1px solid rgba(46,160,67,.45)',background:'rgba(46,160,67,.14)',color:'#2ea043',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'background .15s ease'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-<button type="button" title="إلغاء" onClick={()=>{setTK(stateKey,'');setTK(stateKey+'_on',false)}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.14)';e.currentTarget.style.borderColor='rgba(192,57,43,.45)';e.currentTarget.style.color=C.red}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(255,255,255,.12)';e.currentTarget.style.color='var(--tx4)'}} style={{height:42,width:42,flexShrink:0,borderRadius:10,border:'1px solid rgba(255,255,255,.12)',background:'transparent',color:'var(--tx4)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'background .15s ease,border-color .15s ease,color .15s ease'}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+<input autoFocus type="text" inputMode="decimal" value={fmtAmt(otherServicePricing[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setTK(stateKey,raw)}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){setTK(stateKey,'');setTK(stateKey+'_on',false)}}} placeholder={T('المبلغ','Amount')} style={{...fS,flex:1,height:42,direction:'ltr',textAlign:'center'}}/>
+<button type="button" title={T('إلغاء','Cancel')} onClick={()=>{setTK(stateKey,'');setTK(stateKey+'_on',false)}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.14)';e.currentTarget.style.borderColor='rgba(192,57,43,.45)';e.currentTarget.style.color=C.red}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(255,255,255,.12)';e.currentTarget.style.color='var(--tx4)'}} style={{height:42,width:42,flexShrink:0,borderRadius:10,border:'1px solid rgba(255,255,255,.12)',background:'transparent',color:'var(--tx4)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'background .15s ease,border-color .15s ease,color .15s ease'}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 </div>}
 return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'18px 14px 14px',position:'relative'}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
-<span>التسعيرة</span>
+<span>{T('التسعيرة','Pricing')}</span>
 </div>
 {/* نمط الجدول — شريط عناوين (البند / المبلغ) ثم صفوف مفصولة بخطوط خفيفة */}
 <div style={{display:'flex',justifyContent:'space-between',padding:'0 12px 8px',borderBottom:'1px solid rgba(212,160,23,.25)',marginBottom:2}}>
-<span style={{display:'inline-flex',alignItems:'center',gap:7}}><span style={{width:16,flexShrink:0}}/><span style={{fontSize:10.5,fontWeight:700,color:'rgba(212,160,23,.8)'}}>البند</span></span>
-<span style={{fontSize:10.5,fontWeight:700,color:'rgba(212,160,23,.8)'}}>المبلغ</span>
+<span style={{display:'inline-flex',alignItems:'center',gap:7}}><span style={{width:16,flexShrink:0}}/><span style={{fontSize:10.5,fontWeight:700,color:'rgba(212,160,23,.8)'}}>{T('البند','Item')}</span></span>
+<span style={{fontSize:10.5,fontWeight:700,color:'rgba(212,160,23,.8)'}}>{T('المبلغ','Amount')}</span>
 </div>
 <div style={{display:'flex',flexDirection:'column'}}>
 {o.lines.map((line,i)=>{
@@ -3515,9 +3695,9 @@ const curVal=otherServicePricing.overrides?.[i]??''
 // طباعة الإقامة / تحديث بيانات الجواز / خروج وعودة: السعر ثابت من الإعدادات (لا يُعدَّل) — يُعرض كرقم بدل حقل إدخال.
 const fixed=selSvc==='iqama_print'||selSvc==='passport_update'||selSvc==='exit_reentry_visa'||selSvc==='name_translation'||selSvc==='profession_change'||selSvc==='chamber_certification'||selSvc==='ajeer_contract'
 return<div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:fixed?'10px 12px':'7px 12px',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-<span style={{display:'inline-flex',alignItems:'center',gap:7}}><span style={{width:16,flexShrink:0}}/><span style={{fontSize:13,fontWeight:700,color:'var(--tx)',whiteSpace:'nowrap'}}>{line.label}{line.detail&&<span style={{color:'var(--tx5)',fontSize:10,marginRight:4,fontWeight:600}}>({line.detail})</span>}</span></span>
+<span style={{display:'inline-flex',alignItems:'center',gap:7}}><span style={{width:16,flexShrink:0}}/><span style={{fontSize:13,fontWeight:700,color:'var(--tx)',whiteSpace:'nowrap'}}>{priceLabel(line.label,isAr)}{line.detail&&<span style={{color:'var(--tx5)',fontSize:10,marginRight:4,fontWeight:600}}>({line.detail})</span>}</span></span>
 {fixed
-?<span style={{display:'flex',alignItems:'baseline',gap:5,direction:'ltr',whiteSpace:'nowrap'}}><span style={{fontSize:10.5,color:'var(--tx5)',fontWeight:600}}>ريال</span><span style={{fontSize:14,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{fmtAmt(Number(line.amount)||auto)}</span></span>
+?<span style={{display:'flex',alignItems:'baseline',gap:5,direction:'ltr',whiteSpace:'nowrap'}}><span style={{fontSize:10.5,color:'var(--tx5)',fontWeight:600}}>{T('ريال','SAR')}</span><span style={{fontSize:14,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{fmtAmt(Number(line.amount)||auto)}</span></span>
 :<input type="text" inputMode="decimal" value={fmtAmt(curVal)}
 onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOV(i,raw)}}
 onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)<auto)setOV(i,String(auto))}}
@@ -3526,30 +3706,23 @@ placeholder={auto>0?fmtAmt(auto):'0'} style={{...fS,width:120,flex:'none',height
 })}
 {(otherServicePricing.extras||[]).map((e,i)=><div key={'x'+i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'9px 12px',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
 <span style={{display:'inline-flex',alignItems:'center',gap:7}}>
-<span onClick={()=>setOtherServicePricing(p=>({...p,extras:p.extras.filter((_,idx)=>idx!==i)}))} title="حذف" style={{width:16,flexShrink:0,display:'inline-flex',alignItems:'center',justifyContent:'center',color:C.red,cursor:'pointer',opacity:.85}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+<span onClick={()=>setOtherServicePricing(p=>({...p,extras:p.extras.filter((_,idx)=>idx!==i)}))} title={T('حذف','Delete')} style={{width:16,flexShrink:0,display:'inline-flex',alignItems:'center',justifyContent:'center',color:C.red,cursor:'pointer',opacity:.85}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
 <span style={{fontSize:13,fontWeight:700,color:'var(--tx2)',whiteSpace:'nowrap'}}>{e.name}</span>
 </span>
-<span style={{display:'flex',alignItems:'baseline',gap:5,direction:'ltr',whiteSpace:'nowrap'}}><span style={{fontSize:10.5,color:'var(--tx5)',fontWeight:600}}>ريال</span><span style={{fontSize:14,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{Number(e.amount).toLocaleString('en-US')}</span></span>
+<span style={{display:'flex',alignItems:'baseline',gap:5,direction:'ltr',whiteSpace:'nowrap'}}><span style={{fontSize:10.5,color:'var(--tx5)',fontWeight:600}}>{T('ريال','SAR')}</span><span style={{fontSize:14,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{Number(e.amount).toLocaleString('en-US')}</span></span>
 </div>)}
-{/* بند إضافي قيد الكتابة (لم يُضغط ✓ بعد) — يظهر كصف حيّ بشفافية أقل ليطابق الإجمالي، فلا يضيع عند الإصدار */}
-{(parseFloat(otherExtraAmount)||0)>0&&<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'9px 12px',borderBottom:'1px solid rgba(255,255,255,.05)',opacity:.6}}>
-<span style={{display:'inline-flex',alignItems:'center',gap:7}}>
-<span style={{width:16,flexShrink:0}}/>
-<span style={{fontSize:13,fontWeight:700,color:'var(--tx2)',whiteSpace:'nowrap'}}>{(otherExtraName||'').trim()||'إضافي'}</span>
-</span>
-<span style={{display:'flex',alignItems:'baseline',gap:5,direction:'ltr',whiteSpace:'nowrap'}}><span style={{fontSize:10.5,color:'var(--tx5)',fontWeight:600}}>ريال</span><span style={{fontSize:14,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{Number(parseFloat(otherExtraAmount)||0).toLocaleString('en-US')}</span></span>
-</div>}
+{/* لا يُعرض البند الإضافي في القائمة إلا بعد الضغط على «+» — لا صف معاينة حيّ */}
 </div>
 {/* Extras — مطوية افتراضياً: زر «إضافة بند جديد» عريض، وعند فتحه تظهر حقول الاسم/المبلغ */}
 <div style={{marginTop:12}}>
 {(()=>{const addExtra=()=>{if(!otherExtraName||!otherExtraAmount)return;setOtherServicePricing(p=>({...p,extras:[...(p.extras||[]),{name:otherExtraName,amount:otherExtraAmount}]}));setOtherExtraName('');setOtherExtraAmount('');setOtherExtraOpen(false)};
 return!otherExtraOpen
-?<button type="button" onClick={()=>setOtherExtraOpen(true)} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}} style={{width:'100%',height:42,borderRadius:10,border:'1px dashed rgba(212,160,23,.5)',background:'transparent',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .15s ease'}}>إضافة بند جديد<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+?<button type="button" onClick={()=>setOtherExtraOpen(true)} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.1)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}} style={{width:'100%',height:42,borderRadius:10,border:'1px dashed rgba(212,160,23,.5)',background:'transparent',color:C.gold,fontFamily:F,fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .15s ease'}}>{T('إضافة بند جديد','Add new item')}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
 :<div style={{display:'flex',gap:7,alignItems:'center'}}>
-<input autoFocus value={otherExtraName} onChange={e=>setOtherExtraName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addExtra();if(e.key==='Escape'){setOtherExtraName('');setOtherExtraAmount('');setOtherExtraOpen(false)}}} placeholder="اسم البند" style={{...fS,flex:2,height:42,fontSize:12,fontWeight:700}}/>
-<input type="text" inputMode="decimal" value={fmtAmt(otherExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOtherExtraAmount(raw)}} onKeyDown={e=>{if(e.key==='Enter')addExtra();if(e.key==='Escape'){setOtherExtraName('');setOtherExtraAmount('');setOtherExtraOpen(false)}}} placeholder="المبلغ" style={{...fS,flex:1,height:42,direction:'ltr',textAlign:'center',fontSize:12,fontWeight:700}}/>
-<button type="button" title="إضافة" onClick={addExtra} onMouseEnter={e=>{e.currentTarget.style.background='rgba(46,160,67,.24)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(46,160,67,.14)'}} style={{height:42,width:42,flexShrink:0,borderRadius:10,border:'1px solid rgba(46,160,67,.45)',background:'rgba(46,160,67,.14)',color:'#2ea043',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'background .15s ease'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-<button type="button" title="إلغاء" onClick={()=>{setOtherExtraName('');setOtherExtraAmount('');setOtherExtraOpen(false)}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.14)';e.currentTarget.style.borderColor='rgba(192,57,43,.45)';e.currentTarget.style.color=C.red}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(255,255,255,.12)';e.currentTarget.style.color='var(--tx4)'}} style={{height:42,width:42,flexShrink:0,borderRadius:10,border:'1px solid rgba(255,255,255,.12)',background:'transparent',color:'var(--tx4)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'background .15s ease,border-color .15s ease,color .15s ease'}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+<input autoFocus value={otherExtraName} onChange={e=>setOtherExtraName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addExtra();if(e.key==='Escape'){setOtherExtraName('');setOtherExtraAmount('');setOtherExtraOpen(false)}}} placeholder={T('اسم البند','Item label')} style={{...fS,flex:2,height:42,fontSize:12,fontWeight:700}}/>
+<input type="text" inputMode="decimal" value={fmtAmt(otherExtraAmount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOtherExtraAmount(raw)}} onKeyDown={e=>{if(e.key==='Enter')addExtra();if(e.key==='Escape'){setOtherExtraName('');setOtherExtraAmount('');setOtherExtraOpen(false)}}} placeholder={T('المبلغ','Amount')} style={{...fS,flex:1,height:42,direction:'ltr',textAlign:'center',fontSize:12,fontWeight:700}}/>
+<button type="button" title={T('إضافة','Add')} onClick={addExtra} onMouseEnter={e=>{e.currentTarget.style.background='rgba(46,160,67,.14)';e.currentTarget.style.borderColor='rgba(46,160,67,.45)';e.currentTarget.style.color='#2ea043'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(255,255,255,.12)';e.currentTarget.style.color='var(--tx4)'}} style={{height:42,width:42,flexShrink:0,borderRadius:10,border:'1px solid rgba(255,255,255,.12)',background:'transparent',color:'var(--tx4)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'background .15s ease,border-color .15s ease,color .15s ease'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+<button type="button" title={T('إلغاء','Cancel')} onClick={()=>{setOtherExtraName('');setOtherExtraAmount('');setOtherExtraOpen(false)}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.14)';e.currentTarget.style.borderColor='rgba(192,57,43,.45)';e.currentTarget.style.color=C.red}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(255,255,255,.12)';e.currentTarget.style.color='var(--tx4)'}} style={{height:42,width:42,flexShrink:0,borderRadius:10,border:'1px solid rgba(255,255,255,.12)',background:'transparent',color:'var(--tx4)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'background .15s ease,border-color .15s ease,color .15s ease'}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 </div>})()}
 {/* الإضافات المضافة تظهر كصفوف إيصال ضمن البنود أعلاه */}
 </div>
@@ -3557,11 +3730,11 @@ return!otherExtraOpen
 <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:8}}>
 {/* رصيد أبشر only for profession_change + exit_reentry_visa (discount only for kafala_transfer/iqama_renewal, not shown here) */}
 {(selSvc==='profession_change'||selSvc==='exit_reentry_visa')&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-{togChip('رصيد أبشر','absherBalance','#2ea043')}
+{togChip(T('رصيد أبشر','Absher Balance'),'absherBalance','#2ea043')}
 </div>}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(212,160,23,.1)',borderRadius:10,padding:'12px 14px'}}>
-<span style={{fontSize:14,fontWeight:700,color:C.gold}}>الإجمالي</span>
-<span style={{fontSize:19,fontWeight:800,color:C.gold,display:'inline-flex',alignItems:'baseline',gap:4,direction:'ltr'}}><span style={{fontSize:11}}>ريال</span><bdi>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</bdi></span>
+<span style={{fontSize:14,fontWeight:700,color:C.gold}}>{T('الإجمالي','Total')}</span>
+<span style={{fontSize:19,fontWeight:800,color:C.gold,display:'inline-flex',alignItems:'baseline',gap:4,direction:'ltr'}}><span style={{fontSize:11}}>{T('ريال','SAR')}</span><bdi>{Number(pricing.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</bdi></span>
 </div>
 </div>
 </div>
@@ -3579,7 +3752,7 @@ return isVisa?
 <div style={{position:'relative',borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'15px 14px 12px',marginTop:10,display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-<span>الإجمالي</span>
+<span>{T('الإجمالي','Total')}</span>
 </div>
 <FKCurrency full
 value={totalOverride==null?'':String(totalOverride)}
@@ -3587,84 +3760,85 @@ placeholder={pricing.total.toFixed(2)}
 onChange={v=>{if(v===''){setTotalOverride(null);return}const n=Number(v);if(!isNaN(n))setTotalOverride(n)}}/>
 </div>
 :<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative',marginTop:10}}>
-<div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>الإجمالي</div>
+<div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>{T('الإجمالي','Total')}</div>
 <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:10}}>
-<span style={{fontSize:18,fontWeight:600,color:C.gold}}>{pricing.total.toFixed(2)} ريال</span>
+<span style={{fontSize:18,fontWeight:600,color:C.gold}}>{pricing.total.toFixed(2)} {T('ريال','SAR')}</span>
 </div>
 </div>
 })()}
 
-{/* Installment plan for permanent visa only — temporary visa is a single payment */}
-{VISA_SERVICES.has(selSvc)&&selSvc!=='work_visa_temporary'&&(()=>{
+{/* Installment plan — permanent visa = 3 stages, temporary visa = 2 stages (issuance + توكيل) */}
+{VISA_SERVICES.has(selSvc)&&(()=>{
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?totalOverride:(pricing.total||0)
 const cfg=getVisaMinConfig(selSvc)
 const minIssuance=numVisas*cfg.issuance
-const minAuth=numVisas*cfg.authorization
-const hasAuth=selSvc!=='work_visa_temporary'
-const defaultEach=total/(hasAuth?3:2)
+// الدائمة: إصدار مشتركة + توكيل مشتركة + إقامة لكل تأشيرة. المؤقتة: إصدار مشتركة + توكيل لكل تأشيرة.
+const hasResidence=selSvc==='work_visa_permanent'
+const defaultEach=total/(hasResidence?3:2)
 const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
-const authVal=hasAuth?(visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)):0
+// التوكيل المشترك للدائمة فقط؛ المؤقتة بلا توكيل مشترك (توكيلها لكل تأشيرة ضمن الدفعة لكل تأشيرة).
+const authVal=hasResidence?(visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)):0
+// الدفعة لكل تأشيرة (الباقي بعد المشتركة): إصدار الإقامة للدائمة، أو التوكيل للمؤقتة.
 const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
-const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
+const residencePerVisa=visaInstallments.residencePerVisa===''?(numVisas>0?residenceSubtotal/numVisas:0):(Number(visaInstallments.residencePerVisa)||0)
 const residenceTotalCalc=residencePerVisa*numVisas
 const sumCheck=issuanceVal+authVal+residenceTotalCalc
 const matchesTotal=Math.abs(sumCheck-total)<0.01
 // Silent per-installment validation — only flags when user has typed something
 const issuanceBad=visaInstallments.issuance!==''&&issuanceVal<minIssuance
-const authBad=hasAuth&&visaInstallments.authorization!==''&&authVal<minAuth
+// دفعة «توكيل التأشيرة» (الدائمة) بلا حد أدنى — لا تحمير إطلاقاً.
+const authBad=false
 // صندوق عملة بنمط معرض الفورمات (الوحدة + الرقم متوسّط داخل إطار)
 const moneyBox=(val,onCh,ph,bad)=><div style={{display:'flex',direction:'ltr',alignItems:'center',justifyContent:'center',gap:6,border:`1px solid ${bad?C.red:'transparent'}`,borderRadius:9,background:'rgba(0,0,0,.18)',boxShadow:bad?`0 0 0 1px ${C.red}, inset 0 1px 2px rgba(0,0,0,.2)`:'inset 0 1px 2px rgba(0,0,0,.2)',height:40,width:140,padding:'0 10px',flexShrink:0}}>
-<span style={{fontSize:12,fontWeight:600,color:bad?C.red:C.bentoGold,flexShrink:0}}>ريال</span>
+<span style={{fontSize:12,fontWeight:600,color:bad?C.red:C.bentoGold,flexShrink:0}}>{T('ريال','SAR')}</span>
 <input type="text" inputMode="decimal" value={fmtAmt(val)} placeholder={ph} onChange={e=>{const raw=unfmtAmt(e.target.value);if(raw===''||/^\d*\.?\d*$/.test(raw))onCh(raw)}} style={{flex:1,minWidth:0,height:'100%',padding:0,border:'none',background:'transparent',fontFamily:F,fontSize:14,fontWeight:600,color:bad?C.red:'var(--tx)',outline:'none',textAlign:'center'}}/>
 </div>
-const totalInst=hasAuth?3:2
-const residenceIdx=hasAuth?3:2
 return<div style={{marginTop:18,border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative'}}>
-<div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>الدفعات</div>
+<div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>{T('الدفعات','Installments')}</div>
 {/* Installment 1 — Issuance */}
 <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
 <div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(212,160,23,.3), rgba(212,160,23,.12))',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:11.5,fontWeight:600,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(212,160,23,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>1</div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:12.5,fontWeight:600,color:'rgba(255,255,255,.95)',fontFamily:F}}>عند إصدار التأشيرة</div>
-<div style={{fontSize:10.5,color:'rgba(255,255,255,.58)',fontFamily:F}}>دفعة واحدة لجميع التأشيرات</div>
+<div style={{fontSize:12.5,fontWeight:600,color:'rgba(255,255,255,.95)',fontFamily:F}}>{T('عند إصدار التأشيرة','On visa issuance')}</div>
+<div style={{fontSize:10.5,color:'rgba(255,255,255,.58)',fontFamily:F}}>{T('دفعة واحدة لجميع التأشيرات','One payment for all visas')}</div>
 </div>
 {moneyBox(visaInstallments.issuance,(raw)=>setVisaInstallments(p=>({...p,issuance:raw})),fmtAmt(defaultEach.toFixed(2)),false)}
 </div>
-{/* Installment 2 — Authorization (permanent visa only) */}
-{hasAuth&&<div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
+{/* Installment 2 — التوكيل المشترك (الدائمة فقط) */}
+{hasResidence&&<div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
 <div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(212,160,23,.3), rgba(212,160,23,.12))',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:11.5,fontWeight:600,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(212,160,23,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>2</div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:12.5,fontWeight:600,color:'rgba(255,255,255,.95)',fontFamily:F}}>عند توكيل التأشيرة</div>
-<div style={{fontSize:10.5,color:'rgba(255,255,255,.58)',fontFamily:F}}>دفعة واحدة لجميع التأشيرات</div>
+<div style={{fontSize:12.5,fontWeight:600,color:'rgba(255,255,255,.95)',fontFamily:F}}>{T('عند توكيل التأشيرة','On visa authorization')}</div>
+<div style={{fontSize:10.5,color:'rgba(255,255,255,.58)',fontFamily:F}}>{T('دفعة واحدة لجميع التأشيرات','One payment for all visas')}</div>
 </div>
-{moneyBox(visaInstallments.authorization,(raw)=>setVisaInstallments(p=>({...p,authorization:raw})),fmtAmt(defaultEach.toFixed(2)),false)}
+{moneyBox(visaInstallments.authorization,(raw)=>setVisaInstallments(p=>({...p,authorization:raw})),fmtAmt(defaultEach.toFixed(2)),authBad)}
 </div>}
-{/* Final installment — Residence (per visa) */}
+{/* الدفعة لكل تأشيرة — إصدار الإقامة (الدائمة) أو التوكيل (المؤقتة) */}
 <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0'}}>
-<div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(212,160,23,.3), rgba(212,160,23,.12))',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:11.5,fontWeight:600,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(212,160,23,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>{residenceIdx}</div>
+<div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(212,160,23,.3), rgba(212,160,23,.12))',border:'1px solid rgba(212,160,23,.4)',color:C.gold,fontSize:11.5,fontWeight:600,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(212,160,23,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>{hasResidence?3:2}</div>
 <div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:12.5,fontWeight:600,color:'rgba(255,255,255,.95)',fontFamily:F}}>عند إصدار الإقامة <span style={{fontSize:10.5,color:C.gold,fontWeight:600}}>(لكل تأشيرة)</span></div>
-<div style={{fontSize:10.5,color:'rgba(255,255,255,.58)',fontFamily:F,direction:'rtl'}}><span style={{direction:'ltr',display:'inline-block'}}>{residencePerVisa.toFixed(2)}</span> × {numVisas} = <span style={{color:C.gold,fontWeight:600,direction:'ltr',display:'inline-block'}}>{residenceTotalCalc.toFixed(2)}</span> ريال</div>
+<div style={{fontSize:12.5,fontWeight:600,color:'rgba(255,255,255,.95)',fontFamily:F}}>{hasResidence?T('عند إصدار الإقامة','On Iqama issuance'):T('عند توكيل التأشيرة','On visa authorization')} <span style={{fontSize:10.5,color:C.gold,fontWeight:600}}>{T('(لكل تأشيرة)','(per visa)')}</span></div>
+<div style={{fontSize:10.5,color:'rgba(255,255,255,.58)',fontFamily:F,direction:dir}}><span style={{direction:'ltr',display:'inline-block'}}>{residencePerVisa.toFixed(2)}</span> × {numVisas} = <span style={{color:C.gold,fontWeight:600,direction:'ltr',display:'inline-block'}}>{residenceTotalCalc.toFixed(2)}</span> {T('ريال','SAR')}</div>
 </div>
 {moneyBox(visaInstallments.residencePerVisa,(raw)=>setVisaInstallments(p=>({...p,residencePerVisa:raw})),fmtAmt((residenceSubtotal/numVisas).toFixed(2)),false)}
 </div>
 {/* Sum-check footer — two clear lines: sum, then difference (if any) */}
 <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed rgba(255,255,255,.08)',display:'flex',flexDirection:'column',gap:3}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,.75)',fontFamily:F}}>مجموع الدفعات</span>
-<span style={{fontSize:13,fontWeight:600,color:matchesTotal?'#2ea043':'rgba(255,255,255,.95)',fontFamily:F,display:'inline-flex',alignItems:'baseline',gap:5,direction:'rtl'}}>
+<span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,.75)',fontFamily:F}}>{T('مجموع الدفعات','Installments total')}</span>
+<span style={{fontSize:13,fontWeight:600,color:matchesTotal?'#2ea043':'rgba(255,255,255,.95)',fontFamily:F,display:'inline-flex',alignItems:'baseline',gap:5,direction:dir}}>
 {matchesTotal&&<bdi style={{color:'#2ea043'}}>✓</bdi>}
 <bdi>{fmtAmt(sumCheck.toFixed(2))}</bdi>
-<bdi style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.58)'}}>ريال</bdi>
+<bdi style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.58)'}}>{T('ريال','SAR')}</bdi>
 </span>
 </div>
 {!matchesTotal&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-<span style={{fontSize:10,fontWeight:600,color:C.red,fontFamily:F}}>{sumCheck<total?'ناقص عن الإجمالي':'زائد عن الإجمالي'}</span>
-<span style={{fontSize:11,fontWeight:600,color:C.red,fontFamily:F,display:'inline-flex',alignItems:'baseline',gap:4,direction:'rtl'}}>
+<span style={{fontSize:10,fontWeight:600,color:C.red,fontFamily:F}}>{sumCheck<total?T('ناقص عن الإجمالي','Under the total'):T('زائد عن الإجمالي','Over the total')}</span>
+<span style={{fontSize:11,fontWeight:600,color:C.red,fontFamily:F,display:'inline-flex',alignItems:'baseline',gap:4,direction:dir}}>
 <bdi>{sumCheck<total?'−':'+'}</bdi>
 <bdi>{fmtAmt(Math.abs(total-sumCheck).toFixed(2))}</bdi>
-<bdi style={{fontSize:9.5,fontWeight:600,color:'rgba(192,57,43,.7)'}}>ريال</bdi>
+<bdi style={{fontSize:9.5,fontWeight:600,color:'rgba(192,57,43,.7)'}}>{T('ريال','SAR')}</bdi>
 </span>
 </div>}
 </div>
@@ -3676,10 +3850,10 @@ return<div style={{marginTop:18,border:'1.5px solid rgba(212,160,23,.35)',border
 {/* ═══ Step 5: Notes ═══ */}
 {step===5&&(()=>{
 // Build a descriptive service summary
-let svcDesc=selectedService?.name_ar||''
+let svcDesc=svcName(selectedService,isAr)||''
 if(selSvc==='chamber_certification'){
-if(fields.chamber_subtype==='printed')svcDesc+=' — تصديق على مطبوعات المنشأة'
-else if(fields.chamber_subtype==='open_request')svcDesc+=' — التصديق على طلب مفتوح'
+if(fields.chamber_subtype==='printed')svcDesc+=T(' — تصديق على مطبوعات المنشأة',' — Certification of facility printouts')
+else if(fields.chamber_subtype==='open_request')svcDesc+=T(' — التصديق على طلب مفتوح',' — Certification of an open request')
 }
 const anyNote=addClientNote||addAdminNote
 const paid=Number(paidAmount)||0
@@ -3689,60 +3863,75 @@ const effectiveTotal=(isVisa&&totalOverride!==null)?totalOverride:pricing.total
 const effectiveRemaining=effectiveTotal-paid
 const numVisas=isVisa?visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0):0
 // Compute installments values for display
-const hasAuth=isVisa&&selSvc!=='work_visa_temporary'
-const defaultEach=effectiveTotal/(hasAuth?3:2)
+const hasResidence=isVisa&&selSvc==='work_visa_permanent'
+const defaultEach=effectiveTotal/(hasResidence?3:2)
 const issuanceVal=isVisa?(visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)):0
-const authVal=hasAuth?(visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)):0
+const authVal=isVisa&&hasResidence?(visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)):0
+// الدفعة لكل تأشيرة (الباقي بعد المشتركة): إصدار الإقامة للدائمة، أو التوكيل للمؤقتة.
 const residenceSubtotalCalc=isVisa?Math.max(0,effectiveTotal-issuanceVal-authVal):0
 const residencePerVisaVal=isVisa?(visaInstallments.residencePerVisa===''?(numVisas>0?residenceSubtotalCalc/numVisas:0):(Number(visaInstallments.residencePerVisa)||0)):0
 const SectionTitle=({children})=><div style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F,marginBottom:6,paddingBottom:4,borderBottom:'1px solid rgba(212,160,23,.15)'}}>{children}</div>
 const Row=({label,value,highlight})=><div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'3px 0',gap:12}}>
 <span style={{fontSize:11,color:'var(--tx5)',fontFamily:F}}>{label}</span>
-<span style={{fontSize:12,color:highlight||'var(--tx2)',fontWeight:600,fontFamily:F,textAlign:'left'}}>{value}</span>
+<span style={{fontSize:12,color:highlight||'var(--tx2)',fontWeight:600,fontFamily:F,textAlign:isAr?'left':'right'}}>{value}</span>
 </div>
 {/* الملخص الكامل: تدفّق بعمودين بلا أي تمرير — كل قسم كتلة غير قابلة للكسر */}
-const SummaryCard=({compact})=>(<div className={compact?'':'sr-sum-col'} style={compact?{borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.04)',padding:12}:{columns:2,columnGap:16,padding:'14px 14px 8px',border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12}}>
+const SummaryCard=({compact})=>(<div className={compact?'':'sr-sum-col'} style={compact?{borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.04)',padding:12}:{columns:2,columnGap:16}}>
 {!compact&&<style>{`.sr-sum-col>div{break-inside:avoid;margin-bottom:12px}`}</style>}
-{compact&&<div style={{fontSize:11,fontWeight:600,color:'var(--tx)',marginBottom:8}}>ملخص الطلب</div>}
+{compact&&<div style={{fontSize:11,fontWeight:600,color:'var(--tx)',marginBottom:8}}>{T('ملخص الطلب','Request summary')}</div>}
 
 {/* Client / worker info — أقسام ذهبية منفصلة (عميل · عامل · وسيط) */}
 {(()=>{
 const ltr=v=><span style={{direction:'ltr',display:'inline-block'}}>{v}</span>
+// نقل الكفالة: العامل والعميل من الحسبة المرتبطة (نفس الشخص غالباً) → قسم واحد «العميل والعامل».
+if(selSvc==='kafala_transfer'&&selKafalaQuote){const q=selKafalaQuote;const ph=String(q.phone||'').replace(/\D/g,'').replace(/^966/,'').replace(/^0+/,'');return<div>
+<SectionTitle>{T('العميل والعامل','Client & Worker')}</SectionTitle>
+<Row label={T('الاسم','Name')} value={q.worker_name||'—'}/>
+{q.iqama_number&&<Row label={T('رقم الإقامة','Iqama No')} value={ltr(q.iqama_number)}/>}
+{ph&&<Row label={T('الجوال','Phone')} value={ltr(fmtPhone('966'+ph))}/>}
+</div>}
 // نفس الشخص عميل وعامل → قسم واحد بعنوان «العميل والعامل»
 if(selClient&&selWorker&&workerIsClient)return<div>
-<SectionTitle>العميل والعامل</SectionTitle>
-<Row label="الاسم" value={selClient.name_ar}/>
-{(selClient.id_number||selWorker.iqama_number)&&<Row label="رقم الهوية" value={ltr(selClient.id_number||selWorker.iqama_number)}/>}
-{(selClient.phone||selWorker.phone)&&<Row label="الجوال" value={ltr(fmtPhone(selClient.phone||selWorker.phone))}/>}
+<SectionTitle>{T('العميل والعامل','Client & Worker')}</SectionTitle>
+<Row label={T('الاسم','Name')} value={selClient.name_ar}/>
+{(selClient.id_number||selWorker.iqama_number)&&<Row label={T('رقم الهوية','ID number')} value={ltr(selClient.id_number||selWorker.iqama_number)}/>}
+{(selClient.phone||selWorker.phone)&&<Row label={T('الجوال','Phone')} value={ltr(fmtPhone(selClient.phone||selWorker.phone))}/>}
 </div>
+// إدخال يدوي: العامل هو نفس العميل بلا عامل مسجّل منفصل → قسم واحد «العميل والعامل».
+if(selSvc==='kafala_transfer'&&workerIsClient&&!selWorker&&(selClient||(clientMode==='new'&&newClient.name_ar))){const nm=selClient?(selClient.name_ar||selClient.name_en):newClient.name_ar;const id=selClient?selClient.id_number:newClient.id_number;const ph=selClient?selClient.phone:newClient.phone;return<div>
+<SectionTitle>{T('العميل والعامل','Client & Worker')}</SectionTitle>
+<Row label={T('الاسم','Name')} value={nm||'—'}/>
+{id&&<Row label={T('رقم الهوية','ID number')} value={ltr(id)}/>}
+{(ph||fields.worker_phone)&&<Row label={T('الجوال','Phone')} value={ltr(fmtPhone(ph||('966'+fields.worker_phone)))}/>}
+</div>}
 // مختلفين → قسم مستقل للعميل وقسم مستقل للعامل
 return<>
 {selClient&&<div>
-<SectionTitle>العميل</SectionTitle>
-<Row label="الاسم" value={selClient.name_ar}/>
-{selClient.id_number&&<Row label="رقم الهوية" value={ltr(selClient.id_number)}/>}
-{selClient.phone&&<Row label="الجوال" value={ltr(fmtPhone(selClient.phone))}/>}
+<SectionTitle>{T('العميل','Client')}</SectionTitle>
+<Row label={T('الاسم','Name')} value={selClient.name_ar}/>
+{selClient.id_number&&<Row label={T('رقم الهوية','ID number')} value={ltr(selClient.id_number)}/>}
+{selClient.phone&&<Row label={T('الجوال','Phone')} value={ltr(fmtPhone(selClient.phone))}/>}
 </div>}
 {!selClient&&clientMode==='new'&&newClient.name_ar&&<div>
-<SectionTitle>العميل</SectionTitle>
-<Row label="الاسم" value={newClient.name_ar}/>
-{newClient.id_number&&<Row label="رقم الهوية" value={ltr(newClient.id_number)}/>}
-{newClient.phone&&<Row label="الجوال" value={ltr(fmtPhone(newClient.phone))}/>}
+<SectionTitle>{T('العميل','Client')}</SectionTitle>
+<Row label={T('الاسم','Name')} value={newClient.name_ar}/>
+{newClient.id_number&&<Row label={T('رقم الهوية','ID number')} value={ltr(newClient.id_number)}/>}
+{newClient.phone&&<Row label={T('الجوال','Phone')} value={ltr(fmtPhone(newClient.phone))}/>}
 </div>}
 {selWorker&&<div>
-<SectionTitle>العامل</SectionTitle>
-<Row label="الاسم" value={selWorker.name}/>
-{selWorker.iqama_number&&<Row label="رقم الإقامة" value={ltr(selWorker.iqama_number)}/>}
+<SectionTitle>{T('العامل','Worker')}</SectionTitle>
+<Row label={T('الاسم','Name')} value={selWorker.name}/>
+{selWorker.iqama_number&&<Row label={T('رقم الإقامة','Iqama No')} value={ltr(selWorker.iqama_number)}/>}
 {selWorker.phone
-?<Row label="الجوال" value={ltr(fmtPhone(selWorker.phone))}/>
-:fields.worker_phone&&<Row label="الجوال" value={ltr(fmtPhone('966'+fields.worker_phone))}/>}
+?<Row label={T('الجوال','Phone')} value={ltr(fmtPhone(selWorker.phone))}/>
+:fields.worker_phone&&<Row label={T('الجوال','Phone')} value={ltr(fmtPhone('966'+fields.worker_phone))}/>}
 </div>}
 </>
 })()}
 {/* رقم جوال العامل — للخدمات التي تتطلب العامل بدون عميل، عندما لم يُختر عامل مسجّل (يُلتقط في خطوة التفاصيل) */}
 {skipClientStep&&selSvc!=='supplier_payroll'&&fields.worker_phone&&!selWorker&&<div>
-<SectionTitle>العامل</SectionTitle>
-<Row label="رقم الجوال" value={<span style={{direction:'ltr',display:'inline-block'}}>{fmtPhone('966'+fields.worker_phone)}</span>}/>
+<SectionTitle>{T('العامل','Worker')}</SectionTitle>
+<Row label={T('رقم الجوال','Mobile')} value={<span style={{direction:'ltr',display:'inline-block'}}>{fmtPhone('966'+fields.worker_phone)}</span>}/>
 </div>}
 {/* الوسيط — قسم مستقل عند وجوده (نفس صفوف العميل: الاسم + الهوية + الجوال) */}
 {(selBroker||(brokerMode==='new'&&(newBroker.name_ar||newBroker.name_en)))&&(()=>{
@@ -3750,51 +3939,56 @@ const ltr=v=><span style={{direction:'ltr',display:'inline-block'}}>{v}</span>
 const bId=selBroker?selBroker.id_number:newBroker.id_number
 const bPhone=selBroker?selBroker.phone:newBroker.phone
 return<div>
-<SectionTitle>الوسيط</SectionTitle>
-<Row label="الاسم" value={selBroker?(selBroker.name_ar||selBroker.name_en):(newBroker.name_ar||newBroker.name_en)}/>
-{bId&&<Row label="رقم الهوية" value={ltr(bId)}/>}
-{bPhone&&<Row label="الجوال" value={ltr(fmtPhone(bPhone))}/>}
+<SectionTitle>{T('الوسيط','Agent')}</SectionTitle>
+<Row label={T('الاسم','Name')} value={selBroker?(selBroker.name_ar||selBroker.name_en):(newBroker.name_ar||newBroker.name_en)}/>
+{bId&&<Row label={T('رقم الهوية','ID number')} value={ltr(bId)}/>}
+{bPhone&&<Row label={T('الجوال','Phone')} value={ltr(fmtPhone(bPhone))}/>}
 </div>})()}
+
+{/* العامل من الحسبة يظهر مدمجاً في قسم «العميل والعامل» أعلاه. */}
 
 {/* Kafala transfer details */}
 {selSvc==='kafala_transfer'&&<div>
-<SectionTitle>بيانات نقل الكفالة</SectionTitle>
-{fields.nationality&&<Row label="الجنسية" value={fields.nationality}/>}
-{fields.worker_status&&<Row label="حالة العامل" value={fields.worker_status==='valid'?'صالح':fields.worker_status==='huroob'?'هروب':fields.worker_status==='final_exit'?'خروج نهائي':fields.worker_status==='absent'?'منقطع عن العمل':fields.worker_status}/>}
-{fields.current_profession&&<Row label="المهنة الحالية" value={fields.current_profession}/>}
-{fields.iqama_expiry&&<Row label="تاريخ انتهاء الإقامة" value={<bdi style={{direction:'ltr'}}>{fields.iqama_expiry}{fields.iqama_expiry_hijri&&<span style={{color:'var(--tx4)'}}>{' ('+fields.iqama_expiry_hijri+' هـ)'}</span>}</bdi>}/>}
-{fields.work_card_expiry&&<Row label="نهاية كرت العمل" value={<bdi style={{direction:'ltr'}}>{fields.work_card_expiry}{fields.work_card_expiry_hijri&&<span style={{color:'var(--tx4)'}}>{' ('+fields.work_card_expiry_hijri+' هـ)'}</span>}</bdi>}/>}
-{fields.birth_date&&<Row label="تاريخ الميلاد" value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.birth_date}</span>}/>}
-{(()=>{const n=selKafalaQuote?._notes||{};const rm=Number(fields.renewal_months)||Number(n.renewal_months)||Number(selKafalaQuote?.renewal_months)||0;const moU=x=>(x>=3&&x<=9)?'شهور':'شهر';return<Row label="مدة التجديد" value={rm>0?`${rm} ${moU(rm)}`:'—'}/>})()}
-{(()=>{const n=selKafalaQuote?._notes||{};const days=Number(n.expected_iqama_days)||0;const m=Number(fields.expected_iqama_months)||(days?Math.floor(days/30):0);const d=days?days%30:0;const moU=x=>(x>=3&&x<=9)?'شهور':'شهر';const parts=[];if(m>0)parts.push(`${m} ${moU(m)}`);if(d>0)parts.push(`${d} يوم`);return<Row label="المدة المتوقعة في الإقامة" value={parts.length?parts.join(' و '):'—'}/>})()}
-{fields.change_profession===true&&<Row label="تغيير المهنة" value={fields.new_occupation||'نعم'}/>}
-{fields.renew_iqama===true&&<Row label="تجديد الإقامة" value="نعم"/>}
+<SectionTitle>{T('بيانات نقل الكفالة','Sponsorship transfer data')}</SectionTitle>
+{fields.nationality&&<Row label={T('الجنسية','Nationality')} value={fields.nationality}/>}
+{fields.worker_status&&<Row label={T('حالة العامل','Worker Status')} value={fields.worker_status==='valid'?T('صالح','Valid'):fields.worker_status==='huroob'?T('هروب','Absconded'):fields.worker_status==='final_exit'?T('خروج نهائي','Final Exit'):fields.worker_status==='absent'?T('منقطع عن العمل','Absent from Work'):fields.worker_status}/>}
+{fields.current_profession&&<Row label={T('المهنة الحالية','Current Occupation')} value={fields.current_profession}/>}
+{fields.iqama_expiry&&<Row label={T('تاريخ انتهاء الإقامة','Iqama Expiry')} value={<bdi style={{direction:'ltr'}}>{fields.iqama_expiry}{fields.iqama_expiry_hijri&&<span style={{color:'var(--tx4)'}}>{' ('+fields.iqama_expiry_hijri+(isAr?' هـ)':' AH)')}</span>}</bdi>}/>}
+{fields.work_card_expiry&&<Row label={T('نهاية كرت العمل','Work Card Expiry')} value={<bdi style={{direction:'ltr'}}>{fields.work_card_expiry}{fields.work_card_expiry_hijri&&<span style={{color:'var(--tx4)'}}>{' ('+fields.work_card_expiry_hijri+(isAr?' هـ)':' AH)')}</span>}</bdi>}/>}
+{fields.birth_date&&<Row label={T('تاريخ الميلاد','Birth Date')} value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.birth_date}</span>}/>}
+{(()=>{const n=selKafalaQuote?._notes||{};const transferOnly=selKafalaQuote?.transfer_type==='transfer_only'||n.renew_iqama===false||fields.renew_iqama===false;const rm=Number(fields.renewal_months)||Number(n.renewal_months)||Number(selKafalaQuote?.renewal_months)||0;const moU=x=>(x>=3&&x<=9)?'شهور':'شهر';return<Row label={T('مدة التجديد','Renewal Duration')} value={transferOnly?T('نقل فقط','Transfer only'):(rm>0?(isAr?`${rm} ${moU(rm)}`:`${rm} mo`):'—')}/>})()}
+{(()=>{const q=selKafalaQuote||{};const n=q._notes||{};let m,d;
+// نقرأ المدة المجمّدة من الحسبة (expected_duration_*)؛ إن غابت (سجل قديم) نرجع للحساب من الأيام.
+if(q.expected_duration_months!=null||q.expected_duration_days!=null){m=Number(q.expected_duration_months)||0;d=Number(q.expected_duration_days)||0}
+else{const days=Number(n.expected_iqama_days)||0;m=Number(fields.expected_iqama_months)||(days?Math.floor(days/30):0);d=days?days%30:0}
+const moU=x=>(x>=3&&x<=9)?'شهور':'شهر';const parts=[];if(m>0)parts.push(isAr?`${m} ${moU(m)}`:`${m} mo`);if(d>0)parts.push(isAr?`${d} يوم`:`${d} d`);return<Row label={T('المدة المتوقعة في الإقامة','Expected Iqama Duration')} value={parts.length?parts.join(isAr?' و ':' '):'—'}/>})()}
+{fields.change_profession===true&&<Row label={T('تغيير المهنة','Occupation Change')} value={fields.new_occupation||T('نعم','Yes')}/>}
 </div>}
 
 {/* Visa service details */}
 {isVisa&&visaGroups.length>0&&<div>
-<SectionTitle>تفاصيل التأشيرات ({numVisas})</SectionTitle>
+<SectionTitle>{T('تفاصيل التأشيرات','Visa details')} ({numVisas})</SectionTitle>
 {visaGroups.map((g,i)=>{
 const nat=g.nationality?(lkCountries.find(co=>co.id===g.nationality)?.nationality_ar||'—'):'—'
 const prof=g.profession?(lkOccupations.find(o=>o.id===g.profession)?.value_ar||'—'):'—'
 const emb=g.embassy?(lkEmbassies.find(em=>em.id===g.embassy)?.city_ar||'—'):'—'
-const gen=g.gender==='female'?'أنثى':'ذكر'
+const gen=g.gender==='female'?T('أنثى','Female'):T('ذكر','Male')
 return<div key={g.id} style={{padding:'6px 10px',marginBottom:4,borderRadius:7,background:'rgba(212,160,23,.04)',border:'1px solid rgba(212,160,23,.1)'}}>
-<div style={{fontSize:10.5,fontWeight:600,color:C.gold,marginBottom:3}}>المجموعة {['الأولى','الثانية','الثالثة','الرابعة'][i]||(i+1)} · {g.count||0}×</div>
+<div style={{fontSize:10.5,fontWeight:600,color:C.gold,marginBottom:3}}>{isAr?'المجموعة ':'Group '}{isAr?(['الأولى','الثانية','الثالثة','الرابعة'][i]||(i+1)):(i+1)} · {g.count||0}×</div>
 <div style={{fontSize:11,color:'var(--tx2)',fontWeight:600}}>{nat} · {prof} · {gen} · {emb}</div>
 </div>
 })}
 {/* File distribution */}
 {visaFiles.length>0&&<div style={{marginTop:6,padding:'6px 10px',borderRadius:7,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.05)'}}>
-<div style={{fontSize:10.5,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>توزيع الملفات ({visaFiles.length})</div>
+<div style={{fontSize:10.5,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>{T('توزيع الملفات','File distribution')} ({visaFiles.length})</div>
 <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
 {visaFiles.map((f,i)=>{
 const fc=Object.values(f.assignments||{}).reduce((s,n)=>s+(parseInt(n)||0),0)
-const parts=visaGroups.length>1?Object.entries(f.assignments||{}).filter(([,n])=>(parseInt(n)||0)>0).map(([gid,n])=>{const g=visaGroups.find(x=>x.id===(parseInt(gid)||gid));const nat=g?.nationality?(lkCountries.find(co=>co.id===g.nationality)?.nationality_ar||''):'';return`${n}× ${nat||'مجموعة'}`}).join(' · '):null
+const parts=visaGroups.length>1?Object.entries(f.assignments||{}).filter(([,n])=>(parseInt(n)||0)>0).map(([gid,n])=>{const g=visaGroups.find(x=>x.id===(parseInt(gid)||gid));const nat=g?.nationality?(lkCountries.find(co=>co.id===g.nationality)?.nationality_ar||''):'';return`${n}× ${nat||T('مجموعة','group')}`}).join(' · '):null
 // ملف واحد بتأشيرة واحدة → «ملف واحد» بدل ترقيم زائد («الملف الأول: 1»)
 const single=visaFiles.length===1&&fc===1
 return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',borderRadius:6,background:'rgba(212,160,23,.1)',border:'1px solid rgba(212,160,23,.22)',fontSize:10.5,fontWeight:600,color:C.gold,fontFamily:F}}>
-<span>{single?'ملف واحد':`الملف ${['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'][i]||(i+1)}: ${fc}`}</span>
+<span>{single?T('ملف واحد','One file'):(isAr?`الملف ${['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'][i]||(i+1)}: ${fc}`:`File ${i+1}: ${fc}`)}</span>
 {parts&&<span style={{fontSize:9.5,fontWeight:600,color:'var(--tx3)'}}>({parts})</span>}
 </span>
 })}
@@ -3804,49 +3998,48 @@ return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,p
 
 {/* Iqama renewal details — مصدرها حسبة التجديد المصدّقة المختارة */}
 {selSvc==='iqama_renewal'&&selKafalaQuote&&<div>
-<SectionTitle>بيانات تجديد الإقامة</SectionTitle>
-<Row label="العامل" value={selKafalaQuote.worker_name||'—'}/>
-{selKafalaQuote.iqama_number&&<Row label="رقم الإقامة" value={<span style={{direction:'ltr',display:'inline-block'}}>{selKafalaQuote.iqama_number}</span>}/>}
-{selKafalaQuote.quote_no&&<Row label="رقم حسبة التجديد" value={<span style={{direction:'ltr',display:'inline-block'}}>{noDash(selKafalaQuote.quote_no)}</span>}/>}
-{selKafalaQuote.iqama_expiry_gregorian&&<Row label="تاريخ انتهاء الإقامة الحالي" value={<span style={{direction:'ltr',display:'inline-block'}}>{selKafalaQuote.iqama_expiry_gregorian}</span>}/>}
-{selKafalaQuote.renewal_months&&<Row label="عدد أشهر التجديد" value={`${selKafalaQuote.renewal_months} أشهر`}/>}
-{selKafalaQuote.change_profession===true&&<Row label="تغيير المهنة" value={selKafalaQuote.new_occupation_name_ar||'نعم'}/>}
+<SectionTitle>{T('بيانات تجديد الإقامة','Iqama renewal data')}</SectionTitle>
+<Row label={T('العامل','Worker')} value={selKafalaQuote.worker_name||'—'}/>
+{selKafalaQuote.iqama_number&&<Row label={T('رقم الإقامة','Iqama No')} value={<span style={{direction:'ltr',display:'inline-block'}}>{selKafalaQuote.iqama_number}</span>}/>}
+{selKafalaQuote.iqama_expiry_gregorian&&<Row label={T('تاريخ انتهاء الإقامة الحالي','Current Iqama Expiry')} value={<span style={{direction:'ltr',display:'inline-block'}}>{selKafalaQuote.iqama_expiry_gregorian}</span>}/>}
+{selKafalaQuote.renewal_months&&<Row label={T('عدد أشهر التجديد','Renewal Months')} value={isAr?`${selKafalaQuote.renewal_months} أشهر`:`${selKafalaQuote.renewal_months} mo`}/>}
+{selKafalaQuote.change_profession===true&&<Row label={T('تغيير المهنة','Occupation Change')} value={selKafalaQuote.new_occupation_name_ar||T('نعم','Yes')}/>}
 </div>}
 
 {/* Ajeer contract details */}
 {selSvc==='ajeer_contract'&&<div>
-<SectionTitle>بيانات عقد أجير</SectionTitle>
-{fields.borrower_700&&<Row label="الرقم الموحد للمنشأة المستعارة" value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.borrower_700}</span>}/>}
-{fields.city&&<Row label="المدينة" value={cities.find(c=>c.id===fields.city)?.name_ar||fields.city}/>}
-{fields.contract_months&&<Row label="مدة العقد" value={fmtMonths(fields.contract_months)}/>}
+<SectionTitle>{T('بيانات عقد أجير','Ajeer contract data')}</SectionTitle>
+{fields.borrower_700&&<Row label={T('الرقم الموحد للمنشأة المستعارة','Borrower Unified No')} value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.borrower_700}</span>}/>}
+{fields.city&&<Row label={T('المدينة','City')} value={cities.find(c=>c.id===fields.city)?.name_ar||fields.city}/>}
+{fields.contract_months&&<Row label={T('مدة العقد','Duration')} value={fmtMonths(fields.contract_months)}/>}
 </div>}
 
 {/* Exit/re-entry visa details */}
 {selSvc==='exit_reentry_visa'&&<div>
-<SectionTitle>بيانات تأشيرة الخروج والعودة</SectionTitle>
-<Row label="العملية" value={fields.op_mode==='extend'?'تمديد':'إصدار'}/>
-{fields.op_mode==='extend'&&fields.visa_number&&<Row label="رقم التأشيرة" value={fields.visa_number}/>}
-{fields.exit_type&&<Row label="نوع التأشيرة" value={fields.exit_type==='multiple'?'متعددة':'مفردة'}/>}
-{fields.duration_months&&<Row label="المدة" value={fmtMonths(fields.duration_months)}/>}
+<SectionTitle>{T('بيانات تأشيرة الخروج والعودة','Exit & re-entry visa data')}</SectionTitle>
+<Row label={T('العملية','Operation')} value={fields.op_mode==='extend'?T('تمديد','Extend'):T('إصدار','Issue')}/>
+{fields.op_mode==='extend'&&fields.visa_number&&<Row label={T('رقم التأشيرة','Visa No')} value={fields.visa_number}/>}
+{fields.exit_type&&<Row label={T('نوع التأشيرة','Visa Type')} value={fields.exit_type==='multiple'?T('متعددة','Multiple'):T('مفردة','Single')}/>}
+{fields.duration_months&&<Row label={T('المدة','Duration')} value={fmtMonths(fields.duration_months)}/>}
 </div>}
 
 {/* Final exit visa details */}
 {selSvc==='final_exit_visa'&&fields.reason&&<div>
-<SectionTitle>بيانات الخروج النهائي</SectionTitle>
-<Row label="السبب" value={fields.reason}/>
+<SectionTitle>{T('بيانات الخروج النهائي','Final-exit data')}</SectionTitle>
+<Row label={T('السبب','Reason')} value={fields.reason}/>
 </div>}
 
 {/* Occupation change details */}
 {selSvc==='profession_change'&&fields.new_occupation&&<div>
-<SectionTitle>بيانات تغيير المهنة</SectionTitle>
-{selWorker?.occupation?.value_ar&&<Row label="المهنة الحالية" value={selWorker.occupation.value_ar}/>}
-<Row label="المهنة الجديدة" value={fields.new_occupation}/>
+<SectionTitle>{T('بيانات تغيير المهنة','Occupation change data')}</SectionTitle>
+{selWorker?.occupation?.value_ar&&<Row label={T('المهنة الحالية','Current Occupation')} value={selWorker.occupation.value_ar}/>}
+<Row label={T('المهنة الجديدة','New Occupation')} value={fields.new_occupation}/>
 </div>}
 
 {/* Iqama print details */}
 {selSvc==='iqama_print'&&fields.print_reason&&<div>
-<SectionTitle>بيانات طباعة الإقامة</SectionTitle>
-<Row label="السبب" value={fields.print_reason}/>
+<SectionTitle>{T('بيانات طباعة الإقامة','Iqama print data')}</SectionTitle>
+<Row label={T('السبب','Reason')} value={fields.print_reason}/>
 </div>}
 
 {/* Medical insurance details */}
@@ -3854,69 +4047,68 @@ return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,p
 const latestIns=[...(selWorker?.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0]
 const insEnd=latestIns?.end_date||''
 const insSt=dateStatus(insEnd)
-const insLabel=latestIns?(insSt==='expired'?'منتهي':insSt==='soon'?'قارب الانتهاء':'ساري'):'لا يوجد'
+const insLabel=latestIns?(insSt==='expired'?T('منتهي','Expired'):insSt==='soon'?T('قارب الانتهاء','Expiring soon'):T('ساري','Active')):T('لا يوجد','None')
 const dob=selWorker?.birth_date||''
 let age=null
 if(dob){const bd=new Date(dob);if(!isNaN(bd))age=Math.floor((new Date()-bd)/31557600000)}
 return<div>
-<SectionTitle>بيانات التأمين الطبي</SectionTitle>
-{selWorker?.facility?.name_ar&&<Row label="منشأة العامل" value={selWorker.facility.name_ar}/>}
-{selWorker?.facility?.unified_national_number&&<Row label="الرقم الموحد" value={<span style={{direction:'ltr',display:'inline-block'}}>{selWorker.facility.unified_national_number}</span>}/>}
-<Row label="وضع التأمين الحالي" value={insLabel}/>
-{insEnd&&<Row label="تاريخ انتهاء التأمين" value={<span style={{direction:'ltr',display:'inline-block'}}>{insEnd}</span>}/>}
-{dob&&<Row label="تاريخ الميلاد" value={<span style={{direction:'ltr',display:'inline-block'}}>{dob}</span>}/>}
-{age!==null&&<Row label="عمر العامل" value={`${age} سنة`}/>}
+<SectionTitle>{T('بيانات التأمين الطبي','Medical insurance data')}</SectionTitle>
+{selWorker?.facility?.name_ar&&<Row label={T('منشأة العامل','Worker Facility')} value={selWorker.facility.name_ar}/>}
+{selWorker?.facility?.unified_national_number&&<Row label={T('الرقم الموحد','Unified No')} value={<span style={{direction:'ltr',display:'inline-block'}}>{selWorker.facility.unified_national_number}</span>}/>}
+{insEnd&&<Row label={T('تاريخ انتهاء التأمين','Insurance Expiry')} value={<span style={{direction:'ltr',display:'inline-block'}}>{insEnd}</span>}/>}
+{dob&&<Row label={T('تاريخ الميلاد','Birth Date')} value={<span style={{direction:'ltr',display:'inline-block'}}>{dob}</span>}/>}
+{age!==null&&<Row label={T('عمر العامل','Worker Age')} value={T(`${age} سنة`,`${age} yr`)}/>}
 </div>
 })()}
 
 {/* Documents details */}
 {selSvc==='documents'&&(fields.doc_type||fields.doc_lang)&&(()=>{
 return<div>
-<SectionTitle>بيانات إصدار المستند</SectionTitle>
-{fields.doc_type&&<Row label="نوع المستند" value={docTypeLabel(fields.doc_type)}/>}
-{fields.doc_lang&&<Row label="لغة المستند" value={fields.doc_lang==='ar'?'عربي':'إنجليزي'}/>}
+<SectionTitle>{T('بيانات إصدار المستند','Document issuance data')}</SectionTitle>
+{fields.doc_type&&<Row label={T('نوع المستند','Document Type')} value={docTypeLabel(fields.doc_type)}/>}
+{fields.doc_lang&&<Row label={T('لغة المستند','Document Language')} value={fields.doc_lang==='ar'?T('عربي','Arabic'):T('إنجليزي','English')}/>}
 </div>
 })()}
 
 {/* Chamber certification details */}
 {selSvc==='chamber_certification'&&fields.chamber_subtype&&<div>
-<SectionTitle>بيانات الغرفة التجارية</SectionTitle>
-<Row label="النوع" value={fields.chamber_subtype==='printed'?'تصديق مطبوعات':'طلب مفتوح'}/>
+<SectionTitle>{T('بيانات الغرفة التجارية','Chamber of Commerce data')}</SectionTitle>
+<Row label={T('النوع','Type')} value={fields.chamber_subtype==='printed'?T('تصديق مطبوعات','Printout certification'):T('طلب مفتوح','Open request')}/>
 </div>}
 
 {/* Passport update details */}
 {selSvc==='passport_update'&&<div>
-<SectionTitle>بيانات تعديل الجواز</SectionTitle>
-<Row label="نوع التحديث" value={fields.update_mode==='renew'?'تجديد (جواز جديد)':'تمديد (تاريخ الانتهاء فقط)'}/>
-{fields.update_mode==='renew'&&fields.new_passport_no&&<Row label="رقم الجواز الجديد" value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_passport_no}</span>}/>}
-{fields.update_mode==='renew'&&fields.new_passport_issue_city&&<Row label="مكان الإصدار" value={cities.find(c=>c.id===fields.new_passport_issue_city)?.name_ar||fields.new_passport_issue_city}/>}
-{fields.update_mode==='renew'&&fields.new_passport_issue_date&&<Row label="تاريخ إصدار الجواز" value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_passport_issue_date}</span>}/>}
-{fields.new_passport_expiry&&<Row label={fields.update_mode==='renew'?'تاريخ انتهاء الجواز الجديد':'تاريخ الانتهاء الجديد'} value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_passport_expiry}</span>}/>}
+<SectionTitle>{T('بيانات تعديل الجواز','Passport update data')}</SectionTitle>
+<Row label={T('نوع التحديث','Update Type')} value={fields.update_mode==='renew'?T('تجديد (جواز جديد)','Renew (new passport)'):T('تمديد (تاريخ الانتهاء فقط)','Extend (expiry only)')}/>
+{fields.update_mode==='renew'&&fields.new_passport_no&&<Row label={T('رقم الجواز الجديد','New Passport No')} value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_passport_no}</span>}/>}
+{fields.update_mode==='renew'&&fields.new_passport_issue_city&&<Row label={T('مكان الإصدار','Place of Issue')} value={cities.find(c=>c.id===fields.new_passport_issue_city)?.name_ar||fields.new_passport_issue_city}/>}
+{fields.update_mode==='renew'&&fields.new_passport_issue_date&&<Row label={T('تاريخ إصدار الجواز','Passport Issue Date')} value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_passport_issue_date}</span>}/>}
+{fields.new_passport_expiry&&<Row label={fields.update_mode==='renew'?T('تاريخ انتهاء الجواز الجديد','New passport expiry date'):T('تاريخ الانتهاء الجديد','New expiry date')} value={<span style={{direction:'ltr',display:'inline-block'}}>{fields.new_passport_expiry}</span>}/>}
 </div>}
 
 {/* Name translation (salary edit) details */}
 {selSvc==='name_translation'&&<div>
-<SectionTitle>بيانات تعديل الراتب</SectionTitle>
-{selWorker?.gosi_salary&&<Row label="الراتب الحالي" value={<span style={{direction:'ltr',display:'inline-block'}}>{Number(selWorker.gosi_salary).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>}/>}
-{fields.new_salary&&<Row label="الراتب الجديد" value={<span style={{direction:'ltr',display:'inline-block'}}>{Number(fields.new_salary).toLocaleString('en-US',{minimumFractionDigits:2})} ريال</span>}/>}
-{fields.salary_months&&<Row label="مدة الاستمرار" value={`${fields.salary_months} أشهر`}/>}
+<SectionTitle>{T('بيانات تعديل الراتب','Salary edit data')}</SectionTitle>
+{selWorker?.gosi_salary&&<Row label={T('الراتب الحالي','Current Salary')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{Number(selWorker.gosi_salary).toLocaleString('en-US',{minimumFractionDigits:2})}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>}
+{fields.new_salary&&<Row label={T('الراتب الجديد','New Salary')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{Number(fields.new_salary).toLocaleString('en-US',{minimumFractionDigits:2})}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>}
+{fields.salary_months&&<Row label={T('مدة الاستمرار','Duration')} value={isAr?`${fields.salary_months} أشهر`:`${fields.salary_months} mo`}/>}
 </div>}
 
 {/* Generic details — any service without a dedicated block above (e.g. supplier_payroll, external_transfer_approval) */}
 {!['kafala_transfer','iqama_renewal','ajeer_contract','exit_reentry_visa','final_exit_visa','profession_change','iqama_print','medical_insurance','documents','chamber_certification','passport_update','name_translation'].includes(selSvc)&&!isVisa&&(()=>{
 const inputs=(selectedService?.inputs?.length?selectedService.inputs:SERVICE_INPUTS[selSvc])||[]
-const fmtV=(inp,v)=>{if(inp.type==='toggle')return(v===true||v==='true')?'نعم':'لا';if(Array.isArray(inp.options)){const o=inp.options.find(o=>String(o.value)===String(v));if(o)return o.label}return String(v)}
+const fmtV=(inp,v)=>{if(inp.type==='toggle')return(v===true||v==='true')?T('نعم','Yes'):T('لا','No');if(Array.isArray(inp.options)){const o=inp.options.find(o=>String(o.value)===String(v));if(o)return isAr?o.label:(o.label_en||o.label)}return String(v)}
 const rows=inputs.filter(inp=>{if(inp.show_if&&!fields[inp.show_if])return false;const v=fields[inp.key];return v!==undefined&&v!==''&&v!==null&&v!==false}).map(inp=>({label:inp.label_ar,value:fmtV(inp,fields[inp.key])}))
 if(!rows.length)return null
 return<div>
-<SectionTitle>تفاصيل الخدمة{svcDesc?` - ${svcDesc}`:''}</SectionTitle>
+<SectionTitle>{T('تفاصيل الخدمة','Service details')}{svcDesc?` - ${svcDesc}`:''}</SectionTitle>
 {rows.map((r,i)=><Row key={i} label={r.label} value={<span style={{direction:/^[0-9+]/.test(String(r.value))?'ltr':'rtl',display:'inline-block'}}>{r.value}</span>}/>)}
 </div>
 })()}
 
-{/* Pricing & installments */}
-<div>
-<SectionTitle>التسعير</SectionTitle>
+{/* Pricing & installments — مخفي عند الإجمالي صفر */}
+{effectiveTotal>0&&<div>
+<SectionTitle>{T('التسعير','Pricing')}</SectionTitle>
 {(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||SVC_WITH_PRICING.has(selSvc))&&(()=>{
 const rules=pricing.rules||{}
 const lines=(rules.rules||[]).filter(l=>l.amount>0)
@@ -3925,36 +4117,36 @@ const absh=rules.absherBalance||0
 const disc=rules.discount||0
 return<>
 {lines.map((line,i)=>
-<Row key={i} label={line.label} value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(Number(line.amount).toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>}/>
+<Row key={i} label={priceLabel(line.label,isAr)} value={<span style={{direction:dir,display:'inline-flex',gap:4,...(line.discount?{color:'#2ea043'}:{})}}><bdi>{line.discount?'-':''}{fmtAmt(Number(line.amount).toFixed(2))}</bdi><bdi style={{fontSize:10,color:line.discount?'#2ea043':'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>
 )}
-{(absh>0||disc>0)&&<Row label="الإجمالي الابتدائي" value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(sub.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>}/>}
-{absh>0&&<Row label="خصم أبشر" value={<span style={{direction:'rtl',display:'inline-flex',gap:4,color:C.red}}><bdi>-{fmtAmt(absh.toFixed(2))}</bdi><bdi style={{fontSize:10}}>ريال</bdi></span>}/>}
-{disc>0&&<Row label="خصم المكتب" value={<span style={{direction:'rtl',display:'inline-flex',gap:4,color:C.red}}><bdi>-{fmtAmt(disc.toFixed(2))}</bdi><bdi style={{fontSize:10}}>ريال</bdi></span>}/>}
+{(absh>0||disc>0)&&<Row label={T('الإجمالي الابتدائي','Subtotal')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{fmtAmt(sub.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>}
+{absh>0&&<Row label={T('خصم أبشر','Absher Discount')} value={<span style={{direction:dir,display:'inline-flex',gap:4,color:C.red}}><bdi>-{fmtAmt(absh.toFixed(2))}</bdi><bdi style={{fontSize:10}}>{T('ريال','SAR')}</bdi></span>}/>}
+{disc>0&&<Row label={T('خصم المكتب','Office Discount')} value={<span style={{direction:dir,display:'inline-flex',gap:4,color:C.red}}><bdi>-{fmtAmt(disc.toFixed(2))}</bdi><bdi style={{fontSize:10}}>{T('ريال','SAR')}</bdi></span>}/>}
 </>
 })()}
-<Row label="الإجمالي النهائي" value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(effectiveTotal.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>} highlight={C.gold}/>
+<Row label={T('الإجمالي النهائي','Final Total')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{fmtAmt(effectiveTotal.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>} highlight={C.gold}/>
 {/* Installments breakdown for visa services */}
 {isVisa&&<div style={{margin:'6px 0',padding:'6px 10px',borderRadius:7,background:'rgba(212,160,23,.03)',border:'1px solid rgba(212,160,23,.1)'}}>
-<div style={{fontSize:10.5,fontWeight:600,color:'var(--tx4)',marginBottom:3}}>خطة الدفع</div>
-<Row label="1. عند إصدار التأشيرة" value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(issuanceVal.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>}/>
-{hasAuth&&<Row label="2. عند توكيل التأشيرة" value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(authVal.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>}/>}
-<Row label={`${hasAuth?3:2}. عند إصدار الإقامة (${fmtAmt(residencePerVisaVal.toFixed(2))} × ${numVisas})`} value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt((residencePerVisaVal*numVisas).toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>}/>
+<div style={{fontSize:10.5,fontWeight:600,color:'var(--tx4)',marginBottom:3}}>{T('خطة الدفع','Payment plan')}</div>
+<Row label={T('1. عند إصدار التأشيرة','1. On visa issuance')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{fmtAmt(issuanceVal.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>
+{hasResidence&&<Row label={T('2. عند توكيل التأشيرة','2. On visa authorization')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{fmtAmt(authVal.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>}
+<Row label={`${hasResidence?3:2}. ${hasResidence?T('عند إصدار الإقامة','On Iqama issuance'):T('عند توكيل التأشيرة','On visa authorization')} (${fmtAmt(residencePerVisaVal.toFixed(2))} × ${numVisas})`} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{fmtAmt((residencePerVisaVal*numVisas).toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>
 </div>}
-</div>
+</div>}
 
-{/* Payment */}
-<div>
-<SectionTitle>الدفع</SectionTitle>
-{paid>0&&<Row label="طريقة الدفع" value={paymentMethod==='bank'?'حوالة بنكية':'نقداً'}/>}
-{paid>0&&paymentMethod==='bank'&&transferReference&&<Row label="الرقم المرجعي" value={<span style={{direction:'ltr',display:'inline-block'}}>{transferReference}</span>}/>}
-{paid>0&&paymentMethod==='bank'&&transferReceipt&&<Row label="إيصال الحوالة" value={<span style={{color:'#2ea043',fontWeight:600}}>✓ {transferReceipt.name}</span>}/>}
-<Row label="المدفوع" value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(paid.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>} highlight={paid>0?C.ok:'var(--tx4)'}/>
-{effectiveRemaining>0&&<Row label="المتبقي" value={<span style={{direction:'rtl',display:'inline-flex',gap:4}}><bdi>{fmtAmt(effectiveRemaining.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>ريال</bdi></span>} highlight={C.red}/>}
-</div>
+{/* Payment — مخفي عند الإجمالي صفر */}
+{effectiveTotal>0&&<div>
+<SectionTitle>{T('الدفع','Payment')}</SectionTitle>
+{paid>0&&<Row label={T('طريقة الدفع','Payment Method')} value={paymentMethod==='bank'?T('حوالة بنكية','Bank transfer'):T('نقداً','Cash')}/>}
+{paid>0&&paymentMethod==='bank'&&transferReference&&<Row label={T('الرقم المرجعي','Reference No.')} value={<span style={{direction:'ltr',display:'inline-block'}}>{transferReference}</span>}/>}
+{paid>0&&paymentMethod==='bank'&&transferReceipt&&<Row label={T('إيصال الحوالة','Transfer Receipt')} value={<span style={{color:'#2ea043',fontWeight:600}}>✓ {transferReceipt.name}</span>}/>}
+<Row label={T('المدفوع','Paid')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{fmtAmt(paid.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>} highlight={paid>0?C.ok:'var(--tx4)'}/>
+{effectiveRemaining>0&&<Row label={T('المتبقي','Remaining')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{fmtAmt(effectiveRemaining.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>} highlight={C.red}/>}
+</div>}
 
-{/* Client note */}
-{clientNote&&clientNote.trim()&&<div>
-<SectionTitle>ملاحظة الفاتورة</SectionTitle>
+{/* Client note — تأخذ العرض الكامل في الملخّص (column-span) لكل الخدمات */}
+{clientNote&&clientNote.trim()&&<div style={{columnSpan:'all'}}>
+<SectionTitle>{T('الملاحظة','Note')}</SectionTitle>
 <div style={{fontSize:11.5,color:'var(--tx2)',fontWeight:500,lineHeight:1.6,padding:'4px 2px',whiteSpace:'pre-wrap'}}>{clientNote}</div>
 </div>}
 </div>)
@@ -3965,65 +4157,48 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <div style={{position:'relative',borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'15px 14px 12px',marginTop:4,display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
-<span>المبلغ المدفوع</span>
+<span>{T('المبلغ المدفوع','Amount Paid')}</span>
 </div>
-<FKCurrency full value={paidAmount} placeholder="0.00"
+{/* الخدمات ذات الدفعة الواحدة: المبلغ المدفوع = الإجمالي دائماً، فيُعرض كقيمة لا كحقل إدخال */}
+{(VISA_SERVICES.has(selSvc)||selSvc==='kafala_transfer'||selSvc==='iqama_renewal')
+?<><FKCurrency full value={paidAmount} placeholder="0.00"
 onChange={v=>{if(v===''){setPaidAmount('');return}let n=Number(v);if(isNaN(n))return;if(n<0)n=0;const cap=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total;if(n>cap)n=cap;setPaidAmount(String(n))}}/>
 {(()=>{const eff=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total;const p=Number(paidAmount)||0;
-if(p<eff&&eff>0)return<div style={{fontSize:11,fontWeight:600,color:C.red,fontFamily:F,direction:'rtl',textAlign:'left'}}>المتبقي <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt((eff-p).toFixed(2))}</span> ريال</div>
-if(p>=eff&&eff>0)return<div style={{fontSize:11,fontWeight:600,color:C.ok,fontFamily:F,textAlign:'left'}}>مدفوع بالكامل ✓</div>
-return null})()}
+if(p<eff&&eff>0)return<div style={{fontSize:11,fontWeight:600,color:C.red,fontFamily:F,direction:dir,textAlign:isAr?'left':'right'}}>{T('المتبقي','Remaining')} <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt((eff-p).toFixed(2))}</span> {T('ريال','SAR')}</div>
+if(p>=eff&&eff>0)return<div style={{fontSize:11,fontWeight:600,color:C.ok,fontFamily:F,textAlign:isAr?'left':'right'}}>{T('مدفوع بالكامل','Paid in full')} ✓</div>
+return null})()}</>
+:<><div style={{display:'flex',direction:'ltr',alignItems:'baseline',justifyContent:'center',gap:7,height:42}}>
+<span style={{fontSize:13,fontWeight:600,color:C.bentoGold,flexShrink:0}}>{T('ريال','SAR')}</span>
+<span style={{fontSize:22,fontWeight:700,color:C.gold,fontVariantNumeric:'tabular-nums',letterSpacing:'-.3px'}}>{fmtAmt((Number(paidAmount)||0).toFixed(2))}</span>
+</div>
+<div style={{fontSize:11,fontWeight:600,color:C.ok,fontFamily:F,textAlign:isAr?'left':'right'}}>{T('مدفوع بالكامل','Paid in full')} ✓</div></>}
 </div>
 {/* طريقة الدفع — إطار ذهبي مع عنوان عائم */}
 {(Number(paidAmount)||0)>0&&<div style={{position:'relative',borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'15px 14px 12px',marginTop:4,display:'flex',flexDirection:'column',gap:11,flexShrink:0}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-<span>طريقة الدفع</span>
+<span>{T('طريقة الدفع','Payment Method')}</span>
 </div>
-<FKSegmented value={paymentMethod} onChange={setPaymentMethod} options={[{v:'cash',l:'نقداً'},{v:'bank',l:'حوالة بنكية'}]}/>
+<FKSegmented value={paymentMethod} onChange={setPaymentMethod} options={[{v:'cash',l:T('نقداً','Cash')},{v:'bank',l:T('حوالة بنكية','Bank transfer')}]}/>
 {paymentMethod==='bank'&&<>
-{/* الحساب المحوّل إليه: عنوان + دروب داون يعرض الحسابات بكامل بياناتها (نفس شكل البطاقة) */}
-<div style={{display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
-<span style={{fontSize:12.5,fontWeight:600,color:'rgba(255,255,255,.92)',fontFamily:F,textAlign:'start'}}>الحساب المحوّل إليه<span style={{color:C.red}}> *</span></span>
-{(()=>{
-// بطاقة الحساب — نفس الشكل للعنصر داخل القائمة وللمختار (أيقونة + اسم البنك + المؤسسة + الحساب + الآيبان)
-const bankCard=(a,sel)=>{
-const ic=size=><div style={{width:size,height:size,borderRadius:9,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,boxShadow:sel?'0 2px 8px rgba(212,160,23,.15)':'none',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width={Math.round(size*.52)} height={Math.round(size*.52)} viewBox="0 0 24 24" fill="none" stroke={sel?C.gold:'rgba(255,255,255,.5)'} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M4 21V10M20 21V10M8 21v-5M16 21v-5M12 21v-5M3 10l9-6 9 6"/></svg></div>
-const nm=<span style={{fontSize:13.5,fontWeight:600,color:sel?C.gold:'rgba(255,255,255,.95)',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{a.bank_name}</span>
-const prim=a.is_primary?<span style={{fontSize:8.5,color:C.gold,fontWeight:600,padding:'1px 6px',borderRadius:5,background:'rgba(212,160,23,.12)',border:'1px solid rgba(212,160,23,.25)',whiteSpace:'nowrap'}}>رئيسي</span>:null
-const acc=a.account_name?<span style={{fontSize:10,color:'var(--tx5)',fontWeight:600,opacity:.8,whiteSpace:'nowrap'}}>{a.account_name}</span>:null
-const valText=<div style={{display:'flex',gap:'2px 14px',flexWrap:'wrap',alignItems:'center'}}>{a.account_number&&<span style={{display:'inline-flex',alignItems:'center',gap:5}}><span style={{fontSize:9,color:C.bentoGold,fontWeight:600,fontFamily:F}}>الحساب</span><span style={{fontSize:11,color:'var(--tx)',fontWeight:600,fontFamily:'monospace',direction:'ltr'}}>{a.account_number}</span></span>}{a.iban&&<span style={{display:'inline-flex',alignItems:'center',gap:5}}><span style={{fontSize:9,color:C.bentoGold,fontWeight:600,fontFamily:F}}>الآيبان</span><span style={{fontSize:11,color:'var(--tx)',fontWeight:600,fontFamily:'monospace',direction:'ltr'}}>{a.iban}</span></span>}</div>
-return<div style={{display:'flex',alignItems:'center',gap:11,width:'100%'}}>{ic(40)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>{nm}{prim}{acc}</div>{valText}</div></div>
-}
-// مختار: نفس البطاقة بإطار ذهبي + زر تغيير. غير مختار: دروب داون يفتح القائمة كاملة بنفس شكل البطاقة
-if(selBankAcc){const a=bankAccounts.find(x=>x.id===selBankAcc);if(!a)return null
-return<div style={{position:'relative',padding:'9px 12px',paddingLeft:34,borderRadius:12,boxShadow:'0 4px 14px rgba(0,0,0,.25)',border:'1px solid rgba(212,160,23,.4)',background:'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))'}}>
-<button type="button" onClick={()=>setSelBankAcc('')} title="تغيير الحساب" style={{position:'absolute',top:7,left:7,width:24,height:24,borderRadius:7,background:'rgba(192,57,43,.12)',border:'1px solid rgba(192,57,43,.35)',color:C.red,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.22)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.12)'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-{bankCard(a,true)}
-</div>}
-return<FKDropdown value={selBankAcc||null} onChange={k=>setSelBankAcc(k)} options={bankAccounts} searchable={false}
-placeholder="اختر الحساب المحوّل إليه" getKey={a=>a.id} getLabel={a=>a.bank_name||''}
-getSub={a=>`${a.account_name||''} ${a.account_number||''} ${a.iban||''}`}
-renderCell={(a,sel)=>bankCard(a,sel)}/>
-})()}
-</div>
 {/* إيصال الحوالة البنكية */}
 <div style={{display:'flex',gap:10,alignItems:'stretch',flexShrink:0}}
 onDragEnter={e=>{e.preventDefault();e.stopPropagation();setReceiptDrag(true)}}
 onDragOver={e=>{e.preventDefault();e.stopPropagation();if(!receiptDrag)setReceiptDrag(true)}}
 onDragLeave={e=>{e.preventDefault();e.stopPropagation();if(e.currentTarget.contains(e.relatedTarget))return;setReceiptDrag(false)}}
 onDrop={e=>{e.preventDefault();e.stopPropagation();setReceiptDrag(false);const f=e.dataTransfer.files?.[0];if(f)setTransferReceipt(f)}}>
-{!transferReceipt?<label htmlFor="transferReceiptInput" style={{flex:1,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,padding:'0 14px',height:42,borderRadius:9,border:`1px dashed ${receiptDrag?C.gold:'rgba(212,160,23,.3)'}`,background:receiptDrag?'rgba(212,160,23,.15)':'rgba(212,160,23,.04)',color:C.gold,cursor:'pointer',transition:'.2s',fontFamily:F,fontSize:12.5,fontWeight:600,whiteSpace:'nowrap',transform:receiptDrag?'scale(1.02)':'scale(1)'}}
+{!transferReceipt?<label htmlFor="transferReceiptInput" style={{flex:1,display:'inline-flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,padding:'18px 14px',minHeight:120,borderRadius:12,border:`1.5px dashed ${receiptDrag?C.gold:'rgba(212,160,23,.3)'}`,background:receiptDrag?'rgba(212,160,23,.15)':'rgba(212,160,23,.04)',color:C.gold,cursor:'pointer',transition:'.2s',fontFamily:F,fontSize:13.5,fontWeight:600,whiteSpace:'nowrap',transform:receiptDrag?'scale(1.02)':'scale(1)'}}
 onMouseEnter={e=>{if(!receiptDrag)e.currentTarget.style.background='rgba(212,160,23,.1)'}}
 onMouseLeave={e=>{if(!receiptDrag)e.currentTarget.style.background='rgba(212,160,23,.04)'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-<span>{receiptDrag?'أفلت الملف هنا':<>إيصال الحوالة البنكية<span style={{color:C.red}}> *</span></>}</span>
+<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+<span>{receiptDrag?T('أفلت الملف هنا','Drop the file here'):<>{T('إيصال الحوالة البنكية','Bank transfer receipt')}<span style={{color:C.red}}> *</span></>}</span>
+{!receiptDrag&&<span style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>{T('اضغط للاختيار أو اسحب الملف هنا','Click to choose or drag the file here')}</span>}
 <input id="transferReceiptInput" type="file" accept="image/*,application/pdf" onChange={e=>setTransferReceipt(e.target.files?.[0]||null)} style={{display:'none'}}/>
 </label>
-:<div title={transferReceipt.name} style={{flex:1,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,padding:'0 12px',height:42,borderRadius:9,border:'1px solid rgba(46,160,67,.25)',background:'rgba(46,160,67,.06)',color:'#2ea043',fontFamily:F,fontSize:12.5,fontWeight:600,whiteSpace:'nowrap'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-<span style={{maxWidth:100,overflow:'hidden',textOverflow:'ellipsis'}}>{transferReceipt.name}</span>
-<button type="button" onClick={()=>setTransferReceipt(null)} style={{width:22,height:22,borderRadius:5,border:'none',background:'rgba(192,57,43,.15)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}}>
+:<div title={transferReceipt.name} style={{flex:1,display:'inline-flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,padding:'18px 14px',minHeight:120,borderRadius:12,border:'1.5px solid rgba(46,160,67,.25)',background:'rgba(46,160,67,.06)',color:'#2ea043',fontFamily:F,fontSize:13.5,fontWeight:600,whiteSpace:'nowrap',position:'relative'}}>
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+<span style={{maxWidth:'90%',overflow:'hidden',textOverflow:'ellipsis'}}>{transferReceipt.name}</span>
+<button type="button" onClick={()=>setTransferReceipt(null)} style={{position:'absolute',top:8,left:8,width:24,height:24,borderRadius:6,border:'none',background:'rgba(192,57,43,.15)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}}>
 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 </button>
 </div>}
@@ -4038,35 +4213,37 @@ onMouseLeave={e=>{if(!receiptDrag)e.currentTarget.style.background='rgba(212,160
 {showBroker&&<div style={{border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:brokerOpen?'12px 14px 14px':'12px 14px',marginTop:8,display:'flex',flexDirection:'column',gap:0,transition:'padding .34s cubic-bezier(.4,0,.2,1)'}}>
 {/* Header row — in-flow (no negative top offset) so the toggle is never clipped by the modal's top edge */}
 <div style={{display:'flex',alignItems:'center',gap:7,fontFamily:F}}>
-<span style={{fontSize:12,fontWeight:600,color:C.bentoGold}}>الوسيط</span>
-<span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.4)'}}>(اختياري)</span>
-<button onClick={()=>{setBrokerOpen(o=>{const next=!o;if(!next){setSelBroker(null);setBrokerMode('existing');setBrokerQ('');setNewBroker({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''})}return next})}} title={brokerOpen?'إغلاق':'إضافة وسيط'} style={{width:22,height:22,borderRadius:6,border:'1px solid rgba(212,160,23,.45)',background:'rgba(212,160,23,.12)',color:C.bentoGold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,transition:'.15s'}}>
+<span style={{fontSize:12,fontWeight:600,color:C.bentoGold}}>{T('الوسيط','Agent')}</span>
+<span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,.4)'}}>{T('(اختياري)','(optional)')}</span>
+<button onClick={()=>{setBrokerOpen(o=>{const next=!o;if(!next){setSelBroker(null);setBrokerMode('existing');setBrokerQ('');setNewBroker({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''})}return next})}} title={brokerOpen?T('إغلاق','Close'):T('إضافة وسيط','Add agent')} style={{width:22,height:22,borderRadius:6,border:'1px solid rgba(212,160,23,.45)',background:'rgba(212,160,23,.12)',color:C.bentoGold,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,transition:'.15s'}}>
 {brokerOpen?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>}
 </button>
 </div>
-{!brokerOpen&&<div style={{fontSize:11,color:'var(--tx5)',fontFamily:F,textAlign:'center',padding:'6px 0 0',transition:'opacity .25s'}}>اضغط على + لإضافة وسيط</div>}
+{!brokerOpen&&<div style={{fontSize:11,color:'var(--tx5)',fontFamily:F,textAlign:'center',padding:'6px 0 0',transition:'opacity .25s'}}>{T('اضغط على + لإضافة وسيط','Click + to add an agent')}</div>}
 <div style={{display:'grid',gridTemplateRows:brokerOpen?'1fr':'0fr',transition:'grid-template-rows .34s cubic-bezier(.4,0,.2,1)'}}>
 <div style={{overflow:'hidden',minHeight:0,display:'flex',flexDirection:'column',gap:14,paddingTop:brokerOpen?14:0,transition:'padding-top .34s cubic-bezier(.4,0,.2,1)'}}>
 {/* Search + new broker button — mirrors client UI */}
 {!selBroker&&brokerMode!=='new'&&<div style={{display:'flex',alignItems:'stretch',gap:8,flexShrink:0}}>
 <div style={{position:'relative',flex:1,minWidth:0}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none',transition:'stroke .2s'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={brokerQ} onChange={e=>setBrokerQ(e.target.value)} placeholder="ابحث باسم الوسيط أو الجوال..." onFocus={e=>{e.currentTarget.style.borderColor=C.bentoGold;e.currentTarget.style.boxShadow=`0 0 0 1px ${C.bentoGold}33, inset 0 1px 2px rgba(0,0,0,.2)`;e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.style.borderColor='transparent';e.currentTarget.style.boxShadow='inset 0 1px 2px rgba(0,0,0,.2)';e.currentTarget.previousElementSibling.style.stroke='rgba(255,255,255,.35)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:'right',border:'1px solid transparent'}}/>
+<input value={brokerQ} onChange={e=>setBrokerQ(e.target.value)} placeholder={T('ابحث باسم الوسيط أو الجوال...','Search by agent name or mobile...')} onFocus={e=>{e.currentTarget.style.borderColor=C.bentoGold;e.currentTarget.style.boxShadow=`0 0 0 1px ${C.bentoGold}33, inset 0 1px 2px rgba(0,0,0,.2)`;e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.style.borderColor='transparent';e.currentTarget.style.boxShadow='inset 0 1px 2px rgba(0,0,0,.2)';e.currentTarget.previousElementSibling.style.stroke='rgba(255,255,255,.35)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:isAr?'right':'left',border:'1px solid transparent'}}/>
 </div>
 {brokerMode!=='new'&&<button onClick={()=>{setBrokerMode('new');setNewBroker(p=>({...p,name_ar:/[\u0600-\u06FF]/.test(brokerQ)?brokerQ:p.name_ar,phone:/^[0-9+]+$/.test(brokerQ)?brokerQ:p.phone,id_number:/^\d{10}$/.test(brokerQ)?brokerQ:p.id_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(212,160,23,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.07)';e.currentTarget.style.borderColor='rgba(212,160,23,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(212,160,23,.55)'}}>
-<span>وسيط جديد</span>
+<span>{T('وسيط جديد','New agent')}</span>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>}
 </div>}
 
 {/* Existing broker list */}
 {brokerMode!=='new'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
-{(()=>{const filtered=selBroker?[selBroker]:(brokerQ?brokers.filter(b=>(b.name_ar||'').includes(brokerQ)||(b.phone||'').includes(brokerQ)||(b.id_number||'').includes(brokerQ)).slice(0,2):brokers.slice(0,2));
-if(filtered.length===0)return<div style={{padding:'10px 16px',borderRadius:9,background:'transparent',border:'1px dashed rgba(255,255,255,.1)',display:'flex',alignItems:'center',justifyContent:'center',gap:9}}>
-<div style={{width:28,height:28,borderRadius:'50%',background:'rgba(212,160,23,.08)',border:'1px dashed rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+{(()=>{const filtered=selBroker?[selBroker]:(brokerQ.trim()?brokers.filter(b=>(b.name_ar||'').includes(brokerQ)||(b.phone||'').includes(brokerQ)||(b.id_number||'').includes(brokerQ)).slice(0,2):[]);
+// بلا اختيار/بحث: نعرض بطاقة «ابحث عن الوسيط» (نفس سلوك العميل) بدل سرد وسطاء مسبقاً.
+if(filtered.length===0)return<div style={{padding:'24px 20px',borderRadius:9,background:'transparent',border:'1px dashed rgba(255,255,255,.1)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
+<div style={{width:42,height:42,borderRadius:'50%',background:'rgba(212,160,23,.08)',border:'1px dashed rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>{brokerQ.trim()&&<line x1="8" y1="11" x2="14" y2="11"/>}</svg>
 </div>
-<div style={{fontSize:12,color:'var(--tx2)',fontWeight:600,fontFamily:F}}>لا يوجد وسيط بهذا البحث — أضِف وسيطاً جديداً</div>
+<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:600,fontFamily:F}}>{brokerQ.trim()?T('لا يوجد وسيط بهذا البحث','No agent matches this search'):T('ابحث عن الوسيط','Search for the agent')}</div>
+<div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500,fontFamily:F}}>{brokerQ.trim()?T('يمكنك إضافة وسيط جديد من الأعلى','You can add a new agent above'):T('اكتب اسم الوسيط أو رقم الجوال للبحث','Type the agent name or mobile to search')}</div>
 </div>;
 return filtered.map(b=>{const sel=selBroker?.id===b.id
 const country=b.nationality_id?lkCountries.find(co=>co.id===b.nationality_id):null
@@ -4079,11 +4256,11 @@ const deselect=e=>{if(e)e.stopPropagation();setSelBroker(null)}
 const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:9,background:'rgba(0,0,0,.18)',border:'1px solid rgba(255,255,255,.05)',minWidth:0}}><Icon size={13} color={C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:9,color:'var(--tx5)',fontWeight:600}}>{label}</span><span style={{fontSize:12,color:'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(212,160,23,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(212,160,23,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
 const nameBlock=<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><span style={{fontSize:15.5,fontWeight:600,color:sel?C.gold:'rgba(255,255,255,.95)',letterSpacing:'-.2px'}}>{b.name_ar||b.name_en||'—'}</span>{b.name_ar&&b.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{b.name_en}</span>}</div>
-const boxes=<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{b.id_number&&infoBox(CreditCard,'رقم الهوية',b.id_number)}{b.phone&&infoBox(Phone,'الجوال',fmtPhone(b.phone))}</div>
+const boxes=<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{b.id_number&&infoBox(CreditCard,T('رقم الهوية','ID number'),b.id_number)}{b.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(b.phone))}</div>
 const wrapSel={position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'0 4px 16px rgba(0,0,0,.28)',transition:'all .22s ease',padding:'14px',borderRadius:16,display:'flex',flexDirection:'column',gap:12}
 const xIcon=<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 if(sel)return<div key={b.id} style={wrapSel}>
-<button onClick={deselect} title="تغيير الوسيط" style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>تغيير</button>
+<button onClick={deselect} title={T('تغيير الوسيط','Change agent')} style={{position:'absolute',top:11,left:13,height:22,padding:'0 9px',borderRadius:6,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:4,cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>{T('تغيير','Change')}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
 <div style={{display:'flex',alignItems:'center',gap:14}}>{flagEl(48)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:4}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><span style={{fontSize:15.5,fontWeight:600,color:C.gold,letterSpacing:'-.2px'}}>{b.name_ar||b.name_en||'—'}</span></div>{b.name_ar&&b.name_en&&<span style={{fontSize:11,color:'var(--tx5)',fontWeight:600,direction:'ltr',opacity:.7}}>{b.name_en}</span>}</div></div>
 {boxes}
 </div>
@@ -4102,11 +4279,11 @@ const fields=(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}
 const cur=newBroker.name_ar||newBroker.name_en||''
 const isAr=/[؀-ۿ]/.test(cur)
 const handle=(raw)=>{let v=raw.replace(/[^؀-ۿ A-Za-z\s]/g,'').replace(/\s+/g,' ').replace(/^\s+/,'');const parts=v.split(' ');if(parts.length>2)v=parts.slice(0,2).join(' ');const isArNow=/[؀-ۿ]/.test(v);setNewBroker(p=>({...p,name_ar:isArNow?v:'',name_en:!isArNow&&v?v:''}))}
-return <FKField label="الاسم" req>
-<input value={cur} onChange={e=>handle(e.target.value)} placeholder="اسمين فقط — عربي أو إنجليزي / Two names — Arabic or English" style={{...fkSF,direction:isAr?'rtl':(cur?'ltr':'rtl')}}/>
+return <FKField label={T('الاسم','Name')} req>
+<input value={cur} onChange={e=>handle(e.target.value)} placeholder={T('اسمين فقط — عربي أو إنجليزي','Two names — Arabic or English')} style={{...fkSF,direction:isAr?'rtl':(cur?'ltr':'rtl')}}/>
 </FKField>
 })()}
-<FKSelect label="الجنسية" req placeholder="اختر الجنسية..."
+<FKSelect label={T('الجنسية','Nationality')} req placeholder={T('اختر الجنسية...','Select nationality...')}
 value={newBroker.nationality_id||null}
 onChange={(id)=>setNewBroker(p=>({...p,nationality_id:id||null}))}
 options={lkCountries} getKey={o=>o.id} getLabel={o=>o.nationality_ar} getSub={o=>o.nationality_en||''}
@@ -4114,11 +4291,11 @@ renderSelected={o=>{const u=natFlagUrl(o);return <span style={{display:'inline-f
 renderCell={(o,sel)=>{const u=natFlagUrl(o);return <span style={{fontSize:14,fontWeight:600,color:sel?C.bentoGold:'rgba(255,255,255,.92)',display:'inline-flex',alignItems:'center',gap:8}}>{o.nationality_ar}{u&&<img src={u} alt="" width={16} height={12} style={{borderRadius:2,objectFit:'cover'}}/>}</span>}}
 />
 {/* silent: لا يحمرّ الحقل ولا يظهر تنبيه تحته — التحقق يظهر في الشريط السفلي (نفس تسجيل عميل جديد) */}
-<FKId silent label="الهوية" req value={newBroker.id_number} onChange={v=>setNewBroker(p=>({...p,id_number:v}))}/>
-<FKPhone silent label="رقم الجوال" req value={newBroker.phone} onChange={v=>setNewBroker(p=>({...p,phone:v}))}/>
+<FKId silent label={T('الهوية','ID')} req value={newBroker.id_number} onChange={v=>setNewBroker(p=>({...p,id_number:v}))}/>
+<FKPhone silent label={T('رقم الجوال','Mobile')} req value={newBroker.phone} onChange={v=>setNewBroker(p=>({...p,phone:v}))}/>
 </div>)
-const title=<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:C.bentoGold,fontFamily:F}}><Plus size={14} strokeWidth={2.5}/>تسجيل وسيط جديد</span>
-const cancel=<button onClick={onCancel} style={{height:34,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(192,57,43,.55)',borderRadius:9,color:C.red,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.07)';e.currentTarget.style.borderColor='rgba(192,57,43,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}}><span>إلغاء</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+const title=<span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:C.bentoGold,fontFamily:F}}><Plus size={14} strokeWidth={2.5}/>{T('تسجيل وسيط جديد','Register new agent')}</span>
+const cancel=<button onClick={onCancel} style={{height:34,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(192,57,43,.55)',borderRadius:9,color:C.red,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.07)';e.currentTarget.style.borderColor='rgba(192,57,43,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}}><span>{T('إلغاء','Cancel')}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 return <div style={{marginTop:6,background:'rgba(255,255,255,.025)',border:'1px solid rgba(255,255,255,.06)',borderRadius:12,padding:14}}>
 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>{title}{cancel}</div>
 {fields}
@@ -4131,27 +4308,27 @@ return <div style={{marginTop:6,background:'rgba(255,255,255,.025)',border:'1px 
 <div style={{position:'relative',borderRadius:12,border:'1.5px solid rgba(212,160,23,.35)',padding:'15px 14px 12px',marginTop:4,display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-<span>ملاحظة</span>
-<span style={{fontSize:11,fontWeight:500,color:'var(--tx4)',marginInlineStart:4}}>اختيارية</span>
+<span>{T('ملاحظة','Note')}</span>
+<span style={{fontSize:11,fontWeight:500,color:'var(--tx4)',marginInlineStart:4}}>{T('اختيارية','optional')}</span>
 </div>
-<FKTextArea value={clientNote} onChange={setClientNote} placeholder="أدخل ملاحظة تظهر في الفاتورة..." rows={showBroker&&brokerOpen?2:4}/>
+<FKTextArea value={clientNote} onChange={setClientNote} placeholder={T('أدخل ملاحظة تظهر في الفاتورة...','Enter a note shown on the invoice...')} rows={showBroker&&brokerOpen?2:4}/>
 </div>
 </div>}
 
 {/* Summary screen — full summary, last step before submission. يملأ الإطار ويُمرّر عمودياً عند الحاجة. */}
-{showSummaryScreen&&<div className="sr-scroll" style={{flex:1,minHeight:0,overflowY:'auto'}}><SummaryCard compact={false}/></div>}
+{showSummaryScreen&&<div className="sr-scroll" style={{flex:1,minHeight:0,overflowY:'auto',border:'1.5px solid rgba(212,160,23,.35)',borderRadius:12,padding:'14px 14px 8px'}}><SummaryCard compact={false}/></div>}
 {/* Old standalone receipt block — kept for structure, but now shows nothing since merged above */}
 {false&&<div style={{display:'none'}}>
 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-<span style={{fontSize:12,fontWeight:600,color:'var(--tx)',fontFamily:F}}>إيصال الحوالة البنكية</span>
+<span style={{fontSize:12,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{T('إيصال الحوالة البنكية','Bank transfer receipt')}</span>
 <span style={{fontSize:10,color:C.red,fontWeight:600}}>*</span>
 </div>
 {!transferReceipt?<label htmlFor="transferReceiptInput" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'14px',borderRadius:8,border:'1px dashed rgba(212,160,23,.25)',background:'rgba(212,160,23,.02)',color:C.gold,cursor:'pointer',transition:'.2s',fontFamily:F,fontSize:11.5,fontWeight:600}}
 onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,160,23,.06)'}}
 onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.02)'}}>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-<span>اضغط لرفع صورة/ملف الإيصال</span>
+<span>{T('اضغط لرفع صورة/ملف الإيصال','Click to upload the receipt image/file')}</span>
 <input id="transferReceiptInput" type="file" accept="image/*,application/pdf" onChange={e=>setTransferReceipt(e.target.files?.[0]||null)} style={{display:'none'}}/>
 </label>
 :<div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:8,background:'rgba(46,160,67,.06)',border:'1px solid rgba(46,160,67,.2)'}}>
@@ -4162,7 +4339,7 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.02)'}}>
 <div style={{fontSize:12,fontWeight:600,color:'var(--tx)',fontFamily:F,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{transferReceipt.name}</div>
 <div style={{fontSize:10,color:'var(--tx5)',fontFamily:F}}>{(transferReceipt.size/1024).toFixed(1)} KB</div>
 </div>
-<button type="button" onClick={()=>setTransferReceipt(null)} title="حذف" style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.08)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+<button type="button" onClick={()=>setTransferReceipt(null)} title={T('حذف','Delete')} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.08)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6"/></svg>
 </button>
 </div>}
@@ -4175,19 +4352,22 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(212,160,23,.02)'}}>
 // صفحة واحدة لكل خطوة معروضة — المحتوى نفسه (الحالة الداخلية تحدد ما يُرسم)
 // زر «التالي» يُعطَّل حتى تكتمل حقول/اختيارات الخطوة الحالية (getStepError يُرجع '' عند الاكتمال).
 const stepValid=!getStepError()
+// إشعار استباقي في البوتوم بار: في تغيير المهنة، إن لم تكن مهنة العامل الحالية مسجّلة يظهر السبب فور
+// عرض خطوة العامل — لأن زر «التالي» معطّل أصلاً فلا يمكن إظهار الرسالة بالنقر عليه.
+const professionBlockNote=(selSvc==='profession_change'&&step===2&&step2Mode==='worker'&&selWorker&&!selWorker?.occupation?.value_ar)?T('بيانات مهنة العامل غير موجودة الرجاء التواصل مع الموظف المختص','Worker occupation data is missing — please contact the responsible employee'):''
 const pages=Array.from({length:totalSteps},(_,i)=>({
   title:i===displayStep-1?curTitle:'',
   valid:i===displayStep-1?stepValid:true,
-  error:i===displayStep-1?(err||''):'',
+  error:i===displayStep-1?(err||professionBlockNote||''):'',
   content:body,
 }))
 return <FKModal open onClose={onClose}
-  title={svcMeta?svcMeta.name_ar:'فاتورة'} Icon={svcMeta?.Icon||FileText}
+  title={svcMeta?svcName(svcMeta,isAr):T('فاتورة / طلب','Invoice / Request')} Icon={svcMeta?.Icon||FileText}
   variant="create" width={760}
   page={displayStep-1}
   onNext={goNext}
   onBack={()=>{if(step===1&&showOthers){setShowOthers(false);return}goBack()}}
-  onSubmit={handleSubmit} submitting={saving} submitLabel="إصدار الفاتورة" submitIcon={FileText}
+  onSubmit={handleSubmit} submitting={saving} submitLabel={T('إصدار','Issue')} submitIcon={FileText}
   pages={pages}/>
 })()
 }

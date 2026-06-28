@@ -42,6 +42,19 @@ export const C = {
   tx5:     'rgba(255,255,255,.28)',   // placeholder
 }
 
+/* ─────────────────────── اللغة / الاتجاه ─────────────────────────────────
+   FKLang: سياق اللغة لكل النوافذ والحقول. يوفّره الجذر (DashPage) بقيمة lang،
+   ويُمرَّر عبر البورتال تلقائياً (React context يعبر createPortal). أي مكوّن
+   هنا يستخدم useFKLang() ليحصل على { lang, isAr, dir, T } دون تمرير props.
+   ────────────────────────────────────────────────────────────────────── */
+export const FKLang = createContext('ar')
+export const useFKLang = (override) => {
+  const ctx = useContext(FKLang)
+  const lang = override || ctx || 'ar'
+  const isAr = lang !== 'en'
+  return { lang, isAr, dir: isAr ? 'rtl' : 'ltr', T: (a, e) => (isAr ? a : e) }
+}
+
 /* ─────────────────────── نظام التصميم — التوكنز ──────────────────────────
    مرجع موحّد لكل قياس في الموقع. استورد منه بدل كتابة أرقام يدوية.
    استخدام: style={{ fontSize: TS.title, fontWeight: FW.extrabold }}
@@ -181,6 +194,8 @@ export const validatePhone = ph => {
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
 const DAYS_AR   = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
 const DAYS_SHORT = ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت']   // مختصرة كي لا تتداخل في التقويم
+const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const DAYS_EN   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const pad2 = n => String(n).padStart(2, '0')
 export const fmtDate = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`           // (m صفري)
 // عرض التاريخ للمستخدم: "12 مايو 2026"
@@ -227,7 +242,7 @@ export const ModalSection = ({ Icon, label, hint, children, style, bodyStyle, fl
   const ac = useContext(AccentContext)
   return (
     <div style={{ borderRadius: 12, border: `1.5px solid ${ac}59`, padding: '18px 14px 14px', position: 'relative', marginTop: 20, transition: '.2s', ...(flex ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}), ...style }}>
-      <div style={{ position: 'absolute', top: -9, right: 14, background: C.modal, padding: '0 8px', fontSize: 12, fontWeight: 600, color: ac, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ position: 'absolute', top: -9, insetInlineStart: 14, background: C.modal, padding: '0 8px', fontSize: 12, fontWeight: 600, color: ac, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         {Icon && <Icon size={12} strokeWidth={2.2} />}
         <span>{label}</span>
         {hint && <span style={{ fontSize: 11, fontWeight: 500, color: C.tx4, marginInlineStart: 4 }}>{hint}</span>}
@@ -241,6 +256,7 @@ export { ModalSection as KCard }
 /* ════════════════════════════ الدروب داون ═════════════════════════════ */
 // Dropdown أساسي بالبورتال + بحث + خلية مخصّصة. هو محرّك Select / MultiSelect.
 export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLabel, getSub, searchable = true, renderCell, renderSelected, error, multi = false, selectedKeys, disabled = false }) => {
+  const { dir, isAr, T } = useFKLang()
   const ac = useContext(AccentContext)
   const btnRef = useRef(null)
   const portalRef = useRef(null)
@@ -288,27 +304,27 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
         style={{ ...sF, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: (selected || selKeys.length) ? C.tx : C.tx5, boxShadow: errRing(error), padding: '0 32px', position: 'relative' }}>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: (selected || selKeys.length) ? 600 : 500, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {multi
-            ? (selKeys.length ? `${selKeys.length} مُختار` : (placeholder || '...'))
+            ? (selKeys.length ? `${selKeys.length} ${T('مُختار', 'selected')}` : (placeholder || '...'))
             : (selected ? (renderSelected ? renderSelected(selected) : getL(selected)) : (placeholder || '...'))}
         </span>
         <ChevronDown size={12} color={ac} strokeWidth={2.5}
-          style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
+          style={{ position: 'absolute', insetInlineEnd: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: C.modal2, border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 3000, boxShadow: '0 12px 40px rgba(0,0,0,.7)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
+        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: C.modal2, border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 3000, boxShadow: '0 12px 40px rgba(0,0,0,.7)', overflow: 'hidden', direction: dir, fontFamily: F }}>
           <style>{`.fk-dd-scroll::-webkit-scrollbar{width:0;display:none}.fk-dd-scroll{scrollbar-width:none;-ms-overflow-style:none}
             .fk-dd-search{border:1px solid ${ac}73!important}
             .fk-dd-search:focus{border:1px solid ${ac}!important;box-shadow:0 0 0 1px ${ac}33, inset 0 1px 2px rgba(0,0,0,.2)!important}`}</style>
           {searchable && options.length > 5 && (
             <div style={{ padding: 8, borderBottom: `1px solid ${C.line}`, flexShrink: 0, position: 'relative' }}>
               {/* أيقونة على اليسار + حدّ بلون النافذة عند التركيز (سماوي للتعديل · ذهبي للإضافة) */}
-              <Search size={14} color={ac} style={{ position: 'absolute', top: '50%', left: 20, transform: 'translateY(-50%)', pointerEvents: 'none', transition: '.15s' }} />
-              <input className="fk-dd-search" value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث..." autoFocus
-                style={{ width: '100%', height: 32, padding: '0 10px 0 34px', borderRadius: 7, background: 'rgba(0,0,0,.2)', fontFamily: F, fontSize: 12, fontWeight: 600, color: C.tx, outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.15s' }} />
+              <Search size={14} color={ac} style={{ position: 'absolute', top: '50%', insetInlineEnd: 20, transform: 'translateY(-50%)', pointerEvents: 'none', transition: '.15s' }} />
+              <input className="fk-dd-search" value={q} onChange={e => setQ(e.target.value)} placeholder={T('ابحث...', 'Search...')} autoFocus
+                style={{ width: '100%', height: 32, paddingInlineStart: 10, paddingInlineEnd: 34, borderRadius: 7, background: 'rgba(0,0,0,.2)', fontFamily: F, fontSize: 12, fontWeight: 600, color: C.tx, outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.15s' }} />
             </div>
           )}
           <div className="fk-dd-scroll" style={{ flex: 1, overflowY: 'auto' }}>
-            {filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: C.tx5 }}>لا توجد نتائج</div>}
+            {filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: C.tx5 }}>{T('لا توجد نتائج', 'No results')}</div>}
             {filtered.slice(0, 200).map(o => {
               const k = getK(o)
               const sel = isChosen(o)
@@ -326,7 +342,7 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
                   )}
                   {!multi && !renderCell && getSub && getSub(o) && <span style={{ fontSize: 11, color: C.tx3, textAlign: 'center' }}>{getSub(o)}</span>}
                   {/* علامة صح للعنصر المختار — مكشوفة بلون النوع */}
-                  {!multi && sel && <Check size={16} color={ac} strokeWidth={3} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />}
+                  {!multi && sel && <Check size={16} color={ac} strokeWidth={3} style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }} />}
                 </div>
               )
             })}
@@ -339,6 +355,7 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
 
 /* ════════════════════════════ التقويم (الكلايندر) ═════════════════════ */
 const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
+  const { dir } = useFKLang()
   const ac = useContext(AccentContext)
   const today = new Date()
   const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split('-').map(Number) : null
@@ -360,18 +377,18 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
   return ReactDOM.createPortal(
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000 }} />
-      <div style={{ position: 'fixed', top, left, width: POPUP_W, background: C.modal2, border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 3001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: 'rtl' }}>
+      <div style={{ position: 'fixed', top, left, width: POPUP_W, background: C.modal2, border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 3001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: dir }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, direction: 'ltr' }}>
           <button type="button" onClick={prevMonth} style={navBtn}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.tx }}>{MONTHS_AR[cur.m]} {cur.y}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.tx }}>{(dir === 'ltr' ? MONTHS_EN : MONTHS_AR)[cur.m]} {cur.y}</div>
           <button type="button" onClick={nextMonth} style={navBtn}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, fontSize: 10, fontWeight: 600, color: C.tx4, marginBottom: 6 }}>
-          {DAYS_AR.map((d, i) => <div key={i} style={{ textAlign: 'center', padding: '4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d}</div>)}
+          {(dir === 'ltr' ? DAYS_EN : DAYS_AR).map((d, i) => <div key={i} style={{ textAlign: 'center', padding: '4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d}</div>)}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
           {cells.map((d, i) => {
@@ -392,9 +409,9 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.line}` }}>
           {(() => { const t = new Date(); const ts = fmtDate(t.getFullYear(), t.getMonth(), t.getDate()); const off = (min && ts < min) || (max && ts > max); return (
-          <button type="button" disabled={off} onClick={() => { if (off) return; onPick(ts); onClose() }} style={{ fontSize: 11, color: off ? 'rgba(255,255,255,.25)' : ac, background: 'transparent', border: 'none', cursor: off ? 'not-allowed' : 'pointer', fontFamily: F, fontWeight: 600, padding: '4px 8px' }}>اليوم</button>
+          <button type="button" disabled={off} onClick={() => { if (off) return; onPick(ts); onClose() }} style={{ fontSize: 11, color: off ? 'rgba(255,255,255,.25)' : ac, background: 'transparent', border: 'none', cursor: off ? 'not-allowed' : 'pointer', fontFamily: F, fontWeight: 600, padding: '4px 8px' }}>{dir === 'ltr' ? 'Today' : 'اليوم'}</button>
           ) })()}
-          <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 11, color: C.tx3, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 600, padding: '4px 8px' }}>مسح</button>
+          <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 11, color: C.tx3, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 600, padding: '4px 8px' }}>{dir === 'ltr' ? 'Clear' : 'مسح'}</button>
         </div>
       </div>
     </>, document.body)
@@ -413,7 +430,9 @@ export const Flag = ({ code, size = 18 }) => {
    ════════════════════════════════════════════════════════════════════════ */
 
 // نص عام. filter: 'ar' | 'en' | undefined ، upper لتحويل لحروف كبيرة (أسماء إنجليزية)
-export const TextField = ({ label, req, error, hint, value, onChange, placeholder, dir = 'rtl', align = 'center', filter, upper, maxLength, full, disabled }) => {
+export const TextField = ({ label, req, error, hint, value, onChange, placeholder, dir, align = 'center', filter, upper, maxLength, full, disabled }) => {
+  const { dir: ctxDir } = useFKLang()
+  dir = dir || ctxDir
   const clean = v => {
     let s = v
     if (filter === 'ar') s = s.replace(RE_AR, '')
@@ -432,50 +451,52 @@ export const TextField = ({ label, req, error, hint, value, onChange, placeholde
 }
 
 // رقم صحيح. min/max اختياري.
-export const NumberField = ({ label, req, error, hint, value, onChange, placeholder, min, max, full }) => (
+export const NumberField = ({ label, req, error, hint, value, onChange, placeholder, min, max, full, disabled }) => (
   <Field label={label} req={req} error={error} hint={hint} full={full}>
-    <input value={value ?? ''} inputMode="numeric"
+    <input value={value ?? ''} inputMode="numeric" disabled={disabled}
       onChange={e => {
         let v = e.target.value.replace(RE_DIGITS, '')
         if (v !== '') { let n = parseInt(v, 10); if (min != null && n < min) n = min; if (max != null && n > max) n = max; v = String(n) }
         onChange(v)
       }}
       placeholder={placeholder} dir="ltr"
-      style={{ ...sF, direction: 'ltr', textAlign: 'center', letterSpacing: '.5px', boxShadow: errRing(error) }} />
+      style={{ ...sF, direction: 'ltr', textAlign: 'center', letterSpacing: '.5px', boxShadow: errRing(error), ...(disabled ? { opacity: .5, cursor: 'not-allowed' } : {}) }} />
   </Field>
 )
 
 // مبلغ بالريال — الرقم و"ريال" مجموعة واحدة في منتصف الحقل.
 // big: نسخة بارزة للحقل الأساسي (مثل المبلغ المدفوع) — أطول وأكبر خطّاً مع إبقاء شكل الإدخال
 // العادي (خلفية غامقة) كي يبان كحقل إدخال لا كعرض؛ البروز من الحجم لا من التلوين.
-export const CurrencyField = ({ label, req, error, hint, value, onChange, placeholder = '0.00', unit = 'ريال', full, padX, big }) => {
+export const CurrencyField = ({ label, req, error, hint, value, onChange, placeholder = '0.00', unit, full, padX, big, disabled }) => {
+  const { T } = useFKLang()
+  unit = unit ?? T('ريال', 'SAR')
   const ac = useContext(AccentContext)
   const display = fmtThousands(value)
   const widthCh = Math.max(4, (display || placeholder).length) + 1
   return (
     <Field label={label} req={req} error={error} hint={hint} full={full} style={padX ? { paddingLeft: padX, paddingRight: padX } : undefined}>
-      <div style={{ display: 'flex', direction: 'ltr', alignItems: 'center', justifyContent: 'center', gap: big ? 8 : 6, border: '1px solid transparent', borderRadius: big ? 12 : 9, background: C.inputBg, boxShadow: errRing(error), height: big ? 58 : 42 }}>
+      <div style={{ display: 'flex', direction: 'ltr', alignItems: 'center', justifyContent: 'center', gap: big ? 8 : 6, border: '1px solid transparent', borderRadius: big ? 12 : 9, background: C.inputBg, boxShadow: errRing(error), height: big ? 58 : 42, ...(disabled ? { opacity: .5 } : {}) }}>
         <span style={{ fontSize: big ? 16 : 14, fontWeight: 600, color: ac, flexShrink: 0 }}>{unit}</span>
-        <input value={display} inputMode="decimal"
+        <input value={display} inputMode="decimal" disabled={disabled}
           onChange={e => { let v = e.target.value.replace(/,/g, '').replace(RE_DECIMAL, ''); const p = v.split('.'); if (p.length > 2) v = p[0] + '.' + p.slice(1).join(''); onChange(v) }}
           placeholder={placeholder}
-          style={{ width: widthCh + 'ch', maxWidth: '70%', height: '100%', padding: 0, border: 'none', background: 'transparent', fontFamily: F, fontSize: big ? 26 : 14, fontWeight: big ? 700 : 600, color: C.tx, outline: 'none', textAlign: 'center', letterSpacing: big ? '.5px' : undefined }} />
+          style={{ width: widthCh + 'ch', maxWidth: '70%', height: '100%', padding: 0, border: 'none', background: 'transparent', fontFamily: F, fontSize: big ? 26 : 14, fontWeight: big ? 700 : 600, color: C.tx, outline: 'none', textAlign: 'center', letterSpacing: big ? '.5px' : undefined, ...(disabled ? { cursor: 'not-allowed' } : {}) }} />
       </div>
     </Field>
   )
 }
 
 // جوال سعودي — بادئة +966 ثابتة، 9 أرقام تبدأ بـ 5.
-export const PhoneField = ({ label, req, error, hint, value, onChange, full, silent }) => {
+export const PhoneField = ({ label, req, error, hint, value, onChange, full, silent, disabled }) => {
   const ac = useContext(AccentContext)
   // silent: لا نلوّن الحقل ولا نُظهر ملاحظة تحته — التحقق يُعرض في الشريط السفلي للنافذة بدلاً منه.
   const err = silent ? (error || '') : (error || validatePhone(value))  // خطأ خارجي أو تحقق داخلي
   return (
     <Field label={label} req={req} error={err} hint={hint} full={full}>
-      <div style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(err), height: 42 }}>
+      <div style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(err), height: 42, ...(disabled ? { opacity: .5 } : {}) }}>
         <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
-        <input value={value || ''} onChange={e => onChange(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
-          style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left' }} />
+        <input value={value || ''} onChange={e => onChange(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9} disabled={disabled}
+          style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left', ...(disabled ? { cursor: 'not-allowed' } : {}) }} />
       </div>
     </Field>
   )
@@ -541,18 +562,29 @@ export const IdField = ({ label, req, error, hint, value, onChange, prefix, plac
   )
 }
 
-// نص طويل.
-export const TextArea = ({ label, req, error, hint, value, onChange, placeholder, rows = 3, dir = 'rtl', full = true }) => (
-  <Field label={label} req={req} error={error} hint={hint} full={full}>
+// نص طويل. grow=true: يملأ ارتفاع غلافه (داخل حاوية flex بارتفاع ثابت) بلا انتقال ارتفاع —
+// يمنع «تكبّر/تصغّر» الحقل عند تبديل المحتوى، ويُبقي ارتفاع النافذة ثابتاً.
+export const TextArea = ({ label, req, error, hint, value, onChange, placeholder, rows = 3, dir, full = true, grow = false }) => {
+  const { dir: ctxDir } = useFKLang()
+  dir = dir || ctxDir
+  return (
+  <Field label={label} req={req} error={error} hint={hint} full={full}
+    style={grow ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : undefined}>
     <textarea value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows} dir={dir}
-      style={{ ...sF, height: 'auto', minHeight: rows * 22 + 16, padding: '10px 14px', textAlign: dir === 'ltr' ? 'left' : 'right', resize: 'vertical', lineHeight: 1.7, boxShadow: errRing(error) }} />
+      style={{ ...sF, padding: '10px 14px', textAlign: dir === 'ltr' ? 'left' : 'right', lineHeight: 1.7, boxShadow: errRing(error),
+        ...(grow
+          ? { flex: 1, minHeight: 0, height: '100%', resize: 'none', transition: 'none' }
+          : { height: 'auto', minHeight: rows * 22 + 16, resize: 'vertical' }) }} />
   </Field>
-)
+  )
+}
 
 // حقل إرفاق ملف — اسحب وأفلت أو اضغط للاختيار.
 // مفرد: value = ملف File (أو null). متعدّد (multiple): value = مصفوفة ملفات.
 // compact: منطقة إفلات أصغر (لتوفير الارتفاع).
-export const FileField = ({ label, req, error, hint, value, onChange, accept = 'image/*,application/pdf', full = true, multiple = false, compact = false }) => {
+// dropHeight: ارتفاع مخصّص لمنطقة الإفلات (يتجاوز الـ96 الافتراضي) — للوضع العمودي غير المضغوط.
+export const FileField = ({ label, req, error, hint, value, onChange, accept = 'image/*,application/pdf', full = true, multiple = false, compact = false, dropHeight, grow = false }) => {
+  const { T } = useFKLang()
   const ac = useContext(AccentContext)
   const inputId = useId()
   const [drag, setDrag] = useState(false)
@@ -566,16 +598,16 @@ export const FileField = ({ label, req, error, hint, value, onChange, accept = '
   const removeAt = i => onChange(multiple ? files.filter((_, idx) => idx !== i) : null)
   const showDrop = multiple || files.length === 0
   return (
-    <Field label={label} req={req} error={error} hint={hint} full={full}>
+    <Field label={label} req={req} error={error} hint={hint} full={full} style={grow ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : undefined}>
       {showDrop && (
         <label htmlFor={inputId}
           onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setDrag(true) }}
           onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!drag) setDrag(true) }}
           onDragLeave={e => { e.preventDefault(); e.stopPropagation(); if (e.currentTarget.contains(e.relatedTarget)) return; setDrag(false) }}
           onDrop={e => { e.preventDefault(); e.stopPropagation(); setDrag(false); add(e.dataTransfer.files) }}
-          style={{ display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: compact ? 44 : 96, padding: compact ? '8px 14px' : '16px', borderRadius: 10, border: `1.5px dashed ${drag ? ac : (error ? C.red : ac + '59')}`, background: drag ? ac + '1a' : C.inputBg, cursor: 'pointer', transition: '.18s', transform: drag ? 'scale(1.01)' : 'scale(1)' }}>
+          style={{ display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: 8, ...(dropHeight ? { height: dropHeight } : (grow && !compact ? { flex: 1, minHeight: 96 } : { minHeight: compact ? 44 : 96 })), padding: compact ? '8px 14px' : (dropHeight ? '8px 16px' : '16px'), borderRadius: 10, border: `1.5px dashed ${drag ? ac : (error ? C.red : ac + '59')}`, background: drag ? ac + '1a' : C.inputBg, cursor: 'pointer', transition: '.18s', transform: drag ? 'scale(1.01)' : 'scale(1)' }}>
           <Upload size={compact ? 18 : 22} color={ac} strokeWidth={2} />
-          <div style={{ fontSize: compact ? 12 : 13, fontWeight: 600, color: C.tx2 }}>{drag ? (multiple ? 'أفلت الملفات هنا' : 'أفلت الملف هنا') : (multiple ? 'اسحب ملفات أو اضغط للإرفاق' : 'اسحب ملف هنا أو اضغط للإرفاق')}</div>
+          <div style={{ fontSize: compact ? 12 : 13, fontWeight: 600, color: C.tx2 }}>{drag ? (multiple ? T('أفلت الملفات هنا', 'Drop the files here') : T('أفلت الملف هنا', 'Drop the file here')) : (multiple ? T('اسحب ملفات أو اضغط للإرفاق', 'Drag files or click to attach') : T('اسحب ملف هنا أو اضغط للإرفاق', 'Drag a file here or click to attach'))}</div>
           <input id={inputId} type="file" accept={accept} multiple={multiple} onChange={e => { add(e.target.files); e.target.value = '' }} style={{ display: 'none' }} />
         </label>
       )}
@@ -595,7 +627,7 @@ export const FileField = ({ label, req, error, hint, value, onChange, accept = '
           </div>
         ) : (
           // عرض مفرد — يأخذ نفس مساحة كرت الإرفاق (نفس الارتفاع والحشو والشكل) فلا يقفز الحجم عند الإرفاق.
-          <div style={{ position: 'relative', display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: compact ? 10 : 8, minHeight: compact ? 44 : 96, padding: compact ? '8px 14px' : '16px', borderRadius: 10, border: `1px solid ${C.ok}40`, background: `${C.ok}0d` }}>
+          <div style={{ position: 'relative', display: 'flex', flexDirection: (compact || dropHeight) ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: (compact || dropHeight) ? 10 : 8, ...(grow && !compact && !dropHeight ? { flex: 1, minHeight: 96 } : { height: compact ? 44 : (dropHeight || 96) }), padding: compact ? '8px 14px' : (dropHeight ? '8px 14px' : '16px'), borderRadius: 10, border: `1px solid ${C.ok}40`, background: `${C.ok}0d` }}>
             <Paperclip size={compact ? 16 : 22} color={C.ok} strokeWidth={2} style={{ flexShrink: 0 }} />
             <div style={{ minWidth: 0, maxWidth: '100%', flex: compact ? 1 : 'none', textAlign: compact ? 'start' : 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: C.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{files[0].name}</div>
@@ -642,7 +674,7 @@ export const EmptyState = ({ icon, title, desc, style }) => (
 )
 
 // حقل تاريخ — كتابة yyyy-mm-dd + أيقونة تقويم تفتح الكلايندر.
-export const DateField = ({ label, req, error, hint, value, onChange, full, min, max }) => {
+export const DateField = ({ label, req, error, hint, value, onChange, full, min, max, disabled }) => {
   const ac = useContext(AccentContext)
   const wrapRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -660,16 +692,17 @@ export const DateField = ({ label, req, error, hint, value, onChange, full, min,
     if (/^\d{4}-\d{2}-\d{2}$/.test(v) || v === '') onChange(v)
   }
   const openPicker = () => {
+    if (disabled) return
     if (!pickerOpen && wrapRef.current) { const r = wrapRef.current.getBoundingClientRect(); setAnchor({ top: r.top, bottom: r.bottom, left: r.left, width: r.width }) }
     setPickerOpen(o => !o)
   }
   return (
     <Field label={label} req={req} error={error} hint={hint} full={full}>
       {/* الأيقونة في أقصى اليسار، والتاريخ في منتصف الحقل */}
-      <div ref={wrapRef} style={{ position: 'relative', width: '100%', height: 42 }}>
-        <input type="text" value={text} onChange={e => handleType(e.target.value)} placeholder="yyyy-mm-dd"
-          style={{ ...sF, direction: 'ltr', textAlign: 'center', letterSpacing: '.5px', cursor: 'text', boxShadow: errRing(error) }} />
-        <button type="button" onClick={openPicker} aria-label="calendar"
+      <div ref={wrapRef} style={{ position: 'relative', width: '100%', height: 42, ...(disabled ? { opacity: .5 } : {}) }}>
+        <input type="text" value={text} onChange={e => handleType(e.target.value)} placeholder="yyyy-mm-dd" disabled={disabled}
+          style={{ ...sF, direction: 'ltr', textAlign: 'center', letterSpacing: '.5px', cursor: disabled ? 'not-allowed' : 'text', boxShadow: errRing(error) }} />
+        <button type="button" onClick={openPicker} aria-label="calendar" disabled={disabled}
           style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', width: 30, height: 30, border: 'none', background: pickerOpen ? ac + '1f' : 'transparent', cursor: 'pointer', color: ac, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: 7, transition: '.15s' }}>
           <CalIcon size={15} strokeWidth={2.2} />
         </button>
@@ -695,14 +728,14 @@ export const Switch = ({ label, hint, checked, onChange, full, color = C.ok }) =
 )
 
 // أزرار مقسّمة (اختيار واحد ظاهر). options: [{v, l, c?, sub?}]
-export const Segmented = ({ label, req, error, hint, options, value, onChange, height = 42, full }) => (
+export const Segmented = ({ label, req, error, hint, options, value, onChange, height = 42, full, disabled }) => (
   <Field label={label} req={req} error={error} hint={hint} full={full}>
-    <div style={{ display: 'flex', gap: 6, height }}>
+    <div style={{ display: 'flex', gap: 6, height, ...(disabled ? { opacity: .55 } : {}) }}>
       {options.map(o => {
         const sel = value === o.v
         const clr = o.c || C.gold
         return (
-          <button key={String(o.v)} type="button" onClick={() => onChange(o.v)} style={{ flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'rgba(255,255,255,.08)'}`, background: sel ? clr + '14' : C.inputBg, color: sel ? clr : C.tx3, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, cursor: 'pointer', transition: '.18s', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: sel ? 'none' : 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
+          <button key={String(o.v)} type="button" disabled={disabled} onClick={() => { if (!disabled) onChange(o.v) }} style={{ flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'rgba(255,255,255,.08)'}`, background: sel ? clr + '14' : C.inputBg, color: sel ? clr : C.tx3, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, cursor: disabled ? 'not-allowed' : 'pointer', transition: '.18s', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: sel ? 'none' : 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
             {sel ? <CheckCircle2 size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <span>{o.l}</span>
@@ -716,10 +749,13 @@ export const Segmented = ({ label, req, error, hint, options, value, onChange, h
 )
 
 // نعم / لا
-export const YesNo = ({ label, req, error, hint, value, onChange, full }) => (
-  <Segmented label={label} req={req} error={error} hint={hint} value={value} onChange={onChange} full={full}
-    options={[{ v: true, l: 'نعم', c: C.ok }, { v: false, l: 'لا', c: C.blue }]} />
-)
+export const YesNo = ({ label, req, error, hint, value, onChange, full, disabled }) => {
+  const { T } = useFKLang()
+  return (
+  <Segmented label={label} req={req} error={error} hint={hint} value={value} onChange={onChange} full={full} disabled={disabled}
+    options={[{ v: true, l: T('نعم', 'Yes'), c: C.ok }, { v: false, l: T('لا', 'No'), c: C.blue }]} />
+  )
+}
 
 // مربع اختيار واحد
 export const Checkbox = ({ label, checked, onChange }) => {
@@ -775,6 +811,7 @@ export const SWATCHES = ['#D4A017', '#36a8e6', '#27a046', '#c0392b', '#8e44ad', 
 
 // حقل اختيار لون — مربّع اللون + كوده، يفتح لوحة سواتش + منتقي مخصّص.
 export const ColorField = ({ label, req, error, hint, value, onChange, swatches = SWATCHES, full }) => {
+  const { dir, T } = useFKLang()
   const ac = useContext(AccentContext)
   const btnRef = useRef(null)
   const portalRef = useRef(null)
@@ -795,11 +832,11 @@ export const ColorField = ({ label, req, error, hint, value, onChange, swatches 
       <button ref={btnRef} type="button" onClick={toggle}
         style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: errRing(error), position: 'relative' }}>
         <span style={{ width: 18, height: 18, borderRadius: 6, background: value || 'transparent', boxShadow: value ? '0 0 0 1px rgba(255,255,255,.2)' : 'inset 0 0 0 1px rgba(255,255,255,.15)', flexShrink: 0 }} />
-        <span style={{ direction: 'ltr', letterSpacing: '.5px', color: value ? C.tx : C.tx5 }}>{value ? value.toUpperCase() : 'اختر لوناً'}</span>
+        <span style={{ direction: 'ltr', letterSpacing: '.5px', color: value ? C.tx : C.tx5 }}>{value ? value.toUpperCase() : T('اختر لوناً', 'Pick a color')}</span>
         <ChevronDown size={12} color={ac} strokeWidth={2.5} style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 12, zIndex: 3000, boxShadow: '0 12px 40px rgba(0,0,0,.7)', direction: 'rtl', fontFamily: F }}>
+        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 12, zIndex: 3000, boxShadow: '0 12px 40px rgba(0,0,0,.7)', direction: dir, fontFamily: F }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }}>
             {swatches.map(s => {
               const sel = (value || '').toLowerCase() === s.toLowerCase()
@@ -828,6 +865,7 @@ export const ColorField = ({ label, req, error, hint, value, onChange, swatches 
 /* ════════════════════════════ مُنتقي الوقت ════════════════════════════ */
 // حقل وقت — كتابة HH:MM + أيقونة ساعة تفتح منتقي (12 ساعة + ص/م). التخزين 24 ساعة.
 export const TimeField = ({ label, req, error, hint, value, onChange, full, minuteStep = 5 }) => {
+  const { dir } = useFKLang()
   const ac = useContext(AccentContext)
   const wrapRef = useRef(null)
   const portalRef = useRef(null)
@@ -876,7 +914,7 @@ export const TimeField = ({ label, req, error, hint, value, onChange, full, minu
           <ClockIcon size={15} strokeWidth={2.2} />
         </button>
         {open && ReactDOM.createPortal(
-          <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 10, zIndex: 3001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', direction: 'rtl', fontFamily: F, display: 'flex', gap: 8 }}>
+          <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 10, zIndex: 3001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', direction: dir, fontFamily: F, display: 'flex', gap: 8 }}>
             <style>{`.fk-time-col::-webkit-scrollbar{width:0;display:none}.fk-time-col{scrollbar-width:none}`}</style>
             <div className="fk-time-col" style={{ flex: 1, maxHeight: 168, overflowY: 'auto' }}>
               {mins.map(m => <div key={m} style={colCell(m === mm)} onClick={() => emit(h12, m, ampm)}>{pad2(m)}</div>)}
@@ -896,7 +934,7 @@ export const TimeField = ({ label, req, error, hint, value, onChange, full, minu
 
 /* ════════════════════════ صفوف العرض (للقراءة) ════════════════════════ */
 // صف عرض للقراءة فقط — عنوان + قيمة. لبناء لوحات التفاصيل (عرض سجلّ/مستخدم/فرع).
-export const InfoRow = ({ label, value, Icon, color, mono, copy, full }) => {
+export const InfoRow = ({ label, value, Icon, color, valueColor, mono, copy, full }) => {
   const ac = useContext(AccentContext)
   const [done, setDone] = useState(false)
   const clr = color || ac
@@ -908,7 +946,7 @@ export const InfoRow = ({ label, value, Icon, color, mono, copy, full }) => {
           <span style={{ fontSize: 11, fontWeight: 600, color: C.tx4 }}>{label}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: value == null || value === '' ? C.tx5 : C.tx, direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? SUCCESS_MONO : F, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }} title={value != null ? String(value) : ''}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: value == null || value === '' ? C.tx5 : (valueColor || C.tx), direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? SUCCESS_MONO : F, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }} title={value != null ? String(value) : ''}>
             {value == null || value === '' ? '—' : value}
           </span>
           {copy && value != null && value !== '' && (<>
@@ -989,10 +1027,11 @@ export const VARIANT_COLORS = { create: C.gold, edit: '#36a8e6', delete: C.red, 
 
 export function Modal({ open, onClose, title, subtitle, Icon, width = 720, children, footer, footerStart, errorMsg,
   closeOnOverlay = false, headerExtra, variant = 'create', accent, scroll = false,
-  hideHeader = false, height, success,
+  hideHeader = false, hideClose = false, height, success,
   tabs, tab, onTab,
-  pages, onSubmit, submitting, submitLabel = 'حفظ', submitIcon, nextLabel = 'التالي', backLabel = 'السابق',
-  page: pageCtl, onNext, onBack }) {
+  pages, onSubmit, submitting, submitLabel, submitIcon, nextLabel, backLabel,
+  page: pageCtl, onNext, onBack, lang }) {
+  const { isAr, dir, T } = useFKLang(lang)
   const [page, setPage] = useState(0)
   const [tabUn, setTabUn] = useState(0)
   const [closeHov, setCloseHov] = useState(false)
@@ -1024,12 +1063,12 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   const goBack = controlled ? (() => onBack?.()) : (() => setPage(p => Math.max(0, p - 1)))
   const goNext = controlled ? (() => onNext?.()) : (() => setPage(p => p + 1))
   const backNode = hasPages && cur > 0
-    ? <ActionButton variant="ghost" dir="fwd" Icon={ChevronRight} onClick={goBack}>{backLabel}</ActionButton>
+    ? <ActionButton variant="ghost" dir="fwd" Icon={isAr ? ChevronRight : ChevronLeft} onClick={goBack}>{backLabel ?? T('السابق', 'Back')}</ActionButton>
     : (footerStart || null)
   const forwardNode = hasPages
     ? (isLast
-        ? <ActionButton dir="back" Icon={submitIcon || Save} color={AC} disabled={!curValid || submitting} onClick={() => onSubmit?.()}>{submitting ? 'جاري الحفظ...' : submitLabel}</ActionButton>
-        : <ActionButton dir="back" Icon={ChevronLeft} color={AC} disabled={!curValid} onClick={goNext}>{nextLabel}</ActionButton>)
+        ? <ActionButton dir="back" Icon={submitIcon || Save} color={AC} disabled={!curValid || submitting} onClick={() => onSubmit?.()}>{submitting ? T('جاري الحفظ...', 'Saving...') : (submitLabel ?? T('حفظ', 'Save'))}</ActionButton>
+        : <ActionButton dir="back" Icon={isAr ? ChevronLeft : ChevronRight} color={AC} disabled={!curValid} onClick={goNext}>{nextLabel ?? T('التالي', 'Next')}</ActionButton>)
     : footer
   const showFooter = backNode || forwardNode || shownError != null
   // ارتفاع ثابت بين الخطوات في وضع الصفحات حتى لا يتغيّر شكل النافذة.
@@ -1066,7 +1105,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
       style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
       <div onClick={e => e.stopPropagation()}
         style={{ background: C.modal, borderRadius: 18, width, maxWidth: '95vw', height: boxHeight, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: `1px solid ${AC}24` }}>
-        <div dir="rtl" style={{ fontFamily: F, color: C.tx2, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div dir={dir} style={{ fontFamily: F, color: C.tx2, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
           {/* الترويسة — تُخفى عبر hideHeader عند تضمين مكوّن له ترويسته الخاصة */}
           {!hideHeader && (
@@ -1080,11 +1119,11 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {headerExtra}
-              <button onClick={() => onClose?.()}
+              {!hideClose && <button onClick={() => onClose?.()}
                 onMouseEnter={() => setCloseHov(true)} onMouseLeave={() => setCloseHov(false)}
                 style={{ width: 36, height: 36, borderRadius: 10, background: closeHov ? 'rgba(192,57,43,.15)' : 'rgba(255,255,255,.04)', border: `1px solid ${closeHov ? C.red + '66' : 'rgba(255,255,255,.06)'}`, color: closeHov ? C.red : C.tx3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
                 <X size={14} />
-              </button>
+              </button>}
             </div>
           </div>
           )}
@@ -1153,9 +1192,11 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
    (مثل «تمت الإضافة» أو «تم التعديل»). موحّد للكل: بلا وصف ولا شارة كود ولا تفاصيل.
    كل نافذة تعرض نجاحها عبر هذا المكوّن فيتوحّد الشكل تماماً. يُمرَّر لـ Modal success. */
 const SUCCESS_MONO = "'JetBrains Mono','Cairo',sans-serif"
-export function SuccessView({ title = 'تمت العملية بنجاح', code, action }) {
+export function SuccessView({ title, code, action }) {
+  const { dir, T } = useFKLang()
+  title = title ?? T('تمت العملية بنجاح', 'Done successfully')
   return (
-    <div style={{ width: '100%', fontFamily: F, direction: 'rtl', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+    <div style={{ width: '100%', fontFamily: F, direction: dir, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
       <style>{`@keyframes fkRingDraw{0%{stroke-dashoffset:151}100%{stroke-dashoffset:0}}@keyframes fkCheck{0%{stroke-dashoffset:60}100%{stroke-dashoffset:0}}@keyframes fkFade{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{ width: 72, height: 72, flexShrink: 0, animation: 'fkFade .3s ease forwards' }}>
         <svg width={72} height={72} viewBox="0 0 52 52" fill="none">
@@ -1191,12 +1232,17 @@ export function SuccessScreen({ open, ...rest }) {
 
 /* ═══════════════════════════ نافذة التأكيد ════════════════════════════ */
 // تأكيد إجراء (حذف افتراضياً). danger=false يجعلها ذهبية بدل الحمراء.
-export function ConfirmDialog({ open, onConfirm, onCancel, title = 'تأكيد الحذف', message = 'هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.', itemName, confirmText = 'حذف', cancelText = 'إلغاء', danger = true }) {
+export function ConfirmDialog({ open, onConfirm, onCancel, title, message, itemName, confirmText, cancelText, danger = true, lang }) {
+  const { dir, T } = useFKLang(lang)
   if (!open) return null
+  title = title ?? T('تأكيد الحذف', 'Confirm Deletion')
+  message = message ?? T('هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.', 'Are you sure? This action cannot be undone.')
+  confirmText = confirmText ?? T('حذف', 'Delete')
+  cancelText = cancelText ?? T('إلغاء', 'Cancel')
   const clr = danger ? C.red : C.gold
   return ReactDOM.createPortal(
     <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} dir="rtl" style={{ background: C.modal, borderRadius: 16, width: 440, maxWidth: '95vw', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.5)', border: `1px solid ${clr}26`, fontFamily: F }}>
+      <div onClick={e => e.stopPropagation()} dir={dir} style={{ background: C.modal, borderRadius: 16, width: 440, maxWidth: '95vw', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.5)', border: `1px solid ${clr}26`, fontFamily: F }}>
         <div style={{ padding: '28px 24px', textAlign: 'center' }}>
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: `${clr}14`, border: `2px solid ${clr}26`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <AlertTriangle size={24} color={clr} strokeWidth={2} />
@@ -1223,7 +1269,8 @@ const TOAST_KIND = {
   info: { c: C.blue, Icon: Info },
   delete: { c: C.red, Icon: Trash2 },
 }
-export function Toast({ open, type = 'success', message, onClose, duration = 3000 }) {
+export function Toast({ open, type = 'success', message, onClose, duration = 3000, lang }) {
+  const { dir } = useFKLang(lang)
   useEffect(() => {
     if (!open || !duration) return
     const t = setTimeout(() => onClose?.(), duration)
@@ -1233,7 +1280,7 @@ export function Toast({ open, type = 'success', message, onClose, duration = 300
   const k = TOAST_KIND[type] || TOAST_KIND.success
   const Ico = k.Icon
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 4000, direction: 'rtl', fontFamily: F, pointerEvents: 'none' }}>
+    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 4000, direction: dir, fontFamily: F, pointerEvents: 'none' }}>
       <style>{`@keyframes fkToastIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', borderRadius: 12, background: C.modal, boxShadow: `0 12px 40px rgba(0,0,0,.5)`, border: `1px solid ${k.c}40`, maxWidth: 'min(440px, 92vw)', animation: 'fkToastIn .25s ease', pointerEvents: 'auto' }}>
         <span style={{ width: 28, height: 28, borderRadius: '50%', background: k.c + '1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

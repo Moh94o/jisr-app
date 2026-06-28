@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تصاميم بطاقة الفاتورة — 11 خيار</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --gold:#D4A017; --gold-soft:#e8c77a;
+    --ok:#2ecc71; --red:#e87265; --blue:#5dade2; --cyan:#16a085;
+    --tx2:rgba(255,255,255,.82); --tx4:rgba(255,255,255,.40);
+  }
+  body{background:radial-gradient(1200px 600px at 70% -10%,#1a1a1a 0%,#0d0d0d 60%);font-family:'Cairo',sans-serif;min-height:100vh;padding:38px 26px 100px;color:#fff}
+  .page-head{max-width:1000px;margin:0 auto 36px}
+  .page-head h1{color:var(--gold);font-size:23px;font-weight:900;margin-bottom:8px}
+  .page-head p{color:#8a8a8a;font-size:13.5px;line-height:1.8;max-width:760px}
+  .page-head .hint{margin-top:10px;display:inline-block;background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.3);color:var(--gold-soft);font-size:12px;font-weight:700;padding:7px 13px;border-radius:9px}
+
+  .design{max-width:1000px;margin:0 auto 44px}
+  .dh{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .dh b{width:27px;height:27px;border-radius:8px;background:var(--gold);color:#1a1400;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+  .dh .nm2{font-size:16px;font-weight:800;color:#ededed}
+  .dh .ds{font-size:12px;color:#7e7e7e;font-weight:600}
+  .cards{display:flex;flex-direction:column;gap:10px}
+
+  /* ═══════════ القاعدة = التصميم الحالي تماماً ═══════════ */
+  .ic{position:relative;cursor:pointer;border-radius:14px;overflow:hidden;background:#222;border:1px solid rgba(255,255,255,.05);box-shadow:0 4px 14px rgba(0,0,0,.22);transition:all .15s}
+  .ic.void{opacity:.72}
+  .body{padding:18px 34px}
+  .hasribbon .body{padding-inline-end:60px}
+  .row{display:grid;grid-template-columns:1fr 1px 168px;gap:16px;align-items:center}
+  .left{min-width:0;display:flex;flex-direction:column;gap:9px}
+  .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .nm{font-size:14.5px;font-weight:700;color:#fff;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .flag{width:24px;height:17px;object-fit:cover;border-radius:3px;flex-shrink:0}
+  .fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 16px}
+  .f{display:flex;flex-direction:column;gap:4px;min-width:0;align-items:flex-start}
+  .lbl{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--tx4);font-weight:600;letter-spacing:.2px}
+  .lbl svg{width:11px;height:11px}
+  .val{font-size:12.5px;color:var(--tx2);font-weight:600}
+  .mono{direction:ltr;font-variant-numeric:tabular-nums;font-family:monospace}
+  a.val{text-decoration:none}
+  .svc{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--gold)}
+  .svc .q{direction:ltr;font-variant-numeric:tabular-nums}
+  .inv{font-size:12.5px;font-weight:700;color:var(--gold);direction:ltr;font-variant-numeric:tabular-nums;font-family:monospace}
+  .divider{width:1px;align-self:stretch;background:rgba(255,255,255,.06);min-height:60px}
+  .amt{display:flex;flex-direction:column;gap:8px}
+  .stagewrap{display:flex;justify-content:flex-end;gap:4px;min-height:24px;align-items:center}
+  .totalrow{display:flex;justify-content:flex-end;align-items:baseline}
+  .total{font-size:28px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;direction:ltr;letter-spacing:-.5px;line-height:1}
+  .pay{display:flex;flex-direction:column;gap:3px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)}
+  .pr{display:flex;justify-content:space-between;align-items:center;font-size:11.5px}
+  .pr .k{color:var(--tx2);font-weight:600}
+  .pr .v{font-weight:700;direction:ltr;font-variant-numeric:tabular-nums;color:#fff}
+  .pr .paid{color:var(--ok)}
+  .pr .rem{color:var(--red)}
+  .strip{height:5px;background:rgba(255,255,255,.05)}
+  .fill{height:100%;background:var(--status);width:var(--pct);transition:width .3s}
+
+  /* لسان الحالة العمودي */
+  .ribbon{position:absolute;top:0;bottom:0;inset-inline-end:0;width:30px;display:flex;align-items:center;justify-content:center;z-index:3;pointer-events:none;background:color-mix(in srgb,var(--rc) 12%,transparent);border-inline-start:1px solid color-mix(in srgb,var(--rc) 35%,transparent)}
+  .ribbon span{writing-mode:vertical-rl;transform:rotate(180deg);color:var(--rc);font-size:10.5px;font-weight:800;letter-spacing:.5px;display:inline-flex;align-items:center;gap:9px;white-space:nowrap}
+  .ribbon b{font-weight:900}
+  .ribbon.void{--rc:var(--red)}
+  .ribbon.paid{--rc:var(--ok)}
+
+  /* تاقات مراحل المعاملة */
+  .tag{display:inline-flex;align-items:center;gap:3px;border-inline-start:3px solid var(--c);background:color-mix(in srgb,var(--c) 12%,transparent);padding:3px 6px;color:var(--c);font-size:10px;font-weight:600;white-space:nowrap}
+  .tag .n{opacity:.8;font-size:10.5px;font-variant-numeric:tabular-nums}
+  .tag svg{width:11px;height:11px}
+  .tag.done{--c:var(--ok)} .tag.prog{--c:var(--gold)} .tag.new{--c:var(--blue)}
+
+  /* ════════════════════ 2. زجاجي (Glass) ════════════════════ */
+  .d2{background:rgba(255,255,255,.045);backdrop-filter:blur(16px) saturate(125%);-webkit-backdrop-filter:blur(16px) saturate(125%);border:1px solid rgba(255,255,255,.13);box-shadow:0 8px 34px rgba(0,0,0,.38)}
+  .d2 .divider{background:rgba(255,255,255,.13)}
+  .d2 .pay{border-top-color:rgba(255,255,255,.13)}
+  .d2 .strip{background:rgba(255,255,255,.10)}
+  .d2 .total{color:var(--gold-soft)}
+
+  /* ════════════════════ 3. أسود وذهبي فاخر (Royal) ════════════════════ */
+  .d3{background:linear-gradient(135deg,#1d1a12 0%,#141414 55%,#0f0f0f 100%);border:1px solid transparent;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .d3::after{content:"";position:absolute;inset:0;border-radius:12px;padding:1px;background:linear-gradient(135deg,rgba(212,160,23,.75),rgba(212,160,23,.06) 42%,rgba(212,160,23,.55));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;z-index:2}
+  .d3 .nm{letter-spacing:.2px}
+  .d3 .total{font-size:31px;font-weight:800;color:var(--gold-soft);text-shadow:0 0 18px rgba(212,160,23,.35)}
+  .d3 .lbl{color:rgba(212,160,23,.55)}
+  .d3 .svc,.d3 .inv{color:var(--gold-soft)}
+  .d3 .divider{background:linear-gradient(rgba(212,160,23,0),rgba(212,160,23,.4),rgba(212,160,23,0))}
+  .d3 .strip{background:rgba(212,160,23,.12)}
+
+  /* ════════════════════ 4. حافة الحالة العريضة (Status edge) ════════════════════ */
+  .d4{background:#1e1e1e;border:1px solid rgba(255,255,255,.05);border-radius:12px}
+  .d4 .body{border-inline-start:6px solid var(--status)}
+  .d4 .nm{font-size:16px;font-weight:800}
+  .d4 .total{font-size:34px;font-weight:800}
+  .d4 .val{color:rgba(255,255,255,.9)}
+  .d4 .strip{height:3px}
+
+  /* ════════════════════ 5. مسطّح هادئ (Soft flat) ════════════════════ */
+  .d5{background:#1f1f1f;border:1px solid rgba(255,255,255,.04);box-shadow:none;border-radius:12px}
+  .d5 .lbl{color:rgba(255,255,255,.33);font-size:10px}
+  .d5 .val{color:rgba(255,255,255,.72);font-weight:500}
+  .d5 .nm{font-weight:600}
+  .d5 .total{font-size:26px;font-weight:600;letter-spacing:0;color:var(--gold-soft)}
+  .d5 .svc,.d5 .inv{color:#cda94f;font-weight:500}
+  .d5 .pr .paid,.d5 .pr .rem,.d5 .pr .v{font-weight:600}
+  .d5 .strip{height:3px}
+
+  /* ════════════════════ 6. مدمج كثيف (Compact) ════════════════════ */
+  .d6{border-radius:11px}
+  .d6 .body{padding:12px 22px}
+  .d6 .row{grid-template-columns:1fr 1px 150px;gap:12px}
+  .d6 .left{gap:7px}
+  .d6 .head{gap:8px}
+  .d6 .nm{font-size:13px}
+  .d6 .flag{width:20px;height:14px}
+  .d6 .fields{gap:7px 14px}
+  .d6 .lbl{font-size:9.5px}
+  .d6 .val,.d6 .svc,.d6 .inv{font-size:11.5px}
+  .d6 .divider{min-height:48px}
+  .d6 .total{font-size:23px}
+  .d6 .pr{font-size:10.5px}
+  .d6 .stagewrap{min-height:20px}
+
+  /* ════════════════════ 7. متدرّج بلون الخدمة (Service tint) ════════════════════ */
+  .d7{background:linear-gradient(110deg,color-mix(in srgb,var(--svc) 15%,#202020) 0%,#1d1d1d 55%);border:1px solid color-mix(in srgb,var(--svc) 24%,transparent);border-radius:13px}
+  .d7 .body{border-inline-start:4px solid var(--svc)}
+  .d7 .total,.d7 .svc,.d7 .inv{color:var(--svc)}
+  .d7 .divider{background:color-mix(in srgb,var(--svc) 20%,transparent)}
+  .d7 .strip{background:color-mix(in srgb,var(--svc) 10%,transparent)}
+
+  /* ════════════════════ 8. مرفوع بعمق (Elevated) ════════════════════ */
+  .d8{background:linear-gradient(180deg,#2b2b2b 0%,#1e1e1e 100%);border:1px solid rgba(255,255,255,.07);border-radius:18px;box-shadow:0 14px 34px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06)}
+  .d8 .total{font-size:30px}
+  .d8 .divider{background:rgba(255,255,255,.08)}
+
+  /* ════════════════════ 9. رقم عملاق + لوحة (Giant amount) ════════════════════ */
+  .d9 .row{grid-template-columns:1fr 200px;gap:18px}
+  .d9 .divider{display:none}
+  .d9 .amt{background:rgba(212,160,23,.06);border:1px solid rgba(212,160,23,.2);border-radius:12px;padding:13px 15px;align-self:stretch;justify-content:center}
+  .d9 .total{font-size:40px;line-height:.95}
+  .d9 .pay{border-top-color:rgba(212,160,23,.2)}
+  .d9 .strip{height:4px}
+
+  /* ════════════════════ 10. نيومورفيزم ناعم (Neumorphic) ════════════════════ */
+  .d10{background:#1c1c1c;border:none;border-radius:18px;box-shadow:8px 8px 18px rgba(0,0,0,.5),-6px -6px 16px rgba(255,255,255,.035)}
+  .d10 .divider{display:none}
+  .d10 .amt{background:#1c1c1c;border-radius:12px;box-shadow:inset 4px 4px 10px rgba(0,0,0,.55),inset -4px -4px 10px rgba(255,255,255,.03);padding:12px 14px}
+  .d10 .pay{border-top-color:rgba(255,255,255,.05)}
+  .d10 .total{color:#e0c074}
+  .d10 .strip{display:none}
+
+  /* ════════════════════ 11. شبح شفّاف (Ghost / outline) ════════════════════ */
+  .d11{background:rgba(255,255,255,.015);border:1.5px solid color-mix(in srgb,var(--status) 48%,transparent);box-shadow:none;border-radius:14px}
+  .d11 .divider{background:color-mix(in srgb,var(--status) 26%,transparent)}
+  .d11 .lbl{color:rgba(255,255,255,.42)}
+  .d11 .val{color:rgba(255,255,255,.78)}
+  .d11 .total{color:var(--gold-soft)}
+  .d11 .pay{border-top-color:rgba(255,255,255,.1)}
+  .d11 .strip{display:none}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>تصاميم بطاقة الفاتورة — 11 خيار</h1>
+    <p>نفس بياناتك الحقيقية في كل تصميم، ومعروضة بثلاث حالات: <b style="color:var(--gold)">قيد التنفيذ / جزئي</b> ·
+       <b style="color:var(--ok)">مدفوعة بالكامل</b> · <b style="color:var(--red)">ملغاة</b> — عشان تقيس الخط واللون والشفافية في كل الحالات.</p>
+    <span class="hint">اختر رقم التصميم الأنسب وأبلغني، وأطبّقه على صفحة الفواتير مباشرة.</span>
+  </div>
+  <div id="root"></div>
+
+<script>
+  // ── أيقونات الحقول والمراحل (نفس أيقونات الموقع) ──
+  const I = {
+    id:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+    branch:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>',
+    date:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+    inv:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>',
+    visa:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4M14 14h4"/></svg>',
+    medical:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/></svg>',
+  };
+  const STG = {
+    done:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    prog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9"/><polyline points="12 7 12 12 15 14"/></svg>',
+    new: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
+  };
+
+  // ── البطاقات الثلاث (بيانات حقيقية من القائمة) ──
+  const samples = [
+    { state:'partial', status:'#D4A017', pct:'89%', svc:'#5dade2',
+      name:'مهدي صالح', flag:'sa', idLabel:'رقم الهوية', id:'1089150369',
+      phone:'0568201328', branch:'JUB5', date:'2026-06-27',
+      svcLabel:'تأشيرة وإقامة دائمة', qty:'3', svcIcon:I.visa, inv:'INVJUB5360376',
+      total:'40,000', paid:'+ 35,555.55', rem:'− 4,444.45',
+      stages:[['done',1],['prog',2],['new',3]], ribbon:null },
+
+    { state:'paid', status:'#2ecc71', pct:'100%', svc:'#16a085',
+      name:'NAEM HOSSAIN', flag:'bd', idLabel:'رقم الإقامة', id:'2611536828',
+      phone:'0568388338', branch:'JUB5', date:'2026-06-27',
+      svcLabel:'تأمين طبي', qty:null, svcIcon:I.medical, inv:'INVJUB5329544',
+      total:'400', paid:'+ 400', rem:'0', remZero:true,
+      stages:null, ribbon:{cls:'paid',label:'مدفوعة بالكامل',amount:'400'} },
+
+    { state:'void', status:'#e87265', pct:'100%', svc:'#5dade2',
+      name:'مهدي', flag:'bd', idLabel:'رقم الهوية', id:'2545891422',
+      phone:'0565333333', branch:'JUB5', date:'2026-06-27',
+      svcLabel:'تأشيرة وإقامة دائمة', qty:'1', svcIcon:I.visa, inv:'INVJUB5375113',
+      total:'10,000', paid:'+ 8,000', rem:'− 2,000',
+      stages:null, ribbon:{cls:'void',label:'ملغاة',amount:'8,000'} },
+  ];
+
+  const cell = (icon,label,valHTML) => `<div class="f"><span class="lbl">${icon}${label}</span>${valHTML}</div>`;
+  const stageTags = (stages) => !stages ? '' :
+    `<div class="stagewrap">${stages.map(([st,n]) =>
+      `<span class="tag ${st}"><span class="n">${n}</span>${STG[st]}</span>`).join('')}</div>`;
+  const ribbon = (r) => !r ? '' :
+    `<div class="ribbon ${r.cls}"><span><span>${r.label}</span><b>${r.amount}</b></span></div>`;
+
+  const card = (dN, s) => {
+    const hasR = s.ribbon ? ' hasribbon' : '';
+    const stateCls = s.state === 'void' ? ' void' : '';
+    const remHTML = s.remZero ? '<span class="v">0</span>' : `<span class="v rem">${s.rem}</span>`;
+    const svcVal = `<span class="svc">${s.qty?`<span class="q">×${s.qty}</span>`:''}<span>${s.svcLabel}</span></span>`;
+    return `<div class="ic d${dN}${stateCls}${hasR}" style="--status:${s.status};--svc:${s.svc};--pct:${s.pct}">
+      ${ribbon(s.ribbon)}
+      <div class="body"><div class="row">
+        <div class="left">
+          <div class="head"><span class="nm">${s.name}</span><img class="flag" src="https://flagcdn.com/w320/${s.flag}.png" alt=""></div>
+          <div class="fields">
+            ${cell(I.id, s.idLabel, `<span class="val mono">${s.id}</span>`)}
+            ${cell(I.phone, 'الجوال', `<a class="val mono" href="tel:${s.phone}">${s.phone}</a>`)}
+            ${cell(I.branch, 'المكتب', `<span class="val">${s.branch}</span>`)}
+            ${cell(I.date, 'الإصدار', `<span class="val mono">${s.date}</span>`)}
+            ${cell(s.svcIcon, 'الخدمة', svcVal)}
+            ${cell(I.inv, 'رقم الفاتورة', `<span class="inv">${s.inv}</span>`)}
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="amt">
+          ${stageTags(s.stages)}
+          <div class="totalrow"><span class="total">${s.total}</span></div>
+          <div class="pay">
+            <div class="pr"><span class="k">المسدّد</span><span class="v paid">${s.paid}</span></div>
+            <div class="pr"><span class="k">المتبقي</span>${remHTML}</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="strip"><div class="fill"></div></div>
+    </div>`;
+  };
+
+  const designs = [
+    [1, 'الحالي', 'التصميم المعتمد الآن — للمقارنة'],
+    [2, 'زجاجي', 'خلفية شفّافة + بلور (Glass) وحدود فاتحة'],
+    [3, 'أسود وذهبي فاخر', 'حد ذهبي متدرّج + توهّج خفيف للرقم — بهوية الطباعة'],
+    [4, 'حافة الحالة العريضة', 'شريط ملوّن سميك بلون الحالة + خط واسم أكبر'],
+    [5, 'مسطّح هادئ', 'بلا ظل، خطوط أخف وأهدأ، شفافية أعلى للّيبل'],
+    [6, 'مدمج كثيف', 'كل المقاسات أصغر — كروت أكثر في الشاشة'],
+    [7, 'متدرّج بلون الخدمة', 'تدرّج خفيف ولون الرقم حسب نوع الخدمة'],
+    [8, 'مرفوع بعمق', 'ظل بارز + حواف أنعم — كأن الكرت مرفوع'],
+    [9, 'رقم عملاق + لوحة', 'كتلة المبلغ لوحة ذهبية والرقم 40px'],
+    [10, 'نيومورفيزم ناعم', 'ظلال ناعمة مزدوجة + بئر غائر للمبلغ'],
+    [11, 'شبح شفّاف', 'خلفية شبه معدومة + حد رفيع بلون الحالة'],
+  ];
+
+  document.getElementById('root').innerHTML = designs.map(([n,nm,ds]) => `
+    <div class="design">
+      <div class="dh"><b>${n}</b><span class="nm2">${nm}</span><span class="ds">— ${ds}</span></div>
+      <div class="cards">${samples.map(s => card(n,s)).join('')}</div>
+    </div>`).join('');
+</script>
+</body>
+</html>

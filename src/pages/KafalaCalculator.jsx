@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send, Lock } from 'lucide-react'
+import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
 import { noDash } from '../lib/utils.js'
 import { Modal as FKModal, Select as FKSelect, Flag, ActionButton } from '../components/ui/FormKit.jsx'
+import { stageVisible, fieldVisible, fieldEditable } from '../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', bg: '#171717', sf: '#1e1e1e', bd: 'rgba(255,255,255,.06)' }
@@ -96,7 +97,7 @@ const sFRO = { ...sF, cursor: 'not-allowed', opacity: .6 }
 // عنوان الحقل — مطابق لـ FormKit: وزن 600، نص أساسي، نجمة حمراء بمسافة.
 const Lbl = ({ children, req }) => <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red }}> *</span>}</div>
 
-const CAPTCHA_TTL = 30
+const CAPTCHA_TTL = 13
 const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
   const [remaining, setRemaining] = useState(CAPTCHA_TTL)
   const firedRef = useRef(false)
@@ -115,7 +116,7 @@ const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
     }, 250)
     return () => clearInterval(iv)
   }, [captchaKey])
-  const urgent = remaining <= 10
+  const urgent = remaining <= 6
   const displayColor = urgent ? C.red : color
   const size = 38
   const stroke = 3
@@ -519,7 +520,7 @@ const YesNo = ({ value, onChange, lang, disabled, height }) => (
 
 const KCard = ({ Icon, label, hint, children, span, style, bodyStyle }) => (
   <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '12px 14px 10px', position: 'relative', transition: '.2s', ...style }}>
-    <div style={{ position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ position: 'absolute', top: -9, insetInlineStart: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       {Icon && <Icon size={12} strokeWidth={2.2} />}
       <span>{label}</span>
       {hint && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.4)', marginInlineStart: 4 }}>· {hint}</span>}
@@ -578,6 +579,8 @@ const QUOTE_TEXTS = {
 // ═══ Main Component ═══
 export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoToTransferCalc }) {
   const T = (a, e) => (lang || 'ar') !== 'en' ? a : e
+  const isAr = (lang || 'ar') !== 'en'
+  const dir = isAr ? 'rtl' : 'ltr'
 
   // Screen: 'form' (home screen removed — go directly to new worker form)
   const [screen, setScreen] = useState('form')
@@ -615,8 +618,11 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     result: null,
     error: null,
     attempts: 0,
+    errorCount: 0,   // عدّاد مرات «تعذّر الاستعلام» — «تخطّي والمتابعة» يظهر فقط بعد بلوغه الحد.
   })
   const HRSD_MAX_ATTEMPTS = 3
+  // لا يظهر زر «تخطّي والمتابعة» إلا بعد هذا العدد من مرات تعذّر الاستعلام (خلل واضح/فشل متكرر).
+  const HRSD_SKIP_AFTER = 3
 
   // ═══ Muqeem (auto resident lookup) state ═══
   // Lookup goes through a Supabase Edge Function (query-muqeem) on the PROD project, which reads
@@ -667,6 +673,30 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const [f, setF] = useState(makeInitialForm)
 
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+
+  // منع التكرار: حسبة تنازل مصدّقة/مفوترة سارية لنفس العامل تمنع إصدار حسبة جديدة حتى تُلغى
+  const [dupQuote, setDupQuote] = useState(null)
+  useEffect(() => {
+    let alive = true
+    const iqama = (f.iqama || '').trim()
+    if (!sb || !/^[12]\d{9}$/.test(iqama)) { setDupQuote(null); return }
+    ;(async () => {
+      const { data } = await sb.from('transfer_calculation')
+        .select('id,quote_no,status,priced_at,branch_id')
+        .eq('iqama_number', iqama)
+        .in('status', ['approved', 'invoiced', 'completed'])
+        .is('deleted_at', null)
+        .order('priced_at', { ascending: false }).limit(1).maybeSingle()
+      // كود المكتب باستعلام منفصل — لا يوجد FK يسمح بالتضمين المباشر
+      let dq = data || null
+      if (dq?.branch_id) {
+        const { data: br } = await sb.from('branches').select('branch_code').eq('id', dq.branch_id).maybeSingle()
+        dq = { ...dq, branch_code: br?.branch_code || null }
+      }
+      if (alive) setDupQuote(dq)
+    })()
+    return () => { alive = false }
+  }, [sb, f.iqama])
 
   // ═══ Config & dynamic options ═══
   const cfg = useMemo(() => getKafalaPricingConfig(), [])
@@ -848,6 +878,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   // Name + DOB + phone always stay editable (Muqeem doesn't return them — HRSD gives the name).
   // Falls back to manual entry when Muqeem is unavailable.
   const mqLocked = !!muqeemData
+  // تاريخ انتهاء الإقامة + المهنة تظهر فقط بعد أن تستقر نتيجة فحص مقيم:
+  //   متاحة (ok) → عرض فقط (MqLocked) ، غير متاحة/خطأ → إدخال يدوي. أثناء idle/loading تبقى مخفية.
+  const mqResolved = muqeemFetchStatus === 'ok' || muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error'
   const MqLocked = ({ label, value, sub, req }) => (
     <div>
       {label && <Lbl req={req}>{label}</Lbl>}
@@ -949,7 +982,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       const r = await callHrsdFn({ action: 'init' })
       setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
     } catch (e) {
-      setHrsdCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? 'انتهت مهلة الاتصال بوزارة العمل' : (e.message || 'خطأ في الاتصال') }))
+      setHrsdCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة الاتصال بوزارة العمل','Ministry of Labor connection timed out') : (e.message || T('خطأ في الاتصال','Connection error')), errorCount: (c.errorCount || 0) + 1 }))
     }
   }
 
@@ -958,7 +991,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     setHrsdCheck(c => ({ ...c, phase: 'verifying', error: null }))
     try {
       const r = await callHrsdFn({ action: 'verify', iqama: f.iqama, captcha: hrsdCheck.captchaInput, session: hrsdCheck.sessionToken })
-      if (r.status === 'invalid_captcha' || r.status === 'unknown') {
+      // رمز خاطئ فعلاً — يُحتسب ضمن المحاولات الثلاث
+      if (r.status === 'invalid_captcha') {
         const nextAttempts = (hrsdCheck.attempts || 0) + 1
         if (nextAttempts >= HRSD_MAX_ATTEMPTS) {
           setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 })
@@ -972,14 +1006,16 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           sessionToken: fresh.session,
           captchaImage: fresh.captchaImage,
           captchaInput: '',
-          error: `رمز التحقق غير صحيح — المحاولة ${nextAttempts + 1} من ${HRSD_MAX_ATTEMPTS}`,
+          error: T(`رمز التحقق غير صحيح — المحاولة ${nextAttempts + 1} من ${HRSD_MAX_ATTEMPTS}`, `Wrong captcha — attempt ${nextAttempts + 1} of ${HRSD_MAX_ATTEMPTS}`),
           attempts: nextAttempts,
         }))
         return
       }
-      if (r.code === 'SESSION_EXPIRED') {
+      // انتهت صلاحية الرمز/الجلسة — موقع وزارة العمل يمنح الرمز ~15 ثانية فقط، فإذا تأخّر الإدخال يُعيد الصفحة فارغة (status=unknown).
+      // هذا ليس خطأ المستخدم: نُحدّث الرمز برسالة محايدة وبدون احتساب محاولة خاطئة (كان سابقًا يظهر «رمز غير صحيح» ويستهلك محاولة).
+      if (r.status === 'unknown' || r.code === 'SESSION_EXPIRED') {
         const fresh = await callHrsdFn({ action: 'init' })
-        setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: 'انتهت الجلسة — تم تحديث الرمز' }))
+        setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: T('انتهت صلاحية الرمز — أدخل الرمز الجديد','Code expired — enter the new code') }))
         return
       }
       // Apply name to form if found
@@ -990,13 +1026,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       setHrsdCheck(c => ({ ...c, phase: 'idle', result: r }))
       setErrors({}); setTab(1)
     } catch (e) {
-      setHrsdCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? 'انتهت مهلة التحقق' : (e.message || 'خطأ في التحقق') }))
+      setHrsdCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة التحقق','Verification timed out') : (e.message || T('خطأ في التحقق','Verification error')), errorCount: (c.errorCount || 0) + 1 }))
     }
   }
 
   function closeHrsdCheck() {
     // Dismissing the inquiry marks it skipped so the form can proceed with the manually-entered data.
-    setHrsdCheck(c => ({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: c.result || { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 }))
+    setHrsdCheck(c => ({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: c.result || { status: 'skipped', autoSkipped: true }, error: null, attempts: 0, errorCount: 0 }))
   }
 
   async function refreshHrsdCaptcha() {
@@ -1005,7 +1041,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       const r = await callHrsdFn({ action: 'init' })
       setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
     } catch (e) {
-      setHrsdCheck(c => ({ ...c, error: e.message || 'تعذّر تحديث رمز التحقق' }))
+      setHrsdCheck(c => ({ ...c, error: e.message || T('تعذّر تحديث رمز التحقق','Could not refresh captcha') }))
     }
   }
 
@@ -1047,6 +1083,23 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       transferCount: m.sponsorChanges != null ? String(Math.max(0, m.sponsorChanges)) : p.transferCount,
     }))
     setMuqeemData(m)
+  }
+
+  // إعادة محاولة الاتصال بمقيم يدويًا (زر «إعادة الاتصال») — يُستخدم حين تكون الخدمة غير متاحة
+  // أو تعذّر الاتصال، فالـ useEffect لا يُعاد تشغيله لأن رقم الإقامة لم يتغيّر.
+  async function retryMuqeem() {
+    const iq = (f.iqama || '').trim()
+    if (!/^[12]\d{9}$/.test(iq) || muqeemFetchStatus === 'loading') return
+    setMuqeemFetchStatus('loading')
+    const r = await queryMuqeem(iq)
+    if (r.ok) {
+      applyMuqeemToForm(r.result)
+      setMuqeemFetchStatus('ok')
+    } else if (r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID') {
+      setMuqeemFetchStatus('unavailable')
+    } else {
+      setMuqeemFetchStatus('error')
+    }
   }
 
   // Auto-fetch Muqeem data the moment a valid iqama is typed. Silent + debounced.
@@ -1183,19 +1236,17 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     }
     const { data: { session } } = await sb.auth.getSession()
     if (!session) { setIssueErr(T('انتهت الجلسة — أعد تسجيل الدخول','Session expired — please sign in again')); return }
-    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL || sb.supabaseUrl}/functions/v1/issue-quotation`
-    const res = await fetch(fnUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify(payload),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok || !data.ok) {
-      const msg = data?.detail || data?.error || `HTTP ${res.status}`
+    // sb.functions.invoke يبني عنوان الدالة ويُرفق apikey + توكن الجلسة الحالي تلقائياً —
+    // أفضل من fetch اليدوي الذي قد يُرسل توكناً لمشروع مختلف فيرجع invalid_token.
+    const { data, error } = await sb.functions.invoke('issue-quotation', { body: payload })
+    let res = data
+    if (error) { try { res = await error.context.json() } catch { /* تجاهل قراءة جسم الخطأ */ } }
+    if (!res?.ok) {
+      const msg = res?.detail || res?.error || error?.message || 'failed'
       setIssueErr(T('تعذّر حفظ التسعيرة: ', 'Failed to save quote: ') + String(msg).slice(0, 100))
       return
     }
-    setIssuedQuote({ quoteNo: data.row.quote_no, workerName, iqNo, total: Number(data.row.total_amount), warnings })
+    setIssuedQuote({ quoteNo: res.row.quote_no, workerName, iqNo, total: Number(res.row.total_amount), warnings })
   }
 
   const tryNextTab = () => {
@@ -1252,6 +1303,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     else if (/^(.)\1{8}$/.test(phone) || '012345678'.includes(phone) || '987654321'.includes(phone)) errs.push(T('رقم الجوال غير صحيح','Invalid mobile number'))
     if (!f.iqamaExpiry) errs.push(T('أدخل تاريخ انتهاء الإقامة','Enter the Iqama expiry date'))
     if (!f.occupation) errs.push(T('اختر المهنة','Select occupation'))
+    if (dupQuote) errs.push(T(`يوجد حسبة تنازل ${dupQuote.status === 'approved' ? 'مصدّقة' : 'مفوترة'} سارية لهذا العامل (${dupQuote.branch_code || '—'})`, `An active ${dupQuote.status} transfer quote already exists for this worker (${dupQuote.branch_code || '—'})`))
     return errs
   })()
   // Live validation for step 2 (pricing) — gates «التالي» the same way step 0 does.
@@ -1305,17 +1357,27 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               <Lbl req>{T('رقم الإقامة','Iqama Number')}</Lbl>
               {/* مؤشّر مقيم — عائم (absolute) فوق صف العنوان فلا يزيح الحقول عند ظهوره/اختفائه */}
               {muqeemFetchStatus !== 'idle' && (
-                <div style={{ position: 'absolute', top: -2, left: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 7, direction: 'rtl', pointerEvents: 'none',
+                <div style={{ position: 'absolute', top: -2, insetInlineEnd: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 7, direction: dir, pointerEvents: 'none',
                   ...(muqeemFetchStatus === 'loading' ? { background: 'rgba(52,131,180,.12)', color: C.blue }
                     : muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046' }
                     : muqeemFetchStatus === 'unavailable' ? { background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.4)' }
                     : { background: 'rgba(192,57,43,.12)', color: C.red }) }}>
                   {muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span><span style={{ width: 9, height: 9, border: '1.6px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite' }} /></>}
                   {muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
-                  {muqeemFetchStatus === 'unavailable' && <><span>{T('خدمة مقيم غير متاحة','Muqeem unavailable')}</span><span>•</span></>}
-                  {muqeemFetchStatus === 'error' && <><span>{T('تعذّر الاتصال بمقيم','Muqeem connection failed')}</span><span>!</span></>}
+                  {(muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error') && (
+                    <>
+                      <span>{muqeemFetchStatus === 'unavailable' ? T('خدمة مقيم غير متاحة','Muqeem unavailable') : T('تعذّر الاتصال بمقيم','Muqeem connection failed')}</span>
+                      <button type="button" onClick={retryMuqeem} title={T('إعادة الاتصال بمقيم','Reconnect to Muqeem')}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)'; e.currentTarget.style.color = C.gold }}
+                        style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, marginInlineStart: 2, padding: '3px 9px', borderRadius: 6, border: '1px solid rgba(212,160,23,.35)', background: 'rgba(212,160,23,.12)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: '.15s' }}>
+                        <RefreshCw size={11} strokeWidth={2.5} /> {T('إعادة الاتصال','Reconnect')}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
+              {stageVisible(user,'transfer_calc','w_worker_data') && fieldVisible(user,'transfer_calc','w_iqama') && (
               <Inp value={f.iqama} onChange={v => {
                 const cleaned = v.replace(/\D/g,'').slice(0,10)
                 // Changing the iqama invalidates the previous worker's data — clear it.
@@ -1330,16 +1392,21 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                     transferCount: '0',
                     name: '',
                   }))
-                  setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0 })
+                  setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: null, error: null, attempts: 0, errorCount: 0 })
                   setMuqeemData(null)
                 }
               }} placeholder="2XXXXXXXXX" dir="ltr" maxLength={10}/>
+              )}
             </div>
+            {stageVisible(user,'transfer_calc','w_worker_data') && fieldVisible(user,'transfer_calc','w_dob') && (
             <div>
               <DateField value={f.dob} onChange={v=>set('dob',v)} label={T('تاريخ الميلاد','Date of Birth')} req lang={lang}/>
             </div>
+            )}
+            {stageVisible(user,'transfer_calc','w_worker_data') && fieldVisible(user,'transfer_calc','w_nationality') && (
             <div>
               <FKSelect label={T('الجنسية','Nationality')} req placeholder={T('اختر الجنسية…','Select nationality…')}
+                disabled={!fieldEditable(user,'transfer_calc','w_nationality')}
                 value={f.nationality || ''} onChange={v=>set('nationality',v)} options={nationalities}
                 getKey={o=>o.name_ar} getLabel={o=>o.name_ar}
                 renderSelected={o=><>{o.name_ar} <Flag code={o.code} size={16} /></>}
@@ -1349,6 +1416,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   </span>
                 )} />
             </div>
+            )}
             {(() => {
               const ph = (f.phone || '').trim()
               let phErr = null
@@ -1360,12 +1428,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 phErr = T(`أدخل ${9 - ph.length} ${9 - ph.length === 1 ? 'رقم' : 'أرقام'} إضافية`,`Enter ${9 - ph.length} more ${9 - ph.length === 1 ? 'digit' : 'digits'}`)
               }
               const isErr = !!phErr && ph.length === 9
+              if (!(stageVisible(user,'transfer_calc','w_worker_data') && fieldVisible(user,'transfer_calc','w_phone'))) return null
               return (
-            <div>
+            <div style={{ gridColumn: '1 / -1' }}>
               <Lbl req>{T('رقم الجوال','Mobile Number')}</Lbl>
               <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: isErr ? `inset 0 0 0 1.6px ${C.red}, inset 0 1px 2px rgba(0,0,0,.2)` : 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42, transition: '.2s' }}>
                 <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: C.gold, flexShrink: 0 }}>+966</div>
-                <input value={f.phone || ''} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9}
+                <input value={f.phone || ''} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9} disabled={!fieldEditable(user,'transfer_calc','w_phone')}
                   style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
               </div>
               <style>{`.kc-phone-wrap input{border-width:0!important}`}</style>
@@ -1374,6 +1443,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             })()}
             {/* Occupation and iqama expiry — entered manually. The transfer fee is set
                 directly (and is editable) on the pricing tab. */}
+            {mqResolved && stageVisible(user,'transfer_calc','w_worker_data') && fieldVisible(user,'transfer_calc','w_iqama_expiry') && (
             <div>
               {mqLocked ? (
                 <MqLocked label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={muqeemData.iqamaExpiryGregorian || f.iqamaExpiry} sub={muqeemData.iqamaExpiryHijri ? muqeemData.iqamaExpiryHijri + ' هـ' : null} req />
@@ -1381,6 +1451,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 <DateField value={f.iqamaExpiry} onChange={v=>set('iqamaExpiry',v)} label={T('تاريخ انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} req lang={lang}/>
               )}
             </div>
+            )}
+            {mqResolved && stageVisible(user,'transfer_calc','w_worker_data') && fieldVisible(user,'transfer_calc','w_occupation') && (
             <div>
               {mqLocked ? (
                 <MqLocked label={T('المهنة','Occupation')} value={muqeemData.occupationAr || f.occupation} req />
@@ -1389,6 +1461,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 <OccSelect value={f.occupation || ''} onChange={(v,item)=>setF(p=>({...p,occupation:v,occupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')}/>
               </>)}
             </div>
+            )}
           </div>
         </div>
       })()}
@@ -1401,12 +1474,12 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         const Field = ({ label, value, color, span, ltr }) => (
           <div style={{ gridColumn: span === 2 ? '1 / -1' : 'auto', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: color || 'var(--tx)', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(ltr ? { direction: 'ltr' } : {}) }}>{value || '—'}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: color || 'var(--tx)', textAlign: 'start', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(ltr ? { direction: 'ltr' } : {}) }}>{value || '—'}</span>
           </div>
         )
         const Group = ({ title, Icon, children }) => (
           <div style={{ borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '16px 12px 12px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ position: 'absolute', top: -9, insetInlineStart: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {Icon && <Icon size={12} strokeWidth={2.2} />}
               <span>{title}</span>
             </div>
@@ -1438,17 +1511,17 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         }
         return (<div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Group title={T('هوية العامل','Worker Identity')} Icon={User}>
-            <Field label={T('الإسم','Name')} value={hrsdCheck.result?.name || f.name} span={2} ltr />
-            <Field label={T('رقم الإقامة','Iqama Number')} value={f.iqama} ltr />
-            <Field label={T('العمر','Age')} value={ageStr} />
-            <Field label={T('المهنة','Occupation')} value={f.occupation} span={2} />
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_name') && <Field label={T('الإسم','Name')} value={hrsdCheck.result?.name || f.name} span={2} ltr />}
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_iqama') && <Field label={T('رقم الإقامة','Iqama Number')} value={f.iqama} ltr />}
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_age') && <Field label={T('العمر','Age')} value={ageStr} />}
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_occupation') && <Field label={T('المهنة','Occupation')} value={f.occupation} span={2} />}
           </Group>
 
           <Group title={T('الإقامة والحالة','Iqama & Status')} Icon={Building2}>
-            <Field label={T('حالة العامل','Worker Status')} value={hrsdCheck.result?.workerStatus} />
-            <Field label={T('حالة مقيم','Muqeem Status')} value={muqeemData?.statusAr} />
-            <Field label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={f.iqamaExpiry} color={dateColor} ltr />
-            <Field label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={hijriFormatted} color={dateColor} />
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_worker_status') && <Field label={T('حالة العامل','Worker Status')} value={hrsdCheck.result?.workerStatus} />}
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_muqeem_status') && <Field label={T('حالة مقيم','Muqeem Status')} value={muqeemData?.statusAr} />}
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_iqama_expiry_g') && <Field label={T('انتهاء الإقامة (ميلادي)','Iqama Expiry (Gregorian)')} value={f.iqamaExpiry} color={dateColor} ltr />}
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_iqama_expiry_h') && <Field label={T('انتهاء الإقامة (هجري)','Iqama Expiry (Hijri)')} value={hijriFormatted} color={dateColor} />}
           </Group>
         </div>)
       })()}
@@ -1496,6 +1569,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               if (!transferOnlyAllowed && f.transferOnly) {
                 setTimeout(() => setF(p => ({ ...p, transferOnly: false, renewIqama: true })), 0)
               }
+              if (!(stageVisible(user,'transfer_calc','w_pricing') && fieldVisible(user,'transfer_calc','w_renewal_period'))) return null
               return (
                 <Card Icon={Calendar} label={T('تجديد الإقامة','Iqama Renewal')} span={2}>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -1520,7 +1594,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
             {/* رسوم النقل — للإدخال اليدوي فقط. عند توفّر مقيم تُحتسب تلقائيًا من عدد مرات النقل
                 وتظهر في صفحة المراجعة، فنخفي الكرت هنا لتقليل الازدحام. */}
-            {!mqLocked && (
+            {!mqLocked && stageVisible(user,'transfer_calc','w_pricing') && fieldVisible(user,'transfer_calc','w_transfer_fee') && (
               <Card Icon={CreditCard} label={T('رسوم النقل','Transfer Fee')} span={2}>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {transferOptions.map(v => {
@@ -1537,10 +1611,12 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             )}
 
             {/* تغيير المهنة + المهنة الجديدة — جنب بعض عند اختيار «نعم» لتوفير المساحة بلا تمرير */}
+            {stageVisible(user,'transfer_calc','w_pricing') && fieldVisible(user,'transfer_calc','w_change_profession') && (
             <Card Icon={ArrowLeftRight} label={T('تغيير المهنة','Change Occupation')} span={f.changeProfession ? 1 : 2}>
-              <YesNo value={f.changeProfession} onChange={v => set('changeProfession', v)} lang={lang} height={42} />
+              <YesNo value={f.changeProfession} onChange={v => set('changeProfession', v)} lang={lang} height={42} disabled={!fieldEditable(user,'transfer_calc','w_change_profession')} />
             </Card>
-            {f.changeProfession && (
+            )}
+            {f.changeProfession && stageVisible(user,'transfer_calc','w_pricing') && fieldVisible(user,'transfer_calc','w_new_occupation') && (
               <Card Icon={Briefcase} label={T('المهنة الجديدة','New Occupation')} span={1}>
                 <OccSelect value={f.newOccupation || ''} onChange={(v,item) => setF(p => ({...p,newOccupation:v,newOccupationId:item?.id||null}))} items={occupations} lang={lang} placeholder={T('اختر المهنة…','Select occupation…')} />
               </Card>
@@ -1548,27 +1624,29 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           </div>
 
           {/* رسوم إضافية — تملأ المساحة المتبقية، والبنود المضافة تمرّر داخليًا فقط (فلا يظهر تمرير خارجي مهما زادت) */}
+          {stageVisible(user,'transfer_calc','w_pricing') && fieldVisible(user,'transfer_calc','w_extras') && (
           <Card Icon={Plus} label={T('رسوم إضافية','Additional Fees')} hint={f.extras.length ? (lang === 'en' ? `${f.extras.length} items added` : `${f.extras.length} بنود مضافة`) : T('اختياري','Optional')} span={2} style={{ flex: 1, minHeight: 96, display: 'flex', flexDirection: 'column' }} bodyStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38, fontSize: 12 }} />
-              <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, fontSize: 12, direction: 'ltr', textAlign: 'center' }} />
-              <button onClick={addExtra} disabled={!extraName || !extraAmount} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
+              <input value={extraName} onChange={e => setExtraName(e.target.value)} disabled={!fieldEditable(user,'transfer_calc','w_extras')} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38, fontSize: 12 }} />
+              <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} disabled={!fieldEditable(user,'transfer_calc','w_extras')} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, fontSize: 12, direction: 'ltr', textAlign: 'center' }} />
+              <button onClick={addExtra} disabled={!extraName || !extraAmount || !fieldEditable(user,'transfer_calc','w_extras')} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
             </div>
             {f.extras.length > 0 && (
-              <div className="kc-scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, direction: 'rtl', flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'flex-start' }}>
+              <div className="kc-scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, direction: dir, flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'flex-start' }}>
                 {f.extras.map((ex, i) => (
-                  <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 9px', borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.25)', direction: 'rtl', height: 'fit-content' }}>
+                  <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 9px', borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.25)', direction: dir, height: 'fit-content' }}>
                     <span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500, fontSize: 12 }}>{ex.name}</span>
                     <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, direction: 'ltr', color: C.gold, fontWeight: 500, fontSize: 12 }}>
                       <span style={{ fontSize: 12, fontWeight: 500 }}>{T('ريال','SAR')}</span>
                       <span>{Number(ex.amount).toLocaleString('en-US')}</span>
                     </span>
-                    <button onClick={() => removeExtra(i)} title={T('حذف','Remove')} style={{ width: 18, height: 18, borderRadius: 5, color: C.red, cursor: 'pointer', background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}><X size={10} strokeWidth={2} /></button>
+                    <button onClick={() => removeExtra(i)} disabled={!fieldEditable(user,'transfer_calc','w_extras')} title={T('حذف','Remove')} style={{ width: 18, height: 18, borderRadius: 5, color: C.red, cursor: 'pointer', background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}><X size={10} strokeWidth={2} /></button>
                   </div>
                 ))}
               </div>
             )}
           </Card>
+          )}
 
           {/* Total — hero (مثبّت أسفل، دائمًا ظاهر) */}
           <div style={{ flexShrink: 0, padding: '14px 18px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(212,160,23,.17) 0%, rgba(212,160,23,.05) 100%)', border: '1px solid rgba(212,160,23,.45)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06), 0 4px 16px rgba(212,160,23,.08)' }}>
@@ -1581,7 +1659,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.4)' }}>{T('شامل جميع الرسوم','All fees included')}</span>
               </div>
             </div>
-            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, color: C.gold, direction: 'rtl' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, color: C.gold, direction: dir }}>
               <span style={{ fontSize: 27, fontWeight: 700, lineHeight: 1, letterSpacing: '.5px' }}>{nm(total.toFixed(2))}</span>
               <span style={{ fontSize: 13, fontWeight: 600, opacity: .7 }}>{T('ريال','SAR')}</span>
             </span>
@@ -1690,8 +1768,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   {/* Items in 2 columns */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, rowGap: 2 }}>
                     {items.map(([l, v, k], i) => {
-                      const transferEditable = k === 'transferFee' && !mqLocked
-                      const showRenewalFineToggle = k === 'iqamaRenewal' && (iqamaExpired || iqamaInGracePeriod)
+                      const transferEditable = k === 'transferFee' && !mqLocked && stageVisible(user,'transfer_calc','w_review') && fieldVisible(user,'transfer_calc','w_review_transfer_fee') && fieldEditable(user,'transfer_calc','w_review_transfer_fee')
+                      const showRenewalFineToggle = k === 'iqamaRenewal' && (iqamaExpired || iqamaInGracePeriod) && stageVisible(user,'transfer_calc','w_review') && fieldVisible(user,'transfer_calc','w_late_fine')
                       return (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.04)', fontSize: 12, gap: 8 }}>
                         <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -1722,19 +1800,26 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                     <span style={{ color: 'var(--tx2)', fontWeight: 500 }}>{T('إجمالي الرسوم','Subtotal')}</span>
                     <span style={{ fontWeight: 500, color: 'var(--tx)', fontSize: 14 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(subtotal)}</span> {T('ريال','SAR')}</span>
                   </div>
-                  {/* Absher discount — aligned with subtotal row style */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button type="button" onClick={() => set('absherBalance_on', !absherOn)} style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${absherOn ? absherClr : 'rgba(255,255,255,.45)'}`, background: absherOn ? absherClr : 'rgba(255,255,255,.05)', cursor: 'pointer', transition: '.2s', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                        {absherOn && <Check size={11} strokeWidth={3.5} />}
-                      </button>
-                      <span style={{ color: absherOn ? absherClr : 'rgba(255,255,255,.55)', fontWeight: 500, fontSize: 12, transition: '.2s' }}>{T('رصيد أبشر (خصم)','Absher Balance (discount)')}</span>
-                    </div>
-                    <span style={{ fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: absherOn ? 1 : .55, transition: '.2s' }}>
-                      <input type="text" inputMode="decimal" disabled={!absherOn} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ width: 88, height: 26, padding: '0 8px', borderRadius: 7, border: `1px solid ${absherOn ? absherClr + '55' : 'rgba(255,255,255,.08)'}`, background: absherOn ? absherClr + '0d' : 'rgba(255,255,255,.02)', fontFamily: F, fontSize: 14, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center', transition: '.2s' }} />
-                      <span style={{ fontSize: 14, fontWeight: 500 }}>{T('ريال','SAR')}</span>
+                  {/* Absher discount — framed box (design 3): floating title + toggle switch notched into the border */}
+                  {stageVisible(user,'transfer_calc','w_review') && fieldVisible(user,'transfer_calc','w_absher') && (
+                  <div style={{ position: 'relative', border: `1.5px solid ${absherOn ? absherClr + '73' : 'rgba(255,255,255,.12)'}`, borderRadius: 12, padding: '16px 12px 12px', margin: '10px 0 2px', transition: '.2s' }}>
+                    {/* العنوان العائم — أعلى اليمين */}
+                    <span style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 12, background: 'var(--modal-bg)', padding: '0 7px', fontSize: 12, fontWeight: 600, color: absherOn ? absherClr : 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 5, transition: '.2s' }}>
+                      <Wallet size={13} strokeWidth={2.2} /> {T('خصم أبشر','Absher Discount')}
                     </span>
+                    {/* مفتاح التبديل — أعلى اليسار، مغروز في الإطار */}
+                    <span style={{ position: 'absolute', top: -11, [lang === 'en' ? 'right' : 'left']: 12, background: 'var(--modal-bg)', padding: '0 4px', lineHeight: 0 }}>
+                      <button type="button" disabled={!fieldEditable(user,'transfer_calc','w_absher')} onClick={() => set('absherBalance_on', !absherOn)} aria-label={T('تفعيل خصم أبشر','Toggle Absher discount')} style={{ width: 34, height: 19, borderRadius: 20, border: 'none', background: absherOn ? absherClr : 'rgba(255,255,255,.18)', position: 'relative', cursor: 'pointer', padding: 0, transition: '.2s', display: 'inline-block', verticalAlign: 'middle' }}>
+                        <span style={{ position: 'absolute', top: 2, left: absherOn ? 17 : 2, width: 15, height: 15, borderRadius: '50%', background: '#fff', transition: '.2s' }} />
+                      </button>
+                    </span>
+                    {/* حقل المبلغ */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: dir, opacity: absherOn ? 1 : .5, transition: '.2s' }}>
+                      <input type="text" inputMode="decimal" disabled={!absherOn || !fieldEditable(user,'transfer_calc','w_absher')} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, height: 36, padding: '0 12px', borderRadius: 8, border: `1px solid ${absherOn ? absherClr + '4d' : 'rgba(255,255,255,.08)'}`, background: absherOn ? absherClr + '0f' : 'rgba(255,255,255,.02)', fontFamily: F, fontSize: 14, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', textAlign: 'center', transition: '.2s' }} />
+                      <span style={{ fontSize: 13, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)' }}>{T('ريال','SAR')}</span>
+                    </div>
                   </div>
+                  )}
                   {/* Grand total */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0 0', marginTop: 2, borderTop: '1px dashed rgba(212,160,23,.25)' }}>
                     <span style={{ color: C.gold, fontWeight: 600, fontSize: 14 }}>{T('الإجمالي','Grand Total')}</span>
@@ -1757,13 +1842,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     title: t.title,
     content: wizardBody,
     valid: i === 0 ? tab0Errors.length === 0 : i === 2 ? tab2Errors.length === 0 : true,
-    error: i === 2 ? (tab2Errors[0] || '') : i === 3 ? (issueErr || '') : '',
+    error: i === 0 && dupQuote ? T(`يوجد حسبة تنازل ${dupQuote.status === 'approved' ? 'مصدّقة' : 'مفوترة'} سارية لهذا العامل (${dupQuote.branch_code || '—'})`, `An active ${dupQuote.status} transfer quote already exists for this worker (${dupQuote.branch_code || '—'})`) : i === 2 ? (tab2Errors[0] || '') : i === 3 ? (issueErr || '') : '',
   }))
 
   return (
     <>
       <FKModal open onClose={() => { setIssueErr(null); onClose && onClose() }}
-        title={T('تسعيرة تنازل','Transfer Quote')} Icon={Tag} variant="create"
+        title={T('حسبة نقل الكفالة','Sponsorship Transfer Calculation')} Icon={Tag} variant="create"
         width={640} height={720}
         page={tab} pages={pages}
         onNext={onNextClick} onBack={() => { setErrors({}); setIssueErr(null); setTab(Math.max(0, tab - 1)) }}
@@ -1804,8 +1889,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(39,160,70,.3)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 14px' }}>
                 <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'rgba(39,160,70,.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#27a046' }}><Check size={32} strokeWidth={2.5} /></div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: '#27a046', textAlign: 'center' }}>{T('تم إصدار التسعيرة','Quote Issued')}</div>
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار تسعيرة تنازل لـ ${issuedQuote.workerName} بنجاح`, `Transfer quote successfully issued for ${issuedQuote.workerName}`)}</div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: '#27a046', textAlign: 'center' }}>{T('تم إصدار الحسبة','Calculation Issued')}</div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار حسبة نقل الكفالة لـ ${issuedQuote.workerName} بنجاح`, `Sponsorship transfer calculation successfully issued for ${issuedQuote.workerName}`)}</div>
                 {issuedQuote.warnings && issuedQuote.warnings.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 }}>
                     {issuedQuote.warnings.map((w, i) => {
@@ -1821,12 +1906,12 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {row(T('رقم طلب التسعيرة','Quote No.'), noDash(issuedQuote.quoteNo), true)}
+                {row(T('رقم طلب الحسبة','Calculation No.'), noDash(issuedQuote.quoteNo), true)}
                 {row(T('رقم الإقامة','Iqama Number'), issuedQuote.iqNo, true)}
                 {row(T('الإجمالي','Total'), `${nm(issuedQuote.total.toFixed(2))} ${T('ريال','SAR')}`, false, { unit: T('ريال','SAR'), num: nm(issuedQuote.total.toFixed(2)) })}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-                <ActionButton dir="back" Icon={lang === 'en' ? ChevronRight : ChevronLeft} color={C.gold} onClick={() => { setIssuedQuote(null); if (typeof onGoToTransferCalc === 'function') onGoToTransferCalc(issuedQuote.quoteNo); else onClose && onClose() }}>{T('التسعيرة','Quote')}</ActionButton>
+                <ActionButton dir="back" Icon={lang === 'en' ? ChevronRight : ChevronLeft} color={C.gold} onClick={() => { setIssuedQuote(null); if (typeof onGoToTransferCalc === 'function') onGoToTransferCalc(issuedQuote.quoteNo); else onClose && onClose() }}>{T('الحسبة','Calculation')}</ActionButton>
               </div>
             </div>
           </div>
@@ -1847,9 +1932,11 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             </div>
 
             {hrsdCheck.phase === 'loading' && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid rgba(11,109,61,.18)`, borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '24px 0 8px' }}>
+                <div style={{ width: 36, height: 36, border: `3px solid rgba(11,109,61,.18)`, borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'mq-spin 0.8s linear infinite' }} />
                 <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بوزارة العمل…','Connecting to Ministry of Labor…')}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{T('قد يستغرق موقع وزارة العمل بضع ثوانٍ','The Ministry of Labor site may take a few seconds')}</div>
+                {(hrsdCheck.errorCount || 0) >= HRSD_SKIP_AFTER && <button onClick={() => { closeHrsdCheck(); setErrors({}); setTab(1) }} style={{ marginTop: 4, height: 38, padding: '0 18px', borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>}
               </div>
             )}
 
@@ -1883,7 +1970,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
             {hrsdCheck.phase === 'verifying' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid rgba(11,109,61,.18)`, borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'kc-spin 0.8s linear infinite' }} />
+                <div style={{ width: 36, height: 36, border: `3px solid rgba(11,109,61,.18)`, borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'mq-spin 0.8s linear infinite' }} />
                 <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري التحقق…','Verifying…')}</div>
               </div>
             )}
@@ -1896,7 +1983,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{hrsdCheck.error}</div>
                 </div>
                 <button onClick={startHrsdCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(11,109,61,.4)', background: 'rgba(11,109,61,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
-                <button onClick={() => { closeHrsdCheck(); setErrors({}); setTab(1) }} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>
+                {(hrsdCheck.errorCount || 0) >= HRSD_SKIP_AFTER
+                  ? <button onClick={() => { closeHrsdCheck(); setErrors({}); setTab(1) }} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>
+                  : null}
               </div>
             )}
 

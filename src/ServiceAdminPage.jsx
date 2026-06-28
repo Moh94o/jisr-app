@@ -173,7 +173,7 @@ const ALL_SERVICES=[
 {id:'profession_change',name_ar:'تغيير المهنة',Icon:UserCog,defaultBillable:true,group:'other'},
 {id:'external_transfer_approval',name_ar:'الموافقة للنقل الخارجي',Icon:BadgeCheck,defaultBillable:false,group:'other'},
 {id:'name_translation',name_ar:'تعديل الراتب',Icon:Wallet,defaultBillable:true,group:'other'},
-{id:'exit_reentry_visa',name_ar:'إصدار / تمديد تأشيرة خروج وعودة',Icon:Plane,defaultBillable:true,group:'other'},
+{id:'exit_reentry_visa',name_ar:'إصدار / تمديد خروج وعودة',Icon:Plane,defaultBillable:true,group:'other'},
 {id:'final_exit_visa',name_ar:'خروج نهائي',Icon:PlaneTakeoff,defaultBillable:true,group:'other'},
 {id:'passport_update',name_ar:'تحديث بيانات الجواز',Icon:IdCard,defaultBillable:true,group:'other'},
 {id:'iqama_print',name_ar:'طباعة الإقامة',Icon:Printer,defaultBillable:true,group:'other'},
@@ -222,8 +222,10 @@ const VISA_FIELDS=[
 {k:'residence',l:'الحد الأدنى لدفعة إصدار الإقامة',d:0,sfx:'ريال/تأشيرة'},
 {k:'defaultTotal',l:'الحد الأدنى للسعر الإجمالي',d:0,sfx:'ريال/تأشيرة',_footer:true}
 ]
-// Temporary visa is paid in a single payment — only the total minimum applies.
+// Temporary visa = دفعتان (إصدار + توكيل). حدّان دنيان للدفعتين + الحد الأدنى للإجمالي.
 const VISA_TEMP_FIELDS=[
+{k:'issuance',l:'الحد الأدنى لدفعة إصدار التأشيرة',d:2000,sfx:'ريال/تأشيرة'},
+{k:'authorization',l:'الحد الأدنى لدفعة الوكالة',d:2000,sfx:'ريال/تأشيرة'},
 {k:'defaultTotal',l:'الحد الأدنى للسعر الإجمالي',d:0,sfx:'ريال/تأشيرة',_footer:true}
 ]
 // رخصة العمل بدون إعفاء — حقول خاصّة بتجديد الإقامة فقط (تُستخدم عند اختيار «لا يوجد إعفاء» في الحاسبة)
@@ -305,7 +307,7 @@ const IQAMA_STEP_NOTES={
 }
 const PRICING_SCHEMA={
 work_visa_permanent:{store:'visaPricingMin_permanent',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة العمل الدائمة'},
-work_visa_temporary:{store:'visaPricingMin_temporary',fields:VISA_TEMP_FIELDS,note:'الحد الأدنى لتأشيرة العمل المؤقتة (دفعة واحدة)'},
+work_visa_temporary:{store:'visaPricingMin_temporary',fields:VISA_TEMP_FIELDS,note:'الحدود الدنيا لتأشيرة العمل المؤقتة (إصدار + توكيل)'},
 kafala_transfer:{store:'kafalaPricingConfig',fields:KAFALA_FIELDS,note:'إعدادات نقل الكفالة فقط'},
 iqama_renewal:{store:'iqamaRenewalPricingConfig',fields:IQAMA_FIELDS,note:'إعدادات تجديد الإقامة فقط'},
 ajeer_contract:{store:'servicesPricingConfig',sub:'ajeer',fields:[

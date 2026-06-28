@@ -220,7 +220,7 @@ export const MODULE_META = {
   svc_profession_change: { label_ar: 'تغيير المهنة', icon: 'transaction', sort: 67 },
   svc_external_transfer: { label_ar: 'الموافقة للنقل الخارجي', icon: 'transaction', sort: 68 },
   svc_salary: { label_ar: 'تعديل الراتب', icon: 'transaction', sort: 69 },
-  svc_exit_reentry: { label_ar: 'تأشيرة خروج وعودة', icon: 'transaction', sort: 70 },
+  svc_exit_reentry: { label_ar: 'خروج وعودة', icon: 'transaction', sort: 70 },
   svc_final_exit: { label_ar: 'خروج نهائي', icon: 'transaction', sort: 71 },
   svc_passport_update: { label_ar: 'تحديث بيانات الجواز', icon: 'transaction', sort: 72 },
   svc_iqama_print: { label_ar: 'طباعة الإقامة', icon: 'transaction', sort: 73 },
@@ -292,6 +292,7 @@ export const TAB_CARDS = {
     C('installments_payments', 'الدفعات والمدفوعات', 'core', [ca('edit', 'تعديل الدفعة', 'edit')]),
     C('agent', 'الوسيط', 'core', EDIT), C('notes', 'الملاحظات', 'core', EDIT),
     C('service_transaction', 'معاملة الخدمة'),
+    C('comments', 'التعليقات', 'core', CMT_NOTE), C('financial_summary', 'المبلغ الإجمالي'),
   ],
   payments: [C('payment_summary', 'ملخص السداد'), C('confirm_payment', 'تأكيد السداد', 'core', [ca('pay', 'توثيق السداد')])],
   ext_payments: [],
@@ -300,10 +301,19 @@ export const TAB_CARDS = {
     C('verification_details', 'بيانات التحقق', 'core', [ca('edit', 'تعبئة / تعديل البيانات', 'edit')]),
     C('action', 'الإجراء', 'core', [ca('edit', 'تأكيد التحقق', 'edit'), ca('add_note', 'إضافة ملاحظة')]),
   ],
+  // حسبة نقل الكفالة (transfer quotations) — detail cards (none existed before).
+  transfer_calc: [
+    C('worker', 'العامل', 'core', EDIT), C('professional', 'البيانات المهنية', 'core', EDIT),
+    C('conditions', 'شروط النقل', 'core', EDIT), C('pricing', 'التسعيرة', 'core', EDIT),
+    C('comments', 'التعليقات', 'core', CMT_NOTE), C('notes', 'ملاحظات'),
+    C('financial_summary', 'الملخص المالي والإجراءات', 'core', [ca('approve', 'تصديق الحسبة'), ca('cancel', 'إلغاء الحسبة')]),
+  ],
+  // حسبة تجديد الإقامة — cards reconciled with the real page (writes are direct).
   renewal_calc: [
-    C('worker_data', 'بيانات العامل'), C('professional_data', 'البيانات المهنية'),
-    C('renewal_options', 'خيارات التجديد'), C('pricing', 'التسعيرة'),
-    C('financial_summary', 'الملخص المالي'), C('timeline', 'سجل المراحل', 'core', [ca('approve', 'تصديق التسعيرة')]),
+    C('worker_data', 'العامل والمنشأة', 'core', EDIT), C('renewal_options', 'خيارات التجديد', 'core', EDIT),
+    C('pricing', 'التسعيرة', 'core', EDIT), C('financial_summary', 'الملخص المالي'),
+    C('comments', 'التعليقات', 'core', CMT_NOTE),
+    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('approve', 'تصديق الحسبة'), ca('cancel', 'إلغاء الحسبة')]),
   ],
   sync_hub: [C('facilities_overview', 'المنشآت'), C('sync_activities_log', 'أنشطة المزامنة')],
   sync_log: [C('sync_activities_feed', 'أنشطة المزامنة')],
@@ -402,10 +412,276 @@ export const CARD_GROUP_LABELS = {
   muqeem: 'مقيم (Muqeem)',
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// GRANULAR LAYER — fields, modals, wizard stages (per-user ui_visibility)
+// ────────────────────────────────────────────────────────────────────────
+// Below the card sits the FIELD. Each field can be hidden (read) and/or locked
+// (edit) per user. Modals (popups) get an access toggle; wizard STAGES get a
+// visibility toggle. All three are stored on users.ui_visibility (per-user,
+// default allowed/visible) and read by lib/permissions.js
+// (fieldVisible / fieldEditable / modalAllowed / stageVisible). The editor in
+// PermissionsPage.jsx renders every entry below automatically.
+//
+//   F(key, label_ar, group, opts)  group = the card key (detail page) OR the
+//     stage key (wizard) this field lays out under. opts.edit:true ⇒ the field
+//     has an editable input (editor shows an edit-LOCK toggle; opts.table+col
+//     give the physical column the DB field-lock trigger guards). Field keys
+//     are UNIQUE within a tab.
+//   M(key, label_ar)  a popup/modal whose opening can be blocked.
+//   S(key, label_ar)  a wizard step whose visibility can be toggled.
+// ════════════════════════════════════════════════════════════════════════
+const F = (key, label_ar, group, opts = {}) => ({
+  key, label_ar, group, edit: !!opts.edit, table: opts.table || null,
+  col: opts.col || null, cols: opts.cols || null,   // cols: a field backed by >1 column
+})
+const M = (key, label_ar) => ({ key, label_ar })
+const S = (key, label_ar) => ({ key, label_ar })
+
+// Tabs that expose a SERVICE-TYPE scope control (which service types the user
+// may see) and/or a STAT-CARDS mode control (real / zero / hidden) in the editor.
+export const TAB_SERVICE_SCOPE = ['invoices']
+export const TAB_STATS_MODE = ['invoices']
+
+// Filled per tab as each page is wired. Empty tabs simply show no field/modal/
+// stage controls in the editor (graceful — nothing to gate yet).
+export const TAB_FIELDS = {
+  // ── العملاء (clients) ──────────────────────────────────────────────
+  admin_clients: [
+    // بطاقة بيانات العميل (editable via the edit modal → DB-locked)
+    F('ci_name', 'الاسم', 'client_info', { edit: true, table: 'clients', col: 'name_ar' }),
+    F('ci_name_en', 'الاسم بالإنجليزية', 'client_info'),
+    F('ci_id_number', 'رقم الهوية', 'client_info', { edit: true, table: 'clients', col: 'id_number' }),
+    F('ci_phone', 'الجوال', 'client_info', { edit: true, table: 'clients', col: 'phone' }),
+    F('ci_nationality', 'الجنسية', 'client_info', { edit: true, table: 'clients', col: 'nationality_id' }),
+    F('ci_branch', 'المكتب', 'client_info', { edit: true, table: 'clients', cols: ['branch_id', 'branch_ids'] }),
+    F('ci_joined', 'تاريخ الإضافة', 'client_info'),
+    // سجل الفواتير (عرض فقط)
+    F('il_invoice_no', 'رقم الفاتورة', 'invoices_log'),
+    F('il_service', 'الخدمة', 'invoices_log'),
+    F('il_branch', 'المكتب', 'invoices_log'),
+    F('il_total', 'الإجمالي', 'invoices_log'),
+    F('il_paid', 'المدفوع', 'invoices_log'),
+    F('il_remaining', 'المتبقي', 'invoices_log'),
+    // الملخص المالي (عرض فقط)
+    F('fs_invoiced', 'إجمالي الفوترة', 'financial_summary'),
+    F('fs_paid', 'المسدّد', 'financial_summary'),
+    F('fs_remaining', 'المتبقي', 'financial_summary'),
+    F('fs_paid_pct', 'نسبة السداد', 'financial_summary'),
+    // إحصاءات (عرض فقط)
+    F('st_workers', 'عدد العمال', 'stats'),
+    F('st_visas', 'عدد التأشيرات', 'stats'),
+    F('st_kafala', 'نقل الكفالة', 'stats'),
+    F('st_invoices', 'عدد الفواتير', 'stats'),
+    F('st_last_invoice', 'آخر فاتورة', 'stats'),
+  ],
+  // ── حسبة نقل الكفالة (transfer_calc → table transfer_calculation) ───
+  // Editable fields key = column name (DB field-lock + the update-quotation
+  // edge function both resolve column→key 1:1 via field_lock_map).
+  transfer_calc: [
+    F('worker_name', 'الإسم', 'worker', { edit: true, table: 'transfer_calculation', col: 'worker_name' }),
+    F('iqama_number', 'رقم الإقامة', 'worker', { edit: true, table: 'transfer_calculation', col: 'iqama_number' }),
+    F('phone', 'رقم الجوال', 'worker', { edit: true, table: 'transfer_calculation', col: 'phone' }),
+    F('nationality_id', 'الجنسية', 'worker', { edit: true, table: 'transfer_calculation', cols: ['nationality_id', 'nationality'] }),
+    F('dob', 'تاريخ الميلاد', 'worker', { edit: true, table: 'transfer_calculation', col: 'dob' }),
+    F('occupation_name_ar', 'المهنة الحالية', 'professional', { edit: true, table: 'transfer_calculation', col: 'occupation_name_ar' }),
+    F('new_occupation_name_ar', 'المهنة الجديدة', 'professional', { edit: true, table: 'transfer_calculation', col: 'new_occupation_name_ar' }),
+    F('change_profession', 'تغيير المهنة', 'professional', { edit: true, table: 'transfer_calculation', col: 'change_profession' }),
+    F('sponsor_changes', 'عدد مرات نقل الخدمات', 'professional', { edit: true, table: 'transfer_calculation', col: 'sponsor_changes' }),
+    F('hrsd_worker_status', 'حالة العامل', 'professional', { edit: true, table: 'transfer_calculation', col: 'hrsd_worker_status' }),
+    F('resident_status_ar', 'حالة المقيم', 'professional', { edit: true, table: 'transfer_calculation', col: 'resident_status_ar' }),
+    F('iqama_expiry_gregorian', 'انتهاء الإقامة (ميلادي)', 'professional', { edit: true, table: 'transfer_calculation', col: 'iqama_expiry_gregorian' }),
+    F('iqama_expiry_hijri', 'انتهاء الإقامة (هجري)', 'professional', { edit: true, table: 'transfer_calculation', col: 'iqama_expiry_hijri' }),
+    F('renewal_period', 'مدة التجديد', 'conditions'),
+    F('has_notice_period', 'فترة الإشعار', 'conditions', { edit: true, table: 'transfer_calculation', col: 'has_notice_period' }),
+    F('employer_consent', 'موافقة صاحب العمل', 'conditions', { edit: true, table: 'transfer_calculation', col: 'employer_consent' }),
+    F('transfer_fee', 'رسوم نقل الكفالة', 'pricing', { edit: true, table: 'transfer_calculation', col: 'transfer_fee' }),
+    F('iqama_renewal_fee', 'تجديد الإقامة', 'pricing', { edit: true, table: 'transfer_calculation', col: 'iqama_renewal_fee' }),
+    F('work_permit_fee', 'رخصة العمل', 'pricing', { edit: true, table: 'transfer_calculation', col: 'work_permit_fee' }),
+    F('prof_change_fee', 'رسوم تغيير المهنة', 'pricing', { edit: true, table: 'transfer_calculation', col: 'prof_change_fee' }),
+    F('medical_fee', 'التأمين الطبي', 'pricing', { edit: true, table: 'transfer_calculation', col: 'medical_fee' }),
+    F('late_fine_amount', 'غرامة الإقامة', 'pricing', { edit: true, table: 'transfer_calculation', col: 'late_fine_amount' }),
+    F('office_fee', 'رسوم المكتب', 'pricing', { edit: true, table: 'transfer_calculation', col: 'office_fee' }),
+    F('absher_discount', 'خصم أبشر', 'pricing', { edit: true, table: 'transfer_calculation', col: 'absher_discount' }),
+    F('manual_discount', 'خصم المكتب', 'pricing', { edit: true, table: 'transfer_calculation', col: 'manual_discount' }),
+    F('pr_extras', 'بنود إضافية', 'pricing'),
+    F('pr_subtotal', 'الإجمالي الابتدائي', 'pricing'),
+    F('pr_total', 'الإجمالي النهائي', 'pricing'),
+    F('sum_total', 'الإجمالي', 'financial_summary'),
+    F('sum_office_fee_net', 'الرسوم المكتبية', 'financial_summary'),
+    F('sum_government_fees', 'الرسوم الحكومية', 'financial_summary'),
+    F('sum_absher', 'خصم أبشر', 'financial_summary'),
+    F('sum_manual', 'خصم المكتب', 'financial_summary'),
+    F('sum_duration', 'المدة المتوقعة', 'financial_summary'),
+    F('sum_expiry', 'الانتهاء المتوقع', 'financial_summary'),
+    F('sum_invoice', 'الفاتورة', 'financial_summary'),
+    // ── حاسبة نقل الكفالة (KafalaCalculator wizard) — UI-only (create flow) ──
+    F('w_iqama', 'رقم الإقامة', 'w_worker_data'), F('w_dob', 'تاريخ الميلاد', 'w_worker_data'),
+    F('w_nationality', 'الجنسية', 'w_worker_data'), F('w_phone', 'رقم الجوال', 'w_worker_data'),
+    F('w_iqama_expiry', 'انتهاء الإقامة', 'w_worker_data'), F('w_occupation', 'المهنة', 'w_worker_data'),
+    F('w_d_name', 'الإسم', 'w_worker_details'), F('w_d_iqama', 'رقم الإقامة', 'w_worker_details'),
+    F('w_d_age', 'العمر', 'w_worker_details'), F('w_d_occupation', 'المهنة', 'w_worker_details'),
+    F('w_d_worker_status', 'حالة العامل', 'w_worker_details'), F('w_d_muqeem_status', 'حالة مقيم', 'w_worker_details'),
+    F('w_d_iqama_expiry_g', 'انتهاء الإقامة (ميلادي)', 'w_worker_details'), F('w_d_iqama_expiry_h', 'انتهاء الإقامة (هجري)', 'w_worker_details'),
+    F('w_renewal_period', 'مدة التجديد', 'w_pricing'), F('w_transfer_fee', 'رسوم النقل', 'w_pricing'),
+    F('w_change_profession', 'تغيير المهنة', 'w_pricing'), F('w_new_occupation', 'المهنة الجديدة', 'w_pricing'),
+    F('w_extras', 'رسوم إضافية', 'w_pricing'),
+    F('w_review_transfer_fee', 'رسوم نقل الكفالة', 'w_review'), F('w_late_fine', 'غرامة التأخير', 'w_review'),
+    F('w_absher', 'خصم أبشر', 'w_review'),
+  ],
+  // ── حسبة تجديد الإقامة (renewal_calc → iqama_renewal_calculation, direct writes) ──
+  renewal_calc: [
+    F('worker_name', 'الاسم', 'worker_data', { edit: true, table: 'iqama_renewal_calculation', col: 'worker_name' }),
+    F('iqama_number', 'رقم الإقامة', 'worker_data', { edit: true, table: 'iqama_renewal_calculation', col: 'iqama_number' }),
+    F('phone', 'رقم الجوال', 'worker_data', { edit: true, table: 'iqama_renewal_calculation', col: 'phone' }),
+    F('nationality_id', 'الجنسية', 'worker_data', { edit: true, table: 'iqama_renewal_calculation', cols: ['nationality_id', 'nationality'] }),
+    F('dob', 'تاريخ الميلاد / العمر', 'worker_data', { edit: true, table: 'iqama_renewal_calculation', col: 'dob' }),
+    F('rd_occupation', 'المهنة الحالية', 'worker_data'),
+    F('rd_iqama_expiry', 'انتهاء الإقامة', 'worker_data'),
+    F('rd_fac_unified', 'الرقم الموحد للمنشأة', 'worker_data'),
+    F('rd_fac_hrsd', 'رقم وزارة العمل', 'worker_data'),
+    F('rd_fac_gosi', 'رقم التأمينات', 'worker_data'),
+    F('exemption', 'الإعفاء', 'renewal_options', { edit: true, table: 'iqama_renewal_calculation', col: 'exemption' }),
+    F('renewal_months', 'مدة التجديد', 'renewal_options', { edit: true, table: 'iqama_renewal_calculation', col: 'renewal_months' }),
+    F('change_profession', 'تغيير المهنة', 'renewal_options', { edit: true, table: 'iqama_renewal_calculation', col: 'change_profession' }),
+    F('new_occupation_name_ar', 'المهنة الجديدة', 'renewal_options', { edit: true, table: 'iqama_renewal_calculation', col: 'new_occupation_name_ar' }),
+    F('work_permit_expiry', 'انتهاء رخصة العمل', 'renewal_options', { edit: true, table: 'iqama_renewal_calculation', col: 'work_permit_expiry' }),
+    F('iqama_renewal_fee', 'تجديد الإقامة', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'iqama_renewal_fee' }),
+    F('work_permit_fee', 'رخصة العمل', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'work_permit_fee' }),
+    F('prof_change_fee', 'رسوم تغيير المهنة', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'prof_change_fee' }),
+    F('medical_fee', 'التأمين الطبي', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'medical_fee' }),
+    F('late_fine_amount', 'غرامة تأخّر الإقامة', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'late_fine_amount' }),
+    F('office_fee', 'رسوم المكتب', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'office_fee' }),
+    F('gov_excess', 'الزائد عن الحدود الحكومية', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'gov_excess' }),
+    F('absher_discount', 'خصم أبشر', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'absher_discount' }),
+    F('manual_discount', 'خصم المكتب', 'pricing', { edit: true, table: 'iqama_renewal_calculation', col: 'manual_discount' }),
+    F('rp_extras', 'بنود إضافية', 'pricing'),
+    F('rp_office_cover', 'الخصم (تغطية المكتب)', 'pricing'),
+    F('rp_total', 'الإجمالي النهائي', 'pricing'),
+    F('rf_office_fee_net', 'رسوم المكتب', 'financial_summary'),
+    F('rf_government_fees', 'الرسوم الحكومية', 'financial_summary'),
+    F('rf_office_cover', 'الخصم', 'financial_summary'),
+    F('rf_absher', 'خصم أبشر', 'financial_summary'),
+    F('rf_manual', 'خصم المكتب', 'financial_summary'),
+    F('rf_duration', 'المدة المتوقعة', 'financial_summary'),
+    F('rf_expiry', 'الانتهاء المتوقع', 'financial_summary'),
+    F('rf_invoice', 'الفاتورة', 'financial_summary'),
+    // ── حاسبة تجديد الإقامة (RenewalCalculator wizard) — UI-only (create flow) ──
+    F('rw_search', 'بحث العامل', 'rw_worker'), F('rw_phone', 'رقم الجوال', 'rw_worker'),
+    F('rw_iqama', 'رقم الإقامة', 'rw_worker'), F('rw_occupation', 'الوظيفة', 'rw_worker'),
+    F('rw_expiry', 'انتهاء الإقامة', 'rw_worker'), F('rw_age', 'العمر', 'rw_worker'),
+    F('rw_d_name', 'الإسم', 'rw_details'), F('rw_d_iqama', 'رقم الإقامة', 'rw_details'),
+    F('rw_d_expiry', 'انتهاء الإقامة', 'rw_details'), F('rw_d_age', 'العمر', 'rw_details'),
+    F('rw_d_occupation', 'الوظيفة', 'rw_details'), F('rw_d_fac_unified', 'الرقم الموحد', 'rw_details'),
+    F('rw_d_fac_hrsd', 'رقم الموارد البشرية', 'rw_details'), F('rw_d_fac_gosi', 'رقم التأمينات', 'rw_details'),
+    F('rw_exemption', 'الإعفاء', 'rw_renewal_options'), F('rw_period', 'مدة التجديد', 'rw_renewal_options'),
+    F('rw_change_profession', 'تغيير المهنة', 'rw_renewal_options'), F('rw_new_occupation', 'المهنة الجديدة', 'rw_renewal_options'),
+    F('rw_work_permit', 'رخصة العمل', 'rw_renewal_options'),
+    F('rw_fees', 'بنود الرسوم', 'rw_pricing'),
+    F('rw_review', 'مراجعة', 'rw_review'),
+    F('rw_absher', 'خصم أبشر', 'rw_cost'), F('rw_manual', 'خصم المكتب', 'rw_cost'), F('rw_cost_rows', 'بنود التكلفة', 'rw_cost'),
+  ],
+  // ── الفواتير (invoices) — editable fields locked on invoice-owned tables.
+  // client/agent/worker fields are display-only here (their DB edit-locks are
+  // owned by admin_clients/admin_agents/workers tabs to avoid double-ownership).
+  invoices: [
+    F('client_name', 'اسم العميل', 'client'), F('client_id_number', 'رقم هوية العميل', 'client'),
+    F('client_phone', 'جوال العميل', 'client'), F('client_nationality', 'جنسية العميل', 'client'),
+    F('worker_name', 'اسم العامل', 'worker_facility'), F('worker_iqama_number', 'رقم الإقامة', 'worker_facility'),
+    F('worker_phone', 'جوال العامل', 'worker_facility'), F('worker_nationality', 'جنسية العامل', 'worker_facility'),
+    F('worker_occupation', 'المهنة', 'worker_facility'), F('facility_name', 'المنشأة', 'worker_facility'),
+    F('facility_unified_number', 'الرقم الموحد', 'worker_facility'), F('facility_hrsd_number', 'رقم مكتب العمل', 'worker_facility'),
+    F('facility_gosi_number', 'رقم التأمينات', 'worker_facility'),
+    F('service_description', 'وصف الخدمة', 'service', { edit: true, table: 'other_applications', col: 'description' }),
+    F('service_office', 'الجهة / المكتب', 'service'), F('service_chamber_text', 'نص الطلب', 'service'),
+    F('visa_office', 'مكتب التأشيرة', 'service'), F('visa_composition', 'تركيب التأشيرة', 'service'),
+    F('visa_quantity', 'عدد التأشيرات', 'service', { edit: true, table: 'service_requests', col: 'quantity' }),
+    F('visa_border_number', 'رقم الحدود', 'service', { edit: true, table: 'visa_applications', col: 'border_number' }),
+    F('visa_unified_number', 'الرقم الموحد للتأشيرة', 'service', { edit: true, table: 'visa_applications', col: 'unified_number' }),
+    F('visa_number', 'رقم التأشيرة', 'service', { edit: true, table: 'visa_applications', col: 'visa_number' }),
+    F('pricing_total', 'إجمالي التسعير', 'pricing', { edit: true, table: 'invoices', col: 'total_amount' }),
+    F('pricing_breakdown', 'بنود التسعير', 'pricing', { edit: true, table: 'invoices', col: 'pricing_breakdown' }),
+    F('pricing_office_fees', 'رسوم المكتب', 'pricing'), F('pricing_government_fees', 'الرسوم الحكومية', 'pricing'),
+    F('pricing_absher_discount', 'خصم أبشر', 'pricing'), F('pricing_office_discount', 'خصم المكتب', 'pricing'),
+    F('installment_amount', 'مبلغ الدفعة', 'installments_payments', { edit: true, table: 'installments', col: 'total_amount' }),
+    F('installment_order', 'ترتيب الدفعة', 'installments_payments'), F('installment_status', 'حالة الدفعة', 'installments_payments'),
+    F('installment_expected_date', 'التاريخ المتوقع', 'installments_payments'),
+    F('payment_amount', 'مبلغ المدفوع', 'installments_payments', { edit: true, table: 'payments', col: 'amount' }),
+    F('payment_method', 'طريقة الدفع', 'installments_payments', { edit: true, table: 'payments', col: 'payment_method_id' }),
+    F('payment_bank_reference', 'المرجع البنكي', 'installments_payments', { edit: true, table: 'payments', col: 'bank_reference' }),
+    F('payment_notes', 'ملاحظة المدفوع', 'installments_payments', { edit: true, table: 'payments', col: 'notes' }),
+    F('payment_date', 'تاريخ الدفع', 'installments_payments'), F('payment_creator', 'بواسطة', 'installments_payments'),
+    F('payment_receipt', 'الإيصال', 'installments_payments'),
+    F('note_public', 'نص الملاحظة', 'notes', { edit: true, table: 'invoices', col: 'note_public' }),
+    F('agent_name', 'اسم الوسيط', 'agent'), F('agent_id_number', 'رقم هوية الوسيط', 'agent'),
+    F('agent_phone', 'جوال الوسيط', 'agent'), F('agent_nationality', 'جنسية الوسيط', 'agent'),
+    F('txn_stage_status', 'حالة المرحلة', 'service_transaction'),
+    F('comment_text', 'نص التعليق', 'comments'), F('comment_attachments', 'مرفقات التعليق', 'comments'),
+    F('comment_creator', 'كاتب التعليق', 'comments'), F('comment_datetime', 'تاريخ التعليق', 'comments'),
+    F('fin_total', 'الإجمالي', 'financial_summary'), F('fin_paid', 'المدفوع', 'financial_summary'),
+    F('fin_remaining', 'المتبقي', 'financial_summary'), F('fin_pay_ratio', 'نسبة السداد', 'financial_summary'),
+    F('fin_installments_count', 'عدد الدفعات', 'financial_summary'), F('fin_payments_count', 'عدد المدفوعات', 'financial_summary'),
+    F('fin_expected_duration', 'المدة المتوقعة', 'financial_summary'), F('fin_expected_expiry', 'الانتهاء المتوقع', 'financial_summary'),
+    F('fin_quote_ref', 'مرجع التسعيرة', 'financial_summary'),
+  ],
+}
+export const TAB_MODALS = {
+  admin_clients: [M('client_edit', 'تعديل بيانات العميل')],
+  invoices: [
+    M('inv_action_payment', 'تسجيل دفعة'), M('inv_action_refund', 'استرجاع دفعة'),
+    M('inv_action_cancel', 'إلغاء الفاتورة'), M('inv_action_print', 'طباعة الفاتورة'),
+    M('inv_action_done', 'إنجاز مرحلة المعاملة'), M('inv_action_salary_return', 'إرجاع الراتب'),
+    M('inv_worker_pick', 'تغيير العامل'), M('inv_client_edit', 'تعديل بيانات العميل'),
+    M('inv_agent_edit', 'تعديل بيانات الوسيط'), M('inv_service_edit', 'تعديل تفاصيل الخدمة'),
+    M('inv_note_edit', 'تعديل الملاحظة'), M('inv_border_numbers', 'بيانات التأشيرة / الحدود'),
+    M('inv_visa_stage_insurance', 'بيانات التأمين'), M('inv_visa_stage_work_permit', 'بيانات رخصة العمل'),
+    M('inv_iqama_issue', 'إصدار الإقامة'), M('inv_payment_edit', 'تعديل الدفعة'),
+    M('inv_pricing_edit', 'تعديل التسعير'), M('inv_permanent_visa_edit', 'تعديل تأشيرة وإقامة دائمة'),
+    M('inv_comment_add', 'إضافة تعليق'),
+  ],
+  transfer_calc: [
+    M('card_edit', 'نافذة تعديل الكروت'), M('approve', 'تصديق الحسبة'),
+    M('cancel', 'إلغاء الحسبة'), M('add_comment', 'إضافة تعليق'),
+  ],
+  renewal_calc: [
+    M('edit_card', 'نافذة تعديل الكروت'), M('approve_quote', 'تصديق الحسبة'),
+    M('cancel_quote', 'إلغاء الحسبة'), M('add_comment', 'إضافة تعليق'),
+  ],
+}
+export const TAB_STAGES = {
+  // حاسبة نقل الكفالة (KafalaCalculator) — 4 steps
+  transfer_calc: [
+    S('w_worker_data', 'بيانات العامل'), S('w_worker_details', 'تفاصيل العامل'),
+    S('w_pricing', 'التسعيرة'), S('w_review', 'المراجعة'),
+  ],
+  // حاسبة تجديد الإقامة (RenewalCalculator) — 6 steps
+  renewal_calc: [
+    S('rw_worker', 'العامل'), S('rw_details', 'التفاصيل'), S('rw_renewal_options', 'التجديد'),
+    S('rw_pricing', 'التسعيرة'), S('rw_review', 'المراجعة'), S('rw_cost', 'التكلفة'),
+  ],
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────
 export const tabModule = (tabId) => TAB_MODULE[tabId] || tabId
 export const tabCards = (tabId) => TAB_CARDS[tabId] || []
 export const moduleActions = (mod) => MODULE_ACTIONS[mod] || []
+export const tabFields = (tabId) => TAB_FIELDS[tabId] || []
+export const tabModals = (tabId) => TAB_MODALS[tabId] || []
+export const tabStages = (tabId) => TAB_STAGES[tabId] || []
+// Fields laid out under one card/stage group (used by the editor).
+export const groupFields = (tabId, groupKey) => (TAB_FIELDS[tabId] || []).filter(f => f.group === groupKey)
+// Every editable field bound to a physical column — drives the DB field-lock
+// map seed (scripts/genFieldLockSql.mjs) so the trigger knows column → key.
+export const lockableFields = () => {
+  const out = []
+  for (const [tab, fields] of Object.entries(TAB_FIELDS)) {
+    for (const f of (fields || [])) {
+      if (!f.edit || !f.table) continue
+      const cols = f.cols || (f.col ? [f.col] : [])
+      for (const c of cols) out.push({ tab, key: f.key, table: f.table, col: c })
+    }
+  }
+  return out
+}
 
 // All modules, for migration parity / iteration.
 export const ALL_MODULES = Object.keys(MODULE_ACTIONS)

@@ -73,6 +73,7 @@ export const PAGE_VIEW_PERM = {
   payments: 'payments.view',
   deposits: 'deposits.view',
   transfer_calc: 'quotations.view',
+  renewal_calc: 'renewal_calc.view',
   admin_offices: 'admin_offices.view',
   admin_clients: 'admin_clients.view',
   admin_agents: 'admin_agents.view',
@@ -134,6 +135,52 @@ export const canCardAction = (user, tabId, cardKey, action) => {
 // Alias kept for clarity at call sites.
 export const canCardBtn = canCardAction
 
+// ── Field-level gates ───────────────────────────────────────────────────
+// Granularity below the card: every individual FIELD on a detail card / inside
+// a modal / inside a wizard stage can be (a) hidden from view and (b) locked
+// from editing, per user. Field keys are unique within a tab (see TAB_FIELDS in
+// permCatalog.js). Both default ALLOWED; GM always bypasses.
+//
+//   • field visibility → users.ui_visibility['field:<tab>:<fieldKey>'] === false
+//                        hides the field everywhere it renders (card row + the
+//                        matching input in any modal). UI-enforced.
+//   • field edit lock  → users.ui_visibility['fieldedit:<tab>:<fieldKey>'] === false
+//                        renders the input read-only/disabled AND is enforced in
+//                        the DB by the enforce_field_locks() trigger, so a
+//                        locked column can't be changed even via the API.
+export const fieldVisible = (user, tabId, fieldKey) => {
+  if (isGM(user)) return true
+  return user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] !== false
+}
+export const fieldEditable = (user, tabId, fieldKey) => {
+  if (isGM(user)) return true
+  // A hidden field is implicitly non-editable; an explicit lock also blocks edit.
+  if (user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] === false) return false
+  return user?.ui_visibility?.[`fieldedit:${tabId}:${fieldKey}`] !== false
+}
+// Per-tab bound builders (mirror cardGate) — convenient inside one page.
+export const fieldGate = (user, tabId) => (fieldKey) => fieldVisible(user, tabId, fieldKey)
+export const fieldEditGate = (user, tabId) => (fieldKey) => fieldEditable(user, tabId, fieldKey)
+
+// ── Modal / popup gate ──────────────────────────────────────────────────
+// A whole popup (record-payment, edit-client, issue-iqama, …) can be blocked
+// for a user even when they could otherwise reach its trigger. Default ALLOWED.
+// users.ui_visibility['modal:<tab>:<modalKey>'] === false ⇒ blocked. The write
+// the modal performs is still independently DB-gated by its action permission.
+export const modalAllowed = (user, tabId, modalKey) => {
+  if (isGM(user)) return true
+  return user?.ui_visibility?.[`modal:${tabId}:${modalKey}`] !== false
+}
+
+// ── Wizard-stage gate ───────────────────────────────────────────────────
+// A step inside a multi-stage calculator (Kafala / renewal wizard) can be
+// hidden for a user. Default VISIBLE. modal/stage keys are unique within a tab.
+// users.ui_visibility['stage:<tab>:<stageKey>'] === false ⇒ hidden.
+export const stageVisible = (user, tabId, stageKey) => {
+  if (isGM(user)) return true
+  return user?.ui_visibility?.[`stage:${tabId}:${stageKey}`] !== false
+}
+
 // ── Per-tab office scope ────────────────────────────────────────────────
 // Returns the office policy for a tab: { mode, ids }. `mode` is
 // 'inherit' (use the account's offices), 'all' (every office) or 'specific'.
@@ -163,4 +210,38 @@ export const canTabBranch = (user, tabId, branchId) => {
   if (offices == null) return true        // unrestricted
   if (branchId == null) return true        // record has no office
   return offices.includes(branchId)
+}
+
+// ── Per-tab SERVICE-TYPE scope (which service types a user may see) ───────
+// Stored in users.ui_visibility['svc:<tab>'] = { mode:'all'|'specific', ids:[lookup_item_id…] }.
+// Default 'all'. Used by the Invoices list/stats (and enforced in the DB RPCs).
+export const tabServicePolicy = (user, tabId) => {
+  const raw = user?.ui_visibility?.[`svc:${tabId}`]
+  if (raw && typeof raw === 'object' && raw.mode) {
+    return { mode: raw.mode, ids: Array.isArray(raw.ids) ? raw.ids : [] }
+  }
+  return { mode: 'all', ids: [] }
+}
+// The concrete service-type ids the user may see. GM/all ⇒ null (no restriction).
+export const tabServiceTypes = (user, tabId) => {
+  if (isGM(user)) return null
+  const { mode, ids } = tabServicePolicy(user, tabId)
+  return mode === 'specific' ? ids : null
+}
+export const canTabService = (user, tabId, serviceTypeId) => {
+  if (isGM(user)) return true
+  const allowed = tabServiceTypes(user, tabId)
+  if (allowed == null) return true
+  if (serviceTypeId == null) return true
+  return allowed.includes(serviceTypeId)
+}
+
+// ── Per-tab STAT-CARDS mode ──────────────────────────────────────────────
+// users.ui_visibility['stats:<tab>'] ∈ 'real' | 'zero' | 'hidden'. Default
+// 'real'. 'zero' shows the cards but always zeroed (also enforced in the stats
+// RPC so the figures can't be read via the API); 'hidden' removes them.
+export const statsMode = (user, tabId) => {
+  if (isGM(user)) return 'real'
+  const v = user?.ui_visibility?.[`stats:${tabId}`]
+  return (v === 'zero' || v === 'hidden') ? v : 'real'
 }

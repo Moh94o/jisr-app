@@ -61,7 +61,7 @@ export const SERVICE_LABELS = {
   medical_insurance:   { ar: 'تأمين طبي',                   en: 'Medical Insurance' },
   profession_change:   { ar: 'تغيير المهنة',                en: 'Occupation Change' },
   name_translation:    { ar: 'تعديل الراتب',                en: 'Salary Adjustment' },
-  exit_reentry_visa:   { ar: 'تأشيرة خروج وعودة',           en: 'Exit / Re-entry Visa' },
+  exit_reentry_visa:   { ar: 'خروج وعودة',           en: 'Exit / Re-entry Visa' },
   final_exit_visa:     { ar: 'خروج نهائي',      en: 'Final Exit' },
   passport_update:     { ar: 'تحديث بيانات الجواز',         en: 'Passport Update' },
   iqama_print:         { ar: 'طباعة الإقامة',               en: 'Iqama Print' },
