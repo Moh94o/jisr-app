@@ -491,7 +491,7 @@ export const TAB_FIELDS = {
     F('resident_status_ar', 'حالة المقيم', 'professional', { edit: true, table: 'transfer_calculation', col: 'resident_status_ar' }),
     F('iqama_expiry_gregorian', 'انتهاء الإقامة (ميلادي)', 'professional', { edit: true, table: 'transfer_calculation', col: 'iqama_expiry_gregorian' }),
     F('iqama_expiry_hijri', 'انتهاء الإقامة (هجري)', 'professional', { edit: true, table: 'transfer_calculation', col: 'iqama_expiry_hijri' }),
-    F('renewal_period', 'مدة التجديد', 'conditions'),
+    F('renewal_period', 'مدة التجديد', 'conditions', { edit: true, table: 'transfer_calculation', col: 'renewal_months' }),
     F('has_notice_period', 'فترة الإشعار', 'conditions', { edit: true, table: 'transfer_calculation', col: 'has_notice_period' }),
     F('employer_consent', 'موافقة صاحب العمل', 'conditions', { edit: true, table: 'transfer_calculation', col: 'employer_consent' }),
     F('transfer_fee', 'رسوم نقل الكفالة', 'pricing', { edit: true, table: 'transfer_calculation', col: 'transfer_fee' }),
@@ -622,6 +622,7 @@ export const TAB_FIELDS = {
     F('fin_installments_count', 'عدد الدفعات', 'financial_summary'), F('fin_payments_count', 'عدد المدفوعات', 'financial_summary'),
     F('fin_expected_duration', 'المدة المتوقعة', 'financial_summary'), F('fin_expected_expiry', 'الانتهاء المتوقع', 'financial_summary'),
     F('fin_quote_ref', 'مرجع التسعيرة', 'financial_summary'),
+    F('fin_office_fee_net', 'الرسوم المكتبية', 'financial_summary'), F('fin_government_fees', 'الرسوم الحكومية', 'financial_summary'),
   ],
 }
 export const TAB_MODALS = {

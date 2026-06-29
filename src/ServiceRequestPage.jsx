@@ -6,7 +6,7 @@ import {noDash} from './lib/utils.js'
 import {KAFALA_DEFAULTS,getKafalaPricingConfig} from './lib/kafalaPricing.js'
 // حدود الرسوم الحكومية المشمولة ضمن «رسوم المكتب» لتجديد الإقامة — ما يتجاوزها يُضاف للإجمالي. (الغرامة تُضاف دائمًا فوق ذلك)
 const IQAMA_COVER={iqama:650,workPermit:100,medical:1000}
-import {Modal as FKModal, SuccessView, ActionButton as FKAction, ModalSection, Field as FKField, IdField as FKId, PhoneField as FKPhone, Select as FKSelect, Segmented as FKSegmented, Stepper as FKStepper, Checkbox as FKCheckbox, CurrencyField as FKCurrency, TextArea as FKTextArea, TextField as FKText, NumberField as FKNumber, DateField as FKDate, FileField as FKFile, Dropdown as FKDropdown, Lbl as FKLbl, GRID as FKGRID, sF as fkSF, validateSaudiId, validatePhone} from './components/ui/FormKit.jsx'
+import {Modal as FKModal, SuccessView, ActionButton as FKAction, ModalSection, Field as FKField, IdField as FKId, PhoneField as FKPhone, Select as FKSelect, Segmented as FKSegmented, Stepper as FKStepper, Checkbox as FKCheckbox, CurrencyField as FKCurrency, TextArea as FKTextArea, TextField as FKText, NumberField as FKNumber, DateField as FKDate, FileField as FKFile, Dropdown as FKDropdown, Lbl as FKLbl, GRID as FKGRID, sF as fkSF, validateSaudiId, validatePhone, useFKLang} from './components/ui/FormKit.jsx'
 const F="'Cairo','Tajawal',sans-serif"
 const C={gold:'#D4A017',red:'#c0392b',ok:'#27a046',blue:'#3483b4',bentoGold:'#D4A017'}
 // Unified loading spinner — shown during any search/wait inside the invoice modal.
@@ -19,6 +19,7 @@ const Spinner=({size=26,label,style})=>(
 )
 // Inline copy button — on click copies the value and flips to a green check (no toast).
 const CopyBtn=({value,size=13})=>{
+const{T}=useFKLang()
 const[done,setDone]=useState(false)
 if(!value)return null
 return<button type="button" title={done?T('تم النسخ','Copied'):T('نسخ','Copy')} onClick={e=>{e.stopPropagation();try{navigator.clipboard?.writeText(String(value))}catch(_){}setDone(true);setTimeout(()=>setDone(false),1300)}} style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:done?C.ok:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{if(!done)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{e.currentTarget.style.color=done?C.ok:'var(--tx5)'}}>{done?<Check size={size+2} strokeWidth={2.4}/>:<Copy size={size}/>}</button>
@@ -1734,10 +1735,9 @@ let issuedInvoiceNo=null
 const effectiveTotal=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?Number(totalOverride):Number(pricing?.total||0)
 {
 const total=billable?effectiveTotal:0
-// Invoice number mirrors the transfer-quote scheme: INV-{branch_code}-{random}. Falls back to the
-// timestamp-based ref if the RPC is unavailable so invoice creation is never blocked by numbering.
-let invNo
-try{const{data:genNo,error:genErr}=await sb.rpc('generate_invoice_number',{p_branch_id:userBranchId});if(genErr||!genNo)throw genErr||new Error('no number');invNo=genNo}catch{invNo='INV-'+refNo}
+// رقم الفاتورة = رقم الطلب نفسه (request_ref_no). لم نعد نولّد رقماً تسلسلياً منفصلاً —
+// الطلب والفاتورة يحملان نفس الرقم. كلاهما فريد لكل فرع (invoices_no_branch_uq / service_requests_ref_no_branch_uq).
+const invNo=refNo
 const paidNum=Math.min(Number(paidAmount)||0,total)
 
 // Build the installment schedule based on the chosen service.

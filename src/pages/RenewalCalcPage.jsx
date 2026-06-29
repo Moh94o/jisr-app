@@ -1441,8 +1441,6 @@ ${noticeBlk}
             const invoiceNo = r.invoice_id ? 'INV-' + String(r.invoice_id).slice(0, 8).toUpperCase() : null
             const branchCode = r._branchCode || r.priced_user?.branch?.code || r.created_user?.branch?.code || null
             const stamps = buildStamps(r)
-            // شريط تحذير — إقامة منتهية
-            const warn = (() => { if (!r.iqama_expiry_gregorian) return null; const d = new Date(r.iqama_expiry_gregorian); if (isNaN(d)) return null; const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000); if (diffDays > 0) return T('إقامة منتهية منذ ' + diffDays + ' يوم', 'Iqama expired ' + diffDays + ' days ago'); return null })()
             // حلقة صلاحية الـ5 أيام (من تاريخ التسعير)
             const pricedAtMs = r.priced_at ? new Date(r.priced_at).getTime() : 0
             const remainingMs = pricedAtMs ? (5 * 86400000) - (Date.now() - pricedAtMs) : 0
@@ -1471,7 +1469,7 @@ ${noticeBlk}
               {/* القسم 1: الاسم + العلم + شبكة الحقول */}
               <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, direction: 'ltr', letterSpacing: '-.2px' }}>{r.worker_name || T('عامل', 'Worker')}</span>
+                  <span style={{ fontSize: 14.5, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, direction: 'ltr', letterSpacing: '-.2px' }}>{r.worker_name || T('عامل', 'Worker')}</span>
                   {natFlag && <img src={natFlag} alt="" style={{ width: 24, height: 17, objectFit: 'cover', flexShrink: 0, borderRadius: 3 }} />}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '9px 16px' }}>
@@ -1481,7 +1479,6 @@ ${noticeBlk}
                   {gcell(svcIco, T('الخدمة', 'Service'), svcPrimary ? <span style={{ fontSize: 11.5, color: C.gold, fontWeight: 700 }}>{svcPrimary}</span> : null)}
                   {gcell(invIco, invoiceNo ? T('رقم الفاتورة', 'Invoice no') : T('رقم التسعيرة', 'Quote no'), <span style={{ fontSize: 11.5, color: invoiceNo ? C.ok : C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{noDash(invoiceNo || r.quote_no || '')}</span>)}
                 </div>
-                {warn && <div style={{ fontSize: 10.5, fontWeight: 600, color: C.red, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.2)', borderRadius: 7, padding: '4px 10px', display: 'inline-flex', alignSelf: 'flex-start', gap: 5 }}>⚠ {warn}</div>}
               </div>
 
               {/* القسم 2: الختم الرسمي — آخر مرحلة فقط */}

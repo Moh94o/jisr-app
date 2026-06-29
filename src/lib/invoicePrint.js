@@ -1020,7 +1020,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   </div>
   <div class="pad">
     ${serviceBlk}
-    ${workerEstBlk}
+    ${code === 'transfer' ? '' : workerEstBlk}
     ${profBlk}
     ${svcDetailsBlk}
     ${txnTransferBlk}

@@ -332,7 +332,7 @@ function InvCard({ d, T, isAr, toast, onClick }) {
   )
 
   const Name = ({ size = S.name }) => (
-    <span style={{ fontSize: size, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>{d.name}</span>
+    <span style={{ fontSize: size, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>{d.name}</span>
   )
 
   const wrap = (extra) => ({
@@ -949,12 +949,15 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     })
   }, [stageOptions])
 
-  // Daily + weekly KPI breakdown (cash / bank+pos / cancelled / voided)
+  // KPI breakdown (cash / bank+pos / cancelled / voided) + service distribution — today AND last 7 days.
+  // مدمج في تأثير واحد: استدعاءان فقط لـ invoice_period_stats (اليوم + الأسبوع) — كل استجابة تحمل
+  // cash/bank/cancelled/voided + services معًا، فلا داعي لتكرار الاستعلام أربع مرات (نصف حِمل البحث).
   useEffect(() => {
     let alive = true
     const todayStart = riyadhDayStart()
     const weekStart = new Date(todayStart.getTime() - 6 * 24 * 3600 * 1000)
-    const norm = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0 })
+    const normKpi = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0 })
+    const normSvc = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
     const { active, ...f } = statFilters
     Promise.all([
       sb.rpc('invoice_period_stats', { p_start: active ? null : todayStart.toISOString(), ...f }),
@@ -962,38 +965,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     ]).then(([t, w]) => {
       if (!alive) return
       if (t.data) {
-        setPeriodStats({
-          cash: norm(t.data.cash),
-          bank: norm(t.data.bank),
-          cancelled: norm(t.data.cancelled),
-          voided: norm(t.data.voided),
-        })
+        setPeriodStats({ cash: normKpi(t.data.cash), bank: normKpi(t.data.bank), cancelled: normKpi(t.data.cancelled), voided: normKpi(t.data.voided) })
+        setSvcToday(normSvc(t.data.services))
       }
       if (w.data) {
-        setWeekStats({
-          cash: norm(w.data.cash),
-          bank: norm(w.data.bank),
-          voided: norm(w.data.voided),
-        })
+        setWeekStats({ cash: normKpi(w.data.cash), bank: normKpi(w.data.bank), voided: normKpi(w.data.voided) })
+        setSvcWeek(normSvc(w.data.services))
       }
-    })
-    return () => { alive = false }
-  }, [sb, statFilters, refreshTick])
-
-  // Service distribution — today AND last 7 days (shown as two separate cards)
-  useEffect(() => {
-    let alive = true
-    const todayStart = riyadhDayStart()
-    const weekStart = new Date(todayStart.getTime() - 6 * 24 * 3600 * 1000)
-    const norm = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
-    const { active, ...f } = statFilters
-    Promise.all([
-      sb.rpc('invoice_period_stats', { p_start: active ? null : todayStart.toISOString(), ...f }),
-      sb.rpc('invoice_period_stats', { p_start: active ? null : weekStart.toISOString(), ...f }),
-    ]).then(([t, w]) => {
-      if (!alive) return
-      setSvcToday(norm(t.data?.services))
-      setSvcWeek(norm(w.data?.services))
     })
     return () => { alive = false }
   }, [sb, statFilters, refreshTick])
@@ -1073,7 +1051,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الفواتير','Invoices')}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الفواتير والمعاملات','Invoices')}</div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('إدارة الفواتير والطلبات والمعاملات وحالات السداد ومتابعة المدفوعات','Manage invoices, requests, transactions, payment status and payments')}</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: statFilters.active ? C.gold : 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{statFilters.active ? T('كروت الإحصاء تعكس التصفية الحالية', 'The stat cards reflect the active filter') : T('كروت الإحصاء والفواتير والطلبات تعرض حركة اليوم وتبدأ من الساعة 5:00 فجراً بتوقيت الرياض', 'The stats, invoices and requests cards show today’s activity, starting at 5:00 AM Riyadh time')}</div>
           </div>
@@ -1099,19 +1077,11 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           <input
-            placeholder={T('ابحث عن أي شيء: اسم، إقامة، هوية، جوال، حدود، منشأة، رقم فاتورة أو طلب…', 'Search anything: name, iqama, ID, phone, border, facility, invoice/request no…')}
+            placeholder={T('ابحث برقم الفاتورة، رقم الطلب، الاسم، الإقامة، الهوية، أو الجوال…', 'Search by invoice no, request no, name, iqama, ID, or phone…')}
             value={q}
             onChange={e => { setQ(e.target.value); setPage(0) }}
-            style={{ width: '100%', height: 44, padding: '0 38px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
-          {q && (
-            <span role="button" tabIndex={0} title={T('مسح','Clear')}
-              onClick={() => { setQ(''); setPage(0) }}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setQ(''); setPage(0) } }}
-              style={{ position: 'absolute', top: '50%', insetInlineEnd: 12, transform: 'translateY(-50%)', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </span>
-          )}
         </div>
         {(() => {
           const hasFilters = !!(branchSel.length || serviceType.length || payFilter.length || from || to || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue)
@@ -1305,7 +1275,9 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   stages.push({ label: T('الإقامة', 'Iqama'), state: st(iqamaNumFilled(v)) })
                   return { title: `${T('التأشيرة', 'Visa')} ${i + 1}`, stages }
                 }) : []
-                const subLabel = va?.visa_type ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
+                // الكودان الجديدان (دائمة/مؤقتة) يحملان النوع في اسم الخدمة نفسه، فلا نُلحق نوع التأشيرة ثانيةً.
+                const isSplitVisa = svcCode === 'work_visa_permanent' || svcCode === 'work_visa_temporary'
+                const subLabel = (!isSplitVisa && va?.visa_type) ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
                 const fullLabel = [isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en), subLabel].filter(Boolean).join(' ')
                 // نقل الكفالة: مراحل المعاملة (التأمين · رخصة العمل · الإقامة) من حسبة التنازل المرتبطة — تاق لكل مرحلة في الكرت.
                 const isTransferCard = baseSvcCode(svcCode) === 'transfer'
@@ -1468,7 +1440,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           visa_order_kind:visa_order_kind_id(value_ar,value_en),
           wakalah_status:wakalah_status_id(value_ar,value_en),
           editor:updated_by(person:person_id(name_ar,name_en))`,
-        transfer: `id,reference_number,total_price_initial,total_price_final,discount,office_cost,iqama_expiry_date,
+        transfer: `id,reference_number,total_price_initial,total_price_final,discount,office_cost,iqama_expiry_date,transfer_qiwa_status,transfer_muqeem_status,
           worker:worker_id(name_ar,name_en,iqama_number,phone),
           main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
           new_occupation:new_occupation_id(name_ar,name_en),
@@ -1477,6 +1449,10 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         iqama_renewal: `id,duration_months,current_expire_date,new_expire_date,
           worker:worker_id(name_ar,name_en,iqama_number),
           worker_facility:worker_facility_id(name_ar,unified_number)`,
+        ajeer: `id,duration_months,start_date,end_date,notes,
+          worker:worker_id(name_ar,name_en,iqama_number),
+          ajeer_facility:ajeer_facility_id(name_ar,unified_number),
+          main_facility:main_facility_id(name_ar,unified_number)`,
         iqama_issuance: `id,is_temporary,entry_date,check_date,worker_name_at_entry,
           iqama_status,iqama_number,iqama_expiry,iqama_amount,
           medical_status,medical_amount,
@@ -1493,7 +1469,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           worker:worker_id(id,name_ar,name_en,iqama_number),
           worker_facility:worker_facility_id(name_ar,unified_number)`,
       }
-      const TABLES = { work_visa: 'visa_applications', transfer: 'transfer_applications', iqama_renewal: 'iqama_renewal_applications', iqama_issuance: 'iqama_issuance_applications', supplier_payroll: 'supplier_payroll_applications', other: 'other_applications' }
+      const TABLES = { work_visa: 'visa_applications', transfer: 'transfer_applications', iqama_renewal: 'iqama_renewal_applications', ajeer: 'ajeer_applications', iqama_issuance: 'iqama_issuance_applications', supplier_payroll: 'supplier_payroll_applications', other: 'other_applications' }
       // Every service without a dedicated table (general, medical_insurance, exit_reentry_visa, the registry
       // tabs…) stores its detail row in other_applications, so unknown codes fall back to it.
       const tbl = TABLES[baseSvcCode(code)] || 'other_applications'
@@ -1854,7 +1830,9 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
             const isVisa = VISA_SVC_CODES.has(inv.service_type?.code)
             const visaApps = Array.isArray(inv.service_request?.visa_applications) ? inv.service_request.visa_applications : []
             const va = visaApps[0] || null
-            const sub = va?.visa_type ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
+            // الكودان الجديدان (دائمة/مؤقتة) يحملان النوع في اسم الخدمة، فلا نُلحق نوع التأشيرة ثانيةً.
+            const isSplitVisa = inv.service_type?.code === 'work_visa_permanent' || inv.service_type?.code === 'work_visa_temporary'
+            const sub = (!isSplitVisa && va?.visa_type) ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
             const qty = isVisa ? ((data?.det || []).length || visaApps.length || Number(inv.service_request?.quantity || 0)) : Number(inv.service_request?.quantity || 0)
             const full = [isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en), sub].filter(Boolean).join(' ')
             const showQty = isVisa && qty > 0
@@ -3196,34 +3174,11 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           .eq('id', inv.id).select('id')
         if (error) throw error
         if (!upd || upd.length === 0) { setActErr(T('تعذّر إلغاء الفاتورة — تحقق من الصلاحيات', 'Could not cancel the invoice — check permissions')); return }
-        // عند إلغاء الفاتورة تُلغى المعاملة المرتبطة أيضًا (حالة الطلب → «ملغي») —
-        // إلا إذا كانت المعاملة «منجز» فتبقى كما هي (لا نُرجِع معاملةً مُنجزة إلى ملغاة).
-        // أفضل جهد: إن تعذّر التحديث لا نتراجع عن إلغاء الفاتورة، بل ننبّه فقط.
-        const srId = inv.service_request?.id
-        const srDone = inv.service_request?.status?.code === 'done'
-        let reqCancelled = false
-        if (srId && !srDone) {
-          try {
-            const { data: rst } = await sb.from('lookup_items')
-              .select('id,category:lookup_categories!inner(category_key)')
-              .eq('category.category_key', 'request_status').eq('code', 'cancelled').maybeSingle()
-            const rcid = rst?.id || null
-            if (rcid) {
-              const { data: srUpd } = await sb.from('service_requests')
-                .update({ status_id: rcid, cancelled_at: nowIso, cancelled_reason: (cancelReason || '').trim() || null, updated_at: nowIso })
-                .eq('id', srId).select('id')
-              if (srUpd && srUpd.length) reqCancelled = true
-              else toast?.(T('أُلغيت الفاتورة، لكن تعذّر تحديث حالة المعاملة', 'Invoice cancelled, but the transaction status could not be updated'), 'error')
-            }
-          } catch { toast?.(T('أُلغيت الفاتورة، لكن تعذّر تحديث حالة المعاملة', 'Invoice cancelled, but the transaction status could not be updated'), 'error') }
-        }
+        // إلغاء الفاتورة لا يمسّ المعاملة المرتبطة: حالة المعاملة (التاق) تخصّ المعاملة لا الفاتورة،
+        // ولها إجراء إلغاء مستقل («إلغاء المعاملة»). فنغيّر حالة الفاتورة فقط ونترك حالة الطلب كما هي.
         successInfo = {
           title: T('تم إلغاء الفاتورة بنجاح', 'Invoice cancelled'),
-          desc: reqCancelled
-            ? T('تم تغيير حالة الفاتورة إلى ملغاة، وحالة المعاملة إلى ملغي.', 'The invoice status changed to cancelled, and the transaction to cancelled.')
-            : srDone
-              ? T('تم تغيير حالة الفاتورة إلى ملغاة. المعاملة منجزة وتبقى كما هي.', 'The invoice was cancelled. The transaction is completed and stays unchanged.')
-              : T('تم تغيير حالة الفاتورة إلى ملغاة.', 'The invoice status was changed to cancelled.'),
+          desc: T('تم تغيير حالة الفاتورة إلى ملغاة. المعاملة تبقى كما هي.', 'The invoice status was changed to cancelled. The transaction is unchanged.'),
           rows: [],
         }
       } else if (type === 'done') {
@@ -3972,7 +3927,7 @@ const ClientRows = ({ inv, T, user }) => {
             <CopyBtn text={primary} />
             <span style={{ fontSize: 14, color: 'var(--tx1)', fontWeight: 600, lineHeight: 1.4, direction: isLatinName ? 'ltr' : 'rtl' }}>{primary}</span>
           </span>
-          {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, direction: 'ltr' }}>{secondary}</div>}
+          {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, direction: 'ltr', textAlign: 'right' }}>{secondary}</div>}
         </div>
       )}
       {cells.length > 0 && (
@@ -4094,7 +4049,7 @@ const BrokerRows = ({ agent, T, user }) => {
             <CopyBtn text={primary} />
             <span style={{ fontSize: 14, color: 'var(--tx1)', fontWeight: 600, lineHeight: 1.4, direction: isLatinName ? 'ltr' : 'rtl' }}>{primary}</span>
           </span>
-          {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, direction: 'ltr' }}>{secondary}</div>}
+          {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, direction: 'ltr', textAlign: 'right' }}>{secondary}</div>}
         </div>
       )}
       {cells.length > 0 && (
@@ -4598,6 +4553,8 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
   const visDuration = fieldVisible(user, 'invoices', 'fin_expected_duration')
   const visExpiry = fieldVisible(user, 'invoices', 'fin_expected_expiry')
   const visQuote = fieldVisible(user, 'invoices', 'fin_quote_ref')
+  const visOfficeFee = fieldVisible(user, 'invoices', 'fin_office_fee_net')
+  const visGovFees = fieldVisible(user, 'invoices', 'fin_government_fees')
   return (
     <div style={cardChrome}>
       {/* رأس متدرّج ذهبي — العنوان + إجمالي الفاتورة */}
@@ -4642,6 +4599,8 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
       <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {visInstCount && <FinMetaRow label={T('عدد الدفعات', 'Installments')} value={nInst} ltr />}
         {visPayCount && <FinMetaRow label={T('عدد المدفوعات', 'Payments')} value={nPays} ltr />}
+        {/* رقم الحسبة — فوق المدة المتوقعة مباشرةً. */}
+        {data.quote && visQuote && (() => { const isRenewal = data.code === 'iqama_renewal'; const ev = isRenewal ? 'app-navigate-renewal-calc' : 'app-navigate-transfer-calc'; return <FinMetaRow label={T('رقم الحسبة', 'Quote No.')} valueColor={C.gold} value={<span onClick={() => { try { window.dispatchEvent(new CustomEvent(ev, { detail: { q: data.quote } })) } catch {} }} title={isRenewal ? T('فتح تفاصيل حسبة تجديد الإقامة', 'Open renewal quote details') : T('فتح تفاصيل حسبة نقل الكفالة', 'Open transfer quote details')} style={{ direction: 'ltr', unicodeBidi: 'isolate', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>{noDash(data.quote)}</span>} />})()}
         {/* نقل الكفالة وتجديد الإقامة: المدة المتوقعة في الإقامة + الانتهاء المتوقع — كما في كرت الملخص المالي بصفحة الحسبة. */}
         {(data.code === 'transfer' || data.code === 'iqama_renewal') && data.tc && (() => {
           const tc = data.tc
@@ -4661,10 +4620,30 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
           }
           return (<>
             {durLabel && visDuration && <FinMetaRow label={T('المدة المتوقعة', 'Expected Duration')} valueColor={C.gold} value={durLabel} />}
-            {tc.expected_expiry_date && visExpiry && <FinMetaRow label={T('الإنتهاء المتوقع', 'Expected Expiry')} valueColor={C.gold} value={fmtGreg(tc.expected_expiry_date, isAr)} ltr />}
+            {visExpiry && (() => {
+              // الإنتهاء المتوقع — العمود المجمّد، وإلا (سجلات بابل المستوردة) يُحسب بنفس صيغة كرت الحسبة:
+              // البداية = انتهاء الإقامة (أو تاريخ التسعير + 7 أيام إن انتهت ≥ 30 يومًا) + أشهر التجديد.
+              let expExpiry = tc.expected_expiry_date
+              if (!expExpiry && data.code === 'transfer' && !(tc.transfer_only || tc.renew_iqama === false)) {
+                const exp = tc.iqama_expiry_gregorian ? new Date(tc.iqama_expiry_gregorian) : null
+                const ren = Number(tc.renewal_months || 0)
+                if (exp && !isNaN(exp) && ren > 0) {
+                  const ref = tc.priced_at ? new Date(tc.priced_at) : new Date()
+                  ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0)
+                  const start = Math.floor((ref - exp) / 86400000) >= 30
+                    ? (() => { const d = new Date(ref); d.setDate(d.getDate() + 7); return d })()
+                    : new Date(exp)
+                  start.setMonth(start.getMonth() + ren)
+                  expExpiry = start.toISOString().slice(0, 10)
+                }
+              }
+              return expExpiry ? <FinMetaRow label={T('الإنتهاء المتوقع', 'Expected Expiry')} valueColor={C.gold} value={fmtGreg(expExpiry, isAr)} ltr /> : null
+            })()}
           </>)
         })()}
-        {data.quote && visQuote && (() => { const isRenewal = data.code === 'iqama_renewal'; const ev = isRenewal ? 'app-navigate-renewal-calc' : 'app-navigate-transfer-calc'; return <FinMetaRow label={T('الحسبة', 'Quote')} valueColor={C.gold} value={<span onClick={() => { try { window.dispatchEvent(new CustomEvent(ev, { detail: { q: data.quote } })) } catch {} }} title={isRenewal ? T('فتح تفاصيل حسبة تجديد الإقامة', 'Open renewal quote details') : T('فتح تفاصيل حسبة نقل الكفالة', 'Open transfer quote details')} style={{ direction: 'ltr', unicodeBidi: 'isolate', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>{noDash(data.quote)}</span>} />})()}
+        {/* الرسوم المكتبية والحكومية — من الحسبة المرتبطة (نقل/تجديد)، تحت مرجع الحسبة مباشرةً كما في كرت الملخص المالي بصفحة الحسبة. */}
+        {(data.code === 'transfer' || data.code === 'iqama_renewal') && data.tc && data.tc.office_fee_net != null && visOfficeFee && <FinMetaRow label={T('الرسوم المكتبية', 'Office Fees')} valueColor={C.gold} value={<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, direction: 'rtl' }}><span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{Number(data.tc.office_fee_net).toLocaleString('en-US')}</span><span>{T('ريال', 'SAR')}</span></span>} />}
+        {(data.code === 'transfer' || data.code === 'iqama_renewal') && data.tc && data.tc.government_fees != null && visGovFees && <FinMetaRow label={T('الرسوم الحكومية', 'Government Fees')} value={<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, direction: 'rtl' }}><span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{Number(data.tc.government_fees).toLocaleString('en-US')}</span><span>{T('ريال', 'SAR')}</span></span>} />}
         {/* شارات الحالة المنجزة — أسفل العدّادات */}
         {Array.isArray(stageStatus) && stageStatus.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 2 }}>
@@ -8040,7 +8019,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const needsAcct = needsAcctApproval(_code)
         // تعديل الراتب: حالة من مرحلتين منفصلتين — (١) تعديل الراتب للراتب الجديد، (٢) إرجاع الراتب الأساسي.
         const isSalaryEdit = baseSvcCode(_code) === 'name_translation'
-        const isCancelled = reqCode === 'cancelled' || inv.status?.code === 'cancelled'
+        // حالة المعاملة تخصّ المعاملة وحدها — إلغاء الفاتورة لا يجعل المعاملة ملغاة.
+        const isCancelled = reqCode === 'cancelled'
         const genStage = isCancelled ? 'cancelled'
           : reqCode === 'done' ? 'done'
           : needsAcct
@@ -8122,6 +8102,98 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 ) : null
               })()}
             </div>
+            {/* بيانات المعاملة — أرقام/تفاصيل الخدمة (تأشيرات · نقل · تجديد · أجير · أخرى) مباشرةً في كرت المعاملة. */}
+            {!isPermVisa && (() => {
+              const _c = baseSvcCode(data?.code || inv.service_type?.code)
+              // نقل الكفالة: لا نعرض كرت «بيانات المعاملة» (مكرّر مع كرتَي العميل/الحسبة) — بطلب المستخدم.
+              if (_c === 'transfer') return null
+              const det = Array.isArray(data?.det) ? data.det : []
+              const tc = data?.tc || {}
+              const mk = (val) => (val != null && String(val).trim() !== '' && String(val) !== 'null') ? String(val) : null
+              const groups = []
+              if (_c === 'work_visa') {
+                det.filter(v => v && v.id).forEach((v, idx, arr) => {
+                  const natName = v.nationality ? (isAr ? (v.nationality.name_ar || v.nationality.name_en) : (v.nationality.name_en || v.nationality.name_ar)) : null
+                  const occName = v.occupation ? (isAr ? (v.occupation.name_ar || v.occupation.name_en) : (v.occupation.name_en || v.occupation.name_ar)) : null
+                  const wkStatus = v.wakalah_status ? (isAr ? v.wakalah_status.value_ar : v.wakalah_status.value_en) : null
+                  const rows = [
+                    [T('رقم التأشيرة', 'Visa No'), mk(v.visa_number), true, null, true],
+                    [T('رقم الحدود', 'Border No'), mk(v.border_number), true, null, true],
+                    [T('الرقم الموحد', 'Unified No'), mk(v.unified_number), true, null, true],
+                    [T('رقم الوكالة', 'Wakala No'), mk(v.wakalah_number), true, null, true],
+                    [T('حالة الوكالة', 'Wakala Status'), mk(wkStatus), false],
+                    [T('الجنسية', 'Nationality'), mk(natName), false],
+                    [T('المهنة', 'Occupation'), mk(occName), false],
+                  ].filter(r => r[1])
+                  if (rows.length) groups.push({ title: arr.length > 1 ? `${T('التأشيرة', 'Visa')} ${idx + 1}` : null, rows })
+                })
+              } else if (_c === 'transfer') {
+                const d = det[0] || {}; const w = d.worker
+                const rows = [
+                  [T('رقم المرجع', 'Reference'), mk(d.reference_number || tc.quote_no), true, null, true],
+                  [T('رقم الإقامة', 'Iqama No'), mk(w?.iqama_number || tc.iqama_number), true, null, true],
+                  [T('العامل', 'Worker'), mk(w ? (isAr ? (w.name_ar || w.name_en) : (w.name_en || w.name_ar)) : tc.worker_name), false],
+                  [T('المهنة الجديدة', 'New Occupation'), mk(d.new_occupation ? (isAr ? d.new_occupation.name_ar : d.new_occupation.name_en) : tc.new_occupation_name_ar), false],
+                  [T('انتهاء الإقامة', 'Iqama Expiry'), (d.iqama_expiry_date || tc.iqama_expiry_gregorian) ? fmtGreg(d.iqama_expiry_date || tc.iqama_expiry_gregorian, isAr) : null, false, C.gold],
+                  [T('حالة النقل', 'Transfer Status'), mk(d.status ? (isAr ? d.status.value_ar : d.status.value_en) : null), false],
+                  [T('حالة العامل', 'Worker Status'), mk(d.worker_status ? (isAr ? d.worker_status.value_ar : d.worker_status.value_en) : null), false],
+                  [T('حالة قوى', 'Qiwa Status'), mk(d.transfer_qiwa_status), false],
+                  [T('حالة مقيم', 'Muqeem Status'), mk(d.transfer_muqeem_status), false],
+                  [T('المنشأة', 'Facility'), mk(d.main_facility?.name_ar), false],
+                ].filter(r => r[1])
+                if (rows.length) groups.push({ title: null, rows })
+              } else if (_c === 'iqama_renewal') {
+                const d = det[0] || {}
+                const rows = [
+                  [T('رقم الإقامة', 'Iqama No'), mk(d.worker?.iqama_number || tc.iqama_number), true, null, true],
+                  [T('مدة التجديد', 'Renewal Months'), (d.duration_months || tc.renewal_months) ? `${d.duration_months || tc.renewal_months} ${T('شهر', 'months')}` : null, false],
+                  [T('الانتهاء الحالي', 'Current Expiry'), d.current_expire_date ? fmtGreg(d.current_expire_date, isAr) : null, false],
+                  [T('الانتهاء الجديد', 'New Expiry'), (d.new_expire_date || tc.expected_expiry_date) ? fmtGreg(d.new_expire_date || tc.expected_expiry_date, isAr) : null, false, C.gold],
+                  [T('المنشأة', 'Facility'), mk(d.worker_facility?.name_ar), false],
+                ].filter(r => r[1])
+                if (rows.length) groups.push({ title: null, rows })
+              } else if (_c === 'ajeer') {
+                const d = det[0] || {}
+                const rows = [
+                  [T('رقم الإقامة', 'Iqama No'), mk(d.worker?.iqama_number), true, null, true],
+                  [T('منشأة أجير', 'Ajeer Facility'), mk(d.ajeer_facility?.name_ar || d.notes), false],
+                  [T('المنشأة الرئيسية', 'Main Facility'), mk(d.main_facility?.name_ar), false],
+                  [T('المدة', 'Duration'), d.duration_months ? `${d.duration_months} ${T('شهر', 'months')}` : null, false],
+                  [T('البداية', 'Start'), d.start_date ? fmtGreg(d.start_date, isAr) : null, false],
+                  [T('النهاية', 'End'), d.end_date ? fmtGreg(d.end_date, isAr) : null, false],
+                ].filter(r => r[1])
+                if (rows.length) groups.push({ title: null, rows })
+              } else {
+                const d = det[0] || {}
+                const rows = [
+                  [T('رقم الإقامة', 'Iqama No'), mk(d.worker?.iqama_number), true, null, true],
+                  [T('الوصف', 'Description'), mk(d.description), false],
+                ].filter(r => r[1])
+                if (rows.length) groups.push({ title: null, rows })
+              }
+              if (!groups.length) return null
+              return (
+                <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(212,160,23,.05)', border: '1px solid rgba(212,160,23,.12)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.goldSoft, marginBottom: 8, letterSpacing: '.2px' }}>{T('بيانات المعاملة', 'Transaction Data')}</div>
+                  {groups.map((g, gi) => (
+                    <div key={gi} style={gi > 0 ? { marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.05)' } : undefined}>
+                      {g.title && <div style={{ fontSize: 11.5, fontWeight: 700, color: C.goldSoft, marginBottom: 6 }}>{g.title}</div>}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {g.rows.map(([lbl, val, mono, color, copy], i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{lbl}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              {copy && <CopyBtn text={String(val)} />}
+                              <span style={{ fontSize: 12.5, color: color || 'var(--tx2)', fontWeight: 600, ...(mono ? { direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{val}</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {isPermVisa
                 ? visas.map((v, i) => {

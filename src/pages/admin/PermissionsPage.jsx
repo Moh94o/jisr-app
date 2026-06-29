@@ -645,14 +645,16 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
     const { error } = await sb.from('users').update({ ui_visibility: next, updated_at: new Date().toISOString() }).eq('id', u.id)
     if (error) toast('خطأ: ' + error.message.slice(0, 80))
   }
+  // Everything is DENY-by-default: a control is granted only when its key === true.
+  // Toggling flips between true (granted) and false (denied) — mirrors toggleTab.
   const toggleTab = (tabId) => patchVis({ [tabId]: !(visRef.current[tabId] === true) })
-  const toggleCard = (tabId, key) => { const k = `card:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
-  const toggleCardAct = (tabId, key, action) => { const k = `cardact:${tabId}:${key}:${action}`; patchVis({ [k]: visRef.current[k] === false }) }
+  const toggleCard = (tabId, key) => { const k = `card:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
+  const toggleCardAct = (tabId, key, action) => { const k = `cardact:${tabId}:${key}:${action}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
   // granular layer — fields (show + edit-lock), modals (open), wizard stages (show)
-  const toggleField = (tabId, key) => { const k = `field:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
-  const toggleFieldEdit = (tabId, key) => { const k = `fieldedit:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
-  const toggleModal = (tabId, key) => { const k = `modal:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
-  const toggleStage = (tabId, key) => { const k = `stage:${tabId}:${key}`; patchVis({ [k]: visRef.current[k] === false }) }
+  const toggleField = (tabId, key) => { const k = `field:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
+  const toggleFieldEdit = (tabId, key) => { const k = `fieldedit:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
+  const toggleModal = (tabId, key) => { const k = `modal:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
+  const toggleStage = (tabId, key) => { const k = `stage:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
   const setOffice = (tabId, policy) => patchVis({ [`office:${tabId}`]: policy })
   const setServiceScope = (tabId, policy) => patchVis({ [`svc:${tabId}`]: policy })
   const setStatsMode = (tabId, mode) => patchVis({ [`stats:${tabId}`]: mode })
@@ -686,7 +688,8 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
   const officePolicy = (tabId) => { const r = vis[`office:${tabId}`]; return (r && r.mode) ? r : { mode: 'inherit', ids: [] } }
   const officeLabel = (tabId) => { const p = officePolicy(tabId); return p.mode === 'all' ? 'كل المكاتب' : p.mode === 'specific' ? `${(p.ids || []).length} مكتب محدد` : 'مكاتب الحساب' }
   const grantedCount = (tabId) => { const mod = moduleForTab(tabId); if (!mod || !eff) return [0, 0]; const on = mod.perms.filter(p => eff[p.id]?.is_granted).length; return [on, mod.perms.length] }
-  const hiddenCards = (tabId) => (TAB_CARDS[tabId] || []).filter(c => vis[`card:${tabId}:${c.key}`] === false).length
+  // deny-by-default: a card counts as shown only when explicitly granted (=== true).
+  const hiddenCards = (tabId) => (TAB_CARDS[tabId] || []).filter(c => vis[`card:${tabId}:${c.key}`] !== true).length
 
   const totalShown = (nav || []).reduce((acc, n) => {
     const leaves = hubTabs?.[n.id]
@@ -877,8 +880,8 @@ function FieldList({ tabId, groupKey, fields, vis, disabled, parentShown, onTogg
         <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)' }}>الحقول</span>
       </div>
       {list.map(f => {
-        const fVis = vis[`field:${tabId}:${f.key}`] !== false
-        const fEdit = vis[`fieldedit:${tabId}:${f.key}`] !== false
+        const fVis = vis[`field:${tabId}:${f.key}`] === true
+        const fEdit = vis[`fieldedit:${tabId}:${f.key}`] === true
         return (
           <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -928,7 +931,7 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
             {multiGroup && <div style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, marginBottom: 6, opacity: .85 }}>{CARD_GROUP_LABELS[gk] || gk}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
               {groups[gk].map(c => {
-                const shown = vis[`card:${tabId}:${c.key}`] !== false
+                const shown = vis[`card:${tabId}:${c.key}`] === true
                 const acts = c.actions || []
                 return (
                   <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'rgba(255,255,255,.06)' : 'rgba(192,57,43,.16)') }}>
@@ -942,7 +945,7 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
                     {acts.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed rgba(255,255,255,.07)', opacity: shown ? 1 : .45 }}>
                         {acts.map(a => {
-                          const aOn = vis[`cardact:${tabId}:${c.key}:${a.action}`] !== false
+                          const aOn = vis[`cardact:${tabId}:${c.key}:${a.action}`] === true
                           const dot = ACTION_DOT[a.kind] || C.gold
                           return (
                             <div key={a.action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -979,7 +982,7 @@ function StagesSection({ tabId, stages, fields, vis, disabled, onToggleStage, on
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
         {stages.map(s => {
-          const shown = vis[`stage:${tabId}:${s.key}`] !== false
+          const shown = vis[`stage:${tabId}:${s.key}`] === true
           return (
             <div key={s.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'rgba(255,255,255,.06)' : 'rgba(192,57,43,.16)') }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
@@ -1009,7 +1012,7 @@ function ModalsSection({ tabId, modals, vis, disabled, onToggleModal }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 7 }}>
         {modals.map(m => {
-          const on = vis[`modal:${tabId}:${m.key}`] !== false
+          const on = vis[`modal:${tabId}:${m.key}`] === true
           return (
             <div key={m.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 12px', borderRadius: 9, background: on ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (on ? 'rgba(255,255,255,.05)' : 'rgba(192,57,43,.16)') }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}>

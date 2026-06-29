@@ -20,7 +20,7 @@ const INVOICE_SELECT = `
   payments(amount,is_valid,deleted_at,payment_date),
   service_type:service_type_id(code,value_ar,value_en),
   status:status_id(code,value_ar,value_en),
-  branch:branch_id(id,branch_code,phone),
+  branch:branch_id(id,branch_code,phone,city:city_id(name_ar)),
   agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
   service_request:service_request_id(
     id, request_ref_no, request_date, quantity,

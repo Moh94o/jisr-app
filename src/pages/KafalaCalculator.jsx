@@ -1303,7 +1303,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     else if (/^(.)\1{8}$/.test(phone) || '012345678'.includes(phone) || '987654321'.includes(phone)) errs.push(T('رقم الجوال غير صحيح','Invalid mobile number'))
     if (!f.iqamaExpiry) errs.push(T('أدخل تاريخ انتهاء الإقامة','Enter the Iqama expiry date'))
     if (!f.occupation) errs.push(T('اختر المهنة','Select occupation'))
-    if (dupQuote) errs.push(T(`يوجد حسبة تنازل ${dupQuote.status === 'approved' ? 'مصدّقة' : 'مفوترة'} سارية لهذا العامل (${dupQuote.branch_code || '—'})`, `An active ${dupQuote.status} transfer quote already exists for this worker (${dupQuote.branch_code || '—'})`))
+    // حسبة سابقة سارية تُعرض كتحذير فقط (في تذييل الصفحة) ولا تعطّل «التالي» — بطلب المستخدم.
     return errs
   })()
   // Live validation for step 2 (pricing) — gates «التالي» the same way step 0 does.
@@ -1474,7 +1474,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         const Field = ({ label, value, color, span, ltr }) => (
           <div style={{ gridColumn: span === 2 ? '1 / -1' : 'auto', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: color || 'var(--tx)', textAlign: 'start', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(ltr ? { direction: 'ltr' } : {}) }}>{value || '—'}</span>
+            {/* المحاذاة منطقية (تبدأ من جهة البداية = اليمين في RTL)؛ القيم اللاتينية/الأرقام تُعزل اتجاهياً فقط لتُعرض LTR دون قلب المحاذاة. */}
+            <span style={{ fontSize: 14, fontWeight: 600, color: color || 'var(--tx)', textAlign: 'start', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ltr ? <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{value || '—'}</span> : (value || '—')}</span>
           </div>
         )
         const Group = ({ title, Icon, children }) => (

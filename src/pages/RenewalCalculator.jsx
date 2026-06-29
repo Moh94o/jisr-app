@@ -975,7 +975,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
 
   // ── بناء صفحات الويزارد ──
   const titles = [T('العامل', 'Worker'), T('التفاصيل', 'Details'), T('التجديد', 'Renewal'), T('التسعيرة', 'Pricing'), T('المراجعة', 'Review'), T('التكلفة', 'Cost')]
-  const tab0Valid = !!worker && phoneValid && !workerDataIncomplete && !dupQuote
+  // حسبة سابقة سارية تُعرض كتحذير فقط (في تذييل الصفحة) ولا تعطّل «التالي» — بطلب المستخدم.
+  const tab0Valid = !!worker && phoneValid && !workerDataIncomplete
   const pages = titles.map((title, i) => ({
     title,
     content: body,

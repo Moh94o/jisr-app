@@ -12,8 +12,8 @@
 //
 // Two further per-user controls live in `users.ui_visibility` (JSONB, already
 // loaded on the user at login) and are read here:
-//   • card:<tab>:<key>  → detail-page card visibility (default VISIBLE; an
-//                         explicit `false` hides that one card for the user).
+//   • card:<tab>:<key>  → detail-page card visibility (default HIDDEN; an
+//                         explicit `true` grants that one card to the user).
 //   • office:<tab>      → { mode:'inherit'|'all'|'specific', ids:[branchId…] }
 //                         per-tab office scope (default 'inherit' = account offices).
 
@@ -98,11 +98,11 @@ export const canTab = (user, tabId, action) =>
   isGM(user) || hasPerm(user, tabModule(tabId), action)
 
 // ── Detail-page card visibility ─────────────────────────────────────────
-// A card on a record's detail page is visible unless the GM explicitly hid it
-// for this user (users.ui_visibility['card:<tab>:<key>'] === false). GM ⇒ all.
+// A card on a record's detail page is hidden until the GM explicitly grants it
+// for this user (users.ui_visibility['card:<tab>:<key>'] === true). GM ⇒ all.
 export const cardVisible = (user, tabId, cardKey) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`card:${tabId}:${cardKey}`] !== false
+  return user?.ui_visibility?.[`card:${tabId}:${cardKey}`] === true
 }
 // Convenience builder: a per-page predicate bound to one tab.
 export const cardGate = (user, tabId) => (cardKey) => cardVisible(user, tabId, cardKey)
@@ -111,11 +111,11 @@ export const cardGate = (user, tabId) => (cardKey) => cardVisible(user, tabId, c
 // Within a card, an individual action button (edit / add / delete / a special
 // action) can be hidden for this user even when they hold the tab-level
 // permission — letting the GM say "you may edit, but not THIS card".
-// Stored in users.ui_visibility['cardact:<tab>:<key>:<action>'] === false.
-// Default ALLOWED (true); GM always true.
+// Stored in users.ui_visibility['cardact:<tab>:<key>:<action>'] === true to grant.
+// Default DENIED; an explicit `true` grants. GM always true.
 export const cardActionAllowed = (user, tabId, cardKey, action) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`cardact:${tabId}:${cardKey}:${action}`] !== false
+  return user?.ui_visibility?.[`cardact:${tabId}:${cardKey}:${action}`] === true
 }
 
 // The button-level gate for an action inside a card. Two cases, decided
@@ -139,46 +139,46 @@ export const canCardBtn = canCardAction
 // Granularity below the card: every individual FIELD on a detail card / inside
 // a modal / inside a wizard stage can be (a) hidden from view and (b) locked
 // from editing, per user. Field keys are unique within a tab (see TAB_FIELDS in
-// permCatalog.js). Both default ALLOWED; GM always bypasses.
+// permCatalog.js). Both default DENIED; GM always bypasses.
 //
-//   • field visibility → users.ui_visibility['field:<tab>:<fieldKey>'] === false
-//                        hides the field everywhere it renders (card row + the
-//                        matching input in any modal). UI-enforced.
-//   • field edit lock  → users.ui_visibility['fieldedit:<tab>:<fieldKey>'] === false
-//                        renders the input read-only/disabled AND is enforced in
-//                        the DB by the enforce_field_locks() trigger, so a
-//                        locked column can't be changed even via the API.
+//   • field visibility → users.ui_visibility['field:<tab>:<fieldKey>'] === true
+//                        grants the field everywhere it renders (card row + the
+//                        matching input in any modal). UI-enforced. Default hidden.
+//   • field edit lock  → users.ui_visibility['fieldedit:<tab>:<fieldKey>'] === true
+//                        grants editing (input writable) AND is enforced in the DB
+//                        by the enforce_field_locks() trigger, so an ungranted
+//                        column can't be changed even via the API. Default locked.
 export const fieldVisible = (user, tabId, fieldKey) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] !== false
+  return user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] === true
 }
 export const fieldEditable = (user, tabId, fieldKey) => {
   if (isGM(user)) return true
-  // A hidden field is implicitly non-editable; an explicit lock also blocks edit.
-  if (user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] === false) return false
-  return user?.ui_visibility?.[`fieldedit:${tabId}:${fieldKey}`] !== false
+  // Editing requires the field to be granted visible AND granted editable.
+  if (user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] !== true) return false
+  return user?.ui_visibility?.[`fieldedit:${tabId}:${fieldKey}`] === true
 }
 // Per-tab bound builders (mirror cardGate) — convenient inside one page.
 export const fieldGate = (user, tabId) => (fieldKey) => fieldVisible(user, tabId, fieldKey)
 export const fieldEditGate = (user, tabId) => (fieldKey) => fieldEditable(user, tabId, fieldKey)
 
 // ── Modal / popup gate ──────────────────────────────────────────────────
-// A whole popup (record-payment, edit-client, issue-iqama, …) can be blocked
-// for a user even when they could otherwise reach its trigger. Default ALLOWED.
-// users.ui_visibility['modal:<tab>:<modalKey>'] === false ⇒ blocked. The write
+// A whole popup (record-payment, edit-client, issue-iqama, …) is blocked until
+// the GM grants it for the user. Default DENIED.
+// users.ui_visibility['modal:<tab>:<modalKey>'] === true ⇒ allowed. The write
 // the modal performs is still independently DB-gated by its action permission.
 export const modalAllowed = (user, tabId, modalKey) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`modal:${tabId}:${modalKey}`] !== false
+  return user?.ui_visibility?.[`modal:${tabId}:${modalKey}`] === true
 }
 
 // ── Wizard-stage gate ───────────────────────────────────────────────────
-// A step inside a multi-stage calculator (Kafala / renewal wizard) can be
-// hidden for a user. Default VISIBLE. modal/stage keys are unique within a tab.
-// users.ui_visibility['stage:<tab>:<stageKey>'] === false ⇒ hidden.
+// A step inside a multi-stage calculator (Kafala / renewal wizard) is hidden
+// until granted. Default DENIED. modal/stage keys are unique within a tab.
+// users.ui_visibility['stage:<tab>:<stageKey>'] === true ⇒ visible.
 export const stageVisible = (user, tabId, stageKey) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`stage:${tabId}:${stageKey}`] !== false
+  return user?.ui_visibility?.[`stage:${tabId}:${stageKey}`] === true
 }
 
 // ── Per-tab office scope ────────────────────────────────────────────────

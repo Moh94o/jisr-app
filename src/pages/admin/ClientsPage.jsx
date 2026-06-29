@@ -444,18 +444,36 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
         </div>
       )}
 
-      {/* Pagination */}
-      {!loading && total > PAGE && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24 }}>
-          <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-            {T('صفحة', 'Page')} <span style={{ color: GOLD, fontWeight: 700 }}>{page + 1}</span> / {totalPages} · {num(total)}
+      {/* Pagination — Slim split with divider line (same as Invoices) */}
+      {!loading && total > PAGE && (() => {
+        const goPrev = () => { setPage(p => Math.max(0, p - 1)); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
+        const goNext = () => { setPage(p => p + 1); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
+        const goTo = n => { setPage(Math.max(0, Math.min(totalPages - 1, n))); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
+        const PrevIco = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        const NextIco = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        const prevDisabled = page === 0
+        const nextDisabled = page + 1 >= totalPages
+        const fromN = (page * PAGE) + 1
+        const toN = Math.min(total, (page + 1) * PAGE)
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,.06)', margin: '4px 4px 14px' }}>
+          <style>{`
+            .inv-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${GOLD};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
+            .inv-pg-btn:hover:not(:disabled){background:${GOLD};color:#000}
+            .inv-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
+            .inv-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${GOLD};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+            .inv-pg-input::-webkit-outer-spin-button,.inv-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+          `}</style>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 13, color: '#fff', fontWeight: 700, fontFamily: F }}><span style={{ color: GOLD }}>{fromN}–{toN}</span> {T('من', 'of')} {num(total)}</span>
+            <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500, fontFamily: F }}>{T('صفحة', 'Page')} {page + 1} {T('من', 'of')} {totalPages}</span>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} style={btnPg(page === 0)}>{T('السابق', 'Prev')}</button>
-            <button disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)} style={btnPg(page + 1 >= totalPages)}>{T('التالي', 'Next')}</button>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <button className="inv-pg-btn" disabled={prevDisabled} onClick={goPrev} aria-label={T('السابق', 'Prev')}><PrevIco/></button>
+            <input className="inv-pg-input" type="number" min={1} max={totalPages} value={page + 1} onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) goTo(v - 1) }}/>
+            <button className="inv-pg-btn" disabled={nextDisabled} onClick={goNext} aria-label={T('التالي', 'Next')}><NextIco/></button>
           </div>
         </div>
-      )}
+      })()}
 
       </>)}
     </div>
@@ -851,4 +869,3 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
 }
 
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? GOLD : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
-const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : GOLD, fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })
