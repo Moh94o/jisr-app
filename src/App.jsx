@@ -630,9 +630,10 @@ useEffect(()=>{const handler=(e)=>{const q=e.detail?.q||'';try{window.location.h
 useEffect(()=>{const natId=user?.person?.nationality_id;if(!sb||!natId)return;sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').eq('id',natId).maybeSingle().then(({data})=>{if(data)setNatCache(data)})},[sb,user?.person?.nationality_id]);
 const[visibility,setVisibility]=useState(()=>getVisibility());
 const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visibility',JSON.stringify(cfg))};
-// Staff tabs are HIDDEN BY DEFAULT: a non-GM sees a tab only when it's explicitly enabled (ui_visibility[id]===true) and the global config doesn't hide it.
-// Only the legacy admin_visibility redirect is always-on; every real tab/hub (incl. admin) is controllable. The GM bypasses personal overrides so he can never lock himself out.
-const isVisible=(id)=>{const locked=['admin_visibility'].includes(id);if(locked)return true;if(!isItemVisible(id))return false;if(visibility[id]===false)return false;if(!isGM&&user?.ui_visibility?.[id]!==true)return false;if(!isGM&&!canViewPage(user,id))return false;return true;};
+// ROLE-FIRST: a non-GM sees a tab when their role grants its view permission
+// (canViewPage), UNLESS it's explicitly hidden for them (ui_visibility[id]===false)
+// or the global config hides it. The GM bypasses personal overrides.
+const isVisible=(id)=>{const locked=['admin_visibility'].includes(id);if(locked)return true;if(!isItemVisible(id))return false;if(visibility[id]===false)return false;if(!isGM&&user?.ui_visibility?.[id]===false)return false;if(!isGM&&!canViewPage(user,id))return false;return true;};
 // Admin-only nav items: Sync Hub is hidden from non-GM users regardless of visibility toggles.
 const isGM=user?.role?.name_ar==='المدير العام'||user?.role?.name_en==='General Manager';
 // Employee Mahmoud Hassan is granted Sync Hub access despite not being GM.

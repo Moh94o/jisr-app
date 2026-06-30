@@ -108,7 +108,9 @@ export const can = (user, code) => {
 // quote/transfer domain); the standalone `transfer_calc` module is a legacy
 // duplicate and is intentionally not used here.
 export const PAGE_VIEW_PERM = {
-  home: 'home.view',
+  // home (the dashboard) is the universal landing page — always viewable so a
+  // user is never dropped on a "no access" screen at login. The GM can still
+  // hide the home tab for a role via ui_visibility if desired.
   facilities: 'facilities.view',
   workers: 'workers.view',
   temp_workers: 'workers.view',
