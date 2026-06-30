@@ -7,7 +7,12 @@ const num = v => { const n = Math.round((Number(v) || 0) * 100) / 100; return (n
 const noDash = v => String(v ?? '').replace(/-/g, '')
 const pickWorker = rel => (Array.isArray(rel) ? rel[0]?.worker : rel?.worker)
 
-const M = { new_invoice: 'فاتورة جديدة', total: 'الإجمالي', paid: 'المدفوع', remaining: 'المتبقي', amount_paid: 'دفعة مستلمة', currency: 'ريال' }
+const M = {
+  new_invoice: 'فاتورة جديدة', payment_title: 'دفعة مستلمة', refund_title: 'استرجاع مبلغ', cancel_title: 'إلغاء فاتورة',
+  total: 'الإجمالي', paid: 'المدفوع', remaining: 'المتبقي',
+  amount_paid: 'دفعة مستلمة', amount_received: 'المبلغ المستلم', amount_refunded: 'المبلغ المسترد', amount_void: 'المبلغ الملغى',
+  pay_method: 'طريقة الدفع', refund_method: 'طريقة الاسترجاع', currency: 'ريال',
+}
 const DIV_SQ = '▪▪▪▪▪▪▪▪▪'
 const DIV_DOT = '· · · · · · ·   · · · · · · ·   · · · · · · ·'
 
@@ -32,16 +37,47 @@ function branchLabel(inv) {
 }
 const svcLabel = inv => inv.service_type?.value_ar || inv.service_type?.value_en || 'خدمة'
 
-// بطاقة «فاتورة جديدة» — نفس الصيغة المزخرفة التي تصل القروب (formatDeco('invoice_created')).
-export function buildInvoiceWaMessage(inv) {
+// بطاقة حركة اليوم — تُرسل للقروب لتلخيص ما صار على الفاتورة في يوم العمل (يبدأ 5 فجراً).
+// `day` (اختياري) يحمل حركة ذلك اليوم فقط: المبلغ المستلم + طريقة الدفع، والاسترجاع/الإلغاء إن وقعا اليوم.
+// بدونه ترجع للصيغة القديمة (إجمالي المدفوع بلا طريقة).
+export function buildInvoiceWaMessage(inv, day = null) {
   const { name, phone } = party(inv)
   const total = Number(inv.total_amount || 0), paid = Number(inv.paid_amount || 0), rem = Number(inv.remaining_amount || 0)
   const cur = M.currency
   const bal = [`🟡 ${M.total}: ${num(total)} ${cur}`, `🟢 ${M.paid}: ${num(paid)} ${cur}`, `🔴 ${M.remaining}: ${num(rem)} ${cur}`]
-  // فاتورة جديدة: سطر «دفعة مستلمة» يظهر فقط لو فيه دفعة (بدون طريقة).
-  const money = paid > 0 ? [`💵 *${M.amount_paid}: ${num(paid)} ${cur}*`, DIV_DOT, ...bal] : bal
+  const methods = arr => (Array.isArray(arr) ? arr.filter(Boolean) : []).join('، ')
+
+  let title, money
+  if (day) {
+    const m = []
+    if (day.cancelledToday) {
+      title = M.cancel_title
+      m.push(`❌ *${M.cancel_title}*`)
+      if (day.cancelledAmt > 0) m.push(`💸 ${M.amount_void}: ${num(day.cancelledAmt)} ${cur}`)
+    } else {
+      if (day.received > 0) {
+        m.push(`💵 *${M.amount_received}: ${num(day.received)} ${cur}*`)
+        const ms = methods(day.recvMethods)
+        if (ms) m.push(`💳 ${M.pay_method}: ${ms}`)
+      }
+      if (day.refunded > 0) {
+        m.push(`↩️ *${M.amount_refunded}: ${num(day.refunded)} ${cur}*`)
+        const ms = methods(day.refundMethods)
+        if (ms) m.push(`💳 ${M.refund_method}: ${ms}`)
+      }
+      title = (day.refunded > 0 && day.received <= 0) ? M.refund_title
+        : day.createdToday ? M.new_invoice
+        : day.received > 0 ? M.payment_title
+        : M.new_invoice
+    }
+    money = m.length ? [...m, DIV_DOT, ...bal] : bal
+  } else {
+    title = M.new_invoice
+    money = paid > 0 ? [`💵 *${M.amount_paid}: ${num(paid)} ${cur}*`, DIV_DOT, ...bal] : bal
+  }
+
   return [
-    `🧾 *${M.new_invoice} — ${branchLabel(inv)}*`,
+    `🧾 *${title} — ${branchLabel(inv)}*`,
     DIV_SQ,
     `*${svcLabel(inv)}* | \`${noDash(inv.invoice_no || '')}\``,
     ` ${name}${phone ? ' | ' + phone : ''}`,

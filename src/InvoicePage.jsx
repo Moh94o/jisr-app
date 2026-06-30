@@ -287,7 +287,7 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const copyWa = e => {
     e.stopPropagation()
     try {
-      navigator.clipboard?.writeText(buildInvoiceWaMessage(row))
+      navigator.clipboard?.writeText(buildInvoiceWaMessage(row, d.dayMoney))
       setWaCopied(true); setTimeout(() => setWaCopied(false), 1500)
       toast?.(T('تم نسخ رسالة الواتساب', 'WhatsApp message copied'))
     } catch { toast?.(T('تعذّر النسخ', 'Copy failed')) }
@@ -503,7 +503,7 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingInlineEnd: isSP ? 0 : 62 }}>
         <Name /><Flag />{isSP ? reqTag : null}
         {/* أزرار الإجراء (واتساب/طباعة) في صدر الكرت أعلى عمود «المكتب» — خارج التدفّق (absolute) فلا يتغيّر ارتفاع الكرت إطلاقاً. */}
-        {!isSP && <div style={{ position: 'absolute', insetInlineEnd: 0, top: '50%', transform: 'translateY(-50%)' }}>{cardActions(false)}</div>}
+        {!isSP && d.isToday && <div style={{ position: 'absolute', insetInlineEnd: 0, top: '50%', transform: 'translateY(-50%)' }}>{cardActions(false)}</div>}
       </div>
       {/* row 1: ID · phone · branch  ·  row 2: service · invoice no */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: `${S.gRow}px ${S.gCol}px` }}>
@@ -644,7 +644,7 @@ const INVOICE_SELECT = `
         id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, pricing_breakdown, created_at, last_activity_at,
         note_public, note_log, pricing_log, payment_log, cancel_log, service_log,
         creator:created_by(person:person_id(name_ar,name_en)),
-        payments(amount,is_valid,deleted_at,payment_date),
+        payments(amount,is_valid,deleted_at,payment_date,payment_method:payment_method_id(value_ar,value_en)),
         service_type:service_type_id(code,value_ar,value_en),
         status:status_id(code,value_ar,value_en),
         branch:branch_id(id,branch_code,phone,city:city_id(name_ar)),
@@ -1262,6 +1262,24 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 const pct = total ? Math.min(100, Math.round((paid / total) * 100)) : 0
                 const cancelled = r.status?.code === 'cancelled'
                 const refundedAmt = (r.payments || []).reduce((s, p) => (p.deleted_at == null && p.is_valid && Number(p.amount) < 0) ? s + Math.abs(Number(p.amount)) : s, 0)
+                // حركة هذا اليوم فقط (يبدأ 5 فجراً) — تغذّي رسالة الواتساب: المبلغ المستلم + طريقة الدفع، والاسترجاع/الإلغاء إن وقعا اليوم.
+                const isToday = dayKey === todayStr
+                const dayMoney = (() => {
+                  const tp = (r.payments || []).filter(p => p.deleted_at == null && businessDayKey(p.payment_date) === dayKey)
+                  const recv = tp.filter(p => p.is_valid && Number(p.amount) > 0)
+                  const refs = tp.filter(p => !p.is_valid || Number(p.amount) < 0)
+                  const mLabel = p => (isAr ? p.payment_method?.value_ar : (p.payment_method?.value_en || p.payment_method?.value_ar)) || p.payment_method?.value_ar
+                  const cancelledToday = r.status?.code === 'cancelled' && businessDayKey(r.last_activity_at || r.created_at) === dayKey
+                  return {
+                    received: recv.reduce((a, p) => a + Number(p.amount || 0), 0),
+                    recvMethods: [...new Set(recv.map(mLabel).filter(Boolean))],
+                    refunded: refs.reduce((a, p) => a + (!p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)), 0),
+                    refundMethods: [...new Set(refs.map(mLabel).filter(Boolean))],
+                    cancelledToday,
+                    cancelledAmt: cancelledToday ? Number(r.paid_amount || 0) : 0,
+                    createdToday: businessDayKey(r.created_at) === dayKey,
+                  }
+                })()
                 // When workerIsClient was checked at request time, client_id stays null but
                 // a worker exists on the application table — use the worker as the displayed party.
                 // PostgREST returns 1:1 embeds as object (or array depending on schema) — handle both.
@@ -1363,7 +1381,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   flagUrl: nat?.flag_url || '', flagAlt: nat?.name_ar || '', flagEmojiChar: flagEmoji(nat?.code),
                   svc, svcCode, svcIcon, fullLabel, qty, showQty: isVisa && qty > 0,
                   total, paid, remaining, pct,
-                  pay, payT, cancelled, overdueDays, refundedAmt,
+                  pay, payT, cancelled, overdueDays, refundedAmt, isToday, dayMoney,
                   shortDate, invoiceNo: r.invoice_no,
                   reqStatusCode: r.service_request?.status?.code || null,
                   acctStatus: r.service_request?.accountant_status || null,

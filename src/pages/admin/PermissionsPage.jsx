@@ -453,9 +453,11 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
     <div onClick={onClick} className="usr-row"
       style={{
         position: 'relative', cursor: 'pointer', borderRadius: 14,
-        background: `linear-gradient(135deg, ${tone}0e 0%, #232323 50%, #1f1f1f 100%)`,
-        border: '1px solid rgba(255,255,255,.06)',
-        boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)',
+        // سطح الكرت القياسي (فاتح/داكن حسب الثيم) + لمسة لون الحالة الخفيفة للمفعّل — تعمل في الثيمين.
+        backgroundColor: 'var(--card-bg)',
+        backgroundImage: isActive ? `linear-gradient(135deg, ${tone}1f 0%, ${tone}00 60%)` : 'none',
+        border: '1px solid var(--bd)',
+        boxShadow: 'var(--shadow-md)',
         overflow: 'hidden', opacity: isActive ? 1 : .7,
       }}>
       {/* Status rail on the leading edge */}
@@ -475,7 +477,7 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
           {/* Metadata column */}
           <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px' }}>{name}</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{name}</span>
               {u.role && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: accent + '20', color: accent }}>{u.role.name_ar}</span>}
               {isMe && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: 'rgba(212,160,23,.14)', color: C.gold, letterSpacing: '.3px' }}>أنت</span>}
             </div>
@@ -494,7 +496,7 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
           {/* Toggle (left) */}
           <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
             <button type="button" disabled={saving || isMe} onClick={onToggle} title={isMe ? 'لا يمكنك تعطيل حسابك' : (isActive ? 'تعطيل الحساب' : 'تفعيل الحساب')}
-              style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: isActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'linear-gradient(180deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.10) 100%)', cursor: (saving || isMe) ? 'not-allowed' : 'pointer', opacity: (saving || isMe) ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: isActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
+              style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: isActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'var(--bd)', cursor: (saving || isMe) ? 'not-allowed' : 'pointer', opacity: (saving || isMe) ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: isActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
               <span style={{ position: 'absolute', width: 18, height: 18, borderRadius: '50%', background: '#fff', top: 3, right: isActive ? 3 : 23, transition: '.2s', boxShadow: '0 2px 4px rgba(0,0,0,.3)' }} />
             </button>
           </div>
@@ -510,9 +512,9 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
 // + visibility card. Permissions write user_permissions; visibility writes
 // users.ui_visibility (per-employee sidebar/tab overrides).
 // ═══════════════════════════════════════════════════════════════════
-const cardChrome = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
-const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
-const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
+const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
+const cardTitle = { fontSize: 16, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px' }
 // Every sidebar tab is controllable — nothing is permanently locked. The General
 // Manager bypasses personal visibility entirely (App.jsx isVisible), so an empty
 // list can never lock the GM out of any tab.
@@ -533,7 +535,7 @@ function CopyBtn({ value, toast }) {
     <button type="button" onClick={copy} title="نسخ"
       onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
       onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx4)' }}
-      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid var(--bd)', background: done ? 'rgba(39,160,70,.16)' : 'var(--inputBg)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
       {done ? <Check size={12} /> : <Copy size={12} />}
     </button>
   )
@@ -541,7 +543,7 @@ function CopyBtn({ value, toast }) {
 
 function InfoRow({ label, value, mono, copy, toast }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px dashed rgba(255,255,255,.07)', gap: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px dashed var(--bd)', gap: 12 }}>
       <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         <span style={{ fontSize: 13, color: value ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 600, direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? 'monospace' : 'inherit', textAlign: 'end', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={value || ''}>{value || '—'}</span>
@@ -554,7 +556,7 @@ function InfoRow({ label, value, mono, copy, toast }) {
 function VisToggle({ on, locked, onClick }) {
   return (
     <button type="button" disabled={locked} onClick={onClick}
-      style={{ width: 40, height: 22, borderRadius: 999, border: 'none', background: on ? C.ok : 'rgba(255,255,255,.15)', cursor: locked ? 'not-allowed' : 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, opacity: locked ? .5 : 1 }}>
+      style={{ width: 40, height: 22, borderRadius: 999, border: 'none', background: on ? C.ok : 'var(--bd)', cursor: locked ? 'not-allowed' : 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, opacity: locked ? .5 : 1 }}>
       <span style={{ position: 'absolute', width: 16, height: 16, borderRadius: '50%', background: '#fff', top: 3, right: on ? 3 : 21, transition: '.2s' }} />
     </button>
   )
@@ -575,7 +577,7 @@ const actionKind = (action) => action === 'view' || action === 'access' ? 'view'
 
 function Seg({ value, options, onChange, disabled }) {
   return (
-    <div style={{ display: 'inline-flex', background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 9, padding: 3, gap: 3 }}>
+    <div style={{ display: 'inline-flex', background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 9, padding: 3, gap: 3 }}>
       {options.map(o => {
         const on = o.v === value
         return (
@@ -594,7 +596,7 @@ function ActionRow({ p, on, source, locked, onToggle }) {
   const dot = ACTION_DOT[actionKind(p.action)] || C.gold
   const hint = source === 'role' ? 'مكتسبة من الدور' : source === 'user_grant' ? 'مخصصة لهذا المستخدم' : source === 'user_deny' ? 'موقوفة لهذا المستخدم' : ''
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px', borderRadius: 9, background: on ? 'rgba(39,160,70,.05)' : 'rgba(255,255,255,.02)', border: '1px solid ' + (on ? 'rgba(39,160,70,.18)' : 'rgba(255,255,255,.05)'), transition: '.15s' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px', borderRadius: 9, background: on ? 'rgba(39,160,70,.05)' : 'var(--inputBg)', border: '1px solid ' + (on ? 'rgba(39,160,70,.18)' : 'var(--bd)'), transition: '.15s' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot, flexShrink: 0, boxShadow: on ? `0 0 7px ${dot}99` : 'none' }} />
         <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
@@ -708,7 +710,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
     const svcPol = (vis[`svc:${id}`] && vis[`svc:${id}`].mode) ? vis[`svc:${id}`] : { mode: 'all', ids: [] }
     const statMode = vis[`stats:${id}`] || 'real'
     return (
-      <div key={id} style={{ borderRadius: 11, background: 'rgba(255,255,255,.015)', border: '1px solid rgba(255,255,255,.05)', overflow: 'hidden' }}>
+      <div key={id} style={{ borderRadius: 11, background: 'var(--inputBg)', border: '1px solid var(--bd)', overflow: 'hidden' }}>
         {/* header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
           <button type="button" onClick={() => setOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })}
@@ -731,7 +733,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
         </div>
         {/* body */}
         {isOpen && (
-          <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid rgba(255,255,255,.05)' }}>
+          <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--bd)' }}>
             {/* offices */}
             <div style={{ paddingTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
@@ -832,7 +834,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
             const hubOn = vis[n.id] === true
             return (
               <div key={n.id}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid var(--bd)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
                     <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--tx2)' }}>{n.l}</span>
@@ -859,7 +861,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
 function MiniToggle({ on, locked, onClick }) {
   return (
     <button type="button" disabled={locked} onClick={onClick}
-      style={{ width: 30, height: 17, borderRadius: 999, border: 'none', background: on ? C.ok : 'rgba(255,255,255,.15)', cursor: locked ? 'not-allowed' : 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, opacity: locked ? .5 : 1 }}>
+      style={{ width: 30, height: 17, borderRadius: 999, border: 'none', background: on ? C.ok : 'var(--bd)', cursor: locked ? 'not-allowed' : 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, opacity: locked ? .5 : 1 }}>
       <span style={{ position: 'absolute', width: 12, height: 12, borderRadius: '50%', background: '#fff', top: 2.5, right: on ? 2.5 : 15.5, transition: '.2s' }} />
     </button>
   )
@@ -872,7 +874,7 @@ function FieldList({ tabId, groupKey, fields, vis, disabled, parentShown, onTogg
   const list = (fields || []).filter(f => f.group === groupKey)
   if (!list.length) return null
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed rgba(255,255,255,.07)', opacity: parentShown ? 1 : .4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed var(--bd)', opacity: parentShown ? 1 : .4 }}>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
         <SlidersHorizontal size={9} color="var(--tx5)" />
         <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)' }}>الحقول</span>
@@ -932,7 +934,7 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
                 const shown = vis[`card:${tabId}:${c.key}`] === true
                 const acts = c.actions || []
                 return (
-                  <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'rgba(255,255,255,.06)' : 'rgba(192,57,43,.16)') }}>
+                  <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'var(--inputBg)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'var(--bd)' : 'rgba(192,57,43,.16)') }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                         {shown ? <Eye size={12} color={C.ok} /> : <EyeOff size={12} color="var(--tx5)" />}
@@ -941,7 +943,7 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
                       <VisToggle on={shown} locked={disabled} onClick={() => onToggle(tabId, c.key)} />
                     </div>
                     {acts.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed rgba(255,255,255,.07)', opacity: shown ? 1 : .45 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed var(--bd)', opacity: shown ? 1 : .45 }}>
                         {acts.map(a => {
                           const aOn = vis[`cardact:${tabId}:${c.key}:${a.action}`] === true
                           const dot = ACTION_DOT[a.kind] || C.gold
@@ -982,7 +984,7 @@ function StagesSection({ tabId, stages, fields, vis, disabled, onToggleStage, on
         {stages.map(s => {
           const shown = vis[`stage:${tabId}:${s.key}`] === true
           return (
-            <div key={s.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'rgba(255,255,255,.06)' : 'rgba(192,57,43,.16)') }}>
+            <div key={s.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'var(--inputBg)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'var(--bd)' : 'rgba(192,57,43,.16)') }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                   {shown ? <Eye size={12} color={C.ok} /> : <EyeOff size={12} color="var(--tx5)" />}
@@ -1012,7 +1014,7 @@ function ModalsSection({ tabId, modals, vis, disabled, onToggleModal }) {
         {modals.map(m => {
           const on = vis[`modal:${tabId}:${m.key}`] === true
           return (
-            <div key={m.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 12px', borderRadius: 9, background: on ? 'rgba(255,255,255,.02)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (on ? 'rgba(255,255,255,.05)' : 'rgba(192,57,43,.16)') }}>
+            <div key={m.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 12px', borderRadius: 9, background: on ? 'var(--inputBg)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (on ? 'var(--bd)' : 'rgba(192,57,43,.16)') }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                 <AppWindow size={11} color={on ? C.gold : 'var(--tx5)'} style={{ flexShrink: 0 }} />
                 <span style={{ fontSize: 11.5, fontWeight: 600, color: on ? 'var(--tx2)' : 'var(--tx5)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.label_ar}>{m.label_ar}</span>
@@ -1045,7 +1047,7 @@ function InfoSectionCard({ title, items, pwNode, headerAction }) {
         {items.map((f, i) => {
           const withBorder = i < items.length - 1 || pwNode
           return (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: f.chips ? 'flex-start' : 'center', gap: 12, padding: '9px 0', borderBottom: withBorder ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: f.chips ? 'flex-start' : 'center', gap: 12, padding: '9px 0', borderBottom: withBorder ? '1px dashed var(--bd)' : 'none' }}>
               <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0, paddingTop: f.chips ? 3 : 0 }}>{f.label}</span>
               {f.chips ? (
                 <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', flex: 1, minWidth: 0 }}>
@@ -1090,7 +1092,7 @@ function ActiveToggleAction({ isActive, isMe, busy, onToggleActive }) {
     <div style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
       <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? C.ok : 'var(--tx5)' }}>{isActive ? 'نشط' : 'معطّل'}</span>
       <button type="button" disabled={isMe || busy} onClick={onToggleActive} title={isMe ? 'لا يمكنك تعطيل حسابك' : (isActive ? 'تعطيل الحساب' : 'تفعيل الحساب')}
-        style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: isActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'linear-gradient(180deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.10) 100%)', cursor: (isMe || busy) ? 'not-allowed' : 'pointer', opacity: (isMe || busy) ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: isActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
+        style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: isActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'var(--bd)', cursor: (isMe || busy) ? 'not-allowed' : 'pointer', opacity: (isMe || busy) ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: isActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
         <span style={{ position: 'absolute', width: 18, height: 18, borderRadius: '50%', background: '#fff', top: 3, right: isActive ? 3 : 23, transition: '.2s', boxShadow: '0 2px 4px rgba(0,0,0,.3)' }} />
       </button>
     </div>
@@ -1158,7 +1160,7 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
         <>
           <CopyBtn value={u.plain_password} toast={toast} />
           <button type="button" onClick={() => setPwShown(s => !s)} title={pwShown ? 'إخفاء' : 'إظهار'}
-            style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             {pwShown ? <EyeOff size={12} /> : <Eye size={12} />}
           </button>
           <span style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 600, color: 'var(--tx2)', direction: 'ltr', letterSpacing: pwShown ? '.5px' : '2px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={pwShown ? u.plain_password : ''}>
@@ -1359,11 +1361,11 @@ export function Drop({ value, onChange, options, placeholder }) {
       {open && pos && ReactDOM.createPortal(
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1998 }} />
-          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, zIndex: 1999, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F }}>
+          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid var(--bd)', borderRadius: 12, maxHeight: pos.maxH, zIndex: 1999, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F }}>
             {options.length > 6 && (
-              <div style={{ padding: 8, borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
+              <div style={{ padding: 8, borderBottom: '1px solid var(--bd)', flexShrink: 0 }}>
                 <input value={q} onChange={e => setQ(e.target.value)} placeholder="بحث..." autoFocus
-                  style={{ width: '100%', height: 32, padding: '0 10px', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8, background: 'var(--modal-bg)', fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+                  style={{ width: '100%', height: 32, padding: '0 10px', border: '1px solid var(--bd)', borderRadius: 8, background: 'var(--modal-bg)', fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
               </div>
             )}
             <div className="nu-drop-scroll" style={{ flex: 1, overflowY: 'auto' }}>
@@ -1373,7 +1375,7 @@ export function Drop({ value, onChange, options, placeholder }) {
                 const sel = o.v === value
                 return (
                   <div key={o.v} onClick={() => pick(o.v)}
-                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: sel ? 800 : 600, color: sel ? C.gold : 'rgba(255,255,255,.92)', background: sel ? 'rgba(212,160,23,.1)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,.03)', textAlign: 'center' }}
+                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: sel ? 800 : 600, color: sel ? C.gold : 'var(--tx)', background: sel ? 'rgba(212,160,23,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', textAlign: 'center' }}
                     onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
                     onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}>
                     {o.l}
@@ -1438,11 +1440,11 @@ export function MultiDrop({ value, onChange, options, placeholder }) {
       {open && pos && ReactDOM.createPortal(
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1998 }} />
-          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, maxHeight: pos.maxH, zIndex: 1999, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F }}>
+          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-input-bg)', border: '1px solid var(--bd)', borderRadius: 12, maxHeight: pos.maxH, zIndex: 1999, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.75)', direction: 'rtl', fontFamily: F }}>
             {options.length > 6 && (
-              <div style={{ padding: 8, borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
+              <div style={{ padding: 8, borderBottom: '1px solid var(--bd)', flexShrink: 0 }}>
                 <input value={q} onChange={e => setQ(e.target.value)} placeholder="بحث..." autoFocus
-                  style={{ width: '100%', height: 32, padding: '0 10px', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8, background: 'var(--modal-bg)', fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+                  style={{ width: '100%', height: 32, padding: '0 10px', border: '1px solid var(--bd)', borderRadius: 8, background: 'var(--modal-bg)', fontFamily: F, fontSize: 12, fontWeight: 600, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
               </div>
             )}
             <div className="nu-drop-scroll" style={{ flex: 1, overflowY: 'auto' }}>
@@ -1452,10 +1454,10 @@ export function MultiDrop({ value, onChange, options, placeholder }) {
                 const on = sel.has(o.v)
                 return (
                   <div key={o.v} onClick={() => toggle(o.v)}
-                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: on ? 800 : 600, color: on ? C.gold : 'rgba(255,255,255,.92)', background: on ? 'rgba(212,160,23,.1)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', gap: 10 }}
+                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: on ? 800 : 600, color: on ? C.gold : 'var(--tx)', background: on ? 'rgba(212,160,23,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }}
                     onMouseEnter={e => { if (!on) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
                     onMouseLeave={e => { if (!on) e.currentTarget.style.background = 'transparent' }}>
-                    <span style={{ width: 17, height: 17, borderRadius: 5, flexShrink: 0, border: on ? '1px solid ' + C.gold : '1.5px solid rgba(255,255,255,.18)', background: on ? C.gold : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ width: 17, height: 17, borderRadius: 5, flexShrink: 0, border: on ? '1px solid ' + C.gold : '1.5px solid var(--bd)', background: on ? C.gold : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {on && <Check size={12} color="#000" strokeWidth={3} />}
                     </span>
                     <span style={{ flex: 1 }}>{o.l}</span>
