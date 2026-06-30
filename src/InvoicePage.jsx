@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import BackButton from './components/BackButton'
-import { can as canPerm, isGM, cardVisible, canCardBtn, tabOffices, tabServiceTypes, statsMode, fieldVisible, fieldEditable, modalAllowed } from './lib/permissions.js'
+import { can as canPerm, isGM, cardVisible, canCardBtn, tabOffices, tabServiceTypes, statsMode, fieldVisible, fieldEditable, modalAllowed, canTabBranch } from './lib/permissions.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { noDash, clientEditChanges } from './lib/utils.js'
 import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
@@ -1743,7 +1743,9 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   const visaStageOf = v => iqamaSet.has(v.id) ? 'iqama' : (v.border_number ? 'visa' : 'pending')
   const visasAllIssued = stageVisaSrc.length > 0 && stageVisaSrc.every(v => !!v.border_number)
   const iqamasAllIssued = stageVisaSrc.length > 0 && stageVisaSrc.every(visaIqamaDone)
-  const canStageEdit = !cancelledRO && canPerm(user, 'invoices.edit')
+  // Branch gate: the user's role must grant invoices in THIS invoice's branch.
+  const invBranchCan = canTabBranch(user, 'invoices', inv.branch_id || inv.branch?.id || null)
+  const canStageEdit = !cancelledRO && invBranchCan && canPerm(user, 'invoices.edit')
 
   // المراحل تنقسم لقسمين بحسب طلب التصميم:
   //   • stageActions = الأزرار القابلة للضغط (مرحلة لم تُنجَز بعد) → تُعرض في الهيدر بتصميم زر «تسجيل دفعة».
@@ -5039,7 +5041,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
                 {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
                 {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
               </div>
-              {visTotal && <div style={{ margin: '10px 0 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'linear-gradient(135deg,#d4a017,#bd8a13)', borderRadius: 12, borderRight: '3px solid #9c7610' }}><span style={{ color: '#1a1a1a', fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: '#1a1a1a', fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{num(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>}
+              {visTotal && <div style={{ margin: '10px 0 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}><span style={{ color: C.gold, fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{num(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>}
             </>
           )
         }
@@ -5072,7 +5074,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
                 {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
                 {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
               </div>}
-              {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'linear-gradient(135deg,#d4a017,#bd8a13)', borderRadius: 10, borderRight: '3px solid #9c7610' }}><span style={{ fontSize: 14.5, color: '#1a1a1a', fontWeight: 700 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: '#1a1a1a', fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totalV)}</span></div>}
+              {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 700 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totalV)}</span></div>}
             </div>
           )
         }
@@ -5138,9 +5140,9 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
                 </div>
               )}
               {visTotal && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 3, padding: '12px 14px', background: 'linear-gradient(135deg,#d4a017,#bd8a13)', borderRadius: 10, borderInlineEnd: '3px solid #9c7610' }}>
-                <span style={{ fontSize: 14.5, color: '#1a1a1a', fontWeight: 700 }}>{T('الإجمالي النهائي','Final Total')}</span>
-                <span style={{ fontSize: 18, color: '#1a1a1a', fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 3, padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}>
+                <span style={{ fontSize: 14.5, color: C.gold, fontWeight: 700 }}>{T('الإجمالي النهائي','Final Total')}</span>
+                <span style={{ fontSize: 18, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
               </div>
               )}
             </>
@@ -8746,10 +8748,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         // Action buttons depend on invoice state: a cancelled invoice exposes none,
         // a fully-paid one hides "record payment", an unpaid one hides "refund".
         const cancelled = inv.status?.code === 'cancelled'
-        const canPay = !cancelled && remaining > 0.005 && canPayPerm && modalAllowed(user, 'invoices', 'inv_action_payment')
-        const canRefund = !cancelled && paid > 0.005 && canRefundPerm && modalAllowed(user, 'invoices', 'inv_action_refund')
+        const canPay = !cancelled && invBranchCan && remaining > 0.005 && canPayPerm && modalAllowed(user, 'invoices', 'inv_action_payment')
+        const canRefund = !cancelled && invBranchCan && paid > 0.005 && canRefundPerm && modalAllowed(user, 'invoices', 'inv_action_refund')
         // رواتب سبلاير: لا يُعرض زر إلغاء الفاتورة (تُدار حالة الطلب من زر «تأكيد الإنجاز» فقط).
-        const canCancel = !cancelled && canCancelPerm && !isZeroSvc(inv.service_type?.code) && modalAllowed(user, 'invoices', 'inv_action_cancel')
+        const canCancel = !cancelled && invBranchCan && canCancelPerm && !isZeroSvc(inv.service_type?.code) && modalAllowed(user, 'invoices', 'inv_action_cancel')
         const showGmNote = gmLock && !cancelled
         if (!canPay && !canRefund && !canCancel && !showGmNote) return null
         return (

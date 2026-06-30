@@ -609,7 +609,7 @@ function ActionRow({ p, on, source, locked, onToggle }) {
   )
 }
 
-function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules, toast }) {
+function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules, toast, embedded }) {
   const userIsGM = isGmUser(u)
   const [vis, setVis] = useState(() => ({ ...(u.ui_visibility || {}) }))
   const visRef = useRef(vis)
@@ -645,16 +645,19 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
     const { error } = await sb.from('users').update({ ui_visibility: next, updated_at: new Date().toISOString() }).eq('id', u.id)
     if (error) toast('خطأ: ' + error.message.slice(0, 80))
   }
-  // Everything is DENY-by-default: a control is granted only when its key === true.
-  // Toggling flips between true (granted) and false (denied) — mirrors toggleTab.
-  const toggleTab = (tabId) => patchVis({ [tabId]: !(visRef.current[tabId] === true) })
-  const toggleCard = (tabId, key) => { const k = `card:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
-  const toggleCardAct = (tabId, key, action) => { const k = `cardact:${tabId}:${key}:${action}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
+  // ROLE-FIRST EXCEPTIONS: every item is ALLOWED by default (the role decides).
+  // These toggles only carve out a per-user EXCEPTION: an explicit `false` hides/
+  // locks one item; flipping back stores `true` (= inherit the role / allowed).
+  // on-state everywhere is `key !== false`.
+  const flip = (k) => patchVis({ [k]: visRef.current[k] === false ? true : false })
+  const toggleTab = (tabId) => flip(tabId)
+  const toggleCard = (tabId, key) => flip(`card:${tabId}:${key}`)
+  const toggleCardAct = (tabId, key, action) => flip(`cardact:${tabId}:${key}:${action}`)
   // granular layer — fields (show + edit-lock), modals (open), wizard stages (show)
-  const toggleField = (tabId, key) => { const k = `field:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
-  const toggleFieldEdit = (tabId, key) => { const k = `fieldedit:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
-  const toggleModal = (tabId, key) => { const k = `modal:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
-  const toggleStage = (tabId, key) => { const k = `stage:${tabId}:${key}`; patchVis({ [k]: !(visRef.current[k] === true) }) }
+  const toggleField = (tabId, key) => flip(`field:${tabId}:${key}`)
+  const toggleFieldEdit = (tabId, key) => flip(`fieldedit:${tabId}:${key}`)
+  const toggleModal = (tabId, key) => flip(`modal:${tabId}:${key}`)
+  const toggleStage = (tabId, key) => flip(`stage:${tabId}:${key}`)
   const setOffice = (tabId, policy) => patchVis({ [`office:${tabId}`]: policy })
   const setServiceScope = (tabId, policy) => patchVis({ [`svc:${tabId}`]: policy })
   const setStatsMode = (tabId, mode) => patchVis({ [`stats:${tabId}`]: mode })
@@ -688,13 +691,13 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
   const officePolicy = (tabId) => { const r = vis[`office:${tabId}`]; return (r && r.mode) ? r : { mode: 'inherit', ids: [] } }
   const officeLabel = (tabId) => { const p = officePolicy(tabId); return p.mode === 'all' ? 'كل المكاتب' : p.mode === 'specific' ? `${(p.ids || []).length} مكتب محدد` : 'مكاتب الحساب' }
   const grantedCount = (tabId) => { const mod = moduleForTab(tabId); if (!mod || !eff) return [0, 0]; const on = mod.perms.filter(p => eff[p.id]?.is_granted).length; return [on, mod.perms.length] }
-  // deny-by-default: a card counts as shown only when explicitly granted (=== true).
-  const hiddenCards = (tabId) => (TAB_CARDS[tabId] || []).filter(c => vis[`card:${tabId}:${c.key}`] !== true).length
+  // role-first: a card is hidden only when an explicit per-user exception (=== false).
+  const hiddenCards = (tabId) => (TAB_CARDS[tabId] || []).filter(c => vis[`card:${tabId}:${c.key}`] === false).length
 
   const totalShown = (nav || []).reduce((acc, n) => {
     const leaves = hubTabs?.[n.id]
-    if (leaves) return acc + leaves.filter(t => vis[t.id] === true).length
-    return acc + (vis[n.id] === true ? 1 : 0)
+    if (leaves) return acc + leaves.filter(t => vis[t.id] !== false).length
+    return acc + (vis[n.id] !== false ? 1 : 0)
   }, 0)
 
   // ── one tab's expandable control block ──
@@ -703,7 +706,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
     const label = tab.l || tab.label
     const mod = moduleForTab(id)
     const cards = TAB_CARDS[id] || []
-    const shown = vis[id] === true
+    const shown = vis[id] !== false
     const isOpen = open.has(id)
     const [gOn, gTot] = grantedCount(id)
     const pol = officePolicy(id)
@@ -812,12 +815,14 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
   }
 
   return (
-    <div style={cardChrome}>
+    <div style={embedded ? { padding: '8px 6px 4px' } : cardChrome}>
+      {!embedded && (
       <div style={cardHeader}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
         <span style={cardTitle}>الصلاحيات والتحكم</span>
         <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 600 }}>{totalShown} تبويب ظاهر</span>
       </div>
+      )}
       {userIsGM ? (
         <div style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <ShieldCheck size={20} color={C.gold} />
@@ -831,7 +836,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
           {!eff && <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{Array.from({ length: 4 }).map((_, i) => <Shimmer key={i} w="100%" h={52} r={11} />)}</div>}
           {eff && (nav || []).map(n => {
             const leaves = hubTabs?.[n.id] || null
-            const hubOn = vis[n.id] === true
+            const hubOn = vis[n.id] !== false
             return (
               <div key={n.id}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid var(--bd)' }}>
@@ -853,6 +858,238 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RoleAssignmentCard — the PRIMARY, simple permissions surface: assign one
+// or more roles to the user (chips + picker) and show a read-only preview of
+// what those roles grant. The granular per-user exceptions live below in a
+// collapsed «advanced» drawer (PermissionsPanel).
+// ═══════════════════════════════════════════════════════════════════
+function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChanged }) {
+  const userIsGM = isGmUser(u)
+  const canManage = isGmUser(currentUser)
+  const [rows, setRows] = useState(null)   // [{ role_id, scope:'all'|'specific', branchIds:[] }]
+  const [eff, setEff] = useState(null)      // grouped granted preview
+  const [busy, setBusy] = useState(false)
+
+  const roleById = useMemo(() => { const m = {}; (roles || []).forEach(r => { m[r.id] = r }); return m }, [roles])
+  const branchCode = (id) => (branches || []).find(b => b.id === id)?.branch_code || '—'
+  const isGmRole = (r) => r && (r.name_ar === 'المدير العام' || r.name_en === 'General Manager')
+
+  const refresh = async () => {
+    const [arRes, effRes] = await Promise.all([
+      sb.from('user_roles').select('role_id,branch_id').eq('user_id', u.id),
+      sb.from('v_user_effective_permissions')
+        .select('module,module_label_ar,module_sort,label_ar,is_granted').eq('user_id', u.id).eq('is_granted', true),
+    ])
+    // Group the per-branch assignment rows by role: a NULL branch row ⇒ "all",
+    // specific rows ⇒ those branches.
+    const byRole = {}
+    ;(arRes.data || []).forEach(r => {
+      if (!byRole[r.role_id]) byRole[r.role_id] = { role_id: r.role_id, scope: 'specific', branchIds: [] }
+      if (r.branch_id == null) byRole[r.role_id].scope = 'all'
+      else byRole[r.role_id].branchIds.push(r.branch_id)
+    })
+    // A legacy primary role with no junction rows shows as an all-branches row.
+    if (u.role_id && !byRole[u.role_id]) byRole[u.role_id] = { role_id: u.role_id, scope: 'all', branchIds: [] }
+    setRows(Object.values(byRole))
+    const g = {}
+    ;(effRes.data || []).forEach(p => {
+      if (!g[p.module]) g[p.module] = { module: p.module, label: p.module_label_ar, sort: p.module_sort || 99, acts: [] }
+      g[p.module].acts.push(p.label_ar)
+    })
+    setEff(Object.values(g).sort((a, b) => a.sort - b.sort))
+  }
+  useEffect(() => { refresh() }, [sb, u.id])
+
+  // Keep users.role_id (the primary role for the GM bypass + the chip) synced to
+  // whatever roles remain assigned: prefer a GM role, else the first.
+  const syncPrimary = async () => {
+    const { data } = await sb.from('user_roles').select('role_id').eq('user_id', u.id)
+    const ids = Array.from(new Set((data || []).map(r => r.role_id)))
+    const gm = ids.map(id => roleById[id]).find(isGmRole)
+    await sb.from('users').update({ role_id: gm ? gm.id : (ids[0] || null), updated_at: new Date().toISOString() }).eq('id', u.id)
+  }
+
+  // Rewrite one role's branch rows (delete-then-insert), then resync + refresh.
+  const writeRole = async (roleId, scope, branchIds) => {
+    if (!canManage || busy) return
+    setBusy(true)
+    try {
+      await sb.from('user_roles').delete().eq('user_id', u.id).eq('role_id', roleId)
+      const ins = scope === 'all'
+        ? [{ user_id: u.id, role_id: roleId, branch_id: null }]
+        : (branchIds || []).map(b => ({ user_id: u.id, role_id: roleId, branch_id: b }))
+      if (ins.length) { const { error } = await sb.from('user_roles').insert(ins); if (error) throw error }
+      await syncPrimary()
+      await refresh(); onChanged?.()
+    } catch (e) { toast?.('خطأ: ' + (e.message || '').slice(0, 90)); await refresh() }
+    finally { setBusy(false) }
+  }
+
+  const removeRole = async (roleId) => {
+    if (!canManage || busy) return
+    setBusy(true)
+    try {
+      await sb.from('user_roles').delete().eq('user_id', u.id).eq('role_id', roleId)
+      // If it was also the primary, clear/reassign it so it doesn't reappear.
+      if (u.role_id === roleId) await sb.from('users').update({ role_id: null }).eq('id', u.id)
+      await syncPrimary()
+      await refresh(); onChanged?.()
+    } catch (e) { toast?.('خطأ: ' + (e.message || '').slice(0, 90)); await refresh() }
+    finally { setBusy(false) }
+  }
+
+  // Local-only scope switch (persist immediately for "all"; wait for a branch
+  // pick when switching to "specific").
+  const setScope = (roleId, scope) => {
+    setRows(rs => (rs || []).map(r => r.role_id === roleId ? { ...r, scope } : r))
+    if (scope === 'all') writeRole(roleId, 'all', [])
+  }
+  const setBranches = (roleId, ids) => {
+    setRows(rs => (rs || []).map(r => r.role_id === roleId ? { ...r, branchIds: ids } : r))
+    if (ids && ids.length) writeRole(roleId, 'specific', ids)
+  }
+  const addRole = (roleId) => {
+    if (!roleId) return
+    setRows(rs => [...(rs || []), { role_id: roleId, scope: 'all', branchIds: [] }])
+    writeRole(roleId, 'all', [])
+  }
+
+  // Roles available to add (active, not already assigned).
+  const assignedIds = new Set((rows || []).map(r => r.role_id))
+  const addable = (roles || []).filter(r => r.is_active !== false && !assignedIds.has(r.id))
+
+  return (
+    <div style={cardChrome}>
+      <div style={cardHeader}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+        <span style={cardTitle}>الأدوار والصلاحيات</span>
+        {!userIsGM && rows && (
+          <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 600 }}>
+            {rows.length} دور
+          </span>
+        )}
+      </div>
+
+      {userIsGM ? (
+        <div style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <ShieldCheck size={20} color={C.gold} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>مدير عام — صلاحية كاملة</div>
+            <div style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, marginTop: 3 }}>يملك هذا المستخدم كل الصلاحيات على جميع الأقسام والمكاتب تلقائياً.</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Assigned roles — each with its branch scope */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)' }}>الأدوار المُسندة</span>
+              <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>لكل دور نطاق فروع — يمكن إسناد دور مختلف لفرع مختلف</span>
+            </div>
+            {!rows ? (
+              <Shimmer w="100%" h={56} r={10} />
+            ) : (rows.length === 0 && !canManage) ? (
+              <span style={{ fontSize: 11.5, color: 'var(--tx5)', fontWeight: 600 }}>لا أدوار مُسندة</span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {rows.map(row => {
+                  const r = roleById[row.role_id]; const c = r?.color || C.gold
+                  return (
+                    <div key={row.role_id} style={{ padding: '11px 13px', borderRadius: 11, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', borderRadius: 999, background: c + '1a', border: `1px solid ${c}44`, color: c, fontSize: 12, fontWeight: 800 }}>
+                          <ShieldCheck size={12} /> {r?.name_ar || '—'}
+                        </span>
+                        {canManage && (
+                          <button onClick={() => removeRole(row.role_id)} disabled={busy} title="إزالة الدور"
+                            style={{ marginInlineStart: 'auto', width: 26, height: 26, borderRadius: 7, cursor: 'pointer', border: '1px solid var(--bd)', background: 'transparent', color: C.red, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+                      {canManage ? (
+                        <>
+                          <Seg value={row.scope} disabled={busy}
+                            onChange={(m) => setScope(row.role_id, m)}
+                            options={[{ v: 'all', l: 'كل الفروع' }, { v: 'specific', l: 'فروع محددة' }]} />
+                          {row.scope === 'specific' && (
+                            <MultiSelect placeholder="اختر الفروع…" value={row.branchIds}
+                              onChange={(ids) => setBranches(row.role_id, ids)}
+                              options={branches || []} getKey={b => b.id} getLabel={b => b.branch_code} />
+                          )}
+                          {row.scope === 'specific' && (!row.branchIds || !row.branchIds.length) && (
+                            <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>اختر فرعاً واحداً على الأقل ليُحفظ.</span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>
+                          {row.scope === 'all' ? 'كل الفروع' : (row.branchIds || []).map(branchCode).join('، ') || '—'}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+                {canManage && addable.length > 0 && (
+                  <Select placeholder="+ إضافة دور…" value={null} onChange={(v) => addRole(v)}
+                    options={addable} getKey={r => r.id} getLabel={r => r.name_ar} />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Effective access preview */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid var(--bd)' }}>
+              <Eye size={13} color={C.gold} />
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>ملخّص الوصول</span>
+              <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>ما يراه ويفعله بناءً على أدواره</span>
+            </div>
+            {!eff ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{Array.from({ length: 3 }).map((_, i) => <Shimmer key={i} w="100%" h={40} r={9} />)}</div>
+            ) : eff.length === 0 ? (
+              <div style={{ padding: '18px', textAlign: 'center', background: 'var(--inputBg)', border: '1px dashed var(--bd)', borderRadius: 10, fontSize: 12, fontWeight: 600, color: 'var(--tx4)' }}>
+                لا صلاحيات بعد — أسنِد دوراً ليظهر ما يستطيع الوصول إليه.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 8 }}>
+                {eff.map(m => (
+                  <div key={m.module} style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tx)', marginBottom: 6 }}>{m.label || m.module}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {m.acts.map((a, i) => (
+                        <span key={i} style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(39,160,70,.1)', color: '#3ec46a' }}>{a}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Collapsible wrapper for the granular per-user exception panel — kept out of
+// the way; opens only when the GM needs to override a single item.
+function AdvancedExceptions({ children }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={cardChrome}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', padding: '14px 22px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontFamily: F }}>
+        <SlidersHorizontal size={15} color={C.gold} />
+        <span style={{ ...cardTitle, fontSize: 14 }}>استثناءات خاصة لهذا المستخدم</span>
+        <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx5)', fontWeight: 600 }}>إظهار/إخفاء أو قفل عنصر بعينه فوق الأدوار</span>
+        <ChevronDown size={16} color="var(--tx4)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: '.2s', flexShrink: 0 }} />
+      </button>
+      {open && <div style={{ borderTop: '1px solid var(--bd)' }}>{children}</div>}
     </div>
   )
 }
@@ -880,8 +1117,8 @@ function FieldList({ tabId, groupKey, fields, vis, disabled, parentShown, onTogg
         <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)' }}>الحقول</span>
       </div>
       {list.map(f => {
-        const fVis = vis[`field:${tabId}:${f.key}`] === true
-        const fEdit = vis[`fieldedit:${tabId}:${f.key}`] === true
+        const fVis = vis[`field:${tabId}:${f.key}`] !== false
+        const fEdit = vis[`fieldedit:${tabId}:${f.key}`] !== false
         return (
           <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -931,7 +1168,7 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
             {multiGroup && <div style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, marginBottom: 6, opacity: .85 }}>{CARD_GROUP_LABELS[gk] || gk}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
               {groups[gk].map(c => {
-                const shown = vis[`card:${tabId}:${c.key}`] === true
+                const shown = vis[`card:${tabId}:${c.key}`] !== false
                 const acts = c.actions || []
                 return (
                   <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'var(--inputBg)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'var(--bd)' : 'rgba(192,57,43,.16)') }}>
@@ -945,7 +1182,7 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
                     {acts.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed var(--bd)', opacity: shown ? 1 : .45 }}>
                         {acts.map(a => {
-                          const aOn = vis[`cardact:${tabId}:${c.key}:${a.action}`] === true
+                          const aOn = vis[`cardact:${tabId}:${c.key}:${a.action}`] !== false
                           const dot = ACTION_DOT[a.kind] || C.gold
                           return (
                             <div key={a.action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -982,7 +1219,7 @@ function StagesSection({ tabId, stages, fields, vis, disabled, onToggleStage, on
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
         {stages.map(s => {
-          const shown = vis[`stage:${tabId}:${s.key}`] === true
+          const shown = vis[`stage:${tabId}:${s.key}`] !== false
           return (
             <div key={s.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'var(--inputBg)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'var(--bd)' : 'rgba(192,57,43,.16)') }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
@@ -1012,7 +1249,7 @@ function ModalsSection({ tabId, modals, vis, disabled, onToggleModal }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 7 }}>
         {modals.map(m => {
-          const on = vis[`modal:${tabId}:${m.key}`] === true
+          const on = vis[`modal:${tabId}:${m.key}`] !== false
           return (
             <div key={m.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 12px', borderRadius: 9, background: on ? 'var(--inputBg)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (on ? 'var(--bd)' : 'rgba(192,57,43,.16)') }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
@@ -1201,9 +1438,14 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
         <div className="usrd-main" style={{ gridColumn: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <InfoSectionCard title="بيانات العمل" items={infoFields.slice(4, 8)} pwNode={pwValueNode}
             headerAction={<EditAction onEdit={() => setEditing(true)} />} />
-          {/* Permissions — full control panel (visibility · offices · actions · cards) */}
-          <PermissionsPanel sb={sb} currentUser={currentUser} u={u} branches={branches}
-            nav={nav} hubTabs={hubTabs} modules={modules} toast={toast} />
+          {/* Permissions — role assignment first (simple), exceptions collapsed below */}
+          <RoleAssignmentCard sb={sb} currentUser={currentUser} u={u} roles={roles} branches={branches} toast={toast} onChanged={onChanged} />
+          {!isGMRole && (
+            <AdvancedExceptions>
+              <PermissionsPanel sb={sb} currentUser={currentUser} u={u} branches={branches}
+                nav={nav} hubTabs={hubTabs} modules={modules} toast={toast} embedded />
+            </AdvancedExceptions>
+          )}
         </div>
 
         {/* Left column — الهوية (sticky) */}

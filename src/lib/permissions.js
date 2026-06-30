@@ -37,14 +37,39 @@ export const hasPerm = (user, module, action) =>
   isGM(user) || (Array.isArray(user?.perms) &&
     user.perms.some(p => p.module === module && p.action === action && p.is_granted !== false))
 
+// The branches in which the user holds (module.action), derived from their
+// per-branch role assignments (user.branchPerms, loaded at login from
+// v_user_branch_permissions). Returns:
+//   • null      → ALL branches (GM, an all-branches assignment, or a legacy
+//                 primary role that grants it)
+//   • []        → no access in any branch
+//   • [ids…]    → only these branches
+//   • undefined → branchPerms not loaded (caller should fall back to legacy)
+export const permBranchScope = (user, module, action) => {
+  if (isGM(user)) return null
+  if (!Array.isArray(user?.branchPerms)) return undefined
+  const rows = user.branchPerms.filter(r => r.module === module && r.action === action)
+  if (!rows.length) return []
+  if (rows.some(r => r.branch_id == null)) return null
+  return Array.from(new Set(rows.map(r => r.branch_id)))
+}
+
 // Can the user perform `action` on a record belonging to `branchId`?
-// GM ⇒ always. Otherwise needs the permission AND (the record has no office, or
-// the record's office is one of the user's offices).
+// GM ⇒ always. Otherwise: the action must be granted in a role whose branch
+// scope covers `branchId` (or all branches). A record with no office is allowed
+// as long as the user has the action somewhere.
 export const canOnBranch = (user, module, action, branchId) => {
   if (isGM(user)) return true
-  if (!hasPerm(user, module, action)) return false
-  if (branchId == null) return true
-  return userOffices(user).includes(branchId)
+  const scope = permBranchScope(user, module, action)
+  if (scope === undefined) {             // legacy session — fall back
+    if (!hasPerm(user, module, action)) return false
+    if (branchId == null) return true
+    return userOffices(user).includes(branchId)
+  }
+  if (scope === null) return true        // all branches
+  if (!scope.length) return false        // no access anywhere
+  if (branchId == null) return true      // record has no office
+  return scope.includes(branchId)
 }
 
 // Convenience: check a "module.action" code string. GM ⇒ always true.
@@ -79,6 +104,7 @@ export const PAGE_VIEW_PERM = {
   admin_agents: 'admin_agents.view',
   admin_services: 'admin_services.view',
   admin_permissions: 'admin_permissions.view',
+  admin_roles: 'admin_permissions.view',
   settings_fields: 'settings_fields.view',
   sync_hub: 'sync_hub.access',
   sync_log: 'sync_hub.access',
@@ -97,12 +123,25 @@ export const canViewPage = (user, pageId) => {
 export const canTab = (user, tabId, action) =>
   isGM(user) || hasPerm(user, tabModule(tabId), action)
 
+// ── Section visibility (role-driven) ────────────────────────────────────
+// A user "can see" a section when their role(s) grant its view/access action.
+// This is the single gate that opens up the section's detail-page cards,
+// fields, popups and wizard stages BY DEFAULT — the granular per-item toggles
+// are demoted to exceptions (an explicit `false` hides/locks one item).
+export const sectionViewable = (user, tabId) => {
+  if (isGM(user)) return true
+  const mod = tabModule(tabId)
+  return hasPerm(user, mod, 'view') || hasPerm(user, mod, 'access')
+}
+
 // ── Detail-page card visibility ─────────────────────────────────────────
-// A card on a record's detail page is hidden until the GM explicitly grants it
-// for this user (users.ui_visibility['card:<tab>:<key>'] === true). GM ⇒ all.
+// ROLE-FIRST MODEL: a card is visible when the user can view the section,
+// UNLESS the GM has explicitly hidden it for this user
+// (users.ui_visibility['card:<tab>:<key>'] === false). GM ⇒ all.
 export const cardVisible = (user, tabId, cardKey) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`card:${tabId}:${cardKey}`] === true
+  if (!sectionViewable(user, tabId)) return false
+  return user?.ui_visibility?.[`card:${tabId}:${cardKey}`] !== false
 }
 // Convenience builder: a per-page predicate bound to one tab.
 export const cardGate = (user, tabId) => (cardKey) => cardVisible(user, tabId, cardKey)
@@ -111,11 +150,11 @@ export const cardGate = (user, tabId) => (cardKey) => cardVisible(user, tabId, c
 // Within a card, an individual action button (edit / add / delete / a special
 // action) can be hidden for this user even when they hold the tab-level
 // permission — letting the GM say "you may edit, but not THIS card".
-// Stored in users.ui_visibility['cardact:<tab>:<key>:<action>'] === true to grant.
-// Default DENIED; an explicit `true` grants. GM always true.
+// ROLE-FIRST: allowed by default; an explicit `false` excludes it on this card.
+// users.ui_visibility['cardact:<tab>:<key>:<action>'] === false ⇒ excluded.
 export const cardActionAllowed = (user, tabId, cardKey, action) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`cardact:${tabId}:${cardKey}:${action}`] === true
+  return user?.ui_visibility?.[`cardact:${tabId}:${cardKey}:${action}`] !== false
 }
 
 // The button-level gate for an action inside a card. Two cases, decided
@@ -141,44 +180,51 @@ export const canCardBtn = canCardAction
 // from editing, per user. Field keys are unique within a tab (see TAB_FIELDS in
 // permCatalog.js). Both default DENIED; GM always bypasses.
 //
-//   • field visibility → users.ui_visibility['field:<tab>:<fieldKey>'] === true
-//                        grants the field everywhere it renders (card row + the
-//                        matching input in any modal). UI-enforced. Default hidden.
-//   • field edit lock  → users.ui_visibility['fieldedit:<tab>:<fieldKey>'] === true
-//                        grants editing (input writable) AND is enforced in the DB
-//                        by the enforce_field_locks() trigger, so an ungranted
-//                        column can't be changed even via the API. Default locked.
+// ROLE-FIRST MODEL (default visible/editable when the section is granted):
+//   • field visibility → shown when the user can view the section, UNLESS
+//                        users.ui_visibility['field:<tab>:<fieldKey>'] === false
+//                        explicitly hides it. UI-enforced.
+//   • field edit lock  → editable when the user can EDIT the section, UNLESS
+//                        users.ui_visibility['fieldedit:<tab>:<fieldKey>'] === false
+//                        (or the field is hidden). The DB enforce_field_locks()
+//                        trigger mirrors this: it blocks a column only on an
+//                        explicit per-user lock.
 export const fieldVisible = (user, tabId, fieldKey) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] === true
+  if (!sectionViewable(user, tabId)) return false
+  return user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] !== false
 }
 export const fieldEditable = (user, tabId, fieldKey) => {
   if (isGM(user)) return true
-  // Editing requires the field to be granted visible AND granted editable.
-  if (user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] !== true) return false
-  return user?.ui_visibility?.[`fieldedit:${tabId}:${fieldKey}`] === true
+  // Must be visible, the section must grant editing, and the field must not be
+  // explicitly locked for this user.
+  if (!fieldVisible(user, tabId, fieldKey)) return false
+  if (!hasPerm(user, tabModule(tabId), 'edit')) return false
+  return user?.ui_visibility?.[`fieldedit:${tabId}:${fieldKey}`] !== false
 }
 // Per-tab bound builders (mirror cardGate) — convenient inside one page.
 export const fieldGate = (user, tabId) => (fieldKey) => fieldVisible(user, tabId, fieldKey)
 export const fieldEditGate = (user, tabId) => (fieldKey) => fieldEditable(user, tabId, fieldKey)
 
 // ── Modal / popup gate ──────────────────────────────────────────────────
-// A whole popup (record-payment, edit-client, issue-iqama, …) is blocked until
-// the GM grants it for the user. Default DENIED.
-// users.ui_visibility['modal:<tab>:<modalKey>'] === true ⇒ allowed. The write
+// A whole popup (record-payment, edit-client, issue-iqama, …) opens by default
+// when the user can view the section, UNLESS the GM has explicitly blocked it:
+// users.ui_visibility['modal:<tab>:<modalKey>'] === false ⇒ blocked. The write
 // the modal performs is still independently DB-gated by its action permission.
 export const modalAllowed = (user, tabId, modalKey) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`modal:${tabId}:${modalKey}`] === true
+  if (!sectionViewable(user, tabId)) return false
+  return user?.ui_visibility?.[`modal:${tabId}:${modalKey}`] !== false
 }
 
 // ── Wizard-stage gate ───────────────────────────────────────────────────
-// A step inside a multi-stage calculator (Kafala / renewal wizard) is hidden
-// until granted. Default DENIED. modal/stage keys are unique within a tab.
-// users.ui_visibility['stage:<tab>:<stageKey>'] === true ⇒ visible.
+// A step inside a multi-stage calculator (Kafala / renewal wizard) is visible
+// by default when the section is granted, UNLESS explicitly hidden:
+// users.ui_visibility['stage:<tab>:<stageKey>'] === false ⇒ hidden.
 export const stageVisible = (user, tabId, stageKey) => {
   if (isGM(user)) return true
-  return user?.ui_visibility?.[`stage:${tabId}:${stageKey}`] === true
+  if (!sectionViewable(user, tabId)) return false
+  return user?.ui_visibility?.[`stage:${tabId}:${stageKey}`] !== false
 }
 
 // ── Per-tab office scope ────────────────────────────────────────────────
@@ -197,10 +243,20 @@ export const tabOfficePolicy = (user, tabId) => {
 // 'specific' ⇒ the chosen ids, 'inherit' ⇒ the account's own offices.
 export const tabOffices = (user, tabId) => {
   if (isGM(user)) return null
+  // An explicit per-user office override (advanced) wins.
   const { mode, ids } = tabOfficePolicy(user, tabId)
   if (mode === 'all') return null
   if (mode === 'specific') return ids
-  return userOffices(user)
+  // Default: the branches where the user's role(s) grant this tab's view/access.
+  const mod = tabModule(tabId)
+  let scope = permBranchScope(user, mod, 'view')
+  if (scope === undefined) return userOffices(user)        // legacy session
+  if (Array.isArray(scope) && scope.length === 0) {
+    const acc = permBranchScope(user, mod, 'access')
+    if (acc === null) return null
+    if (Array.isArray(acc) && acc.length) return acc
+  }
+  return scope === null ? null : scope
 }
 
 // Can the user act within `branchId` for a given tab? null list ⇒ unrestricted.
