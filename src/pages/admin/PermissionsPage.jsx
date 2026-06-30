@@ -53,8 +53,8 @@ function HeroStat({ tone, label, value, footer }) {
   return (
     <div style={{
       position: 'relative', padding: '18px 22px', borderRadius: 16,
-      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-      border: '1px solid rgba(255,255,255,.05)',
+      background: 'var(--card-grad2)',
+      border: '1px solid var(--bd)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
       overflow: 'hidden', minHeight: 150,
@@ -62,12 +62,12 @@ function HeroStat({ tone, label, value, footer }) {
       <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${tone}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone, boxShadow: `0 0 10px ${tone}aa` }} />
-        <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
+        <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
         <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
       </div>
     </div>
@@ -130,14 +130,12 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>المستخدمون</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>المستخدمون</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>تفعيل أو تعطيل حسابات المستخدمين والتحكم بصلاحية الدخول للنظام.</div>
         </div>
         {isGM && (
-          <button onClick={() => setAdding(true)}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-            style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+          <button onClick={() => setAdding(true)} className="btn-primary-modal"
+            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
             مستخدم جديد
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
           </button>
@@ -240,7 +238,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
         .usr-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(212,160,23,.22) !important}
         .usr-row-grid{display:grid;grid-template-columns:auto 1px 1fr auto;gap:18px;align-items:center}
         @media (max-width:720px){.usr-row-grid{grid-template-columns:1fr;gap:12px}.usr-row-vdiv{display:none}}
-        .usr-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%);min-height:46px}
+        .usr-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,var(--bd) 50%,transparent 100%);min-height:46px}
         @keyframes sk-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
       `}</style>
 
@@ -249,12 +247,12 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
       {loading && users.length === 0 ? (
         <>
           <div className="usr-hero-grid">
-            <div style={{ padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
               <Shimmer w="42%" h={20} />
               <Shimmer w="50%" h={40} />
               <Shimmer w="60%" h={11} />
             </div>
-            <div style={{ padding: '12px 16px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 150, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ padding: '12px 16px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 150, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <Shimmer w="45%" h={12} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <Shimmer w={86} h={86} r="50%" style={{ flexShrink: 0 }} />
@@ -266,14 +264,14 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
           </div>
           {/* Role group header + row cards */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--bd)' }}>
               <Shimmer w={120} h={13} />
               <Shimmer w={60} h={11} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} style={{ position: 'relative', borderRadius: 14, background: 'linear-gradient(135deg, rgba(119,119,119,.06) 0%, #232323 50%, #1f1f1f 100%)', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden' }}>
-                  <span style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 4, background: 'rgba(255,255,255,.06)' }} />
+                <div key={i} style={{ position: 'relative', borderRadius: 14, background: 'linear-gradient(135deg, rgba(119,119,119,.06) 0%, var(--card-bg) 50%, var(--card-bg) 100%)', border: '1px solid var(--bd)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden' }}>
+                  <span style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 4, background: 'var(--bd)' }} />
                   <div style={{ padding: '26px 30px 26px 26px', display: 'flex', alignItems: 'center', gap: 22 }}>
                     <Shimmer w={52} h={52} r={14} style={{ flexShrink: 0 }} />
                     <div className="usr-row-vdiv" style={{ minHeight: 56 }} />
@@ -304,8 +302,8 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
           return (
             <div style={{
               borderRadius: 16,
-              background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-              border: '1px solid rgba(255,255,255,.05)',
+              background: 'var(--card-grad2)',
+              border: '1px solid var(--bd)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
               padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
             }}>
@@ -317,7 +315,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-                  <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
+                  <circle r={R} fill="none" stroke="var(--bd2)" strokeWidth="11" />
                   {natDist.map((r, i) => {
                     const c = r.color || ROLE_PALETTE[i % ROLE_PALETTE.length]
                     const dash = (r.cnt / total) * CIRC
@@ -332,7 +330,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
                     return seg
                   })}
                   <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)"
-                    style={{ fill: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                     {nm(users.length)}
                   </text>
                 </svg>
@@ -359,14 +357,14 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث بالاسم أو الهوية أو الجوال أو البريد أو الفرع أو الدور…"
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
         {(() => {
           const hasFilters = !!(roleFilter || branchFilter || statusFilter !== 'all')
           const active = advOpen || hasFilters
           const clearAll = () => { setRoleFilter(''); setBranchFilter(''); setStatusFilter('all') }
           return (
-            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.05)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid var(--bd)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
               تصفية
               {hasFilters ? (
                 <span role="button" tabIndex={0} title="مسح الفلاتر"
@@ -388,7 +386,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
       {advOpen && (() => {
         const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
         return (
-          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
               <div>
                 <div style={fLbl}>الدور</div>
@@ -417,7 +415,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
         const c = g.color || ROLE_PALETTE[gi % ROLE_PALETTE.length]
         return (
           <div key={g.id} style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--bd)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, transform: 'translateY(-2px)' }} />
                 <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx2)' }}>{g.name}</span>
@@ -512,7 +510,7 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
 // + visibility card. Permissions write user_permissions; visibility writes
 // users.ui_visibility (per-employee sidebar/tab overrides).
 // ═══════════════════════════════════════════════════════════════════
-const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
 // Every sidebar tab is controllable — nothing is permanently locked. The General

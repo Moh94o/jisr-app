@@ -51,9 +51,9 @@ const payState = (invoiced, paid) => {
 }
 
 /* ─── Shared chrome (matches the Users page) ─── */
-const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
-const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
-const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
+const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
+const cardTitle = { fontSize: 16, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px' }
 
 const Lbl = ({ children }) => (
   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.2px' }}>{children}</div>
@@ -64,8 +64,8 @@ function HeroStat({ tone, label, value, footer }) {
   return (
     <div style={{
       position: 'relative', padding: '18px 22px', borderRadius: 16,
-      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-      border: '1px solid rgba(255,255,255,.05)',
+      background: 'var(--card-grad2)',
+      border: '1px solid var(--bd)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
       overflow: 'hidden', minHeight: 150,
@@ -73,12 +73,12 @@ function HeroStat({ tone, label, value, footer }) {
       <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${tone}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone, boxShadow: `0 0 10px ${tone}aa` }} />
-        <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
+        <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
         <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: 14, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: 14, paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
       </div>
     </div>
@@ -95,8 +95,8 @@ function NatDonutCard({ items, totalLabel, title, T = (a) => a }) {
   return (
     <div style={{
       borderRadius: 16,
-      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-      border: '1px solid rgba(255,255,255,.05)',
+      background: 'var(--card-grad2)',
+      border: '1px solid var(--bd)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
       padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
     }}>
@@ -108,7 +108,7 @@ function NatDonutCard({ items, totalLabel, title, T = (a) => a }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
         <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-          <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
+          <circle r={R} fill="none" stroke="var(--bd2)" strokeWidth="11" />
           {items.map((r, i) => {
             const c = r.color || ROLE_PALETTE[i % ROLE_PALETTE.length]
             const dash = (r.cnt / denom) * CIRC
@@ -123,7 +123,7 @@ function NatDonutCard({ items, totalLabel, title, T = (a) => a }) {
             return seg
           })}
           <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)"
-            style={{ fill: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+            style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
             {num(total)}
           </text>
         </svg>
@@ -155,7 +155,7 @@ function CopyBtn({ value, toast, T = (a) => a }) {
     <button type="button" onClick={copy} title={T('نسخ', 'Copy')}
       onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
       onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx4)' }}
-      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid var(--bd)', background: done ? 'rgba(39,160,70,.16)' : 'var(--bd2)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
       {done ? <Check size={12} /> : <Copy size={12} />}
     </button>
   )
@@ -171,7 +171,7 @@ function InfoSectionCard({ title, items, headerAction, T = (a) => a }) {
       </div>
       <div style={{ padding: '6px 22px 12px' }}>
         {items.map((f, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed var(--bd)' : 'none' }}>
             <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{f.label}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               {f.copy && f.value && <CopyBtn value={f.value} toast={f.toast} T={T} />}
@@ -185,7 +185,7 @@ function InfoSectionCard({ title, items, headerAction, T = (a) => a }) {
 }
 
 const AmountBox = ({ label, value, color }) => (
-  <div style={{ padding: '14px 12px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
+  <div style={{ padding: '14px 12px', background: 'var(--inputBg)', textAlign: 'center' }}>
     {label && <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.5px' }}>{label}</div>}
     <div style={{ fontSize: 17, fontWeight: 700, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
   </div>
@@ -370,12 +370,12 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
         .cl-row:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.34) !important; border-color: rgba(212,160,23,.22) !important; }
         .cl-row-grid { display: grid; grid-template-columns: auto 1px 1fr auto; gap: 18px; align-items: center; }
         @media (max-width: 720px) { .clp-hero { grid-template-columns: 1fr; } .cl-row-grid { grid-template-columns: 1fr; gap: 12px; } .cl-row-vdiv { display: none; } }
-        .cl-row-vdiv { width: 1px; align-self: stretch; background: linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%); min-height: 46px; }
+        .cl-row-vdiv { width: 1px; align-self: stretch; background: linear-gradient(180deg,transparent 0%,var(--bd) 50%,transparent 100%); min-height: 46px; }
       `}</style>
 
       {/* Header */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('العملاء', 'Clients')}</div>
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('العملاء', 'Clients')}</div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('قائمة العملاء وسجل طلباتهم وفواتيرهم', 'Clients directory with service requests and invoices')}</div>
         <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('إجمالي العملاء وتوزيع الجنسيات رصيد تراكمي دائم، و«جديد هذا الشهر» يُحسب من بداية الشهر الميلادي الحالي', 'Total clients and nationality split are all-time; “new this month” counts from the start of the current calendar month')}</div>
       </div>
@@ -394,7 +394,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={q} onChange={e => { setQ(e.target.value); setPage(0) }} placeholder={T('ابحث بالاسم، رقم الهوية، الجوال…', 'Search by name, ID or phone…')}
-            style={{ width: '100%', height: 44, paddingBlock: 0, paddingInlineStart: 14, paddingInlineEnd: 40, borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
+            style={{ width: '100%', height: 44, paddingBlock: 0, paddingInlineStart: 14, paddingInlineEnd: 40, borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
         <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
           {T('تصفية', 'Filter')}
@@ -414,7 +414,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
       </div>
 
       {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 12 }}>
             <div>
               <Lbl>{T('المكتب', 'Branch')}</Lbl>
@@ -455,16 +455,16 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
         const nextDisabled = page + 1 >= totalPages
         const fromN = (page * PAGE) + 1
         const toN = Math.min(total, (page + 1) * PAGE)
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,.06)', margin: '4px 4px 14px' }}>
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid var(--bd)', margin: '4px 4px 14px' }}>
           <style>{`
             .inv-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${GOLD};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
             .inv-pg-btn:hover:not(:disabled){background:${GOLD};color:#000}
-            .inv-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
+            .inv-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:var(--bd)}
             .inv-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${GOLD};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
             .inv-pg-input::-webkit-outer-spin-button,.inv-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
           `}</style>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 13, color: '#fff', fontWeight: 700, fontFamily: F }}><span style={{ color: GOLD }}>{fromN}–{toN}</span> {T('من', 'of')} {num(total)}</span>
+            <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 700, fontFamily: F }}><span style={{ color: GOLD }}>{fromN}–{toN}</span> {T('من', 'of')} {num(total)}</span>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500, fontFamily: F }}>{T('صفحة', 'Page')} {page + 1} {T('من', 'of')} {totalPages}</span>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -504,15 +504,15 @@ function ClientRow({ client, clientStats, onClick, T, isAr }) {
   const pill = (icon, label, color, bg, bd) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: bg, border: `1px solid ${bd}`, color, fontSize: 10, fontWeight: 700 }}>{icon}{label}</span>
   )
-  const baseBg = `linear-gradient(135deg, ${accent}0e 0%, #232323 50%, #1f1f1f 100%)`
+  const baseBg = `linear-gradient(135deg, ${accent}0e 0%, var(--card-bg) 50%, var(--card-bg) 100%)`
   const card = (children, extra = {}) => (
-    <div onClick={onClick} className="cl-row" style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: baseBg, border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden', ...extra }}>{children}</div>
+    <div onClick={onClick} className="cl-row" style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: baseBg, border: '1px solid var(--bd)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden', ...extra }}>{children}</div>
   )
 
   /* ── granular pieces for the content-layout variants ── */
-  const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 700, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-  const idText = client.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><IdCard size={15} color="rgba(255,255,255,.5)" /><span style={{ direction: 'ltr', fontSize: 13, color: 'var(--tx3)', fontFamily: 'monospace', letterSpacing: '.3px' }}>{client.id_number}</span></span> : null
-  const phoneBit = client.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Phone size={15} color="rgba(255,255,255,.5)" /><span style={{ direction: 'ltr', fontSize: 13, fontFamily: 'monospace', color: 'var(--tx3)', letterSpacing: '.3px' }}>{fmtPhone(client.phone)}</span></span> : null
+  const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 700, color: 'var(--tx)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+  const idText = client.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><IdCard size={15} color="var(--tx3)" /><span style={{ direction: 'ltr', fontSize: 13, color: 'var(--tx3)', fontFamily: 'monospace', letterSpacing: '.3px' }}>{client.id_number}</span></span> : null
+  const phoneBit = client.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Phone size={15} color="var(--tx3)" /><span style={{ direction: 'ltr', fontSize: 13, fontFamily: 'monospace', color: 'var(--tx3)', letterSpacing: '.3px' }}>{fmtPhone(client.phone)}</span></span> : null
   const mline = (children, gap = 12) => <div style={{ display: 'inline-flex', alignItems: 'center', gap, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, flexWrap: 'wrap' }}>{children}</div>
 
   return card(
@@ -661,7 +661,7 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
                 fVis('fs_paid') && <AmountBox key="p" label={T('المسدّد', 'Paid')} value={num(Math.round(paidAmt))} color={C.ok} />,
                 fVis('fs_remaining') && <AmountBox key="r" label={T('المتبقي', 'Remaining')} color={due > 0 ? C.red : 'var(--tx)'} value={num(Math.round(due))} />,
               ].filter(Boolean)
-              return boxes.length ? <div style={{ display: 'grid', gridTemplateColumns: `repeat(${boxes.length},1fr)`, gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>{boxes}</div> : null
+              return boxes.length ? <div style={{ display: 'grid', gridTemplateColumns: `repeat(${boxes.length},1fr)`, gap: 1, padding: 1, background: 'var(--bd2)' }}>{boxes}</div> : null
             })()}
             {fVis('fs_paid_pct') && (
             <div style={{ padding: '14px 22px 18px' }}>
@@ -669,7 +669,7 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
                 <span>{T('نسبة السداد', 'Paid')}</span>
                 <span style={{ color: ps.c, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
               </div>
-              <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}>
+              <div style={{ height: 8, borderRadius: 999, background: 'var(--bd2)', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${ps.c}, ${ps.c}dd)`, transition: 'width .3s' }} />
               </div>
             </div>
@@ -687,8 +687,8 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
                 { fk: 'st_invoices', Icon: Wallet, label: T('عدد الفواتير', 'Invoices'), value: num(invCount) },
                 { fk: 'st_last_invoice', Icon: Calendar, label: T('آخر فاتورة', 'Last invoice'), value: lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—', color: GOLD },
               ].filter(row => fVis(row.fk)).map((row, i, arr) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
-                  <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><row.Icon size={13} color="rgba(255,255,255,.4)" />{row.label}</span>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed var(--bd)' : 'none' }}>
+                  <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><row.Icon size={13} color="var(--tx4)" />{row.label}</span>
                   <span style={{ fontSize: 13, color: row.color || 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
                 </div>
               ))}
@@ -744,7 +744,7 @@ function InvoiceRow({ invoice, openInvoice, T, isAr, fv = () => true }) {
 
   // شريط حالة — colored pay-status rail + prominent total, paid/remaining as pills
   return (
-    <div style={{ padding: '12px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+    <div style={{ padding: '12px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
       <div style={{ display: 'flex' }}>
         <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: ps.c, marginInlineEnd: 12 }} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -868,4 +868,4 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
   )
 }
 
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? GOLD : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'var(--bd)'), color: active ? GOLD : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })

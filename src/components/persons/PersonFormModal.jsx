@@ -172,9 +172,9 @@ export default function PersonFormModal({ open, onClose, personId, onSaved, toas
             value={f.nationality_id} onChange={v => set('nationality_id', v)} error={firstErrKey === 'nationality_id'}
             renderSelected={o => <>{o.nationality_ar || o.name_ar} <Flag code={o.code} size={16} /></>}
             renderCell={(o, isSel) => (
-              <span style={{ fontSize: 14, fontWeight: 600, color: isSel ? C.gold : 'rgba(255,255,255,.92)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: isSel ? C.gold : 'var(--tx)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <span>{o.nationality_ar || o.name_ar}</span>
-                {o.nationality_en && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.45)', fontWeight: 500 }}>· {o.nationality_en}</span>}
+                {o.nationality_en && <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>· {o.nationality_en}</span>}
                 <Flag code={o.code} size={16} />
               </span>
             )} />
@@ -282,22 +282,22 @@ function RolesTab({ personId, profile, toast }) {
 }
 
 const FacilityRow = ({ title, sub }) => (
-  <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', gap: 10 }}>
+  <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--inputBg)', border: '1px solid var(--bd2)', display: 'flex', alignItems: 'center', gap: 10 }}>
     <Building2 size={14} color={C.gold} opacity={.7} />
     <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.9)' }}>{title || '—'}</div>
-      <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>{sub}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>{title || '—'}</div>
+      <div style={{ fontSize: 10, color: 'var(--tx3)', marginTop: 2 }}>{sub}</div>
     </div>
   </div>
 )
 
 const EmptyRow = ({ text }) => (
-  <div style={{ padding: '14px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.45)', background: 'rgba(0,0,0,.15)', borderRadius: 8, border: '1px dashed rgba(255,255,255,.06)' }}>{text}</div>
+  <div style={{ padding: '14px', textAlign: 'center', fontSize: 11, color: 'var(--tx4)', background: 'var(--inputBg)', borderRadius: 8, border: '1px dashed var(--bd)' }}>{text}</div>
 )
 
 const Skel = () => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-    {[0, 1].map(i => <div key={i} style={{ height: 38, borderRadius: 8, background: 'rgba(255,255,255,.03)' }} />)}
+    {[0, 1].map(i => <div key={i} style={{ height: 38, borderRadius: 8, background: 'var(--bd2)' }} />)}
   </div>
 )
 
@@ -311,13 +311,13 @@ const AddRowBtn = ({ text, onClick }) => (
 )
 
 const RoleMiniCard = ({ label, linked, onClick, Icon, color }) => (
-  <div style={{ borderRadius: 10, padding: '10px 12px', border: `1px solid ${linked ? color + '55' : 'rgba(255,255,255,.06)'}`, background: linked ? color + '0d' : 'rgba(0,0,0,.18)', display: 'flex', alignItems: 'center', gap: 10 }}>
+  <div style={{ borderRadius: 10, padding: '10px 12px', border: `1px solid ${linked ? color + '55' : 'var(--bd)'}`, background: linked ? color + '0d' : 'var(--inputBg)', display: 'flex', alignItems: 'center', gap: 10 }}>
     <div style={{ width: 32, height: 32, borderRadius: 8, background: color + '1a', border: `1px solid ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       <Icon size={15} color={color} strokeWidth={2} />
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.92)' }}>{label}</div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: linked ? color : 'rgba(255,255,255,.4)', marginTop: 2 }}>{linked ? '● مُرتبط' : 'غير مُرتبط'}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>{label}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: linked ? color : 'var(--tx4)', marginTop: 2 }}>{linked ? '● مُرتبط' : 'غير مُرتبط'}</div>
     </div>
     <button type="button" onClick={onClick}
       style={{ height: 26, padding: '0 10px', borderRadius: 7, border: `1px solid ${linked ? 'rgba(192,57,43,.3)' : C.gold + '40'}`, background: linked ? 'rgba(192,57,43,.08)' : 'rgba(212,160,23,.08)', color: linked ? '#e68a80' : C.gold, fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>

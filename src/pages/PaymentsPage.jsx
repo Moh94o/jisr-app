@@ -40,7 +40,7 @@ const STATUS_THEME = {
   skipped: { c: C.gray, stamp_ar: 'متخطى',          stamp_en: 'SKIPPED' },
 }
 
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'var(--bd)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
 
 /* ═════════════════════════════════════════════════════════════════════ */
 export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIcon }) {
@@ -250,7 +250,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       {/* Hero */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('سدادات الخدمات','Service Payments')}</div>
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('سدادات الخدمات','Service Payments')}</div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('سداد رسوم المعاملات الخارجية والداخلية لدى جميع الجهات','Payment of internal and external transaction fees across all authorities')}</div>
         <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('كرت «بانتظار السداد» رصيد تراكمي دائم، وبقية الكروت يومية تبدأ من الساعة 5:00 فجراً بتوقيت الرياض','“Pending” is a running all-time balance; the other cards are daily, starting at 5:00 AM Riyadh time')}</div>
       </div>
@@ -262,8 +262,8 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
         {/* Hero — Today's Paid */}
         <div style={{
           position: 'relative', padding: '18px 22px', borderRadius: 16,
-          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           overflow: 'hidden', minHeight: 190,
@@ -271,12 +271,12 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.ok}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.ok, boxShadow: `0 0 10px ${C.ok}aa` }} />
-            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('اليوم','Paid Today')}</span>
+            <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('اليوم','Paid Today')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
             <span style={{ fontSize: 42, fontWeight: 800, color: C.ok, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(stats.today_paid_amount)}</span>
           </div>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
             <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد السدادات','Payments')}</span>
             <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.today_paid_count)}</span>
           </div>
@@ -285,8 +285,8 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
         {/* Sidebar — Pending + Week paid */}
         <div style={{
           borderRadius: 16,
-          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 190,
         }}>
@@ -296,7 +296,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
           ].map((s, i) => (
             <div key={i} style={{
               position: 'relative', padding: '12px 16px', flex: 1,
-              borderTop: i > 0 ? '1px solid rgba(255,255,255,.06)' : 'none',
+              borderTop: i > 0 ? '1px solid var(--bd)' : 'none',
               display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6,
               overflow: 'hidden',
             }}>
@@ -304,7 +304,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.c }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{s.label}</span>
+                  <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600 }}>{s.label}</span>
                   <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>({num(s.cnt)})</span>
                 </div>
               </div>
@@ -322,8 +322,8 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
           return (
             <div style={{
               borderRadius: 16,
-              background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-              border: '1px solid rgba(255,255,255,.05)',
+              background: 'var(--card-grad2)',
+              border: '1px solid var(--bd)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
               padding: '12px 16px',
               display: 'flex', flexDirection: 'column', gap: 10, minHeight: 190,
@@ -336,7 +336,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
               </div>
               {totCnt > 0 ? (
                 <>
-                  <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
+                  <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'var(--bd2)' }}>
                     {feeKindsBreakdown.map((k, i) => {
                       const palette = [C.gold, C.blue, C.cyan, C.purple, C.orange, C.gray]
                       const c = palette[i % palette.length]
@@ -372,7 +372,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
             placeholder={T('ابحث برقم سداد / مرجع بنكي…','Search by SADAD / bank reference…')}
             value={q}
             onChange={e => { setQ(e.target.value); setPage(0) }}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
         </div>
         {(() => {
@@ -405,7 +405,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
       {advOpen && (() => {
         const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
         return (
-          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
               <div>
                 <div style={fLbl}>{T('الحالة','Status')}</div>
@@ -462,11 +462,11 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
         const fromN = (page * PAGE) + 1
         const toN = Math.min(total, (page + 1) * PAGE)
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,.06)', margin: '4px 4px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid var(--bd)', margin: '4px 4px 14px' }}>
             <style>{`
               .pay-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
               .pay-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
-              .pay-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
+              .pay-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:var(--bd)}
               .pay-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
               .pay-pg-input::-webkit-outer-spin-button,.pay-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             `}</style>

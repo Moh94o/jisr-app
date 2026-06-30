@@ -33,7 +33,7 @@ const SK_KEYFRAMES = `@keyframes sk-shimmer{0%{background-position:100% 0}100%{b
 
 const shimmerBase = {
   display: 'inline-block', borderRadius: 6,
-  background: 'linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.11) 37%, rgba(255,255,255,.04) 63%)',
+  background: 'linear-gradient(90deg, var(--bd2) 25%, var(--bd) 37%, var(--bd2) 63%)',
   backgroundSize: '400% 100%', animation: 'sk-shimmer 1.4s ease infinite',
 }
 
@@ -48,7 +48,7 @@ export function SkeletonCards({ count = 3, cols = 'repeat(auto-fit, minmax(260px
     <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, marginBottom: 24 }}>
       <style>{SK_KEYFRAMES}</style>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} style={{ padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', minHeight, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
+        <div key={i} style={{ padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', minHeight, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
           <Shimmer w="42%" h={16} />
           <Shimmer w="55%" h={34} />
           <Shimmer w="70%" h={11} />
@@ -62,7 +62,7 @@ export function SkeletonCards({ count = 3, cols = 'repeat(auto-fit, minmax(260px
 // strip used on Invoices / Payments / Transfer-Calc (grid 2.2fr 1fr 1.5fr, minHeight 190).
 // `breakdownRows` controls how many label rows the right-hand breakdown card shows.
 export function StatStripSkeleton({ breakdownRows = 6, cols = '2.2fr 1fr 1.5fr' }) {
-  const card = { borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 190 }
+  const card = { borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 190 }
   return (
     <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, marginBottom: 24 }}>
       <style>{SK_KEYFRAMES}</style>
@@ -70,12 +70,12 @@ export function StatStripSkeleton({ breakdownRows = 6, cols = '2.2fr 1fr 1.5fr' 
       <div style={{ ...card, padding: '18px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><Shimmer w={10} h={10} r={999} /><Shimmer w="30%" h={22} /></div>
         <Shimmer w="55%" h={40} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}><Shimmer w="30%" h={10} /><Shimmer w="12%" h={12} /></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--bd)' }}><Shimmer w="30%" h={10} /><Shimmer w="12%" h={12} /></div>
       </div>
       {/* Sidebar — 2 stacked KPIs */}
       <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
         {[0, 1].map(i => (
-          <div key={i} style={{ flex: 1, padding: '12px 16px', borderTop: i ? '1px solid rgba(255,255,255,.06)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
+          <div key={i} style={{ flex: 1, padding: '12px 16px', borderTop: i ? '1px solid var(--bd)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
             <Shimmer w="60%" h={11} /><Shimmer w="35%" h={18} />
           </div>
         ))}
@@ -99,10 +99,10 @@ export function SkeletonTable({ columns = 5, rows = 8 }) {
     ? columns
     : Array.from({ length: columns }).map(() => `${(100 / columns).toFixed(2)}%`)
   return (
-    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.06)', background: '#161616' }}>
+    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--bd)', background: 'var(--card-bg)' }}>
       <style>{SK_KEYFRAMES}</style>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: cols.join(' '), alignItems: 'center', gap: 8, padding: '13px 12px', borderBottom: i < rows - 1 ? '1px solid rgba(255,255,255,.03)' : 'none' }}>
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: cols.join(' '), alignItems: 'center', gap: 8, padding: '13px 12px', borderBottom: i < rows - 1 ? '1px solid var(--bd2)' : 'none' }}>
           {cols.map((_, j) => {
             // The first column gets a two-line name block; the rest a single bar
             // — mirrors the real tables (name + sub-line, then plain cells).
@@ -121,7 +121,7 @@ export function SkeletonList({ rows = 6 }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <style>{SK_KEYFRAMES}</style>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderRadius: 14, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)' }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderRadius: 14, background: 'var(--card-grad2)', border: '1px solid var(--bd)' }}>
           <Shimmer w={44} h={44} r={12} />
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Shimmer w="38%" h={13} />

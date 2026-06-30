@@ -462,7 +462,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
           : (hero ? T(hero.dAr, hero.dEn) : (lockedService ? T(`جميع طلبات «${lockedLabel}» ومتابعة حالتها`, `All “${lockedLabel}” requests — tracked by status and branch`) : T('سجل الطلبات الرئيسية ومتابعة حالتها بحسب الخدمة والمكتب','Main service requests log — tracked by service type, branch and status')))
         return (
           <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{title}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{title}</div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{desc}</div>
           </div>
         )
@@ -475,8 +475,8 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
         {/* Hero — Today's transactions count, big */}
         <div style={{
           position: 'relative', padding: '18px 22px', borderRadius: 16,
-          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           overflow: 'hidden', minHeight: 150,
@@ -485,7 +485,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
           {/* Top — label with dot */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
-            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('معاملات اليوم','Today')}</span>
+            <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('معاملات اليوم','Today')}</span>
           </div>
           {/* Center — big number */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
@@ -493,7 +493,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
             <span style={{ fontSize: 14, color: 'var(--tx4)', fontWeight: 600 }}>/ {num(stats.weekCnt)} {T('أسبوع','wk')}</span>
           </div>
           {/* Bottom — totals */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
             <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('إجمالي السجلات','Total records')}</span>
             <span style={{ fontSize: 13, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.total)}</span>
           </div>
@@ -502,8 +502,8 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
         {/* Sidebar — 2 status KPIs stacked */}
         <div style={{
           borderRadius: 16,
-          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 150,
         }}>
@@ -519,7 +519,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                 onClick={() => { setStatus(isActive ? '' : (li?.id || '')); setPage(0) }}
                 style={{
                   position: 'relative', padding: '12px 16px', flex: 1,
-                  borderTop: i > 0 ? '1px solid rgba(255,255,255,.06)' : 'none',
+                  borderTop: i > 0 ? '1px solid var(--bd)' : 'none',
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6,
                   overflow: 'hidden', cursor: 'pointer',
                   background: isActive ? `${s.c}10` : 'transparent',
@@ -528,7 +528,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                 <div style={{ position: 'absolute', insetInlineStart: -25, top: '50%', transform: 'translateY(-50%)', width: 70, height: 70, borderRadius: '50%', background: `radial-gradient(circle, ${s.c}10 0%, transparent 70%)`, pointerEvents: 'none' }} />
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.c }} />
-                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{s.label}</span>
+                  <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600 }}>{s.label}</span>
                 </div>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'flex-start', direction: 'ltr' }}>
                   <span style={{ fontSize: 22, fontWeight: 600, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{num(cnt)}</span>
@@ -545,8 +545,8 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
           return (
             <div style={{
               borderRadius: 16,
-              background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-              border: '1px solid rgba(255,255,255,.05)',
+              background: 'var(--card-grad2)',
+              border: '1px solid var(--bd)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
               padding: '12px 16px',
               display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
@@ -558,7 +558,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                 </span>
               </div>
               {totalSvc > 0 && (
-                <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
+                <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'var(--bd2)' }}>
                   {MAIN_SVC.filter(code => (stats.byService[code] || 0) > 0).map(code => {
                     const theme = SVC_THEME[code] || SVC_THEME.general
                     const cnt = stats.byService[code] || 0
@@ -598,8 +598,8 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
           {/* Overview — total (big) + today / this-week */}
           <div style={{
             position: 'relative', padding: '18px 22px', borderRadius: 16,
-            background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-            border: '1px solid rgba(255,255,255,.05)',
+            background: 'var(--card-grad2)',
+            border: '1px solid var(--bd)',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
             display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
             overflow: 'hidden', height: 188, boxSizing: 'border-box',
@@ -607,20 +607,20 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
             <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
-              <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي الطلبات','Total requests')}</span>
+              <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي الطلبات','Total requests')}</span>
             </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr' }}>
               <span style={{ fontSize: 44, fontWeight: 600, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(typeStats?.total || 0)}</span>
             </div>
-            <div style={{ position: 'relative', display: 'flex', marginTop: 14, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            <div style={{ position: 'relative', display: 'flex', marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--bd)' }}>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{T('اليوم','Today')}</span>
-                <span style={{ fontSize: 18, color: '#fff', fontWeight: 600, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(typeStats?.today || 0)}</span>
+                <span style={{ fontSize: 18, color: 'var(--tx)', fontWeight: 600, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(typeStats?.today || 0)}</span>
               </div>
-              <div style={{ width: 1, background: 'rgba(255,255,255,.06)', margin: '6px 4px' }} />
+              <div style={{ width: 1, background: 'var(--bd)', margin: '6px 4px' }} />
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 12 }}>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{T('هذا الأسبوع','This week')}</span>
-                <span style={{ fontSize: 18, color: '#fff', fontWeight: 600, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(typeStats?.week || 0)}</span>
+                <span style={{ fontSize: 18, color: 'var(--tx)', fontWeight: 600, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(typeStats?.week || 0)}</span>
               </div>
             </div>
           </div>
@@ -647,8 +647,8 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
             return (
               <div style={{
                 borderRadius: 16,
-                background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-                border: '1px solid rgba(255,255,255,.05)',
+                background: 'var(--card-grad2)',
+                border: '1px solid var(--bd)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
                 padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12, height: 188, boxSizing: 'border-box',
               }}>
@@ -659,7 +659,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                   {ST.map(s => {
                     const cnt = get(s)
                     return (
-                      <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.05)', opacity: cnt === 0 ? 0.55 : 1 }}>
+                      <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10, background: 'var(--bd2)', border: '1px solid var(--bd)', opacity: cnt === 0 ? 0.55 : 1 }}>
                         <span style={{ fontSize: 26, fontWeight: 600, color: s.c, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cnt)}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--tx2)', fontWeight: 600, textAlign: 'center' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: s.c, flexShrink: 0 }} />{s.label}</span>
                       </div>
@@ -680,7 +680,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
             placeholder={T('ابحث برقم المعاملة أو الإقامة أو الرقم الموحد أو التأمينات أو الموارد البشرية أو المرجع أو الفاتورة…','Search by transaction, iqama, unified, GOSI, HRSD, reference or invoice no…')}
             value={q}
             onChange={e => { setQ(e.target.value); setPage(0) }}
-            style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
         </div>
         {(() => {
@@ -719,7 +719,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
           ? (isChamberList ? ['new', 'in_progress', 'done', 'cancelled'] : ['in_progress', 'done', 'cancelled']).map(code => statuses.find(s => s.code === code)).filter(Boolean)
           : statuses
         return (
-          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
               <div>
                 <div style={fLbl}>{T('المكتب','Branch')}</div>
@@ -768,9 +768,9 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
       {!loading && !err && rows.length > 0 && (
         <div style={{ borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
           <style>{`
-.txn-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-.txn-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:14.5px;font-weight:600;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
-.txn-tbl tbody td{padding:13px 12px;font-size:12px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
+.txn-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:var(--card-bg);border-radius:10px;border:1px solid var(--bd)}
+.txn-tbl thead th{position:sticky;top:0;background:var(--card-bg);color:var(--tx);font-size:14.5px;font-weight:600;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.txn-tbl tbody td{padding:13px 12px;font-size:12px;color:var(--tx);text-align:center;vertical-align:middle;border-bottom:1px solid var(--bd2)}
 .txn-tbl tbody tr{cursor:pointer;transition:background .12s}
 .txn-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
 .txn-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
@@ -936,7 +936,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                             {/* العامل — الاسم + رقم الإقامة تحته (عرض فقط، بلا انتقال أو خط سفلي) */}
                             <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, alignItems: 'center', minWidth: 0 }}>
                               <span className="txn-name" title={wName}
-                                style={{ fontSize: 12.5, fontWeight: 600, color: wName === '—' ? 'var(--tx4)' : 'rgba(255,255,255,.92)' }}><span>{wName}</span></span>
+                                style={{ fontSize: 12.5, fontWeight: 600, color: wName === '—' ? 'var(--tx4)' : 'var(--tx)' }}><span>{wName}</span></span>
                               {workerIqama && <span style={{ fontSize: 10.5, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace', fontWeight: 600 }}>{workerIqama}</span>}
                             </div>
                           </td>
@@ -951,7 +951,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                                   ].filter(x => x.val).map((x, i) => (
                                     <React.Fragment key={i}>
                                       <span style={{ fontSize: 8.5, color: 'var(--tx5)', fontWeight: 600, textAlign: 'right' }}>{x.lbl}</span>
-                                      <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontSize: 12, color: 'rgba(255,255,255,.92)', textAlign: 'left' }}>{x.val}</span>
+                                      <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontSize: 12, color: 'var(--tx)', textAlign: 'left' }}>{x.val}</span>
                                     </React.Fragment>
                                   ))}
                                 </div>
@@ -963,7 +963,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                               const sub = oa1?.details?.chamber_subtype
                               if (sub !== 'printed' && sub !== 'open_request') return <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>—</span>
                               const lbl = sub === 'printed' ? T('مطبوعات', 'Printed') : T('طلب مفتوح', 'Open request')
-                              return <span style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.92)', whiteSpace: 'nowrap' }}>{lbl}</span>
+                              return <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', whiteSpace: 'nowrap' }}>{lbl}</span>
                             })()}
                           </td>
                           )}
@@ -976,7 +976,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                         </td>
                         <td>
                           <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, alignItems: 'center', minWidth: 0 }}>
-                            <span className="txn-name" title={workerName} style={{ fontSize: 12.5, fontWeight: 600, color: workerName === '—' ? 'var(--tx4)' : 'rgba(255,255,255,.92)' }}><span>{workerName}</span></span>
+                            <span className="txn-name" title={workerName} style={{ fontSize: 12.5, fontWeight: 600, color: workerName === '—' ? 'var(--tx4)' : 'var(--tx)' }}><span>{workerName}</span></span>
                             {workerIqama && <span style={{ fontSize: 10.5, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace', fontWeight: 600 }}>{workerIqama}</span>}
                           </div>
                         </td>
@@ -988,7 +988,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                         </td>
                         <td>
                           <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, alignItems: 'center', minWidth: 0 }}>
-                            <span className="txn-name" title={oaFacName} style={{ fontSize: 12.5, fontWeight: 600, color: oaFacName === '—' ? 'var(--tx4)' : 'rgba(255,255,255,.92)' }}><span>{oaFacName}</span></span>
+                            <span className="txn-name" title={oaFacName} style={{ fontSize: 12.5, fontWeight: 600, color: oaFacName === '—' ? 'var(--tx4)' : 'var(--tx)' }}><span>{oaFacName}</span></span>
                             {oaFacUnified && <span style={{ fontSize: 10.5, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace', fontWeight: 600 }}>{oaFacUnified}</span>}
                           </div>
                         </td>
@@ -1000,7 +1000,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                         </td>
                         <td>
                           <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, alignItems: 'center', minWidth: 0 }}>
-                            <span className="txn-name" title={facName} style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.92)' }}><span>{facName}</span></span>
+                            <span className="txn-name" title={facName} style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}><span>{facName}</span></span>
                             {hrsd && <span style={{ fontSize: 10.5, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace', fontWeight: 600 }}>{hrsd}</span>}
                           </div>
                         </td>
@@ -1032,7 +1032,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                         {/* العقد = رقم العقد · فاتورة العقد = رقم فاتورة عقد أجير — كلاهما يُدخَل في صفحة المعاملة. */}
                         <td>
                           {oa1?.details?.contract_number
-                            ? <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5, color: '#fff', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '.3px' }}>{oa1.details.contract_number}</span>
+                            ? <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5, color: 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '.3px' }}>{oa1.details.contract_number}</span>
                             : <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>—</span>}
                         </td>
                         <td>
@@ -1071,16 +1071,16 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
         const nextDisabled = page + 1 >= totalPages
         const fromN = (page*PAGE)+1
         const toN = Math.min(total,(page+1)*PAGE)
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,.06)', margin: '4px 4px 14px' }}>
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid var(--bd)', margin: '4px 4px 14px' }}>
           <style>{`
             .tx-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
             .tx-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
-            .tx-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
+            .tx-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:var(--bd)}
             .tx-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:600;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
             .tx-pg-input::-webkit-outer-spin-button,.tx-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
           `}</style>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 13, color: '#fff', fontWeight: 600, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
+            <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500, fontFamily: F }}>{T('صفحة','Page')} {page+1} {T('من','of')} {totalPages}</span>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1131,13 +1131,13 @@ function TransactionCard({ r, isAr, T, onClick }) {
       style={{
         position: 'relative', cursor: 'pointer',
         borderRadius: 14,
-        background: `radial-gradient(ellipse at top, ${svc.c}0a 0%, #222 60%)`,
-        border: '1px solid rgba(255,255,255,.05)',
+        background: `radial-gradient(ellipse at top, ${svc.c}0a 0%, var(--card-bg) 60%)`,
+        border: '1px solid var(--bd)',
         boxShadow: '0 4px 14px rgba(0,0,0,.22)',
         transition: 'all .15s', overflow: 'hidden',
       }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = st.c + '55' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
 
       <div style={{ padding: '16px 22px 14px 18px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 200px', gap: 18, alignItems: 'center' }}>
@@ -1146,9 +1146,9 @@ function TransactionCard({ r, isAr, T, onClick }) {
           <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {(() => { const nat = r.client?.nationality; const fl = nat?.flag_url; const em = flagEmoji(nat?.code); return fl ? <img src={fl} alt={nat?.name_ar || ''} title={nat?.name_ar || ''} style={{ width: 30, height: 21, objectFit: 'cover', flexShrink: 0, borderRadius: 3 }} /> : (em ? <span title={nat?.name_ar || ''} style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null) })()}
-              <span style={{ fontSize: 17, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>{r.client?.name_ar || r.client?.name_en || T('— بدون عميل —','— no client —')}</span>
+              <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>{r.client?.name_ar || r.client?.name_en || T('— بدون عميل —','— no client —')}</span>
               {qty > 1 && (
-                <span title={T('عدد الوحدات','Quantity')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
+                <span title={T('عدد الوحدات','Quantity')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5, background: 'var(--bd)', border: '1px solid var(--bd)', color: 'var(--tx3)', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
                   ×{qty}
                 </span>
               )}
@@ -1190,7 +1190,7 @@ function TransactionCard({ r, isAr, T, onClick }) {
           </div>
 
           {/* Vertical divider */}
-          <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,.06)', minHeight: 60 }} />
+          <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--bd)', minHeight: 60 }} />
 
           {/* Left (status + date) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1204,7 +1204,7 @@ function TransactionCard({ r, isAr, T, onClick }) {
               <span style={{ fontSize: 22, fontWeight: 600, color: st.c, letterSpacing: '-.3px', lineHeight: 1, fontFamily: F }}>{isAr ? st.stamp_ar : st.stamp_en}</span>
             </div>
             {/* Sub rows: quantity + ref short */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid var(--bd)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
                 <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('الكمية','Quantity')}</span>
                 <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>×{qty}</span>
@@ -1219,7 +1219,7 @@ function TransactionCard({ r, isAr, T, onClick }) {
       </div>
 
       {/* Status strip — flush at bottom edge */}
-      <div style={{ height: 5, background: 'rgba(255,255,255,.05)' }}>
+      <div style={{ height: 5, background: 'var(--bd)' }}>
         <div style={{ height: '100%', width: '100%', background: st.c, opacity: 0.7 }} />
       </div>
     </div>
@@ -1712,7 +1712,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
             )
             const CardActionBtn = ({ onClick, disabled = false, color = C.gold, children }) => (
               <button type="button" disabled={disabled} onClick={onClick}
-                style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + (disabled ? 'rgba(255,255,255,.12)' : color + '80'), color: disabled ? 'var(--tx4)' : color, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 7, flexDirection: 'row-reverse', whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}
+                style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + (disabled ? 'var(--bd)' : color + '80'), color: disabled ? 'var(--tx4)' : color, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 7, flexDirection: 'row-reverse', whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}
                 onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = color + '1f' }}
                 onMouseLeave={e => { if (!disabled) e.currentTarget.style.background = 'transparent' }}>
                 {children}
@@ -1827,7 +1827,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   {cells.length > 0 && (
                     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, cells.length)},1fr)`, gap: 8 }}>
                       {cells.map((c, i) => (
-                        <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                           <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ minWidth: 0, fontSize: 13, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value}</span>
@@ -1855,8 +1855,8 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               const filePassports = visaAttachments.filter(a => a.notes === 'passport' && rows.some(r => r.id === a.entity_id))
               const specLine = [natOf(rows[0]), occOf(rows[0]), embOf(rows[0]), genOf(rows[0])].filter(Boolean).join(' · ')
               return (
-                <div key={fn} style={{ border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
-                  <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div key={fn} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <FileTextIco size={14} color={C.gold} strokeWidth={2} />
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', flexShrink: 0 }}>{visaLabel}</span>
                     {specLine && <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>· {specLine}</span>}
@@ -1864,8 +1864,8 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   </div>
                   <div style={{ padding: 14 }}>
                     {visaEmpty ? (lock ? (
-                      <div style={{ width: '100%', border: '1.5px dashed rgba(255,255,255,.12)', background: 'rgba(255,255,255,.015)', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11 }}>
-                        <div style={{ width: 48, height: 48, borderRadius: 13, background: 'rgba(255,255,255,.03)', border: '1.5px dashed rgba(255,255,255,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '100%', border: '1.5px dashed var(--bd)', background: 'var(--bd2)', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11 }}>
+                        <div style={{ width: 48, height: 48, borderRadius: 13, background: 'var(--bd2)', border: '1.5px dashed var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <FileTextIco size={23} color={C.gray} strokeWidth={1.6} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', textAlign: 'center' }}>
@@ -1947,7 +1947,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                               {rows.map(d => {
                                 const sub = [embOf(d), occOf(d), genOf(d)].filter(Boolean).join(' · ')
                                 return (
-                                  <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.05)' }}>
+                                  <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.2)', border: '1px solid var(--bd)' }}>
                                     {numChip(globalIdx(d))}
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600 }}>{natOf(d)}</div>
@@ -1967,7 +1967,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                           )}
                           {/* المرفقات — صفوف بشارة نوع: التأشيرة (سماوي) · الجواز (أخضر) */}
                           {(filePdfs.length > 0 || filePassports.length > 0) && (
-                            <div style={{ height: 1, background: 'rgba(255,255,255,.06)' }} />
+                            <div style={{ height: 1, background: 'var(--bd)' }} />
                           )}
                           {filePdfs.map(a => (
                             <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer"
@@ -1987,7 +1987,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, textDecoration: 'none' }}>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                                   {isImg
-                                    ? <img src={a.file_url} alt="" style={{ width: 26, height: 19, objectFit: 'cover', borderRadius: 4, border: '1px solid rgba(255,255,255,.1)', flexShrink: 0 }} />
+                                    ? <img src={a.file_url} alt="" style={{ width: 26, height: 19, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--bd)', flexShrink: 0 }} />
                                     : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
                                   <span style={{ minWidth: 0, fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.file_name || '—'}</span>
                                 </span>
@@ -2033,7 +2033,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             { l: T('الجنس','Gender'), v: genOf(d) },
                           ]
                           return (
-                            <div key={g.key} style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.14)', border: '1px solid rgba(255,255,255,.05)' }}>
+                            <div key={g.key} style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.14)', border: '1px solid var(--bd)' }}>
                               {/* عدّاد الكمية — عمود سماوي جانبي يوضّح عدد التأشيرات في المجموعة */}
                               <div style={{ flexShrink: 0, width: 58, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 9, background: 'rgba(93,173,226,.1)', border: '1px solid rgba(93,173,226,.3)' }}>
                                 <span style={{ fontSize: 22, color: C.blue, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{num(g.count)}</span>
@@ -2054,7 +2054,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       })()}
                     </div>
                     {sr.note && (
-                      <div style={{ padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.14)', border: '1px solid rgba(255,255,255,.05)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.14)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px' }}>{T('ملاحظات','Notes')}</span>
                         <span style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{sr.note}</span>
                       </div>
@@ -2064,13 +2064,13 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
 
                 {/* Slim overview strip — multi-establishment only */}
                 {establishments.filter(e => e.facility).length > 1 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderRadius: 14, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderRadius: 14, background: 'var(--card-grad2)', border: '1px solid var(--bd)', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('المنشآت','Facilities')} <span style={{ color: 'var(--tx1)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{establishments.filter(e => e.facility).length}</span></span>
-                    <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
+                    <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--bd)' }} />
                     <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('التأشيرات','Visas')} <span style={{ color: 'var(--tx1)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{visaList.length}</span></span>
-                    <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
+                    <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--bd)' }} />
                     <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('مرتبطة بمنشأة','With facility')} <span style={{ color: visasNoFac ? C.warn : C.gold, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{visaList.length - visasNoFac}/{visaList.length}</span></span>
-                    <span style={{ flex: 1, minWidth: 70, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}>
+                    <span style={{ flex: 1, minWidth: 70, height: 4, borderRadius: 999, background: 'var(--bd)', overflow: 'hidden' }}>
                       <span style={{ display: 'block', height: '100%', width: `${Math.round(((visaList.length - visasNoFac) / Math.max(1, visaList.length)) * 100)}%`, background: C.gold, transition: 'width .25s' }} />
                     </span>
                     {!isTemp && <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{T('بحد أقصى 4 تأشيرات / منشأة','max 4 visas / facility')}</span>}
@@ -2093,7 +2093,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                           {est.rows.map(d => {
                             const sub = [embOf(d), occOf(d), genOf(d)].filter(Boolean).join(' · ')
                             return (
-                              <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+                              <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
                                 {numChip(globalIdx(d))}
                                 <div style={{ minWidth: 0 }}>
                                   <div style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600 }}>{natOf(d)}</div>
@@ -2206,8 +2206,8 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               ].filter(c => c.v) : []
               const ident = [natOf(visa), genOf(visa)].filter(Boolean).join(' · ')
               return (
-                <div key={visa.id} style={{ border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
-                  <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div key={visa.id} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {iqChip(vi + 1)}
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', flexShrink: 0 }}>{T('الإقامة','Iqama')}</span>
                     {ident && <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>· {ident}</span>}
@@ -2256,7 +2256,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                               ))}
                             </div>
                           )}
-                          {(pdfFiles.length > 0 || passport) && <div style={{ height: 1, background: 'rgba(255,255,255,.06)' }} />}
+                          {(pdfFiles.length > 0 || passport) && <div style={{ height: 1, background: 'var(--bd)' }} />}
                           {pdfFiles.map(a => (
                             <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer"
                               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, textDecoration: 'none' }}>
@@ -2274,7 +2274,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, textDecoration: 'none' }}>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                                   {isImg
-                                    ? <img src={passport.file_url} alt="" style={{ width: 26, height: 19, objectFit: 'cover', borderRadius: 4, border: '1px solid rgba(255,255,255,.1)', flexShrink: 0 }} />
+                                    ? <img src={passport.file_url} alt="" style={{ width: 26, height: 19, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--bd)', flexShrink: 0 }} />
                                     : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
                                   <span style={{ minWidth: 0, fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'rtl', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{passport.file_name || T('صورة جواز العامل','Worker passport')}</span>
                                 </span>
@@ -2286,8 +2286,8 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                         </div>
                       </div>
                     ) : !visaDone ? (
-                      <div style={{ width: '100%', border: '1.5px dashed rgba(255,255,255,.12)', background: 'rgba(255,255,255,.015)', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11 }}>
-                        <div style={{ width: 48, height: 48, borderRadius: 13, background: 'rgba(255,255,255,.03)', border: '1.5px dashed rgba(255,255,255,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '100%', border: '1.5px dashed var(--bd)', background: 'var(--bd2)', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11 }}>
+                        <div style={{ width: 48, height: 48, borderRadius: 13, background: 'var(--bd2)', border: '1.5px dashed var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <CreditCard size={23} color={C.gray} strokeWidth={1.6} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', textAlign: 'center' }}>
@@ -2339,8 +2339,8 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               ].filter(c => c.v) : []
               const ident = [natOf(visa), genOf(visa)].filter(Boolean).join(' · ')
               return (
-                <div key={'wp-' + visa.id} style={{ border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
-                  <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div key={'wp-' + visa.id} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {iqChip(vi + 1)}
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', flexShrink: 0 }}>{T('رخصة العمل','Work permit')}</span>
                     {ident && <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>· {ident}</span>}
@@ -2372,7 +2372,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             </button>
                             )}
                           </div>
-                          {wpFiles.length > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,.06)' }} />}
+                          {wpFiles.length > 0 && <div style={{ height: 1, background: 'var(--bd)' }} />}
                           {wpFiles.map(a => (
                             <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer"
                               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, textDecoration: 'none' }}>
@@ -2386,8 +2386,8 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                         </div>
                       </div>
                     ) : !visaDone ? (
-                      <div style={{ width: '100%', border: '1.5px dashed rgba(255,255,255,.12)', background: 'rgba(255,255,255,.015)', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11 }}>
-                        <div style={{ width: 48, height: 48, borderRadius: 13, background: 'rgba(255,255,255,.03)', border: '1.5px dashed rgba(255,255,255,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '100%', border: '1.5px dashed var(--bd)', background: 'var(--bd2)', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11 }}>
+                        <div style={{ width: 48, height: 48, borderRadius: 13, background: 'var(--bd2)', border: '1.5px dashed var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <FileTextIco size={23} color={C.gray} strokeWidth={1.6} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', textAlign: 'center' }}>
@@ -2519,7 +2519,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   {/* كرت الخدمة — مطابق لكرت الخدمة في صفحة تفاصيل الفاتورة: كرت المكتب ثم اسم الخدمة (ذهبي) مع الوصف تحته */}
                   <div style={{ padding: '14px 22px' }}>
                     {sr.branch?.branch_code && (
-                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                           <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{sr.branch.branch_code}</span>
@@ -2530,7 +2530,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       const svcLabel = isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en)
                       return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcLabel}</span>
                             {d.description && d.description !== svcLabel && (
                               <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>{d.description}</span>
@@ -2620,14 +2620,14 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   {/* كرت الخدمة — مطابق لكرت الخدمة في صفحة تفاصيل الفاتورة (المكتب + اسم الخدمة + نوع التصديق + الملف/النص). */}
                   <div style={{ padding: '14px 22px' }}>
                     {sr.branch?.branch_code && (
-                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                           <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{sr.branch.branch_code}</span>
                         </span>
                       </div>
                     )}
-                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                       <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcLabel}</span>
                       {det.chamber_subtype && (
                         <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>
@@ -2673,7 +2673,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                           <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, textAlign: 'center', padding: '6px 0' }}>{T('لا توجد ملاحظة','No note')}</div>
                         )}
                         {notePublic && (
-                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('ملاحظة الفاتورة','Invoice Note')}</span>
                             <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl' }}>{notePublic}</span>
                           </div>
@@ -2717,7 +2717,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   const dt = ts ? new Date(ts) : null
                   const hhmm = dt ? String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0') : ''
                   return (
-                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('ملاحظة الفاتورة','Invoice note')}</span>
                       <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{sr.note}</span>
                       <div style={{ display: 'flex', direction: 'rtl', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)' }}>
@@ -2756,7 +2756,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
             const months = det.contract_months
             const monthsLbl = months != null && months !== '' ? months + ' ' + (Number(months) >= 3 && Number(months) <= 10 ? T('أشهر', 'months') : T('شهر', 'month')) : null
             const svcRow = (label, value, gold, rtl) => value ? (
-              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
                 <span style={{ fontSize: 13, color: gold ? C.gold : '#fff', fontWeight: 600, direction: rtl ? 'rtl' : 'ltr', textAlign: 'right' }}>{value}</span>
               </div>
@@ -2781,12 +2781,12 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   </div>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {sr.branch?.branch_code && (
-                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
                         <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{sr.branch.branch_code}</span>
                       </div>
                     )}
-                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px' }}>
+                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px' }}>
                       <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcLabel}</span>
                     </div>
                     {/* صف واحد — الترتيب من اليمين لليسار: الرقم الموحد للمنشأة المستعارة · مدة العقد · المدينة */}
@@ -2811,7 +2811,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {!notePublic && <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, textAlign: 'center', padding: '6px 0' }}>{T('لا توجد ملاحظة','No note')}</div>}
                         {notePublic && (
-                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('ملاحظة الفاتورة','Invoice Note')}</span>
                             <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl' }}>{notePublic}</span>
                           </div>
@@ -2913,7 +2913,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                         const dt = new Date(n.created_at)
                         const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0')
                         return (
-                          <div key={n.id} style={{ background: 'rgba(0,0,0,.18)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid rgba(255,255,255,.05)' }}>
+                          <div key={n.id} style={{ background: 'rgba(0,0,0,.18)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--bd)' }}>
                             <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>
                             {Array.isArray(n.attachments) && n.attachments.length > 0 && (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
@@ -2991,7 +2991,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               </div>
               <div style={{ padding: '6px 22px 14px' }}>
                 {data.fees.map(f => (
-                  <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.04)', alignItems: 'center' }}>
+                  <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--bd2)', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{isAr ? f.fee_kind?.value_ar : (f.fee_kind?.value_en || f.fee_kind?.value_ar) || f.fee_kind?.code}</span>
                       <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 6, background: f.is_official ? 'rgba(46,204,113,.12)' : 'rgba(243,156,18,.12)', color: f.is_official ? C.ok : C.warn, fontWeight: 600 }}>{f.is_official ? T('رسمي','Official') : T('غير رسمي','Unofficial')}</span>
@@ -3021,7 +3021,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
             // الكمية تظهر فقط لتأشيرات وإقامات العمل (الدائمة والمؤقتة) — بقية الخدمات كميتها دائماً 1
             const showQty = /^work_visa/.test(sr.service_type?.code || '')
             const tile = (l, v, c) => (
-              <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)' }}>
+              <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
                 <div style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4, letterSpacing: '.5px' }}>{l}</div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: c || '#fff', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
               </div>
@@ -3087,12 +3087,12 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                         ? (isAr ? ins.payment_milestone.value_ar : (ins.payment_milestone.value_en || ins.payment_milestone.value_ar))
                         : (ins.notes || (installments.length === 1 ? T('دفعة واحدة','Single payment') : ordLabel(ins.installment_order)))
                       return (
-                        <div key={ins.id} style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)' }}>
+                        <div key={ins.id} style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7, fontSize: 10.5, color: 'var(--tx4)' }}>
                             <span>{mile}</span>
                             <span style={{ color: pctC, fontWeight: 600, direction: 'ltr' }}>{insPct}%</span>
                           </div>
-                          <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
+                          <div style={{ height: 6, borderRadius: 999, background: 'var(--bd)', overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: insPct + '%', background: `linear-gradient(90deg, ${C.ok}, ${C.ok}cc)`, transition: 'width .3s' }} />
                           </div>
                         </div>
@@ -3187,7 +3187,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       const sc = stoppedHere ? C.red : done ? C.ok : cur ? C.blue : null
                       const bg = sc
                         ? `linear-gradient(160deg, ${sc} 0%, ${sc}cc 100%)`
-                        : 'rgba(255,255,255,.05)'
+                        : 'var(--bd)'
                       const fg = stoppedHere ? '#fff' : done ? '#10240f' : cur ? '#0b2233' : 'var(--tx5)'
                       const sz = atNow ? 40 : 34
                       return (
@@ -3197,7 +3197,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                               width: sz, height: sz, borderRadius: '50%',
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                               fontSize: 14, fontWeight: 700, color: fg, background: bg,
-                              border: sc ? 'none' : '1px solid rgba(255,255,255,.12)',
+                              border: sc ? 'none' : '1px solid var(--bd)',
                               // الإطار: حلقة بلون الحالة مع فجوة بلون الكرت ثم هالة خفيفة — يميّز المرحلة الحالية بوضوح.
                               boxShadow: atNow
                                 ? `0 0 0 3px #232323, 0 0 0 5px ${sc}, 0 0 14px ${sc}66, 0 4px 10px rgba(0,0,0,.35)`
@@ -3208,7 +3208,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             </span>
                             <span style={{ fontSize: atNow ? 11 : 10, color: sc || 'var(--tx4)', fontWeight: atNow ? 700 : 600, textAlign: 'center', lineHeight: 1.3 }}>{s.label}</span>
                           </div>
-                          {i < STAGES.length - 1 && <span style={{ flex: 1, height: 3, borderRadius: 3, background: curIdx > i ? C.ok : 'rgba(255,255,255,.08)', marginTop: atNow ? 19 : 16 }} />}
+                          {i < STAGES.length - 1 && <span style={{ flex: 1, height: 3, borderRadius: 3, background: curIdx > i ? C.ok : 'var(--bd)', marginTop: atNow ? 19 : 16 }} />}
                         </React.Fragment>
                       )
                     })}
@@ -3216,7 +3216,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   {hist.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {hist.map((h, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
                           <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: h.current ? accent : C.ok }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600 }}>{h.label}{h.current && <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, marginInlineStart: 6 }}>({T('حالية','current')})</span>}</div>
@@ -3416,7 +3416,7 @@ function RequestActionModal({ type, sb, T, isAr, toast, sr, summary, user, onClo
   }
 
   const Line = ({ l, v, c, rtl }) => v ? (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)', gap: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--bd)', gap: 12 }}>
       <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{l}</span>
       <span style={{ fontSize: 13, color: c || 'var(--tx2)', fontWeight: 600, direction: rtl ? 'rtl' : 'ltr', textAlign: rtl ? 'right' : 'left' }}>{v}</span>
     </div>
@@ -3561,7 +3561,7 @@ function ChamberFollowUpCard({ submissions, readOnly, onAdd, onDecide, onEdit, c
                   <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 700, color: stt.c, padding: '5px 12px', borderRadius: 0, background: stt.c + '14', borderInlineStart: '3px solid ' + stt.c }}>{isAr ? stt.ar : stt.en}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid rgba(255,255,255,.05)', paddingTop: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid var(--bd)', paddingTop: 8 }}>
                 {stamp(s.created_by_name, s.created_at)}
                 {s.decided_at && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -3677,7 +3677,7 @@ function AjeerFollowUpCard({ det, canEdit, canAttach = canEdit, canEditBtn = can
                   <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 700, color: C.ok, padding: '5px 12px', borderRadius: 0, background: C.ok + '14', borderInlineStart: '3px solid ' + C.ok }}>{T('مقبول', 'Accepted')}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid rgba(255,255,255,.05)', paddingTop: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--bd)', paddingTop: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700 }}>{T('رقم فاتورة العقد', 'Contract Invoice No.')}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -4040,7 +4040,7 @@ function AccountantActionModal({ type, sb, T, isAr, toast, sr, summary, user, on
   }
 
   const Line = ({ l, v, c }) => v ? (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)', gap: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--bd)', gap: 12 }}>
       <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{l}</span>
       <span style={{ fontSize: 13, color: c || 'var(--tx2)', fontWeight: 600 }}>{v}</span>
     </div>
@@ -4226,7 +4226,7 @@ const ClientRows = ({ sr, T }) => {
 
 const __OV_DEAD__ = () => {
   const Bar = ({ pct, c, h = 8 }) => (
-    <div style={{ height: h, borderRadius: 999, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
+    <div style={{ height: h, borderRadius: 999, background: 'var(--bd)', overflow: 'hidden' }}>
       <div style={{ height: '100%', width: pct + '%', background: `linear-gradient(90deg, ${c}, ${c}cc)`, transition: 'width .3s' }} />
     </div>
   )
@@ -4237,7 +4237,7 @@ const __OV_DEAD__ = () => {
     </div>
   )
   const Tile = ({ l, v, c }) => (
-    <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)' }}>
+    <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
       <div style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4, letterSpacing: '.5px' }}>{l}</div>
       <div style={{ fontSize: 13, fontWeight: 600, color: c || '#fff', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
     </div>
@@ -4256,15 +4256,15 @@ const __OV_DEAD__ = () => {
   const variants = [
     // 1 — classic centered stamp
     (<div style={CARD}>
-      <div style={{ padding: '18px 22px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ padding: '18px 22px', textAlign: 'center', borderBottom: '1px solid var(--bd)' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Dot size={12} /><span style={{ fontSize: 22, fontWeight: 600, color: statusColor }}>{statusLabel}</span></div>
       </div>
       <div style={{ padding: '12px 22px' }}><FRow l="تاريخ الطلب" v={reqDate} /><FRow l="نوع الخدمة" v={serviceLabel} c={serviceColor} /><FRow l="الكمية" v={'×' + qty} /><FRow l="آخر تحديث" v={lastUpdate} /><FRow l="رقم المرجع" v={refNo} c={C.gold} /></div>
-      {pay && <div style={{ padding: '12px 22px 18px', borderTop: '1px solid rgba(255,255,255,.06)' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7, fontSize: 11, color: 'var(--tx3)' }}><span>{PL}</span><span style={{ color: pay.c, fontWeight: 600, direction: 'ltr' }}>{pay.pct}%</span></div><Bar pct={pay.pct} c={pay.c} /></div>}
+      {pay && <div style={{ padding: '12px 22px 18px', borderTop: '1px solid var(--bd)' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7, fontSize: 11, color: 'var(--tx3)' }}><span>{PL}</span><span style={{ color: pay.c, fontWeight: 600, direction: 'ltr' }}>{pay.pct}%</span></div><Bar pct={pay.pct} c={pay.c} /></div>}
     </div>),
     // 2 — top accent line + 2-col tiles
     (<div style={CARD}>
-      {pay && <div style={{ height: 4, background: 'rgba(255,255,255,.05)' }}><div style={{ height: '100%', width: pay.pct + '%', background: pay.c }} /></div>}
+      {pay && <div style={{ height: 4, background: 'var(--bd)' }}><div style={{ height: '100%', width: pay.pct + '%', background: pay.c }} /></div>}
       <div style={{ padding: '16px 22px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><span style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>نظرة عامة</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: statusColor }}><Dot size={8} />{statusLabel}</span></div>
       <div style={{ padding: '8px 22px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><Tile l="تاريخ الطلب" v={reqDate} /><Tile l="آخر تحديث" v={lastUpdate} /><Tile l="الخدمة" v={serviceLabel} c={serviceColor} /><Tile l="الكمية" v={'×' + qty} /><div style={{ gridColumn: '1 / -1' }}><Tile l="رقم المرجع" v={refNo} c={C.gold} /></div></div>
     </div>),
@@ -4272,7 +4272,7 @@ const __OV_DEAD__ = () => {
     (<div style={CARD}>
       <div style={{ display: 'grid', gridTemplateColumns: '108px 1px 1fr', gap: 14, alignItems: 'center', padding: 16 }}>
         <div style={{ textAlign: 'center' }}><Dot size={14} /><div style={{ fontSize: 18, fontWeight: 600, color: statusColor, marginTop: 8 }}>{statusLabel}</div>{pay && <div style={{ fontSize: 11, color: pay.c, fontWeight: 600, marginTop: 4, direction: 'ltr' }}>{pay.pct}%</div>}</div>
-        <div style={{ alignSelf: 'stretch', background: 'rgba(255,255,255,.07)' }} />
+        <div style={{ alignSelf: 'stretch', background: 'var(--bd)' }} />
         <div><FRow l="التاريخ" v={reqDate} /><FRow l="الخدمة" v={serviceLabel} c={serviceColor} /><FRow l="الكمية" v={'×' + qty} /><FRow l="المرجع" v={refNo} c={C.gold} /></div>
       </div>
       {pay && <div style={{ padding: '0 16px 16px' }}><Bar pct={pay.pct} c={pay.c} h={6} /></div>}
@@ -4282,7 +4282,7 @@ const __OV_DEAD__ = () => {
       <div style={{ padding: '16px 18px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: statusColor, background: statusColor + '1f', border: '1px solid ' + statusColor + '4d', borderRadius: 999, padding: '4px 12px' }}>{statusLabel}</span>
         <span style={{ fontSize: 12, fontWeight: 600, color: serviceColor, background: serviceColor + '1f', border: '1px solid ' + serviceColor + '4d', borderRadius: 999, padding: '4px 12px' }}>{serviceLabel}</span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 999, padding: '4px 12px', direction: 'ltr' }}>×{qty}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', background: 'var(--bd)', border: '1px solid var(--bd)', borderRadius: 999, padding: '4px 12px', direction: 'ltr' }}>×{qty}</span>
       </div>
       <div style={{ padding: '0 18px 8px' }}><FRow l="تاريخ الطلب" v={reqDate} /><FRow l="آخر تحديث" v={lastUpdate} /></div>
       <div style={{ padding: '12px 18px', background: 'rgba(0,0,0,.18)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: 11, color: 'var(--tx4)' }}>رقم المرجع</span><span style={{ fontSize: 14, fontWeight: 600, color: C.gold, fontFamily: 'monospace', direction: 'ltr' }}>{refNo}</span></div>
@@ -4293,11 +4293,11 @@ const __OV_DEAD__ = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Dot size={10} /><span style={{ fontSize: 16, fontWeight: 600, color: statusColor }}>{statusLabel}</span></div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><Tile l="التاريخ" v={reqDate} /><Tile l="آخر تحديث" v={lastUpdate} /><Tile l="الخدمة" v={serviceLabel} c={serviceColor} /><Tile l="الكمية" v={'×' + qty} /></div>
       <Tile l="رقم المرجع" v={refNo} c={C.gold} />
-      {pay && <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 10, color: 'var(--tx4)' }}><span>{PL}</span><span style={{ color: pay.c, fontWeight: 600, direction: 'ltr' }}>{pay.pct}%</span></div><Bar pct={pay.pct} c={pay.c} h={6} /></div>}
+      {pay && <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 10, color: 'var(--tx4)' }}><span>{PL}</span><span style={{ color: pay.c, fontWeight: 600, direction: 'ltr' }}>{pay.pct}%</span></div><Bar pct={pay.pct} c={pay.c} h={6} /></div>}
     </div>),
     // 6 — minimal, big ref hero
     (<div style={CARD}>
-      <div style={{ padding: '18px 22px 14px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,.06)' }}><div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 6 }}>رقم المرجع</div><div style={{ fontSize: 18, fontWeight: 600, color: C.gold, fontFamily: 'monospace', direction: 'ltr', letterSpacing: '.5px' }}>{refNo}</div><div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: statusColor }}><Dot size={8} />{statusLabel}</div></div>
+      <div style={{ padding: '18px 22px 14px', textAlign: 'center', borderBottom: '1px solid var(--bd)' }}><div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 6 }}>رقم المرجع</div><div style={{ fontSize: 18, fontWeight: 600, color: C.gold, fontFamily: 'monospace', direction: 'ltr', letterSpacing: '.5px' }}>{refNo}</div><div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: statusColor }}><Dot size={8} />{statusLabel}</div></div>
       <div style={{ padding: '12px 22px' }}><FRow l="تاريخ الطلب" v={reqDate} /><FRow l="نوع الخدمة" v={serviceLabel} c={serviceColor} /><FRow l="الكمية" v={'×' + qty} /><FRow l="آخر تحديث" v={lastUpdate} /></div>
       {pay && <div style={{ padding: '0 22px 18px' }}><Bar pct={pay.pct} c={pay.c} h={6} /></div>}
     </div>),
@@ -4307,7 +4307,7 @@ const __OV_DEAD__ = () => {
         {pay && <div style={{ position: 'relative' }}><Ring pct={pay.pct} c={pay.c} size={62} /><span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: pay.c, direction: 'ltr' }}>{pay.pct}%</span></div>}
         <div style={{ flex: 1, minWidth: 0 }}><div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 16, fontWeight: 600, color: statusColor, marginBottom: 6 }}><Dot size={9} />{statusLabel}</div><div style={{ fontSize: 12, color: 'var(--tx3)' }}>{serviceLabel} · ×{qty}</div><div style={{ fontSize: 12, color: C.gold, fontFamily: 'monospace', direction: 'ltr', marginTop: 4 }}>{refNo}</div></div>
       </div>
-      <div style={{ padding: '12px 18px 16px', borderTop: '1px solid rgba(255,255,255,.06)' }}><FRow l="تاريخ الطلب" v={reqDate} /><FRow l="آخر تحديث" v={lastUpdate} /></div>
+      <div style={{ padding: '12px 18px 16px', borderTop: '1px solid var(--bd)' }}><FRow l="تاريخ الطلب" v={reqDate} /><FRow l="آخر تحديث" v={lastUpdate} /></div>
     </div>),
     // 8 — status band top
     (<div style={CARD}>
@@ -4366,7 +4366,7 @@ function CardBodyGrid({ name, fields }) {
       {name && (
         name.boxed ? (
           // كرت الاسم المؤطّر مع زر النسخ — مطابق لكرت العميل في صفحة تفاصيل الفاتورة (ClientRows في InvoicePage)
-          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{name.label}</span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
               {name.value ? <CopyRefBtn value={name.value} title="نسخ" /> : null}
@@ -4383,7 +4383,7 @@ function CardBodyGrid({ name, fields }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols},1fr)`, gap: 8 }}>
         {fields.map((f, i) => (
-          <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{f.label}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <span style={{ fontSize: 13, color: f.color || '#fff', fontWeight: 600, ...(f.mono ? { fontFamily: 'monospace', direction: 'ltr', fontVariantNumeric: 'tabular-nums' } : {}) }}>{f.value || '—'}</span>
@@ -4434,7 +4434,7 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onEdit }) => (
     {cells.length > 0 && (
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, cells.length))},1fr)`, gap: 8 }}>
         {cells.map((c, i) => (
-          <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
               {c.value && <CopyRefBtn value={c.value} title="نسخ" />}
@@ -4483,7 +4483,7 @@ const SectionLabel = ({ label, color = C.gold }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 0 6px', marginTop: 4 }}>
     <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}aa` }} />
     <span style={{ fontSize: 10.5, color: color, fontWeight: 600, letterSpacing: '.6px' }}>{label}</span>
-    <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
+    <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
   </div>
 )
 
@@ -4606,18 +4606,18 @@ function QiwaSubscriptionBox({ sb, sr, T, toast, user }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px' }}>{T('رقم السداد','SADAD No')}</label>
               <input type="text" value={sadad} onChange={e => setSadad(e.target.value.replace(/[^\d]/g, ''))} placeholder="—"
-                style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx1)', fontFamily: 'monospace', fontSize: 13, fontWeight: 600, direction: 'ltr', textAlign: 'center', outline: 'none' }}
+                style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: 'monospace', fontSize: 13, fontWeight: 600, direction: 'ltr', textAlign: 'center', outline: 'none' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }} />
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px' }}>{T('المبلغ (ريال)','Amount (SAR)')}</label>
               <input type="text" inputMode="decimal" value={amount}
                 onChange={e => { const v = e.target.value.replace(/[^\d.]/g, ''); if (/^\d*\.?\d*$/.test(v)) setAmount(v) }}
                 placeholder="0.00"
-                style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.08)', color: C.gold, fontFamily: F, fontSize: 14, fontWeight: 600, direction: 'ltr', textAlign: 'center', outline: 'none' }}
+                style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: C.gold, fontFamily: F, fontSize: 14, fontWeight: 600, direction: 'ltr', textAlign: 'center', outline: 'none' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }} />
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }} />
             </div>
           </div>
           <button
@@ -4697,9 +4697,9 @@ function TxnWorkerPickModal({ sb, toast, T, isAr, appId, currentId, onClose, onS
     ]
     return (
       <div onClick={() => choose(w)}
-        style={{ border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.08)'}`, borderRadius: 12, background: active ? 'rgba(212,160,23,.06)' : 'rgba(255,255,255,.02)', padding: '11px 13px', marginBottom: 8, cursor: 'pointer', transition: '.15s' }}
-        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,.04)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' } }}
-        onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' } }}>
+        style={{ border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, borderRadius: 12, background: active ? 'rgba(212,160,23,.06)' : 'var(--bd2)', padding: '11px 13px', marginBottom: 8, cursor: 'pointer', transition: '.15s' }}
+        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' } }}
+        onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'var(--bd)' } }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             {flag(w.nationality)}
@@ -4711,7 +4711,7 @@ function TxnWorkerPickModal({ sb, toast, T, isAr, appId, currentId, onClose, onS
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
           {cells.map((c, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, padding: '7px 9px' }}>
+            <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 9, padding: '7px 9px' }}>
               <span style={{ fontSize: 9, color: 'var(--tx4)', fontWeight: 600, display: 'block', marginBottom: 3 }}>{c.label}</span>
               <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', direction: 'ltr', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
             </div>
@@ -4730,7 +4730,7 @@ function TxnWorkerPickModal({ sb, toast, T, isAr, appId, currentId, onClose, onS
           </span>
           <input type="text" value={q} onChange={e => setQ(e.target.value)} autoFocus
             placeholder={T('ابحث بالاسم، رقم الإقامة، أو الجوال…','Search by name, Iqama, or phone…')}
-            style={{ width: '100%', height: 42, padding: '0 38px', borderRadius: 10, background: 'rgba(0,0,0,.25)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }} />
+            style={{ width: '100%', height: 42, padding: '0 38px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }} />
         </div>
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <style>{`.wk-results::-webkit-scrollbar{width:0;display:none}`}</style>
@@ -4814,9 +4814,9 @@ function TxnFacilityPickModal({ sb, toast, T, isAr, isTemp, fileLabel, rows, fil
     ]
     return (
       <div onClick={() => choose(f)}
-        style={{ border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.08)'}`, borderRadius: 12, background: active ? 'rgba(212,160,23,.06)' : 'rgba(255,255,255,.02)', padding: '11px 13px', marginBottom: 8, cursor: 'pointer', transition: '.15s' }}
-        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,.04)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' } }}
-        onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' } }}>
+        style={{ border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, borderRadius: 12, background: active ? 'rgba(212,160,23,.06)' : 'var(--bd2)', padding: '11px 13px', marginBottom: 8, cursor: 'pointer', transition: '.15s' }}
+        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' } }}
+        onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'var(--bd)' } }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{ fontSize: 13.5, color: active ? C.gold : 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{(isAr ? f.name_ar : (f.name_en || f.name_ar)) || '—'}</span>
           {isCur
@@ -4825,7 +4825,7 @@ function TxnFacilityPickModal({ sb, toast, T, isAr, isTemp, fileLabel, rows, fil
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 7 }}>
           {cells.map((c, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, padding: '7px 9px' }}>
+            <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 9, padding: '7px 9px' }}>
               <span style={{ fontSize: 9, color: 'var(--tx4)', fontWeight: 600, display: 'block', marginBottom: 3 }}>{c.label}</span>
               <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', direction: 'ltr', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
             </div>
@@ -4861,7 +4861,7 @@ function TxnFacilityPickModal({ sb, toast, T, isAr, isTemp, fileLabel, rows, fil
         {cells.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, cells.length)},1fr)`, gap: 8 }}>
             {cells.map((c, i) => (
-              <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
                 <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.value}</span>
               </div>
@@ -4883,7 +4883,7 @@ function TxnFacilityPickModal({ sb, toast, T, isAr, isTemp, fileLabel, rows, fil
             </span>
             <input type="text" value={q} onChange={e => setQ(e.target.value)} autoFocus
               placeholder={T('ابحث بالاسم، الرقم الموحد، رقم التأمينات، أو رقم الموارد البشرية…','Search by name, Unified, GOSI, or HRSD number…')}
-              style={{ width: '100%', height: 42, padding: '0 38px', borderRadius: 10, background: 'rgba(0,0,0,.25)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }} />
+              style={{ width: '100%', height: 42, padding: '0 38px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }} />
           </div>
           <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
             <style>{`.fac-results::-webkit-scrollbar{width:0;display:none}`}</style>
@@ -5031,7 +5031,7 @@ function TxnIssuanceModal({ sb, user, toast, T, isAr, fileLabel, rows, metaOf, o
               const r = rows[0]
               const m = metaOf(r)
               const bv = borders[r.id] || ''
-              const fieldStyle = active => ({ width: '100%', height: 40, padding: '0 12px', borderRadius: 8, background: 'rgba(0,0,0,.28)', border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.08)'}`, color: 'var(--tx1)', fontFamily: F, fontSize: 13, outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' })
+              const fieldStyle = active => ({ width: '100%', height: 40, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, color: 'var(--tx1)', fontFamily: F, fontSize: 13, outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' })
               const lblStyle = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6 }
               return (
                 <div style={{ border: '1px solid rgba(212,160,23,.3)', borderRadius: 12, overflow: 'hidden' }}>
@@ -5065,11 +5065,11 @@ function TxnIssuanceModal({ sb, user, toast, T, isAr, fileLabel, rows, metaOf, o
                   const m = metaOf(r)
                   const bv = borders[r.id] || ''
                   return (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
                       <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(212,160,23,.15)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{m.idx}</span>
                       <div style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: 'var(--tx1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nat}{m.sub ? <span style={{ color: 'var(--tx4)', fontWeight: 600 }}> · {m.sub}</span> : null}</div>
                       <input value={bv} onChange={e => { const d = e.target.value.replace(/\D/g, '').slice(0, 10); setBorders(s => ({ ...s, [r.id]: d })); setErr(null) }} dir="ltr" inputMode="numeric" maxLength={10} placeholder={T('رقم الحدود','Border No.')}
-                        style={{ flexShrink: 0, width: 160, height: 34, padding: '0 12px', borderRadius: 8, background: 'rgba(0,0,0,.3)', border: `1px solid ${bv ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.1)'}`, color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' }} />
+                        style={{ flexShrink: 0, width: 160, height: 34, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: `1px solid ${bv ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' }} />
                     </div>
                   )
                 })}
@@ -5164,7 +5164,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
   const FacNums = ({ f }) => (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
       {facCells(f).map((c, i) => (
-        <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 8, padding: '6px 8px' }}>
+        <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 8, padding: '6px 8px' }}>
           <span style={{ fontSize: 8.5, color: 'var(--tx4)', fontWeight: 600, display: 'block', marginBottom: 2, textAlign: 'right' }}>{c.label}</span>
           <span style={{ fontSize: 11, color: 'var(--tx3)', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', direction: 'rtl', unicodeBidi: 'plaintext', display: 'block', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
         </div>
@@ -5173,9 +5173,9 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
   )
   const FacRow = ({ f }) => (
     <div onClick={() => { setFacility(f); setErr('') }}
-      style={{ border: '1px solid rgba(255,255,255,.08)', borderRadius: 11, background: 'rgba(255,255,255,.02)', padding: '10px 12px', marginBottom: 7, cursor: 'pointer', transition: '.15s' }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.04)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }}>
+      style={{ border: '1px solid var(--bd)', borderRadius: 11, background: 'var(--bd2)', padding: '10px 12px', marginBottom: 7, cursor: 'pointer', transition: '.15s' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'var(--bd)' }}>
       <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 8 }}>{facName(f)}</div>
       <FacNums f={f} />
     </div>
@@ -5218,7 +5218,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
             </span>
             <input type="text" value={q} onChange={e => setQ(e.target.value)} autoFocus
               placeholder={T('ابحث بالاسم أو الرقم الموحد أو التأمينات أو الموارد البشرية…','Search by name, Unified, GOSI or HRSD…')}
-              style={{ width: '100%', height: 42, padding: '0 38px', borderRadius: 10, background: 'rgba(0,0,0,.25)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }} />
+              style={{ width: '100%', height: 42, padding: '0 38px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box' }} />
           </div>
           {q.trim().length >= 2 && (
             <div style={{ maxHeight: 200, overflowY: 'auto', scrollbarWidth: 'none' }}>
@@ -5266,8 +5266,8 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
             const curFac = v.main_facility ? facName(v.main_facility) : T('غير مُسندة','Unassigned')
             return (
               <button type="button" key={v.id} onClick={() => toggle(v.id)}
-                style={{ width: '100%', textAlign: 'start', display: 'grid', gridTemplateColumns: 'auto auto 1fr auto', alignItems: 'center', gap: 9, padding: '7px 11px', borderRadius: 9, background: checked ? 'rgba(212,160,23,.08)' : 'rgba(0,0,0,.18)', border: `1px solid ${checked ? 'rgba(212,160,23,.45)' : 'rgba(255,255,255,.06)'}`, cursor: 'pointer', fontFamily: F, transition: '.15s' }}>
-                <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 6, background: checked ? C.gold : 'transparent', border: `1.5px solid ${checked ? C.gold : 'rgba(255,255,255,.25)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a1a' }}>
+                style={{ width: '100%', textAlign: 'start', display: 'grid', gridTemplateColumns: 'auto auto 1fr auto', alignItems: 'center', gap: 9, padding: '7px 11px', borderRadius: 9, background: checked ? 'rgba(212,160,23,.08)' : 'rgba(0,0,0,.18)', border: `1px solid ${checked ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, cursor: 'pointer', fontFamily: F, transition: '.15s' }}>
+                <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 6, background: checked ? C.gold : 'transparent', border: `1.5px solid ${checked ? C.gold : 'var(--bd)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a1a' }}>
                   {checked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                 </span>
                 <Chip n={globalIdx(v)} />
@@ -5288,7 +5288,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
             const active = effGrouping === opt.key
             return (
               <button key={opt.key} type="button" disabled={opt.disabled} onClick={() => setGrouping(opt.key)}
-                style={{ textAlign: 'start', padding: '9px 12px', borderRadius: 10, cursor: opt.disabled ? 'not-allowed' : 'pointer', opacity: opt.disabled ? .4 : 1, background: active ? 'rgba(212,160,23,.1)' : 'rgba(0,0,0,.18)', border: `1.5px solid ${active ? 'rgba(212,160,23,.5)' : 'rgba(255,255,255,.07)'}`, fontFamily: F, display: 'flex', flexDirection: 'column', gap: 2, transition: '.15s' }}>
+                style={{ textAlign: 'start', padding: '9px 12px', borderRadius: 10, cursor: opt.disabled ? 'not-allowed' : 'pointer', opacity: opt.disabled ? .4 : 1, background: active ? 'rgba(212,160,23,.1)' : 'rgba(0,0,0,.18)', border: `1.5px solid ${active ? 'rgba(212,160,23,.5)' : 'var(--bd)'}`, fontFamily: F, display: 'flex', flexDirection: 'column', gap: 2, transition: '.15s' }}>
                 <span style={{ fontSize: 12.5, fontWeight: 700, color: active ? C.gold : 'var(--tx1)' }}>{opt.t}</span>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{opt.s}</span>
               </button>
@@ -5565,9 +5565,9 @@ function DatePickerInput({ value, onChange }) {
         value={text}
         onChange={e => handleType(e.target.value)}
         placeholder="yyyy-mm-dd"
-        style={{ width: '100%', height: 38, padding: '0 38px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx1)', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box', direction: 'ltr', textAlign: 'center', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}
+        style={{ width: '100%', height: 38, padding: '0 38px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box', direction: 'ltr', textAlign: 'center', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}
         onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
-        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)' }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}
       />
       <button
         type="button"
@@ -5596,11 +5596,11 @@ function EditField({ label, value, onChange, type = 'text', mono = false, placeh
           value={value || ''}
           onChange={e => onChange(e.target.value)}
           disabled={disabled}
-          style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: value ? 'var(--tx1)' : 'var(--tx4)', fontFamily: mono ? 'monospace' : F, fontSize: 13, outline: 'none', boxSizing: 'border-box', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .45 : 1, direction: mono ? 'ltr' : undefined }}
+          style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: value ? 'var(--tx1)' : 'var(--tx4)', fontFamily: mono ? 'monospace' : F, fontSize: 13, outline: 'none', boxSizing: 'border-box', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .45 : 1, direction: mono ? 'ltr' : undefined }}
           onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
-          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)' }}>
-          <option value="" style={{ background: '#1a1a1a', color: '#888' }}>{placeholder || '—'}</option>
-          {options.map(o => <option key={o.value} value={o.value} style={{ background: '#1a1a1a', color: '#fff' }}>{o.label}</option>)}
+          onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
+          <option value="" style={{ background: 'var(--inputBg)', color: '#888' }}>{placeholder || '—'}</option>
+          {options.map(o => <option key={o.value} value={o.value} style={{ background: 'var(--inputBg)', color: 'var(--tx)' }}>{o.label}</option>)}
         </select>
       ) : (
         <input
@@ -5609,9 +5609,9 @@ function EditField({ label, value, onChange, type = 'text', mono = false, placeh
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx1)', fontFamily: mono ? 'monospace' : F, fontSize: 13, outline: 'none', boxSizing: 'border-box', direction: mono ? 'ltr' : undefined, fontVariantNumeric: mono ? 'tabular-nums' : undefined, opacity: disabled ? .45 : 1, cursor: disabled ? 'not-allowed' : 'text' }}
+          style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: mono ? 'monospace' : F, fontSize: 13, outline: 'none', boxSizing: 'border-box', direction: mono ? 'ltr' : undefined, fontVariantNumeric: mono ? 'tabular-nums' : undefined, opacity: disabled ? .45 : 1, cursor: disabled ? 'not-allowed' : 'text' }}
           onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
-          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)' }}
+          onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}
         />
       )}
     </div>
@@ -5633,9 +5633,9 @@ function AttachField({ T, label, files, isUploading, onPick, allowImage = false,
       {files.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {files.map(a => (
-            <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.04)', textDecoration: 'none', transition: '.15s' }}
+            <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, background: 'var(--bd2)', border: '1px solid var(--bd2)', textDecoration: 'none', transition: '.15s' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)' }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd2)' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.file_name || '—'}</span>
               {a.size_bytes && <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, fontFamily: 'monospace' }}>{fmtFileSize(a.size_bytes)}</span>}
@@ -5647,8 +5647,8 @@ function AttachField({ T, label, files, isUploading, onPick, allowImage = false,
   )
 }
 
-const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
-const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
+const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle  = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }
 
 // ─── Loading skeletons for the transaction detail page ───────────────────────
@@ -5676,7 +5676,7 @@ const EntityHeroSkeleton = ({ cells = 3 }) => (
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cells},1fr)`, gap: 8 }}>
       {Array.from({ length: cells }).map((_, i) => (
-        <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
           <Shimmer w="55%" h={9} /><Shimmer w="80%" h={13} />
         </div>
       ))}
@@ -5686,7 +5686,7 @@ const EntityHeroSkeleton = ({ cells = 3 }) => (
 
 // A boxed "label + value" row placeholder, matching the inset rows used inside cards.
 const RowSkeleton = () => (
-  <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+  <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
     <Shimmer w="30%" h={10} /><Shimmer w="24%" h={12} />
   </div>
 )
@@ -5725,7 +5725,7 @@ const TxnDetailLeftSkeleton = () => (
 const InstallmentsSkeleton = () => (
   <SkCard titleW={80} padding={14} gap={10}>
     {[0, 1].map(i => (
-      <div key={i} style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div key={i} style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}><Shimmer w="42%" h={10} /><Shimmer w="14%" h={10} /></div>
         <Shimmer w="100%" h={6} r={999} />
       </div>
@@ -5735,7 +5735,7 @@ const InstallmentsSkeleton = () => (
 
 // A single stat tile placeholder (label + value), matching the overview card tiles.
 const TileSkeleton = () => (
-  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)', display: 'flex', flexDirection: 'column', gap: 7 }}>
+  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', flexDirection: 'column', gap: 7 }}>
     <Shimmer w="55%" h={9} /><Shimmer w="75%" h={13} />
   </div>
 )
@@ -5765,7 +5765,7 @@ const StatusSkeleton = () => (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, flexShrink: 0, width: 68 }}>
             <Shimmer w={36} h={36} r={999} /><Shimmer w="70%" h={9} />
           </div>
-          {i < 2 && <span style={{ flex: 1, height: 3, borderRadius: 3, background: 'rgba(255,255,255,.08)', marginTop: 17 }} />}
+          {i < 2 && <span style={{ flex: 1, height: 3, borderRadius: 3, background: 'var(--bd)', marginTop: 17 }} />}
         </React.Fragment>
       ))}
     </div>
@@ -5782,7 +5782,7 @@ const ChangeLog = ({ T, title, entries, actionLabel, renderDetail }) => {
         {title}
       </span>
       {[...entries].reverse().map((c, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
           <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </span>
@@ -5814,5 +5814,5 @@ const FieldChanges = ({ T, changes, LBL, showVal }) => (
   ))}</>
 )
 
-const btnFilter = (active) => ({ padding: '11px 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8 })
+const btnFilter = (active) => ({ padding: '11px 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8 })
 const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

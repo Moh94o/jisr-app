@@ -2,6 +2,13 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
+    <!-- يطبّق الوضع الفاتح فوراً (قبل تحميل React) لواجهة الموظفين حتى تظهر شاشة البداية بلون الثيم الصحيح، لا الأسود. -->
+    <script>
+      (function () {
+        if (location.pathname.indexOf('/portal') === 0) return;
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
     <!-- PWA Meta Tags -->
@@ -43,6 +50,11 @@
       }
       body {
         background: #171717;
+      }
+      /* البرنامج (واجهة الموظفين) يفرض الوضع الفاتح — نطبّقه على الخلفية منذ أول إطار
+         حتى تظهر شاشة البداية (Splash) بلون الثيم الفاتح لا الأسود. (البوابة /portal تبقى كما هي.) */
+      html[data-theme="light"] body {
+        background: #f2ece0;
       }
       #root {
         width: 100%;
@@ -87,14 +99,9 @@
       select:focus, input:focus, textarea:focus {
         outline: none;
       }
-      /* Gold focus ring on search boxes (placeholder starting with "ابحث")
-         — applied while focused and while they hold user input. The :has()
-         rule pulls the preceding search icon into the gold state too. */
-      input[placeholder^="ابحث"]:focus:not(.occ-sel-search),
-      input[placeholder^="ابحث"]:not(:placeholder-shown):not(.occ-sel-search) {
-        border: 1px solid rgba(212,160,23,.55) !important;
-        box-shadow: 0 0 0 1px rgba(212,160,23,.18), inset 0 1px 2px rgba(0,0,0,.2) !important;
-      }
+      /* Search boxes (placeholder starting with "ابحث") keep only the gold
+         icon state while focused / holding input — no gold border or inner
+         shadow. The :has() rule pulls the preceding search icon into gold. */
       div:has(> input[placeholder^="ابحث"]:focus:not(.occ-sel-search)) > svg,
       div:has(> input[placeholder^="ابحث"]:not(:placeholder-shown):not(.occ-sel-search)) > svg {
         stroke: #D4A017 !important;

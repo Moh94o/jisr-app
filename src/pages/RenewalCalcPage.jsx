@@ -15,7 +15,7 @@ const CopyBtn = ({ text, lang }) => {
   const [done, setDone] = useState(false)
   if (text === null || text === undefined || text === '' || text === '—') return null
   return <button type="button" title={(lang || 'ar') !== 'en' ? 'نسخ' : 'Copy'} onClick={() => { try { navigator.clipboard?.writeText(String(text)); setDone(true); setTimeout(() => setDone(false), 1200) } catch {} }}
-    style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: done ? '#2ecc71' : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, flexShrink: 0, transition: 'color .15s' }}>
+    style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: done ? '#2ecc71' : 'var(--tx5)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, flexShrink: 0, transition: 'color .15s' }}>
     {done
       ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
       : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>}
@@ -70,19 +70,19 @@ function RenewalNoteModal({ sb, T, lang, rcId, user, onClose, onSaved }) {
 
 /* ───────────── هيكل تحميل (Skeleton) — نفس قياس وتخطيط كروت تسعيرة التنازل ───────────── */
 function RnwSkeleton({ listRows = 6 }) {
-  const shimmer = { display: 'inline-block', borderRadius: 6, background: 'linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.11) 37%, rgba(255,255,255,.04) 63%)', backgroundSize: '400% 100%', animation: 'rnw-shimmer 1.4s ease infinite' }
+  const shimmer = { display: 'inline-block', borderRadius: 6, background: 'linear-gradient(90deg, var(--bd2) 25%, var(--bd) 37%, var(--bd2) 63%)', backgroundSize: '400% 100%', animation: 'rnw-shimmer 1.4s ease infinite' }
   const bar = (w, h = 11, r = 6) => <span style={{ ...shimmer, width: w, height: h, borderRadius: r }} />
-  const card = { borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 190 }
+  const card = { borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', minHeight: 190 }
   return <>
     <style>{`@keyframes rnw-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
     <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.5fr', gap: 14, marginBottom: 24 }}>
       <div style={{ ...card, padding: '18px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{bar(10, 10, 999)}{bar('30%', 22)}</div>
         {bar('55%', 40)}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>{bar('30%', 10)}{bar('12%', 12)}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>{bar('30%', 10)}{bar('12%', 12)}</div>
       </div>
       <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
-        {[0, 1].map(i => <div key={i} style={{ flex: 1, padding: '12px 16px', borderTop: i ? '1px solid rgba(255,255,255,.06)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>{bar('60%', 11)}{bar('35%', 18)}</div>)}
+        {[0, 1].map(i => <div key={i} style={{ flex: 1, padding: '12px 16px', borderTop: i ? '1px solid var(--bd)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>{bar('60%', 11)}{bar('35%', 18)}</div>)}
       </div>
       <div style={{ ...card, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>{bar('40%', 11)}{bar('20%', 11)}</div>
@@ -93,7 +93,7 @@ function RnwSkeleton({ listRows = 6 }) {
       </div>
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {Array.from({ length: listRows }).map((_, i) => <div key={i} style={{ borderRadius: 18, background: 'linear-gradient(180deg,#2b2b2b 0%,#1e1e1e 100%)', border: '1px solid rgba(255,255,255,.07)', boxShadow: '0 14px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center' }}>
+      {Array.from({ length: listRows }).map((_, i) => <div key={i} style={{ borderRadius: 18, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-md)', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center' }}>
         <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{bar('30%', 14)}{bar(24, 16, 3)}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '9px 16px' }}>
@@ -101,7 +101,7 @@ function RnwSkeleton({ listRows = 6 }) {
           </div>
         </div>
         <div style={{ width: 96, height: 96, borderRadius: 12, ...shimmer }} />
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, borderInlineStart: '1px dashed rgba(255,255,255,.18)', paddingInlineStart: 24, paddingInlineEnd: 6, minWidth: 120 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, borderInlineStart: '1px dashed var(--bd)', paddingInlineStart: 24, paddingInlineEnd: 6, minWidth: 120 }}>
           {bar('70%', 26)}{bar('50%', 10)}
         </div>
       </div>)}
@@ -763,14 +763,12 @@ ${noticeBlk}
     <div style={{ marginBottom: 22 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('حسبة تجديد الإقامات', 'Renewal Calculator')}</div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('حساب تكاليف تجديد الإقامة وإصدار التسعيرات ومتابعة حالتها', 'Iqama renewal cost calculation, quote issuance and status tracking')}</div>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('كروت الإحصاء إجمالي تراكمي دائم يشمل جميع التسعيرات (غير مرتبطة بيوم أو أسبوع)', 'The stat cards are all-time totals across every quote (not daily or weekly)')}</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('حسبة تجديد الإقامات', 'Renewal Calculator')}</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx2)', marginTop: 12, lineHeight: 1.6 }}>{T('حساب تكاليف تجديد الإقامة وإصدار التسعيرات ومتابعة حالتها', 'Iqama renewal cost calculation, quote issuance and status tracking')}</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx3)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('كروت الإحصاء إجمالي تراكمي دائم يشمل جميع التسعيرات (غير مرتبطة بيوم أو أسبوع)', 'The stat cards are all-time totals across every quote (not daily or weekly)')}</div>
         </div>
-        {canPerm(user, 'renewal_calc.create') && <button onClick={() => onNewCalc?.()}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-          style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s, border-color .15s' }}>
+        {canPerm(user, 'renewal_calc.create') && <button onClick={() => onNewCalc?.()} className="btn-primary-modal"
+          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           {T('حسبة تجديد إقامة', 'New Renewal Quote')}
           <RefreshCw size={16} strokeWidth={2.2} />
         </button>}
@@ -793,8 +791,8 @@ ${noticeBlk}
     const branchCode = r._branchCode || r.priced_user?.branch?.code || r.created_user?.branch?.code
 
     // ── كروت بتصميم تسعيرة التنازل: رأس + (اسم اختياري) + شبكة خلايا ──
-    const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
-    const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
+    const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
+    const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
     const cardTitle = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }
     const srcLabel = m => (m.l[lang === 'en' ? 'en' : 'ar'])
     // زر «تعديل» موحّد لرأس الكرت — مُقيَّد بصلاحية تعديل الكرت + السماح بفتح نافذة التعديل
@@ -813,9 +811,9 @@ ${noticeBlk}
       keys.forEach(k => { (detailsAudit[k] || []).forEach(a => entries.push({ ...a, _k: k })) })
       if (!entries.length) return null
       entries.sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
-      return <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      return <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>{T('سجل التغييرات', 'Change Log')}</div>
-        {entries.map((a, i) => { const who = nameOf(usersById[a.changed_by]); const dt = new Date(a.changed_at); const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); return <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 9, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {entries.map((a, i) => { const who = nameOf(usersById[a.changed_by]); const dt = new Date(a.changed_at); const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); return <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 9, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.7, wordBreak: 'break-word' }}>{rcFieldLabel(a._k)}: <span style={{ color: 'var(--tx4)' }}>{T('كان', 'was')} </span><span style={{ color: '#e5867a', textDecoration: 'line-through' }}>{fmtAuditVal(a._k, a.old_value)}</span><span style={{ color: 'var(--tx4)' }}> {T('صار', '→')} </span><span style={{ color: '#27a046' }}>{fmtAuditVal(a._k, a.new_value)}</span></div>
           <div style={{ display: 'flex', direction: dir, justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--tx5)' }}>{who ? <span style={{ fontWeight: 600, color: C.gold }}>{who}</span> : <span />}<span style={{ display: 'inline-flex', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtD(a.changed_at)}</span><span>{hhmm}</span></span></div>
         </div> })}
@@ -834,7 +832,7 @@ ${noticeBlk}
       return <div style={cardChrome}>
         <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor || C.gold }} /><span style={cardTitle}>{title}</span>{flagUrl && <img src={flagUrl} alt="" style={{ width: 22, height: 16, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />}{editCard && editBtn(editCard)}</div>
         <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {nameField && <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {nameField && <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{nameField.label}</span>{srcBadge(nameField.key)}</span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
               <CopyBtn text={nameField.value} lang={lang} />
@@ -842,7 +840,7 @@ ${noticeBlk}
             </span>
           </div>}
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, ff.length))},1fr)`, gap: 8 }}>
-            {ff.map((f, i) => <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {ff.map((f, i) => <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{f.label}</span>{srcBadge(f.key)}</span>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
                 {f.tag && <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', flexShrink: 0 }}>{f.tag}</span>}
@@ -858,7 +856,7 @@ ${noticeBlk}
 
     // بطاقة «هيرو» للعامل/المنشأة — مطابقة لتصميم كرت «العامل والمنشأة» في تفاصيل الفاتورة.
     const EntityHero = ({ icon, primary, secondary, latin, cells }) => (
-      <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(212,160,23,.02))', boxShadow: 'var(--shadow-md)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>{icon}</div>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -872,7 +870,7 @@ ${noticeBlk}
         {cells.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, cells.length))},1fr)`, gap: 8 }}>
             {cells.map((c, i) => (
-              <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, ...(c.span ? { gridColumn: `span ${c.span}` } : {}) }}>
+              <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, ...(c.span ? { gridColumn: `span ${c.span}` } : {}) }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                   {!c.rtl && <CopyBtn text={c.value} lang={lang} />}
@@ -886,7 +884,7 @@ ${noticeBlk}
     )
 
     // بطاقة التسعير — سطر لكل رسم، ثم الإجمالي
-    const feeLine = (label, amount, opts = {}) => { if (!amount && !opts.always) return null; return <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed rgba(255,255,255,.05)', gap: 10 }}>
+    const feeLine = (label, amount, opts = {}) => { if (!amount && !opts.always) return null; return <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed var(--bd)', gap: 10 }}>
       <span style={{ fontSize: 12.5, fontWeight: 600, color: opts.color || 'var(--tx2)' }}>{label}</span>
       <span style={{ fontSize: 13.5, fontWeight: 700, color: opts.color || 'var(--tx)', direction: 'rtl', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{opts.neg ? '− ' : ''}{nm(Math.abs(amount))}</span> <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
     </div> }
@@ -922,8 +920,8 @@ ${noticeBlk}
                   {copied ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>}
                 </button>
               </span>
-              {branchCode && <><span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} /><span title={T('المكتب', 'Branch')} style={{ color: C.gold, fontWeight: 700, fontSize: 13.5, direction: 'ltr' }}>{branchCode}</span></>}
-              <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.18)' }} />
+              {branchCode && <><span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'var(--bd)' }} /><span title={T('المكتب', 'Branch')} style={{ color: C.gold, fontWeight: 700, fontSize: 13.5, direction: 'ltr' }}>{branchCode}</span></>}
+              <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'var(--bd)' }} />
               <span style={{ color: 'var(--tx4)', fontSize: 12.5 }}>{fmtD(r.created_at)}</span>
             </div>
           </div>
@@ -944,7 +942,7 @@ ${noticeBlk}
               return <div title={expired ? T('انتهت الصلاحية', 'Expired') : T(`متبقي ${remDays} يوم و ${remHrs} ساعة`, `${remDays}d ${remHrs}h left`)} style={{ padding: 8, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 6, boxSizing: 'border-box' }}>
                 <div style={{ position: 'relative', width: 74, height: 74, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="74" height="74" viewBox="0 0 74 74" style={{ transform: 'rotate(-90deg)' }}>
-                    <circle cx="37" cy="37" r="32" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="5" />
+                    <circle cx="37" cy="37" r="32" fill="none" stroke="var(--bd)" strokeWidth="5" />
                     <circle cx="37" cy="37" r="32" fill="none" stroke={ringClr} strokeWidth="5" strokeLinecap="round" strokeDasharray={2 * Math.PI * 32} strokeDashoffset={2 * Math.PI * 32 * (1 - progress)} style={{ transition: 'stroke-dashoffset .5s ease' }} />
                   </svg>
                   <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', color: ringClr, lineHeight: 1 }}>
@@ -1005,8 +1003,8 @@ ${noticeBlk}
 
 
           {cardVisible(user, 'renewal_calc', 'pricing') && (
-          <div style={{ background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }}>
-            <div style={{ padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
               <span style={{ fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }}>{T('التسعيرة', 'Pricing')}</span>
               {editBtn('pricing')}
@@ -1036,11 +1034,11 @@ ${noticeBlk}
                   {officeFeeV > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', minHeight: 26 }}><span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{T('رسوم المكتب', 'Office Fees')}</span><span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(officeFeeV)}</span></div>}
                   {cover > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', minHeight: 26 }}><span style={{ fontSize: 12, color: '#27a046', fontWeight: 600 }}>{T('الخصم', 'Discount')}</span><span style={{ fontSize: 12.5, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(cover)}</span></div>}
                 </div>
-                {(Number(r.absher_discount || 0) > 0 || Number(r.manual_discount || 0) > 0) && <div style={{ margin: '8px 22px 0', borderTop: '1px solid rgba(255,255,255,.1)', paddingTop: 10 }}>
+                {(Number(r.absher_discount || 0) > 0 || Number(r.manual_discount || 0) > 0) && <div style={{ margin: '8px 22px 0', borderTop: '1px solid var(--bd)', paddingTop: 10 }}>
                   {Number(r.absher_discount || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(r.absher_discount || 0))}</span></div>}
                   {Number(r.manual_discount || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(r.manual_discount || 0))}</span></div>}
                 </div>}
-                <div style={{ margin: '10px 22px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#1b1b1b', borderRadius: 12, borderInlineStart: '3px solid ' + C.gold }}><span style={{ color: C.gold, fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{nm(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>
+                <div style={{ margin: '10px 22px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'linear-gradient(135deg,#d4a017,#bd8a13)', borderRadius: 12, borderInlineStart: '3px solid #9c7610' }}><span style={{ color: '#1a1a1a', fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: '#1a1a1a', fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{nm(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>
                 <div style={{ padding: '0 22px 16px' }}>{auditLog(CARD_FIELDS.pricing)}</div>
               </>
             })()}
@@ -1049,7 +1047,7 @@ ${noticeBlk}
 
           {/* كرت التعليقات — خط زمني يدمج التعليقات مع معالم المراحل (تسعير/تصديق/فوترة) */}
           {cardVisible(user, 'renewal_calc', 'comments') && (<div style={cardChrome}>
-            <div style={{ padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.blue, letterSpacing: '.2px' }}>{T('التعليقات', 'Comments')}</span></div>
+            <div style={{ padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.blue, letterSpacing: '.2px' }}>{T('التعليقات', 'Comments')}</span></div>
             <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(() => {
                 const milestones = [
@@ -1069,7 +1067,7 @@ ${noticeBlk}
                       <span style={{ flex: 1, height: 1, background: ev.color + '33' }} />
                     </div>) }
                   const n = ev.n; const who = (nameOf(usersById[n.created_by]) || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' '); const dt = new Date(n.created_at); const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); return (
-                    <div key={n.id} style={{ background: 'rgba(0,0,0,.18)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid rgba(255,255,255,.05)' }}>
+                    <div key={n.id} style={{ background: 'var(--inputBg)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--bd)' }}>
                       <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>
                       {Array.isArray(n.attachments) && n.attachments.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{n.attachments.map((a, j) => <a key={a.id || j} href={a.file_url} target="_blank" rel="noreferrer" title={a.file_name || T('مرفق', 'Attachment')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: C.gold, textDecoration: 'none' }}><Paperclip size={12} strokeWidth={2} /><span style={{ textDecoration: 'underline', textUnderlineOffset: 3, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{a.file_name || (T('مرفق', 'Attachment') + ' ' + (j + 1))}</span></a>)}</div>}
                       <div style={{ display: 'flex', direction: dir, justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)' }}>{who ? <span style={{ fontWeight: 600, color: C.gold }}>{who}</span> : <span />}<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtD(n.created_at)}</span><span>{hhmm}</span></span></div>
@@ -1100,7 +1098,7 @@ ${noticeBlk}
             const twoNames = (nameOf(r.priced_user || r.created_user) || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ')
             // بطاقة داكنة بشريط لون عمودي — مطابقة لبطاقات كرت المبلغ الإجمالي في الفاتورة
             const Pill = ({ color, label, value }) => (
-              <div style={{ position: 'relative', padding: '12px 14px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', padding: '12px 14px', borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: 0, bottom: 0, insetInlineStart: 0, width: 4, background: color }} />
                 <div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, marginBottom: 5 }}>{label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, direction: 'rtl' }}>
@@ -1143,7 +1141,7 @@ ${noticeBlk}
                 const durMo = r.expected_duration_months != null ? Number(r.expected_duration_months) : renMo
                 const invoiced = ['invoiced', 'completed'].includes(r.status)
                 const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0))
-                return <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                return <div style={{ padding: '14px 22px', borderTop: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {cover > 0 && <Meta label={T('الخصم', 'Discount')} color={C.ok} value={<span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{nm(cover)}</span>} />}
                   {absher > 0 && <Meta label={T('خصم أبشر', 'Absher Discount')} color={C.ok} value={<span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{nm(absher)}</span>} />}
                   {manual > 0 && <Meta label={T('خصم المكتب', 'Office Discount')} color={C.gold} value={<span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{nm(manual)}</span>} />}
@@ -1165,13 +1163,13 @@ ${noticeBlk}
             return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
               {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), discValue: '', approval_note: '' }) }} disabled={expired}
-                onMouseEnter={e => { if (!expired) e.currentTarget.style.background = 'rgba(52,131,180,.12)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                style={{ flex: 1, height: 44, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(52,131,180,.5)', color: C.blue, cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
+                onMouseEnter={e => { if (!expired) e.currentTarget.style.background = 'rgba(52,131,180,.18)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(52,131,180,.1)' }}
+                style={{ flex: 1, height: 44, padding: '0 18px', borderRadius: 11, background: 'rgba(52,131,180,.1)', border: '1px solid rgba(52,131,180,.32)', boxShadow: 'var(--shadow-sm)', color: C.blue, cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
                 <span>{T('تصديق الحسبة', 'Approve Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </button>}
               {showCancel && <button onClick={() => { setCancelSaved(false); setCancelForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, reason: '' }) }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.12)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                style={{ flex: 1, height: 44, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(192,57,43,.5)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(192,57,43,.1)' }}
+                style={{ flex: 1, height: 44, padding: '0 18px', borderRadius: 11, background: 'rgba(192,57,43,.1)', border: '1px solid rgba(192,57,43,.3)', boxShadow: 'var(--shadow-sm)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
                 <span>{T('إلغاء الحسبة', 'Cancel Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
               </button>}
               </div>}
@@ -1208,13 +1206,13 @@ ${noticeBlk}
             <ModalSection Icon={BadgeCheck} label={T('تأكيد التصديق', 'Confirm Approval')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 10, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.75)' }}>{T('إجمالي التسعيرة', 'Quote Total')}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('إجمالي التسعيرة', 'Quote Total')}</span>
                   <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 18, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.round(Number(f._total || 0)))}</span><span style={{ fontSize: 11, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
                 </div>
                 {discountEnabled && d && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.08)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('خصم المكتب', 'Office Discount')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
-                      <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: `1px solid ${belowFloor ? 'rgba(192,57,43,.55)' : 'rgba(255,255,255,.1)'}`, borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
+                      <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: `1px solid ${belowFloor ? 'rgba(192,57,43,.55)' : 'var(--bd)'}`, borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(212,160,23,.3)' }}>
                         <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
                         <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
@@ -1238,9 +1236,9 @@ ${noticeBlk}
           pages={[{ valid: true, content: (
             <ModalSection Icon={AlertCircle} label={T('تأكيد الإلغاء', 'Confirm Cancellation')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.08)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('سبب الإلغاء', 'Cancellation reason')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
-                  <textarea value={f.reason} onChange={e => setF('reason', e.target.value.slice(0, 500))} placeholder={T('سبب الإلغاء (اختياري)…', 'Reason (optional)…')} rows={3} style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(255,255,255,.1)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', resize: 'vertical', direction: dir }} />
+                  <textarea value={f.reason} onChange={e => setF('reason', e.target.value.slice(0, 500))} placeholder={T('سبب الإلغاء (اختياري)…', 'Reason (optional)…')} rows={3} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--bd)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', resize: 'vertical', direction: dir }} />
                 </div>
                 <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.25)', borderRadius: 9, padding: '10px 12px' }}>{T('بالإلغاء تنتقل الحسبة إلى حالة «ملغاة» ويُسجَّل اسمك وتاريخ الإلغاء. ولا يمكن استخدامها في فاتورة بعد ذلك.', 'Cancelling moves the quote to “Cancelled”, records your name and the date, and it can no longer be invoiced.')}</div>
               </div>
@@ -1275,7 +1273,7 @@ ${noticeBlk}
         </div></ModalSection>
         else content = <ModalSection Icon={Banknote} label={T('الرسوم', 'Fees')}><div style={GRID}>
           {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخّر الإقامة', 'Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
-          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 700, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee', 'gov_excess'].reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
+          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 700, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee', 'gov_excess'].reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
         </div></ModalSection>
         return <FKModal open onClose={() => { if (!cardSaving) setCardEdit(null) }} width={560} variant="edit" title={titles[f.card]} Icon={FileText}
           onSubmit={saveCardEdit} submitting={cardSaving} submitLabel={T('حفظ', 'Save')} pages={[{ valid: true, content }]} />
@@ -1333,30 +1331,30 @@ ${noticeBlk}
     {/* ═══ شريط الإحصاء — 3 كروت ═══ */}
     <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.5fr', gap: 14, marginBottom: 24 }}>
       {/* المتوسط — متوسط رسوم المكتب لكل شهر */}
-      <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 190 }}>
+      <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 190 }}>
         <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
-          <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('المتوسط', 'Average')}</span>
+          <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('المتوسط', 'Average')}</span>
         </div>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
           <span style={{ fontSize: 42, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{nm(avgStats.value)}</span>
         </div>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
           <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد التسعيرات', 'Quotes')}</span>
           <span style={{ fontSize: 13, color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(avgStats.count)}</span>
         </div>
       </div>
 
       {/* كرتان متراصّان — مصدّقة + مفوترة */}
-      <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 190 }}>
+      <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 190 }}>
         {[{ k: 'approved', l: T('مصدّقة', 'Approved'), v: sCounts.approved, c: C.blue }, { k: 'invoiced', l: T('مفوترة', 'Invoiced'), v: sCounts.invoiced + sCounts.completed, c: C.ok }].map((s, i) => {
           const isActive = listFilter === s.k
-          return <div key={i} onClick={() => setListFilter(isActive ? 'all' : s.k)} style={{ position: 'relative', padding: '12px 16px', flex: 1, borderTop: i > 0 ? '1px solid rgba(255,255,255,.06)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6, overflow: 'hidden', cursor: 'pointer', background: isActive ? `${s.c}10` : 'transparent', transition: '.15s' }}>
+          return <div key={i} onClick={() => setListFilter(isActive ? 'all' : s.k)} style={{ position: 'relative', padding: '12px 16px', flex: 1, borderTop: i > 0 ? '1px solid var(--bd)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6, overflow: 'hidden', cursor: 'pointer', background: isActive ? `${s.c}10` : 'transparent', transition: '.15s' }}>
             <div style={{ position: 'absolute', insetInlineStart: -25, top: '50%', transform: 'translateY(-50%)', width: 70, height: 70, borderRadius: '50%', background: `radial-gradient(circle, ${s.c}10 0%, transparent 70%)`, pointerEvents: 'none' }} />
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.c }} />
-              <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{s.l}</span>
+              <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600 }}>{s.l}</span>
             </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', direction: 'ltr' }}>
               <span style={{ fontSize: 22, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{nm(s.v)}</span>
@@ -1369,12 +1367,12 @@ ${noticeBlk}
       {(() => {
         const STATUSES = [{ k: 'priced', c: '#eab308', l: T('مسعّرة', 'Priced') }, { k: 'approved', c: C.blue, l: T('مصدّقة', 'Approved') }, { k: 'invoiced', c: C.ok, l: T('مفوترة', 'Invoiced') }, { k: 'cancelled', c: C.red, l: T('ملغاة', 'Cancelled') }]
         const totalSt = STATUSES.reduce((a, s) => a + (sCounts[s.k] || 0), 0)
-        return <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 190 }}>
+        return <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 190 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الحالات', 'Statuses')}</span>
             <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}><span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(totalSt)}</span> {T('تسعيرة', 'quotes')}</span>
           </div>
-          {totalSt > 0 && <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
+          {totalSt > 0 && <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'var(--bd2)' }}>
             {STATUSES.filter(s => (sCounts[s.k] || 0) > 0).map(s => { const cnt = sCounts[s.k] || 0; const pct = (cnt / totalSt) * 100; return <div key={s.k} title={`${s.l}: ${cnt}`} style={{ width: pct + '%', background: s.c, transition: 'width .3s' }} /> })}
           </div>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 16px' }}>
@@ -1393,28 +1391,21 @@ ${noticeBlk}
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
       <div style={{ flex: '1 1 280px', position: 'relative' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-        <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={T('ابحث باسم العامل أو رقم الإقامة أو رقم التسعيرة...', 'Search by worker name, iqama, or quote no...')} style={{ width: '100%', height: 44, paddingBlock: 0, paddingInlineStart: 14, paddingInlineEnd: 38, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 12, fontFamily: F, fontSize: 13, fontWeight: 400, color: '#fff', outline: 'none', direction: dir, boxSizing: 'border-box', transition: '.2s' }} />
+        <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={T('ابحث باسم العامل أو رقم الإقامة أو رقم التسعيرة...', 'Search by worker name, iqama, or quote no...')} style={{ width: '100%', height: 44, paddingBlock: 0, paddingInlineStart: 14, paddingInlineEnd: 38, background: 'var(--search-bg)', border: '1px solid transparent', borderRadius: 12, fontFamily: F, fontSize: 13, fontWeight: 400, color: 'var(--tx)', outline: 'none', direction: dir, boxSizing: 'border-box', transition: '.2s' }} />
       </div>
-      <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, border: advOpen || hasAdv ? '1px solid rgba(212,160,23,.3)' : '1px solid rgba(255,255,255,.05)', background: advOpen || hasAdv ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', color: advOpen || hasAdv ? C.gold : 'var(--tx2)', fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0, transition: '.2s', boxSizing: 'border-box' }}>
+      <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, border: advOpen || hasAdv ? '1px solid var(--accent-bd)' : '1px solid transparent', background: advOpen || hasAdv ? 'var(--accent-soft)' : 'var(--search-bg)', color: advOpen || hasAdv ? 'var(--accent)' : 'var(--tx2)', fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0, transition: '.2s', boxSizing: 'border-box', boxShadow: advOpen || hasAdv ? 'var(--shadow-sm)' : 'none' }}>
         {T('تصفية', 'Filter')}
         <span style={{ width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{!hasAdv ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="18" y1="6" x2="20" y2="6" /><circle cx="16" cy="6" r="2" /><line x1="4" y1="12" x2="8" y2="12" /><line x1="12" y1="12" x2="20" y2="12" /><circle cx="10" cy="12" r="2" /><line x1="4" y1="18" x2="16" y2="18" /><line x1="20" y1="18" x2="20" y2="18" /><circle cx="18" cy="18" r="2" /></svg> : <span role="button" tabIndex={0} title={T('مسح الفلاتر', 'Clear filters')} onClick={e => { e.stopPropagation(); setAdvFilter({ from: '', to: '', status: '', employee: '', officeMin: '', officeMax: '' }) }} onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }} onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }} style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg></span>}</span>
       </button>
     </div>
     {advOpen && (() => {
       const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
-      const fInp = { height: 42, padding: '0 14px', borderRadius: 9, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(0,0,0,.18)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', width: '100%', boxSizing: 'border-box' }
-      return <div style={{ marginBottom: 14, padding: '16px 18px', background: C.modal, border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+      const fInp = { height: 42, padding: '0 14px', borderRadius: 9, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.08)', width: '100%', boxSizing: 'border-box' }
+      return <div style={{ marginBottom: 14, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: 'var(--shadow-md)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
-          <div><div style={fLbl}>{T('تاريخ من', 'Date From')}</div><input className="rnw-date" type="date" value={advFilter.from} onChange={e => setAdvFilter(p => ({ ...p, from: e.target.value }))} style={{ ...fInp, direction: 'ltr' }} /></div>
-          <div><div style={fLbl}>{T('تاريخ إلى', 'Date To')}</div><input className="rnw-date" type="date" value={advFilter.to} onChange={e => setAdvFilter(p => ({ ...p, to: e.target.value }))} style={{ ...fInp, direction: 'ltr' }} /></div>
-          <div><div style={fLbl}>{T('الحالة', 'Status')}</div><select value={advFilter.status} onChange={e => setAdvFilter(p => ({ ...p, status: e.target.value }))} style={{ ...fInp, cursor: 'pointer' }}>
-            <option value="">{T('الكل', 'All')}</option>
-            <option value="priced">{T('مسعّرة', 'Priced')}</option>
-            <option value="approved">{T('مصدّقة', 'Approved')}</option>
-            <option value="invoiced">{T('مفوترة', 'Invoiced')}</option>
-            <option value="completed">{T('مكتملة', 'Completed')}</option>
-            <option value="cancelled">{T('ملغاة', 'Cancelled')}</option>
-          </select></div>
+          <div><div style={fLbl}>{T('تاريخ من', 'Date From')}</div><FKDateField value={advFilter.from} onChange={v => setAdvFilter(p => ({ ...p, from: v }))} /></div>
+          <div><div style={fLbl}>{T('تاريخ إلى', 'Date To')}</div><FKDateField value={advFilter.to} onChange={v => setAdvFilter(p => ({ ...p, to: v }))} /></div>
+          <div><div style={fLbl}>{T('الحالة', 'Status')}</div><FKSelect value={advFilter.status} onChange={v => setAdvFilter(p => ({ ...p, status: v }))} placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l} options={[{ v: '', l: T('الكل', 'All') }, { v: 'priced', l: T('مسعّرة', 'Priced') }, { v: 'approved', l: T('مصدّقة', 'Approved') }, { v: 'invoiced', l: T('مفوترة', 'Invoiced') }, { v: 'completed', l: T('مكتملة', 'Completed') }, { v: 'cancelled', l: T('ملغاة', 'Cancelled') }]} /></div>
           <div><div style={fLbl}>{T('اسم الموظف', 'Employee Name')}</div><input type="text" value={advFilter.employee} onChange={e => setAdvFilter(p => ({ ...p, employee: e.target.value }))} placeholder={T('مهدي اليامي', '...')} style={{ ...fInp, textAlign: 'center' }} /></div>
           <div><div style={fLbl}>{T('رسوم المكتب من', 'Office Fee Min')}</div><input type="number" inputMode="decimal" value={advFilter.officeMin} onChange={e => setAdvFilter(p => ({ ...p, officeMin: e.target.value }))} placeholder="0" style={{ ...fInp, textAlign: 'center', direction: 'ltr' }} /></div>
           <div><div style={fLbl}>{T('رسوم المكتب إلى', 'Office Fee Max')}</div><input type="number" inputMode="decimal" value={advFilter.officeMax} onChange={e => setAdvFilter(p => ({ ...p, officeMax: e.target.value }))} placeholder="∞" style={{ ...fInp, textAlign: 'center', direction: 'ltr' }} /></div>
@@ -1428,7 +1419,7 @@ ${noticeBlk}
         const items = groups[dateKey]; const isToday = dateKey === todayStr
         const dayCounts = { priced: items.filter(rr => rr.status === 'priced').length, approved: items.filter(rr => rr.status === 'approved').length, invoiced: items.filter(rr => rr.status === 'invoiced' || rr.status === 'completed').length }
         return <div key={dateKey} style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--bd)' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}><span style={{ fontSize: 14, fontWeight: 600, color: isToday ? C.gold : 'var(--tx2)' }}>{dayLabel(dateKey)}</span><span style={{ fontSize: 12, color: 'var(--tx4)', fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{dayFull(dateKey)}</span></div>
             <div style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 16, fontWeight: 600 }}>{dayCounts.priced > 0 && <span style={{ color: '#eab308', direction: lang === 'ar' ? 'rtl' : 'ltr', fontVariantNumeric: 'tabular-nums' }}>{dayCounts.priced} {T('مسعّرة', 'priced')}</span>}{dayCounts.approved > 0 && <span style={{ color: C.blue, direction: lang === 'ar' ? 'rtl' : 'ltr', fontVariantNumeric: 'tabular-nums' }}>{dayCounts.approved} {T('مصدّقة', 'approved')}</span>}{dayCounts.invoiced > 0 && <span style={{ color: C.ok, direction: lang === 'ar' ? 'rtl' : 'ltr', fontVariantNumeric: 'tabular-nums' }}>{dayCounts.invoiced} {T('مفوترة', 'invoiced')}</span>}</div>
           </div>
@@ -1448,9 +1439,9 @@ ${noticeBlk}
             const isExpired = showValidity && remainingMs <= 0
             const isInvoiced = r.status === 'invoiced' || r.status === 'completed'
             const isCancelled = r.status === 'cancelled'
-            return <div key={r.id} onClick={() => setDetailsRow(r)} style={{ background: 'linear-gradient(180deg,#2b2b2b 0%,#1e1e1e 100%)', borderRadius: 18, overflow: 'hidden', transition: 'all .15s', border: '1px solid ' + (isExpired ? 'rgba(192,57,43,.35)' : 'rgba(255,255,255,.07)'), position: 'relative', cursor: 'pointer', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center', opacity: isExpired ? .7 : 1, boxShadow: '0 14px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)' }}
+            return <div key={r.id} onClick={() => setDetailsRow(r)} style={{ background: 'var(--card-grad2)', borderRadius: 18, overflow: 'hidden', transition: 'all .15s', border: '1px solid ' + (isExpired ? 'rgba(192,57,43,.35)' : 'var(--bd)'), position: 'relative', cursor: 'pointer', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center', opacity: isExpired ? .7 : 1, boxShadow: 'var(--shadow-md)' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = sc + '55' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = isExpired ? 'rgba(192,57,43,.35)' : 'rgba(255,255,255,.07)' }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor = isExpired ? 'rgba(192,57,43,.35)' : 'var(--bd)' }}>
               {/* مؤشّر الصلاحية (5 أيام) */}
               <div title={showValidity ? (isExpired ? T('انتهت الصلاحية', 'Expired') : T('صالحة ضمن 5 أيام', 'Valid within 5 days')) : isCancelled ? T('ملغاة', 'Cancelled') : T('تفاصيل التسعيرة', 'Quote details')} style={{ position: 'absolute', top: 10, insetInlineEnd: 10, width: 28, height: 28, borderRadius: '50%', background: showValidity ? 'transparent' : (isCancelled ? 'rgba(192,57,43,.12)' : isInvoiced ? 'rgba(39,160,70,.12)' : 'rgba(212,160,23,.12)'), border: showValidity ? 'none' : '1px solid ' + (isCancelled ? 'rgba(192,57,43,.35)' : isInvoiced ? 'rgba(39,160,70,.35)' : 'rgba(212,160,23,.3)'), color: isCancelled ? C.red : isInvoiced ? '#27a046' : C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 2 }}>
                 {showValidity ? (() => {
@@ -1460,7 +1451,7 @@ ${noticeBlk}
                   const arc = startDeg => { const s = (startDeg - 90) * Math.PI / 180, e = (startDeg + arcDeg - 90) * Math.PI / 180; const x1 = cx + rr * Math.cos(s), y1 = cy + rr * Math.sin(s), x2 = cx + rr * Math.cos(e), y2 = cy + rr * Math.sin(e); return `M${x1.toFixed(2)},${y1.toFixed(2)} A${rr},${rr} 0 0 1 ${x2.toFixed(2)},${y2.toFixed(2)}` }
                   const onClr = isExpired ? 'rgba(192,57,43,.5)' : (active <= 1 ? C.gold : '#27a046')
                   return <svg width={size} height={size} style={{ display: 'block' }}>
-                    {Array.from({ length: total }).map((_, i) => <path key={i} d={arc(i * segDeg)} fill="none" stroke={i < active ? onClr : 'rgba(255,255,255,.12)'} strokeWidth={sw} strokeLinecap="round" />)}
+                    {Array.from({ length: total }).map((_, i) => <path key={i} d={arc(i * segDeg)} fill="none" stroke={i < active ? onClr : 'var(--bd)'} strokeWidth={sw} strokeLinecap="round" />)}
                     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight="700" fontFamily={F} fill={onClr}>{active}</text>
                   </svg>
                 })() : isCancelled ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg> : isInvoiced ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>}
@@ -1469,7 +1460,7 @@ ${noticeBlk}
               {/* القسم 1: الاسم + العلم + شبكة الحقول */}
               <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 14.5, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, direction: 'ltr', letterSpacing: '-.2px' }}>{r.worker_name || T('عامل', 'Worker')}</span>
+                  <span style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, direction: 'ltr', letterSpacing: '-.2px' }}>{r.worker_name || T('عامل', 'Worker')}</span>
                   {natFlag && <img src={natFlag} alt="" style={{ width: 24, height: 17, objectFit: 'cover', flexShrink: 0, borderRadius: 3 }} />}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '9px 16px' }}>
@@ -1489,10 +1480,10 @@ ${noticeBlk}
               </div> : null })()}
 
               {/* القسم 3: الإجمالي */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, borderInlineStart: '1px dashed rgba(255,255,255,.18)', paddingInlineStart: 24, paddingInlineEnd: 6, paddingTop: 18, minWidth: 120 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, borderInlineStart: '1px dashed var(--bd)', paddingInlineStart: 24, paddingInlineEnd: 6, paddingTop: 18, minWidth: 120 }}>
                 <div style={{ lineHeight: 1, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}><bdi style={{ fontSize: 38, fontWeight: 600, color: C.gold, letterSpacing: '-.5px' }}>{nm(Math.round(cc))}</bdi></div>
               </div>
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 5, background: 'rgba(255,255,255,.05)' }}><div style={{ height: '100%', width: '100%', background: sc, opacity: .7 }} /></div>
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 5, background: 'var(--bd2)' }}><div style={{ height: '100%', width: '100%', background: sc, opacity: .7 }} /></div>
             </div>
           })}</div>
         </div>

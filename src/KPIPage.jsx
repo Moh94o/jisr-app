@@ -9,7 +9,7 @@ const C = { dk: '#171717', md: '#222222', fm: '#1e1e1e', gold: '#D4A017', gl: '#
 const num = v => Number(v || 0).toLocaleString('en-US')
 
 const GLASS = {
-  background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+  background: 'var(--card-grad)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
   border: '1px solid rgba(255,255,255,.08)',
@@ -183,7 +183,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
     {/* KPI card placeholders — match the 6 real cards */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px,100%), 1fr))', gap: 14, marginBottom: 24 }}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} style={{ padding: '16px 18px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', position: 'relative', overflow: 'hidden' }}>
+        <div key={i} style={{ padding: '16px 18px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', position: 'relative', overflow: 'hidden' }}>
           {/* Glow bar at top */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent)' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -191,7 +191,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
             <Shimmer w={48} h={18} r={6} />
           </div>
           {/* inner stat pill */}
-          <div style={{ padding: '7px 12px', borderRadius: 10, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+          <div style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
             <Shimmer w="50%" h={20} />
             <Shimmer w={32} h={12} />
           </div>
@@ -206,13 +206,13 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
     </div>
 
     {/* Chart card placeholder */}
-    <div style={{ padding: '16px 18px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', marginBottom: 14 }}>
+    <div style={{ padding: '16px 18px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', marginBottom: 14 }}>
       <Shimmer w="35%" h={13} style={{ marginBottom: 16 }} />
       <Shimmer w="100%" h={220} r={10} />
     </div>
 
     {/* Summary bar placeholder */}
-    <div style={{ padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+    <div style={{ padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <Shimmer w={140} h={13} />
         <Shimmer w={180} h={12} />
@@ -305,7 +305,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
             </div>
 
             {/* الأرقام - inner stat pill */}
-            <div style={{ padding: '7px 12px', borderRadius: 10, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+            <div style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <div style={{ fontSize: 20, fontWeight: 700, color: clr, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
                   {m.unit === 'currency' ? num(t.actual_value) : Number(t.actual_value || 0).toLocaleString()}
@@ -388,7 +388,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
               </div>
             </div>
           </div>
-          <div style={{ padding: '7px 14px', borderRadius: 10, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ padding: '7px 14px', borderRadius: 10, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: oc, boxShadow: '0 0 5px ' + oc }} />
             <div style={{ fontSize: 20, fontWeight: 700, color: oc, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
               {overallPct}%

@@ -8,12 +8,12 @@ const num=v=>Number(v||0).toLocaleString('en-US')
 const roleClrs={'المدير العام':'#e8c547','مدير فرع':'#85B7EB','محاسب':'#AFA9EC','موظف استقبال':'#5DCAA5'}
 const daysSince=iso=>{if(!iso)return 0;return Math.floor((Date.now()-new Date(iso).getTime())/86400000)}
 
-const GLASS={background:'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid rgba(255,255,255,.08)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
-const fS={width:'100%',height:42,padding:'0 14px',border:'1px solid rgba(255,255,255,.07)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:500,color:'var(--tx)',outline:'none',background:'linear-gradient(180deg,#323232 0%,#262626 100%)',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',textAlign:'center',boxSizing:'border-box'}
+const GLASS={background:'var(--card-grad)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid var(--bd)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
+const fS={width:'100%',height:42,padding:'0 14px',border:'1px solid var(--bd)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:500,color:'var(--tx)',outline:'none',background:'var(--inputBg)',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',textAlign:'center',boxSizing:'border-box'}
 const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}
-const sBS={height:40,padding:'0 14px',borderRadius:11,border:'1px solid rgba(255,255,255,.06)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:10,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
+const sBS={height:40,padding:'0 14px',borderRadius:11,border:'1px solid var(--bd)',background:'var(--card-bg)',color:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:10,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
 const lblS={fontSize:12,fontWeight:500,color:'var(--tx3)',paddingInlineStart:2,marginBottom:7}
-const IB=({l,v,copy,toast,isAr})=>{const[copied,setCopied]=useState(false);return <div style={{background:'rgba(255,255,255,.025)',borderRadius:10,padding:'14px 16px',border:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.85)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();try{navigator.clipboard.writeText(String(v));setCopied(true);setTimeout(()=>setCopied(false),1200)}catch{}}} onMouseEnter={e=>{if(!copied)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copied)e.currentTarget.style.color='var(--tx5)'}} style={{width:20,height:20,borderRadius:5,border:'none',background:'rgba(255,255,255,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:copied?C.ok:'var(--tx5)',transition:'color .15s'}}>{copied?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}</button>}</div></div>}
+const IB=({l,v,copy,toast,isAr})=>{const[copied,setCopied]=useState(false);return <div style={{background:'var(--bd2)',borderRadius:10,padding:'14px 16px',border:'1px solid var(--bd2)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'var(--tx)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();try{navigator.clipboard.writeText(String(v));setCopied(true);setTimeout(()=>setCopied(false),1200)}catch{}}} onMouseEnter={e=>{if(!copied)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copied)e.currentTarget.style.color='var(--tx5)'}} style={{width:20,height:20,borderRadius:5,border:'none',background:'var(--bd)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:copied?C.ok:'var(--tx5)',transition:'color .15s'}}>{copied?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}</button>}</div></div>}
 
 const BadgeStatus=({v})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'rgba(192,57,43,.1)',color:v?C.ok:C.red}}>{v?'نشط':'معطّل'}</span>
 
@@ -171,7 +171,7 @@ return<div>
 <div style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
 <div style={{flex:1,minWidth:0}}>
 {!defaultTab&&<>
-<div style={{fontSize:24,fontWeight:600,color:'rgba(255,255,255,.93)',letterSpacing:'-.3px',lineHeight:1.2}}>الإدارة</div>
+<div style={{fontSize:24,fontWeight:600,color:'var(--tx)',letterSpacing:'-.3px',lineHeight:1.2}}>الإدارة</div>
 <div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>إدارة المكاتب والموظفين والأدوار والصلاحيات</div>
 </>}
 </div>
@@ -183,7 +183,7 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 </div>
 
 
-{!defaultTab&&<div style={{display:'flex',gap:0,borderBottom:'1px solid rgba(255,255,255,.07)',marginBottom:18,overflowX:'auto',scrollbarWidth:'none'}}>
+{!defaultTab&&<div style={{display:'flex',gap:0,borderBottom:'1px solid var(--bd)',marginBottom:18,overflowX:'auto',scrollbarWidth:'none'}}>
 {[...tabs].map(t=>{const sel=tab===t.id;return<div key={t.id} onClick={()=>{setTab(t.id);setQ('');setFilterStatus('all');setFilterRegion('all')}} style={{padding:'10px 22px 9px',cursor:'pointer',color:sel?C.gold:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:sel?600:500,borderBottom:sel?'2px solid '+C.gold:'2px solid transparent',marginBottom:-1,transition:'.2s',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{t.l}</div>})}
 </div>}
 <div style={{display:'flex',gap:0}}>
@@ -194,10 +194,10 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 {/* Search + Filters */}
 <div style={{display:'flex',gap:10,marginBottom:18,flexWrap:'wrap'}}>
 <div style={{flex:1,minWidth:200,position:'relative'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، الكود، الجوال، البريد..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، الكود، الجوال، البريد..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'var(--inputBg)',border:'1px solid var(--bd)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
 </div>
-{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(212,160,23,.45)':'rgba(255,255,255,.06)'),background:sel?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:sel?C.gold:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
+{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(212,160,23,.45)':'var(--bd)'),background:sel?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'var(--card-bg)',color:sel?C.gold:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
 {regions.length>0&&<select value={filterRegion} onChange={e=>setFilterRegion(e.target.value)} style={{...sBS,width:160,cursor:'pointer'}}>
 <option value="all">كل المناطق</option>
 {regions.map(r=><option key={r.id} value={r.id}>{r.name_ar}</option>)}
@@ -208,8 +208,8 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 {loading&&branches.length===0?<div style={{fontFamily:F}}>
 <style>{`@keyframes sk-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
-{Array.from({length:6}).map((_,i)=><div key={i} style={{background:'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',border:'1px solid rgba(255,255,255,.05)',borderRadius:16,overflow:'hidden'}}>
-<div style={{height:3,background:'rgba(255,255,255,.06)'}}/>
+{Array.from({length:6}).map((_,i)=><div key={i} style={{background:'var(--card-grad2)',border:'1px solid var(--bd)',borderRadius:16,overflow:'hidden'}}>
+<div style={{height:3,background:'var(--bd)'}}/>
 <div style={{padding:'14px 16px 12px'}}>
 <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
 <Shimmer w={38} h={38} r={10}/>
@@ -218,7 +218,7 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:8}}><Shimmer w="55%" h={10}/><Shimmer w="70%" h={10}/></div>
 </div>
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 16px',borderTop:'1px solid rgba(255,255,255,.05)',background:'rgba(255,255,255,.015)'}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 16px',borderTop:'1px solid var(--bd)',background:'var(--bd2)'}}>
 <Shimmer w={120} h={11}/>
 <div style={{display:'flex',gap:4}}><Shimmer w={28} h={28} r={7}/><Shimmer w={28} h={28} r={7}/></div>
 </div>
@@ -241,7 +241,7 @@ return<div key={b.id} onClick={()=>{setViewTab('info');setViewPop(b)}} onMouseEn
 <span style={{fontSize:14,fontWeight:700,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name_ar}</span>
 {b.code&&<span style={{fontSize:8,fontWeight:700,color:b.color||C.gold,background:(b.color||C.gold)+'12',padding:'2px 6px',borderRadius:5,fontFamily:'monospace',direction:'ltr',flexShrink:0}}>{b.code}</span>}
 </div>
-{b.name_en&&<div style={{fontSize:10,color:'rgba(255,255,255,.28)',direction:'ltr',textAlign:'right'}}>{b.name_en}</div>}
+{b.name_en&&<div style={{fontSize:10,color:'var(--tx5)',direction:'ltr',textAlign:'right'}}>{b.name_en}</div>}
 </div>
 <BadgeStatus v={b.is_active}/>
 </div>
@@ -249,29 +249,29 @@ return<div key={b.id} onClick={()=>{setViewTab('info');setViewPop(b)}} onMouseEn
 {/* Info: location + contact */}
 <div style={{display:'flex',flexDirection:'column',gap:6}}>
 {(reg||cit)&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'var(--tx4)'}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
 {reg?.name_ar||''}{reg&&cit?'، ':''}{cit?.name_ar||''}
 </div>}
 {(b.mobile||b.email)&&<div style={{display:'flex',alignItems:'center',gap:12,fontSize:10,color:'var(--tx4)',direction:'ltr'}}>
 {b.mobile&&<span style={{display:'flex',alignItems:'center',gap:4}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
 {b.mobile}</span>}
 {b.email&&<span style={{display:'flex',alignItems:'center',gap:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="2" style={{flexShrink:0}}><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 01-2.06 0L2 7"/></svg>
+<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2" style={{flexShrink:0}}><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 01-2.06 0L2 7"/></svg>
 {b.email}</span>}
 </div>}
 </div>
 </div>
 
 {/* Footer */}
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 16px',borderTop:'1px solid rgba(255,255,255,.05)',background:'rgba(255,255,255,.015)'}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 16px',borderTop:'1px solid var(--bd)',background:'var(--bd2)'}}>
 <div style={{display:'flex',alignItems:'center',gap:14}}>
 <div style={{display:'flex',alignItems:'center',gap:4}}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={bUsers.length>0?C.blue:'rgba(255,255,255,.18)'} strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>
-<span style={{fontSize:10,fontWeight:600,color:bUsers.length>0?C.blue:'rgba(255,255,255,.2)'}}>{bUsers.length} موظف</span>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={bUsers.length>0?C.blue:'var(--tx5)'} strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/></svg>
+<span style={{fontSize:10,fontWeight:600,color:bUsers.length>0?C.blue:'var(--tx5)'}}>{bUsers.length} موظف</span>
 </div>
 <div style={{display:'flex',alignItems:'center',gap:4}}>
-<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
 <span style={{fontSize:9,color:'var(--tx5)',direction:'ltr'}}>{b.work_from||'08:00'} - {b.work_to||'17:00'}</span>
 </div>
 </div>
@@ -292,11 +292,11 @@ if(!q)return true;const s=q.toLowerCase();return(a.bank_name||'').includes(s)||(
 });return<>
 <div style={{display:'flex',gap:10,marginBottom:18,flexWrap:'wrap'}}>
 <div style={{flex:1,minWidth:200,position:'relative'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالبنك، الآيبان، رقم الحساب..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالبنك، الآيبان، رقم الحساب..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'var(--inputBg)',border:'1px solid var(--bd)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
 </div>
-{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(212,160,23,.45)':'rgba(255,255,255,.06)'),background:sel?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:sel?C.gold:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
-{[['all','الكل',C.gold],['deposit','إيداع',C.gold],['sadad','سداد',C.blue],['international','خارجي',C.ok]].map(([k,l,c])=>{const sel=filterRegion===k;return<div key={k} onClick={()=>setFilterRegion(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?c+'66':'rgba(255,255,255,.06)'),background:sel?'linear-gradient(180deg,'+c+'33 0%,'+c+'14 100%)':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:sel?c:'rgba(255,255,255,.78)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px '+c+'2a, inset 0 1px 0 '+c+'22':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
+{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(212,160,23,.45)':'var(--bd)'),background:sel?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'var(--card-bg)',color:sel?C.gold:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
+{[['all','الكل',C.gold],['deposit','إيداع',C.gold],['sadad','سداد',C.blue],['international','خارجي',C.ok]].map(([k,l,c])=>{const sel=filterRegion===k;return<div key={k} onClick={()=>setFilterRegion(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?c+'66':'var(--bd)'),background:sel?'linear-gradient(180deg,'+c+'33 0%,'+c+'14 100%)':'var(--card-bg)',color:sel?c:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px '+c+'2a, inset 0 1px 0 '+c+'22':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
 </div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
 {filtBA.map(a=>{const br=branches.find(b=>b.id===a.branch_id);const typeMap={deposit:{l:'إيداع',c:C.gold},sadad:{l:'سداد',c:C.blue},international:{l:'حوالات خارجية',c:C.ok}};const tp=typeMap[a.account_type]||typeMap.deposit
@@ -320,7 +320,7 @@ return<div key={a.id} onMouseEnter={e=>{e.currentTarget.style.transform='transla
 <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10}}>
 {a.account_number&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 <span style={{fontSize:10,color:'var(--tx4)'}}>رقم الحساب</span>
-<span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.7)',direction:'ltr',fontFamily:'monospace'}}>{a.account_number}</span>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx2)',direction:'ltr',fontFamily:'monospace'}}>{a.account_number}</span>
 </div>}
 {a.iban&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 <span style={{fontSize:10,color:'var(--tx4)'}}>IBAN</span>
@@ -328,15 +328,15 @@ return<div key={a.id} onMouseEnter={e=>{e.currentTarget.style.transform='transla
 </div>}
 {a.swift_code&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 <span style={{fontSize:10,color:'var(--tx4)'}}>SWIFT</span>
-<span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.6)',direction:'ltr',fontFamily:'monospace'}}>{a.swift_code}</span>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx3)',direction:'ltr',fontFamily:'monospace'}}>{a.swift_code}</span>
 </div>}
 {br&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
 <span style={{fontSize:10,color:'var(--tx4)'}}>المكتب</span>
-<span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,.6)'}}>{br.name_ar}</span>
+<span style={{fontSize:11,fontWeight:600,color:'var(--tx3)'}}>{br.name_ar}</span>
 </div>}
 </div>
 
-<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',paddingTop:8,borderTop:'1px solid rgba(255,255,255,.05)'}}>
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',paddingTop:8,borderTop:'1px solid var(--bd)'}}>
 <BadgeStatus v={a.is_active}/>
 <div style={{display:'flex',gap:3}}>
 <button onClick={()=>{setForm({_table:'bank_accounts',_id:a.id,bank_name:a.bank_name||'',account_name:a.account_name||'',account_number:a.account_number||'',iban:a.iban||'',swift_code:a.swift_code||'',account_type:a.account_type||'deposit',branch_id:a.branch_id||'',is_primary:String(a.is_primary===true),is_active:String(a.is_active!==false),notes:a.notes||''});setPop('edit_bank')}} style={{width:26,height:26,borderRadius:6,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
@@ -381,7 +381,7 @@ return <div>
 <div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(39,160,70,.18) 0%,rgba(39,160,70,.06) 100%)',border:'1px solid rgba(39,160,70,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2"><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
 <div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>إجمالي الموظفين</div>
-<div style={{fontSize:24,fontWeight:700,color:'rgba(255,255,255,.93)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{users.length}</div>
+<div style={{fontSize:24,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{users.length}</div>
 <div style={{fontSize:10,marginTop:6,display:'flex',gap:8}}>
 <span style={{color:C.ok}}>● {activeUsers.length} نشط</span>
 <span style={{color:C.red}}>● {disabled.length} معطل</span>
@@ -393,7 +393,7 @@ return <div>
 <div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(184,114,42,.18) 0%,rgba(184,114,42,.06) 100%)',border:'1px solid rgba(184,114,42,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b8722a" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
 <div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>بانتظار الموافقة</div>
-<div style={{fontSize:24,fontWeight:700,color:'rgba(255,255,255,.93)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{pending.length}</div>
+<div style={{fontSize:24,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{pending.length}</div>
 <div style={{fontSize:10,marginTop:6,color:pending.length>0?'#b8722a':'var(--tx5)'}}>{pending.length>0?'يحتاج مراجعة منك →':'لا يوجد طلبات'}</div>
 </div>
 </div>
@@ -401,7 +401,7 @@ return <div>
 <div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(52,131,180,.18) 0%,rgba(52,131,180,.06) 100%)',border:'1px solid rgba(52,131,180,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
 <div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>الأدوار المعيّنة</div>
-<div style={{fontSize:24,fontWeight:700,color:'rgba(255,255,255,.93)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{Object.keys(roleCounts).length}</div>
+<div style={{fontSize:24,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{Object.keys(roleCounts).length}</div>
 <div style={{fontSize:10,marginTop:6,color:'var(--tx5)'}}>{gmCount>0?gmCount+' مدير عام · ':''}{otherRoles} أدوار أخرى</div>
 </div>
 </div>
@@ -409,7 +409,7 @@ return <div>
 <div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(39,160,70,.18) 0%,rgba(39,160,70,.06) 100%)',border:'1px solid rgba(39,160,70,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg></div>
 <div style={{textAlign:'left',flex:1,minWidth:0}}>
 <div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>توزيع الفروع</div>
-<div style={{fontSize:24,fontWeight:700,color:'rgba(255,255,255,.93)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{usedBranches.length}</div>
+<div style={{fontSize:24,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{usedBranches.length}</div>
 <div style={{fontSize:10,marginTop:6,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{usedBranches.join(' · ')||'—'}</div>
 </div>
 </div>
@@ -424,13 +424,13 @@ return <div>
 </div>:null}
 <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
 <div style={{flex:1,minWidth:260,position:'relative'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، البريد، الجوال، أو رقم الهوية..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid rgba(255,255,255,.06)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+<input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، البريد، الجوال، أو رقم الهوية..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'var(--inputBg)',border:'1px solid var(--bd)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
 </div>
-{[['all','الكل',users.length,C.gold],['active','نشط',activeUsers.length,C.ok],['pending','بانتظار',pending.length,'#b8722a'],['inactive','معطل',disabled.length,C.red]].map(([k,l,n,c])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,fontSize:12,fontWeight:sel?600:500,color:sel?c:'rgba(255,255,255,.78)',background:sel?'linear-gradient(180deg,'+c+'33 0%,'+c+'14 100%)':'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',border:'1px solid '+(sel?c+'66':'rgba(255,255,255,.06)'),cursor:'pointer',whiteSpace:'nowrap',fontFamily:F,display:'flex',alignItems:'center',gap:8,boxShadow:sel?'0 2px 8px '+c+'2a, inset 0 1px 0 '+c+'22':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}><span>{l}</span><span style={{fontSize:10,padding:'1px 6px',borderRadius:10,background:sel?c+'33':'rgba(255,255,255,.06)',color:sel?c:'var(--tx4)',fontWeight:600}}>{n}</span></div>})}
+{[['all','الكل',users.length,C.gold],['active','نشط',activeUsers.length,C.ok],['pending','بانتظار',pending.length,'#b8722a'],['inactive','معطل',disabled.length,C.red]].map(([k,l,n,c])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,fontSize:12,fontWeight:sel?600:500,color:sel?c:'var(--tx2)',background:sel?'linear-gradient(180deg,'+c+'33 0%,'+c+'14 100%)':'var(--card-bg)',border:'1px solid '+(sel?c+'66':'var(--bd)'),cursor:'pointer',whiteSpace:'nowrap',fontFamily:F,display:'flex',alignItems:'center',gap:8,boxShadow:sel?'0 2px 8px '+c+'2a, inset 0 1px 0 '+c+'22':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}><span>{l}</span><span style={{fontSize:10,padding:'1px 6px',borderRadius:10,background:sel?c+'33':'var(--bd)',color:sel?c:'var(--tx4)',fontWeight:600}}>{n}</span></div>})}
 </div>
 {filtUsers.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)'}}>لا يوجد موظفين</div>:<div style={{...GLASS,overflow:'hidden'}}>
-<div style={{display:'grid',gridTemplateColumns:'28px 2.2fr 1.4fr 1fr 1fr 1.1fr 1.1fr 100px',gap:10,padding:'14px 18px',background:'linear-gradient(180deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,.01) 100%)',borderBottom:'1px solid rgba(255,255,255,.06)',fontSize:11,fontWeight:600,color:'var(--tx3)',alignItems:'center'}}>
+<div style={{display:'grid',gridTemplateColumns:'28px 2.2fr 1.4fr 1fr 1fr 1.1fr 1.1fr 100px',gap:10,padding:'14px 18px',background:'var(--bd2)',borderBottom:'1px solid var(--bd)',fontSize:11,fontWeight:600,color:'var(--tx3)',alignItems:'center'}}>
 <div><input type="checkbox" style={{cursor:'pointer'}}/></div>
 <div>الموظف</div><div>الأدوار</div><div>الفرع</div><div>الحالة</div><div>آخر دخول</div><div>تاريخ الإضافة</div><div></div>
 </div>
@@ -443,7 +443,7 @@ return <div>
 <div style={{fontSize:10,color:'var(--tx5)',direction:'ltr',textAlign:'right',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.email||u.name_en||''}</div>
 </div>
 </div>
-<div>{u.roles?<span style={{fontSize:10,padding:'4px 10px',borderRadius:12,background:rc+'15',border:'1px solid '+rc+'25',color:rc,fontWeight:700,whiteSpace:'nowrap'}}>{u.roles.name_ar}</span>:<span style={{fontSize:10,padding:'4px 10px',borderRadius:12,border:'1px dashed rgba(255,255,255,.1)',color:'var(--tx5)',whiteSpace:'nowrap'}}>لم يتم التعيين</span>}</div>
+<div>{u.roles?<span style={{fontSize:10,padding:'4px 10px',borderRadius:12,background:rc+'15',border:'1px solid '+rc+'25',color:rc,fontWeight:700,whiteSpace:'nowrap'}}>{u.roles.name_ar}</span>:<span style={{fontSize:10,padding:'4px 10px',borderRadius:12,border:'1px dashed var(--bd)',color:'var(--tx5)',whiteSpace:'nowrap'}}>لم يتم التعيين</span>}</div>
 <div style={{fontSize:10,color:'var(--tx3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.is_all_branches?'كل الفروع':br?br.name_ar:'—'}</div>
 <div><span style={{fontSize:10,padding:'4px 10px',borderRadius:12,background:stClr+'12',color:stClr,fontWeight:700,display:'inline-flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}><span style={{width:5,height:5,borderRadius:'50%',background:stClr}}/>{stLbl}</span></div>
 <div style={{display:'flex',flexDirection:'column',gap:1}}>
@@ -468,7 +468,7 @@ return <div>
 {tab==='roles'&&(()=>{const filtRoles=roles.filter(r=>{
 if(!q)return true;const s=q.toLowerCase();return(r.name_ar||'').includes(s)||(r.name_en||'').toLowerCase().includes(s)||(r.description||'').includes(s)
 });const activeRoles=filtRoles.filter(r=>r.is_active);return<>
-<div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:14,paddingBottom:8,borderBottom:'1px solid rgba(255,255,255,.06)'}}>أدوار نشطة ({activeRoles.length})</div>
+<div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:14,paddingBottom:8,borderBottom:'1px solid var(--bd)'}}>أدوار نشطة ({activeRoles.length})</div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(380px,1fr))',gap:14}}>
 {filtRoles.map(r=>{const rp=rolePerms.filter(p=>p.role_id===r.id);const rUsers=users.filter(u=>u.role_id===r.id);const rc=r.color||C.gold
 return<div key={r.id} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+rc+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}} style={{...GLASS,overflow:'hidden',transition:'.2s'}}>
@@ -484,12 +484,12 @@ return<div key={r.id} onMouseEnter={e=>{e.currentTarget.style.transform='transla
 {r.name_en&&<div style={{fontSize:11,color:'var(--tx5)',direction:'ltr',marginBottom:4}}>{r.name_en}</div>}
 {r.description&&<div style={{fontSize:10,color:'var(--tx4)',marginBottom:8}}>{r.description}</div>}
 </div>
-<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.04)'}}>
-<div style={{flex:1,padding:'10px 16px',textAlign:'center',borderLeft:'1px solid rgba(255,255,255,.03)'}}><div style={{fontSize:18,fontWeight:800,color:rc}}>{rp.length}</div><div style={{fontSize:8,color:rc,opacity:.6,marginTop:2}}>صلاحية</div></div>
+<div style={{display:'flex',borderTop:'1px solid var(--bd2)'}}>
+<div style={{flex:1,padding:'10px 16px',textAlign:'center',borderLeft:'1px solid var(--bd2)'}}><div style={{fontSize:18,fontWeight:800,color:rc}}>{rp.length}</div><div style={{fontSize:8,color:rc,opacity:.6,marginTop:2}}>صلاحية</div></div>
 <div style={{flex:1,padding:'10px 16px',textAlign:'center'}}><div style={{fontSize:18,fontWeight:800,color:C.gold}}>{rUsers.length}</div><div style={{fontSize:8,color:C.gold,opacity:.6,marginTop:2}}>موظف</div></div>
 </div>
-<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.04)'}}>
-<button onClick={()=>{setSelPerms(rp.map(p=>p.permission_id));setPermPop(r.id)}} style={{flex:1,height:34,border:'none',borderLeft:'1px solid rgba(255,255,255,.04)',background:'rgba(52,131,180,.04)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>إدارة الصلاحيات</button>
+<div style={{display:'flex',borderTop:'1px solid var(--bd2)'}}>
+<button onClick={()=>{setSelPerms(rp.map(p=>p.permission_id));setPermPop(r.id)}} style={{flex:1,height:34,border:'none',borderLeft:'1px solid var(--bd2)',background:'rgba(52,131,180,.04)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>إدارة الصلاحيات</button>
 <button onClick={()=>{setForm({_table:'roles',_id:r.id,name_ar:r.name_ar||'',name_en:r.name_en||'',description:r.description||'',color:r.color||'',is_active:String(r.is_active!==false)});setPop('edit_role')}} style={{width:50,height:34,border:'none',background:'rgba(201,168,76,.04)',color:C.gold,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>تعديل</button>
 </div>
 </div>})}
@@ -555,7 +555,7 @@ return<>
 return<div key={e.user_id} onMouseEnter={ev=>{ev.currentTarget.style.transform='translateY(-3px)';ev.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+accent+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={ev=>{ev.currentTarget.style.transform='translateY(0)';ev.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}} style={{...GLASS,overflow:'hidden',transition:'.2s'}}>
 {/* Header */}
 <div style={{padding:'14px 18px',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:38,height:38,borderRadius:'50%',background:i<3?'rgba(201,168,76,.12)':'rgba(255,255,255,.04)',border:'1.5px solid '+(i<3?'rgba(201,168,76,.25)':'rgba(255,255,255,.08)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?16:13,fontWeight:800,color:i<3?C.gold:'var(--tx4)',flexShrink:0}}>
+<div style={{width:38,height:38,borderRadius:'50%',background:i<3?'rgba(201,168,76,.12)':'var(--bd2)',border:'1.5px solid '+(i<3?'rgba(201,168,76,.25)':'var(--bd)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?16:13,fontWeight:800,color:i<3?C.gold:'var(--tx4)',flexShrink:0}}>
 {i<3?medals[i]:'#'+(i+1)}
 </div>
 <div style={{flex:1,minWidth:0}}>
@@ -576,15 +576,15 @@ return<div key={e.user_id} onMouseEnter={ev=>{ev.currentTarget.style.transform='
 </div>
 {/* Progress bar */}
 <div style={{padding:'0 18px 6px'}}>
-<div style={{height:6,borderRadius:3,background:'rgba(255,255,255,.06)',overflow:'hidden'}}>
+<div style={{height:6,borderRadius:3,background:'var(--bd)',overflow:'hidden'}}>
 <div style={{height:'100%',width:Math.min(100,pct)+'%',borderRadius:3,background:scoreColor(sc),transition:'width .3s'}}/>
 </div>
 <div style={{fontSize:8,color:'var(--tx5)',marginTop:3,textAlign:'left'}}>الإنتاجية {pct}%</div>
 </div>
 {/* Metrics */}
-<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.04)',background:'rgba(255,255,255,.01)'}}>
+<div style={{display:'flex',borderTop:'1px solid var(--bd2)',background:'var(--bd2)'}}>
 {[['معاملات',e.txn_completed,C.blue],['تحصيل',num(e.amount_collected),C.ok],['مهام',e.tasks_done,C.gold],['متأخرة',e.tasks_overdue,Number(e.tasks_overdue)>0?C.red:'var(--tx5)'],['تصعيدات',e.escalations,Number(e.escalations)>0?'#e67e22':'var(--tx5)'],['م.الأيام',e.avg_completion_days,'#9b59b6']].map(([l,v,c],j)=>
-<div key={l} style={{flex:1,padding:'8px 4px',textAlign:'center',borderLeft:j>0?'1px solid rgba(255,255,255,.03)':'none'}}>
+<div key={l} style={{flex:1,padding:'8px 4px',textAlign:'center',borderLeft:j>0?'1px solid var(--bd2)':'none'}}>
 <div style={{fontSize:14,fontWeight:700,color:c}}>{v||0}</div>
 <div style={{fontSize:7,color:'var(--tx5)',marginTop:2}}>{l}</div>
 </div>)}
@@ -635,9 +635,9 @@ return<div key={a.id} style={{borderRadius:12,background:'var(--bg)',border:'1px
 </div>
 <span style={{fontSize:10,padding:'3px 10px',borderRadius:6,background:isLate?'rgba(230,126,34,.1)':'rgba(39,160,70,.1)',color:isLate?'#e67e22':C.ok,fontWeight:700}}>{isLate?'⏰ متأخر '+a.late_minutes+' د':'✓ في الوقت'}</span>
 </div>
-<div style={{display:'flex',borderTop:'1px solid rgba(255,255,255,.04)',background:'rgba(255,255,255,.01)'}}>
+<div style={{display:'flex',borderTop:'1px solid var(--bd2)',background:'var(--bd2)'}}>
 {[['الدخول',cin,C.ok],['الخروج',cout,C.blue],['الساعات',Number(a.work_hours||0).toFixed(1)+' ساعة',C.gold],['الحالة',isLate?'+'+a.late_minutes+' دقيقة':'في الوقت',isLate?'#e67e22':C.ok]].map(([l,v,c],j)=>
-<div key={l} style={{flex:1,padding:'8px 10px',textAlign:'center',borderLeft:j>0?'1px solid rgba(255,255,255,.03)':'none'}}>
+<div key={l} style={{flex:1,padding:'8px 10px',textAlign:'center',borderLeft:j>0?'1px solid var(--bd2)':'none'}}>
 <div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{l}</div>
 <div style={{fontSize:11,fontWeight:700,color:c,direction:'ltr'}}>{v}</div>
 </div>)}
@@ -703,7 +703,7 @@ attend:<FKSection Icon={CalendarDays} label="الحضور" hint={attDays+' يو�
 {attendance.length===0?<div style={{textAlign:'center',padding:30,color:FKC.tx5,fontSize:13}}>لا يوجد سجل حضور</div>:
 <ScrollBox maxHeight={360}>
 <table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
-<thead><tr style={{background:'rgba(255,255,255,.03)'}}>{['التاريخ','الدخول','الخروج','الساعات','الحالة'].map((h,i)=><th key={i} style={{padding:'10px 14px',fontSize:11,fontWeight:600,color:FKC.tx4,textAlign:i===4?'center':'right'}}>{h}</th>)}</tr></thead>
+<thead><tr style={{background:'var(--bd2)'}}>{['التاريخ','الدخول','الخروج','الساعات','الحالة'].map((h,i)=><th key={i} style={{padding:'10px 14px',fontSize:11,fontWeight:600,color:FKC.tx4,textAlign:i===4?'center':'right'}}>{h}</th>)}</tr></thead>
 <tbody>{attendance.slice(0,15).map(a=>{const cin=a.check_in_at?new Date(a.check_in_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const cout=a.check_out_at?new Date(a.check_out_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';return<tr key={a.id} style={{borderBottom:'1px solid '+FKC.line}}>
 <td style={{padding:'8px 14px',fontSize:12,color:FKC.tx3}}>{a.date}</td>
 <td style={{padding:'8px 14px',fontSize:12,color:FKC.tx3,direction:'ltr'}}>{cin}</td>
@@ -1223,22 +1223,22 @@ const page3=(
 <div style={{display:'flex',flexDirection:'column',gap:10}}>
 <FKText value={rolePermSearch} onChange={setRolePermSearch} placeholder="ابحث في الصلاحيات..."/>
 <div style={{display:'flex',gap:6,overflowX:'auto',flexShrink:0,paddingBottom:2,scrollbarWidth:'none'}}>
-{visMods.map(m=>{const mPerms=(permsByMod[m]||[]).filter(p=>filteredPerms.includes(p));const modSel=mPerms.filter(p=>selPerms.includes(p.id)).length;const isCur=m===curMod;return <div key={m} onClick={()=>setRoleActiveMod(m)} style={{padding:'6px 12px',borderRadius:8,background:isCur?FKC.gold+'26':'rgba(255,255,255,.03)',border:'1px solid '+(isCur?FKC.gold+'59':'rgba(255,255,255,.06)'),cursor:'pointer',display:'flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s'}}>
+{visMods.map(m=>{const mPerms=(permsByMod[m]||[]).filter(p=>filteredPerms.includes(p));const modSel=mPerms.filter(p=>selPerms.includes(p.id)).length;const isCur=m===curMod;return <div key={m} onClick={()=>setRoleActiveMod(m)} style={{padding:'6px 12px',borderRadius:8,background:isCur?FKC.gold+'26':'var(--bd2)',border:'1px solid '+(isCur?FKC.gold+'59':'var(--bd)'),cursor:'pointer',display:'flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s'}}>
 <span style={{fontSize:11,fontWeight:600,color:isCur?FKC.gold:FKC.tx2,whiteSpace:'nowrap'}}>{modsLabels[m]||m}</span>
-<span style={{fontSize:9,padding:'1px 6px',borderRadius:8,background:modSel>0?FKC.gold+'22':'rgba(255,255,255,.05)',color:modSel>0?FKC.gold:FKC.tx5,fontWeight:600}}>{modSel}/{mPerms.length}</span>
+<span style={{fontSize:9,padding:'1px 6px',borderRadius:8,background:modSel>0?FKC.gold+'22':'var(--bd)',color:modSel>0?FKC.gold:FKC.tx5,fontWeight:600}}>{modSel}/{mPerms.length}</span>
 </div>})}
 </div>
 {curMod&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
 <div style={{fontSize:11,color:FKC.tx5}}>{modsLabels[curMod]||curMod}</div>
 <div style={{display:'flex',gap:6}}>
-<button onClick={()=>setSelPerms(perms.map(p=>p.id))} style={{padding:'4px 10px',borderRadius:6,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.03)',color:FKC.tx3,fontSize:10,fontWeight:600,fontFamily:F,cursor:'pointer'}}>الكل</button>
+<button onClick={()=>setSelPerms(perms.map(p=>p.id))} style={{padding:'4px 10px',borderRadius:6,border:'1px solid var(--bd)',background:'var(--bd2)',color:FKC.tx3,fontSize:10,fontWeight:600,fontFamily:F,cursor:'pointer'}}>الكل</button>
 <button onClick={()=>{if(curModAllSel){setSelPerms(s=>s.filter(id=>!curModPerms.some(p=>p.id===id)))}else{setSelPerms(s=>[...new Set([...s,...curModPerms.map(p=>p.id)])])}}} style={{padding:'4px 10px',borderRadius:6,border:'1px solid '+FKC.gold+'33',background:FKC.gold+'14',color:FKC.gold,fontSize:10,fontWeight:600,fontFamily:F,cursor:'pointer'}}>{curModAllSel?'إلغاء القسم':'تحديد القسم'}</button>
 </div>
 </div>}
 <ScrollBox maxHeight={190}>
 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,alignContent:'flex-start'}}>
-{curModPerms.map(p=>{const ck=selPerms.includes(p.id);return <div key={p.id} onClick={()=>setSelPerms(s=>ck?s.filter(id=>id!==p.id):[...s,p.id])} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:8,background:ck?FKC.gold+'14':'rgba(255,255,255,.02)',border:'1px solid '+(ck?FKC.gold+'4d':'rgba(255,255,255,.06)'),cursor:'pointer',transition:'.1s',minHeight:38,boxSizing:'border-box'}}>
-<span style={{width:16,height:16,borderRadius:4,border:ck?'none':'1.5px solid rgba(255,255,255,.18)',background:ck?FKC.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{ck?<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#000" strokeWidth="3" strokeLinecap="round"/></svg>:null}</span>
+{curModPerms.map(p=>{const ck=selPerms.includes(p.id);return <div key={p.id} onClick={()=>setSelPerms(s=>ck?s.filter(id=>id!==p.id):[...s,p.id])} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:8,background:ck?FKC.gold+'14':'var(--bd2)',border:'1px solid '+(ck?FKC.gold+'4d':'var(--bd)'),cursor:'pointer',transition:'.1s',minHeight:38,boxSizing:'border-box'}}>
+<span style={{width:16,height:16,borderRadius:4,border:ck?'none':'1.5px solid var(--bd)',background:ck?FKC.gold:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{ck?<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="#000" strokeWidth="3" strokeLinecap="round"/></svg>:null}</span>
 <span style={{flex:1,minWidth:0}}>
 <span style={{display:'block',fontSize:11,fontWeight:600,color:ck?FKC.gold:FKC.tx,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name_ar||p.action}</span>
 <span style={{display:'block',fontSize:9,color:FKC.tx5,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.module}.{p.action}</span>
@@ -1288,17 +1288,17 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
   const visToggle=(id)=>{if(LOCKED_NAV.includes(id))return;const next={...(visibility||{}),[id]:!visGet(id)};onVisibilityChange&&onVisibilityChange(next);toast&&toast(isAr?(next[id]?'تم الإظهار':'تم الإخفاء'):(next[id]?'Shown':'Hidden'))}
   const showAllNav=()=>{onVisibilityChange&&onVisibilityChange({});toast&&toast(isAr?'تم إظهار كل التبويبات':'All tabs shown')}
   const NavToggle=({id,label})=>{const on=visGet(id);const locked=LOCKED_NAV.includes(id)
-    return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'8px 12px',borderRadius:8,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.05)',opacity:locked?.6:1}}>
+    return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'8px 12px',borderRadius:8,background:'var(--bd2)',border:'1px solid var(--bd)',opacity:locked?.6:1}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}>
         <span style={{color:on?'var(--tx)':'var(--tx4)',fontSize:12,fontWeight:600}}>{label}</span>
         {locked&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(212,160,23,.1)',color:C.gold,fontWeight:700}}>دائم</span>}
       </div>
-      <button type="button" disabled={locked} onClick={()=>visToggle(id)} style={{width:40,height:20,borderRadius:999,border:'none',background:on?C.ok:'rgba(255,255,255,.15)',cursor:locked?'not-allowed':'pointer',position:'relative',padding:0,transition:'.2s',flexShrink:0}}>
+      <button type="button" disabled={locked} onClick={()=>visToggle(id)} style={{width:40,height:20,borderRadius:999,border:'none',background:on?C.ok:'var(--bd)',cursor:locked?'not-allowed':'pointer',position:'relative',padding:0,transition:'.2s',flexShrink:0}}>
         <span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:3,right:on?3:23,transition:'.2s'}}/>
       </button>
     </div>}
   return<div style={{fontFamily:F,direction:'rtl'}}>
-    <div style={{fontSize:12,color:'rgba(255,255,255,.55)',marginBottom:18,lineHeight:1.7}}>حدد لكل زر أو عنصر: يظهر للجميع، أو معطّل تماماً، أو للمدير العام فقط، أو لموظفين محددين. قسم التبويبات الجانبية يُطبَّق على جميع المستخدمين.</div>
+    <div style={{fontSize:12,color:'var(--tx3)',marginBottom:18,lineHeight:1.7}}>حدد لكل زر أو عنصر: يظهر للجميع، أو معطّل تماماً، أو للمدير العام فقط، أو لموظفين محددين. قسم التبويبات الجانبية يُطبَّق على جميع المستخدمين.</div>
 
     {/* ─── Sidebar Visibility Section ─── */}
     {nav&&hubTabs&&<div style={{marginBottom:24}}>
@@ -1311,7 +1311,7 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:8}}>
         {nav.map(n=>{const subs=hubTabs[n.id]||[]
-        return<div key={n.id} style={{padding:10,borderRadius:10,background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.04)'}}>
+        return<div key={n.id} style={{padding:10,borderRadius:10,background:'var(--inputBg)',border:'1px solid var(--bd2)'}}>
           <NavToggle id={n.id} label={n.l}/>
           {subs.length>0&&<div style={{paddingRight:14,marginTop:5,display:'flex',flexDirection:'column',gap:4,borderRight:'2px solid rgba(212,160,23,.12)',marginRight:8}}>
             {subs.map(t=><NavToggle key={t.id} id={t.id} label={t.l}/>)}
@@ -1327,24 +1327,24 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
         {section.controls.map(ctrl=>{const p=perms[ctrl.k]||{mode:'gm_only',allowed_user_ids:[]};const isCustom=p.mode==='custom'
-        return<div key={ctrl.k} style={{padding:'14px 16px',borderRadius:12,background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,255,255,.06)'}}>
+        return<div key={ctrl.k} style={{padding:'14px 16px',borderRadius:12,background:'var(--bd2)',border:'1px solid var(--bd)'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,marginBottom:10,flexWrap:'wrap'}}>
             <div style={{flex:1,minWidth:240}}>
               <div style={{fontSize:14,fontWeight:800,color:'var(--tx)',marginBottom:3}}>{ctrl.l}</div>
-              <div style={{fontSize:11,color:'rgba(255,255,255,.5)'}}>{ctrl.d}</div>
+              <div style={{fontSize:11,color:'var(--tx3)'}}>{ctrl.d}</div>
             </div>
             <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
               {MODES.map(m=>{const active=p.mode===m.v
-              return<button key={m.v} onClick={()=>updateMode(ctrl.k,m.v)} style={{fontSize:11,fontWeight:700,padding:'6px 12px',borderRadius:7,border:'1px solid '+(active?m.c+'66':'rgba(255,255,255,.1)'),background:active?m.c+'1a':'transparent',color:active?m.c:'rgba(255,255,255,.6)',cursor:'pointer',fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
+              return<button key={m.v} onClick={()=>updateMode(ctrl.k,m.v)} style={{fontSize:11,fontWeight:700,padding:'6px 12px',borderRadius:7,border:'1px solid '+(active?m.c+'66':'var(--bd)'),background:active?m.c+'1a':'transparent',color:active?m.c:'var(--tx3)',cursor:'pointer',fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
                 <span>{m.ic}</span>{m.l}
               </button>})}
             </div>
           </div>
-          {isCustom&&<div style={{marginTop:4,paddingTop:10,borderTop:'1px dashed rgba(255,255,255,.08)'}}>
-            <div style={{fontSize:10,color:'rgba(255,255,255,.5)',fontWeight:600,marginBottom:6}}>اختر الموظفين المسموح لهم:</div>
+          {isCustom&&<div style={{marginTop:4,paddingTop:10,borderTop:'1px dashed var(--bd)'}}>
+            <div style={{fontSize:10,color:'var(--tx3)',fontWeight:600,marginBottom:6}}>اختر الموظفين المسموح لهم:</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
               {users.map(u=>{const sel=(p.allowed_user_ids||[]).includes(u.id)
-              return<button key={u.id} onClick={()=>toggleUser(ctrl.k,u.id)} style={{fontSize:10.5,fontWeight:700,padding:'4px 10px',borderRadius:5,border:'1px solid '+(sel?'rgba(39,160,70,.4)':'rgba(255,255,255,.1)'),background:sel?'rgba(39,160,70,.1)':'transparent',color:sel?C.ok:'rgba(255,255,255,.55)',cursor:'pointer',fontFamily:F}}>{u.name_ar}</button>})}
+              return<button key={u.id} onClick={()=>toggleUser(ctrl.k,u.id)} style={{fontSize:10.5,fontWeight:700,padding:'4px 10px',borderRadius:5,border:'1px solid '+(sel?'rgba(39,160,70,.4)':'var(--bd)'),background:sel?'rgba(39,160,70,.1)':'transparent',color:sel?C.ok:'var(--tx3)',cursor:'pointer',fontFamily:F}}>{u.name_ar}</button>})}
             </div>
           </div>}
         </div>})}

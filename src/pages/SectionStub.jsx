@@ -19,7 +19,7 @@ export default function SectionStub({ title, subtitle, lang = 'ar' }) {
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
         padding: '64px 24px', textAlign: 'center',
-        background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+        background: 'var(--card-grad2)',
         border: '1px dashed rgba(212,160,23,.28)', borderRadius: 16,
       }}>
         <div style={{ width: 72, height: 72, borderRadius: 18, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>

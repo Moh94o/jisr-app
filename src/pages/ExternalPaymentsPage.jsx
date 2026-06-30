@@ -17,7 +17,7 @@ const fmtDate = (s) => { if (!s) return '—'; const d = new Date(s + 'T12:00:00
 const OBLIG_LABEL = { rent: 'إيجار', utility_electricity: 'كهرباء', utility_water: 'ماء', utility_internet: 'إنترنت', phone: 'جوال' }
 const OBLIG_COLOR = { rent: C.gold, utility_electricity: C.warn, utility_water: C.blue, utility_internet: C.cyan, phone: C.purple }
 
-const card = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', borderRadius: 16 }
+const card = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', borderRadius: 16 }
 const inputS = { height: 42, padding: '0 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxSizing: 'border-box', width: '100%' }
 
 export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', branchId }) {
@@ -115,8 +115,8 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('الحوالات المدفوعة لحسابات بنكية خارجية — التزامات الفروع (الإيجار والخدمات) والحوالات البنكية.', 'Transfers paid to external bank accounts — branch obligations (rent & utilities) and bank transfers.')}</div>
         </div>
         {can(user, 'ext_payments.create') && (
-        <button onClick={() => setAddOpen(true)} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-          style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease' }}>
+        <button onClick={() => setAddOpen(true)} className="btn-primary-modal"
+          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           {T('إضافة حوالة بنكية', 'Add bank transfer')}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>

@@ -4,7 +4,8 @@
    هذا الملف هو "المرجع الواحد" لكل شكل حقل / نافذة في الموقع. أي نافذة جديدة
    تُبنى من هنا فقط — لا تنسخ ستايلات يدوياً.
 
-   الثيم: داكن ثابت (ذهبي #D4A017 على خلفية #1a1a1a) — لا يتغيّر مع وضع الموقع.
+   الثيم: يتبع ثيم الموقع تلقائياً عبر متغيّرات CSS (الخلفية/النص/الحقول/الحجاب
+   والظلال كلها tokens). البرنامج حالياً فاتح، فالنوافذ فاتحة مثل باقي الواجهة.
 
    ── المحتويات ──────────────────────────────────────────────────────────
    • التوكنز:        F (الخط) · C (الألوان) · sF (ستايل الحقل) · GRID
@@ -26,20 +27,24 @@ import { X, ChevronDown, ChevronLeft, ChevronRight, Check, Search, Save, Calenda
 
 export const F = "'Cairo','Tajawal',sans-serif"
 
+// كل الألوان (الخلفية/النص/الحقول/الفواصل) تُقرأ من متغيّرات CSS المعرّفة في
+// Css() بـ App.jsx لكل ثيم. البرنامج يفرض الوضع الفاتح (data-theme=light على
+// <html>) فالنوافذ المنبثقة — حتى المرسومة عبر بورتال في body — ترث قيم الثيم
+// الفاتح تلقائياً. الحجاب (overlay) والظلال أيضاً tokens (--overlayBg/--shadowClr).
 export const C = {
   gold:    '#D4A017',
   ok:      '#27a046',
   red:     '#c0392b',
   blue:    '#3483b4',
-  modal:   '#1a1a1a',                 // خلفية النافذة
-  modal2:  '#0f0f0f',                 // خلفية البورتال (دروب داون / تقويم)
-  inputBg: 'rgba(0,0,0,.18)',         // خلفية الحقل
-  line:    'rgba(255,255,255,.06)',   // فواصل
-  tx:      'rgba(255,255,255,.92)',   // نص أساسي
-  tx2:     'rgba(255,255,255,.82)',
-  tx3:     'rgba(255,255,255,.55)',   // نص ثانوي / تلميح
-  tx4:     'rgba(255,255,255,.40)',
-  tx5:     'rgba(255,255,255,.28)',   // placeholder
+  modal:   'var(--modal-bg)',         // خلفية النافذة (افتراضي #1a1a1a)
+  modal2:  'var(--modal-portal-bg)',  // خلفية البورتال (افتراضي #0f0f0f)
+  inputBg: 'var(--fk-input-bg)',      // خلفية الحقل (افتراضي rgba(0,0,0,.18))
+  line:    'var(--fk-line)',          // فواصل (افتراضي rgba(255,255,255,.06))
+  tx:      'var(--tx)',               // نص أساسي
+  tx2:     'var(--tx2)',
+  tx3:     'var(--tx3)',              // نص ثانوي / تلميح
+  tx4:     'var(--tx4)',
+  tx5:     'var(--tx5)',              // placeholder
 }
 
 /* ─────────────────────── اللغة / الاتجاه ─────────────────────────────────
@@ -131,7 +136,7 @@ export const sF = {
   fontFamily: F, fontSize: 14, fontWeight: 600,
   color: C.tx, outline: 'none',
   background: C.inputBg, boxSizing: 'border-box',
-  boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
+  boxShadow: 'none',
   textAlign: 'center', transition: '.2s',
 }
 
@@ -141,9 +146,8 @@ export const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, mi
 export const FULL = { gridColumn: '1 / -1' }
 
 const errBorder = err => (err ? C.red + '80' : 'transparent')
-// حلقة خطأ بالظل (الحدود معطّلة عالمياً في index.html، فالظل يتجاوز القاعدة)
-const SHADOW_BASE = 'inset 0 1px 2px rgba(0,0,0,.2)'
-const errRing = err => (err ? `inset 0 0 0 1.6px ${C.red}, ${SHADOW_BASE}` : SHADOW_BASE)
+// حلقة خطأ بالظل (الحدود معطّلة عالمياً في index.html، فالظل يتجاوز القاعدة) — لا ظل داخلي افتراضي
+const errRing = err => (err ? `inset 0 0 0 1.6px ${C.red}` : 'none')
 
 /* ════════════════════════════ فلاتر الإدخال ════════════════════════════ */
 const RE_AR = /[^؀-ۿ\s]/g          // عربي + مسافات فقط
@@ -214,10 +218,10 @@ export const fmtTime12 = v => {
 }
 
 /* ════════════════════════════════ Lbl ═════════════════════════════════ */
-// عنوان الحقل — موحّد. req = نجمة حمراء للحقل الإلزامي.
+// عنوان الحقل — موحّد. req يبقى للتحقق فقط؛ لا تُعرض نجمة (إزالة النجمات على مستوى البرنامج).
 export const Lbl = ({ children, req, hint, err }) => (
   <div style={{ fontSize: 14, fontWeight: 600, color: err ? C.red : C.tx, marginBottom: 9, textAlign: 'start', display: 'flex', alignItems: 'baseline', gap: 6, transition: '.15s' }}>
-    <span>{children}{req && <span style={{ color: C.red }}> *</span>}</span>
+    <span>{children}</span>
     {hint && <span style={{ fontSize: 10, fontWeight: 600, color: C.tx5 }}>{hint}</span>}
   </div>
 )
@@ -311,16 +315,16 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
           style={{ position: 'absolute', insetInlineEnd: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: C.modal2, border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 3000, boxShadow: '0 12px 40px rgba(0,0,0,.7)', overflow: 'hidden', direction: dir, fontFamily: F }}>
+        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: C.modal2, border: '1px solid var(--bd)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 3000, boxShadow: '0 12px 40px var(--shadowClr)', overflow: 'hidden', direction: dir, fontFamily: F }}>
           <style>{`.fk-dd-scroll::-webkit-scrollbar{width:0;display:none}.fk-dd-scroll{scrollbar-width:none;-ms-overflow-style:none}
             .fk-dd-search{border:1px solid ${ac}73!important}
-            .fk-dd-search:focus{border:1px solid ${ac}!important;box-shadow:0 0 0 1px ${ac}33, inset 0 1px 2px rgba(0,0,0,.2)!important}`}</style>
+            .fk-dd-search:focus{border:1px solid ${ac}!important;box-shadow:0 0 0 1px ${ac}33!important}`}</style>
           {searchable && options.length > 5 && (
             <div style={{ padding: 8, borderBottom: `1px solid ${C.line}`, flexShrink: 0, position: 'relative' }}>
               {/* أيقونة على اليسار + حدّ بلون النافذة عند التركيز (سماوي للتعديل · ذهبي للإضافة) */}
               <Search size={14} color={ac} style={{ position: 'absolute', top: '50%', insetInlineEnd: 20, transform: 'translateY(-50%)', pointerEvents: 'none', transition: '.15s' }} />
               <input className="fk-dd-search" value={q} onChange={e => setQ(e.target.value)} placeholder={T('ابحث...', 'Search...')} autoFocus
-                style={{ width: '100%', height: 32, paddingInlineStart: 10, paddingInlineEnd: 34, borderRadius: 7, background: 'rgba(0,0,0,.2)', fontFamily: F, fontSize: 12, fontWeight: 600, color: C.tx, outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.15s' }} />
+                style={{ width: '100%', height: 32, paddingInlineStart: 10, paddingInlineEnd: 34, borderRadius: 7, background: C.inputBg, fontFamily: F, fontSize: 12, fontWeight: 600, color: C.tx, outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.15s' }} />
             </div>
           )}
           <div className="fk-dd-scroll" style={{ flex: 1, overflowY: 'auto' }}>
@@ -333,12 +337,12 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
                     if (multi) { onChange(selKeys.includes(k) ? selKeys.filter(x => x !== k) : [...selKeys, k], o) }
                     else { onChange(k, o); setOpen(false); setQ('') }
                   }}
-                  style={{ position: 'relative', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.03)', background: sel ? ac + '1a' : 'transparent', transition: '.12s', display: 'flex', alignItems: 'center', gap: 8, flexDirection: multi ? 'row' : 'column', justifyContent: multi ? 'flex-start' : 'center' }}
+                  style={{ position: 'relative', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--bd2)', background: sel ? ac + '1a' : 'transparent', transition: '.12s', display: 'flex', alignItems: 'center', gap: 8, flexDirection: multi ? 'row' : 'column', justifyContent: multi ? 'flex-start' : 'center' }}
                   onMouseEnter={e => { if (!sel) e.currentTarget.style.background = ac + '1a' }}
                   onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}>
-                  {multi && <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${sel ? ac : 'rgba(255,255,255,.2)'}`, background: sel ? ac : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{sel && <Check size={11} color="#000" strokeWidth={3.5} />}</span>}
+                  {multi && <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${sel ? ac : 'var(--bd)'}`, background: sel ? ac : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{sel && <Check size={11} color="#000" strokeWidth={3.5} />}</span>}
                   {renderCell ? renderCell(o, sel) : (
-                    <span style={{ fontSize: 14, fontWeight: 600, color: sel ? ac : 'rgba(255,255,255,.92)', textAlign: multi ? 'start' : 'center', flex: multi ? 1 : undefined, display: 'inline-flex', alignItems: 'center', gap: 8 }}>{getL(o)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: sel ? ac : 'var(--tx)', textAlign: multi ? 'start' : 'center', flex: multi ? 1 : undefined, display: 'inline-flex', alignItems: 'center', gap: 8 }}>{getL(o)}</span>
                   )}
                   {!multi && !renderCell && getSub && getSub(o) && <span style={{ fontSize: 11, color: C.tx3, textAlign: 'center' }}>{getSub(o)}</span>}
                   {/* علامة صح للعنصر المختار — مكشوفة بلون النوع */}
@@ -369,7 +373,7 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   const isToday = (y, m, d) => today.getFullYear() === y && today.getMonth() === m && today.getDate() === d
-  const navBtn = { width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: ac, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: '.15s' }
+  const navBtn = { width: 28, height: 28, borderRadius: 7, border: '1px solid var(--bd)', background: 'var(--bd2)', color: ac, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: '.15s' }
   const POPUP_H = 320, POPUP_W = Math.max(392, anchor.width)
   const flipUp = (window.innerHeight - anchor.bottom) < POPUP_H + 10
   const top = flipUp ? Math.max(8, anchor.top - POPUP_H - 6) : anchor.bottom + 6
@@ -377,7 +381,7 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
   return ReactDOM.createPortal(
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000 }} />
-      <div style={{ position: 'fixed', top, left, width: POPUP_W, background: C.modal2, border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 3001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: dir }}>
+      <div style={{ position: 'fixed', top, left, width: POPUP_W, background: C.modal2, border: '1px solid var(--bd)', borderRadius: 10, padding: 12, zIndex: 3001, boxShadow: '0 12px 40px var(--shadowClr)', fontFamily: F, direction: dir }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, direction: 'ltr' }}>
           <button type="button" onClick={prevMonth} style={navBtn}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
@@ -401,7 +405,7 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
               <button key={i} type="button" disabled={off} onClick={() => { if (off) return; onPick(s); onClose() }}
                 onMouseEnter={e => { if (!isSel && !off) e.currentTarget.style.background = ac + '16' }}
                 onMouseLeave={e => { if (!isSel && !off) e.currentTarget.style.background = isTd ? ac + '0a' : 'transparent' }}
-                style={{ height: 30, borderRadius: 6, border: isTd && !isSel && !off ? `1px solid ${ac}55` : '1px solid transparent', background: isSel && !off ? ac : (isTd && !off ? ac + '0a' : 'transparent'), color: off ? 'rgba(255,255,255,.2)' : (isSel ? '#000' : (isTd ? ac : 'rgba(255,255,255,.8)')), fontFamily: F, fontSize: 12, fontWeight: isSel || isTd ? 600 : 500, cursor: off ? 'not-allowed' : 'pointer', transition: '.15s', padding: 0, textDecoration: off ? 'line-through' : 'none' }}>
+                style={{ height: 30, borderRadius: 6, border: isTd && !isSel && !off ? `1px solid ${ac}55` : '1px solid transparent', background: isSel && !off ? ac : (isTd && !off ? ac + '0a' : 'transparent'), color: off ? 'var(--tx5)' : (isSel ? '#000' : (isTd ? ac : 'var(--tx2)')), fontFamily: F, fontSize: 12, fontWeight: isSel || isTd ? 600 : 500, cursor: off ? 'not-allowed' : 'pointer', transition: '.15s', padding: 0, textDecoration: off ? 'line-through' : 'none' }}>
                 {d}
               </button>
             )
@@ -409,7 +413,7 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.line}` }}>
           {(() => { const t = new Date(); const ts = fmtDate(t.getFullYear(), t.getMonth(), t.getDate()); const off = (min && ts < min) || (max && ts > max); return (
-          <button type="button" disabled={off} onClick={() => { if (off) return; onPick(ts); onClose() }} style={{ fontSize: 11, color: off ? 'rgba(255,255,255,.25)' : ac, background: 'transparent', border: 'none', cursor: off ? 'not-allowed' : 'pointer', fontFamily: F, fontWeight: 600, padding: '4px 8px' }}>{dir === 'ltr' ? 'Today' : 'اليوم'}</button>
+          <button type="button" disabled={off} onClick={() => { if (off) return; onPick(ts); onClose() }} style={{ fontSize: 11, color: off ? 'var(--tx5)' : ac, background: 'transparent', border: 'none', cursor: off ? 'not-allowed' : 'pointer', fontFamily: F, fontWeight: 600, padding: '4px 8px' }}>{dir === 'ltr' ? 'Today' : 'اليوم'}</button>
           ) })()}
           <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 11, color: C.tx3, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 600, padding: '4px 8px' }}>{dir === 'ltr' ? 'Clear' : 'مسح'}</button>
         </div>
@@ -494,7 +498,7 @@ export const PhoneField = ({ label, req, error, hint, value, onChange, full, sil
   return (
     <Field label={label} req={req} error={err} hint={hint} full={full}>
       <div style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(err), height: 42, ...(disabled ? { opacity: .5 } : {}) }}>
-        <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
+        <div style={{ height: '100%', padding: '0 10px', background: 'rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
         <input value={value || ''} onChange={e => onChange(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9} disabled={disabled}
           style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left', ...(disabled ? { cursor: 'not-allowed' } : {}) }} />
       </div>
@@ -521,7 +525,7 @@ export const PhoneListField = ({ label, req, error, hint, value, onChange, full,
     <Field label={label} req={req} error={error} hint={hint} full={full}>
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ flex: 1, display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(error), height: 42 }}>
-          <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
+          <div style={{ height: '100%', padding: '0 10px', background: 'rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
           <input value={draft} onChange={e => setDraft(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }} placeholder="5X XXX XXXX" maxLength={9}
             style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left' }} />
@@ -662,8 +666,8 @@ export const MultiSelect = ({ label, req, error, hint, full, value, onChange, ..
 // استعملها في كل القوائم/التبويبات الفارغة لتوحيد الشكل عبر الموقع.
 // icon: عقدة SVG اختيارية (مرّر أيقونة مناسبة للسياق)؛ يسقط لأيقونة عامة إن لم تُمرَّر.
 export const EmptyState = ({ icon, title, desc, style }) => (
-  <div style={{ padding: '34px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, border: '1px dashed rgba(255,255,255,.1)', borderRadius: 14, ...style }}>
-    <div style={{ width: 46, height: 46, borderRadius: 13, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+  <div style={{ padding: '34px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, border: '1px dashed var(--bd)', borderRadius: 14, ...style }}>
+    <div style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--accent-soft)', border: '1px solid var(--accent-bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {icon || (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z" /></svg>
       )}
@@ -715,12 +719,12 @@ export const DateField = ({ label, req, error, hint, value, onChange, full, min,
 // مفتاح تبديل (on/off). لونه عند التشغيل أخضر افتراضياً (color لتغييره).
 export const Switch = ({ label, hint, checked, onChange, full, color = C.ok }) => (
   <Field full={full}>
-    <div onClick={() => onChange(!checked)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', borderRadius: 9, background: C.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', cursor: 'pointer', height: 42 }}>
+    <div onClick={() => onChange(!checked)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', borderRadius: 9, background: C.inputBg, boxShadow: 'none', cursor: 'pointer', height: 42 }}>
       <div style={{ textAlign: 'start' }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: C.tx }}>{label}</div>
         {hint && <div style={{ fontSize: 10, color: C.tx4, marginTop: 1 }}>{hint}</div>}
       </div>
-      <div style={{ width: 40, height: 22, borderRadius: 11, background: checked ? color : 'rgba(255,255,255,.12)', position: 'relative', flexShrink: 0, transition: '.2s' }}>
+      <div style={{ width: 40, height: 22, borderRadius: 11, background: checked ? color : 'var(--bd)', position: 'relative', flexShrink: 0, transition: '.2s' }}>
         <div style={{ position: 'absolute', top: 2, left: checked ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: '.2s' }} />
       </div>
     </div>
@@ -735,7 +739,7 @@ export const Segmented = ({ label, req, error, hint, options, value, onChange, h
         const sel = value === o.v
         const clr = o.c || C.gold
         return (
-          <button key={String(o.v)} type="button" disabled={disabled} onClick={() => { if (!disabled) onChange(o.v) }} style={{ flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'rgba(255,255,255,.08)'}`, background: sel ? clr + '14' : C.inputBg, color: sel ? clr : C.tx3, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, cursor: disabled ? 'not-allowed' : 'pointer', transition: '.18s', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: sel ? 'none' : 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
+          <button key={String(o.v)} type="button" disabled={disabled} onClick={() => { if (!disabled) onChange(o.v) }} style={{ flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'var(--bd)'}`, background: sel ? clr + '14' : C.inputBg, color: sel ? clr : C.tx3, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, cursor: disabled ? 'not-allowed' : 'pointer', transition: '.18s', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: 'none' }}>
             {sel ? <CheckCircle2 size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <span>{o.l}</span>
@@ -762,7 +766,7 @@ export const Checkbox = ({ label, checked, onChange }) => {
   const ac = useContext(AccentContext)
   return (
     <div onClick={() => onChange(!checked)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
-      <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${checked ? ac : 'rgba(255,255,255,.2)'}`, background: checked ? ac : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>{checked && <Check size={12} color="#000" strokeWidth={3} />}</span>
+      <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${checked ? ac : 'var(--bd)'}`, background: checked ? ac : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>{checked && <Check size={12} color="#000" strokeWidth={3} />}</span>
       <span style={{ fontSize: 14, fontWeight: 600, color: C.tx2 }}>{label}</span>
     </div>
   )
@@ -778,7 +782,7 @@ export const RadioGroup = ({ label, req, error, hint, options, value, onChange, 
           const sel = value === o.v
           return (
             <div key={String(o.v)} onClick={() => onChange(o.v)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, border: `1px solid ${sel ? ac + '66' : 'transparent'}`, background: sel ? ac + '10' : C.inputBg, cursor: 'pointer', transition: '.15s' }}>
-              <span style={{ width: 18, height: 18, borderRadius: '50%', border: `1.5px solid ${sel ? ac : 'rgba(255,255,255,.2)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{sel && <span style={{ width: 9, height: 9, borderRadius: '50%', background: ac }} />}</span>
+              <span style={{ width: 18, height: 18, borderRadius: '50%', border: `1.5px solid ${sel ? ac : 'var(--bd)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{sel && <span style={{ width: 9, height: 9, borderRadius: '50%', background: ac }} />}</span>
               <span style={{ fontSize: 14, fontWeight: sel ? 600 : 500, color: sel ? C.tx : C.tx2 }}>{o.l}</span>
             </div>
           )
@@ -792,7 +796,7 @@ export const RadioGroup = ({ label, req, error, hint, options, value, onChange, 
 export const Stepper = ({ label, req, error, hint, value, onChange, min = 0, max = 9999, step = 1, full }) => {
   const ac = useContext(AccentContext)
   const v = Number(value) || 0
-  const btn = { width: 42, height: 42, borderRadius: 9, border: '1px solid transparent', background: C.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', color: ac, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+  const btn = { width: 42, height: 42, borderRadius: 9, border: '1px solid transparent', background: C.inputBg, boxShadow: 'none', color: ac, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
   return (
     <Field label={label} req={req} error={error} hint={hint} full={full}>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -831,18 +835,18 @@ export const ColorField = ({ label, req, error, hint, value, onChange, swatches 
     <Field label={label} req={req} error={error} hint={hint} full={full}>
       <button ref={btnRef} type="button" onClick={toggle}
         style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: errRing(error), position: 'relative' }}>
-        <span style={{ width: 18, height: 18, borderRadius: 6, background: value || 'transparent', boxShadow: value ? '0 0 0 1px rgba(255,255,255,.2)' : 'inset 0 0 0 1px rgba(255,255,255,.15)', flexShrink: 0 }} />
+        <span style={{ width: 18, height: 18, borderRadius: 6, background: value || 'transparent', boxShadow: value ? '0 0 0 1px var(--inputBd)' : 'inset 0 0 0 1px var(--inputBd)', flexShrink: 0 }} />
         <span style={{ direction: 'ltr', letterSpacing: '.5px', color: value ? C.tx : C.tx5 }}>{value ? value.toUpperCase() : T('اختر لوناً', 'Pick a color')}</span>
         <ChevronDown size={12} color={ac} strokeWidth={2.5} style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 12, zIndex: 3000, boxShadow: '0 12px 40px rgba(0,0,0,.7)', direction: dir, fontFamily: F }}>
+        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 12, zIndex: 3000, boxShadow: '0 12px 40px var(--shadowClr)', direction: dir, fontFamily: F }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }}>
             {swatches.map(s => {
               const sel = (value || '').toLowerCase() === s.toLowerCase()
               return (
                 <button key={s} type="button" onClick={() => { onChange(s); setOpen(false) }}
-                  style={{ width: 30, height: 30, borderRadius: 8, background: s, cursor: 'pointer', border: 'none', boxShadow: sel ? `0 0 0 2px ${C.modal2}, 0 0 0 4px ${s}` : '0 0 0 1px rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.12s' }}>
+                  style={{ width: 30, height: 30, borderRadius: 8, background: s, cursor: 'pointer', border: 'none', boxShadow: sel ? `0 0 0 2px ${C.modal2}, 0 0 0 4px ${s}` : '0 0 0 1px var(--inputBd)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.12s' }}>
                   {sel && <Check size={14} color="#fff" strokeWidth={3} />}
                 </button>
               )
@@ -914,7 +918,7 @@ export const TimeField = ({ label, req, error, hint, value, onChange, full, minu
           <ClockIcon size={15} strokeWidth={2.2} />
         </button>
         {open && ReactDOM.createPortal(
-          <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 10, zIndex: 3001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', direction: dir, fontFamily: F, display: 'flex', gap: 8 }}>
+          <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: Math.max(pos.width, 240), background: C.modal2, borderRadius: 10, padding: 10, zIndex: 3001, boxShadow: '0 12px 40px var(--shadowClr)', direction: dir, fontFamily: F, display: 'flex', gap: 8 }}>
             <style>{`.fk-time-col::-webkit-scrollbar{width:0;display:none}.fk-time-col{scrollbar-width:none}`}</style>
             <div className="fk-time-col" style={{ flex: 1, maxHeight: 168, overflowY: 'auto' }}>
               {mins.map(m => <div key={m} style={colCell(m === mm)} onClick={() => emit(h12, m, ampm)}>{pad2(m)}</div>)}
@@ -940,7 +944,7 @@ export const InfoRow = ({ label, value, Icon, color, valueColor, mono, copy, ful
   const clr = color || ac
   return (
     <div style={full ? FULL : undefined}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '9px 12px', borderRadius: 9, background: C.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', minHeight: 50 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '9px 12px', borderRadius: 9, background: C.inputBg, boxShadow: 'none', minHeight: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {Icon && <Icon size={12} color={clr} strokeWidth={2.2} style={{ flexShrink: 0 }} />}
           <span style={{ fontSize: 11, fontWeight: 600, color: C.tx4 }}>{label}</span>
@@ -977,7 +981,7 @@ export const ActionButton = ({ children, Icon = Save, onClick, disabled, dir = '
   const isGhost = variant === 'ghost'
   const [hov, setHov] = useState(false)
   const txtColor = isGhost ? C.tx3 : clr
-  const icoBg = isGhost ? 'rgba(255,255,255,.05)' : (hov && !disabled ? clr : clr + '1a')
+  const icoBg = isGhost ? 'var(--bd)' : (hov && !disabled ? clr : clr + '1a')
   const icoColor = isGhost ? C.tx3 : (hov && !disabled ? '#000' : clr)
   const ico = (
     <span style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.2s', background: icoBg, color: icoColor }}>
@@ -1081,12 +1085,12 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
     return ReactDOM.createPortal(
       <AccentContext.Provider value={AC}>
       <div onClick={() => closeOnOverlay && onClose?.()}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+        style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
         <div onClick={e => e.stopPropagation()}
-          style={{ background: C.modal, borderRadius: 18, width: 'min(300px, 90vw)', aspectRatio: '1 / 1', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: `1px solid ${AC}24`, position: 'relative' }}>
+          style={{ background: C.modal, borderRadius: 18, width: 'min(300px, 90vw)', aspectRatio: '1 / 1', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px var(--shadowClr)', border: `1px solid ${AC}24`, position: 'relative' }}>
           <button onClick={() => onClose?.()}
             onMouseEnter={() => setCloseHov(true)} onMouseLeave={() => setCloseHov(false)}
-            style={{ position: 'absolute', top: 16, insetInlineEnd: 16, zIndex: 2, width: 36, height: 36, borderRadius: 10, background: closeHov ? 'rgba(192,57,43,.15)' : 'rgba(255,255,255,.04)', border: `1px solid ${closeHov ? C.red + '66' : 'rgba(255,255,255,.06)'}`, color: closeHov ? C.red : C.tx3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+            style={{ position: 'absolute', top: 16, insetInlineEnd: 16, zIndex: 2, width: 36, height: 36, borderRadius: 10, background: closeHov ? 'rgba(192,57,43,.15)' : 'var(--bd2)', border: `1px solid ${closeHov ? C.red + '66' : 'var(--bd)'}`, color: closeHov ? C.red : C.tx3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
             <X size={14} />
           </button>
           <div dir="rtl" style={{ fontFamily: F, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
@@ -1102,9 +1106,9 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   return ReactDOM.createPortal(
     <AccentContext.Provider value={AC}>
     <div onClick={() => closeOnOverlay && onClose?.()}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+      style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
       <div onClick={e => e.stopPropagation()}
-        style={{ background: C.modal, borderRadius: 18, width, maxWidth: '95vw', height: boxHeight, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: `1px solid ${AC}24` }}>
+        style={{ background: C.modal, borderRadius: 18, width, maxWidth: '95vw', height: boxHeight, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 24px 60px var(--shadowClr)', border: `1px solid ${AC}24` }}>
         <div dir={dir} style={{ fontFamily: F, color: C.tx2, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
           {/* الترويسة — تُخفى عبر hideHeader عند تضمين مكوّن له ترويسته الخاصة */}
@@ -1113,7 +1117,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {Icon && <Icon size={26} color={AC} strokeWidth={1.8} style={{ flexShrink: 0 }} />}
               <div>
-                <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.95)', lineHeight: 1.2 }}>{title}</div>
+                <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{title}</div>
                 {subtitle && !hasPages && <div style={{ fontSize: 12, fontWeight: 600, color: C.tx4, marginTop: 2 }}>{subtitle}</div>}
               </div>
             </div>
@@ -1121,7 +1125,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
               {headerExtra}
               {!hideClose && <button onClick={() => onClose?.()}
                 onMouseEnter={() => setCloseHov(true)} onMouseLeave={() => setCloseHov(false)}
-                style={{ width: 36, height: 36, borderRadius: 10, background: closeHov ? 'rgba(192,57,43,.15)' : 'rgba(255,255,255,.04)', border: `1px solid ${closeHov ? C.red + '66' : 'rgba(255,255,255,.06)'}`, color: closeHov ? C.red : C.tx3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+                style={{ width: 36, height: 36, borderRadius: 10, background: closeHov ? 'rgba(192,57,43,.15)' : 'var(--bd2)', border: `1px solid ${closeHov ? C.red + '66' : 'var(--bd)'}`, color: closeHov ? C.red : C.tx3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
                 <X size={14} />
               </button>}
             </div>
@@ -1135,7 +1139,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
                 const sel = i === Math.min(curTab, tabs.length - 1)
                 return (
                   <button key={i} type="button" onClick={() => setTab(i)}
-                    style={{ flex: '1 1 auto', whiteSpace: 'nowrap', height: 34, padding: '0 14px', borderRadius: 9, border: 'none', background: sel ? AC + '1f' : 'rgba(255,255,255,.03)', color: sel ? AC : C.tx3, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, transition: '.15s', boxShadow: sel ? `inset 0 0 0 1px ${AC}40` : 'none' }}>
+                    style={{ flex: '1 1 auto', whiteSpace: 'nowrap', height: 34, padding: '0 14px', borderRadius: 9, border: 'none', background: sel ? AC + '1f' : 'var(--bd2)', color: sel ? AC : C.tx3, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, transition: '.15s', boxShadow: sel ? `inset 0 0 0 1px ${AC}40` : 'none' }}>
                     {t.Icon && <t.Icon size={14} strokeWidth={2.2} />}
                     <span>{t.label}</span>
                   </button>
@@ -1150,7 +1154,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
               {pages.length > 1 && (
                 <div style={{ display: 'flex', gap: 6, marginBottom: pages[cur].title ? 9 : 0 }}>
                   {pages.map((_, i) => (
-                    <span key={i} style={{ flex: 1, height: 4, borderRadius: 3, background: i <= cur ? AC : 'rgba(255,255,255,.1)', transition: '.25s' }} />
+                    <span key={i} style={{ flex: 1, height: 4, borderRadius: 3, background: i <= cur ? AC : 'var(--bd)', transition: '.25s' }} />
                   ))}
                 </div>
               )}
@@ -1163,7 +1167,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
           {/* المحتوى — كل صفحة مفترض تكفي بنفسها؛ يُسمح بالتمرير كأمان حين يفيض المحتوى فقط. */}
           <style>{`.fk-body input:focus,.fk-body select:focus,.fk-body textarea:focus,.fk-body button:focus{outline:none!important}
             .fk-body > *:first-child{margin-top:4px!important}
-            .fk-body::-webkit-scrollbar{width:4px}.fk-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}`}</style>
+            .fk-body::-webkit-scrollbar{width:4px}.fk-body::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}`}</style>
           <div className="fk-body" style={{ flex: 1, minHeight: 0, overflowY: hasTabs || scroll || hasPages ? 'auto' : 'hidden', overflowX: 'hidden', padding: `${bodyPadTop}px 16px 12px`, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
             {body}
           </div>
@@ -1207,7 +1211,7 @@ export function SuccessView({ title, code, action }) {
         </svg>
       </div>
       <div style={{ animation: 'fkFade .4s .45s both', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-        <div style={{ textAlign: 'center', fontSize: 19, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px' }}>{title}</div>
+        <div style={{ textAlign: 'center', fontSize: 19, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px' }}>{title}</div>
         {code && (
           <span style={{ color: C.gold, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontSize: 13.5, fontWeight: 800, letterSpacing: '.3px', direction: 'ltr' }}>{code}</span>
         )}
@@ -1221,8 +1225,8 @@ export function SuccessView({ title, code, action }) {
 export function SuccessScreen({ open, ...rest }) {
   if (!open) return null
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div style={{ background: C.modal, borderRadius: 18, width: 420, maxWidth: '95vw', padding: '40px 32px', boxShadow: '0 24px 60px rgba(0,0,0,.5)', border: '1px solid rgba(212,160,23,.08)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+      <div style={{ background: C.modal, borderRadius: 18, width: 420, maxWidth: '95vw', padding: '40px 32px', boxShadow: '0 24px 60px var(--shadowClr)', border: '1px solid var(--accent-soft)' }}>
         <SuccessView {...rest} />
       </div>
     </div>,
@@ -1242,7 +1246,7 @@ export function ConfirmDialog({ open, onConfirm, onCancel, title, message, itemN
   const clr = danger ? C.red : C.gold
   return ReactDOM.createPortal(
     <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} dir={dir} style={{ background: C.modal, borderRadius: 16, width: 440, maxWidth: '95vw', overflow: 'hidden', boxShadow: '0 20px 48px rgba(0,0,0,.5)', border: `1px solid ${clr}26`, fontFamily: F }}>
+      <div onClick={e => e.stopPropagation()} dir={dir} style={{ background: C.modal, borderRadius: 16, width: 440, maxWidth: '95vw', overflow: 'hidden', boxShadow: '0 20px 48px var(--shadowClr)', border: `1px solid ${clr}26`, fontFamily: F }}>
         <div style={{ padding: '28px 24px', textAlign: 'center' }}>
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: `${clr}14`, border: `2px solid ${clr}26`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <AlertTriangle size={24} color={clr} strokeWidth={2} />
@@ -1251,7 +1255,7 @@ export function ConfirmDialog({ open, onConfirm, onCancel, title, message, itemN
           <div style={{ fontSize: 13, color: C.tx3, lineHeight: 1.8, marginBottom: itemName ? 4 : 20 }}>{message}</div>
           {itemName && <div style={{ fontSize: 14, fontWeight: 600, color: C.tx2, marginBottom: 20 }}>"{itemName}"</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button onClick={onCancel} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,.1)', background: 'transparent', color: C.tx3, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 1 }}>{cancelText}</button>
+            <button onClick={onCancel} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1.5px solid var(--bd)', background: 'transparent', color: C.tx3, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 1 }}>{cancelText}</button>
             <button onClick={onConfirm} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: 'none', background: clr, color: '#fff', fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 1 }}>{confirmText}</button>
           </div>
         </div>
@@ -1282,7 +1286,7 @@ export function Toast({ open, type = 'success', message, onClose, duration = 300
   return ReactDOM.createPortal(
     <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 4000, direction: dir, fontFamily: F, pointerEvents: 'none' }}>
       <style>{`@keyframes fkToastIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}`}</style>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', borderRadius: 12, background: C.modal, boxShadow: `0 12px 40px rgba(0,0,0,.5)`, border: `1px solid ${k.c}40`, maxWidth: 'min(440px, 92vw)', animation: 'fkToastIn .25s ease', pointerEvents: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', borderRadius: 12, background: C.modal, boxShadow: `0 12px 40px var(--shadowClr)`, border: `1px solid ${k.c}40`, maxWidth: 'min(440px, 92vw)', animation: 'fkToastIn .25s ease', pointerEvents: 'auto' }}>
         <span style={{ width: 28, height: 28, borderRadius: '50%', background: k.c + '1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Ico size={16} color={k.c} strokeWidth={2.4} />
         </span>

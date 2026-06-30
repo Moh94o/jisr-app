@@ -17,19 +17,19 @@ const num = (v) => Number(v || 0).toLocaleString('en-US')
 
 const cardChrome = {
   borderRadius: 14,
-  background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-  border: '1px solid rgba(255,255,255,.05)',
+  background: 'var(--card-grad2)',
+  border: '1px solid var(--bd)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
   overflow: 'hidden',
 }
 const cardHeader = {
   display: 'flex', alignItems: 'center', gap: 8,
   padding: '12px 22px',
-  borderBottom: '1px solid rgba(255,255,255,.06)',
+  borderBottom: '1px solid var(--bd)',
 }
 const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.2px' }
 const btnGold = { height: 40, padding: '0 16px', borderRadius: 11, background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)', border: '1px solid rgba(212,160,23,.45)', color: '#D4A017', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 700, transition: '.2s', boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)' }
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? '#D4A017' : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'var(--bd)'), color: active ? '#D4A017' : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
 
 // Brand colors + short labels per sync source. Used by the provenance strip to
 // signal "this facility's data came from {source} via {operator}".
@@ -60,7 +60,7 @@ const fmtAgo = (iso, lang) => {
 // Monospace number + trailing copy icon. Flashes gold briefly on successful copy.
 function CopyableNumber({ value, onToast, copyLabel }) {
   const [copied, setCopied] = useState(false)
-  if (!value) return <span style={{ color: 'rgba(255,255,255,.35)' }}>—</span>
+  if (!value) return <span style={{ color: 'var(--tx4)' }}>—</span>
   const onCopy = async (e) => {
     e.stopPropagation()
     try {
@@ -74,9 +74,9 @@ function CopyableNumber({ value, onToast, copyLabel }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
       <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, color: 'var(--tx)', fontWeight: 700 }}>{value}</span>
-      <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, transition: 'color .15s' }}
+      <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, transition: 'color .15s' }}
         onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
-        onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
+        onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'var(--tx4)' }}>
         {copied ? (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         ) : (
@@ -119,7 +119,7 @@ function NumberRow({ color, label, value, toast, T }) {
           </button>
         </span>
       ) : (
-        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11.5, color: 'rgba(255,255,255,.3)' }}>—</span>
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11.5, color: 'var(--tx5)' }}>—</span>
       )}
     </div>
   )
@@ -350,7 +350,7 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
               style={{
                 padding: '10px 12px', borderRadius: 8,
                 background: 'rgba(255,255,255,.025)',
-                border: '1px solid rgba(255,255,255,.06)',
+                border: '1px solid var(--bd)',
                 display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 4, columnGap: 16,
                 fontSize: 11.5,
               }}>
@@ -405,7 +405,7 @@ function QiwaWpRequestsCard({ sb, companyId, T }) {
               style={{
                 padding: '10px 12px', borderRadius: 8,
                 background: 'rgba(255,255,255,.025)',
-                border: '1px solid rgba(255,255,255,.06)',
+                border: '1px solid var(--bd)',
                 display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 4, columnGap: 16,
                 fontSize: 11.5,
               }}>
@@ -442,8 +442,8 @@ function LaborerDetailRow({ r, T }) {
   // Tightly packed two-column key/value grid. Hides null/empty rows so the
   // user only sees populated fields per worker.
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)' }}>
-      <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)' }}>
+      <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </div>
   ))
@@ -452,7 +452,7 @@ function LaborerDetailRow({ r, T }) {
     if (visible.length === 0) return null
     return (
       <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 9.5, fontWeight: 800, color: 'rgba(255,255,255,.45)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{title}</div>
+        <div style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{title}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>{visible}</div>
       </div>
     )
@@ -461,7 +461,7 @@ function LaborerDetailRow({ r, T }) {
     <div style={{
       borderRadius: 8,
       background: expired ? 'rgba(239,68,68,.05)' : 'rgba(255,255,255,.025)',
-      border: `1px solid ${expired ? 'rgba(239,68,68,.2)' : 'rgba(255,255,255,.06)'}`,
+      border: `1px solid ${expired ? 'rgba(239,68,68,.2)' : 'var(--bd)'}`,
       overflow: 'hidden',
     }}>
       {/* Header — always visible, click to expand */}
@@ -485,7 +485,7 @@ function LaborerDetailRow({ r, T }) {
 
       {/* Expanded: every column on qiwa_wp_laborers, organized by section */}
       {open && (
-        <div style={{ padding: '0 12px 10px', borderTop: '1px dashed rgba(255,255,255,.06)' }}>
+        <div style={{ padding: '0 12px 10px', borderTop: '1px dashed var(--bd)' }}>
           <Section title={T('الهوية والبيانات الشخصية', 'Identity & personal')}>
             <Field k={T('الاسم الأول', 'First name')} v={r.first_name} />
             <Field k={T('الاسم الثاني', 'Second name')} v={r.second_name} />
@@ -609,8 +609,8 @@ function MuqeemResidentRow({ r, T }) {
   const expiringSoon = daysToExpiry != null && daysToExpiry >= 0 && daysToExpiry <= 30
   const c = expired ? '#ef4444' : (expiringSoon ? '#f59e0b' : '#22c55e')
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)' }}>
-      <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)' }}>
+      <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </div>
   ))
@@ -619,7 +619,7 @@ function MuqeemResidentRow({ r, T }) {
     if (visible.length === 0) return null
     return (
       <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 9.5, fontWeight: 800, color: 'rgba(255,255,255,.45)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{title}</div>
+        <div style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{title}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>{visible}</div>
       </div>
     )
@@ -628,7 +628,7 @@ function MuqeemResidentRow({ r, T }) {
     <div style={{
       borderRadius: 8,
       background: expired ? 'rgba(239,68,68,.05)' : (expiringSoon ? 'rgba(245,158,11,.05)' : 'rgba(255,255,255,.025)'),
-      border: `1px solid ${expired ? 'rgba(239,68,68,.2)' : (expiringSoon ? 'rgba(245,158,11,.22)' : 'rgba(255,255,255,.06)')}`,
+      border: `1px solid ${expired ? 'rgba(239,68,68,.2)' : (expiringSoon ? 'rgba(245,158,11,.22)' : 'var(--bd)')}`,
       overflow: 'hidden',
     }}>
       <button onClick={() => setOpen(o => !o)}
@@ -650,7 +650,7 @@ function MuqeemResidentRow({ r, T }) {
       </button>
 
       {open && (
-        <div style={{ padding: '0 12px 10px', borderTop: '1px dashed rgba(255,255,255,.06)' }}>
+        <div style={{ padding: '0 12px 10px', borderTop: '1px dashed var(--bd)' }}>
           <Section title={T('الهوية والبيانات الشخصية', 'Identity & personal')}>
             <Field k={T('الاسم بالعربي', 'Name (AR)')} v={r.name_ar} />
             <Field k={T('الاسم بالإنجليزي', 'Name (EN)')} v={r.name_en} />
@@ -719,7 +719,7 @@ function QiwaTransferRequestsList({ sb, companyId, T }) {
     const isRejected = (r.status || '').includes('REJECT')
     const c = isCompleted ? '#22c55e' : isRejected ? '#ef4444' : '#f59e0b'
     return (
-      <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)', fontSize: 11 }}>
+      <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd)', fontSize: 11 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />
           <span style={{ fontWeight: 700, color: 'var(--tx)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.employee_name || r.employee_id || r.request_id}</span>
@@ -781,7 +781,7 @@ function QiwaMonthlyReportCard({ sb, companyId, T }) {
   const periodLabel = `${String(row.report_month).padStart(2, '0')}/${row.report_year}`
   // Score row with diff badge — green up arrow if +, red down if -.
   const ScoreRow = ({ k, v, diff }) => (v == null ? null : (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed rgba(255,255,255,.05)', fontSize: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed var(--bd)', fontSize: 12 }}>
       <span style={{ color: 'var(--tx4)' }}>{k}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         <span style={{ color: 'var(--tx2)', fontWeight: 800, direction: 'ltr' }}>{Number(v).toFixed(0)}%</span>
@@ -796,7 +796,7 @@ function QiwaMonthlyReportCard({ sb, companyId, T }) {
     </div>
   ))
   const EmpRow = ({ k, v, diff }) => (v == null ? null : (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed rgba(255,255,255,.05)', fontSize: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed var(--bd)', fontSize: 12 }}>
       <span style={{ color: 'var(--tx4)' }}>{k}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         <span style={{ color: 'var(--tx2)', fontWeight: 800, direction: 'ltr' }}>{v}</span>
@@ -880,7 +880,7 @@ function QiwaContractsCard({ sb, companyId, T }) {
               style={{
                 padding: '10px 12px', borderRadius: 8,
                 background: r.gosi_status === 'ERROR' ? 'rgba(239,68,68,.05)' : 'rgba(255,255,255,.025)',
-                border: `1px solid ${r.gosi_status === 'ERROR' ? 'rgba(239,68,68,.2)' : 'rgba(255,255,255,.06)'}`,
+                border: `1px solid ${r.gosi_status === 'ERROR' ? 'rgba(239,68,68,.2)' : 'var(--bd)'}`,
                 display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 4, columnGap: 12,
                 fontSize: 11.5,
               }}>
@@ -989,7 +989,7 @@ function CollapsibleCard({ title, color, badge, defaultExpanded = false, childre
           <span style={{ marginInlineStart: 'auto', fontSize: 11, color, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: color + '14' }}>{badge}</span>
         )}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ color: 'rgba(255,255,255,.5)', marginInlineStart: badge != null ? 0 : 'auto', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
+          style={{ color: 'var(--tx3)', marginInlineStart: badge != null ? 0 : 'auto', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </div>
@@ -1011,16 +1011,16 @@ function ActivitiesCard({ activities, lang, T }) {
         <span style={cardTitle}>{T('الأنشطة التجارية', 'Commercial Activities')}</span>
         <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.orange, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: C.orange + '14' }}>{num(activities.length)}</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ color: 'rgba(255,255,255,.5)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
+          style={{ color: 'var(--tx3)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </div>
       {expanded && (
         <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {activities.map((a, i) => (
-            <div key={i} style={{ padding: '8px 12px', background: 'linear-gradient(180deg,#252525 0%,#1f1f1f 100%)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div key={i} style={{ padding: '8px 12px', background: 'linear-gradient(180deg,#252525 0%,#1f1f1f 100%)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 11.5, color: 'var(--tx)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lang === 'en' ? (a.activityDescriptionEn || a.activityDescriptionAr) : (a.activityDescriptionAr || a.activityDescriptionEn)}</span>
-              <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'rgba(255,255,255,.5)', direction: 'ltr', whiteSpace: 'nowrap' }}>({a.activityID})</span>
+              <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--tx3)', direction: 'ltr', whiteSpace: 'nowrap' }}>({a.activityID})</span>
             </div>
           ))}
         </div>
@@ -1042,11 +1042,11 @@ function CopyBtn({ value }) {
   return (
     <button type="button" onClick={onCopy} title="نسخ"
       style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent',
-        color: copied ? C.ok : 'rgba(255,255,255,.35)', cursor: 'pointer',
+        color: copied ? C.ok : 'var(--tx4)', cursor: 'pointer',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         borderRadius: 4, transition: 'color .15s', flexShrink: 0 }}
       onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
-      onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
+      onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'var(--tx4)' }}>
       {copied ? (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       ) : (
@@ -1072,7 +1072,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
     return (
       <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25 }}>
         {g && <span>{g}</span>}
-        {h && <span style={{ color: 'rgba(255,255,255,.45)', fontSize: 10, fontWeight: 500 }}>{h}</span>}
+        {h && <span style={{ color: 'var(--tx4)', fontSize: 10, fontWeight: 500 }}>{h}</span>}
       </span>
     )
   }
@@ -1083,10 +1083,10 @@ function GosiEstablishmentCard({ data, T, lang }) {
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       padding: '9px 12px', borderRadius: 8, gap: 10,
       background: gold ? 'rgba(212,160,23,.06)' : 'rgba(255,255,255,.025)',
-      border: '1px solid ' + (gold ? 'rgba(212,160,23,.22)' : 'rgba(255,255,255,.05)'),
+      border: '1px solid ' + (gold ? 'rgba(212,160,23,.22)' : 'var(--bd)'),
       gridColumn: full ? '1 / -1' : undefined,
     }}>
-      <span style={{ color: gold ? C.gold : 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{k}</span>
+      <span style={{ color: gold ? C.gold : 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{k}</span>
       {copy ? (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', minWidth: 0 }}>
           <span style={{
@@ -1112,7 +1112,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
     if (!kids.length) return null
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 800, color: '#fff', letterSpacing: '.4px', textTransform: 'uppercase', paddingInlineStart: 2 }}>{title}</div>
+        <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--tx)', letterSpacing: '.4px', textTransform: 'uppercase', paddingInlineStart: 2 }}>{title}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>{kids}</div>
       </div>
     )
@@ -1233,9 +1233,9 @@ function GosiEstablishmentCard({ data, T, lang }) {
               gridColumn: '1 / -1',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8,
-              border: '1px solid rgba(255,255,255,.05)', gap: 10,
+              border: '1px solid var(--bd)', gap: 10,
             }}>
-              <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{T('العنوان الوطني', 'National address')}</span>
+              <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('العنوان الوطني', 'National address')}</span>
               <span style={{ fontWeight: 700, color: 'var(--tx)', fontSize: 11.5, textAlign: 'end' }}>{addrLine}</span>
             </div>
           )}
@@ -1280,7 +1280,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
           </Section>
         )}
 
-        <div style={{ fontSize: 10, color: 'var(--tx5)', textAlign: 'end', paddingTop: 4, borderTop: '1px dashed rgba(255,255,255,.06)' }}>
+        <div style={{ fontSize: 10, color: 'var(--tx5)', textAlign: 'end', paddingTop: 4, borderTop: '1px dashed var(--bd)' }}>
           {T('آخر مزامنة', 'Last synced')}: {data.synced_at ? new Date(data.synced_at).toLocaleString() : '—'}
         </div>
         */}
@@ -1374,12 +1374,12 @@ const _gosiDateCopy = (greg, hijri) => {
 const _gosiRowBase = {
   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
   padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-  background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)',
+  background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd)',
 }
 const _gosiRowDanger = { ..._gosiRowBase, background: 'rgba(232,114,101,.06)', border: '1px solid rgba(232,114,101,.22)' }
 const _gosiRowOk = { ..._gosiRowBase, background: 'rgba(46,204,113,.06)', border: '1px solid rgba(46,204,113,.22)' }
-const _gosiLbl = { color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
-const _gosiSectionLbl = { fontSize: 10, fontWeight: 800, color: '#fff', letterSpacing: '.4px', textTransform: 'uppercase', paddingInlineStart: 2, marginBottom: 8 }
+const _gosiLbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
+const _gosiSectionLbl = { fontSize: 10, fontWeight: 800, color: 'var(--tx)', letterSpacing: '.4px', textTransform: 'uppercase', paddingInlineStart: 2, marginBottom: 8 }
 const _gosiVal = { fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
 const _gosiValMono = { ..._gosiVal, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }
 
@@ -1393,7 +1393,7 @@ function _GosiGroup({ primary, items, accent }) {
   if (primary?.v == null && visible.length === 0) return null
   const isAccent = !!accent
   const bg = isAccent ? 'rgba(232,114,101,.06)' : 'rgba(255,255,255,.024)'
-  const border = isAccent ? 'rgba(232,114,101,.22)' : 'rgba(255,255,255,.05)'
+  const border = isAccent ? 'rgba(232,114,101,.22)' : 'var(--bd)'
   const primaryColor = primary?.color || (isAccent ? C.red : 'var(--tx)')
   return (
     <div style={{
@@ -1405,7 +1405,7 @@ function _GosiGroup({ primary, items, accent }) {
         borderInlineEnd: `1px solid ${border}`,
         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
       }}>
-        <div style={{ fontSize: 10.5, color: '#fff', fontWeight: 700, letterSpacing: '.3px' }}>{primary?.k}</div>
+        <div style={{ fontSize: 10.5, color: 'var(--tx)', fontWeight: 700, letterSpacing: '.3px' }}>{primary?.k}</div>
         <div style={{
           fontSize: 20, fontWeight: 800, color: primaryColor,
           direction: primary?.mono === false ? undefined : 'ltr',
@@ -1420,7 +1420,7 @@ function _GosiGroup({ primary, items, accent }) {
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
             borderBottom: i === visible.length - 1 ? 'none' : `1px solid ${border}`,
           }}>
-            <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.55)', fontWeight: 600, whiteSpace: 'nowrap' }}>{c.k}</span>
+            <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{c.k}</span>
             <span style={{
               fontSize: 12.5, fontWeight: 800, color: c.color || 'var(--tx)',
               direction: c.mono === false ? undefined : 'ltr',
@@ -1443,9 +1443,9 @@ function _GosiField({ k, v, mono, tone, hero }) {
   const isDanger = tone === 'danger'
   const isOk = tone === 'ok'
   const bg = isDanger ? 'rgba(232,114,101,.07)' : isOk ? 'rgba(46,204,113,.07)' : 'rgba(255,255,255,.025)'
-  const border = isDanger ? 'rgba(232,114,101,.25)' : isOk ? 'rgba(46,204,113,.22)' : 'rgba(255,255,255,.05)'
+  const border = isDanger ? 'rgba(232,114,101,.25)' : isOk ? 'rgba(46,204,113,.22)' : 'var(--bd)'
   const valColor = isDanger ? C.red : isOk ? C.ok : 'var(--tx)'
-  const labelColor = isDanger ? 'rgba(232,114,101,.85)' : isOk ? 'rgba(46,204,113,.85)' : 'rgba(255,255,255,.45)'
+  const labelColor = isDanger ? 'rgba(232,114,101,.85)' : isOk ? 'rgba(46,204,113,.85)' : 'var(--tx4)'
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 5,
@@ -1635,7 +1635,7 @@ function GosiAccountCard({ data, bills, contributors, T, lang }) {
                       <span style={{ fontSize: 19, fontWeight: 800, color: C.red, direction: 'ltr', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{_gosiMoney(v.penaltyAmount)}</span>
                     </div>
                     {meta.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px', fontSize: 10.5, paddingTop: 6, borderTop: '1px dashed rgba(255,255,255,.08)' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px', fontSize: 10.5, paddingTop: 6, borderTop: '1px dashed var(--bd)' }}>
                         {meta.map((m, mi) => (
                           <span key={mi} style={{ color: 'var(--tx3)' }}>{m.k}: <span style={{ color: 'var(--tx)', fontWeight: 700, direction: m.mono ? 'ltr' : undefined }}>{m.v}</span></span>
                         ))}
@@ -1667,7 +1667,7 @@ function GosiAccountCard({ data, bills, contributors, T, lang }) {
                       const shownFields = fields.filter(f => f.v != null && f.v !== '')
                       const descs = engs.map(e => e.violationDesc ? (isAr ? e.violationDesc.arabic : e.violationDesc.english) : null).filter(Boolean)
                       return (
-                        <div key={ci} style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, padding: 11, display: 'flex', flexDirection: 'column', gap: 9 }}>
+                        <div key={ci} style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--bd)', borderRadius: 10, padding: 11, display: 'flex', flexDirection: 'column', gap: 9 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: 6, background: 'rgba(34,197,94,.14)', color: C.ok, flexShrink: 0 }}>
                               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
@@ -1688,7 +1688,7 @@ function GosiAccountCard({ data, bills, contributors, T, lang }) {
                             </div>
                           )}
                           {descs.map((d, di) => (
-                            <div key={di} style={{ fontSize: 10.5, color: 'var(--tx3)', lineHeight: 1.5, paddingTop: 7, borderTop: '1px dashed rgba(255,255,255,.07)' }}>{T('وصف المخالفة', 'Description')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{_gosiTextDates(d)}</span></div>
+                            <div key={di} style={{ fontSize: 10.5, color: 'var(--tx3)', lineHeight: 1.5, paddingTop: 7, borderTop: '1px dashed var(--bd)' }}>{T('وصف المخالفة', 'Description')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{_gosiTextDates(d)}</span></div>
                           ))}
                         </div>
                       )
@@ -1723,12 +1723,12 @@ function _GosiBillRow({ bill: b, isAr, T }) {
   const isUnknown = !statusRaw && !amountKnown
   const statusAr = isAr ? b.bill_payment_status_ar : b.bill_payment_status_en
   const statusFallback = isUnknown ? T('غير معروف', 'Unknown') : (isPaid ? T('مسددة', 'Paid') : T('غير مسددة', 'Unpaid'))
-  const statusColor = isUnknown ? 'rgba(255,255,255,.4)' : (isPaid ? C.ok : C.red)
+  const statusColor = isUnknown ? 'var(--tx4)' : (isPaid ? C.ok : C.red)
   return (
     <div style={{ ..._gosiRowBase, padding: 10, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--tx)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>#{b.bill_number}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'rgba(255,255,255,.45)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'var(--tx4)' }}>
           {b.issue_date && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{_gosiDate(b.issue_date)}</span>}
           {b.issue_date && b.due_date && <span style={{ opacity: .5 }}>←</span>}
           {b.due_date && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{_gosiDate(b.due_date)}</span>}
@@ -1736,7 +1736,7 @@ function _GosiBillRow({ bill: b, isAr, T }) {
             marginInlineStart: 4,
             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
             color: statusColor, background: isUnknown ? 'rgba(255,255,255,.06)' : (statusColor + '14'),
-            border: `1px solid ${isUnknown ? 'rgba(255,255,255,.1)' : statusColor + '33'}`,
+            border: `1px solid ${isUnknown ? 'var(--bd)' : statusColor + '33'}`,
           }}>{statusAr || statusFallback}</span>
         </div>
       </div>
@@ -1767,7 +1767,7 @@ function _PlatformDropdown({ PLATFORMS, tableView, setTableView, counter, T, F }
       <div style={{ position: 'relative' }}>
         <button onClick={() => setOpen(v => !v)} style={{
           cursor: 'pointer', padding: '8px 14px', fontSize: 12, fontWeight: 700,
-          borderRadius: 10, border: '1px solid rgba(255,255,255,.1)',
+          borderRadius: 10, border: '1px solid var(--bd)',
           background: 'rgba(255,255,255,.04)', color: 'var(--tx)',
           display: 'inline-flex', alignItems: 'center', gap: 8,
           fontFamily: F, minWidth: 200, justifyContent: 'space-between',
@@ -1784,7 +1784,7 @@ function _PlatformDropdown({ PLATFORMS, tableView, setTableView, counter, T, F }
         {open && (
           <div style={{
             position: 'absolute', top: 'calc(100% + 4px)', insetInlineStart: 0,
-            background: '#161616', border: '1px solid rgba(255,255,255,.1)',
+            background: '#161616', border: '1px solid var(--bd)',
             borderRadius: 10, padding: 4, minWidth: 240, zIndex: 10,
             boxShadow: '0 8px 24px rgba(0,0,0,.4)',
           }}>
@@ -1891,7 +1891,7 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
     // Single column: name row at top (tags + badge inlined on the far end so
     // they stay glued next to the name even when the metadata grows), then
     // optional metadata grid below. Mirrors the SBC PersonRow layout fix.
-    <div style={{ padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)' }}>
+    <div style={{ padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid var(--bd)' }}>
       <div style={{ minWidth: 0 }}>
         <div
           onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
@@ -1911,7 +1911,7 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
           {(tagList.length > 0 || badge) && <span style={{ flex: 1 }} />}
           {tagList.map((t, i) => (
             <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              {i > 0 && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)' }}>·</span>}
+              {i > 0 && <span style={{ fontSize: 10, color: 'var(--tx5)' }}>·</span>}
               <span style={{
                 fontSize: 11, fontWeight: 800,
                 color: t.color || C.gold,
@@ -1933,11 +1933,11 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
             display: 'flex', flexWrap: 'wrap', alignItems: 'baseline',
             columnGap: 24, rowGap: 10,
             marginTop: 10, paddingTop: 10,
-            borderTop: '1px dashed rgba(255,255,255,.07)',
+            borderTop: '1px dashed var(--bd)',
           }}>
             {items.map((m, i) => (
               <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
-                <span style={{ color: 'rgba(255,255,255,.4)', fontWeight: 600 }}>{m.k}</span>
+                <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{m.k}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   {m.copy && <CopyBtn value={m.copyText != null ? m.copyText : m.v} />}
                   <span style={{
@@ -2139,7 +2139,7 @@ function GosiCertificatesCard({ certificates, T }) {
                 {/* Subtle metadata strip: certificate number on the left,
                     date range / size on the right. Stays muted so the title
                     keeps prominence. */}
-                <div style={{ display: 'flex', gap: 10, fontSize: 10, color: 'rgba(255,255,255,.45)', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 10, fontSize: 10, color: 'var(--tx4)', alignItems: 'center', flexWrap: 'wrap' }}>
                   {c.certificate_no && (
                     <span style={{ direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>#{c.certificate_no}</span>
                   )}
@@ -2148,7 +2148,7 @@ function GosiCertificatesCard({ certificates, T }) {
                 </div>
               </div>
               {/* External-link arrow on the end side as a tactile cue. */}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--tx4)', flexShrink: 0 }}>
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                 <polyline points="15 3 21 3 21 9"/>
                 <line x1="10" y1="14" x2="21" y2="3"/>
@@ -2187,9 +2187,9 @@ function _GosiContribRow({ name, wage, statusType, groups, T }) {
   if (s === 'ACTIVE') { statusLabel = T('نشط', 'Active'); statusColor = C.ok }
   else if (s === 'INACTIVE') { statusLabel = T('غير نشط', 'Inactive'); statusColor = C.red }
   else if (s === 'SUSPENDED') { statusLabel = T('معلق', 'Suspended'); statusColor = C.warn }
-  else if (s) { statusLabel = statusType; statusColor = 'rgba(255,255,255,.45)' }
+  else if (s) { statusLabel = statusType; statusColor = 'var(--tx4)' }
   return (
-    <div style={{ padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)' }}>
+    <div style={{ padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid var(--bd)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
         <div
           onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
@@ -2223,16 +2223,16 @@ function _GosiContribRow({ name, wage, statusType, groups, T }) {
         </div>
       </div>
       {expanded && hasDetails && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(255,255,255,.07)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--bd)', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {sections.map((g, gi) => (
             <div key={gi} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {g.title && (
-                <div style={{ fontSize: 9.5, fontWeight: 800, color: 'rgba(255,255,255,.5)', letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 2 }}>{g.title}</div>
+                <div style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--tx3)', letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 2 }}>{g.title}</div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 24, rowGap: 10 }}>
                 {g.items.map((m, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 11, minWidth: 0 }}>
-                    <span style={{ color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>{m.k}</span>
+                    <span style={{ color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{m.k}</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                       {m.copy && <CopyBtn value={m.copyText != null ? m.copyText : m.v} />}
                       <span style={{
@@ -2427,7 +2427,7 @@ function isCompanyParty(p) {
 // Limits to 3 entries; collapses the rest as "+N".
 function PersonList({ people, lang }) {
   if (!Array.isArray(people) || people.length === 0) {
-    return <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 11 }}>—</span>
+    return <span style={{ color: 'var(--tx5)', fontSize: 11 }}>—</span>
   }
   const isAr = (lang || 'ar') !== 'en'
   const shown = people.slice(0, 3)
@@ -2447,11 +2447,11 @@ function PersonList({ people, lang }) {
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx)', marginBottom: 4, ...(isCompany
               ? { whiteSpace: 'normal', lineHeight: 1.35 }
               : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }) }}>{name || '—'}</div>
-            <div style={{ fontSize: 9.5, fontFamily: 'ui-monospace, monospace', color: 'rgba(255,255,255,.45)', direction: 'ltr' }}>{info.identifierNo || ''}</div>
+            <div style={{ fontSize: 9.5, fontFamily: 'ui-monospace, monospace', color: 'var(--tx4)', direction: 'ltr' }}>{info.identifierNo || ''}</div>
           </div>
         )
       })}
-      {extra > 0 && <div style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.5)' }}>+{extra}</div>}
+      {extra > 0 && <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx3)' }}>+{extra}</div>}
     </div>
   )
 }
@@ -2506,7 +2506,7 @@ const statusTheme = (s) => {
   if (v.includes('suspend') || v.includes('معلق') || v.includes('موقوف')) return { fg: '#e87265', bg: 'rgba(232,114,101,.12)', border: 'rgba(232,114,101,.35)' }
   if (v.includes('cancel') || v.includes('ملغ') || v.includes('مشطوب') || v.includes('struck') || v.includes('removed')) return { fg: '#ef4444', bg: 'rgba(239,68,68,.12)', border: 'rgba(239,68,68,.35)' }
   if (v.includes('expired') || v.includes('منتهي')) return { fg: '#e67e22', bg: 'rgba(230,126,34,.12)', border: 'rgba(230,126,34,.35)' }
-  return { fg: 'rgba(255,255,255,.75)', bg: 'rgba(255,255,255,.05)', border: 'rgba(255,255,255,.1)' }
+  return { fg: 'var(--tx2)', bg: 'rgba(255,255,255,.05)', border: 'var(--bd)' }
 }
 
 // Abbreviate currency: "ريال سعودي" → "ر.س"
@@ -3553,7 +3553,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   }, [filtered, adv.sortConfirm, adv.sortIssue])
 
   const Tag = ({ children, color }) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: color || 'rgba(255,255,255,.7)', lineHeight: 1.2 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: color || 'var(--tx2)', lineHeight: 1.2 }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: color || 'rgba(255,255,255,.4)', flexShrink: 0 }} />
       {children}
     </span>
@@ -3566,7 +3566,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     if (!entries || entries.length === 0) {
       return (
         <span title={T('لم يتم جلب البيانات من أي مصدر بعد', 'Not yet synced from any source')}
-          style={{ fontSize: 9.5, color: 'rgba(255,255,255,.3)', fontWeight: 700 }}>
+          style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 700 }}>
           {T('بدون مصدر', 'No source')}
         </span>
       )
@@ -3598,14 +3598,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: dotColor, boxShadow: `0 0 4px ${dotColor}99`, flexShrink: 0 }} />
               {srcLabel}
-              <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>·</span>
-              <span style={{ color: 'rgba(255,255,255,.8)' }}>{operator}</span>
-              <span style={{ color: 'rgba(255,255,255,.45)', fontFamily: 'ui-monospace, monospace', fontSize: 9 }}>{ago}</span>
+              <span style={{ color: 'var(--tx3)', fontWeight: 600 }}>·</span>
+              <span style={{ color: 'var(--tx2)' }}>{operator}</span>
+              <span style={{ color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', fontSize: 9 }}>{ago}</span>
             </span>
           )
         })}
         {extra > 0 && (
-          <span style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.55)' }}>+{extra}</span>
+          <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx3)' }}>+{extra}</span>
         )}
       </div>
     )
@@ -3614,7 +3614,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   const Btn = ({ children, onClick, disabled, variant = 'primary', small, active }) => {
     const styles = {
       primary: { background: C.gold, color: '#1a1a1a' },
-      ghost: { background: active ? 'rgba(212,160,23,.14)' : 'rgba(255,255,255,.04)', color: active ? C.gold : 'var(--tx)', border: '1px solid ' + (active ? 'rgba(212,160,23,.35)' : 'rgba(255,255,255,.1)') },
+      ghost: { background: active ? 'rgba(212,160,23,.14)' : 'rgba(255,255,255,.04)', color: active ? C.gold : 'var(--tx)', border: '1px solid ' + (active ? 'rgba(212,160,23,.35)' : 'var(--bd)') },
       danger: { background: 'rgba(192,57,43,.12)', color: C.red, border: '1px solid rgba(192,57,43,.3)' },
     }[variant]
     return (
@@ -3627,7 +3627,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   }
 
   const Card = ({ children, style }) => (
-    <div style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', ...style }}>{children}</div>
+    <div style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid var(--bd)', ...style }}>{children}</div>
   )
 
   // When a person tab is active, the whole view (KPI + chart + table) is scoped
@@ -3694,14 +3694,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
   // Quick count of non-empty advanced fields (for the badge on the "بحث متقدم" button).
   const advCount = Object.values(adv).filter(v => String(v || '').trim() !== '').length
-  const advInp = { width: '100%', height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: 'linear-gradient(180deg,#323232 0%,#262626 100%)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', boxSizing: 'border-box' }
+  const advInp = { width: '100%', height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', boxSizing: 'border-box' }
   const advLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7, display: 'block' }
   const resultCount = filtered.length
 
   // KPI row helpers (matches Invoices page StatCard aesthetic)
   const glassCard = {
-    background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-    border: '1px solid rgba(255,255,255,.05)',
+    background: 'var(--card-grad2)',
+    border: '1px solid var(--bd)',
     borderRadius: 16,
     padding: '14px 16px',
     position: 'relative',
@@ -3709,7 +3709,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
     transition: '.2s',
   }
-  const innerBox = { background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }
+  const innerBox = { background: 'var(--inputBg)', border: '1px solid var(--bd)' }
 
   // Build smooth area chart paths for the 12-month trend
   const n = periodSeries.length
@@ -3759,7 +3759,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             {onBack && (
               <button onClick={onBack}
                 title={T('رجوع لمركز المزامنة', 'Back to Sync Hub')}
-                style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s', flexShrink: 0 }}
+                style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s', flexShrink: 0 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)'; e.currentTarget.style.color = '#D4A017' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.color = 'var(--tx3)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3767,7 +3767,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 </svg>
               </button>
             )}
-            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
               {T('المنشآت', 'Facilities')}
             </div>
           </div>
@@ -3829,8 +3829,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           position: 'relative',
           padding: '52px 32px',
           borderRadius: 20,
-          background: 'linear-gradient(180deg,#222 0%,#1a1a1a 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 8px 28px rgba(0,0,0,.28)',
           overflow: 'hidden',
           display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -3871,7 +3871,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               <div key={s.id} style={{
                 display: 'flex', alignItems: 'center', gap: 9, padding: '9px 13px', borderRadius: 12,
                 background: s.primary ? `${s.accent}1c` : 'rgba(255,255,255,.025)',
-                border: `1px solid ${s.primary ? `${s.accent}88` : 'rgba(255,255,255,.07)'}`,
+                border: `1px solid ${s.primary ? `${s.accent}88` : 'var(--bd)'}`,
               }}>
                 <span style={{ width: 30, height: 30, borderRadius: 8, background: `${s.accent}26`, color: s.accent, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{s.icon}</svg>
@@ -3923,8 +3923,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         {/* Hero — Total */}
         <div style={{
           position: 'relative', padding: '18px 22px', borderRadius: 16,
-          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           display: 'flex', flexDirection: 'column',
           justifyContent: tableView === 'gosi' ? 'center' : 'space-between',
@@ -3934,13 +3934,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
-            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي المنشآت','Total Facilities')}</span>
+            <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي المنشآت','Total Facilities')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
             <span style={{ fontSize: tableView === 'gosi' ? 52 : 42, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(heroCounts.total)}</span>
           </div>
           {tableView !== 'gosi' && (
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', gap: 8 }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)', gap: 8 }}>
             <span style={{ fontSize: 11, color: C.gold, fontWeight: 700, direction: 'rtl', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold }} /> {num(heroCounts.main)} {T('رئيسية','main')}
             </span>
@@ -3974,12 +3974,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           }
           const total = active + suspended
           return (
-            <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+            <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
               <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('المشتركون الأجانب', 'Foreign contributors')}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr', flex: 1 }}>
                 <span style={{ fontSize: 42, fontWeight: 800, color: C.cyan, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)', gap: 8 }}>
                 <span style={{ fontSize: 11, color: C.ok, fontWeight: 700, direction: 'rtl', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.ok }} /> {num(active)} {T('نشط', 'active')}
                 </span>
@@ -4024,8 +4024,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           return (
             <div style={{
               borderRadius: 16,
-              background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-              border: '1px solid rgba(255,255,255,.05)',
+              background: 'var(--card-grad2)',
+              border: '1px solid var(--bd)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
               padding: '14px 16px',
               display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
@@ -4109,14 +4109,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             { k: 'viol', l: T('المخالفات', 'Violations'), v: _gosiMoney(violations), hot: violations > 0 },
           ]
           return (
-            <div style={{ borderRadius: 16, background: danger ? 'linear-gradient(180deg, rgba(232,114,101,.10) 0%, #222 70%)' : 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: `1px solid ${danger ? 'rgba(232,114,101,.25)' : 'rgba(255,255,255,.05)'}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+            <div style={{ borderRadius: 16, background: danger ? 'linear-gradient(180deg, rgba(232,114,101,.10) 0%, #222 70%)' : 'var(--card-grad2)', border: `1px solid ${danger ? 'rgba(232,114,101,.25)' : 'var(--bd)'}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي المديونيات', 'Total debt')}</span>
                 <span style={{ fontSize: 18, fontWeight: 800, color: danger ? C.red : C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{_gosiMoney(debt)}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, flex: 1 }}>
                 {tiles.map(t => (
-                  <div key={t.k} style={{ borderRadius: 12, padding: '10px 12px', background: t.hot ? 'rgba(232,114,101,.10)' : 'rgba(255,255,255,.025)', border: `1px solid ${t.hot ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.04)'}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4 }}>
+                  <div key={t.k} style={{ borderRadius: 12, padding: '10px 12px', background: t.hot ? 'rgba(232,114,101,.10)' : 'rgba(255,255,255,.025)', border: `1px solid ${t.hot ? 'rgba(232,114,101,.28)' : 'var(--bd2)'}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4 }}>
                     <span style={{ fontSize: 15, fontWeight: 800, color: t.hot ? C.red : 'var(--tx)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1.1 }}>{t.v}</span>
                     <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1.3 }}>{t.l}</span>
                   </div>
@@ -4141,8 +4141,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               borderRadius: 16,
               background: danger
                 ? 'linear-gradient(180deg, rgba(232,114,101,.10) 0%, #222 70%)'
-                : 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-              border: `1px solid ${danger ? 'rgba(232,114,101,.25)' : 'rgba(255,255,255,.05)'}`,
+                : 'var(--card-grad2)',
+              border: `1px solid ${danger ? 'rgba(232,114,101,.25)' : 'var(--bd)'}`,
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
               padding: '14px 16px',
               display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
@@ -4171,7 +4171,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       borderRadius: 12,
                       padding: '10px 12px',
                       background: isHot ? 'rgba(232,114,101,.10)' : 'rgba(255,255,255,.025)',
-                      border: `1px solid ${isHot ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.04)'}`,
+                      border: `1px solid ${isHot ? 'rgba(232,114,101,.28)' : 'var(--bd2)'}`,
                       display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
                     }}>
                       <span style={{ fontSize: 22, fontWeight: 800, color: tileColor, fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>
@@ -4196,7 +4196,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           </svg>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={T('ابحث بالاسم، السجل، الرقم الموحد، التأمينات، الموارد…', 'Search by name, CR, unified no., GOSI, MOL…')}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
         </div>
         {(() => {
           const hasFilters = advCount > 0
@@ -4227,7 +4227,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
       {/* Advanced search panel — matches Invoices page filter panel */}
       {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <div>
               <div style={advLbl}>{T('المالك / الشريك', 'Owner / Partner')}</div>
@@ -4385,11 +4385,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         return (<>
 
         <style>{`
-          .sbcv-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
+          .sbcv-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid var(--bd)}
           .sbcv-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
           .sbcv-tbl thead .hd-icon{color:${C.gold};display:inline-flex;align-items:center;justify-content:center;margin-inline-end:6px;vertical-align:middle}
           .sbcv-tbl thead .hd-icon svg{width:14px;height:14px;display:block}
-          .sbcv-tbl tbody td{padding:10px 4px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.02)}
+          .sbcv-tbl tbody td{padding:10px 4px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid var(--bd2)}
           .sbcv-tbl tbody tr{cursor:pointer;transition:background .12s}
           .sbcv-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
           .sbcv-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
@@ -4710,7 +4710,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         {(tableView === 'qiwa' || tableView === 'muqeem') && (
           <div style={{
             padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13,
-            border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14,
+            border: '1px dashed var(--bd)', borderRadius: 14,
           }}>
             {tableView === 'qiwa'
               ? T('عرض قوى — قريباً', 'Qiwa view — coming soon')
@@ -4726,7 +4726,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           const fromN = page * PAGE + 1
           const toN = Math.min(displayRows.length, (page + 1) * PAGE)
           return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px 4px', borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px 4px', borderTop: '1px solid var(--bd)', marginTop: 18 }}>
               <style>{`
                 .sbc-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
                 .sbc-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
@@ -4735,7 +4735,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 .sbc-pg-input::-webkit-outer-spin-button,.sbc-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
               `}</style>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(displayRows.length)}</span>
+                <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 700 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(displayRows.length)}</span>
                 <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{T('صفحة','Page')} {page + 1} {T('من','of')} {totalPages}</span>
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -4801,11 +4801,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             padding: '9px 12px',
             background: 'rgba(255,255,255,.025)',
             borderRadius: 8,
-            border: '1px solid rgba(255,255,255,.05)',
+            border: '1px solid var(--bd)',
             gap: 10,
           }}>
             {prov && <ProvMarker prov={prov} />}
-            <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{k}</span>
+            <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{k}</span>
             {copy && v != null && v !== ''
               // No onToast: the global toast re-renders this card; the inline ✓ confirms.
               ? <CopyableNumber value={v} copyLabel={T('نُسخ', 'Copied')} />
@@ -4813,7 +4813,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           </div>
         )
         const SectionTitle = ({ children }) => (
-          <div style={{ fontSize: 10.5, fontWeight: 800, color: 'rgba(255,255,255,.45)', letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 6, paddingInlineStart: 2 }}>{children}</div>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--tx4)', letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 6, paddingInlineStart: 2 }}>{children}</div>
         )
         const Stat = ({ k, v, color, unit, prov = sbcProv }) => (
           <div style={{
@@ -4821,14 +4821,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             padding: '10px 10px',
             background: 'rgba(255,255,255,.025)',
             borderRadius: 8,
-            border: '1px solid rgba(255,255,255,.05)',
+            border: '1px solid var(--bd)',
             textAlign: 'center',
           }}>
             {prov && <ProvMarker prov={prov} />}
-            <div style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 10, marginBottom: 4 }}>{k}</div>
+            <div style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 10, marginBottom: 4 }}>{k}</div>
             <div style={{ fontWeight: 800, color: color || 'var(--tx)', fontSize: 13, direction: 'ltr', display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 3 }}>
               <span>{v != null ? v : '—'}</span>
-              {unit && v != null && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.4)', fontWeight: 600 }}>{unit}</span>}
+              {unit && v != null && <span style={{ fontSize: 9, color: 'var(--tx4)', fontWeight: 600 }}>{unit}</span>}
             </div>
           </div>
         )
@@ -4868,7 +4868,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             // was a 2-column flex and the role sat in the right column, which
             // pushed it to vertical center when the metadata grew — making it
             // look like the role was on a separate line under the name.
-            <div style={{ padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)' }}>
+            <div style={{ padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid var(--bd)' }}>
               <div style={{ minWidth: 0 }}>
                 <div
                   onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
@@ -4937,7 +4937,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   return (
                     <div style={{
                       marginTop: 10, paddingTop: 10,
-                      borderTop: '1px dashed rgba(255,255,255,.07)',
+                      borderTop: '1px dashed var(--bd)',
                       display: 'grid', gridTemplateColumns: '1fr 1fr',
                       columnGap: 24, rowGap: 10,
                     }}>
@@ -4946,7 +4946,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           display: 'flex', justifyContent: 'space-between',
                           alignItems: 'baseline', gap: 10, fontSize: 11, minWidth: 0,
                         }}>
-                          <span style={{ color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>{m.k}</span>
+                          <span style={{ color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{m.k}</span>
                           {m.copy ? (
                             // No onToast here on purpose: the global toast lives on
                             // DashPage, so firing it re-renders SbcFacilities and
@@ -5055,7 +5055,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   {T('تصفية','Liquidation')}
                 </span>
               )}
-              <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.2px' }}>{detail.entity_full_name_ar || T('منشأة','Facility')}</div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{detail.entity_full_name_ar || T('منشأة','Facility')}</div>
             </div>
             {/* Data-source chips moved into the "مصادر البيانات" card in the
                 right sidebar to free up the facility header. */}
@@ -5101,10 +5101,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 const rowBase = {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-                  background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)',
+                  background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd)',
                 }
                 const rowGold = { ...rowBase, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.22)' }
-                const lbl = { color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
+                const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
 
                 return (
                   <div style={cardChrome}>
@@ -5232,10 +5232,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           detail.in_liquidation_process != null ? { k: T('تحت التصفية', 'In Liquidation'), v: detail.in_liquidation_process } : null,
                         ].filter(Boolean)
                         if (flags.length === 0) return null
-                        const lblS = { color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }
+                        const lblS = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }
                         const valS = { fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
                         return (
-                          <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                          <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid var(--bd)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
                             {flags.map((f, i) => (
                               <React.Fragment key={f.k}>
                                 {i > 0 && <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />}
@@ -5256,20 +5256,20 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           into two columns by a vertical divider. Each column
                           shows the gregorian date prominently on top and the
                           matching hijri date dimmed underneath. */}
-                      <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                      <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, border: '1px solid var(--bd)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineEnd: 14 }}>
-                          <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ الإصدار', 'Issue date')}</span>
+                          <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ الإصدار', 'Issue date')}</span>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
                             <span style={{ fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail._issueDate || '—'}</span>
-                            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.45)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_issue_date_hijri) || '—'}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--tx4)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_issue_date_hijri) || '—'}</span>
                           </div>
                         </div>
                         <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineStart: 14 }}>
-                          <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ التأكيد', 'Confirm date')}</span>
+                          <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ التأكيد', 'Confirm date')}</span>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
                             <span style={{ fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail._confirmDate || '—'}</span>
-                            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.45)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_confirm_date_hijri) || '—'}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--tx4)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_confirm_date_hijri) || '—'}</span>
                           </div>
                         </div>
                       </div>
@@ -5287,9 +5287,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 const rowBase = {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-                  background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)',
+                  background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd)',
                 }
-                const lbl = { color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
+                const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
                 const val = { fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
                 const Row = ({ k, v, fullWidth }) => {
                   const [copied, setCopied] = useState(false)
@@ -5308,9 +5308,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         <span style={val} title={typeof v === 'string' ? v : undefined}>{has ? v : '—'}</span>
                         {has && (
                           <button type="button" onClick={copy} title={T('نُسخ', 'Copy')}
-                            style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, flexShrink: 0, transition: 'color .15s' }}
+                            style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, flexShrink: 0, transition: 'color .15s' }}
                             onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
-                            onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
+                            onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'var(--tx4)' }}>
                             {copied ? (
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             ) : (
@@ -5352,12 +5352,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     {(() => {
                       const groupBox = {
                         display: 'flex', background: 'rgba(255,255,255,.024)',
-                        borderRadius: 8, border: '1px solid rgba(255,255,255,.05)',
+                        borderRadius: 8, border: '1px solid var(--bd)',
                         overflow: 'hidden', marginBottom: 8,
                       }
                       const primaryCell = {
                         flex: 1.1, padding: '10px 14px', textAlign: 'center',
-                        borderInlineEnd: '1px solid rgba(255,255,255,.05)',
+                        borderInlineEnd: '1px solid var(--bd)',
                         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
                       }
                       const breakdownCol = {
@@ -5366,11 +5366,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       const breakdownRow = (isLast) => ({
                         flex: 1, padding: '6px 12px',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,.05)',
+                        borderBottom: isLast ? 'none' : '1px solid var(--bd)',
                       })
-                      const primaryLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.3px' }
+                      const primaryLbl = { fontSize: 10.5, color: 'var(--tx3)', fontWeight: 700, letterSpacing: '.3px' }
                       const primaryVal = (color) => ({ fontSize: 22, fontWeight: 800, color: color || 'var(--tx)', direction: 'ltr', lineHeight: 1 })
-                      const subLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.55)', fontWeight: 600 }
+                      const subLbl = { fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600 }
                       const subVal = (color) => ({ fontSize: 13, fontWeight: 800, color: color || 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' })
 
                       const renderGroup = (primary, children, marginBottom) => (
@@ -5412,7 +5412,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       )
                     })()}
                     {gosiState === 'error' && gosi.total == null && !gosi.regNo && (
-                      <div style={{ marginTop: 8, fontSize: 10.5, color: 'rgba(255,255,255,.45)', textAlign: 'center' }}>
+                      <div style={{ marginTop: 8, fontSize: 10.5, color: 'var(--tx4)', textAlign: 'center' }}>
                         {sbcSessionErr === 'NO_SESSION' ? T('لا توجد جلسة SBC — شغّل المزامنة أولاً', 'No SBC session — run sync first')
                           : sbcSessionErr === 'EXPIRED' ? T('انتهت جلسة SBC — أعد المزامنة', 'SBC session expired — sync again')
                           : T('تعذّر جلب بيانات التأمينات', 'Could not fetch GOSI data')}
@@ -5450,9 +5450,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       const fieldChrome = {
                         position: 'relative', padding: '9px 12px',
                         background: 'rgba(255,255,255,.025)', borderRadius: 8,
-                        border: '1px solid rgba(255,255,255,.05)',
+                        border: '1px solid var(--bd)',
                       }
-                      const lbl = { color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: 11 }
+                      const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }
                       const val = { fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
                       const nColor = nitaqColor(hrsd.nitaqName)
                       return (
@@ -5464,7 +5464,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                               <span style={{ ...val, color: nColor || 'var(--tx)' }} title={hrsd.nitaqName || ''}>{hrsd.nitaqName || '—'}</span>
                             </div>
                             {hrsd.activityName && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, borderTop: '1px solid rgba(255,255,255,.05)', paddingTop: 6 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, borderTop: '1px solid var(--bd)', paddingTop: 6 }}>
                                 <span style={lbl}>{T('النشاط', 'Activity')}</span>
                                 <span style={val} title={hrsd.activityName}>{hrsd.activityName}</span>
                               </div>
@@ -5512,28 +5512,28 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     {(() => {
                       const groupBox = {
                         display: 'flex', background: 'rgba(255,255,255,.024)',
-                        borderRadius: 8, border: '1px solid rgba(255,255,255,.05)',
+                        borderRadius: 8, border: '1px solid var(--bd)',
                         overflow: 'hidden', marginBottom: 8,
                       }
                       const primaryCell = {
                         flex: 1.1, padding: '10px 14px', textAlign: 'center',
-                        borderInlineEnd: '1px solid rgba(255,255,255,.05)',
+                        borderInlineEnd: '1px solid var(--bd)',
                         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
                       }
                       const breakdownCol = { flex: 1, display: 'flex', flexDirection: 'column' }
                       const breakdownRow = (isLast) => ({
                         flex: 1, padding: '6px 12px',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,.05)',
+                        borderBottom: isLast ? 'none' : '1px solid var(--bd)',
                       })
-                      const primaryLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.3px' }
+                      const primaryLbl = { fontSize: 10.5, color: 'var(--tx3)', fontWeight: 700, letterSpacing: '.3px' }
                       const primaryVal = { fontSize: 22, fontWeight: 800, color: 'var(--tx)', direction: 'ltr', lineHeight: 1 }
-                      const subLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.55)', fontWeight: 600 }
+                      const subLbl = { fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600 }
                       const subVal = (color) => ({ fontSize: 13, fontWeight: 800, color: color || 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' })
                       const children = [
                         { k: T('سعوديين', 'Saudi'),       v: fmtNum(hrsd.saudiLaborers),  color: '#22c55e' },
                         { k: T('غير سعوديين', 'Non-Saudi'), v: fmtNum(hrsd.foreignLaborers), color: C.purple },
-                        { k: T('نسبة السعودة', 'Saudization'), v: hrsd.saudiPercentage != null ? `${Number(hrsd.saudiPercentage).toFixed(1)}%` : '—', color: Number(hrsd.saudiPercentage) > 0 ? '#22c55e' : 'rgba(255,255,255,.7)' },
+                        { k: T('نسبة السعودة', 'Saudization'), v: hrsd.saudiPercentage != null ? `${Number(hrsd.saudiPercentage).toFixed(1)}%` : '—', color: Number(hrsd.saudiPercentage) > 0 ? '#22c55e' : 'var(--tx2)' },
                       ]
                       return (
                         <div style={groupBox}>
@@ -5555,23 +5555,23 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     {(() => {
                       const groupBox = {
                         display: 'flex', background: 'rgba(255,255,255,.024)',
-                        borderRadius: 8, border: '1px solid rgba(255,255,255,.05)',
+                        borderRadius: 8, border: '1px solid var(--bd)',
                         overflow: 'hidden',
                       }
                       const primaryCell = {
                         flex: 1.1, padding: '10px 14px', textAlign: 'center',
-                        borderInlineEnd: '1px solid rgba(255,255,255,.05)',
+                        borderInlineEnd: '1px solid var(--bd)',
                         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
                       }
                       const breakdownCol = { flex: 1, display: 'flex', flexDirection: 'column' }
                       const breakdownRow = (isLast) => ({
                         flex: 1, padding: '6px 12px',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,.05)',
+                        borderBottom: isLast ? 'none' : '1px solid var(--bd)',
                       })
-                      const primaryLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.3px' }
+                      const primaryLbl = { fontSize: 10.5, color: 'var(--tx3)', fontWeight: 700, letterSpacing: '.3px' }
                       const primaryVal = { fontSize: 22, fontWeight: 800, color: 'var(--tx)', direction: 'ltr', lineHeight: 1 }
-                      const subLbl = { fontSize: 10.5, color: 'rgba(255,255,255,.55)', fontWeight: 600 }
+                      const subLbl = { fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600 }
                       const subVal = (color) => ({ fontSize: 13, fontWeight: 800, color: color || 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' })
                       const children = [
                         { k: T('رخص تنتهي قريباً', 'Expiring soon'), v: fmtNum(hrsd.expiringPermits), color: '#f59e0b' },
@@ -5595,7 +5595,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       )
                     })()}
                     {hrsdState === 'error' && !extDetailLoading && hrsd.totalLaborers == null && !hrsd.officeName && (
-                      <div style={{ marginTop: 8, fontSize: 10.5, color: 'rgba(255,255,255,.45)', textAlign: 'center' }}>
+                      <div style={{ marginTop: 8, fontSize: 10.5, color: 'var(--tx4)', textAlign: 'center' }}>
                         {sbcSessionErr === 'NO_SESSION' ? T('لا توجد جلسة SBC — شغّل المزامنة أولاً', 'No SBC session — run sync first')
                           : sbcSessionErr === 'EXPIRED' ? T('انتهت جلسة SBC — أعد المزامنة', 'SBC session expired — sync again')
                           : T('تعذّر جلب بيانات مكتب العمل', 'Could not fetch labor office data')}
@@ -5636,10 +5636,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 const rowBase = {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-                  background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)',
+                  background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd)',
                 }
                 const rowGold = { ...rowBase, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.22)' }
-                const lbl = { color: 'rgba(255,255,255,.55)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
+                const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
                 const val = { fontSize: 12, fontWeight: 700, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
                 const valLtr = { ...val, direction: 'ltr' }
 
@@ -5788,13 +5788,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           const href = `${STORAGE_BASE}-${lng}.pdf`
                           if (!available) {
                             return (
-                              <div key={lng} style={{ borderRadius: 10, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                              <div key={lng} style={{ borderRadius: 10, background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                                 <div style={{ aspectRatio: '3 / 2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--tx5)', background: 'rgba(0,0,0,.18)' }}>
                                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
                                   </svg>
                                 </div>
-                                <div style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tx5)', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,.04)' }}>
+                                <div style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tx5)', textAlign: 'center', borderTop: '1px solid var(--bd2)' }}>
                                   {label}
                                 </div>
                               </div>
@@ -6469,7 +6469,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                                   <div key={s.subscription_id} style={{
                                     padding: '8px 12px', borderRadius: 8,
                                     background: 'rgba(255,255,255,.025)',
-                                    border: '1px solid rgba(255,255,255,.06)',
+                                    border: '1px solid var(--bd)',
                                     display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center',
                                   }}>
                                     <div>
@@ -6704,7 +6704,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             )
 
             const FieldRow = ({ k, v }) => (
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px dashed rgba(255,255,255,.05)', fontSize: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px dashed var(--bd)', fontSize: 12 }}>
                 <span style={{ color: 'var(--tx4)' }}>{k}</span>
                 <span style={{ color: v != null && v !== '' ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 700, direction: 'ltr', textAlign: 'end' }}>{v != null && v !== '' ? v : '—'}</span>
               </div>
@@ -6841,7 +6841,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   <SectionCard title={T('رخص البلدية', 'Municipal Licenses')} color="#f97316" count={momrahList.length}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {momrahList.map((lic, i) => (
-                        <div key={lic.licenseId || i} style={{ padding: 12, background: 'rgba(255,255,255,.025)', borderRadius: 10, border: '1px solid rgba(255,255,255,.05)' }}>
+                        <div key={lic.licenseId || i} style={{ padding: 12, background: 'rgba(255,255,255,.025)', borderRadius: 10, border: '1px solid var(--bd)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
                             <div style={{ minWidth: 0, flex: 1 }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>{lic.shopName}</div>
@@ -6886,7 +6886,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         {label}
                       </a>
                     ) : (
-                      <div key={lang} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, color: 'var(--tx5)', fontSize: 12, fontWeight: 600 }}>
+                      <div key={lang} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx5)', fontSize: 12, fontWeight: 600 }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
                         </svg>

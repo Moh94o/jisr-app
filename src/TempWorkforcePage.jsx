@@ -82,15 +82,15 @@ const calcAge = (iso) => {
 
 const cardChrome = {
   borderRadius: 14,
-  background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-  border: '1px solid rgba(255,255,255,.05)',
+  background: 'var(--card-grad2)',
+  border: '1px solid var(--bd)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
   overflow: 'hidden',
 }
 const cardHeader = {
   display: 'flex', alignItems: 'center', gap: 8,
   padding: '12px 22px',
-  borderBottom: '1px solid rgba(255,255,255,.06)',
+  borderBottom: '1px solid var(--bd)',
 }
 const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.2px' }
 
@@ -128,9 +128,9 @@ const CopyBtn = ({ value, T }) => {
   }
   return (
     <button type="button" onClick={onCopy} title={T ? T('نسخ', 'Copy') : 'Copy'}
-      style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
+      style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'var(--tx5)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
       onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
-      onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.3)' }}>
+      onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'var(--tx5)' }}>
       {copied ? (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       ) : (
@@ -184,8 +184,8 @@ const IqamaCell = ({ iso, T }) => {
 // Filter button style — matches SbcFacilities btnFilter
 const btnFilter = (active) => ({
   height: 44, padding: '0 16px', borderRadius: 12,
-  background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)',
-  border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'),
+  background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)',
+  border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'var(--bd)'),
   color: active ? C.gold : 'var(--tx2)',
   fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
   display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box',
@@ -194,7 +194,7 @@ const btnFilter = (active) => ({
 /* ═══ منتقي منشأة العامل — بحث + كروت زجاجية بنفس تصميم اختيار العميل في الفاتورة ═══ */
 // خلية معلومة داخل الكرت (الرقم الموحّد / التأمينات / الموارد …) — أيقونة + تسمية + قيمة LTR.
 const FacInfoBox = ({ Icon, label, value }) => value ? (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 8, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', minWidth: 0 }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 8, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', minWidth: 0 }}>
     <Icon size={12} color={C.gold} strokeWidth={1.8} style={{ flexShrink: 0 }} />
     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
       <span style={{ fontSize: 8.5, color: 'var(--tx5)', fontWeight: 600 }}>{label}</span>
@@ -298,10 +298,10 @@ function FacilityPicker({ facilities, value, onChange, T }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <style>{`.fac-results::-webkit-scrollbar{width:0;height:0;display:none}`}</style>
       <div style={{ position: 'relative' }}>
-        <Search size={18} color="rgba(255,255,255,.35)" strokeWidth={2} style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <Search size={18} color="var(--tx4)" strokeWidth={2} style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         <input value={q} onChange={e => setQ(e.target.value)} autoFocus
           placeholder={T('ابحث بالاسم أو الرقم الموحّد أو التأمينات أو الموارد البشرية…', 'Search by name, unified, GOSI or HRSD number…')}
-          style={{ width: '100%', height: 42, padding: '0 14px 0 44px', borderRadius: 11, background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.06)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: F, outline: 'none', textAlign: 'right', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', boxSizing: 'border-box' }} />
+          style={{ width: '100%', height: 42, padding: '0 14px 0 44px', borderRadius: 11, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontWeight: 600, fontFamily: F, outline: 'none', textAlign: 'right', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', boxSizing: 'border-box' }} />
       </div>
       {shown.length > 0 ? (
         <div className="fac-results" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 232, overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -315,7 +315,7 @@ function FacilityPicker({ facilities, value, onChange, T }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <FacAvatar size={30} />
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'rgba(255,255,255,.95)', letterSpacing: '-.2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name_ar || f.name_en || '—'}</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name_ar || f.name_en || '—'}</span>
                     {both && <span style={{ fontSize: 10.5, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: 'right', opacity: .7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name_en}</span>}
                   </div>
                 </div>
@@ -334,7 +334,7 @@ function FacilityPicker({ facilities, value, onChange, T }) {
           )}
         </div>
       ) : (
-        <div style={{ padding: '24px 20px', borderRadius: 12, border: '1px dashed rgba(255,255,255,.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '24px 20px', borderRadius: 12, border: '1px dashed var(--bd)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(212,160,23,.08)', border: '1px dashed rgba(212,160,23,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Building2 size={18} strokeWidth={1.7} color="rgba(212,160,23,.65)" />
           </div>
@@ -361,15 +361,15 @@ function WorkforceSkeleton() {
       {/* بطاقات المؤشرات — ٣ بطاقات بنفس تخطيط الصفحة الحقيقي */}
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.7fr 1.6fr', gap: 14, marginBottom: 24 }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
+          <div key={i} style={{ padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
             {bar('45%', 16)}{bar('55%', 34)}{bar('70%', 11)}
           </div>
         ))}
       </div>
       {/* هيكل الجدول — ٨ صفوف */}
-      <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,.06)', background: '#161616' }}>
+      <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--bd)', background: '#161616' }}>
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: cols.join(' '), alignItems: 'center', gap: 8, padding: '13px 12px', borderBottom: i < 7 ? '1px solid rgba(255,255,255,.03)' : 'none' }}>
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: cols.join(' '), alignItems: 'center', gap: 8, padding: '13px 12px', borderBottom: i < 7 ? '1px solid var(--bd2)' : 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>{bar('72%')}{bar('45%', 8)}</div>
             <div style={{ display: 'flex', justifyContent: 'center' }}>{bar('70%')}</div>
             <div style={{ display: 'flex', justifyContent: 'center' }}>{bar('55%')}</div>
@@ -1000,7 +1000,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
       <div style={{ position: 'relative', marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
               {T('العمالة المؤقتة','Temporary Workforce')}
             </div>
           </div>
@@ -1013,19 +1013,15 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
         <button
           onClick={() => { setAddErr(null); setAddPage(0); setShowAdd(true) }}
           title={T('إضافة عامل مؤقت', 'Add Temporary Worker')}
+          className="btn-primary-modal"
           style={{
             height: 42, padding: '0 18px', borderRadius: 11,
-            background: 'transparent',
-            border: '1px dashed rgba(212,160,23,.5)',
-            color: '#D4A017',
             cursor: 'pointer',
             fontFamily: F, fontSize: 13, fontWeight: 700,
             display: 'inline-flex', alignItems: 'center', gap: 8,
             whiteSpace: 'nowrap', flexShrink: 0,
-            transition: 'background .15s ease, border-color .15s ease',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+            transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease',
+          }}>
           <span>{T('إضافة عامل مؤقت', 'Add Temporary Worker')}</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
@@ -1038,8 +1034,8 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
         {/* Hero — Total workers */}
         <div style={{
           position: 'relative', padding: '18px 22px', borderRadius: 16,
-          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           overflow: 'hidden', minHeight: 150,
@@ -1047,12 +1043,12 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.blue}26 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, boxShadow: `0 0 10px ${C.blue}aa` }} />
-            <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T(arCount(stats.total, 'عامل', 'عمال'),'Workers')}</span>
+            <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T(arCount(stats.total, 'عامل', 'عمال'),'Workers')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
             <span style={{ fontSize: 42, fontWeight: 800, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(stats.total)}</span>
           </div>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', gap: 8 }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)', gap: 8 }}>
             <span style={{ fontSize: 12, color: C.ok, fontWeight: 600, direction: 'rtl', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.ok }} /> {num(stats.valid + stats.exp30)} {T('ساري','valid')}
             </span>
@@ -1065,8 +1061,8 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
         {/* Iqama status donut — mirror of CR-status donut */}
         <div style={{
           borderRadius: 16,
-          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           padding: '14px 16px',
           display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
@@ -1122,8 +1118,8 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
         {/* Nationalities — top N tile breakdown (mirror of MoC violations card) */}
         <div style={{
           borderRadius: 16,
-          background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-          border: '1px solid rgba(255,255,255,.05)',
+          background: 'var(--card-grad2)',
+          border: '1px solid var(--bd)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
           padding: '14px 16px',
           display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
@@ -1137,8 +1133,8 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
               <button key={n} onClick={() => { setAdv(a => ({ ...a, nationality: a.nationality === n ? '' : n })); setPage(0) }}
                 style={{
                   borderRadius: 12, padding: '8px 10px',
-                  background: adv.nationality === n ? 'rgba(212,160,23,.12)' : 'rgba(255,255,255,.025)',
-                  border: '1px solid ' + (adv.nationality === n ? 'rgba(212,160,23,.4)' : 'rgba(255,255,255,.04)'),
+                  background: adv.nationality === n ? 'rgba(212,160,23,.12)' : 'var(--bd2)',
+                  border: '1px solid ' + (adv.nationality === n ? 'rgba(212,160,23,.4)' : 'var(--bd2)'),
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
                   cursor: 'pointer', textAlign: 'start', fontFamily: F,
                 }}>
@@ -1162,7 +1158,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
           </svg>
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
             placeholder={T('ابحث بالاسم، الإقامة، الحدود، الجواز، المهنة، رقم الجوال، أو رقم المنشأة (موحّد/تأمينات/موارد)…','Search by name, iqama, border, passport, occupation, mobile, or facility no. (unified/GOSI/HRSD)…')}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
         </div>
         <button type="button" onClick={() => setAdvOpen(v => !v)} style={btnFilter(advOpen || advCount > 0)}>
           {T('تصفية', 'Filter')}
@@ -1184,7 +1180,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
 
       {/* Advanced filter panel */}
       {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <FilterField label={T('الحالة','Status')}>
               <select value={adv.status} onChange={e => { setAdv(a => ({ ...a, status: e.target.value })); setPage(0) }} style={selStyle}>
@@ -1339,16 +1335,16 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
             const fromN = page * PAGE + 1
             const toN = Math.min(filtered.length, (page + 1) * PAGE)
             return (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px 4px', borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px 4px', borderTop: '1px solid var(--bd)', marginTop: 18 }}>
                 <style>{`
                   .wf-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
                   .wf-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
-                  .wf-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
+                  .wf-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:var(--bd)}
                   .wf-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
                   .wf-pg-input::-webkit-outer-spin-button,.wf-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 `}</style>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(filtered.length)}</span>
+                  <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 700 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(filtered.length)}</span>
                   <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{T('صفحة','Page')} {page + 1} {T('من','of')} {totalPages}</span>
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1434,7 +1430,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
   )
 }
 
-const selStyle = { width: '100%', height: 40, padding: '0 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, fontFamily: F, outline: 'none', cursor: 'pointer' }
+const selStyle = { width: '100%', height: 40, padding: '0 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 12.5, fontFamily: F, outline: 'none', cursor: 'pointer' }
 const FilterField = ({ label, children }) => (
   <div>
     <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', marginBottom: 6 }}>{label}</div>
@@ -1443,7 +1439,7 @@ const FilterField = ({ label, children }) => (
 )
 function PageBtn({ children, onClick, disabled }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: disabled ? 'var(--tx5)' : 'var(--tx2)', cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 700, opacity: disabled ? .4 : 1, fontFamily: F }}>{children}</button>
+    <button onClick={onClick} disabled={disabled} style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bd2)', border: '1px solid var(--bd)', color: disabled ? 'var(--tx5)' : 'var(--tx2)', cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 700, opacity: disabled ? .4 : 1, fontFamily: F }}>{children}</button>
   )
 }
 
@@ -1473,8 +1469,8 @@ function WorkerEditLog({ entries, created, fileUrls = {}, T }) {
   const chrono = [...(createdEntry ? [createdEntry] : []), ...logEntries]
   if (!chrono.length) return null
   return (
-    <div style={{ background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 16, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+    <div style={{ background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
         <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.blue }}>{T('سجل الإضافات والتعديلات', 'Activity log')}</span>
       </div>
@@ -1484,7 +1480,7 @@ function WorkerEditLog({ entries, created, fileUrls = {}, T }) {
           const isTransfer = c.kind === 'transfer'
           const accent = isCreate ? C.ok : isTransfer ? C.blue : C.gold
           return (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
               <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: accent + '1a', border: '1px solid ' + accent + '47', color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
                 {isCreate
                   ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1711,9 +1707,9 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
     const empty = v == null || v === ''
     return (
       <div onClick={link && !empty ? () => goFacility(link) : undefined}
-        style={{ gridColumn: full ? '1 / -1' : undefined, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, cursor: link && !empty ? 'pointer' : 'default', transition: 'border-color .15s' }}
+        style={{ gridColumn: full ? '1 / -1' : undefined, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, cursor: link && !empty ? 'pointer' : 'default', transition: 'border-color .15s' }}
         onMouseEnter={link && !empty ? (e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }) : undefined}
-        onMouseLeave={link && !empty ? (e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }) : undefined}>
+        onMouseLeave={link && !empty ? (e => { e.currentTarget.style.borderColor = 'var(--bd)' }) : undefined}>
         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
           {!empty && !link && <CopyBtn value={v} toast={toast} T={T} />}
@@ -1725,7 +1721,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   }
   // بطاقة ملف وثيقة (تصميم مربّع) — عرض الملف إن وُجد، وإلا «لا يوجد» (الرفع يتم من نافذة التعديل).
   const FileTile = ({ label, att }) => (
-    <div style={{ background: 'rgba(0,0,0,.25)', border: att ? '1px solid rgba(212,160,23,.25)' : '1px dashed rgba(255,255,255,.12)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
+    <div style={{ background: 'rgba(0,0,0,.25)', border: att ? '1px solid rgba(212,160,23,.25)' : '1px dashed var(--bd)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
       {att ? (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
       ) : (
@@ -1742,15 +1738,15 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   )
   const EditBtn = ({ onClick, allow = canEdit }) => allow && onClick ? (
     <button onClick={onClick} title={T('تعديل', 'Edit')}
-      style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+      style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-bg)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-soft)' }}>
       {T('تعديل', 'Edit')}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </button>
   ) : null
   const CardHead = ({ children, onEdit: onEditCard, action, allow }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
       <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />{children}
       </span>
@@ -1824,7 +1820,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
               <Field full k={T('اسم العامل','Worker Name')} v={w.name_ar || w.name_en} />
               <Field k={T('الجنسية','Nationality')} v={w.nationality_ar} />
               {/* تاريخ الميلاد — العمر كتاق بأيقونة كيكة بجانب التاريخ */}
-              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('تاريخ الميلاد','Date of Birth')}</span>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
                   {w.birth_date && calcAge(w.birth_date) != null && (
@@ -1900,7 +1896,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             <CardHead onEdit={onEdit ? () => onEdit('exit_visa') : undefined} allow={canCardBtn(user, 'temp_workers', 'exit_visa_data', 'edit')}>{T('بيانات تأشيرات الخروج والعودة والخروج النهائي','Exit & Final Exit Visas Data')}</CardHead>
             <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {/* نوع التأشيرة — مع تاق نوع الخروج النهائي (دائمة/مؤقتة) بجانب القيمة عند الخروج النهائي */}
-              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('نوع التأشيرة','Visa Type')}</span>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
                   {w.exit_visa_type === 'final_exit' && finalExitKindLabel(w.final_exit_kind, T) && (
@@ -1926,7 +1922,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           <div style={cardChrome}>
             <CardHead>{T('بيانات التواصل الفاتورية','Billing Contact Data')}</CardHead>
             <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={{ gridColumn: '1 / -1', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ gridColumn: '1 / -1', background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('أرقام جوال الفواتير','Billing Mobiles')}</span>
                 {billingList.length ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1969,7 +1965,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           {/* كرت الفواتير والخدمات — إجماليات + قائمة (نقرة على الفاتورة → تفاصيل الفاتورة). نفس صفحة المنشأة. */}
           {cardVisible(user, 'temp_workers', 'invoices_and_services') && (
           <div style={cardChrome}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
               <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.blue }}>{T('الفواتير والخدمات', 'Invoices & Services')}</span>
               <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx4)' }}>{facRows ? `${num(facListRows.length)} ${T('طلب', 'requests')}` : '—'}</span>
@@ -1981,7 +1977,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   { l: T('المدفوع', 'Paid'), v: totals.paid, c: C.ok },
                   { l: T('المتبقي', 'Remaining'), v: totals.rem, c: C.red },
                 ].map((s, i) => (
-                  <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{s.l}</span>
                     <span style={{ fontSize: 15, fontWeight: 600, color: s.c, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(Math.round(s.v))}</span>
                   </div>
@@ -1998,9 +1994,9 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   const stt = cancelled ? { t: T('ملغاة', 'Cancelled'), c: C.red } : paidUp ? { t: T('مدفوعة', 'Paid'), c: C.ok } : r.invoice_id ? { t: `${num(Math.round(Number(r.remaining_amount) || 0))} ${T('متبقٍ', 'Due')}`, c: C.red } : null
                   return (
                     <div key={i} onClick={r.invoice_id ? () => goInvoice(r.invoice_id) : undefined} title={r.invoice_id ? T('عرض تفاصيل الفاتورة', 'View invoice') : ''}
-                      style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: cancelled ? 'rgba(232,114,101,.07)' : 'rgba(0,0,0,.18)', border: `1px solid ${cancelled ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.05)'}`, borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', transition: 'border-color .15s' }}
+                      style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: cancelled ? 'rgba(232,114,101,.07)' : 'rgba(0,0,0,.18)', border: `1px solid ${cancelled ? 'rgba(232,114,101,.28)' : 'var(--bd)'}`, borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', transition: 'border-color .15s' }}
                       onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.7)' : 'rgba(212,160,23,.5)' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.05)' }}>
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.28)' : 'var(--bd)' }}>
                       {cancelled && (
                         <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%, -50%) rotate(-16deg)', fontSize: 30, fontWeight: 800, letterSpacing: 2, color: 'rgba(232,114,101,.13)', border: '3px solid rgba(232,114,101,.16)', borderRadius: 10, padding: '2px 24px', pointerEvents: 'none', whiteSpace: 'nowrap', fontFamily: F }}>{T('ملغاة', 'Cancelled')}</div>
                       )}
@@ -2042,7 +2038,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{T('تاريخ الانتهاء','Expiry')}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: w.iqama_expiry_date ? iqColor : 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace' }}>{w.iqama_expiry_date ? fmtDate(w.iqama_expiry_date) : '—'}</div>
                 </div>
-                <div style={{ width: 1, background: 'rgba(255,255,255,.1)' }} />
+                <div style={{ width: 1, background: 'var(--bd)' }} />
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{iqamaDays != null && iqamaDays < 0 ? T('منذ','Since') : T('متبقٍ','Remaining')}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: iqamaDays == null ? 'var(--tx4)' : iqColor, direction: 'rtl' }}>{iqamaDays != null ? `${Math.abs(iqamaDays)} ${T('يوم','days')}` : '—'}</div>
@@ -2073,7 +2069,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                     </span>
                   </div>
                   {w.exit_visa_expiry && (
-                    <span style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 600, color: '#d6d6d6', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace' }}>{fmtDate(w.exit_visa_expiry)}</span>
+                    <span style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace' }}>{fmtDate(w.exit_visa_expiry)}</span>
                   )}
                 </div>
                 {cdTxt && (
@@ -2217,7 +2213,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
 
 function FacChip({ label, value, toast, T }) {
   return (
-    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px' }}>
+    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px' }}>
       <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 12.5, color: value ? 'var(--tx)' : 'var(--tx5)', fontWeight: 700, direction: 'ltr', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         {value || '—'}

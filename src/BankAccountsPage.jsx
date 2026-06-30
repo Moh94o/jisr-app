@@ -40,9 +40,9 @@ const switchBtn = (on, onClick, title) => (
 )
 
 const CopyRow = ({ label, value, onCopy }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
     <button onClick={onCopy} title="نسخ" style={{ width: 28, height: 28, borderRadius: 7, background: `${GOLD}14`, border: `1px solid ${GOLD}33`, color: GOLD, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Copy size={13} /></button>
-    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.9)', direction: 'ltr', fontFamily: MONO_F, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
+    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontFamily: MONO_F, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
     <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
   </div>
 )
@@ -120,16 +120,16 @@ const MiniCopy = ({ onClick }) => {
       onClick={() => { onClick(); setDone(true); setTimeout(() => setDone(false), 1200) }}
       onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
       onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx4)' }}
-      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid var(--bd)', background: done ? 'rgba(39,160,70,.16)' : 'var(--bd2)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
       {done ? <Check size={12} /> : <Copy size={12} />}
     </button>
   )
 }
 
 const StatusSeg = ({ accActive, onToggle }) => (
-  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
     <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>حالة الحساب</span>
-    <div style={{ display: 'inline-flex', borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', overflow: 'hidden', background: 'rgba(0,0,0,.18)' }}>
+    <div style={{ display: 'inline-flex', borderRadius: 10, border: '1px solid var(--bd)', overflow: 'hidden', background: 'var(--inputBg)' }}>
       {[{ v: true, l: 'نشط', clr: C.ok }, { v: false, l: 'معطّل', clr: '#95a5a6' }].map(seg => {
         const sel = accActive === seg.v
         return (<button key={String(seg.v)} type="button" onClick={() => { if (!sel) onToggle() }} style={{ padding: '8px 18px', border: 'none', cursor: sel ? 'default' : 'pointer', fontFamily: F, fontSize: 13, fontWeight: 700, background: sel ? `${seg.clr}22` : 'transparent', color: sel ? seg.clr : 'var(--tx4)', transition: '.15s', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{sel && <Check size={13} strokeWidth={3} />} {seg.l}</button>)
@@ -144,13 +144,13 @@ const BodyHero = ({ account, copy }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: `linear-gradient(135deg, ${GOLD}24 0%, rgba(0,0,0,.22) 70%)`, border: `1px solid ${GOLD}3a`, marginBottom: 14 }}>
       <div style={{ width: 46, height: 46, borderRadius: 12, background: `${GOLD}1f`, border: `1px solid ${GOLD}45`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: GOLD, flexShrink: 0 }}><Landmark size={24} /></div>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.bank_name}</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.bank_name}</div>
         {account.account_name && <div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, marginTop: 2 }}>{account.account_name}</div>}
       </div>
       {account.is_primary && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: `${GOLD}22`, color: GOLD, flexShrink: 0 }}>رئيسي</span>}
     </div>
     {accFields(account).filter(f => !['البنك', 'اسم الحساب', 'حساب رئيسي'].includes(f.k)).map((f, i) => (
-      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 2px', borderBottom: '1px dashed rgba(255,255,255,.07)' }}>
+      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 2px', borderBottom: '1px dashed var(--bd)' }}>
         <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{f.k}</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           {f.copy && <MiniCopy onClick={() => copy(f.v)} />}
@@ -209,7 +209,7 @@ function LinkedOfficesEditor({ sb, account, branches, toast, onClose, onChanged 
         {loading ? (
           <div style={{ padding: 16, textAlign: 'center', color: FKC.tx4, fontSize: 12 }}>…</div>
         ) : links.length === 0 ? (
-          <div style={{ padding: 16, textAlign: 'center', color: FKC.tx4, fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا يوجد مكاتب مرتبطة</div>
+          <div style={{ padding: 16, textAlign: 'center', color: FKC.tx4, fontSize: 12, border: '1px dashed var(--bd)', borderRadius: 10 }}>لا يوجد مكاتب مرتبطة</div>
         ) : (
           <ScrollBox maxHeight={240}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -301,15 +301,15 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
-        .brd-section{background:linear-gradient(180deg,#2A2A2A 0%,#222 100%);border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden}
-        .brd-section-head{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;gap:10px}
-        .brd-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:#fff;letter-spacing:.2px}
+        .brd-section{background:var(--card-grad2);border:1px solid var(--bd);border-radius:16px;overflow:hidden}
+        .brd-section-head{padding:14px 22px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:10px}
+        .brd-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:var(--tx);letter-spacing:.2px}
         .brd-section-body{padding:14px 22px}
         .brd-section-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-        .brd-section-count{padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:10px;font-weight:700;color:var(--tx3)}
+        .brd-section-count{padding:2px 8px;border-radius:999px;background:var(--bd);font-size:10px;font-weight:700;color:var(--tx3)}
         .brd-grid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:flex-start}
         @media (max-width:900px){.brd-grid{grid-template-columns:1fr}.brd-side,.brd-main{grid-column:auto !important;position:static !important}}
-        .brd-irow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.07)}
+        .brd-irow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dashed var(--bd)}
         .brd-irow:last-child{border-bottom:none}
         .brd-irow-l{font-size:12px;color:var(--tx4);font-weight:600;flex-shrink:0}
         .brd-irow-v{font-size:13px;font-weight:600;text-align:end;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -345,15 +345,15 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
           {cardVisible(user, 'admin_bank_accounts', 'linked_offices') && (
           <Section title="المكاتب المرتبطة" Icon={Wallet} dot={C.blue} count={links.length}>
             {links.length === 0 ? (
-              <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>غير مرتبط بأي مكتب</div>
+              <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed var(--bd)', borderRadius: 10 }}>غير مرتبط بأي مكتب</div>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {links.map(l => {
                   const meta = PURPOSE_META[l.account_purpose] || { Icon: CreditCard, hue: C.blue }
                   return (
-                    <span key={l.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 9, background: `linear-gradient(135deg, ${meta.hue}1f 0%, rgba(255,255,255,.02) 70%)`, border: `1px solid ${meta.hue}40`, fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                    <span key={l.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 9, background: `linear-gradient(135deg, ${meta.hue}1f 0%, rgba(255,255,255,.02) 70%)`, border: `1px solid ${meta.hue}40`, fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>
                       <span style={{ fontFamily: MONO_F, direction: 'ltr', color: meta.hue }}>{l.branches?.branch_code}</span>
-                      {l.account_purpose && <><span style={{ width: 1, height: 12, background: 'rgba(255,255,255,.12)' }} /><meta.Icon size={12} style={{ color: meta.hue }} /><span style={{ fontSize: 11, color: 'var(--tx2)' }}>{l.account_purpose}</span></>}
+                      {l.account_purpose && <><span style={{ width: 1, height: 12, background: 'var(--bd)' }} /><meta.Icon size={12} style={{ color: meta.hue }} /><span style={{ fontSize: 11, color: 'var(--tx2)' }}>{l.account_purpose}</span></>}
                     </span>
                   )
                 })}
@@ -367,7 +367,7 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
           <Section title="البطاقات البنكية" Icon={CreditCard} count={cards.length}
             action={canCardBtn(user, 'admin_bank_accounts', 'bank_cards', 'create') ? dashedBtn('بطاقة جديدة', Plus, () => setCardModal({ open: true, card: null })) : null}>
             {cards.length === 0 ? (
-              <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد بطاقات</div>
+              <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed var(--bd)', borderRadius: 10 }}>لا توجد بطاقات</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
                 {cards.map(card => (
@@ -386,12 +386,12 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
           {cardVisible(user, 'admin_bank_accounts', 'attachments') && (
           <Section title="المرفقات" Icon={FileText} count={atts.length}>
             {atts.length === 0 ? (
-              <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 10 }}>لا توجد مرفقات</div>
+              <div style={{ padding: 18, textAlign: 'center', color: 'var(--tx4)', fontSize: 12, border: '1px dashed var(--bd)', borderRadius: 10 }}>لا توجد مرفقات</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {atts.map(a => (
                   <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', textDecoration: 'none', color: 'inherit' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', textDecoration: 'none', color: 'inherit' }}>
                     <span style={{ width: 30, height: 30, borderRadius: 7, background: `${GOLD}14`, border: `1px solid ${GOLD}33`, color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><FileText size={14} /></span>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.file_name || 'ملف'}</div>
@@ -429,9 +429,9 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
                 <AlertCircle size={12} /> الرصيد عند الحد الأدنى أو أقل
               </div>
             )}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 6 }}>
+            <div style={{ borderTop: '1px solid var(--bd)', paddingTop: 6 }}>
               {breakdown.map(b => (
-                <div key={b.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderBottom: '1px dashed rgba(255,255,255,.06)' }}>
+                <div key={b.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderBottom: '1px dashed var(--bd)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--tx3)' }}>
                     <span style={{ width: 24, height: 24, borderRadius: 7, background: `${b.hue}1a`, color: b.hue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><b.Icon size={13} /></span>
                     {b.l}
@@ -462,7 +462,7 @@ function AccountCard({ account, onClick }) {
   const balColor = lowBal ? C.warn : C.ok
   return (
     <div onClick={onClick} className="brs-row"
-      style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: `linear-gradient(135deg, ${tone}0e 0%, #232323 50%, #1f1f1f 100%)`, border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden', opacity: isActive ? 1 : .7 }}>
+      style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: `linear-gradient(135deg, ${tone}0e 0%, var(--card-bg) 50%, var(--card-bg) 100%)`, border: '1px solid var(--bd)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden', opacity: isActive ? 1 : .7 }}>
       {/* Status rail on the leading edge */}
       <span style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${tone} 0%, ${tone}55 100%)` }} />
       <div style={{ padding: '20px 30px 20px 26px' }}>
@@ -482,13 +482,13 @@ function AccountCard({ account, onClick }) {
           <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="brs-meta-row" style={{ flexWrap: 'wrap', fontSize: 15 }}>
               <Landmark size={16} color={GOLD} strokeWidth={2.2} />
-              <span style={{ color: 'rgba(255,255,255,.82)', fontWeight: 600 }}>{account.bank_name}</span>
+              <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{account.bank_name}</span>
               {account.is_primary && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 5, background: `${GOLD}15`, color: GOLD }}>رئيسي</span>}
             </div>
             <div className="brs-meta-row" style={{ fontSize: 11.5, gap: 12, flexWrap: 'wrap' }}>
               {account.account_name && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <User size={12} color="var(--tx4)" /><span style={{ color: 'rgba(255,255,255,.74)' }}>{account.account_name}</span>
+                  <User size={12} color="var(--tx4)" /><span style={{ color: 'var(--tx2)' }}>{account.account_name}</span>
                 </span>
               )}
               <span style={{ color: 'var(--tx4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}><CreditCard size={11} /> {account._cardCount || 0} بطاقة</span>
@@ -496,7 +496,7 @@ function AccountCard({ account, onClick }) {
             <div className="brs-meta-row" style={{ fontSize: 11.5, gap: 12, flexWrap: 'wrap' }}>
               <span style={{ color: 'var(--tx4)', display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <Building2 size={11} />
-                <span style={{ direction: 'ltr', fontFamily: MONO_F, color: (account._officeCodes || []).length ? 'rgba(255,255,255,.74)' : 'var(--tx4)' }}>
+                <span style={{ direction: 'ltr', fontFamily: MONO_F, color: (account._officeCodes || []).length ? 'var(--tx2)' : 'var(--tx4)' }}>
                   {(account._officeCodes || []).length ? account._officeCodes.join('  ·  ') : 'بدون مكاتب'}
                 </span>
               </span>
@@ -520,16 +520,16 @@ const TrendingIcon = ({ color, size = 16 }) => <svg width={size} height={size} v
 
 // ─── Hero stat card (mirrors offices hero) ───────────────────────────────────
 const HeroStat = ({ title, value, color, foot, valueSize = 42 }) => (
-  <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
+  <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
     <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${color}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
       <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 10px ${color}aa` }} />
-      <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{title}</span>
+      <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{title}</span>
     </div>
     <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
       <span style={{ fontSize: valueSize, fontWeight: 800, color, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
     </div>
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
       <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{foot}</span>
     </div>
   </div>
@@ -735,7 +735,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
         @media (max-width: 720px){.brs-hero-grid{grid-template-columns:1fr}}
         .brs-row-grid{display:grid;grid-template-columns:auto 1px 1fr auto;gap:18px;align-items:center}
         @media (max-width: 720px){.brs-row-grid{grid-template-columns:1fr;gap:12px}.brs-row-vdiv{display:none}}
-        .brs-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%);min-height:46px}
+        .brs-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,var(--bd) 50%,transparent 100%);min-height:46px}
         .ba-bal-box{border:1px solid;border-radius:12px;padding:8px 16px;display:flex;align-items:center;gap:10px;transition:.2s}
         .brs-code-block{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:96px}
         .brs-meta-row{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--tx3);font-weight:600}
@@ -745,14 +745,12 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>الحسابات البنكية</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>الحسابات البنكية</div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة الحسابات البنكية والبطاقات عبر جميع المكاتب ومتابعة أرصدتها</div>
           </div>
           {can(user, 'admin_bank_accounts.create') && (
-          <button onClick={openAdd}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-            style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+          <button onClick={openAdd} className="btn-primary-modal"
+            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
             حساب بنكي جديد <Plus size={16} strokeWidth={2.2} />
           </button>
           )}
@@ -769,7 +767,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
           foot={`${nm(totalCards)} بطاقة`} />
 
         {/* Distribution by bank — donut (mirrors offices city distribution) */}
-        <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150 }}>
+        <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>التوزّع حسب البنك</span>
             <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}><span style={{ color: GOLD, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(accounts.length)}</span> حساب</span>
@@ -780,7 +778,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
             return (
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-                  <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
+                  <circle r={R} fill="none" stroke="var(--bd2)" strokeWidth="11" />
                   {byBank.map((r, i) => {
                     const c = PALETTE[i % PALETTE.length]
                     const dash = (r.cnt / totalCnt) * CIRC
@@ -788,7 +786,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
                     offset += dash
                     return seg
                   })}
-                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(accounts.length)}</text>
+                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(accounts.length)}</text>
                 </svg>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px 24px', minWidth: 0 }}>
                   {byBank.slice(0, 6).map((r, i) => {
@@ -813,14 +811,14 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="ابحث بالبنك، اسم الحساب، رقم الحساب، الآيبان…"
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }} />
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }} />
         </div>
         {(() => {
           const hasFilters = !!(bankFilter || branchFilter || statusFilter)
           const active = advOpen || hasFilters
           const clearAll = () => { setBankFilter(''); setBranchFilter(''); setStatusFilter('') }
           return (
-            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.05)', color: active ? FKC.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid var(--bd)', color: active ? FKC.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
               تصفية
               {hasFilters ? (
                 <span role="button" tabIndex={0} title="مسح الفلاتر"
@@ -842,7 +840,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
       {advOpen && (() => {
         const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
         return (
-          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
               <div>
                 <div style={fLbl}>البنك</div>
@@ -877,7 +875,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
         const c = PALETTE[gi % PALETTE.length]
         return (
           <div key={g.id} style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--bd)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, transform: 'translateY(-2px)' }} />
                 <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx2)' }}>{g.name}</span>

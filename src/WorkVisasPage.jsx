@@ -116,7 +116,7 @@ const StatusBadge = ({ code, T }) => {
 
 const btnFilter = (active) => ({
   height: 44, padding: '0 16px', borderRadius: 12,
-  background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)',
+  background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)',
   border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'),
   color: active ? C.gold : 'var(--tx2)',
   fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
@@ -139,7 +139,7 @@ function VisasSkeleton() {
       <style>{`@keyframes wf-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.7fr 1.6fr', gap: 14, marginBottom: 24 }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
+          <div key={i} style={{ padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
             {bar('45%', 16)}{bar('55%', 34)}{bar('70%', 11)}
           </div>
         ))}
@@ -344,7 +344,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
       {/* KPI Row — ٣ بطاقات */}
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.7fr 1.6fr', gap: 14, marginBottom: 24 }}>
         {/* إجمالي التأشيرات */}
-        <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
+        <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.blue}26 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, boxShadow: `0 0 10px ${C.blue}aa` }} />
@@ -364,7 +364,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
         </div>
 
         {/* Donut — توزيع الحالات */}
-        <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+        <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
           <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('حالة التأشيرات', 'Visa Status')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
             <div style={{ position: 'relative', width: 112, height: 112, flexShrink: 0 }}>
@@ -407,7 +407,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
         </div>
 
         {/* الجنسيات — أعلى ٤ */}
-        <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+        <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الجنسيات', 'Nationalities')}</span>
             <span style={{ fontSize: 10.5, color: C.purple, fontWeight: 700 }}>{num(natTop.length)} {T('جنسية', 'total')}</span>
@@ -435,7 +435,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
           </svg>
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
             placeholder={T('ابحث برقم التأشيرة، الحدود، الجواز، اسم العامل، الجنسية، السفارة، أو المنشأة…', 'Search by visa, border, passport, worker, nationality, embassy, or facility…')}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
         </div>
         <button type="button" onClick={() => setAdvOpen(v => !v)} style={btnFilter(advOpen || advCount > 0)}>
           {T('تصفية', 'Filter')}
@@ -454,7 +454,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
       </div>
 
       {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <FilterField label={T('الحالة', 'Status')}>
               <select value={adv.status} onChange={e => { setAdv(a => ({ ...a, status: e.target.value })); setPage(0) }} style={selStyle}>

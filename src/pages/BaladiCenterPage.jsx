@@ -29,16 +29,16 @@ const fmtGreg = (iso) => { if (!iso) return '—'; try { const d = new Date(iso)
 
 function HeroStat({ tone, label, value, footer }) {
   return (
-    <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
+    <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
       <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${tone}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone, boxShadow: `0 0 10px ${tone}aa` }} />
-        <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
+        <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
         <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
       </div>
     </div>
@@ -128,13 +128,11 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
 
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>الرخص البلدية وشهادات السلامة</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>الرخص البلدية وشهادات السلامة</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إصدار وتجديد رخص البلدية وشهادات السلامة للمنشآت. المعاملات تُضاف مباشرة من هذه الصفحة.</div>
         </div>
-        <button onClick={() => setShowAdd(true)}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-          style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+        <button onClick={() => setShowAdd(true)} className="btn-primary-modal"
+          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           إضافة معاملة
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
@@ -149,7 +147,7 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
           const R = 32, CIRC = 2 * Math.PI * R
           let offset = 0
           return (
-            <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150 }}>
+            <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>التوزّع حسب الخدمة</span>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
@@ -158,9 +156,9 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-                  <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
+                  <circle r={R} fill="none" stroke="var(--bd2)" strokeWidth="11" />
                   {dist.map((r) => { const dash = (r.cnt / total) * CIRC; const seg = (<circle key={r.code} r={R} fill="none" stroke={r.m.c} strokeWidth="11" strokeDasharray={`${dash} ${CIRC - dash}`} strokeDashoffset={-offset} style={{ transition: 'stroke-dasharray .3s' }}><title>{`${r.m.ar}: ${r.cnt}`}</title></circle>); offset += dash; return seg })}
-                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(rows.length)}</text>
+                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(rows.length)}</text>
                 </svg>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr', gap: 6, minWidth: 0 }}>
                   {dist.length === 0 ? <span style={{ fontSize: 11, color: 'var(--tx5)' }}>—</span> : dist.map((r) => (
@@ -181,14 +179,14 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث بالمرجع أو المنشأة أو رقم الرخصة…"
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
         {(() => {
           const hasFilters = !!(statusFilter || facilityFilter || fromDate || toDate)
           const active = advOpen || hasFilters
           const clearAll = () => { setStatusFilter(''); setFacilityFilter(''); setFromDate(''); setToDate('') }
           return (
-            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.05)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid var(--bd)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
               تصفية
               {hasFilters ? (
                 <span role="button" tabIndex={0} title="مسح الفلاتر"
@@ -210,7 +208,7 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
       {advOpen && (() => {
         const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
         return (
-          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
               <div>
                 <div style={fLbl}>الحالة</div>
@@ -421,8 +419,8 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
     } catch (e) { toast?.('تعذّر رفع الملف', 'error') } finally { setBusy(false) }
   }
 
-  const card = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }
-  const cardHead = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }
+  const card = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }
+  const cardHead = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }
   const fields = [
     { l: 'المنشأة', v: row.facility?.name_ar || '—' },
     { l: 'الرقم الموحّد', v: row.facility?.unified_number || '—', mono: true },
@@ -436,7 +434,7 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       <div style={{ marginBottom: 16 }}><BackButton onClick={onBack} label="رجوع" /></div>
       <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.93)' }}>{row.facility?.name_ar || meta(type?.code).ar}</div>
+        <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)' }}>{row.facility?.name_ar || meta(type?.code).ar}</div>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 11px', borderRadius: 7, background: m.c + '18', border: '1px solid ' + m.c + '38', color: m.c, fontSize: 11.5, fontWeight: 700 }}>{m.ar}</span>
         <span style={{ direction: 'ltr', fontFamily: MONO, fontWeight: 700, color: C.gold }}>#{row.request_ref_no}</span>
         <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: st.c, background: tint(st.c, .12), border: `1px solid ${tint(st.c, .3)}`, borderRadius: 8, padding: '5px 12px' }}>
@@ -445,10 +443,10 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
       </div>
 
       <div style={card}>
-        <div style={cardHead}><span style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>تفاصيل المعاملة</span></div>
+        <div style={cardHead}><span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)' }}>تفاصيل المعاملة</span></div>
         <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {fields.map((x, i) => (
-            <div key={i} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
+            <div key={i} style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--bd2)', border: '1px solid var(--bd)' }}>
               <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{x.l}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)', direction: x.mono ? 'ltr' : 'rtl', textAlign: x.mono ? 'left' : 'right', fontFamily: x.mono ? MONO : F }}>{x.v}</div>
             </div>
@@ -457,7 +455,7 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
       </div>
 
       <div style={card}>
-        <div style={cardHead}><span style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>الحالة</span></div>
+        <div style={cardHead}><span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)' }}>الحالة</span></div>
         <div style={{ padding: '14px 22px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {statuses.filter(s => STATUS_THEME[s.code]).map(s => {
             const sel = row.status?.code === s.code; const th = STATUS_THEME[s.code]
@@ -473,7 +471,7 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
 
       <div style={card}>
         <div style={cardHead}>
-          <span style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>المستندات</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)' }}>المستندات</span>
           <label style={{ height: 32, padding: '0 12px', borderRadius: 9, background: tint(C.gold, .1), border: `1px solid ${tint(C.gold, .35)}`, color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {busy ? 'جارٍ الرفع…' : 'إرفاق ملف'}
             <input type="file" style={{ display: 'none' }} onChange={e => upload(e.target.files?.[0])} accept="image/*,application/pdf" />
@@ -481,7 +479,7 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
         </div>
         <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {atts.length === 0 ? <div style={{ color: 'var(--tx5)', fontSize: 12, textAlign: 'center', padding: 8 }}>لا توجد مستندات.</div> : atts.map(a => (
-            <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)', color: C.blue, textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>
+            <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 9, background: 'var(--bd2)', border: '1px solid var(--bd)', color: C.blue, textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
               <span style={{ flex: 1, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.file_name}</span>
             </a>

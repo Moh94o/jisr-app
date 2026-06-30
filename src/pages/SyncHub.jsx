@@ -1079,7 +1079,7 @@ function GosiPanel({ T }) {
       {cards.map(c => (
         <div key={c.key} style={{
           padding: 18, borderRadius: 16,
-          background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+          background: 'var(--card-grad)',
           backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
           border: '1px solid rgba(255,255,255,.08)',
           transition: '.25s cubic-bezier(.4,0,.2,1)',

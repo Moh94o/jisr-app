@@ -11,6 +11,7 @@ import { Stepper as FKStepper } from './components/ui/FormKit.jsx'
 import { Shimmer } from './components/ui/Skeleton.jsx'
 import { TXN_SERVICES } from './pages/txnServices.js'
 import { buildInvoiceDoc } from './lib/invoicePrint.js'
+import { buildInvoiceWaMessage, fetchInvoicePrintData } from './lib/invoiceWa.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTES, doneInputsFor } from './lib/doneInputs.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -177,26 +178,28 @@ const CARD_S = { pad: '18px 34px', colGap: 16, amountW: 168, stack: 9, name: 14.
 function InvoiceSkeleton({ listRows = 8 }) {
   const shimmer = {
     display: 'inline-block', borderRadius: 6,
-    background: 'linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.11) 37%, rgba(255,255,255,.04) 63%)',
+    background: 'linear-gradient(90deg, var(--sk-base) 25%, var(--sk-hi) 37%, var(--sk-base) 63%)',
     backgroundSize: '400% 100%', animation: 'inv-shimmer 1.4s ease infinite',
   }
   const bar = (w, h = 11, r = 6) => <span style={{ ...shimmer, width: w, height: h, borderRadius: r }} />
-  const card = { borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 190 }
+  const card = { borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-md)', minHeight: 190 }
   return (
-    <div>
-      <style>{`@keyframes inv-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
+    <div className="inv-sk">
+      <style>{`@keyframes inv-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.inv-sk{--sk-base:rgba(140,115,70,.17);--sk-hi:rgba(140,115,70,.05)}
+html[data-theme=dark] .inv-sk{--sk-base:rgba(255,255,255,.05);--sk-hi:rgba(255,255,255,.12)}`}</style>
       {/* بطاقات الإحصاء — نفس تخطيط الصفحة (نقدًا · جانبية · الخدمات) */}
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.5fr', gap: 14, marginBottom: 24 }}>
         {/* نقدًا */}
         <div style={{ ...card, padding: '18px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{bar(10, 10, 999)}{bar('30%', 22)}</div>
           {bar('55%', 40)}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>{bar('30%', 10)}{bar('12%', 12)}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>{bar('30%', 10)}{bar('12%', 12)}</div>
         </div>
         {/* جانبية — مؤشّران */}
         <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
           {[0, 1].map(i => (
-            <div key={i} style={{ flex: 1, padding: '12px 16px', borderTop: i ? '1px solid rgba(255,255,255,.06)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
+            <div key={i} style={{ flex: 1, padding: '12px 16px', borderTop: i ? '1px solid var(--bd)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
               {bar('60%', 11)}{bar('35%', 18)}
             </div>
           ))}
@@ -213,7 +216,7 @@ function InvoiceSkeleton({ listRows = 8 }) {
       {/* صفوف الفواتير — بنفس حجم وتخطيط كرت الفاتورة الحقيقي */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {Array.from({ length: listRows }).map((_, i) => (
-          <div key={i} style={{ borderRadius: 18, background: 'linear-gradient(180deg,#2b2b2b 0%,#1e1e1e 100%)', border: '1px solid rgba(255,255,255,.07)', boxShadow: '0 14px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)', padding: '12px 18px' }}>
+          <div key={i} style={{ borderRadius: 18, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-lg)', padding: '12px 18px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: `1fr 1px ${CARD_S.amountW}px`, gap: 16, alignItems: 'center' }}>
               {/* العمود اليمين — اسم + شبكة الحقول */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -225,7 +228,7 @@ function InvoiceSkeleton({ listRows = 8 }) {
                 </div>
               </div>
               {/* فاصل */}
-              <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,.08)', minHeight: 60 }} />
+              <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--bd)', minHeight: 60 }} />
               {/* كتلة المبلغ */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{bar('40%', 11)}{bar('30%', 20)}</div>
@@ -276,8 +279,46 @@ const StageTimelineTip = ({ title, stages, T }) => { const { dir } = useFKLang()
   </div>
 ) }
 
-function InvCard({ d, T, isAr, toast, onClick }) {
+function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const S = CARD_S
+  // ── إجراءات الكرت: نسخ رسالة الواتساب (نفس صيغة القروب) + طباعة الفاتورة ──
+  const [waCopied, setWaCopied] = useState(false)
+  const [printing, setPrinting] = useState(false)
+  const copyWa = e => {
+    e.stopPropagation()
+    try {
+      navigator.clipboard?.writeText(buildInvoiceWaMessage(row))
+      setWaCopied(true); setTimeout(() => setWaCopied(false), 1500)
+      toast?.(T('تم نسخ رسالة الواتساب', 'WhatsApp message copied'))
+    } catch { toast?.(T('تعذّر النسخ', 'Copy failed')) }
+  }
+  const doPrint = async e => {
+    e.stopPropagation()
+    if (printing || !sb || !row) return
+    setPrinting(true)
+    try { const data = await fetchInvoicePrintData(sb, row); printInvoice(row, data, 'ar') }
+    catch { toast?.(T('تعذّرت الطباعة', 'Print failed')) }
+    finally { setPrinting(false) }
+  }
+  // أيقونتان صغيرتان: واتساب (أخضر) + طباعة (ذهبي). تُحقن في الفراغ القائم دون تغيير ارتفاع الكرت إطلاقاً.
+  const ActBtn = ({ title, onClick: oc, color, busy, children }) => (
+    <button title={title} onClick={oc} disabled={busy}
+      style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--bd)', background: 'var(--inputBg)', color, cursor: busy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s', flexShrink: 0, opacity: busy ? .5 : 1, padding: 0 }}
+      onMouseEnter={ev => { if (busy) return; ev.currentTarget.style.background = color + '1f'; ev.currentTarget.style.borderColor = color + '66' }}
+      onMouseLeave={ev => { ev.currentTarget.style.background = 'var(--inputBg)'; ev.currentTarget.style.borderColor = 'var(--bd)' }}>
+      {children}
+    </button>
+  )
+  const WaIco = <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.358.101 11.892c0 2.096.549 4.142 1.595 5.945L0 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.582 0 11.943-5.358 11.945-11.893a11.821 11.821 0 00-3.418-8.45"/></svg>
+  const PrintIco = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+  const cardActions = (vertical) => (
+    <div style={{ display: 'inline-flex', flexDirection: vertical ? 'column' : 'row', gap: 7, flexShrink: 0 }}>
+      <ActBtn title={T('نسخ رسالة الواتساب', 'Copy WhatsApp message')} onClick={copyWa} color={waCopied ? C.ok : '#25D366'}>
+        {waCopied ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : WaIco}
+      </ActBtn>
+      <ActBtn title={T('طباعة الفاتورة', 'Print invoice')} onClick={doPrint} color={C.gold} busy={printing}>{PrintIco}</ActBtn>
+    </div>
+  )
   // ── حالة المعاملة الموحَّدة — مصدر واحد يقود تاق الكرت + لون الحدود عند المرور + البوتوم بار ──
   // (تشمل الحالات الوسطى للموافقة على النقل الخارجي: انتظار/موافقة/رفض المحاسب)
   const reqCode = d.reqStatusCode
@@ -332,7 +373,7 @@ function InvCard({ d, T, isAr, toast, onClick }) {
   )
 
   const Name = ({ size = S.name }) => (
-    <span style={{ fontSize: size, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>{d.name}</span>
+    <span style={{ fontSize: size, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>{d.name}</span>
   )
 
   const wrap = (extra) => ({
@@ -345,7 +386,7 @@ function InvCard({ d, T, isAr, toast, onClick }) {
   const hoverOn = e => { e.currentTarget.style.borderColor = hoverColor + '66' }
   const hoverOff = (col) => e => { e.currentTarget.style.borderColor = col }
 
-  const baseBorder = d.cancelled ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.07)'
+  const baseBorder = d.cancelled ? 'rgba(232,114,101,.28)' : 'var(--bd)'
 
   // ── Field-label icons — sit next to the label, not the value ──
   const ICON = {
@@ -459,8 +500,10 @@ function InvCard({ d, T, isAr, toast, onClick }) {
     <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: S.stack }}>
       {/* name + flag on top (flag after the name). تاق الحالة ينتقل لأعلى كتلة المبلغ للفواتير ذات العمود المالي؛
           أما الفواتير الصفرية (بلا عمود مالي) فيبقى التاق هنا بجانب الاسم. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingInlineEnd: isSP ? 0 : 62 }}>
         <Name /><Flag />{isSP ? reqTag : null}
+        {/* أزرار الإجراء (واتساب/طباعة) في صدر الكرت أعلى عمود «المكتب» — خارج التدفّق (absolute) فلا يتغيّر ارتفاع الكرت إطلاقاً. */}
+        {!isSP && <div style={{ position: 'absolute', insetInlineEnd: 0, top: '50%', transform: 'translateY(-50%)' }}>{cardActions(false)}</div>}
       </div>
       {/* row 1: ID · phone · branch  ·  row 2: service · invoice no */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: `${S.gRow}px ${S.gCol}px` }}>
@@ -478,8 +521,8 @@ function InvCard({ d, T, isAr, toast, onClick }) {
   // ── Fixed classic frame: right column · divider · amount block · progress strip ──
   return (
     <div onClick={onClick} className="inv-card" onMouseEnter={hoverOn} onMouseLeave={hoverOff(baseBorder)} style={wrap({
-      background: 'linear-gradient(180deg,#2b2b2b 0%,#1e1e1e 100%)',
-      border: '1px solid ' + baseBorder, boxShadow: '0 14px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)',
+      background: 'var(--card-grad2)',
+      border: '1px solid ' + baseBorder, boxShadow: 'var(--shadow-md)',
     })}>
 
       {/* شارة الحالة — لسان عمودي بحالة الفاتورة ومبلغها */}
@@ -490,7 +533,7 @@ function InvCard({ d, T, isAr, toast, onClick }) {
           {rightCol}
           {/* الخدمات الصفرية (رواتب سبلاير/المستندات): فاتورة صفرية — نُخفي العمود المالي (الإجمالي/المسدّد/المتبقي). */}
           {!isSP && (<>
-          <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,.08)', minHeight: 60 }} />
+          <div style={{ width: 1.5, alignSelf: 'stretch', background: 'linear-gradient(to bottom, transparent, rgba(212,160,23,.45), transparent)', minHeight: 60 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* تاقات حالة المعاملة أعلى كتلة المبلغ. */}
             {reqTag && <div style={{ display: 'flex', justifyContent: 'flex-end', minHeight: 24, alignItems: 'center' }}>{reqTag}</div>}
@@ -498,14 +541,14 @@ function InvCard({ d, T, isAr, toast, onClick }) {
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontSize: S.total, fontWeight: 700, color: C.gold, fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{num(d.total)}</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid var(--bd)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: S.pay }}>
                 <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المسدّد', 'Paid')}</span>
-                <span style={{ color: d.paid > 0 ? C.ok : '#fff', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.paid > 0 ? '+ ' + num(d.paid) : num(0)}</span>
+                <span style={{ color: d.paid > 0 ? C.ok : 'var(--tx)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.paid > 0 ? '+ ' + num(d.paid) : num(0)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: S.pay }}>
                 <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المتبقي', 'Remaining')}</span>
-                <span style={{ color: d.remaining > 0 ? C.red : '#fff', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.remaining > 0 ? '− ' + num(d.remaining) : num(0)}</span>
+                <span style={{ color: d.remaining > 0 ? C.red : 'var(--tx)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.remaining > 0 ? '− ' + num(d.remaining) : num(0)}</span>
               </div>
             </div>
           </div>
@@ -524,7 +567,7 @@ const Pill = ({ count, label, color, money }) => (
   <div style={{
     display: 'flex', alignItems: 'center', gap: 8,
     padding: '7px 14px', borderRadius: 999,
-    background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)',
+    background: 'var(--inputBg)', border: '1px solid var(--bd)',
   }}>
     <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, boxShadow: '0 0 6px ' + color }} />
     <span style={{ fontSize: money ? 14 : 18, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{count}</span>
@@ -538,9 +581,9 @@ const StatCard = ({ label, value, sub, color, sup }) => {
     <div style={{
       minWidth: 0, minHeight: 130,
       padding: '14px 18px', borderRadius: 16,
-      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-      border: '1px solid rgba(255,255,255,.05)',
-      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+      background: 'var(--card-grad2)',
+      border: '1px solid var(--bd)',
+      boxShadow: 'var(--shadow-md)',
       position: 'relative', overflow: 'hidden',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
     }}>
@@ -563,7 +606,7 @@ const StatCard = ({ label, value, sub, color, sup }) => {
 
       {/* Bottom: divider + sub aligned right */}
       {sub && (
-        <div style={{ position: 'relative', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', fontSize: 11, color: 'var(--tx3)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ position: 'relative', paddingTop: 8, borderTop: '1px solid var(--bd)', fontSize: 11, color: 'var(--tx3)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>{sub}</span>
         </div>
       )}
@@ -604,7 +647,7 @@ const INVOICE_SELECT = `
         payments(amount,is_valid,deleted_at,payment_date),
         service_type:service_type_id(code,value_ar,value_en),
         status:status_id(code,value_ar,value_en),
-        branch:branch_id(id,branch_code,phone),
+        branch:branch_id(id,branch_code,phone,city:city_id(name_ar)),
         agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
         transfer_calculation(transfer_only,stage_data,deleted_at),
         iqama_renewal_calculation(stage_data,deleted_at),
@@ -649,9 +692,9 @@ const statsSvcTheme = (code) => code === STATS_OTHER
 
 const SC_CARD = {
   borderRadius: 16,
-  background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-  border: '1px solid rgba(255,255,255,.05)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+  background: 'var(--card-grad2)',
+  border: '1px solid var(--bd)',
+  boxShadow: 'var(--shadow-sm)',
 }
 
 function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
@@ -671,13 +714,13 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
       <div style={{ ...SC_CARD, position: 'relative', overflow: 'hidden', minHeight: 190, display: 'flex' }}>
         <div style={{ position: 'absolute', insetInlineEnd: -50, top: -50, width: 150, height: 150, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
         <div style={{ position: 'relative', flex: 1, padding: '16px 34px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'right' }}>
-          <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدًا', 'Cash')}</span>
+          <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدًا', 'Cash')}</span>
           <div style={{ direction: 'ltr', textAlign: 'right' }}>
             <span style={{ fontSize: 46, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(cashSum)}</span>
           </div>
           <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات', 'Receipts')} <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cashCnt)}</span></span>
         </div>
-        <div style={{ position: 'relative', width: 72, background: `linear-gradient(180deg, ${C.gold}1a, ${C.gold}08)`, borderInlineStart: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ position: 'relative', width: 72, background: `linear-gradient(180deg, ${C.gold}1a, ${C.gold}08)`, borderInlineStart: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Wallet size={30} color={C.gold} />
         </div>
       </div>
@@ -686,17 +729,17 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
       <div style={{ ...SC_CARD, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 190 }}>
         {[{ label: T('تحويلات بنكية', 'Bank Transfers'), val: bankSum, cnt: bankCnt, c: C.blue, railIcon: <Landmark size={22} /> },
           { label: T('مرتجعة أو ملغاة', 'Refunded / Cancelled'), val: refSum, cnt: refCnt, c: C.red, railIcon: <RotateCcw size={22} /> }].map((s, i) => (
-          <div key={i} style={{ position: 'relative', flex: 1, borderTop: i ? '1px solid rgba(255,255,255,.06)' : 'none', display: 'flex', overflow: 'hidden' }}>
+          <div key={i} style={{ position: 'relative', flex: 1, borderTop: i ? '1px solid var(--bd)' : 'none', display: 'flex', overflow: 'hidden' }}>
             <div style={{ position: 'relative', flex: 1, padding: '16px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{s.label}</span>
+                <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{s.label}</span>
                 <span style={{ fontSize: 12, color: s.cnt > 0 ? C.gold : 'var(--tx4)', fontWeight: 600 }}>({num(s.cnt)})</span>
               </div>
               <div style={{ direction: 'ltr', textAlign: 'right' }}>
                 <span style={{ fontSize: 22, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{num(s.val)}</span>
               </div>
             </div>
-            <div style={{ width: 52, background: `linear-gradient(180deg, ${s.c}1a, ${s.c}08)`, borderInlineStart: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: s.c }}>
+            <div style={{ width: 52, background: `linear-gradient(180deg, ${s.c}1a, ${s.c}08)`, borderInlineStart: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: s.c }}>
               {s.railIcon}
             </div>
           </div>
@@ -714,19 +757,19 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
           </div>
           {svcTotal > 0 && (
             <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
-              {svcs.filter(s => s.cnt > 0).map(s => { const th = statsSvcTheme(s.code); return <div key={s.code} title={`${T(th.label_ar, th.label_en)}: ${s.cnt}`} style={{ width: (s.cnt / svcTotal * 100) + '%', background: th.c }} /> })}
+              {svcs.filter(s => s.cnt > 0).map(s => { const th = statsSvcTheme(s.code); return <div key={s.code} title={`${T(th.label_ar, th.label_en).replace('وإقامة ', '')}: ${s.cnt}`} style={{ width: (s.cnt / svcTotal * 100) + '%', background: th.c }} /> })}
             </div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px 16px', alignContent: 'center' }}>
             {svcs.map(s => { const th = statsSvcTheme(s.code); const z = s.cnt === 0; return (
               <div key={s.code} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, opacity: z ? .45 : 1 }}>
                 <span style={{ color: z ? 'var(--tx4)' : th.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 700 }}>{num(s.cnt)}</span>
-                <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{T(th.label_ar, th.label_en)}</span>
+                <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{T(th.label_ar, th.label_en).replace('وإقامة ', '')}</span>
               </div>
             )})}
           </div>
         </div>
-        <div style={{ width: 60, background: `linear-gradient(180deg, ${C.gold}1a, ${C.gold}08)`, borderInlineStart: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: C.gold }}>
+        <div style={{ width: 60, background: `linear-gradient(180deg, ${C.gold}1a, ${C.gold}08)`, borderInlineStart: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: C.gold }}>
           <Briefcase size={26} />
         </div>
       </div>
@@ -1051,15 +1094,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الفواتير والمعاملات','Invoices')}</div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('إدارة الفواتير والطلبات والمعاملات وحالات السداد ومتابعة المدفوعات','Manage invoices, requests, transactions, payment status and payments')}</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: statFilters.active ? C.gold : 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{statFilters.active ? T('كروت الإحصاء تعكس التصفية الحالية', 'The stat cards reflect the active filter') : T('كروت الإحصاء والفواتير والطلبات تعرض حركة اليوم وتبدأ من الساعة 5:00 فجراً بتوقيت الرياض', 'The stats, invoices and requests cards show today’s activity, starting at 5:00 AM Riyadh time')}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الفواتير والمعاملات','Invoices')}</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx2)', marginTop: 12, lineHeight: 1.6 }}>{T('إدارة الفواتير والطلبات والمعاملات وحالات السداد ومتابعة المدفوعات','Manage invoices, requests, transactions, payment status and payments')}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: statFilters.active ? C.gold : 'var(--tx3)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{statFilters.active ? T('كروت الإحصاء تعكس التصفية الحالية', 'The stat cards reflect the active filter') : T('كروت الإحصاء والفواتير والطلبات تعرض حركة اليوم وتبدأ من الساعة 5:00 فجراً بتوقيت الرياض', 'The stats, invoices and requests cards show today’s activity, starting at 5:00 AM Riyadh time')}</div>
           </div>
           {onNewInvoice && canPerm(user, 'invoices.create') && (
-            <button onClick={onNewInvoice}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-              style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+            <button onClick={onNewInvoice} className="btn-primary-modal"
+              style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
               {T('فاتورة جديدة','New Invoice')}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
@@ -1080,7 +1121,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
             placeholder={T('ابحث برقم الفاتورة، رقم الطلب، الاسم، الإقامة، الهوية، أو الجوال…', 'Search by invoice no, request no, name, iqama, ID, or phone…')}
             value={q}
             onChange={e => { setQ(e.target.value); setPage(0) }}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
         </div>
         {(() => {
@@ -1113,7 +1154,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       {/* Advanced filter panel — matches Transfer Calc design */}
       {advOpen && (() => {
         const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
-        const fInp = { height: 42, padding: '0 14px', borderRadius: 9, border: '1px solid transparent', background: 'rgba(0,0,0,.18)', color: 'var(--tx)', fontFamily: F, fontSize: 14, fontWeight: 600, outline: 'none', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', transition: '.2s', width: '100%', boxSizing: 'border-box' }
+        const fInp = { height: 42, padding: '0 14px', borderRadius: 9, border: '1px solid transparent', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 14, fontWeight: 600, outline: 'none', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', transition: '.2s', width: '100%', boxSizing: 'border-box' }
         // اختصارات الفترة — تعتمد بداية اليوم 5 صباحًا (todayStr = يوم العمل الحالي)
         const dShift = (key, n) => { const d = new Date(key + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
         const datePresets = [
@@ -1122,10 +1163,10 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
           { l: T('هذا الأسبوع','This week'), f: dShift(todayStr, -new Date(todayStr + 'T12:00:00Z').getUTCDay()), t: todayStr }, // من الأحد (بداية الأسبوع) إلى اليوم
           { l: T('هذا الشهر','This month'), f: todayStr.slice(0, 8) + '01', t: todayStr },
         ]
-        const chip = (active) => ({ height: 30, padding: '0 14px', borderRadius: 8, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: '.15s', border: `1px solid ${active ? C.gold : 'rgba(255,255,255,.12)'}`, background: active ? 'rgba(212,160,23,.16)' : 'rgba(0,0,0,.18)', color: active ? C.gold : 'var(--tx2)' })
+        const chip = (active) => ({ height: 30, padding: '0 14px', borderRadius: 8, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: '.15s', border: `1px solid ${active ? 'var(--accent)' : 'var(--bd)'}`, background: active ? 'var(--accent-bg)' : 'var(--inputBg)', color: active ? 'var(--accent)' : 'var(--tx2)' })
         return (
-          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,.08)', paddingBottom: 2, marginBottom: 14 }}>
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: 'var(--shadow-md)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid var(--bd)', paddingBottom: 2, marginBottom: 14 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginInlineEnd: 8, paddingBottom: 8 }}>{T('فترة سريعة','Quick period')}</span>
               {datePresets.map(p => {
                 const a = from === p.f && to === p.t
@@ -1197,7 +1238,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         const dayVoid = dayRefunded + dayCancelled
         return (
           <div key={dayKey} style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--bd)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: dayKey === todayStr ? C.gold : 'var(--tx2)' }}>{dayLabel(dayKey)}</span>
                 <span style={{ fontSize: 12, color: 'var(--tx4)', fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{dayFull(dayKey)}</span>
@@ -1333,7 +1374,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                     ? ((Array.isArray(sr?.other_applications) ? sr.other_applications[0] : sr?.other_applications)?.details?.salary_phase || null)
                     : null,
                 }
-                return <InvCard key={r.id} d={d} T={T} isAr={isAr} toast={toast} onClick={() => setDetail(r)} />
+                return <InvCard key={r.id} d={d} row={r} sb={sb} T={T} isAr={isAr} toast={toast} onClick={() => setDetail(r)} />
               })}
             </div>
           </div>
@@ -1351,7 +1392,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         const nextDisabled = page + 1 >= totalPages
         const fromN = (page*PAGE)+1
         const toN = Math.min(total,(page+1)*PAGE)
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,.06)', margin: '4px 4px 14px' }}>
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid var(--bd)', margin: '4px 4px 14px' }}>
           <style>{`
             .inv-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
             .inv-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
@@ -1360,7 +1401,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
             .inv-pg-input::-webkit-outer-spin-button,.inv-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
           `}</style>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 13, color: '#fff', fontWeight: 700, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
+            <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 700, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500, fontFamily: F }}>{T('صفحة','Page')} {page+1} {T('من','of')} {totalPages}</span>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1393,6 +1434,8 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   const [doneStage, setDoneStage] = useState(null)
   const [workerModal, setWorkerModal] = useState(false)
   const [svcModal, setSvcModal] = useState(false)
+  // تعديل المكتب فقط — للخدمات ذات الجداول المخصّصة (نقل/أجير/تجديد/إصدار إقامة) التي لا تستخدم نافذة «تعديل تفاصيل الخدمة».
+  const [officeModal, setOfficeModal] = useState(false)
   const [clientModal, setClientModal] = useState(false)
   const [agentModal, setAgentModal] = useState(false)
   const [noteModal, setNoteModal] = useState(false)
@@ -1910,7 +1953,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       })()}
 
       {data.loading ? <InvoiceDetailSkeleton /> : (
-      <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_agent_edit') ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} canPayPerm={canPerm(user, 'invoices.record_payment')} canRefundPerm={canPerm(user, 'invoices.refund') && !gmLock} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} onOpenService={onOpenService} />
+      <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditOffice={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setOfficeModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_agent_edit') ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} canPayPerm={canPerm(user, 'invoices.record_payment')} canRefundPerm={canPerm(user, 'invoices.refund') && !gmLock} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} onOpenService={onOpenService} />
       )}
 
       {actionModal && <ActionModal type={actionModal} stage={doneStage} onClose={() => { setActionModal(null); setDoneStage(null) }} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} user={user} onSaved={() => setRefreshTick(t => t + 1)} visaDet={data?.det || []} svcCode={data?.code} insts={data?.insts || []} />}
@@ -1938,6 +1981,17 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           editorId={user?.id || null}
           editorName={user?.person?.name_ar || user?.person?.name_en || null}
           onClose={() => setSvcModal(false)}
+          onSaved={reloadInvoiceFull} />
+      )}
+
+      {officeModal && (
+        <OfficeEditModal sb={sb} toast={toast} T={T} user={user}
+          srId={inv.service_request?.id}
+          invId={inv.id}
+          currentBranchId={inv.branch?.id || null}
+          editorId={user?.id || null}
+          editorName={user?.person?.name_ar || user?.person?.name_en || null}
+          onClose={() => setOfficeModal(false)}
           onSaved={reloadInvoiceFull} />
       )}
 
@@ -2050,14 +2104,14 @@ const bankAcctLabel  = a => `${a.bank_name || ''}${a.account_name ? ' — ' + a.
 const bankAcctSearch = a => [a.bank_name, a.account_name, a.iban, a.account_number].filter(Boolean).join(' ')
 const renderBankAcctCell = (accent, T) => (a, sel) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: '100%' }}>
-    <span style={{ fontSize: 14, fontWeight: 600, color: sel ? accent : 'rgba(255,255,255,.92)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <span style={{ fontSize: 14, fontWeight: 600, color: sel ? accent : 'var(--tx)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <Landmark size={13} strokeWidth={2} style={{ flexShrink: 0, opacity: .85 }} />
       {a.bank_name || '—'}
       {a.is_primary && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.3)', borderRadius: 5, padding: '1px 6px' }}>{T('رئيسي', 'Primary')}</span>}
     </span>
-    {a.account_name && <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.62)' }}>{a.account_name}</span>}
-    {a.iban && <span style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', direction: 'ltr', fontFamily: 'ui-monospace, monospace', letterSpacing: '.4px' }}>{a.iban}</span>}
-    {a.account_number && <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.42)' }}>{T('رقم الحساب', 'Acct No')}: {a.account_number}</span>}
+    {a.account_name && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)' }}>{a.account_name}</span>}
+    {a.iban && <span style={{ fontSize: 11, color: 'var(--tx3)', direction: 'ltr', fontFamily: 'ui-monospace, monospace', letterSpacing: '.4px' }}>{a.iban}</span>}
+    {a.account_number && <span style={{ fontSize: 10.5, color: 'var(--tx4)' }}>{T('رقم الحساب', 'Acct No')}: {a.account_number}</span>}
   </div>
 )
 
@@ -2161,7 +2215,7 @@ const InstallmentPicker = ({ T, isAr, color, insts, selectedId, onSelect, locked
             title={locked ? T('تُفتح بعد سداد الدفعة السابقة بالكامل', 'Unlocks once the previous installment is fully paid')
               : noBorder ? T('أدخِل رقم الحدود للتأشيرة أولاً', 'Enter the visa border number first') : undefined}
             style={{ textAlign: 'start', cursor: blocked ? 'not-allowed' : 'pointer', opacity: blocked ? .55 : 1, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: active ? color + '14' : 'rgba(255,255,255,.03)', border: '1.5px solid ' + (active ? color : 'rgba(255,255,255,.08)'), transition: '.15s', fontFamily: F }}>
-            <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: active ? color : 'rgba(255,255,255,.06)', color: active ? '#10240f' : 'var(--tx3)', border: active ? 'none' : '1px solid rgba(255,255,255,.12)' }}>
+            <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: active ? color : 'rgba(255,255,255,.06)', color: active ? '#10240f' : 'var(--tx3)', border: active ? 'none' : '1px solid var(--bd)' }}>
               {blocked
                 ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 : ins.installment_order}
@@ -2298,7 +2352,7 @@ const VisaRefundDistForm = ({ T, isAr, color, visa, sharedInsts, residenceInst, 
               <span style={{ fontSize: 14, color, fontWeight: 800, direction: 'ltr' }}>−{num(Number(residenceInst.total_amount) || 0)}</span>
             </div>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '13px 14px', borderRadius: 10, background: 'rgba(0,0,0,.22)', border: '1px solid rgba(255,255,255,.06)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '13px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
             {sumRow(T('إجمالي النقص من الفاتورة', 'Total reduced'), totalDeduct, C.gold)}
             {sumRow(T('المبلغ المسترجع (المدفوع)', 'Refunded (paid)'), totalRefund, C.red)}
             <div style={{ height: 1, background: 'rgba(255,255,255,.06)' }} />
@@ -2313,7 +2367,7 @@ const VisaRefundDistForm = ({ T, isAr, color, visa, sharedInsts, residenceInst, 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* بطاقة التأشيرة — سطر واحد مدمج */}
         {visa && (
-          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 9, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 9, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{visaPickLabel(visa, isAr, T)}</span>
             {sub && <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>· {sub}</span>}
           </div>
@@ -2326,7 +2380,7 @@ const VisaRefundDistForm = ({ T, isAr, color, visa, sharedInsts, residenceInst, 
         {sharedInsts.map(it => {
           const total = Number(it.total_amount) || 0, paid = Number(it.paid_amount) || 0
           return (
-            <div key={it.id} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div key={it.id} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{milestoneLabel(it) || T('دفعة', 'Installment')}</span>
                 <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: 'right' }}>{T('مدفوع', 'Paid')} {num(paid)} / {num(total)}</span>
@@ -3529,7 +3583,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             {/* «التجديد عبر تواصل» — يظهر في نقل الكفالة وتجديد الإقامة. */}
             <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.92)', marginBottom: 9 }}>{T('التجديد عبر تواصل', 'Renewal via contact')}<span style={{ color: '#c0392b' }}> *</span></div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9 }}>{T('التجديد عبر تواصل', 'Renewal via contact')}<span style={{ color: '#c0392b' }}> *</span></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 {[{ key: true, color: C.ok, label: T('نعم', 'Yes') }, { key: false, color: C.red, label: T('لا', 'No') }].map(o => {
                   const sel = muqViaContact === o.key
@@ -3659,12 +3713,12 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           // الراتب الأساسي ثابت (400) — يُعرض للقراءة فقط بلا إمكانية تعديل.
           return (
             <div key={f.key} style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.92)', marginBottom: 9, textAlign: 'start', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9, textAlign: 'start', display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span>{lbl}{f.req && <span style={{ color: '#c0392b' }}> *</span>}</span>
               </div>
-              <div style={{ display: 'flex', direction: 'ltr', alignItems: 'center', justifyContent: 'center', gap: 6, border: '1px solid transparent', borderRadius: 9, background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42 }}>
+              <div style={{ display: 'flex', direction: 'ltr', alignItems: 'center', justifyContent: 'center', gap: 6, border: '1px solid transparent', borderRadius: 9, background: 'var(--inputBg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: '#2ecc71', flexShrink: 0 }}>{T('ريال', 'SAR')}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.92)' }}>{salReturnVals[f.key] || '400'}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>{salReturnVals[f.key] || '400'}</span>
               </div>
             </div>
           )
@@ -3857,14 +3911,14 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
 }
 
 /* ─── shared building blocks ─── */
-const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
-const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
+const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle  = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }
 const cardSub    = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }
 
 const ActionToolbar = ({ T, onRecordPayment, onRefund, onCancelInv, onPrint }) => {
   const btn = (color, bgLight, bdLight) => ({
-    height: 40, padding: '0 16px', borderRadius: 11, background: bgLight, border: '1px solid ' + bdLight, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 700, transition: '.18s', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04)'
+    height: 40, padding: '0 16px', borderRadius: 11, background: bgLight, border: '1px solid ' + bdLight, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 700, transition: '.18s', boxShadow: 'var(--shadow-sm)'
   })
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -3913,7 +3967,7 @@ const ClientRows = ({ inv, T, user }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {primary && fieldVisible(user, 'invoices', 'client_name') && (
-        <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {T('الاسم','Name')}
             {isWorker && (
@@ -3933,7 +3987,7 @@ const ClientRows = ({ inv, T, user }) => {
       {cells.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, cells.length))},1fr)`, gap: 8 }}>
           {cells.map((f, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{f.label}</span>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                 <CopyBtn text={f.value} />
@@ -3959,7 +4013,7 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle 
     onKeyDown={onOpen ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }) : undefined}
     onMouseEnter={onOpen ? (e => { const n = e.currentTarget.querySelector('[data-hero-name]'); if (n) n.style.textDecoration = 'underline' }) : undefined}
     onMouseLeave={onOpen ? (e => { const n = e.currentTarget.querySelector('[data-hero-name]'); if (n) n.style.textDecoration = 'none' }) : undefined}
-    style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, cursor: onOpen ? 'pointer' : 'default' }}>
+    style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: 'var(--shadow-md)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, cursor: onOpen ? 'pointer' : 'default' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
       <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -3973,7 +4027,7 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle 
     {cells.length > 0 && (
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, cells.length))},1fr)`, gap: 8 }}>
         {cells.map((c, i) => (
-          <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
               <CopyBtn text={c.value} />
@@ -4043,7 +4097,7 @@ const BrokerRows = ({ agent, T, user }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {primary && fieldVisible(user, 'invoices', 'agent_name') && (
-        <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('الاسم','Name')}</span>
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
             <CopyBtn text={primary} />
@@ -4055,7 +4109,7 @@ const BrokerRows = ({ agent, T, user }) => {
       {cells.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, cells.length))},1fr)`, gap: 8 }}>
           {cells.map((f, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{f.label}</span>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                 <CopyBtn text={f.value} />
@@ -4103,7 +4157,7 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
       iqExp && { label: T('انتهاء الإقامة', 'Iqama expiry'), value: fmtIntlDate(iqExp) },
     ].filter(Boolean)
     return (
-      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '11px 12px', marginBottom: 8 }}>
+      <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '11px 12px', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 9, marginBottom: tiles.length || muq || vf ? 10 : 0 }}>
           <span style={{ flexShrink: 0, alignSelf: 'stretch', width: 22, borderRadius: 6, background: svc.c + '1a', border: '1px solid ' + svc.c + '40', color: svc.c, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -4144,7 +4198,7 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
   const single = det.length === 1 ? det[0] : null
   return (
     <>
-      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+      <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('الخدمة','Service')}</span>
         <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-start', gap: 6 }}>
           <span style={{ color: C.gold, fontWeight: 600, fontSize: 14 }}>{isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en)}</span>
@@ -4230,12 +4284,12 @@ const PassportRow = ({ T, att, borderNo }) => {
   if (!url) return null
   const isImg = /\.(png|jpe?g|gif|webp|bmp)$/i.test(att.file_name || url)
   return (
-    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+    <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
       <span style={{ flex: 1, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 700 }}>
         {T('صورة جواز العامل', 'Worker Passport')}
         {borderNo ? <span style={{ color: 'var(--tx4)', fontWeight: 600 }}> · {T('رقم الحدود', 'Border')} <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{borderNo}</span></span> : ''}
       </span>
-      {isImg && <a href={url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, lineHeight: 0 }}><img src={url} alt="" style={{ width: 42, height: 30, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)' }} /></a>}
+      {isImg && <a href={url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, lineHeight: 0 }}><img src={url} alt="" style={{ width: 42, height: 30, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--bd)' }} /></a>}
       <a href={url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, fontSize: 11.5, color: C.gold, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
         {T('فتح', 'Open')}
@@ -4438,7 +4492,7 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
     if (isExtend && dt.visa_number) extraCells.push({ label: T('رقم التأشيرة', 'Visa No'), value: String(dt.visa_number), mono: true })
   }
 
-  const boxStyle = { background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }
+  const boxStyle = { background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -4447,23 +4501,23 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
       <div style={boxStyle}>
         <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcName}</span>
         {workerName && !isZeroSvc(code) && !SELF_PARTY_DONE_SVCS.includes(code) && (
-          <span style={{ fontSize: 13, color: '#fff', fontWeight: 700, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>{workerName}</span>
+          <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 700, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>{workerName}</span>
         )}
         {/* نوع التصديق ونص الطلب صارا يُعرضان أسفل (بعد splCells) — مثل التأمين الطبي */}
         {/* طباعة الإقامة: سبب الطلب المُدخل في النموذج */}
         {code === 'iqama_print' && d?.details?.print_reason && (
-          <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>
+          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>
             <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('السبب','Reason')}: </span>{d.details.print_reason}
           </span>
         )}
         {code === 'exit_reentry_visa' ? (
-          <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>{erOpLabel}</span>
+          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>{erOpLabel}</span>
         ) : descVis && d?.description && d.description !== svcName && (
-          <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>{d.description}</span>
+          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>{d.description}</span>
         )}
         {/* رواتب سبلاير: حقول الطلب (الأشهر + الإجمالي) مدمجة داخل كرت اسم الخدمة بفاصل علوي. */}
         {splCells.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, splCells.length)},1fr)`, gap: 14, marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, splCells.length)},1fr)`, gap: 14, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--bd)' }}>
             {splCells.map((c, i) => (
               <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
@@ -4516,12 +4570,12 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
 // رأس متدرّج ذهبي يبرز إجمالي الفاتورة، تحته بطاقتا المسدّد/المتبقي، شريط نسبة السداد،
 // ثم فوتر يجمع منشئ الفاتورة + عدد الدفعات + عدد المدفوعات.
 const SAR = (T) => T('ريال', 'SAR')
-const remColor = (r) => r > 0 ? C.red : r < 0 ? C.ok : '#fff'
+const remColor = (r) => r > 0 ? C.red : r < 0 ? C.ok : 'var(--tx)'
 
 const FinPill = ({ color, label, value, unit }) => {
   // بطاقة داكنة مع شريط لون عمودي على جهة البداية والرقم ملوّن
   return (
-    <div style={{ position: 'relative', padding: '12px 14px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', padding: '12px 14px', borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, bottom: 0, insetInlineStart: 0, width: 4, background: color }} />
       <div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, marginBottom: 5 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, direction: 'ltr', justifyContent: 'flex-start' }}>
@@ -4596,7 +4650,7 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
       </div>
       )}
       {/* فوتر: عدّادات الدفعات والمدفوعات */}
-      <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ padding: '14px 22px', borderTop: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {visInstCount && <FinMetaRow label={T('عدد الدفعات', 'Installments')} value={nInst} ltr />}
         {visPayCount && <FinMetaRow label={T('عدد المدفوعات', 'Payments')} value={nPays} ltr />}
         {/* رقم الحسبة — فوق المدة المتوقعة مباشرةً. */}
@@ -4688,7 +4742,7 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
   const hasLog = Array.isArray(editLog) && editLog.length > 0
   return (
     <div style={{ marginBottom: 6 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 11px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', opacity: valid ? 1 : 0.6 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 11px', borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', opacity: valid ? 1 : 0.6 }}>
       <span style={{ width: 34, alignSelf: 'stretch', minHeight: 34, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: tint + '.12)', color: accent, border: '1px solid ' + tint + '.28)' }}>
         {isRefund
           ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
@@ -4762,7 +4816,7 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
       )}
       {onEdit && valid && (
         <button onClick={() => onEdit(p)} title={T('تعديل الدفعة','Edit payment')}
-          style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, background: 'transparent', border: '1px dashed rgba(212,160,23,.45)', color: C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         </button>
       )}
@@ -4928,7 +4982,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
       <span style={cardTitle}>{T('التسعير','Pricing')}</span>
       {onEdit && (
         <button onClick={onEdit} title={T('تعديل التسعير','Edit pricing')}
-          style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
           <span>{T('تعديل','Edit')}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         </button>
@@ -4961,13 +5015,13 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
           return (
             <>
               {visBreakdown && lineItems.map((it, i) => <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', minHeight: 26 }}><span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{it[0]}</span><span style={{ fontSize: 12.5, color: it[2] || 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(it[1])}</span></div>)}
-              <div style={{ marginTop: 8, borderTop: '1px solid rgba(255,255,255,.1)', paddingTop: 10 }}>
+              <div style={{ marginTop: 8, borderTop: '1px solid var(--bd)', paddingTop: 10 }}>
                 {officeFeeV > 0 && visOfficeFee && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: 'var(--tx3)', fontWeight: 600 }}>{T('رسوم المكتب', 'Office Fees')}</span><span style={{ fontSize: 14, color: 'var(--tx)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(officeFeeV)}</span></div>}
                 {visBreakdown && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span><span style={{ fontSize: 14, color: C.gold, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(subtotalV)}</span></div>}
                 {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
                 {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
               </div>
-              {visTotal && <div style={{ margin: '10px 0 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#1b1b1b', borderRadius: 12, borderRight: '3px solid ' + C.gold }}><span style={{ color: C.gold, fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{num(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>}
+              {visTotal && <div style={{ margin: '10px 0 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'linear-gradient(135deg,#d4a017,#bd8a13)', borderRadius: 12, borderRight: '3px solid #9c7610' }}><span style={{ color: '#1a1a1a', fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: '#1a1a1a', fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{num(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>}
             </>
           )
         }
@@ -4992,15 +5046,15 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
             ...extras.map(e => [e.name || T('بند إضافي', 'Extra'), Number(e.amount || 0), C.blue]),
           ].filter(Boolean)
           return (
-            <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(0,0,0,.18)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+            <div style={{ borderRadius: 12, border: '1px solid var(--bd)', background: 'var(--inputBg)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
               {visBreakdown && lineItems.map((it, i) => <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{it[0]}</span><span style={{ fontSize: 12.5, color: it[2] || 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(it[1])}</span></div>)}
               {officeFeeV > 0 && visOfficeFee && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{T('رسوم المكتب', 'Office Fees')}</span><span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(officeFeeV)}</span></div>}
               {cover > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 12, color: '#27a046', fontWeight: 600 }}>{T('خصم عام', 'General Discount')}</span><span style={{ fontSize: 12.5, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(cover)}</span></div>}
-              {((Number(tc.absher_discount || 0) > 0 && visAbsher) || (Number(tc.manual_discount || 0) > 0 && visOfficeDisc)) && <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,.1)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {((Number(tc.absher_discount || 0) > 0 && visAbsher) || (Number(tc.manual_discount || 0) > 0 && visOfficeDisc)) && <div style={{ marginTop: 4, borderTop: '1px solid var(--bd)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
                 {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
               </div>}
-              {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: '#1b1b1b', borderRadius: 10, borderRight: '3px solid ' + C.gold }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 700 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totalV)}</span></div>}
+              {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'linear-gradient(135deg,#d4a017,#bd8a13)', borderRadius: 10, borderRight: '3px solid #9c7610' }}><span style={{ fontSize: 14.5, color: '#1a1a1a', fontWeight: 700 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: '#1a1a1a', fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totalV)}</span></div>}
             </div>
           )
         }
@@ -5037,7 +5091,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
           return ''
         }
         return (
-        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(0,0,0,.18)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+        <div style={{ borderRadius: 12, border: '1px solid var(--bd)', background: 'var(--inputBg)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
           {visBreakdown && breakdown.map((l, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 14 }}>
               <span style={{ color: 'var(--tx2)', fontWeight: 600, fontSize: 12.5 }}>{((l.label === 'رسوم عقد أجير' || l.label === 'رسوم أساسية') ? T('رسوم العقد', 'Contract Fee') : fmtLineLabel(l.label, T)) + monthSuffix(l.label)}</span>
@@ -5047,7 +5101,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
           {disc > 0 ? (
             <>
               {visBreakdown && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 9, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 9, borderTop: '1px solid var(--bd)' }}>
                 <span style={{ fontSize: 13, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي','Subtotal')}</span>
                 <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(lineSum)}</span>
               </div>
@@ -5066,15 +5120,15 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
                 </div>
               )}
               {visTotal && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 3, padding: '12px 14px', background: '#1b1b1b', borderRadius: 10, borderInlineEnd: '3px solid ' + C.gold }}>
-                <span style={{ fontSize: 14.5, color: C.gold, fontWeight: 700 }}>{T('الإجمالي النهائي','Final Total')}</span>
-                <span style={{ fontSize: 18, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 3, padding: '12px 14px', background: 'linear-gradient(135deg,#d4a017,#bd8a13)', borderRadius: 10, borderInlineEnd: '3px solid #9c7610' }}>
+                <span style={{ fontSize: 14.5, color: '#1a1a1a', fontWeight: 700 }}>{T('الإجمالي النهائي','Final Total')}</span>
+                <span style={{ fontSize: 18, color: '#1a1a1a', fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
               </div>
               )}
             </>
           ) : (
             visTotal && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 9, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 9, borderTop: '1px solid var(--bd)' }}>
               <span style={{ fontSize: 16, color: C.gold, fontWeight: 600 }}>{T('الإجمالي','Total')}</span>
               <span style={{ fontSize: 16, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
             </div>
@@ -5089,9 +5143,9 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
             { label: T('المسدّد','Paid'), value: paid, c: C.ok },
             { label: T('المتبقي','Remaining'), value: remaining, c: remaining > 0 ? C.red : 'var(--tx2)' },
           ].filter(Boolean).map((s, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{s.label}</span>
-              <span style={{ fontSize: 15, color: s.c, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(s.value)}</span>
+              <span style={{ fontSize: 15, color: s.c, fontWeight: 800, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(s.value)}</span>
             </div>
           ))}
         </div>
@@ -5150,7 +5204,7 @@ const HeaderChips = ({ inv, isAr, T, svc, payT }) => (
     <span style={{ padding: '4px 12px', borderRadius: 8, background: svc.bg, border: '1px solid ' + svc.bd, color: svc.c, fontSize: 12, fontWeight: 700 }}>{isAr ? svc.label_ar : svc.label_en}</span>
     <span style={{ padding: '4px 12px', borderRadius: 999, border: '1.5px solid ' + payT.c, color: payT.c, fontSize: 11, fontWeight: 800, letterSpacing: 1 }}>{isAr ? payT.stamp_ar : payT.stamp_en}</span>
     <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{fmtGreg(inv.created_at, isAr)}</span>
-    {inv.branch?.branch_code && <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx3)', direction: 'ltr', fontWeight: 700 }}>{inv.branch.branch_code}</span>}
+    {inv.branch?.branch_code && <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--bd)', color: 'var(--tx3)', direction: 'ltr', fontWeight: 700 }}>{inv.branch.branch_code}</span>}
   </div>
 )
 
@@ -5277,14 +5331,14 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
     const nat = w.nationality
     const url = nat?.flag_url
     return (
-      <div title={nat?.name_ar || ''} style={{ width: size, height: size, borderRadius: 12, background: 'rgba(0,0,0,.25)', border: '1px solid rgba(255,255,255,.08)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div title={nat?.name_ar || ''} style={{ width: size, height: size, borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {url ? <img src={url} alt={nat?.name_ar || ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           : (flagEmoji(nat?.code) ? <span style={{ fontSize: Math.round(size * 0.5), lineHeight: 1 }}>{flagEmoji(nat?.code)}</span> : <Globe size={Math.round(size * 0.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)" />)}
       </div>
     )
   }
   const infoBox = (Icon, label, value, valColor) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', minWidth: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', minWidth: 0 }}>
       <Icon size={13} color={valColor || C.gold} strokeWidth={1.8} style={{ flexShrink: 0 }} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
         <span style={{ fontSize: 9, color: 'var(--tx5)', fontWeight: 600 }}>{label}</span>
@@ -5298,14 +5352,14 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
     const isCur = currentId && currentId === w.id
     return (
       <div onClick={() => { setErr(''); setSelected(w) }}
-        style={{ cursor: 'pointer', position: 'relative', border: '1px solid rgba(255,255,255,.08)', background: 'linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', transition: 'all .22s ease', padding: 14, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 12 }}
+        style={{ cursor: 'pointer', position: 'relative', border: '1px solid var(--bd)', background: 'linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))', boxShadow: 'var(--shadow-md)', transition: 'all .22s ease', padding: 14, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 12 }}
         onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.08),rgba(255,255,255,.02))'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {flagEl(w, 48)}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 15.5, fontWeight: 600, color: 'rgba(255,255,255,.95)', letterSpacing: '-.2px' }}>{nm}</span>
+              <span style={{ fontSize: 15.5, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{nm}</span>
               {isCur && <span style={{ fontSize: 9.5, fontWeight: 600, color: C.gold, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.3)', borderRadius: 20, padding: '2px 8px' }}>{T('الحالي','Current')}</span>}
               {w.worker_type === 'temporary' && <span style={{ fontSize: 9.5, fontWeight: 600, color: '#5dade2', background: 'rgba(93,173,226,.12)', border: '1px solid rgba(93,173,226,.3)', borderRadius: 20, padding: '2px 8px' }}>{T('مؤقت','Temporary')}</span>}
             </span>
@@ -5327,9 +5381,9 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
       {children}
     </div>
   )
-  const pillBase = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', borderRadius: 9, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', minHeight: 40 }
+  const pillBase = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', borderRadius: 9, background: 'rgba(255,255,255,.03)', border: '1px solid var(--bd)', minHeight: 40 }
   const pLbl = { fontSize: 10, color: 'var(--tx5)', fontWeight: 600, letterSpacing: '.2px', lineHeight: 1.2 }
-  const pVal = { fontSize: 13, color: '#fff', fontWeight: 600, direction: 'ltr', lineHeight: 1.2, textAlign: 'right' }
+  const pVal = { fontSize: 13, color: 'var(--tx)', fontWeight: 600, direction: 'ltr', lineHeight: 1.2, textAlign: 'right' }
   // العامل المُختار — بطاقة بشارة «محدد» + زر إلغاء أحمر، يتبعها إطارا العامل والمنشأة.
   const SelectedView = () => {
     const w = selected
@@ -5340,7 +5394,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
     const facilityLabel = fac?.name_ar || fac?.name_en || T('بيانات المنشأة','Facility Info')
     return (
       <>
-        <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', padding: 14, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: 'var(--shadow-md)', padding: 14, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
           <button onClick={() => { setSelected(null) }} title={T('تغيير العامل','Change worker')}
             style={{ position: 'absolute', top: 8, left: 8, width: 28, height: 28, borderRadius: 8, background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.35)', color: C.red, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, transition: '.15s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.22)' }}
@@ -5416,7 +5470,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
             </span>
             <input type="text" value={q} onChange={e => setQ(e.target.value)} autoFocus
               placeholder={T('ابحث بالاسم أو رقم الإقامة…','Search by name or Iqama…')}
-              style={{ width: '100%', height: 42, padding: '0 14px 0 40px', borderRadius: 10, background: 'rgba(0,0,0,.25)', border: '1px solid rgba(255,255,255,.08)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box', textAlign: 'right' }} />
+              style={{ width: '100%', height: 42, padding: '0 14px 0 40px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box', textAlign: 'right' }} />
           </div>
         )}
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -5811,6 +5865,57 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
   )
 }
 
+// تعديل المكتب فقط — للخدمات ذات الجداول المخصّصة (نقل/أجير/تجديد/إصدار إقامة) التي لا تستخدم
+// نافذة «تعديل تفاصيل الخدمة» (تلك تكتب في other_applications). يُحدَّث المكتب على الفاتورة وطلب
+// الخدمة معاً (كرت «المكتب» يقرأ من الفاتورة)، ويُلحق التغيير بسجلّ invoices.service_log.
+function OfficeEditModal({ sb, toast, T, srId, invId, currentBranchId, editorId, editorName, onClose, onSaved, user }) {
+  const editOffice = fieldEditable(user, 'invoices', 'service_office')
+  const [branchId, setBranchId] = useState(currentBranchId || '')
+  const [branches, setBranches] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  // قائمة المكاتب — نفس مصدر فلتر الفواتير (الجدول يحمل branch_code فقط، بلا أسماء).
+  useEffect(() => {
+    sb.from('branches').select('id,branch_code').order('branch_code')
+      .then(({ data }) => setBranches(data || []))
+  }, [])
+  const branchChanged = String(branchId || '') !== String(currentBranchId || '')
+  const save = async () => {
+    if (saving || !invId || !srId || !branchChanged) return
+    setErr(''); setSaving(true)
+    try {
+      const nowIso = new Date().toISOString()
+      const codeOf = id => branches.find(b => b.id === id)?.branch_code || null
+      const bid = branchId || null
+      // اقرأ السجلّ الحالي لإلحاق القيد دون الكتابة فوق قيم متزامنة.
+      const { data: invRow } = await sb.from('invoices').select('service_log').eq('id', invId).maybeSingle()
+      const log = Array.isArray(invRow?.service_log) ? invRow.service_log : []
+      const entry = { at: nowIso, by: editorId || null, by_name: editorName || null, changes: [{ field: 'office', from: codeOf(currentBranchId), to: codeOf(bid) }] }
+      const { error: e1 } = await sb.from('invoices').update({ branch_id: bid, service_log: [...log, entry] }).eq('id', invId); if (e1) throw e1
+      const { error: e2 } = await sb.from('service_requests').update({ branch_id: bid }).eq('id', srId); if (e2) throw e2
+      onSaved?.(); setDone(true)
+    } catch { setErr(T('تعذر الحفظ','Save failed')) }
+    finally { setSaving(false) }
+  }
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F, flex: 1, minHeight: 0 }}>
+      <ModalSection flex Icon={FileText} label={T('المكتب','Office')} style={{ marginTop: 6 }}>
+        <div style={GRID}>
+          <FKSelect full label={T('المكتب','Office')} value={branchId} onChange={v => { setErr(''); setBranchId(v) }} placeholder={T('— اختر —','— Select —')}
+            options={branches} getKey={b => b.id} getLabel={b => b.branch_code || '—'} disabled={!editOffice} />
+        </div>
+      </ModalSection>
+    </div>
+  )
+  return (
+    <Modal open onClose={onClose} title={T('تعديل المكتب','Edit office')} Icon={FileText} width={520} height={380} accent={C.gold}
+      success={done ? <SuccessView title={T('تم حفظ التعديلات','Changes saved')} /> : undefined}
+      pages={[{ valid: branchChanged, error: err || undefined, content }]}
+      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('تعديل المكتب','Edit office')} />
+  )
+}
+
 // يعيد اشتقاق حالة الفاتورة (نشطة ↔ مدفوعة بالكامل) من المبالغ بعد أي تعديل، تماماً كما
 // يفعل تسجيل الدفعة/الاسترجاع. يتجاهل الفواتير الملغاة. يُرجع جزء التحديث (status_id).
 const invoiceStatusPatch = async (sb, statusCode, paid, total) => {
@@ -6027,7 +6132,7 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
   }
   // صف مفتاح/قيمة (تصميم F) — اسم الحقل يميناً وقيمته يساراً، مع فاصل سفلي للصفوف العلوية.
   const KV = ({ label, value, ltr, divider, full }) => (
-    <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, fontSize: 11.5, minWidth: 0, gridColumn: full ? '1 / -1' : 'auto', paddingBottom: divider ? 5 : 0, borderBottom: divider ? '1px solid rgba(255,255,255,.05)' : 'none' }}>
+    <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, fontSize: 11.5, minWidth: 0, gridColumn: full ? '1 / -1' : 'auto', paddingBottom: divider ? 5 : 0, borderBottom: divider ? '1px solid var(--bd)' : 'none' }}>
       <span style={{ color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
       <MarqueeValue value={value} ltr={ltr} />
     </span>
@@ -6069,7 +6174,7 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
             )}
             <ModalSection key={r.id} Icon={Hash} label={visaLabel(i)} style={{ marginTop: 6 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px 18px', padding: '2px 2px 8px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px 18px', padding: '2px 2px 8px', borderBottom: '1px solid var(--bd)' }}>
                   <KV label={T('الجنسية','Nationality')} value={natOf(r)} />
                   <KV label={T('السفارة','Embassy')} value={embOf(r)} />
                   <KV label={T('المهنة','Occupation')} value={occOf(r)} />
@@ -6241,7 +6346,7 @@ function VisaStageDataModal({ stage, sb, toast, T, isAr, inv, user, visas, iqama
             )}
             <ModalSection key={r.id} Icon={RenewalDataIco} label={visaLabel(i)} style={{ marginTop: 6 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px 18px', padding: '2px 2px 8px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px 18px', padding: '2px 2px 8px', borderBottom: '1px solid var(--bd)' }}>
                   <KV label={T('الجنسية', 'Nationality')} value={natOf(r)} />
                   <KV label={T('المهنة', 'Occupation')} value={occOf(r)} />
                   {r.worker_name && <KV label={T('اسم العامل', 'Worker')} value={r.worker_name} />}
@@ -6317,9 +6422,9 @@ const StageRow = ({ label, onClick, disabled = false, done = false, title, color
   </div>
 ) : (
   <button onClick={onClick} disabled={disabled} title={title}
-    onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = color + '14' }}
-    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-    style={{ flex: 1, minWidth: 120, height: 36, padding: '0 12px', borderRadius: 8, background: 'transparent', border: `1px dashed ${disabled ? 'rgba(255,255,255,.18)' : color + '80'}`, color: disabled ? 'var(--tx4)' : color, cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, fontSize: 12, fontWeight: 700, transition: 'background .15s ease' }}>
+    onMouseEnter={e => { if (!disabled) e.currentTarget.style.filter = 'brightness(.93)' }}
+    onMouseLeave={e => { if (!disabled) e.currentTarget.style.filter = 'none' }}
+    style={{ flex: 1, minWidth: 120, height: 36, padding: '0 12px', borderRadius: 8, background: disabled ? 'transparent' : 'linear-gradient(160deg,#23201a,#141210)', border: `1px solid ${disabled ? 'var(--bd)' : 'rgba(212,160,23,.5)'}`, color: disabled ? 'var(--tx4)' : '#F0CB6A', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, fontSize: 12, fontWeight: 700, boxShadow: disabled ? 'none' : '0 5px 16px rgba(0,0,0,.26), inset 0 1px 0 rgba(212,160,23,.18)', transition: 'filter .15s ease' }}>
     <span>{label}</span>
     {icon || <CheckBadgeIco />}
   </button>
@@ -6475,7 +6580,7 @@ function IqamaIssueModal({ sb, toast, T, isAr, inv, user, visas, iqamaSet, iqama
       : { c: C.warn, label: T('بانتظار سداد دفعة الإقامة','Awaiting iqama payment') }
   // صف مفتاح/قيمة (تصميم F) — اسم الحقل يميناً وقيمته يساراً، مع فاصل سفلي للصفوف العلوية.
   const KV = ({ label, value, ltr, divider, full, color }) => (
-    <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, fontSize: 11.5, minWidth: 0, gridColumn: full ? '1 / -1' : 'auto', paddingBottom: divider ? 5 : 0, borderBottom: divider ? '1px solid rgba(255,255,255,.05)' : 'none' }}>
+    <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, fontSize: 11.5, minWidth: 0, gridColumn: full ? '1 / -1' : 'auto', paddingBottom: divider ? 5 : 0, borderBottom: divider ? '1px solid var(--bd)' : 'none' }}>
       <span style={{ color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
       <MarqueeValue value={value} ltr={ltr} color={color} />
     </span>
@@ -6515,7 +6620,7 @@ function IqamaIssueModal({ sb, toast, T, isAr, inv, user, visas, iqamaSet, iqama
             <ModalSection key={v.id} Icon={BadgeCheck} label={`${visaLabel(i)}${v.border_number ? ' · ' + v.border_number : ''}`} style={{ marginTop: 6 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {/* مواصفات التأشيرة */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px 18px', padding: '2px 2px 8px', borderBottom: st === 'eligible' ? '1px solid rgba(255,255,255,.06)' : 'none' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px 18px', padding: '2px 2px 8px', borderBottom: st === 'eligible' ? '1px solid var(--bd)' : 'none' }}>
                   <KV label={T('الجنسية','Nationality')} value={natOf(v)} divider />
                   <KV label={T('السفارة','Embassy')} value={embOf(v)} divider />
                   <KV label={T('المهنة','Occupation')} value={occOf(v)} divider />
@@ -6832,10 +6937,10 @@ function PricingEditModal({ sb, toast, T, inv, paid = 0, onClose, onSaved, user 
               </div>
             ))}
             {editBreakdown && <button type="button" onClick={addLine}
-              style={{ alignSelf: 'flex-end', height: 36, padding: '0 14px', borderRadius: 9, border: '1px dashed rgba(212,160,23,.5)', background: 'transparent', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, direction: 'ltr' }}>
+              style={{ alignSelf: 'flex-end', height: 36, padding: '0 14px', borderRadius: 9, border: '1px dashed var(--accent-bd)', background: 'rgba(212,160,23,.06)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, direction: 'ltr' }}>
               <Plus size={14} /> <span>{T('إضافة بند','Add item')}</span>
             </button>}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--bd)' }}>
               <span style={{ fontSize: 15, color: C.gold, fontWeight: 700 }}>{T('الإجمالي','Total')}</span>
               <span style={{ fontSize: 16, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(computedTotal)}</span>
             </div>
@@ -6869,7 +6974,7 @@ const ChangeLog = ({ T, title, entries, actionLabel, renderDetail }) => {
         {title}
       </span>
       {[...entries].reverse().map((c, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
           <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </span>
@@ -7255,14 +7360,14 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
         </div>
         {groups.length < 4 && (
           <button type="button" onClick={addGroup} title={T('إضافة مجموعة', 'Add group')}
-            style={{ height: 30, padding: '0 13px', background: 'transparent', border: '1.3px dashed rgba(212,160,23,.55)', borderRadius: 9, color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            style={{ height: 30, padding: '0 13px', background: 'rgba(212,160,23,.06)', border: '1.3px dashed var(--accent-bd)', borderRadius: 9, color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span>{T('مجموعة', 'Group')}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
         )}
       </div>
       {groups.length > 1 && (
-        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--bd)' }}>
           {groups.map((gg, i) => {
             const isAct = gg.id === activeId, done2 = isGroupComplete(gg)
             return (
@@ -7328,9 +7433,9 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
   const canAddMore = files.length < MAX_FILES
   const filesPage = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, width: '100%', fontFamily: F }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, paddingBottom: 8, borderBottom: '1px solid var(--bd)' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: isComplete ? '#2ea043' : isOver ? '#c0392b' : C.gold }}>
-          <span>{sumF}/{totalVisas}</span><span>·</span><span>{isComplete ? T('مكتمل', 'Done') : isOver ? T('زيادة', 'Over') : T('متبقي', 'Left')}</span>
+          <span>{totalVisas}/{sumF}</span><span>·</span><span>{isComplete ? T('مكتمل', 'Done') : isOver ? T('زيادة', 'Over') : T('متبقي', 'Left')}</span>
         </span>
         <div style={{ flex: 1, minWidth: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${distPct}%`, background: isComplete ? '#2ea043' : isOver ? '#c0392b' : C.gold, borderRadius: 2, transition: 'width .3s' }} />
@@ -7341,9 +7446,9 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
             <span>{T('اسحب للنقل', 'Drag to move')}</span>
           </span>
         )}
-        <button type="button" onClick={() => { setFiles(vPackFiles(groups)); setAutoMode(true); setErr('') }} style={{ border: '1.3px dashed rgba(212,160,23,.55)', borderRadius: 9, color: C.gold, cursor: 'pointer', height: 30, padding: '0 13px', fontSize: 12, fontWeight: 600, fontFamily: F, background: 'transparent' }}>{T('تلقائي', 'Auto')}</button>
+        <button type="button" onClick={() => { setFiles(vPackFiles(groups)); setAutoMode(true); setErr('') }} style={{ border: '1.3px dashed var(--accent-bd)', borderRadius: 9, color: 'var(--accent)', cursor: 'pointer', height: 30, padding: '0 13px', fontSize: 12, fontWeight: 600, fontFamily: F, background: 'var(--accent-soft)', boxShadow: '0 2px 8px var(--shadowClr)' }}>{T('تلقائي', 'Auto')}</button>
         {canAddMore && (
-          <button type="button" onClick={addFile} style={{ border: '1.3px dashed rgba(212,160,23,.55)', borderRadius: 9, color: C.gold, cursor: 'pointer', height: 30, padding: '0 13px', fontSize: 12, fontWeight: 600, fontFamily: F, background: 'transparent', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <button type="button" onClick={addFile} style={{ border: '1.3px dashed var(--accent-bd)', borderRadius: 9, color: 'var(--accent)', cursor: 'pointer', height: 30, padding: '0 13px', fontSize: 12, fontWeight: 600, fontFamily: F, background: 'var(--accent-soft)', boxShadow: '0 2px 8px var(--shadowClr)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span>{T('ملف', 'File')}</span>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -7367,7 +7472,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 8px 4px', borderBottom: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 8px 4px', borderBottom: '1px solid var(--bd)', background: 'rgba(255,255,255,.02)' }}>
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: full ? '#2ea043' : C.gold }}>{T('الملف', 'File')} {(isAr ? ORD_AR[i] : null) || (i + 1)}</span>
                   <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--tx5)' }}>•</span>
                   <span style={{ fontSize: 14, fontWeight: 600, color: full ? '#2ea043' : c > 0 ? C.gold : 'var(--tx5)', lineHeight: 1 }}><span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)' }}>4/</span>{c}</span>
@@ -7409,7 +7514,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
                           style={{ width: 9, height: 9, borderRadius: '50%', border: 'none', background: filled ? (full ? '#2ea043' : C.gold) : 'rgba(255,255,255,.12)', cursor: 'pointer', padding: 0 }} title={`${T('اضبط على', 'Set to')} ${n}`} />
                       ) })}
                     </div>
-                    <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,.05)', marginTop: 'auto' }}>
+                    <div style={{ display: 'flex', borderTop: '1px solid var(--bd)', marginTop: 'auto' }}>
                       <button type="button" onClick={() => { const gid = groups[0]?.id; if (gid) decGroup(f.id, gid) }} disabled={c <= 1}
                         style={{ flex: 1, height: 28, border: 'none', background: 'transparent', color: 'var(--tx3)', fontSize: 16, fontWeight: 600, cursor: c <= 1 ? 'not-allowed' : 'pointer', opacity: c <= 1 ? .25 : 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                       <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />
@@ -7444,7 +7549,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
 
 // كود المكتب الذي صدرت منه الفاتورة — يُعرض ضمن كرت الخدمة (صندوق بنفس نمط الحقول).
 const OfficeCodeBox = ({ code, T }) => !code ? null : (
-  <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+  <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
     <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
       <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{code}</span>
@@ -7482,7 +7587,7 @@ const InvoiceDetailSkeleton = () => {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {[0, 1].map(i => (
-            <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
               <Shimmer w="40%" h={9} /><Shimmer w="70%" h={13} />
             </div>
           ))}
@@ -7579,7 +7684,7 @@ function InvoiceCommentsCard({ sb, T, isAr, toast, inv, user }) {
             const dt = new Date(n.created_at)
             const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0')
             return (
-              <div key={n.id} style={{ background: 'rgba(0,0,0,.18)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid rgba(255,255,255,.05)' }}>
+              <div key={n.id} style={{ background: 'var(--inputBg)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--bd)' }}>
                 {visText && <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>}
                 {visAtt && Array.isArray(n.attachments) && n.attachments.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
@@ -7674,7 +7779,7 @@ function InvoiceCommentModal({ sb, T, toast, srId, user, onClose, onSaved }) {
   )
 }
 
-const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onRefund, onCancelInv, onPrint, onEditWorker, onEditService, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onEditPayment, onOpenService, canPayPerm = true, canRefundPerm = true, canCancelPerm = true, gmLock = false }) => (
+const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onRefund, onCancelInv, onPrint, onEditWorker, onEditService, onEditOffice, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onEditPayment, onOpenService, canPayPerm = true, canRefundPerm = true, canCancelPerm = true, gmLock = false }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* كرت العميل يظهر فقط للخدمات التي تتطلب عميلاً (تأشيرات العمل، نقل الكفالة، تجديد الإقامة،
@@ -7709,7 +7814,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
           })()}
           {!!onEditClient && !!inv.service_request?.client && canCardBtn(user, 'invoices', 'client', 'edit') && (
             <button onClick={onEditClient} title={T('تعديل بيانات العميل','Edit client')}
-              style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               <span>{T('تعديل','Edit')}</span>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
@@ -7778,7 +7883,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               )}
               {editable && (
                 <button onClick={onEditWorker} title={T('تغيير العامل','Change worker')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{T('تعديل','Edit')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
@@ -7814,14 +7919,14 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
             <span style={cardTitle}>{T('الخدمة','Service')}</span>
             {bordersEditable && (
               <button onClick={onEditBorders} title={T('إدخال أرقام الحدود','Enter border numbers')}
-                style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                 <span>{T('أرقام الحدود','Border numbers')}</span>
                 <Hash size={13} strokeWidth={2.4} />
               </button>
             )}
             {visaEditable && (
               <button onClick={onEditVisa} title={T('تعديل التأشيرات','Edit visas')}
-                style={{ marginInlineStart: bordersEditable ? 0 : 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                style={{ marginInlineStart: bordersEditable ? 0 : 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                 <span>{T('تعديل','Edit')}</span>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
               </button>
@@ -7840,6 +7945,11 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         // in other_applications (dedicated-table services carry their own gov-process model).
         const svcCode = baseSvcCode(data?.code || inv.service_type?.code)
         const svcEditable = !!onEditService && !['transfer', 'ajeer', 'iqama_renewal', 'iqama_issuance'].includes(svcCode) && canCardBtn(user, 'invoices', 'service', 'edit')
+        // الخدمات ذات الجداول المخصّصة (نقل/أجير/تجديد/إصدار إقامة) لا تستخدم نافذة تعديل تفاصيل الخدمة،
+        // لكن يبقى المكتب قابلاً للتعديل عبر نافذة مستقلة — يظهر زرّها فقط لهذه الخدمات.
+        const officeEditable = !!onEditOffice && ['transfer', 'ajeer', 'iqama_renewal', 'iqama_issuance'].includes(svcCode) && fieldEditable(user, 'invoices', 'service_office') && canCardBtn(user, 'invoices', 'service', 'edit')
+        // سجلّ تعديل المكتب لهذه الخدمات يُخزَّن في invoices.service_log (نفس نمط نافذة تعديل التأشيرات).
+        const officeChanges = officeEditable ? (Array.isArray(inv.service_log) ? inv.service_log : []) : []
         // سجلّ تعديل الخدمة (من other_applications.details.service_changes) — تغييرات الوصف/المكتب.
         const det0 = Array.isArray(data?.det) ? data.det[0] : null
         const svcChanges = Array.isArray(det0?.details?.service_changes) ? det0.details.service_changes : []
@@ -7874,8 +7984,15 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <span style={cardTitle}>{T('الخدمة','Service')}</span>
               {svcEditable && (
                 <button onClick={onEditService} title={T('تعديل الخدمة','Edit service')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{T('تعديل','Edit')}</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button>
+              )}
+              {officeEditable && (
+                <button onClick={onEditOffice} title={T('تعديل المكتب','Edit office')}
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <span>{T('تعديل المكتب','Edit office')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
               )}
@@ -7885,6 +8002,11 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <ChangeLog T={T} title={T('سجل تعديل الخدمة', 'Service edit log')} entries={svcChanges}
                 actionLabel={T('تم تعديل تفاصيل الخدمة', 'Service details edited')}
                 renderDetail={c => <FieldChanges T={T} changes={c.changes} LBL={SVC_LBL} showVal={SVC_VAL} />} />
+              {officeEditable && (
+                <ChangeLog T={T} title={T('سجل تعديل المكتب', 'Office edit log')} entries={officeChanges}
+                  actionLabel={T('تم تعديل المكتب', 'Office edited')}
+                  renderDetail={c => <FieldChanges T={T} changes={c.changes} LBL={{ office: ['المكتب', 'Office'] }} />} />
+              )}
             </div>
           </div>
         )
@@ -7914,7 +8036,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <span style={cardTitle}>{isZeroSvc(data?.code || inv.service_type?.code) ? T('الملاحظة','Note') : T('ملاحظة الفاتورة','Invoice Note')}</span>
               {onEditNote && canCardBtn(user, 'invoices', 'notes', 'edit') && (
                 <button onClick={onEditNote} title={T('تعديل الملاحظة','Edit note')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{notePublic ? T('تعديل','Edit') : T('إضافة','Add')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
@@ -7925,7 +8047,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, textAlign: 'center', padding: '6px 0' }}>{T('لا توجد ملاحظة','No note')}</div>
               )}
               {notePublic && (
-                <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                   <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl' }}>{notePublic}</span>
                 </div>
               )}
@@ -7953,7 +8075,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 : (em ? <span title={nat?.name_ar || ''} style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null)}
               {!!onEditAgent && !!agent.id && canCardBtn(user, 'invoices', 'agent', 'edit') && (
                 <button onClick={onEditAgent} title={T('تعديل بيانات الوسيط','Edit agent')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{T('تعديل','Edit')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
@@ -8176,7 +8298,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(212,160,23,.05)', border: '1px solid rgba(212,160,23,.12)' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.goldSoft, marginBottom: 8, letterSpacing: '.2px' }}>{T('بيانات المعاملة', 'Transaction Data')}</div>
                   {groups.map((g, gi) => (
-                    <div key={gi} style={gi > 0 ? { marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.05)' } : undefined}>
+                    <div key={gi} style={gi > 0 ? { marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--bd)' } : undefined}>
                       {g.title && <div style={{ fontSize: 11.5, fontWeight: 700, color: C.goldSoft, marginBottom: 6 }}>{g.title}</div>}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         {g.rows.map(([lbl, val, mono, color, copy], i) => (
@@ -8278,7 +8400,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                       attachments: (wp && wpFile?.file_url) ? [{ url: wpFile.file_url, label: T('عرض ملف رخصة العمل', 'View work permit file') }] : [],
                     })
                     return (
-                      <div key={v.id} style={i > 0 ? { marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.06)' } : undefined}>
+                      <div key={v.id} style={i > 0 ? { marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--bd)' } : undefined}>
                         {visas.length > 1 && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                             <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold, flexShrink: 0 }} />
@@ -8709,7 +8831,7 @@ const ElapsedCounter = ({ at, to, accent = C.gold, T }) => {
   const days = Math.floor(totalH / 24)
   const hours = totalH % 24
   const box = (val, lbl) => (
-    <div style={{ flex: 1, textAlign: 'center', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '8px 4px' }}>
+    <div style={{ flex: 1, textAlign: 'center', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 4px' }}>
       <div style={{ fontSize: 20, fontWeight: 800, color: accent, direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{val}</div>
       <div style={{ fontSize: 9, color: 'var(--tx4)', fontWeight: 600 }}>{lbl}</div>
     </div>
@@ -8738,9 +8860,9 @@ const PrintLangButton = ({ o, T, onPrint }) => (
 const ActionGridButton = ({ onClick, color, label, children }) => (
   <button
     onClick={onClick}
-    onMouseEnter={e => { e.currentTarget.style.background = color + '14' }}
-    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-    style={{ height: 44, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + color + '80', color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 700, transition: 'background .15s ease' }}
+    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(.93)' }}
+    onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
+    style={{ height: 44, padding: '0 14px', borderRadius: 9, background: color, border: '1px solid ' + color, color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 700, boxShadow: '0 3px 7px rgba(0,0,0,.2)', transition: 'filter .15s ease' }}
   >
     <span>{label}</span>
     {children}
@@ -8748,7 +8870,7 @@ const ActionGridButton = ({ onClick, color, label, children }) => (
 )
 
 const Section = ({ title, children }) => (
-  <div style={{ padding: '18px 28px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+  <div style={{ padding: '18px 28px', borderBottom: '1px solid var(--bd2)' }}>
     <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, marginBottom: 12, letterSpacing: 1, textTransform: 'uppercase' }}>{title}</div>
     {children}
   </div>
@@ -8805,6 +8927,6 @@ const BorderRow = ({ T, borderNo, visaUsed, visaNo }) => (
   </div>
 )
 
-const selS = { padding: '9px 12px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, color: 'var(--tx1)', fontSize: 13, fontFamily: F, minWidth: 130 }
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const selS = { padding: '9px 12px', background: 'rgba(255,255,255,.04)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx1)', fontSize: 13, fontFamily: F, minWidth: 130 }
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
 const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

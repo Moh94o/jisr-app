@@ -349,22 +349,22 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
   const methodBtn = (val, label) => {
     const active = method === val
     return (
-      <button onClick={() => setMethod(val)} style={{ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, whiteSpace: 'nowrap', boxSizing: 'border-box' }}>{label}</button>
+      <button onClick={() => setMethod(val)} style={{ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--inputBg)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'var(--bd)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, whiteSpace: 'nowrap', boxSizing: 'border-box' }}>{label}</button>
     )
   }
 
   // Stat card styled to match the Invoices page cards: gradient surface, colored dot + title, big figure, footer sub-stat.
   const dCard = (label, value, count, color, footLabel, grow = 1) => (
-    <div style={{ position: 'relative', flex: `${grow} 1 0%`, minWidth: 200, padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 190 }}>
+    <div style={{ position: 'relative', flex: `${grow} 1 0%`, minWidth: 200, padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 190 }}>
       <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${color}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 10px ${color}aa` }} />
-        <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px', fontFamily: F }}>{label}</span>
+        <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px', fontFamily: F }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
         <span style={{ fontSize: 42, fontWeight: 800, color, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmtInt(value)}</span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600, fontFamily: F }}>{footLabel || T('عدد الدفعات', 'Payments')}</span>
         <span style={{ fontSize: 13, color, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{count}</span>
       </div>
@@ -376,14 +376,14 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
     // Keep the card at the same 150px height even with 3 rows by compacting padding/fonts.
     const compact = parts.length >= 3
     return (
-    <div style={{ position: 'relative', flex: 1, minWidth: 200, minHeight: 190, borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', flex: 1, minWidth: 200, minHeight: 190, borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {parts.map((s, i) => (
-        <div key={i} style={{ position: 'relative', padding: compact ? '7px 16px' : '12px 16px', flex: 1, minHeight: 0, borderTop: i > 0 ? '1px solid rgba(255,255,255,.06)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: compact ? 3 : 6, overflow: 'hidden' }}>
+        <div key={i} style={{ position: 'relative', padding: compact ? '7px 16px' : '12px 16px', flex: 1, minHeight: 0, borderTop: i > 0 ? '1px solid var(--bd)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: compact ? 3 : 6, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', insetInlineStart: -25, top: '50%', transform: 'translateY(-50%)', width: 70, height: 70, borderRadius: '50%', background: `radial-gradient(circle, ${s.color}10 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.color }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ fontSize: compact ? 12 : 13, color: '#fff', fontWeight: 600 }}>{s.label}</span>
+              <span style={{ fontSize: compact ? 12 : 13, color: 'var(--tx)', fontWeight: 600 }}>{s.label}</span>
               <span style={{ fontSize: compact ? 11 : 12, color: 'var(--tx4)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>({s.count})</span>
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
     )
   }
 
-  const inputS = { height: 40, padding: '0 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxSizing: 'border-box' }
+  const inputS = { height: 40, padding: '0 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxSizing: 'border-box' }
   const actBtn = (clr) => ({ height: 28, padding: '0 12px', borderRadius: 8, background: clr + '14', border: '1px solid ' + clr + '4d', color: clr, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' })
 
   // Clicking a row opens the full deposit/transfer verification detail page (mirrors InvoiceDetailPage).
@@ -418,12 +418,12 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
       {/* Header — matches the Invoices page sizing */}
       <div style={{ marginBottom: 22, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الإيداعات', 'Deposits')}</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الإيداعات', 'Deposits')}</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('الأموال المستلمة من العملاء مقابل الفواتير — نقداً أو حوالة بنكية', 'Funds received from clients against invoices — cash or bank transfer')}</div>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('كرت «الخزنة» رصيد تراكمي دائم، وبقية الكروت يومية تبدأ من الساعة 5:00 فجراً بتوقيت الرياض', '“Cash drawer” is a running all-time balance; the other cards are daily, starting at 5:00 AM Riyadh time')}</div>
         </div>
         {canPerm(user, 'deposits.create') && (
-        <button onClick={() => setCashModal(true)} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }} style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+        <button onClick={() => setCashModal(true)} className="btn-primary-modal" style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           {T('إيداع نقدي جديد', 'New cash deposit')}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
@@ -454,7 +454,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
             placeholder={T('ابحث بالعميل أو رقم الفاتورة أو المرجع…', 'Search client, invoice no, reference…')}
             value={q}
             onChange={e => { setQ(e.target.value); setPage(0) }}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
         </div>
         {(() => {
@@ -464,7 +464,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
           return (
             <button
               onClick={() => setAdvOpen(o => !o)}
-              style={{ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' }}
+              style={{ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'var(--bd)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' }}
             >
               {T('تصفية', 'Filter')}
               {hasFilters ? (
@@ -492,7 +492,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
       {advOpen && (() => {
         const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
         return (
-          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+          <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
               <div>
                 <div style={fLbl}>{T('الحالة', 'Status')}</div>
@@ -523,11 +523,11 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
       ) : (
         <div style={{ borderRadius: 10, overflow: 'hidden' }}>
           <style>{`
-.dep-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-.dep-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 10px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
-.dep-tbl tbody td{padding:11px 10px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
+.dep-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:var(--card-bg);border-radius:10px;border:1px solid var(--bd)}
+.dep-tbl thead th{position:sticky;top:0;background:var(--card-bg);color:var(--tx);font-size:12px;font-weight:700;text-align:center;padding:14px 10px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.dep-tbl tbody td{padding:11px 10px;font-size:11.5px;color:var(--tx);text-align:center;vertical-align:middle;border-bottom:1px solid var(--bd2)}
 .dep-tbl tbody tr{transition:background .12s}
-.dep-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.dep-tbl tbody tr:nth-child(even) td{background:var(--bd2)}
 .dep-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
 .dep-tbl tbody tr:last-child td{border-bottom:none}
 .dep-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-size:10.5px;font-weight:700;white-space:nowrap;line-height:1.5}
@@ -570,7 +570,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
                           </div>
                         : <span style={{ color: 'var(--tx5)' }}>—</span>}
                     </td>
-                    <td style={{ fontWeight: 900, direction: 'ltr', color: '#fff' }}>{fmtAmt(Math.abs(r.amount))}</td>
+                    <td style={{ fontWeight: 900, direction: 'ltr', color: 'var(--tx)' }}>{fmtAmt(Math.abs(r.amount))}</td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                         <span className="dep-pill" style={{ color: st.color, background: st.color + '18', border: '1px solid ' + st.color + '38' }}>
@@ -598,9 +598,9 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
       {/* Pagination */}
       {!loading && filtered.length > PAGE && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 16 }}>
-          <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} style={{ height: 34, padding: '0 14px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: page === 0 ? 'var(--tx6)' : 'var(--tx2)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>{T('السابق', 'Prev')}</button>
+          <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} style={{ height: 34, padding: '0 14px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: page === 0 ? 'var(--tx6)' : 'var(--tx2)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>{T('السابق', 'Prev')}</button>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx4)' }}>{page + 1} / {pageCount}</span>
-          <button disabled={page >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} style={{ height: 34, padding: '0 14px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: page >= pageCount - 1 ? 'var(--tx6)' : 'var(--tx2)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: page >= pageCount - 1 ? 'not-allowed' : 'pointer' }}>{T('التالي', 'Next')}</button>
+          <button disabled={page >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} style={{ height: 34, padding: '0 14px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: page >= pageCount - 1 ? 'var(--tx6)' : 'var(--tx2)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: page >= pageCount - 1 ? 'not-allowed' : 'pointer' }}>{T('التالي', 'Next')}</button>
         </div>
       )}
 
@@ -719,8 +719,8 @@ function CashDepositModal({ T, lang, banks, cards = [], balance, fmtAmt, onClose
       success={success ? <SuccessView title={T('تم توثيق الإيداع', 'Deposit recorded')} /> : null}
       pages={[
         { valid: step1Valid, content: (<>
-          <div style={{ textAlign: 'center', padding: '14px 14px 12px', borderBottom: `2px solid ${FK.gold}`, marginTop: 12, background: 'rgba(255,255,255,.02)', borderRadius: '10px 10px 0 0' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.5)', letterSpacing: '.5px', marginBottom: 6 }}>{T('المتوفر بالخزنة (غير مودع)', 'Cash on hand (undeposited)')}</div>
+          <div style={{ textAlign: 'center', padding: '14px 14px 12px', borderBottom: `2px solid ${FK.gold}`, marginTop: 12, background: 'var(--bd2)', borderRadius: '10px 10px 0 0' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', letterSpacing: '.5px', marginBottom: 6 }}>{T('المتوفر بالخزنة (غير مودع)', 'Cash on hand (undeposited)')}</div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8, direction: 'ltr' }}>
               <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(212,160,23,.6)' }}>{T('ريال', 'SAR')}</span>
               <span style={{ fontSize: 32, fontWeight: 600, color: FK.gold }}>{fmtInt(safeBalance)}</span>
@@ -748,7 +748,7 @@ function CashDepositModal({ T, lang, banks, cards = [], balance, fmtAmt, onClose
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: sel ? FK.gold : FK.tx }}>{o.bank}</span>
                   <span style={{ fontSize: 11, fontWeight: 500, color: FK.tx3 }}>{o.holder}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: sel ? FK.gold : '#fff', letterSpacing: '.5px', direction: 'ltr' }}>{o.number}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: sel ? FK.gold : 'var(--tx)', letterSpacing: '.5px', direction: 'ltr' }}>{o.number}</span>
                 </span>
               )} />
           </ModalSection>
@@ -767,9 +767,9 @@ function CashDepositModal({ T, lang, banks, cards = [], balance, fmtAmt, onClose
 // employee picks the office bank account and enters the reference number(s) that
 // prove the operation actually landed — one for a bank transfer, possibly several
 // (each with its own amount) for a cash deposit that was split into multiple draws.
-const depCardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
-const depCardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
-const depCardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
+const depCardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
+const depCardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
+const depCardTitle = { fontSize: 16, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px' }
 
 const CopyBtn = ({ text }) => {
   const [done, setDone] = useState(false)
@@ -821,7 +821,7 @@ const OperationCard = ({ T, isBank, st, verifyDuration, depositorName, row, tota
     <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       <span style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 600 }}>{label}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', alignSelf: 'flex-end' }}>
-        <span style={{ fontSize: 13.5, color: value ? '#fff' : 'var(--tx4)', fontWeight: 700, fontFamily: 'monospace' }}>{value || '—'}</span>
+        <span style={{ fontSize: 13.5, color: value ? 'var(--tx)' : 'var(--tx4)', fontWeight: 700, fontFamily: 'monospace' }}>{value || '—'}</span>
         {value ? <CopyBtn text={value} /> : null}
       </span>
     </div>
@@ -834,7 +834,7 @@ const OperationCard = ({ T, isBank, st, verifyDuration, depositorName, row, tota
       </div>
       <div style={{ padding: '8px 22px 14px' }}>
         {/* Hero amount + status */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 0 16px', borderBottom: '1px solid rgba(255,255,255,.06)', marginBottom: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 0 16px', borderBottom: '1px solid var(--bd)', marginBottom: 8 }}>
           <span style={{ fontSize: 34, fontWeight: 900, color: C.gold, direction: 'ltr', lineHeight: 1 }}>{fmtAmt(total)}</span>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: 2 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 999, background: st.color + '1f', border: '1px solid ' + st.color + '55' }}>
@@ -844,19 +844,19 @@ const OperationCard = ({ T, isBank, st, verifyDuration, depositorName, row, tota
           </div>
         </div>
         {/* Highlighted block — bank: invoice + client ref; cash: depositor name. */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: isBank ? 9 : 1, padding: '10px 12px', background: 'rgba(255,255,255,.04)', borderRadius: 10, marginBottom: 2 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isBank ? 9 : 1, padding: '10px 12px', background: 'var(--bd2)', borderRadius: 10, marginBottom: 2 }}>
           {isBank ? (
             hiField(T('رقم الفاتورة', 'Invoice number'), noDash(row.invoiceNo))
           ) : (
             <>
               <span style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 600 }}>{T('اسم المودع', 'Deposited by')}</span>
-              <span style={{ fontSize: 13.5, color: depositorName ? '#fff' : 'var(--tx4)', fontWeight: 700, textAlign: 'left' }}>{depositorVal}</span>
+              <span style={{ fontSize: 13.5, color: depositorName ? 'var(--tx)' : 'var(--tx4)', fontWeight: 700, textAlign: 'left' }}>{depositorVal}</span>
             </>
           )}
         </div>
         {/* Bank/account details — same highlighted card style as the depositor block. */}
         {bankFields.length > 0 && (
-          <div style={{ padding: '4px 12px', background: 'rgba(255,255,255,.04)', borderRadius: 10, marginTop: 8 }}>
+          <div style={{ padding: '4px 12px', background: 'var(--bd2)', borderRadius: 10, marginTop: 8 }}>
             {bankFields.map((f, i) => <InfoRow key={i} label={f.label} value={f.value} mono={f.mono} copy={f.copy} />)}
           </div>
         )}
@@ -1043,7 +1043,7 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
                 <div style={depCardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={depCardTitle}>{T('المرفقات', 'Attachments')}</span></div>
                 <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {group(isBank ? T('مرفقات الحوالة البنكية', 'Bank transfer attachments') : T('مرفقات الإيداع', 'Deposit attachments'), depositAtts)}
-                  {depositAtts.length > 0 && verifyAtts.length > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,.06)' }} />}
+                  {depositAtts.length > 0 && verifyAtts.length > 0 && <div style={{ height: 1, background: 'var(--bd)' }} />}
                   {group(T('مرفقات التحقق', 'Verification attachments'), verifyAtts)}
                 </div>
               </div>
@@ -1074,11 +1074,11 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
                   {refs.length === 0 ? (
                     <div style={{ fontSize: 12.5, color: 'var(--tx5)' }}>{T('لا توجد أرقام مرجعية مسجّلة', 'No reference numbers recorded')}</div>
                   ) : refs.map(r => (
-                    <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '10px 12px' }}>
+                    <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'var(--bd2)', borderRadius: 10, padding: '10px 12px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 7 }}>
                         <span style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{T('الرقم المرجعي', 'Reference number')}</span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>{r.reference_number}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', fontFamily: 'monospace' }}>{r.reference_number}</span>
                           <CopyBtn text={r.reference_number} />
                         </span>
                       </div>
@@ -1094,10 +1094,10 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
               ) : (
                 <>
                   {filledRefs.map((l, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '10px 12px' }}>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'var(--bd2)', borderRadius: 10, padding: '10px 12px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 7 }}>
                         <span style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{T('الرقم المرجعي', 'Reference number')}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: 'monospace', direction: 'ltr' }}>{l.reference_number}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', fontFamily: 'monospace', direction: 'ltr' }}>{l.reference_number}</span>
                       </div>
                       {!isBank && l.amount !== '' && <span style={{ fontSize: 13, fontWeight: 800, color: C.gold, direction: 'ltr' }}>{fmtAmt(parseFloat(l.amount) || 0)}</span>}
                     </div>
@@ -1105,12 +1105,12 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
                   {!isBank && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
                       <span style={{ color: 'var(--tx3)' }}>{T('المتبقي', 'Remaining')}</span>
-                      <span style={{ direction: 'ltr', fontWeight: 800, color: amountsMatch ? '#fff' : C.red }}>{fmtAmt(remaining)}</span>
+                      <span style={{ direction: 'ltr', fontWeight: 800, color: amountsMatch ? 'var(--tx)' : C.red }}>{fmtAmt(remaining)}</span>
                     </div>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'var(--bd2)', borderRadius: 10, padding: '10px 12px' }}>
                     <span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Paperclip size={13} strokeWidth={2} />{T('مرفقات عمليات الإيداع من البنك', 'Bank deposit attachments')}</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: vFiles.length ? '#fff' : C.red, direction: 'ltr' }}>{vFiles.length}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: vFiles.length ? 'var(--tx)' : C.red, direction: 'ltr' }}>{vFiles.length}</span>
                   </div>
                 </>
               )}
@@ -1151,7 +1151,7 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
                     const p = n.author?.person
                     const name = ((lang !== 'en' ? (p?.name_ar || p?.name_en) : (p?.name_en || p?.name_ar)) || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ')
                     return (
-                      <div key={n.id} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div key={n.id} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                           <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>
                           {!isVerified && (
@@ -1222,7 +1222,7 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
                           <input value={l.reference_number} onChange={e => setLine(i, 'reference_number', e.target.value)} placeholder={T('الرقم المرجعي', 'Reference')} style={{ ...lineInput, flex: '1 1 0', direction: 'ltr', textAlign: 'center' }} />
                           <input value={l.amount} onChange={e => setAmount(i, e.target.value)} inputMode="decimal" placeholder={T('المبلغ', 'Amount')} style={{ ...lineInput, width: 100, direction: 'ltr', textAlign: 'center', fontWeight: 700 }} />
                           {lines.length > 1 && (
-                            <button onClick={() => removeLine(i)} aria-label={T('حذف', 'Remove')} style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.06)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)'; e.currentTarget.style.color = '#e5867a' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx3)' }}>
+                            <button onClick={() => removeLine(i)} aria-label={T('حذف', 'Remove')} style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, border: 'none', background: 'var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)'; e.currentTarget.style.color = '#e5867a' }} onMouseLeave={e => { e.currentTarget.style.background = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx3)' }}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M18 6L6 18M6 6l12 12" /></svg>
                             </button>
                           )}
@@ -1231,7 +1231,7 @@ function DepositDetailPage({ sb, lang, T, user, isGM, row, banks, STATUS, fmtAmt
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 12 }}>
                       <span style={{ color: 'var(--tx3)' }}>{T('المتبقي', 'Remaining')}</span>
-                      <span style={{ direction: 'ltr', fontWeight: 800, color: amountsMatch ? '#fff' : C.red }}>{fmtAmt(remaining)}</span>
+                      <span style={{ direction: 'ltr', fontWeight: 800, color: amountsMatch ? 'var(--tx)' : C.red }}>{fmtAmt(remaining)}</span>
                     </div>
                   </div>
                 )}

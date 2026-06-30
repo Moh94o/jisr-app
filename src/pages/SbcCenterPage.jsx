@@ -38,23 +38,23 @@ const fmtDateTime = (iso) => {
 }
 
 // Shared card chrome (identical to the Users page).
-const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
-const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
-const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
+const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
+const cardTitle = { fontSize: 16, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px' }
 
 // ── KPI hero card (matches Users page HeroStat) ──
 function HeroStat({ tone, label, value, footer }) {
   return (
-    <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
+    <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
       <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${tone}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone, boxShadow: `0 0 10px ${tone}aa` }} />
-        <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
+        <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
         <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
       </div>
     </div>
@@ -72,7 +72,7 @@ function InfoSectionCard({ title, items, headerAction }) {
       </div>
       <div style={{ padding: '6px 22px 12px' }}>
         {items.map((f, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed var(--bd)' : 'none' }}>
             <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{f.label}</span>
             {f.node ? f.node : (
               <span style={{ fontSize: 13, color: f.value ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 600, direction: f.mono ? 'ltr' : 'rtl', fontFamily: f.mono ? 'monospace' : 'inherit', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.value || ''}>{f.value || '—'}</span>
@@ -176,13 +176,11 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
       {/* Header */}
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>المركز السعودي للأعمال</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>المركز السعودي للأعمال</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة السجل التجاري والكيان النظامي للمنشآت عبر المركز السعودي للأعمال. المعاملات تُضاف مباشرة من هذه الصفحة.</div>
         </div>
-        <button onClick={() => setShowAdd(true)}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-          style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease' }}>
+        <button onClick={() => setShowAdd(true)} className="btn-primary-modal"
+          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           إضافة معاملة
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
@@ -198,7 +196,7 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
           const R = 32, CIRC = 2 * Math.PI * R
           let offset = 0
           return (
-            <div style={{ borderRadius: 16, background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150 }}>
+            <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>التوزّع حسب الخدمة</span>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
@@ -207,9 +205,9 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-                  <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
+                  <circle r={R} fill="none" stroke="var(--bd2)" strokeWidth="11" />
                   {dist.map((r) => { const dash = (r.cnt / total) * CIRC; const seg = (<circle key={r.code} r={R} fill="none" stroke={r.meta.c} strokeWidth="11" strokeDasharray={`${dash} ${CIRC - dash}`} strokeDashoffset={-offset} style={{ transition: 'stroke-dasharray .3s' }}><title>{`${r.meta.ar}: ${r.cnt}`}</title></circle>); offset += dash; return seg })}
-                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(rows.length)}</text>
+                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(rows.length)}</text>
                 </svg>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr', gap: 6, minWidth: 0 }}>
                   {dist.length === 0 ? <span style={{ fontSize: 11, color: 'var(--tx5)' }}>—</span> : dist.map((r) => (
@@ -231,13 +229,13 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث بالمرجع أو الاسم التجاري أو رقم السجل…"
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
       </div>
 
       {/* List — table view (matches Payments page) */}
       {filtered.length === 0 ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed rgba(255,255,255,.08)', borderRadius: 14 }}>
+        <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13, border: '1px dashed var(--bd)', borderRadius: 14 }}>
           {q ? 'لا نتائج مطابقة' : 'لا توجد معاملات بعد — اضغط «إضافة معاملة».'}
         </div>
       ) : (
@@ -453,7 +451,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
     } catch (e) { toast?.('تعذر رفع الملف', 'error') } finally { setUploading(false) }
   }
 
-  const inp = { width: '100%', fontFamily: F, fontSize: 13, color: 'rgba(255,255,255,.9)', background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 9, padding: '9px 11px', outline: 'none', boxSizing: 'border-box', textAlign: 'end' }
+  const inp = { width: '100%', fontFamily: F, fontSize: 13, color: 'var(--tx)', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 9, padding: '9px 11px', outline: 'none', boxSizing: 'border-box', textAlign: 'end' }
 
   // Info card items
   const detailItems = [
@@ -488,7 +486,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
           <InfoSectionCard title="تفاصيل المعاملة" items={detailItems}
             headerAction={editing
               ? <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 8 }}>
-                  <button onClick={() => { setEditing(false); setForm({ trade_name: row.trade_name || '', cr_number: row.cr_number || '', note: row.note || '' }) }} style={{ height: 32, padding: '0 12px', borderRadius: 9, background: 'transparent', border: '1px solid rgba(255,255,255,.14)', color: 'var(--tx3)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>إلغاء</button>
+                  <button onClick={() => { setEditing(false); setForm({ trade_name: row.trade_name || '', cr_number: row.cr_number || '', note: row.note || '' }) }} style={{ height: 32, padding: '0 12px', borderRadius: 9, background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx3)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>إلغاء</button>
                   <button onClick={saveFields} disabled={busy} style={{ height: 32, padding: '0 16px', borderRadius: 9, background: `linear-gradient(180deg,${C.gold},#b8881a)`, border: 'none', color: '#1a1a1a', fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{busy ? '…' : 'حفظ'}</button>
                 </div>
               : <EditAction onEdit={() => setEditing(true)} />} />
@@ -506,7 +504,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
                   { label: 'التأمينات الاجتماعية', value: facility.gosi_number, mono: true },
                   { label: 'الموارد البشرية', value: facility.hrsd_number, mono: true },
                 ].map((f, i, arr) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed var(--bd)' : 'none' }}>
                     <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{f.label}</span>
                     <span style={{ fontSize: 13, color: f.value ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 600, direction: f.mono ? 'ltr' : 'rtl', fontFamily: f.mono ? 'monospace' : 'inherit' }}>{f.value || '—'}</span>
                   </div>
@@ -541,7 +539,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
               </div>
             </div>
           ) : (
-            <div style={{ ...cardChrome, border: '1px dashed rgba(255,255,255,.1)' }}>
+            <div style={{ ...cardChrome, border: '1px dashed var(--bd)' }}>
               <div style={{ padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--tx4)', lineHeight: 1.6 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.warn} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
                 بانتظار سداد رسم فتح السجل في صفحة سدادات الخدمات قبل إكمال بيانات المنشأة.
@@ -558,7 +556,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
               <div style={{ padding: '12px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {docFacility && <div style={{ fontSize: 12.5, color: 'var(--tx3)', lineHeight: 1.6 }}>أُضيفت إلى «ملفات السجل» في منشأة «{docFacility.name_ar}».</div>}
                 {docFileRec ? (
-                  <a href={docFileRec.file_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', textDecoration: 'none', color: 'var(--tx2)' }}>
+                  <a href={docFileRec.file_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'var(--bd2)', border: '1px solid var(--bd)', textDecoration: 'none', color: 'var(--tx2)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /></svg>
                     <span style={{ fontSize: 12.5, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr', textAlign: 'start' }}>{docFileRec.file_name}</span>
                   </a>
@@ -581,7 +579,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
               </div>
             </div>
           ) : (
-            <div style={{ ...cardChrome, border: '1px dashed rgba(255,255,255,.1)' }}>
+            <div style={{ ...cardChrome, border: '1px dashed var(--bd)' }}>
               <div style={{ padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--tx4)', lineHeight: 1.6 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.warn} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
                 بانتظار سداد رسم الوثيقة في صفحة سدادات الخدمات قبل إرفاق المستخرج.
@@ -609,7 +607,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
             <div style={{ padding: '12px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {atts.length === 0 ? <div style={{ fontSize: 12, color: 'var(--tx5)', padding: '6px 0' }}>لا توجد مرفقات</div> :
                 atts.map(a => (
-                  <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', textDecoration: 'none', color: 'var(--tx2)' }}>
+                  <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'var(--bd2)', border: '1px solid var(--bd)', textDecoration: 'none', color: 'var(--tx2)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /></svg>
                     <span style={{ fontSize: 12.5, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr', textAlign: 'start' }}>{a.file_name}</span>
                     <span style={{ fontSize: 10.5, color: 'var(--tx5)', direction: 'ltr' }}>{fmtGreg(a.created_at)}</span>
@@ -627,7 +625,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
               {statuses.filter(s => STATUS_THEME[s.code]).map(s => {
                 const th = STATUS_THEME[s.code]; const on = statusId === s.id
                 return (
-                  <button key={s.id} onClick={() => changeStatus(s.id)} disabled={busy} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'start', background: on ? tint(th.c, 0.12) : 'rgba(255,255,255,.02)', border: `1px solid ${on ? tint(th.c, 0.4) : 'rgba(255,255,255,.05)'}`, fontFamily: F }}>
+                  <button key={s.id} onClick={() => changeStatus(s.id)} disabled={busy} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'start', background: on ? tint(th.c, 0.12) : 'var(--bd2)', border: `1px solid ${on ? tint(th.c, 0.4) : 'var(--bd)'}`, fontFamily: F }}>
                     <span style={{ width: 9, height: 9, borderRadius: '50%', background: th.c, flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 13, fontWeight: on ? 800 : 600, color: on ? th.c : 'var(--tx3)' }}>{th.ar}</span>
                     {on && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={th.c} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
@@ -650,7 +648,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
 }
 
 // Small remove button used by the amend rows.
-const xBtn = { width: 24, height: 24, borderRadius: 6, border: 'none', background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.55)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 }
+const xBtn = { width: 24, height: 24, borderRadius: 6, border: 'none', background: 'var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 }
 
 // Per-service wizard step definitions (key + stepper label).
 const STEP_DEFS = {

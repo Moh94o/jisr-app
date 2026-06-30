@@ -12,7 +12,7 @@ import { Shimmer } from '../components/ui/Skeleton.jsx'
 // entry, 'review' lets it through flagged red in Payments (needs review).
 const F = `'Cairo','Tajawal',sans-serif`
 const C = { gold: '#D4A017', red: '#c0392b', ok: '#27a046', blue: '#3483b4', warn: '#eab308' }
-const GLASS_CARD = { background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }
+const GLASS_CARD = { background: 'var(--card-grad)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)' }
 const fmtNum = v => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })
 
 // Platform categories — one card each, in this order.

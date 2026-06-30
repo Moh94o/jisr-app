@@ -43,7 +43,7 @@ const payState = (total, paid) => {
 }
 
 /* ─── Shared chrome (matches the Clients page) ─── */
-const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
 
@@ -56,7 +56,7 @@ function HeroStat({ tone, label, value, footer }) {
   return (
     <div style={{
       position: 'relative', padding: '18px 22px', borderRadius: 16,
-      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+      background: 'var(--card-grad2)',
       border: '1px solid rgba(255,255,255,.05)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
@@ -87,7 +87,7 @@ function NatDonutCard({ items, totalLabel, title }) {
   return (
     <div style={{
       borderRadius: 16,
-      background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
+      background: 'var(--card-grad2)',
       border: '1px solid rgba(255,255,255,.05)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
       padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
@@ -327,7 +327,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={q} onChange={e => { setQ(e.target.value); setPage(0) }} placeholder={T('ابحث بالاسم، رقم الهوية، الجوال…', 'Search by name, ID or phone…')}
-            style={{ width: '100%', height: 44, padding: '0 40px 0 14px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
+            style={{ width: '100%', height: 44, padding: '0 40px 0 14px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
         <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
           {T('تصفية', 'Filter')}
@@ -347,7 +347,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
       </div>
 
       {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--modal-bg)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 12 }}>
             <div>
               <Lbl>{T('المكتب', 'Branch')}</Lbl>
@@ -757,5 +757,5 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
   )
 }
 
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? GOLD : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? GOLD : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
 const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : GOLD, fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

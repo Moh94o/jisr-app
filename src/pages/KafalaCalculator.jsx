@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet } from 'lucide-react'
+import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Circle, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
 import { noDash } from '../lib/utils.js'
@@ -8,7 +8,7 @@ import { Modal as FKModal, Select as FKSelect, Flag, ActionButton } from '../com
 import { stageVisible, fieldVisible, fieldEditable } from '../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', bg: '#171717', sf: '#1e1e1e', bd: 'rgba(255,255,255,.06)' }
+const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', bg: '#171717', sf: '#1e1e1e', bd: 'var(--bd)' }
 
 // ═══ Hijri Conversion ═══
 function gregorianToHijri(dateStr) {
@@ -25,7 +25,7 @@ function gregorianToHijri(dateStr) {
   const day = l3 - Math.floor((709 * month) / 24)
   const year = 30 * n + j - 30
   if (month < 1 || month > 12) return ''
-  return `${day}/${month}/${year} هـ`
+  return `${year}-${month}-${day}`
 }
 
 function gregorianToHijriParts(dateStr) {
@@ -91,7 +91,7 @@ const OCCUPATIONS = ['عامل بناء', 'نجار', 'حداد', 'كهربائ�
 
 // ═══ Shared UI Components — matches register modal style ═══
 // ستايل الحقل — مطابق لـ FormKit: خلفية مسطّحة غائرة، بلا حدّ، ظل داخلي، وزن 600.
-const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.18)', boxSizing: 'border-box', textAlign: 'center', transition: '.2s', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }
+const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', transition: '.2s', boxShadow: 'none' }
 const sFRO = { ...sF, cursor: 'not-allowed', opacity: .6 }
 
 // عنوان الحقل — مطابق لـ FormKit: وزن 600، نص أساسي، نجمة حمراء بمسافة.
@@ -126,7 +126,7 @@ const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
   return (
     <div style={{ position: 'relative', width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth={stroke} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--bd)" strokeWidth={stroke} />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={displayColor} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset .25s linear' }} />
       </svg>
       <span style={{ position: 'absolute', fontSize: 14, fontWeight: 500, color: displayColor, fontFamily: F, lineHeight: 1 }}>{remaining}</span>
@@ -177,20 +177,20 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang, min }) => 
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   const isToday = (y, m, d) => today.getFullYear() === y && today.getMonth() === m && today.getDate() === d
-  const navBtn = { width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: '.15s' }
+  const navBtn = { width: 28, height: 28, borderRadius: 7, border: '1px solid var(--bd)', background: 'var(--bd2)', color: C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: '.15s' }
   const POPUP_H = 320, POPUP_W = Math.max(392, anchor.width)
   const spaceBelow = window.innerHeight - anchor.bottom
   const flipUp = spaceBelow < POPUP_H + 10
   const top = flipUp ? Math.max(8, anchor.top - POPUP_H - 6) : anchor.bottom + 6
   const left = Math.max(8, Math.min(window.innerWidth - POPUP_W - 8, anchor.left + anchor.width/2 - POPUP_W/2))
   return (
-    <div style={{ position: 'fixed', top, left, width: POPUP_W, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: '0 12px 40px rgba(0,0,0,.7)', fontFamily: F, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
+    <div style={{ position: 'fixed', top, left, width: POPUP_W, background: 'var(--modal-portal-bg)', border: '1px solid var(--bd)', borderRadius: 10, padding: 12, zIndex: 1001, boxShadow: 'var(--shadow-lg)', fontFamily: F, direction: lang === 'en' ? 'ltr' : 'rtl' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, direction: 'ltr' }}>
         <button type="button" onClick={prevMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{(lang === 'en' ? MONTH_NAMES_EN : MONTH_NAMES_AR)[cur.m]} {cur.y}</div>
         <button type="button" onClick={nextMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.4)', marginBottom: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>
         {(lang === 'en' ? DAY_ABBR_EN : DAY_ABBR_AR).map(d => <div key={d} style={{ textAlign: 'center', padding: '4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d}</div>)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
@@ -204,14 +204,14 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang, min }) => 
             <button key={i} type="button" disabled={dis} onClick={() => { if (dis) return; onPick(s); onClose() }}
               onMouseEnter={e => { if (!isSel && !dis) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
               onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = isTd ? 'rgba(212,160,23,.04)' : 'transparent' }}
-              style={{ height: 30, borderRadius: 6, border: isTd && !isSel ? `1px solid ${C.gold}55` : '1px solid transparent', background: isSel ? C.gold : (isTd ? 'rgba(212,160,23,.04)' : 'transparent'), color: isSel ? '#000' : (isTd ? C.gold : 'rgba(255,255,255,.8)'), fontFamily: F, fontSize: 12, fontWeight: isSel || isTd ? 600 : 500, cursor: dis ? 'not-allowed' : 'pointer', opacity: dis ? .25 : 1, transition: '.15s', padding: 0 }}>
+              style={{ height: 30, borderRadius: 6, border: isTd && !isSel ? `1px solid ${C.gold}55` : '1px solid transparent', background: isSel ? C.gold : (isTd ? 'rgba(212,160,23,.04)' : 'transparent'), color: isSel ? '#000' : (isTd ? C.gold : 'var(--tx2)'), fontFamily: F, fontSize: 12, fontWeight: isSel || isTd ? 600 : 500, cursor: dis ? 'not-allowed' : 'pointer', opacity: dis ? .25 : 1, transition: '.15s', padding: 0 }}>
               {d}
             </button>
           )
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-        <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Clear' : 'مسح'}</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
+        <button type="button" onClick={() => { onPick(''); onClose() }} style={{ fontSize: 12, color: 'var(--tx3)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px' }}>{lang === 'en' ? 'Clear' : 'مسح'}</button>
         <button type="button" onClick={() => { const t = new Date(); const ts = fmtDate(t.getFullYear(), t.getMonth(), t.getDate()); if (min && ts < min) return; onPick(ts); onClose() }} style={{ fontSize: 12, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 500, padding: '4px 8px', opacity: (min && fmtDate(today.getFullYear(), today.getMonth(), today.getDate()) < min) ? .4 : 1 }}>{lang === 'en' ? 'Today' : 'اليوم'}</button>
       </div>
     </div>
@@ -306,12 +306,12 @@ export const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={popRef} className="occ-sel-pop" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
+        <div ref={popRef} className="occ-sel-pop" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-portal-bg)', border: '1px solid var(--bd)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: 'var(--shadow-lg)', overflow: 'hidden', direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
           <div style={{ padding: 10, flexShrink: 0, position: 'relative' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="occ-sel-icon" style={{ position: 'absolute', top: '50%', left: 22, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder={isAr ? 'ابحث بالاسم...' : 'Search by name...'} autoFocus className="occ-sel-search" style={{ width: '100%', height: 34, padding: '0 34px', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8, background: 'var(--modal-bg)', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="occ-sel-icon" style={{ position: 'absolute', top: '50%', left: 22, transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder={isAr ? 'ابحث بالاسم...' : 'Search by name...'} autoFocus className="occ-sel-search" style={{ width: '100%', height: 34, padding: '0 34px', border: '1px solid var(--bd)', borderRadius: 8, background: 'var(--modal-bg)', fontFamily: F, fontSize: 14, fontWeight: 500, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
           </div>
-          <style>{`.occ-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}.occ-sel-scroll::-webkit-scrollbar{display:none;width:0;height:0}.occ-sel-search,.occ-sel-search:focus,.occ-sel-search:hover{border-color:rgba(255,255,255,.06)!important;box-shadow:none!important;outline:none!important}.occ-sel-search::placeholder{font-size:12px;color:rgba(255,255,255,.4)}.occ-sel-icon,.occ-sel-icon *{stroke:rgba(255,255,255,.45)!important;color:rgba(255,255,255,.45)!important}`}</style>
+          <style>{`.occ-sel-scroll{scrollbar-width:none;-ms-overflow-style:none}.occ-sel-scroll::-webkit-scrollbar{display:none;width:0;height:0}.occ-sel-search,.occ-sel-search:focus,.occ-sel-search:hover{border-color:var(--bd)!important;box-shadow:none!important;outline:none!important}.occ-sel-search::placeholder{font-size:12px;color:var(--tx4)}.occ-sel-icon,.occ-sel-icon *{stroke:var(--tx4)!important;color:var(--tx4)!important}`}</style>
           <div className="occ-sel-scroll" style={{ flex: 1, overflowY: 'auto' }}>
             {filtered.length === 0 && <div style={{ padding: 30, textAlign: 'center', fontSize: 14, color: 'var(--tx5)' }}>{isAr ? 'لا توجد نتائج' : 'No results'}</div>}
             {filtered.slice(0, 200).map(o => {
@@ -319,12 +319,12 @@ export const OccSelect = ({ value, onChange, items, lang, placeholder }) => {
               const isSel = value === selLabel
               return (
                 <div key={o.id} onClick={() => { onChange(selLabel, o); setOpen(false); setQ('') }}
-                  style={{ padding: '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid rgba(255,255,255,.08)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
-                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
+                  style={{ padding: '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid var(--bd)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--hoverBg)' }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.name_ar}</span>
-                    {o.name_en && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.5)', textAlign: 'center', width: '100%', unicodeBidi: 'plaintext' }}>{o.name_en}</span>}
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isSel ? C.gold : 'var(--tx)', textAlign: 'center', width: '100%' }}>{o.name_ar}</span>
+                    {o.name_en && <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx3)', textAlign: 'center', width: '100%', unicodeBidi: 'plaintext' }}>{o.name_en}</span>}
                   </div>
                   {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </div>
@@ -433,14 +433,14 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.5" style={{ position: 'absolute', left: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#0f0f0f', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: '0 16px 48px rgba(0,0,0,.75)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
+        <div ref={popRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--modal-portal-bg)', border: '1px solid var(--bd)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 2000, boxShadow: 'var(--shadow-lg)', overflow: 'hidden', direction: 'rtl', fontFamily: F }}>
           <style>{`.sel-pop-scroll{scrollbar-width:none;-ms-overflow-style:none}.sel-pop-scroll::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
           {searchable && (
-            <div style={{ padding: 6, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.18)', position: 'relative', flexShrink: 0 }}>
+            <div style={{ padding: 6, borderBottom: '1px solid var(--bd)', background: 'var(--bd2)', position: 'relative', flexShrink: 0 }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%)', color: 'var(--tx4)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <input ref={searchInputRef} value={query} onChange={e => setQuery(e.target.value)}
                 placeholder={searchPlaceholder || 'بحث…'}
-                style={{ width: '100%', height: 34, padding: '0 32px 0 10px', borderRadius: 8, background: 'rgba(0,0,0,.25)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx)', fontSize: 12.5, fontFamily: F, outline: 'none', boxSizing: 'border-box' }}/>
+                style={{ width: '100%', height: 34, padding: '0 32px 0 10px', borderRadius: 8, background: 'var(--bd2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 12.5, fontFamily: F, outline: 'none', boxSizing: 'border-box' }}/>
             </div>
           )}
           <div className="sel-pop-scroll" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -448,10 +448,10 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
             {visibleOpts.map((o, i) => {
               if (o.divider) {
                 return (
-                  <div key={`div-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: 'rgba(255,255,255,.02)', borderBottom: '1px solid rgba(255,255,255,.06)', borderTop: '1px solid rgba(255,255,255,.06)' }}>
-                    <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}/>
+                  <div key={`div-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: 'var(--bd2)', borderBottom: '1px solid var(--bd)', borderTop: '1px solid var(--bd)' }}>
+                    <span style={{ flex: 1, height: 1, background: 'var(--bd)' }}/>
                     {o.l && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.4px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{o.l}</span>}
-                    <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}/>
+                    <span style={{ flex: 1, height: 1, background: 'var(--bd)' }}/>
                   </div>
                 )
               }
@@ -469,11 +469,11 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
               }
               return (
                 <div key={o.v} onClick={handleClick}
-                  style={{ padding: o.sub ? '7px 14px' : '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid rgba(255,255,255,.08)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
-                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,.035)' }}
+                  style={{ padding: o.sub ? '7px 14px' : '5px 14px', cursor: 'pointer', position: 'relative', borderBottom: '1px solid var(--bd)', background: isSel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s' }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--hoverBg)' }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: isSel ? C.gold : 'rgba(255,255,255,.92)', textAlign: 'center', width: '100%' }}>{o.l}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isSel ? C.gold : 'var(--tx)', textAlign: 'center', width: '100%' }}>{o.l}</span>
                     {o.sub && <span style={{ fontSize: 11, fontWeight: 500, color: isSel ? 'rgba(212,160,23,.7)' : 'var(--tx4)', textAlign: 'center', width: '100%', direction: 'ltr', fontVariantNumeric: 'tabular-nums', whiteSpace: 'pre-line', lineHeight: 1.4 }}>{typeof o.sub === 'function' ? o.sub(isSel) : o.sub}</span>}
                   </div>
                   {isSel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }}><polyline points="20 6 9 17 4 12"/></svg>}
@@ -488,23 +488,26 @@ export const Sel = ({ value, onChange, options, placeholder, maxVisible, searcha
   )
 }
 
-const ToggleGroup = ({ options, value, onChange, disabled, height = 36 }) => (
+const ToggleGroup = ({ options, value, onChange, disabled, height = 42 }) => (
   <div style={{ display: 'flex', gap: 6, height }}>
     {options.map(o => {
       const sel = value === o.v
       const clr = o.c || C.gold
       return (
         <button key={String(o.v)} type="button" disabled={disabled} onClick={() => !disabled && onChange(o.v)} style={{
-          flex: 1, borderRadius: 9, border: `1.5px solid ${sel ? clr : 'rgba(255,255,255,.07)'}`,
-          background: sel ? `linear-gradient(180deg, ${clr}22 0%, ${clr}0a 100%)` : 'rgba(0,0,0,.18)',
+          flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'var(--bd)'}`,
+          background: sel ? clr + '14' : 'var(--inputBg)',
           color: sel ? clr : 'var(--tx3)',
           fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500,
-          cursor: disabled ? 'not-allowed' : 'pointer', transition: '.18s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-          boxShadow: sel ? `inset 0 1px 0 ${clr}26` : 'inset 0 1px 2px rgba(0,0,0,.2)',
+          cursor: disabled ? 'not-allowed' : 'pointer', transition: '.18s', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+          boxShadow: 'none',
           opacity: disabled && !sel ? 0.4 : 1
         }}>
-          <span>{o.l}</span>
-          {o.sub && <span style={{ fontSize: 14, opacity: .6 }}>{o.sub}</span>}
+          {sel ? <CheckCircle2 size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <span>{o.l}</span>
+            {o.sub && <span style={{ fontSize: 10, opacity: .6 }}>{o.sub}</span>}
+          </span>
         </button>
       )
     })}
@@ -519,11 +522,11 @@ const YesNo = ({ value, onChange, lang, disabled, height }) => (
 )
 
 const KCard = ({ Icon, label, hint, children, span, style, bodyStyle }) => (
-  <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '12px 14px 10px', position: 'relative', transition: '.2s', ...style }}>
+  <div style={{ gridColumn: span ? `span ${span}` : 'auto', borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '18px 14px 16px', position: 'relative', transition: '.2s', ...style }}>
     <div style={{ position: 'absolute', top: -9, insetInlineStart: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       {Icon && <Icon size={12} strokeWidth={2.2} />}
       <span>{label}</span>
-      {hint && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.4)', marginInlineStart: 4 }}>· {hint}</span>}
+      {hint && <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)', marginInlineStart: 4 }}>· {hint}</span>}
     </div>
     <div style={bodyStyle}>{children}</div>
   </div>
@@ -533,25 +536,27 @@ const RenewalPill = ({ selected, onClick, children, flex }) => (
   <button type="button" onClick={onClick}
     style={{
       flex: flex || 1,
-      height: 36,
-      borderRadius: 10,
-      border: `1.5px solid ${selected ? C.gold : 'rgba(255,255,255,.07)'}`,
-      background: selected ? 'linear-gradient(180deg, rgba(212,160,23,.18) 0%, rgba(212,160,23,.06) 100%)' : 'rgba(0,0,0,.18)',
-      color: selected ? C.gold : 'rgba(255,255,255,.65)',
+      height: 42,
+      borderRadius: 9,
+      border: `1px solid ${selected ? C.gold + '80' : 'var(--bd)'}`,
+      background: selected ? C.gold + '14' : 'var(--inputBg)',
+      color: selected ? C.gold : 'var(--tx3)',
       fontFamily: F,
       fontSize: 14,
       fontWeight: selected ? 600 : 500,
       cursor: 'pointer',
       transition: '.18s',
       display: 'flex',
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
-      boxShadow: selected ? 'inset 0 1px 0 rgba(212,160,23,.22)' : 'inset 0 1px 2px rgba(0,0,0,.2)'
+      gap: 7,
+      boxShadow: 'none'
     }}
-    onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)'; e.currentTarget.style.color = 'rgba(255,255,255,.85)' } }}
-    onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)'; e.currentTarget.style.color = 'rgba(255,255,255,.65)' } }}>
-    {children}
+    onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)'; e.currentTarget.style.color = 'var(--tx)' } }}
+    onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx3)' } }}>
+    {selected ? <CheckCircle2 size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
+    <span style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4 }}>{children}</span>
   </button>
 )
 
@@ -617,12 +622,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     captchaInput: '',
     result: null,
     error: null,
-    attempts: 0,
-    errorCount: 0,   // عدّاد مرات «تعذّر الاستعلام» — «تخطّي والمتابعة» يظهر فقط بعد بلوغه الحد.
+    attempts: 0,        // عدّاد المحاولات الخاطئة — للعرض فقط، لا تخطّي تلقائي.
+    errorCount: 0,      // عدّاد مرات «تعذّر الاستعلام» — للعرض فقط.
   })
-  const HRSD_MAX_ATTEMPTS = 3
-  // لا يظهر زر «تخطّي والمتابعة» إلا بعد هذا العدد من مرات تعذّر الاستعلام (خلل واضح/فشل متكرر).
-  const HRSD_SKIP_AFTER = 3
 
   // ═══ Muqeem (auto resident lookup) state ═══
   // Lookup goes through a Supabase Edge Function (query-muqeem) on the PROD project, which reads
@@ -887,7 +889,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       <div style={{ ...sF, height: 'auto', minHeight: 42, paddingTop: 5, paddingBottom: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', cursor: 'default', color: value ? 'var(--tx)' : 'var(--tx5)' }}>
         <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.3 }}>
           <span>{value || '—'}</span>
-          {sub && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)' }}>{sub}</span>}
+          {sub && <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{sub}</span>}
         </span>
         <span title={T('من مقيم — لا يمكن تعديله','From Muqeem — locked')} style={{ position: 'absolute', insetInlineStart: 8, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, color: '#F47B20', background: 'rgba(244,123,32,.12)', padding: '2px 6px', borderRadius: 6 }}>
           <Lock size={10} strokeWidth={2.5} /> {T('مقيم','Muqeem')}
@@ -993,12 +995,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       const r = await callHrsdFn({ action: 'verify', iqama: f.iqama, captcha: hrsdCheck.captchaInput, session: hrsdCheck.sessionToken })
       // رمز خاطئ فعلاً — يُحتسب ضمن المحاولات الثلاث
       if (r.status === 'invalid_captcha') {
+        // التحقق إلزامي — لا تخطّي تلقائي. يُطلب رمز جديد ويُعاد المحاولة حتى ينجح.
         const nextAttempts = (hrsdCheck.attempts || 0) + 1
-        if (nextAttempts >= HRSD_MAX_ATTEMPTS) {
-          setHrsdCheck({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: { status: 'skipped', autoSkipped: true }, error: null, attempts: 0 })
-          setErrors({}); setTab(1)
-          return
-        }
         const fresh = await callHrsdFn({ action: 'init' })
         setHrsdCheck(c => ({
           ...c,
@@ -1006,7 +1004,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           sessionToken: fresh.session,
           captchaImage: fresh.captchaImage,
           captchaInput: '',
-          error: T(`رمز التحقق غير صحيح — المحاولة ${nextAttempts + 1} من ${HRSD_MAX_ATTEMPTS}`, `Wrong captcha — attempt ${nextAttempts + 1} of ${HRSD_MAX_ATTEMPTS}`),
+          error: T('رمز التحقق غير صحيح — أدخل الرمز الجديد', 'Wrong captcha — enter the new code'),
           attempts: nextAttempts,
         }))
         return
@@ -1031,8 +1029,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   }
 
   function closeHrsdCheck() {
-    // Dismissing the inquiry marks it skipped so the form can proceed with the manually-entered data.
-    setHrsdCheck(c => ({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: c.result || { status: 'skipped', autoSkipped: true }, error: null, attempts: 0, errorCount: 0 }))
+    // إغلاق النافذة يُلغي الاستعلام الحالي فقط ويُبقي المستخدم في خطوة بيانات العامل —
+    // «التالي» إلزامي ويُعيد طلب الكابتشا، فلا تقدّم بدون تحقق ناجح.
+    setHrsdCheck(c => ({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: c.result || null, error: null, attempts: 0, errorCount: 0 }))
   }
 
   async function refreshHrsdCaptcha() {
@@ -1250,7 +1249,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   }
 
   const tryNextTab = () => {
-    if (tab === 0 && hrsdCheck.phase === 'idle' && !hrsdCheck.result && /^[12]\d{9}$/.test((f.iqama || '').trim())) {
+    // التحقق من مكتب العمل إلزامي للخروج من خطوة بيانات العامل — يُطلب الكابتشا في كل مرة،
+    // حتى عند الرجوع لنفس العامل (لا يُتخطّى بوجود نتيجة سابقة).
+    if (tab === 0 && hrsdCheck.phase === 'idle' && /^[12]\d{9}$/.test((f.iqama || '').trim())) {
       startHrsdCheck()
       return
     }
@@ -1282,8 +1283,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   const headerSubtitle = screen === 'home' ? T('حساب تكاليف نقل خدمات العمال والرسوم الحكومية','Calculate worker transfer costs and government fees') : (workerMode === 'existing' ? T('عامل مسجّل','Registered Worker') : T('عامل جديد','New Worker')) + (f.name ? ` — ${f.name}` : '')
 
-  const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }
-  const modalBox = { background: 'var(--modal-bg)', borderRadius: 16, width: 640, maxWidth: '95vw', height: 'auto', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', zIndex: 60 }
+  const modalOverlay = { position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }
+  const modalBox = { background: 'var(--modal-bg)', borderRadius: 16, width: 640, maxWidth: '95vw', height: 'auto', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--bd)', position: 'relative', zIndex: 60 }
   const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px', flexShrink: 0, fontFamily: F, direction: 'rtl' }
 
   // ═══════════════════════════════════════
@@ -1360,7 +1361,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 <div style={{ position: 'absolute', top: -2, insetInlineEnd: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 7, direction: dir, pointerEvents: 'none',
                   ...(muqeemFetchStatus === 'loading' ? { background: 'rgba(52,131,180,.12)', color: C.blue }
                     : muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046' }
-                    : muqeemFetchStatus === 'unavailable' ? { background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.4)' }
+                    : muqeemFetchStatus === 'unavailable' ? { background: 'var(--bd)', color: 'var(--tx4)' }
                     : { background: 'rgba(192,57,43,.12)', color: C.red }) }}>
                   {muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span><span style={{ width: 9, height: 9, border: '1.6px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite' }} /></>}
                   {muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
@@ -1411,7 +1412,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 getKey={o=>o.name_ar} getLabel={o=>o.name_ar}
                 renderSelected={o=><>{o.name_ar} <Flag code={o.code} size={16} /></>}
                 renderCell={(o,sel)=>(
-                  <span style={{ fontSize: 14, fontWeight: 600, color: sel ? C.gold : 'rgba(255,255,255,.92)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: sel ? C.gold : 'var(--tx)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     {o.name_ar} <Flag code={o.code} size={16} />
                   </span>
                 )} />
@@ -1432,8 +1433,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               return (
             <div style={{ gridColumn: '1 / -1' }}>
               <Lbl req>{T('رقم الجوال','Mobile Number')}</Lbl>
-              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: 'rgba(0,0,0,.18)', boxShadow: isErr ? `inset 0 0 0 1.6px ${C.red}, inset 0 1px 2px rgba(0,0,0,.2)` : 'inset 0 1px 2px rgba(0,0,0,.2)', height: 42, transition: '.2s' }}>
-                <div style={{ height: '100%', padding: '0 10px', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: C.gold, flexShrink: 0 }}>+966</div>
+              <div className="kc-phone-wrap" style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: 'var(--inputBg)', boxShadow: isErr ? `inset 0 0 0 1.6px ${C.red}` : 'none', height: 42, transition: '.2s' }}>
+                <div style={{ height: '100%', padding: '0 10px', background: 'rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: C.gold, flexShrink: 0 }}>+966</div>
                 <input value={f.phone || ''} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9} disabled={!fieldEditable(user,'transfer_calc','w_phone')}
                   style={{ width: '100%', height: '100%', padding: '0 12px', borderWidth: 0, borderStyle: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', outline: 'none', textAlign: 'left' }} />
               </div>
@@ -1472,7 +1473,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       {tab === 1 && (()=>{
         // Field tile — small label on top, value below — laid out as a card grid (سبلاير style) inside framed groups.
         const Field = ({ label, value, color, span, ltr }) => (
-          <div style={{ gridColumn: span === 2 ? '1 / -1' : 'auto', background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 10, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+          <div style={{ gridColumn: span === 2 ? '1 / -1' : 'auto', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
             {/* المحاذاة منطقية (تبدأ من جهة البداية = اليمين في RTL)؛ القيم اللاتينية/الأرقام تُعزل اتجاهياً فقط لتُعرض LTR دون قلب المحاذاة. */}
             <span style={{ fontSize: 14, fontWeight: 600, color: color || 'var(--tx)', textAlign: 'start', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ltr ? <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{value || '—'}</span> : (value || '—')}</span>
@@ -1537,11 +1538,11 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           return <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
               <label style={{ fontSize: 14, fontWeight: 600, color: on ? c : 'var(--tx4)', fontFamily: F, transition: '.2s' }}>{label}</label>
-              <button type="button" onClick={() => set(stateKey + '_on', !on)} style={{ width: 28, height: 16, borderRadius: 999, border: 'none', background: on ? c : 'rgba(255,255,255,.15)', cursor: 'pointer', position: 'relative', transition: '.2s', padding: 0, flexShrink: 0 }}>
+              <button type="button" onClick={() => set(stateKey + '_on', !on)} style={{ width: 28, height: 16, borderRadius: 999, border: 'none', background: on ? c : 'var(--bd)', cursor: 'pointer', position: 'relative', transition: '.2s', padding: 0, flexShrink: 0 }}>
                 <span style={{ position: 'absolute', width: 12, height: 12, borderRadius: '50%', background: '#fff', top: 2, right: on ? 2 : 14, transition: '.2s' }} />
               </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', background: on ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.02)', border: `1px solid ${on ? c + '4d' : 'rgba(255,255,255,.05)'}`, borderRadius: 8, boxShadow: on ? 'inset 0 1px 2px rgba(0,0,0,.2)' : 'none', height: 36, opacity: on ? 1 : .5, transition: '.2s' }}>
+            <div style={{ display: 'flex', alignItems: 'center', background: on ? 'var(--inputBg)' : 'var(--bd2)', border: `1px solid ${on ? c + '4d' : 'var(--bd)'}`, borderRadius: 8, boxShadow: on ? 'none' : 'none', height: 36, opacity: on ? 1 : .5, transition: '.2s' }}>
               <input type="text" inputMode="decimal" disabled={!on} value={f[stateKey] || ''} onChange={e => set(stateKey, e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 10px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: on ? 'var(--tx)' : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center' }} />
               <span style={{ fontSize: 14, color: on ? c : 'var(--tx5)', fontWeight: 600, padding: '0 8px 0 4px', fontFamily: F, flexShrink: 0 }}>{T('ريال','SAR')}</span>
             </div>
@@ -1630,13 +1631,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
               <input value={extraName} onChange={e => setExtraName(e.target.value)} disabled={!fieldEditable(user,'transfer_calc','w_extras')} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38, fontSize: 12 }} />
               <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} disabled={!fieldEditable(user,'transfer_calc','w_extras')} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, fontSize: 12, direction: 'ltr', textAlign: 'center' }} />
-              <button onClick={addExtra} disabled={!extraName || !extraAmount || !fieldEditable(user,'transfer_calc','w_extras')} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }}><Plus size={17} strokeWidth={2.6} /></button>
+              <button onClick={addExtra} disabled={!extraName || !extraAmount || !fieldEditable(user,'transfer_calc','w_extras')} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(212,160,23,.35)', background: 'linear-gradient(180deg, rgba(212,160,23,.18), rgba(212,160,23,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 var(--bd)' }}><Plus size={17} strokeWidth={2.6} /></button>
             </div>
             {f.extras.length > 0 && (
               <div className="kc-scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, direction: dir, flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'flex-start' }}>
                 {f.extras.map((ex, i) => (
                   <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 9px', borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.25)', direction: dir, height: 'fit-content' }}>
-                    <span style={{ color: 'rgba(255,255,255,.92)', fontWeight: 500, fontSize: 12 }}>{ex.name}</span>
+                    <span style={{ color: 'var(--tx)', fontWeight: 500, fontSize: 12 }}>{ex.name}</span>
                     <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, direction: 'ltr', color: C.gold, fontWeight: 500, fontSize: 12 }}>
                       <span style={{ fontSize: 12, fontWeight: 500 }}>{T('ريال','SAR')}</span>
                       <span>{Number(ex.amount).toLocaleString('en-US')}</span>
@@ -1650,14 +1651,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           )}
 
           {/* Total — hero (مثبّت أسفل، دائمًا ظاهر) */}
-          <div style={{ flexShrink: 0, padding: '14px 18px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(212,160,23,.17) 0%, rgba(212,160,23,.05) 100%)', border: '1px solid rgba(212,160,23,.45)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06), 0 4px 16px rgba(212,160,23,.08)' }}>
+          <div style={{ flexShrink: 0, padding: '14px 18px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(212,160,23,.17) 0%, rgba(212,160,23,.05) 100%)', border: '1px solid rgba(212,160,23,.45)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'inset 0 1px 0 var(--bd), 0 4px 16px rgba(212,160,23,.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
               <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(212,160,23,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, flexShrink: 0 }}>
                 <Calculator size={19} strokeWidth={2.2} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.gold }}>{T('الإجمالي المتوقع','Expected Total')}</span>
-                <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.4)' }}>{T('شامل جميع الرسوم','All fees included')}</span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{T('شامل جميع الرسوم','All fees included')}</span>
               </div>
             </div>
             <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, color: C.gold, direction: dir }}>
@@ -1718,8 +1719,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               })()
               const cell = (l, v, vColor, vSize) => (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                  <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{l}</span>
-                  <span style={{ fontWeight: 500, color: vColor || 'rgba(255,255,255,.92)', fontSize: vSize || 'inherit' }}>{v}</span>
+                  <span style={{ color: 'var(--tx3)', fontWeight: 500 }}>{l}</span>
+                  <span style={{ fontWeight: 500, color: vColor || 'var(--tx)', fontSize: vSize || 'inherit' }}>{v}</span>
                 </div>
               )
               return (
@@ -1763,7 +1764,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               const absherOn = !!f.absherBalance_on
               const absher = absherOn ? (parseFloat(f.absherBalance) || 0) : 0
               const total = Math.max(0, subtotal - absher)
-              const absherClr = '#2ea043'
+              const absherClr = '#27a046'
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {/* Items in 2 columns */}
@@ -1772,8 +1773,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                       const transferEditable = k === 'transferFee' && !mqLocked && stageVisible(user,'transfer_calc','w_review') && fieldVisible(user,'transfer_calc','w_review_transfer_fee') && fieldEditable(user,'transfer_calc','w_review_transfer_fee')
                       const showRenewalFineToggle = k === 'iqamaRenewal' && (iqamaExpired || iqamaInGracePeriod) && stageVisible(user,'transfer_calc','w_review') && fieldVisible(user,'transfer_calc','w_late_fine')
                       return (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.04)', fontSize: 12, gap: 8 }}>
-                        <span style={{ color: 'rgba(255,255,255,.55)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid var(--bd2)', fontSize: 12, gap: 8 }}>
+                        <span style={{ color: 'var(--tx3)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           {l}
                           {showRenewalFineToggle && (
                             <button type="button" onClick={() => set('renewalAdd500', !f.renewalAdd500)} title={f.renewalAdd500 ? T(`إزالة إضافة ${cfg.iqamaFine1 || 500} ريال`,`Remove +${cfg.iqamaFine1 || 500} SAR`) : T(`إضافة ${cfg.iqamaFine1 || 500} ريال (غرامة)`,`Add ${cfg.iqamaFine1 || 500} SAR fine`)} style={{ width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(212,160,23,.15)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0, fontWeight: 500, transition: '.15s' }}>
@@ -1786,11 +1787,11 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                         </span>
                         {transferEditable ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <input type="text" inputMode="decimal" value={f.transferFeeInput || ''} onChange={e => set('transferFeeInput', e.target.value.replace(/[^0-9.]/g, ''))} style={{ width: 90, height: 26, padding: '0 8px', border: '1px solid rgba(212,160,23,.3)', borderRadius: 6, background: 'rgba(0,0,0,.25)', fontFamily: F, fontSize: 14, fontWeight: 500, color: C.gold, outline: 'none', direction: 'ltr', textAlign: 'center' }} />
-                            <span style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', fontWeight: 500 }}>{T('ريال','SAR')}</span>
+                            <input type="text" inputMode="decimal" value={f.transferFeeInput || ''} onChange={e => set('transferFeeInput', e.target.value.replace(/[^0-9.]/g, ''))} style={{ width: 90, height: 26, padding: '0 8px', border: '1px solid rgba(212,160,23,.3)', borderRadius: 6, background: 'var(--inputBg)', fontFamily: F, fontSize: 14, fontWeight: 500, color: C.gold, outline: 'none', direction: 'ltr', textAlign: 'center' }} />
+                            <span style={{ fontSize: 14, color: 'var(--tx3)', fontWeight: 500 }}>{T('ريال','SAR')}</span>
                           </span>
                         ) : (
-                          <span style={{ fontWeight: 500, color: 'rgba(255,255,255,.92)' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(v)}</span> {T('ريال','SAR')}</span>
+                          <span style={{ fontWeight: 500, color: 'var(--tx)' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(v)}</span> {T('ريال','SAR')}</span>
                         )}
                       </div>
                       )
@@ -1803,20 +1804,20 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   </div>
                   {/* Absher discount — framed box (design 3): floating title + toggle switch notched into the border */}
                   {stageVisible(user,'transfer_calc','w_review') && fieldVisible(user,'transfer_calc','w_absher') && (
-                  <div style={{ position: 'relative', border: `1.5px solid ${absherOn ? absherClr + '73' : 'rgba(255,255,255,.12)'}`, borderRadius: 12, padding: '16px 12px 12px', margin: '10px 0 2px', transition: '.2s' }}>
+                  <div style={{ position: 'relative', background: 'rgba(39,160,70,.04)', border: `1.5px solid ${absherOn ? absherClr + '73' : 'rgba(39,160,70,.25)'}`, borderRadius: 12, padding: '16px 12px 12px', margin: '10px 0 2px', transition: '.2s' }}>
                     {/* العنوان العائم — أعلى اليمين */}
-                    <span style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 12, background: 'var(--modal-bg)', padding: '0 7px', fontSize: 12, fontWeight: 600, color: absherOn ? absherClr : 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 5, transition: '.2s' }}>
+                    <span style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 12, background: 'linear-gradient(rgba(39,160,70,.04),rgba(39,160,70,.04)), var(--modal-bg)', padding: '0 7px', fontSize: 12, fontWeight: 600, color: absherOn ? absherClr : 'var(--tx3)', display: 'inline-flex', alignItems: 'center', gap: 5, transition: '.2s' }}>
                       <Wallet size={13} strokeWidth={2.2} /> {T('خصم أبشر','Absher Discount')}
                     </span>
                     {/* مفتاح التبديل — أعلى اليسار، مغروز في الإطار */}
-                    <span style={{ position: 'absolute', top: -11, [lang === 'en' ? 'right' : 'left']: 12, background: 'var(--modal-bg)', padding: '0 4px', lineHeight: 0 }}>
-                      <button type="button" disabled={!fieldEditable(user,'transfer_calc','w_absher')} onClick={() => set('absherBalance_on', !absherOn)} aria-label={T('تفعيل خصم أبشر','Toggle Absher discount')} style={{ width: 34, height: 19, borderRadius: 20, border: 'none', background: absherOn ? absherClr : 'rgba(255,255,255,.18)', position: 'relative', cursor: 'pointer', padding: 0, transition: '.2s', display: 'inline-block', verticalAlign: 'middle' }}>
+                    <span style={{ position: 'absolute', top: -11, [lang === 'en' ? 'right' : 'left']: 12, background: 'linear-gradient(rgba(39,160,70,.04),rgba(39,160,70,.04)), var(--modal-bg)', padding: '0 4px', lineHeight: 0 }}>
+                      <button type="button" disabled={!fieldEditable(user,'transfer_calc','w_absher')} onClick={() => set('absherBalance_on', !absherOn)} aria-label={T('تفعيل خصم أبشر','Toggle Absher discount')} style={{ width: 34, height: 19, borderRadius: 20, border: 'none', background: absherOn ? absherClr : 'var(--bd)', position: 'relative', cursor: 'pointer', padding: 0, transition: '.2s', display: 'inline-block', verticalAlign: 'middle' }}>
                         <span style={{ position: 'absolute', top: 2, left: absherOn ? 17 : 2, width: 15, height: 15, borderRadius: '50%', background: '#fff', transition: '.2s' }} />
                       </button>
                     </span>
                     {/* حقل المبلغ */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: dir, opacity: absherOn ? 1 : .5, transition: '.2s' }}>
-                      <input type="text" inputMode="decimal" disabled={!absherOn || !fieldEditable(user,'transfer_calc','w_absher')} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, height: 36, padding: '0 12px', borderRadius: 8, border: `1px solid ${absherOn ? absherClr + '4d' : 'rgba(255,255,255,.08)'}`, background: absherOn ? absherClr + '0f' : 'rgba(255,255,255,.02)', fontFamily: F, fontSize: 14, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', textAlign: 'center', transition: '.2s' }} />
+                      <input type="text" inputMode="decimal" disabled={!absherOn || !fieldEditable(user,'transfer_calc','w_absher')} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, height: 36, padding: '0 12px', borderRadius: 8, border: `1px solid ${absherOn ? absherClr + '4d' : 'rgba(39,160,70,.22)'}`, background: absherOn ? absherClr + '0f' : 'rgba(39,160,70,.06)', fontFamily: F, fontSize: 14, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', textAlign: 'center', transition: '.2s' }} />
                       <span style={{ fontSize: 13, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)' }}>{T('ريال','SAR')}</span>
                     </div>
                   </div>
@@ -1872,26 +1873,26 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           )
         }
         const row = (label, value, withCopy, amountSplit) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: amountSplit ? 'rgba(212,160,23,.08)' : 'rgba(255,255,255,.03)', border: `1px solid ${amountSplit ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.06)'}` }}>
-            <span style={{ flex: 1, fontSize: 14, color: amountSplit ? C.gold : 'rgba(255,255,255,.5)', fontWeight: 600 }}>{label}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: amountSplit ? 'rgba(212,160,23,.08)' : 'var(--bd2)', border: `1px solid ${amountSplit ? 'rgba(212,160,23,.3)' : 'var(--bd)'}` }}>
+            <span style={{ flex: 1, fontSize: 14, color: amountSplit ? C.gold : 'var(--tx3)', fontWeight: 600 }}>{label}</span>
             {amountSplit ? (
               <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, direction: 'ltr', fontSize: 14, fontWeight: 600, color: C.gold }}>
                 <span style={{ fontSize: 14, fontWeight: 600, opacity: .85 }}>{amountSplit.unit}</span>
                 <span>{amountSplit.num}</span>
               </span>
             ) : (
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.92)', direction: 'ltr' }}>{value}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', direction: 'ltr' }}>{value}</span>
             )}
             {withCopy && <CopyBtn text={String(value)} />}
           </div>
         )
         return (
-          <div onClick={() => setIssuedQuote(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2300, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
-            <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(39,160,70,.3)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
+          <div onClick={() => setIssuedQuote(null)} style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2300, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: '94vw', background: 'var(--modal-bg)', borderRadius: 16, border: '1px solid rgba(39,160,70,.3)', padding: 22, boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 14px' }}>
                 <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'rgba(39,160,70,.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#27a046' }}><Check size={32} strokeWidth={2.5} /></div>
                 <div style={{ fontSize: 14, fontWeight: 500, color: '#27a046', textAlign: 'center' }}>{T('تم إصدار الحسبة','Calculation Issued')}</div>
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار حسبة نقل الكفالة لـ ${issuedQuote.workerName} بنجاح`, `Sponsorship transfer calculation successfully issued for ${issuedQuote.workerName}`)}</div>
+                <div style={{ fontSize: 14, color: 'var(--tx3)', textAlign: 'center', lineHeight: 1.7, padding: '0 4px' }}>{T(`تم إصدار حسبة نقل الكفالة لـ ${issuedQuote.workerName} بنجاح`, `Sponsorship transfer calculation successfully issued for ${issuedQuote.workerName}`)}</div>
                 {issuedQuote.warnings && issuedQuote.warnings.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 }}>
                     {issuedQuote.warnings.map((w, i) => {
@@ -1921,12 +1922,12 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
       {/* ═══ HRSD (Ministry of Labor) Inquiry Overlay ═══ */}
       {hrsdCheck.phase !== 'idle' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(11,109,61,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
-            <button onClick={closeHrsdCheck} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: 'var(--modal-bg)', borderRadius: 16, border: '1px solid rgba(11,109,61,.4)', padding: 22, boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
+            <button onClick={closeHrsdCheck} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'var(--bd2)', border: '1px solid var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
 
-            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,.06)', [lang === 'en' ? 'paddingRight' : 'paddingLeft']: 36 }}>
-              <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.94)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
+            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid var(--bd)', [lang === 'en' ? 'paddingRight' : 'paddingLeft']: 36 }}>
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
                 <Briefcase size={22} style={{ color: '#3bb27a' }} />
                 <span>{T('وزارة العمل','Ministry of Labor')}</span>
               </div>
@@ -1935,21 +1936,20 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             {hrsdCheck.phase === 'loading' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '24px 0 8px' }}>
                 <div style={{ width: 36, height: 36, border: `3px solid rgba(11,109,61,.18)`, borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'mq-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بوزارة العمل…','Connecting to Ministry of Labor…')}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{T('قد يستغرق موقع وزارة العمل بضع ثوانٍ','The Ministry of Labor site may take a few seconds')}</div>
-                {(hrsdCheck.errorCount || 0) >= HRSD_SKIP_AFTER && <button onClick={() => { closeHrsdCheck(); setErrors({}); setTab(1) }} style={{ marginTop: 4, height: 38, padding: '0 18px', borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>}
+                <div style={{ fontSize: 14, color: 'var(--tx5)' }}>{T('جاري الاتصال بوزارة العمل…','Connecting to Ministry of Labor…')}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{T('قد يستغرق موقع وزارة العمل بضع ثوانٍ','The Ministry of Labor site may take a few seconds')}</div>
               </div>
             )}
 
             {hrsdCheck.phase === 'captcha' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx3)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
                   {hrsdCheck.captchaImage
                     ? <CaptchaCountdown captchaKey={hrsdCheck.captchaImage} onExpire={refreshHrsdCaptcha} color="#3bb27a" />
                     : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
                   {hrsdCheck.captchaImage
-                    ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, filter: 'invert(1) saturate(0) contrast(1.1)', mixBlendMode: 'lighten', imageRendering: 'auto' }} />
+                    ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 72, background: 'transparent', mixBlendMode: 'multiply', imageRendering: 'auto' }} />
                     : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل','Loading...')}</span>}
                   <button type="button" onClick={refreshHrsdCaptcha} title={T('رمز تحقق جديد','New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(11,109,61,.12)', color: '#3bb27a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }} onMouseEnter={e => e.currentTarget.style.background='rgba(11,109,61,.22)'} onMouseLeave={e => e.currentTarget.style.background='rgba(11,109,61,.12)'}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
@@ -1962,17 +1962,17 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   placeholder="______"
                   autoFocus maxLength={6}
                   className="kc-captcha-input"
-                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg)', textAlign: 'center', letterSpacing: '10px', direction: 'ltr', transition: '.2s', boxShadow: '0 2px 8px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.05)' }}
+                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid var(--bd)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg)', textAlign: 'center', letterSpacing: '10px', direction: 'ltr', transition: '.2s', boxShadow: 'var(--shadow-sm)' }}
                 />
                 {hrsdCheck.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{hrsdCheck.error}</div>}
-                <button onClick={submitHrsdCaptcha} disabled={!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 700, letterSpacing: '.3px', cursor: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 0.45 : 1, transition: '.18s', boxShadow: '0 4px 14px rgba(59,178,122,.32), inset 0 1px 0 rgba(255,255,255,.18)' }}>{T('تحقق','Verify')}</button>
+                <button onClick={submitHrsdCaptcha} disabled={!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 700, letterSpacing: '.3px', cursor: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 'not-allowed' : 'pointer', opacity: (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 6) ? 0.45 : 1, transition: '.18s', boxShadow: '0 4px 14px rgba(59,178,122,.32), inset 0 1px 0 var(--tx6)' }}>{T('تحقق','Verify')}</button>
               </div>
             )}
 
             {hrsdCheck.phase === 'verifying' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
                 <div style={{ width: 36, height: 36, border: `3px solid rgba(11,109,61,.18)`, borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'mq-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري التحقق…','Verifying…')}</div>
+                <div style={{ fontSize: 14, color: 'var(--tx5)' }}>{T('جاري التحقق…','Verifying…')}</div>
               </div>
             )}
 
@@ -1981,12 +1981,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
                   <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red }}><AlertCircle size={28} /></div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: C.red, textAlign: 'center' }}>{T('تعذّر الاستعلام','Inquiry failed')}</div>
-                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{hrsdCheck.error}</div>
+                  <div style={{ fontSize: 14, color: 'var(--tx3)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{hrsdCheck.error}</div>
                 </div>
                 <button onClick={startHrsdCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(11,109,61,.4)', background: 'rgba(11,109,61,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
-                {(hrsdCheck.errorCount || 0) >= HRSD_SKIP_AFTER
-                  ? <button onClick={() => { closeHrsdCheck(); setErrors({}); setTab(1) }} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.5)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('تخطّي والمتابعة','Skip and continue')}</button>
-                  : null}
               </div>
             )}
 

@@ -19,10 +19,10 @@ export const F = "'Cairo','Tajawal',sans-serif"
 // ── Surfaces ────────────────────────────────────────────────────────────
 // The hero "glass" card — page-level KPI tiles, list rows, big stat cards.
 export const glassCard = {
-  background: 'linear-gradient(160deg,#333 0%,#2A2A2A 50%,#232323 100%)',
+  background: 'var(--card-grad)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-  border: '1px solid rgba(255,255,255,.08)',
+  border: '1px solid var(--bd)',
   borderRadius: 16,
   position: 'relative',
   overflow: 'hidden',
@@ -32,8 +32,8 @@ export const glassCard = {
 
 // Inner stat pill — embedded inside a glassCard. Use for status/count chips.
 export const innerBox = {
-  background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-  border: '1px solid rgba(255,255,255,.06)',
+  background: 'var(--card-grad2)',
+  border: '1px solid var(--bd)',
   borderRadius: 10,
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',
 }
@@ -54,7 +54,7 @@ export const hoverLift = {
 export const pageTitle = {
   fontSize: 24,
   fontWeight: 600,
-  color: 'rgba(255,255,255,.93)',
+  color: 'var(--tx)',
   letterSpacing: '-.3px',
   lineHeight: 1.2,
 }
@@ -76,8 +76,8 @@ export const searchInput = {
   width: '100%',
   height: 40,
   padding: '0 14px 0 36px',
-  background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
-  border: '1px solid rgba(255,255,255,.06)',
+  background: 'var(--inputBg)',
+  border: '1px solid var(--bd)',
   borderRadius: 11,
   fontFamily: F,
   fontSize: 14,
@@ -93,11 +93,11 @@ export const filterBtn = (active = false) => ({
   height: 40,
   padding: '0 14px',
   borderRadius: 11,
-  border: active ? '1px solid rgba(212,160,23,.45)' : '1px solid rgba(255,255,255,.06)',
+  border: active ? '1px solid rgba(212,160,23,.45)' : '1px solid var(--bd)',
   background: active
     ? 'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))'
-    : 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
-  color: active ? C.gold : 'rgba(255,255,255,.78)',
+    : 'var(--inputBg)',
+  color: active ? C.gold : 'var(--tx2)',
   fontFamily: F,
   fontSize: 12,
   fontWeight: 500,
@@ -118,8 +118,8 @@ export const formInput = {
   height: 42,
   padding: '0 14px',
   borderRadius: 10,
-  border: '1px solid rgba(255,255,255,.07)',
-  background: 'linear-gradient(180deg,#323232 0%,#262626 100%)',
+  border: '1px solid var(--bd)',
+  background: 'var(--inputBg)',
   color: 'var(--tx)',
   fontFamily: F,
   fontSize: 13,
@@ -164,9 +164,9 @@ export const ghostBtn = {
   height: 40,
   padding: '0 14px',
   borderRadius: 11,
-  border: '1px solid rgba(255,255,255,.06)',
-  background: 'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',
-  color: 'rgba(255,255,255,.78)',
+  border: '1px solid var(--bd)',
+  background: 'var(--inputBg)',
+  color: 'var(--tx2)',
   fontFamily: F,
   fontSize: 12,
   fontWeight: 500,
@@ -183,7 +183,7 @@ export const ghostBtn = {
 export const panel = {
   padding: '16px 18px',
   background: 'var(--modal-bg)',
-  border: '1px solid rgba(255,255,255,.06)',
+  border: '1px solid var(--bd)',
   borderRadius: 14,
   boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)',
 }

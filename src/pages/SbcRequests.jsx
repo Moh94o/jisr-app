@@ -11,15 +11,15 @@ const C = {
 
 const cardChrome = {
   borderRadius: 14,
-  background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)',
-  border: '1px solid rgba(255,255,255,.05)',
+  background: 'var(--card-grad2)',
+  border: '1px solid var(--bd)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
   overflow: 'hidden',
 }
 const cardHeader = {
   display: 'flex', alignItems: 'center', gap: 8,
   padding: '12px 22px',
-  borderBottom: '1px solid rgba(255,255,255,.06)',
+  borderBottom: '1px solid var(--bd)',
 }
 const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.2px' }
 
@@ -37,15 +37,15 @@ const statusTheme = (s) => {
   if (v.includes('مكتمل') || v.includes('complete')) return { fg: C.ok, bg: 'rgba(34,197,94,.12)', border: 'rgba(34,197,94,.35)' }
   if (v.includes('جاري') || v.includes('process') || v.includes('under')) return { fg: C.warn, bg: 'rgba(245,158,11,.12)', border: 'rgba(245,158,11,.35)' }
   if (v.includes('مرفوض') || v.includes('reject')) return { fg: C.red, bg: 'rgba(239,68,68,.12)', border: 'rgba(239,68,68,.35)' }
-  if (v.includes('ملغ') || v.includes('cancel')) return { fg: 'rgba(255,255,255,.5)', bg: 'rgba(255,255,255,.05)', border: 'rgba(255,255,255,.1)' }
+  if (v.includes('ملغ') || v.includes('cancel')) return { fg: 'var(--tx3)', bg: 'var(--bd2)', border: 'var(--bd)' }
   if (v.includes('انتهت') || v.includes('expired')) return { fg: '#e67e22', bg: 'rgba(230,126,34,.12)', border: 'rgba(230,126,34,.35)' }
   if (v.includes('انتظار') || v.includes('waiting')) return { fg: C.blue, bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.35)' }
-  return { fg: 'rgba(255,255,255,.7)', bg: 'rgba(255,255,255,.05)', border: 'rgba(255,255,255,.1)' }
+  return { fg: 'var(--tx2)', bg: 'var(--bd2)', border: 'var(--bd)' }
 }
 
 function CopyableNumber({ value, onToast, copyLabel }) {
   const [copied, setCopied] = useState(false)
-  if (!value) return <span style={{ color: 'rgba(255,255,255,.3)' }}>—</span>
+  if (!value) return <span style={{ color: 'var(--tx5)' }}>—</span>
   const onCopy = async (e) => {
     e.stopPropagation()
     try {
@@ -57,9 +57,9 @@ function CopyableNumber({ value, onToast, copyLabel }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
       <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--tx)', fontWeight: 800 }}>{value}</span>
-      <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 18, height: 18, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, transition: 'color .15s' }}
+      <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 18, height: 18, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, transition: 'color .15s' }}
         onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
-        onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.35)' }}>
+        onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'var(--tx4)' }}>
         {copied ? (
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         ) : (
@@ -74,13 +74,13 @@ function CopyableNumber({ value, onToast, copyLabel }) {
 // `bucket` controls left-border accent: 'done' = green, 'processing' = amber.
 function AuthorityCard({ ar, en, num, color, statusAr, statusEn, bucket, lang, onCopy }) {
   const isAr = (lang || 'ar') !== 'en'
-  const borderL = bucket === 'done' ? C.ok : (bucket === 'processing' ? C.warn : 'rgba(255,255,255,.1)')
+  const borderL = bucket === 'done' ? C.ok : (bucket === 'processing' ? C.warn : 'var(--bd)')
   return (
     <div style={{
       padding: '12px 14px',
-      background: 'rgba(255,255,255,.025)',
+      background: 'var(--bd2)',
       borderRadius: 10,
-      border: '1px solid rgba(255,255,255,.06)',
+      border: '1px solid var(--bd)',
       borderInlineStart: `3px solid ${borderL}`,
       display: 'flex', flexDirection: 'column', gap: 10,
     }}>
@@ -91,13 +91,13 @@ function AuthorityCard({ ar, en, num, color, statusAr, statusEn, bucket, lang, o
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>
+        <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600 }}>
           {isAr ? 'رقم التسجيل' : 'Reg. no.'}
         </span>
         <CopyableNumber value={num} onToast={onCopy} copyLabel={isAr ? 'نُسخ' : 'Copied'} />
       </div>
       {(statusAr || statusEn) && (
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', textAlign: 'end' }}>
+        <div style={{ fontSize: 10, color: 'var(--tx3)', textAlign: 'end' }}>
           {isAr ? (statusAr || statusEn) : (statusEn || statusAr)}
         </div>
       )}
@@ -195,7 +195,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 6 }}>
                   {T(detail.service_name_ar, detail.service_name_en) || T('طلب', 'Request')}
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'rgba(255,255,255,.93)' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--tx)' }}>
                   {detail.mc_company_name || detail.request_reference || '—'}
                 </div>
                 <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 12, fontSize: 12 }}>
@@ -242,7 +242,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
         {other.length > 0 && (
           <div style={{ ...cardChrome, marginBottom: 14 }}>
             <div style={cardHeader}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,.3)' }} />
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--tx4)' }} />
               <span style={cardTitle}>{T('أخرى', 'Other')}</span>
             </div>
             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
@@ -275,11 +275,11 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
     <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'rgba(255,255,255,.92)' }}>{T('طلبات SBC', 'SBC Requests')}</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>{T('طلبات SBC', 'SBC Requests')}</h2>
           <div style={{ fontSize: 11.5, color: 'var(--tx5)', marginTop: 4 }}>{T('متابعة حالة الملفات لدى الجهات', 'Track sub-service registration progress')}</div>
         </div>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder={T('بحث برقم الطلب أو اسم الشركة...', 'Search by request no. or company...')}
-          style={{ flex: 1, maxWidth: 380, height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.18)', color: 'var(--tx)', fontFamily: F, fontSize: 12 }} />
+          style={{ flex: 1, maxWidth: 380, height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 12 }} />
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -292,7 +292,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
           const active = statusFilter === k
           return (
             <button key={k} onClick={() => setStatusFilter(k)}
-              style={{ height: 36, padding: '0 14px', borderRadius: 10, background: active ? 'rgba(212,160,23,.14)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (active ? 'rgba(212,160,23,.35)' : 'rgba(255,255,255,.06)'), color: active ? C.gold : 'var(--tx2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ height: 36, padding: '0 14px', borderRadius: 10, background: active ? 'rgba(212,160,23,.14)' : 'var(--inputBg)', border: '1px solid ' + (active ? 'rgba(212,160,23,.35)' : 'var(--bd)'), color: active ? C.gold : 'var(--tx2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               {l}
               <span style={{ fontSize: 10.5, color: active ? C.gold : 'var(--tx5)', fontWeight: 800 }}>{n}</span>
             </button>
@@ -303,7 +303,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
       {loading && <div style={{ padding: 24, textAlign: 'center', color: 'var(--tx5)' }}>{T('جارٍ التحميل...', 'Loading...')}</div>}
       {err && <div style={{ padding: 14, color: C.red, fontSize: 12 }}>{err}</div>}
       {!loading && filtered.length === 0 && (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx5)', background: 'rgba(255,255,255,.025)', borderRadius: 12, border: '1px dashed rgba(255,255,255,.1)' }}>
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx5)', background: 'var(--bd2)', borderRadius: 12, border: '1px dashed var(--bd)' }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>{T('لا توجد طلبات', 'No requests')}</div>
           <div style={{ fontSize: 11.5 }}>{T('شغّل مزامنة SBC لجلب طلباتك من البوابة', 'Run an SBC sync to fetch your portal requests')}</div>
         </div>
@@ -320,8 +320,8 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
             <div key={r.request_uuid} onClick={() => setDetail(r)}
               style={{ ...cardChrome, cursor: 'pointer', transition: '.15s' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
-              <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--bd)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 10.5, color: C.gold, fontWeight: 700, letterSpacing: '.3px', marginBottom: 4, textTransform: 'uppercase' }}>

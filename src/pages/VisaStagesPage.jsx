@@ -12,7 +12,7 @@ import { Wallet, Upload, IdCard, Truck, Building2, FileText, Landmark } from 'lu
 // the page itself never hosts raw inputs.
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', blue: '#5dade2', cyan: '#16a085', purple: '#bb8fce', ok: '#2ecc71', warn: '#eab308', red: '#e87265', orange: '#f39c12' }
-const cardChrome = { background: 'linear-gradient(180deg,#2A2A2A 0%,#222 100%)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }
 const cardTitle = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }
 const fm = v => Number(v || 0).toLocaleString('en-US')
@@ -313,11 +313,11 @@ function StageList({ T, isAr, title, desc, rows, stateOf, columns, onOpen, loadi
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
           </span>
           <input type="text" value={q} onChange={e => setQ(e.target.value)} placeholder={T('ابحث برقم الحدود أو التأشيرة أو المرجع…','Search by border, visa, or reference…')}
-            style={{ width: '100%', height: 44, padding: '0 38px', borderRadius: 12, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx1)', fontFamily: F, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            style={{ width: '100%', height: 44, padding: '0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx1)', fontFamily: F, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
         </div>
         {[{ v: '', l: T('الكل','All') }, { v: 'pending', l: T('بانتظار','Pending') }, { v: 'done', l: T('مكتملة','Done') }].map(o => (
           <button key={o.v} type="button" onClick={() => setFlt(o.v)}
-            style={{ height: 44, padding: '0 16px', borderRadius: 12, background: flt === o.v ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (flt === o.v ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: flt === o.v ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>
+            style={{ height: 44, padding: '0 16px', borderRadius: 12, background: flt === o.v ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (flt === o.v ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: flt === o.v ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>
             {o.l}
           </button>
         ))}
