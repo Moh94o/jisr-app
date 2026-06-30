@@ -13,7 +13,7 @@ import { getSupabase } from '../lib/supabase.js'
 export async function listRolesWithStats() {
   const sb = getSupabase()
   const [rRes, rpRes, urRes] = await Promise.all([
-    sb.from('roles').select('id,name_ar,name_en,color,description,is_active,is_system').order('is_system', { ascending: false }).order('name_ar'),
+    sb.from('roles').select('id,name_ar,name_en,color,description,is_active,is_system,ui_visibility').order('is_system', { ascending: false }).order('name_ar'),
     sb.from('role_permissions').select('role_id'),
     sb.from('user_roles').select('role_id'),
   ])

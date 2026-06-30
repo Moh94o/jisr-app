@@ -20,6 +20,25 @@
 import { tabModule, MODULE_ACTIONS } from './permCatalog.js'
 export { tabModule }
 
+// Merge several roles' granular ui_visibility maps into one effective map for a
+// user (called at login). PERMISSIVE union: a boolean hide/lock key resolves to
+// `false` (hidden/locked) only when EVERY role sets it false — if any role leaves
+// it open, the item stays visible. Object policies (office:/svc:/stats:) take the
+// first role that defines them. The user's OWN ui_visibility is layered on top.
+export const mergeRoleVis = (roleVisList) => {
+  const list = (roleVisList || []).filter(v => v && typeof v === 'object')
+  if (!list.length) return {}
+  const keys = new Set()
+  list.forEach(v => Object.keys(v).forEach(k => keys.add(k)))
+  const out = {}
+  for (const k of keys) {
+    const objVal = list.map(v => v[k]).find(x => x && typeof x === 'object')
+    if (objVal) { out[k] = objVal; continue }
+    if (list.every(v => v[k] === false)) out[k] = false
+  }
+  return out
+}
+
 export const isGM = (user) =>
   user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager'
 

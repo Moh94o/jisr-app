@@ -6,6 +6,7 @@ import { Modal, ModalSection, ActionButton, SuccessView, TextField, GRID, EmptyS
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
 import { isGM as isGmUser, can } from '../../lib/permissions.js'
 import * as svc from '../../services/rolesAdminService.js'
+import { PermissionsPanel } from './PermissionsPage.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#D4A017', red: '#c0392b', ok: '#27a046', blue: '#3483b4' }
@@ -15,7 +16,7 @@ const resolveIcon = (name) => (name && LucideIcons[name]) || ShieldCheck
 // «view»/«access» is the gate that opens a whole section — surface it clearly.
 const isViewAction = (a) => a === 'view' || a === 'access'
 
-export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon }) {
+export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, hubTabs }) {
   const canManage = isGmUser(user) || can(user, 'admin_permissions.manage_permissions')
   const [roles, setRoles] = useState([])
   const [catalog, setCatalog] = useState([])
@@ -37,6 +38,7 @@ export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon }) {
 
   if (selected) {
     return <RoleEditor sb={sb} role={selected} catalog={catalog} canManage={canManage} toast={toast}
+      nav={nav} hubTabs={hubTabs}
       onBack={() => setSelectedId(null)} onChanged={load}
       onEdit={() => setModal({ mode: 'edit', role: selected })}
       onDeleted={() => { setSelectedId(null); load() }} />
@@ -123,40 +125,11 @@ function RoleCard({ role, totalPerms, onClick }) {
   )
 }
 
-// ── Role editor: section/action toggles writing role_permissions ───────────
-function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, onEdit, onDeleted }) {
+// ── Role editor: the FULL granular control panel, bound to this role. Every
+// section's actions, detail cards, fields, popups and wizard steps are set here
+// once; users then just get this role (with a branch scope).
+function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, onEdit, onDeleted, nav, hubTabs }) {
   const c = role.color || C.gold
-  const [granted, setGranted] = useState(null) // Set<permission_id>
-  const [busy, setBusy] = useState(() => new Set())
-
-  useEffect(() => {
-    let live = true
-    svc.getRolePermissionIds(role.id).then(ids => { if (live) setGranted(new Set(ids)) })
-      .catch(e => toast?.(e.message))
-    return () => { live = false }
-  }, [role.id, toast])
-
-  const totalPerms = catalog.reduce((s, m) => s + m.perms.length, 0)
-  const grantedCount = granted ? granted.size : 0
-
-  const toggle = async (perm) => {
-    if (!canManage || !granted || busy.has(perm.id)) return
-    const next = !granted.has(perm.id)
-    setBusy(b => new Set(b).add(perm.id))
-    setGranted(g => { const n = new Set(g); next ? n.add(perm.id) : n.delete(perm.id); return n })
-    try { await svc.setRolePermission(role.id, perm.id, next) }
-    catch (e) { setGranted(g => { const n = new Set(g); next ? n.delete(perm.id) : n.add(perm.id); return n }); toast?.(e.message || 'تعذّر الحفظ') }
-    finally { setBusy(b => { const n = new Set(b); n.delete(perm.id); return n }); onChanged?.() }
-  }
-
-  const toggleModule = async (mod, on) => {
-    if (!canManage || !granted) return
-    const ids = mod.perms.map(p => p.id)
-    setGranted(g => { const n = new Set(g); ids.forEach(id => on ? n.add(id) : n.delete(id)); return n })
-    try { await svc.setRolePermissionsBatch(role.id, ids, on) }
-    catch (e) { toast?.(e.message || 'تعذّر الحفظ'); svc.getRolePermissionIds(role.id).then(x => setGranted(new Set(x))) }
-    finally { onChanged?.() }
-  }
 
   const del = async () => {
     if (!window.confirm(`حذف الدور «${role.name_ar}»؟`)) return
@@ -178,9 +151,6 @@ function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, on
           <div style={{ fontSize: 22, fontWeight: 700, color: c }}>{role.name_ar}</div>
           {role.name_en && <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx5)', direction: 'ltr', textAlign: 'right' }}>{role.name_en}</div>}
         </div>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 8, background: c + '14', border: `1px solid ${c}33`, fontSize: 12, fontWeight: 800, color: c, direction: 'ltr' }}>
-          {grantedCount} / {totalPerms}
-        </span>
         {canManage && !role.is_system && (
           <>
             <button onClick={onEdit} title="تعديل الاسم واللون"
@@ -191,26 +161,21 @@ function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, on
         )}
       </div>
 
-      {isGmRole && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderRadius: 12, background: c + '12', border: `1px solid ${c}33`, marginBottom: 16 }}>
+      {isGmRole ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderRadius: 12, background: c + '12', border: `1px solid ${c}33` }}>
           <ShieldCheck size={18} color={c} />
           <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>
-            المدير العام يملك كل الصلاحيات تلقائياً — لا حاجة لتفعيلها يدوياً.
+            المدير العام يملك كل الصلاحيات تلقائياً — لا حاجة لضبطها.
           </div>
         </div>
-      )}
-
-      {!granted ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {Array.from({ length: 5 }).map((_, i) => <Shimmer key={i} w="100%" h={70} r={12} />)}
-        </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(330px,1fr))', gap: 12, alignItems: 'start' }}>
-          {catalog.map(mod => (
-            <ModuleBlock key={mod.module} mod={mod} granted={granted} busy={busy} canManage={canManage}
-              onToggle={toggle} onToggleModule={toggleModule} />
-          ))}
-        </div>
+        <>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx4)', marginBottom: 12, lineHeight: 1.6 }}>
+            فعّل لكل قسم ما يراه ويفعله هذا الدور: الأزرار والصلاحيات، بطاقات صفحة التفاصيل، الحقول (إظهار + تعديل)، النوافذ المنبثقة، ومراحل الحاسبات.
+          </div>
+          <PermissionsPanel mode="role" sb={sb} role={role} modules={catalog}
+            nav={nav} hubTabs={hubTabs} toast={toast} onRoleChanged={onChanged} embedded />
+        </>
       )}
     </div>
   )

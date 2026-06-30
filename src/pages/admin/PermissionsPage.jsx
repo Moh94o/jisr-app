@@ -609,77 +609,97 @@ function ActionRow({ p, on, source, locked, onToggle }) {
   )
 }
 
-function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules, toast, embedded }) {
-  const userIsGM = isGmUser(u)
-  const [vis, setVis] = useState(() => ({ ...(u.ui_visibility || {}) }))
+export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', branches, nav, hubTabs, modules, toast, embedded, onRoleChanged }) {
+  const isRole = mode === 'role'
+  const targetId = isRole ? role.id : u.id
+  const userIsGM = !isRole && isGmUser(u)
+  const [vis, setVis] = useState(() => ({ ...((isRole ? role.ui_visibility : u.ui_visibility) || {}) }))
   const visRef = useRef(vis)
-  const [eff, setEff] = useState(null)   // permId -> { is_granted, source }
+  const [eff, setEff] = useState(null)         // permId -> { is_granted, source }
+  const [granted, setGranted] = useState(null)  // role mode: Set<permission_id>
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(() => new Set())   // expanded tab ids
   const [serviceTypes, setServiceTypes] = useState([]) // for the service-scope picker
 
-  // Effective permissions for this user (role grants ∪ user overrides).
+  // Effective permissions (user mode) OR the role's own grants (role mode).
   useEffect(() => {
     let live = true
-    sb.from('v_user_effective_permissions').select('permission_id,is_granted,source').eq('user_id', u.id)
-      .then(({ data }) => { if (!live) return; const m = {}; (data || []).forEach(r => { m[r.permission_id] = { is_granted: r.is_granted, source: r.source } }); setEff(m) })
+    if (isRole) {
+      sb.from('role_permissions').select('permission_id').eq('role_id', targetId)
+        .then(({ data }) => { if (!live) return; const ids = (data || []).map(r => r.permission_id); setGranted(new Set(ids)); const m = {}; ids.forEach(id => { m[id] = { is_granted: true, source: 'role' } }); setEff(m) })
+    } else {
+      sb.from('v_user_effective_permissions').select('permission_id,is_granted,source').eq('user_id', targetId)
+        .then(({ data }) => { if (!live) return; const m = {}; (data || []).forEach(r => { m[r.permission_id] = { is_granted: r.is_granted, source: r.source } }); setEff(m) })
+    }
     return () => { live = false }
-  }, [sb, u.id])
+  }, [sb, targetId, isRole])
 
-  // Service types (for the per-user invoice service-type scope control).
+  // Service types (for the per-user invoice service-type scope control) — user mode only.
   useEffect(() => {
+    if (isRole) return
     let live = true
     sb.from('lookup_items').select('id,value_ar,value_en,category:lookup_categories!inner(category_key)')
       .eq('category.category_key', 'service_type')
       .then(({ data }) => { if (live) setServiceTypes(data || []) })
     return () => { live = false }
-  }, [sb])
+  }, [sb, isRole])
 
   const moduleByName = useMemo(() => { const m = {}; (modules || []).forEach(x => { m[x.module] = x }); return m }, [modules])
   const moduleForTab = (tabId) => moduleByName[catTabModule(tabId)] || null
 
-  // ── writers ──
+  // ── writers (target = the role's ui_visibility in role mode, else the user's) ──
   const patchVis = async (patch) => {
     const next = { ...visRef.current, ...patch }
     visRef.current = next; setVis(next)
-    const { error } = await sb.from('users').update({ ui_visibility: next, updated_at: new Date().toISOString() }).eq('id', u.id)
-    if (error) toast('خطأ: ' + error.message.slice(0, 80))
+    const { error } = await sb.from(isRole ? 'roles' : 'users').update({ ui_visibility: next, updated_at: new Date().toISOString() }).eq('id', targetId)
+    if (error) toast('خطأ: ' + error.message.slice(0, 80)); else onRoleChanged?.()
   }
-  // ROLE-FIRST EXCEPTIONS: every item is ALLOWED by default (the role decides).
-  // These toggles only carve out a per-user EXCEPTION: an explicit `false` hides/
-  // locks one item; flipping back stores `true` (= inherit the role / allowed).
-  // on-state everywhere is `key !== false`.
+  // ROLE-FIRST: every item is ALLOWED by default; a toggle stores an explicit
+  // `false` to hide/lock it (flipping back stores `true` = allowed). on = key !== false.
   const flip = (k) => patchVis({ [k]: visRef.current[k] === false ? true : false })
   const toggleTab = (tabId) => flip(tabId)
   const toggleCard = (tabId, key) => flip(`card:${tabId}:${key}`)
   const toggleCardAct = (tabId, key, action) => flip(`cardact:${tabId}:${key}:${action}`)
-  // granular layer — fields (show + edit-lock), modals (open), wizard stages (show)
   const toggleField = (tabId, key) => flip(`field:${tabId}:${key}`)
   const toggleFieldEdit = (tabId, key) => flip(`fieldedit:${tabId}:${key}`)
   const toggleModal = (tabId, key) => flip(`modal:${tabId}:${key}`)
   const toggleStage = (tabId, key) => flip(`stage:${tabId}:${key}`)
   const setOffice = (tabId, policy) => patchVis({ [`office:${tabId}`]: policy })
   const setServiceScope = (tabId, policy) => patchVis({ [`svc:${tabId}`]: policy })
-  const setStatsMode = (tabId, mode) => patchVis({ [`stats:${tabId}`]: mode })
+  const setStatsMode = (tabId, m2) => patchVis({ [`stats:${tabId}`]: m2 })
 
   const togglePerm = async (p) => {
     if (busy || !eff) return
+    // Role mode: grant/revoke directly on role_permissions.
+    if (isRole) {
+      const isOn = granted?.has(p.id)
+      setBusy(true)
+      try {
+        if (isOn) { const { error } = await sb.from('role_permissions').delete().eq('role_id', targetId).eq('permission_id', p.id); if (error) throw error }
+        else { const { error } = await sb.from('role_permissions').upsert({ role_id: targetId, permission_id: p.id }, { onConflict: 'role_id,permission_id' }); if (error) throw error }
+        setGranted(g => { const n = new Set(g); isOn ? n.delete(p.id) : n.add(p.id); return n })
+        setEff(e => ({ ...e, [p.id]: { is_granted: !isOn, source: 'role' } }))
+        onRoleChanged?.()
+      } catch (e) { toast('خطأ: ' + (e.message || '').slice(0, 80)) }
+      setBusy(false)
+      return
+    }
     const cur = eff[p.id] || { is_granted: false, source: 'none' }
     const isOn = cur.is_granted === true
     setBusy(true)
     try {
       if (isOn) {
         if (cur.source === 'role') {
-          const { error } = await sb.from('user_permissions').upsert({ user_id: u.id, permission_id: p.id, is_granted: false, created_by: currentUser?.id || null }, { onConflict: 'user_id,permission_id' })
+          const { error } = await sb.from('user_permissions').upsert({ user_id: targetId, permission_id: p.id, is_granted: false, created_by: currentUser?.id || null }, { onConflict: 'user_id,permission_id' })
           if (error) throw error
           setEff(e => ({ ...e, [p.id]: { is_granted: false, source: 'user_deny' } }))
         } else {
-          const { error } = await sb.from('user_permissions').delete().eq('user_id', u.id).eq('permission_id', p.id)
+          const { error } = await sb.from('user_permissions').delete().eq('user_id', targetId).eq('permission_id', p.id)
           if (error) throw error
           setEff(e => ({ ...e, [p.id]: { is_granted: false, source: 'none' } }))
         }
       } else {
-        const { error } = await sb.from('user_permissions').upsert({ user_id: u.id, permission_id: p.id, is_granted: true, created_by: currentUser?.id || null }, { onConflict: 'user_id,permission_id' })
+        const { error } = await sb.from('user_permissions').upsert({ user_id: targetId, permission_id: p.id, is_granted: true, created_by: currentUser?.id || null }, { onConflict: 'user_id,permission_id' })
         if (error) throw error
         setEff(e => ({ ...e, [p.id]: { is_granted: true, source: 'user_grant' } }))
       }
@@ -725,7 +745,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
             <span style={{ fontSize: 13, fontWeight: 700, color: shown ? 'var(--tx)' : 'var(--tx3)' }}>{label}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10, fontWeight: 600, color: 'var(--tx5)', flexWrap: 'wrap' }}>
               {gTot > 0 && <span><span style={{ color: gOn ? C.ok : 'var(--tx5)' }}>{gOn}</span>/{gTot} صلاحية</span>}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Building2 size={9} />{officeLabel(id)}</span>
+              {!isRole && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Building2 size={9} />{officeLabel(id)}</span>}
               {cards.length > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Layers size={9} />{cards.length - hiddenCards(id)}/{cards.length} كرت</span>}
             </span>
           </span>
@@ -737,7 +757,8 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
         {/* body */}
         {isOpen && (
           <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--bd)' }}>
-            {/* offices */}
+            {/* offices — user mode only (branch scope is per role-assignment now) */}
+            {!isRole && (
             <div style={{ paddingTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                 <Building2 size={13} color={C.gold} />
@@ -755,8 +776,9 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
                 {pol.mode === 'inherit' && <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>يستخدم المكاتب المسندة للحساب افتراضياً.</span>}
               </div>
             </div>
+            )}
             {/* service-type scope (which service types this user may see) */}
-            {TAB_SERVICE_SCOPE.includes(id) && (
+            {!isRole && TAB_SERVICE_SCOPE.includes(id) && (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                   <Layers size={13} color={C.gold} />
@@ -776,7 +798,7 @@ function PermissionsPanel({ sb, currentUser, u, branches, nav, hubTabs, modules,
               </div>
             )}
             {/* stat-cards mode (real / always-zero / hidden) */}
-            {TAB_STATS_MODE.includes(id) && (
+            {!isRole && TAB_STATS_MODE.includes(id) && (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                   <SlidersHorizontal size={13} color={C.gold} />
@@ -1438,14 +1460,9 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
         <div className="usrd-main" style={{ gridColumn: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <InfoSectionCard title="بيانات العمل" items={infoFields.slice(4, 8)} pwNode={pwValueNode}
             headerAction={<EditAction onEdit={() => setEditing(true)} />} />
-          {/* Permissions — role assignment first (simple), exceptions collapsed below */}
+          {/* Permissions — assign role(s) with a branch scope. The full granular
+              control of what each role sees/does lives in the Roles admin page. */}
           <RoleAssignmentCard sb={sb} currentUser={currentUser} u={u} roles={roles} branches={branches} toast={toast} onChanged={onChanged} />
-          {!isGMRole && (
-            <AdvancedExceptions>
-              <PermissionsPanel sb={sb} currentUser={currentUser} u={u} branches={branches}
-                nav={nav} hubTabs={hubTabs} modules={modules} toast={toast} embedded />
-            </AdvancedExceptions>
-          )}
         </div>
 
         {/* Left column — الهوية (sticky) */}
