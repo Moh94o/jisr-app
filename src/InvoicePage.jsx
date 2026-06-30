@@ -2234,8 +2234,8 @@ const InstallmentPicker = ({ T, isAr, color, insts, selectedId, onSelect, locked
           <button key={ins.id} type="button" disabled={blocked} onClick={() => { if (!blocked) onSelect(ins.id) }}
             title={locked ? T('تُفتح بعد سداد الدفعة السابقة بالكامل', 'Unlocks once the previous installment is fully paid')
               : noBorder ? T('أدخِل رقم الحدود للتأشيرة أولاً', 'Enter the visa border number first') : undefined}
-            style={{ textAlign: 'start', cursor: blocked ? 'not-allowed' : 'pointer', opacity: blocked ? .55 : 1, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: active ? color + '14' : 'rgba(255,255,255,.03)', border: '1.5px solid ' + (active ? color : 'rgba(255,255,255,.08)'), transition: '.15s', fontFamily: F }}>
-            <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: active ? color : 'rgba(255,255,255,.06)', color: active ? '#10240f' : 'var(--tx3)', border: active ? 'none' : '1px solid var(--bd)' }}>
+            style={{ textAlign: 'start', cursor: blocked ? 'not-allowed' : 'pointer', opacity: blocked ? .55 : 1, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: active ? color + '14' : 'var(--hoverBg)', border: '1.5px solid ' + (active ? color : 'var(--bd)'), transition: '.15s', fontFamily: F }}>
+            <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: active ? color : 'var(--tx6)', color: active ? '#10240f' : 'var(--tx3)', border: active ? 'none' : '1px solid var(--bd)' }}>
               {blocked
                 ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 : ins.installment_order}
@@ -2270,7 +2270,7 @@ const InstallmentPicker = ({ T, isAr, color, insts, selectedId, onSelect, locked
               })()}
               {/* حالة الدفعة — تُخفى «لم يُسدد» (المتبقّي يكفي للدلالة)؛ تظهر فقط للمقفلة أو «جزئي/مسدّد». */}
               {(locked || m.state !== 'unpaid') && (
-                <div style={{ fontSize: 10.5, color: locked ? 'rgba(255,255,255,.4)' : m.stateC, fontWeight: 600, marginTop: 2 }}>
+                <div style={{ fontSize: 10.5, color: locked ? 'var(--tx4)' : m.stateC, fontWeight: 600, marginTop: 2 }}>
                   {locked ? T('مقفلة — تُفتح بعد سداد الدفعة السابقة', 'Locked — unlocks after the previous installment') : m.stateLabel}
                 </div>
               )}
@@ -8748,6 +8748,9 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         // Action buttons depend on invoice state: a cancelled invoice exposes none,
         // a fully-paid one hides "record payment", an unpaid one hides "refund".
         const cancelled = inv.status?.code === 'cancelled'
+        // Same branch-scope gate used in InvoiceDetailPage: the user may act on this
+        // invoice only when its office is within their permitted branches.
+        const invBranchCan = canTabBranch(user, 'invoices', inv.branch_id || inv.branch?.id || null)
         const canPay = !cancelled && invBranchCan && remaining > 0.005 && canPayPerm && modalAllowed(user, 'invoices', 'inv_action_payment')
         const canRefund = !cancelled && invBranchCan && paid > 0.005 && canRefundPerm && modalAllowed(user, 'invoices', 'inv_action_refund')
         // رواتب سبلاير: لا يُعرض زر إلغاء الفاتورة (تُدار حالة الطلب من زر «تأكيد الإنجاز» فقط).
