@@ -199,7 +199,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     return () => { alive = false }
   }, [sb, worker?.iqama_number])
 
-  const cfg = useMemo(() => getIqamaRenewalPricingConfig(), [])
+  const cfg = useMemo(() => getIqamaRenewalPricingConfig(user?.branch_id || user?.primary_branch_id || null), [user])
   useEffect(() => { if (!sb) return; sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').then(({ data }) => setNationalities(data || [])) }, [sb])
   // قائمة المهن (نفس مصدر تسعيرة التنازل) — لقائمة المهنة الجديدة عند تغيير المهنة
   useEffect(() => {

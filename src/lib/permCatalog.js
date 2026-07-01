@@ -630,7 +630,12 @@ export const TAB_MODALS = {
   invoices: [
     M('inv_action_payment', 'تسجيل دفعة'), M('inv_action_refund', 'استرجاع دفعة'),
     M('inv_action_cancel', 'إلغاء الفاتورة'), M('inv_action_print', 'طباعة الفاتورة'),
-    M('inv_action_done', 'إنجاز مرحلة المعاملة'), M('inv_action_salary_return', 'إرجاع الراتب'),
+    // أزرار مراحل المعاملة — مفتاح مستقل لكل خدمة/مرحلة كما تظهر في صفحة الفاتورة.
+    M('inv_stage_transfer', 'نقل الكفالة · النقل'), M('inv_stage_transfer_insurance', 'نقل الكفالة · التأمين'),
+    M('inv_stage_transfer_workpermit', 'نقل الكفالة · رخصة العمل'), M('inv_stage_transfer_iqama', 'نقل الكفالة · الإقامة'),
+    M('inv_stage_renewal_insurance', 'تجديد الإقامة · التأمين'), M('inv_stage_renewal_iqama', 'تجديد الإقامة · الإقامة'),
+    M('inv_stage_acct_approval', 'موافقة المحاسب'), M('inv_stage_status', 'حالة المعاملة'),
+    M('inv_action_salary_return', 'إرجاع الراتب'),
     M('inv_worker_pick', 'تغيير العامل'), M('inv_client_edit', 'تعديل بيانات العميل'),
     M('inv_agent_edit', 'تعديل بيانات الوسيط'), M('inv_service_edit', 'تعديل تفاصيل الخدمة'),
     M('inv_note_edit', 'تعديل الملاحظة'), M('inv_border_numbers', 'بيانات التأشيرة / الحدود'),

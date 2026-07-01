@@ -22,8 +22,24 @@ export const KAFALA_DEFAULTS={
   medicalBrackets:[{min:20,max:30,rate:400},{min:30,max:40,rate:500},{min:40,max:50,rate:600},{min:50,max:60,rate:700},{min:60,max:70,rate:900}]
 }
 
-export function getKafalaPricingConfig(){
-  try{const r=JSON.parse(localStorage.getItem('kafalaPricingConfig')||'{}');return{...KAFALA_DEFAULTS,...r,medicalBrackets:Array.isArray(r.medicalBrackets)&&r.medicalBrackets.length?r.medicalBrackets:KAFALA_DEFAULTS.medicalBrackets}}catch{return{...KAFALA_DEFAULTS}}
+// ── Per-branch (office) pricing overrides ──
+// تخصيص أسعار الخدمة لمكتب محدد يُحفظ في jisr_branch_overrides (يحرّره: الإدارة ← الخدمات ← تخصيص لمكتب).
+// الشكل: { [branchId]: { [svcId]: { pricing:{...حقول جزئية} } } } — أي حقل غير مخصَّص يرجع للسعر العام.
+const BRANCH_OVERRIDES_KEY='jisr_branch_overrides'
+function branchPricingOverride(svcId,branchId){
+  if(!branchId)return null
+  try{const all=JSON.parse(localStorage.getItem(BRANCH_OVERRIDES_KEY)||'{}');const op=all?.[branchId]?.[svcId]?.pricing;return op&&typeof op==='object'?op:null}catch{return null}
+}
+// دمج القيم الخام + تخصيص المكتب فوق الافتراضي (medicalBrackets تُستبدل كاملةً إن خُصِّصت).
+function mergeKafalaCfg(raw,op){
+  const merged={...KAFALA_DEFAULTS,...raw,...(op||{})}
+  merged.medicalBrackets=(op&&Array.isArray(op.medicalBrackets)&&op.medicalBrackets.length)?op.medicalBrackets
+    :(Array.isArray(raw.medicalBrackets)&&raw.medicalBrackets.length?raw.medicalBrackets:KAFALA_DEFAULTS.medicalBrackets)
+  return merged
+}
+
+export function getKafalaPricingConfig(branchId){
+  try{const r=JSON.parse(localStorage.getItem('kafalaPricingConfig')||'{}');return mergeKafalaCfg(r,branchPricingOverride('kafala_transfer',branchId))}catch{return{...KAFALA_DEFAULTS}}
 }
 
 export function setKafalaPricingConfig(partial){
@@ -34,6 +50,6 @@ export function setKafalaPricingConfig(partial){
 
 // إعدادات تسعير «تجديد الإقامة» — مخزن مستقل (يحرّره: الإدارة ← الخدمات ← تجديد الإقامة) ومتزامن مع القاعدة.
 // تجديد الإقامة يقرأ هذا بدل إعدادات نقل الكفالة (مطابق لما تفعله صفحة طلب الخدمة للفاتورة).
-export function getIqamaRenewalPricingConfig(){
-  try{const r=JSON.parse(localStorage.getItem('iqamaRenewalPricingConfig')||'{}');return{...KAFALA_DEFAULTS,...r,medicalBrackets:Array.isArray(r.medicalBrackets)&&r.medicalBrackets.length?r.medicalBrackets:KAFALA_DEFAULTS.medicalBrackets}}catch{return{...KAFALA_DEFAULTS}}
+export function getIqamaRenewalPricingConfig(branchId){
+  try{const r=JSON.parse(localStorage.getItem('iqamaRenewalPricingConfig')||'{}');return mergeKafalaCfg(r,branchPricingOverride('iqama_renewal',branchId))}catch{return{...KAFALA_DEFAULTS}}
 }

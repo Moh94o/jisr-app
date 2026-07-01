@@ -656,7 +656,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   // Form state — pricing defaults pulled from admin config (إدارة الخدمات > نقل كفالة)
   const makeInitialForm = () => {
-    const cfg = getKafalaPricingConfig()
+    const cfg = getKafalaPricingConfig(user?.branch_id || user?.primary_branch_id || null)
     const midBracket = (cfg.medicalBrackets || [])[Math.floor((cfg.medicalBrackets || []).length / 2)] || { rate: 800 }
     return {
       name: '', iqama: '', phone: '', iqamaExpiry: '', dob: '', nationality: 'بنغلاديشي', gender: 'ذكر', occupation: '', legalStatus: 'صالح',
@@ -710,7 +710,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   }, [sb, f.iqama])
 
   // ═══ Config & dynamic options ═══
-  const cfg = useMemo(() => getKafalaPricingConfig(), [])
+  const cfg = useMemo(() => getKafalaPricingConfig(user?.branch_id || user?.primary_branch_id || null), [user])
   const transferOptions = useMemo(() => [cfg.transferFee1, cfg.transferFee2, cfg.transferFee3].map(v => String(Math.round(v))), [cfg])
 
   // ═══ Derived values ═══

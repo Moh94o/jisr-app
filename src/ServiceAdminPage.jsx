@@ -1052,7 +1052,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
         const isEdit=!!editing[sec.title]
         return(<div key={sec.title} {...secCardProps(isCol)}>
           {cardEditAllowed&&!isCol&&!isEdit&&<EditTab onClick={()=>startEdit(sec.title)}/>}
-          {!isCol&&isEdit&&<EditActionTabs onSave={()=>{const extras=sec.title==='رسوم تغيير المهنة'?['profChangeFreeOccupations']:sec.title==='رسوم نقل الكفالة'?['transferBumpOccupations']:[];saveSection(s.id,sec.fields,sec.title,extras);finishEdit(sec.title)}} onCancel={()=>cancelEdit(sec.title)}/>}
+          {!isCol&&isEdit&&<EditActionTabs onSave={()=>{const extras=sec.title==='رسوم تغيير المهنة'?['profChangeFreeOccupations']:sec.title==='رسوم نقل الكفالة'?['transferBumpOccupations']:sec.title==='رسوم المكتب'?['kafalaOfficeFeeMode','kafalaOfficeDiscountEnabled']:[];saveSection(s.id,sec.fields,sec.title,extras);finishEdit(sec.title)}} onCancel={()=>cancelEdit(sec.title)}/>}
           <SectionHead title={sec.title} isEditing={isEdit} isCollapsed={isCol} onToggle={()=>toggleSection(sec.title)}/>
           {!isCol&&<>
             {dynNote&&<div style={secNote}>{dynNote}</div>}
@@ -1298,6 +1298,40 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                           </span>
                         ))}
                       </div>):(<div style={{fontSize:10.5,color:'var(--tx5)',padding:'4px 0',textAlign:'center'}}>لا توجد مهن معفاة — {isEdit?'ابحث بالأعلى لإضافة':'ادخل وضع التعديل لإضافة مهن'}</div>)}
+                    </div>
+                  </div>)
+                })()
+              : sec.title==='رسوم المكتب'
+              ? (() => {
+                  // طريقة حساب رسوم المكتب + سياسة الخصم — داخل نفس البطاقة (مطابقة لتجديد الإقامة).
+                  // «سعر ثابت» ← يُستخدم «السعر العام» كما هو. «يومي» ← سعر اليوم × أيام التجديد.
+                  // الخصم عند التصديق: عند التعطيل يُخفى حقل الخصم في نافذة تصديق نقل الكفالة.
+                  const daily=priceState.kafalaOfficeFeeMode==='daily'
+                  const discOn=priceState.kafalaOfficeDiscountEnabled!==false
+                  const subHead=(t)=>(<div style={{fontSize:11,fontWeight:600,color:C.gold,padding:'2px 8px',borderRight:`2px solid ${C.gold}55`}}>{t}</div>)
+                  const modeBtn=(active,onClick,label,sub)=>(
+                    <button type="button" disabled={!isEdit} onClick={isEdit?onClick:undefined} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'10px 8px',borderRadius:10,border:`1px solid ${active?C.gold:'var(--bd)'}`,background:active?'rgba(176,125,0,.12)':'var(--bd2)',color:active?C.gold:'var(--tx3)',cursor:isEdit?'pointer':'default',fontFamily:F,transition:'.15s'}}>
+                      <span style={{fontSize:12,fontWeight:600}}>{label}</span><span style={{fontSize:9,fontWeight:600,opacity:.8}}>{sub}</span>
+                    </button>
+                  )
+                  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+                    {subHead('طريقة الحساب')}
+                    <div style={{display:'flex',gap:8}}>
+                      {modeBtn(!daily,()=>setPriceState(p=>({...p,kafalaOfficeFeeMode:'flat'})),'سعر ثابت','نفس المبلغ')}
+                      {modeBtn(daily,()=>setPriceState(p=>({...p,kafalaOfficeFeeMode:'daily'})),'يومي','سعر اليوم × الأيام')}
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                      {sec.fields.map(f=>renderField(f,!isEdit))}
+                    </div>
+                    {subHead('الخصم عند التصديق')}
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'10px 12px',borderRadius:10,background:discOn?'rgba(39,160,70,.05)':'rgba(192,57,43,.05)',border:`1px solid ${discOn?C.ok+'44':C.red+'44'}`}}>
+                      <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}>
+                        <span style={{fontSize:11.5,fontWeight:600,color:'var(--tx2)'}}>السماح بخصم المكتب عند التصديق</span>
+                        <span style={{fontSize:10,color:'var(--tx4)',fontWeight:600,lineHeight:1.7}}>عند التعطيل لا يظهر حقل الخصم في نافذة التصديق. الحد الأدنى = سعر اليوم × أيام التجديد.</span>
+                      </div>
+                      <button type="button" disabled={!isEdit} onClick={isEdit?()=>setPriceState(p=>({...p,kafalaOfficeDiscountEnabled:!discOn})):undefined} title={isEdit?(discOn?'اضغط للتعطيل':'اضغط للتفعيل'):''} style={{width:46,height:24,borderRadius:999,border:'none',background:discOn?C.ok:'rgba(192,57,43,.7)',cursor:isEdit?'pointer':'default',position:'relative',flexShrink:0,padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
+                        <span style={{position:'absolute',width:18,height:18,borderRadius:'50%',background:'#fff',top:3,right:discOn?3:25,transition:'.2s'}}/>
+                      </button>
                     </div>
                   </div>)
                 })()
@@ -1893,14 +1927,13 @@ const renderIqamaInlineEditor=(s,opts={})=>{
       </div>)})}
   </div>)
 }
-// بطاقة سياسات نقل الكفالة — مطابقة لتجديد الإقامة (أساس الاحتساب · قاعدة المنتهية · وضع المكتب · الخصم). حفظ فوري.
+// بطاقة سياسات نقل الكفالة — مطابقة لتجديد الإقامة (أساس الاحتساب · قاعدة المنتهية). حفظ فوري.
+// وضع رسوم المكتب + سياسة الخصم انتقلا إلى بطاقة «رسوم المكتب» نفسها (كما في تجديد الإقامة).
 const renderKafalaPolicyCard=(s)=>{
   const v=priceState
   const save=(k,val)=>{setPriceState(p=>({...p,[k]:val}));setPricing(s.id,{[k]:val})}
   const wc=v.kafalaWpBasis==='workcard'
-  const daily=v.kafalaOfficeFeeMode==='daily'
   const resetOn=v.kafalaWpResetEnabled===true
-  const discOn=v.kafalaOfficeDiscountEnabled!==false
   const seg=(sel,onSel,label,sub)=>(
     <button type="button" onClick={onSel} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'10px 8px',borderRadius:10,border:`1px solid ${sel?C.gold:'var(--bd)'}`,background:sel?'rgba(176,125,0,.12)':'var(--bd2)',color:sel?C.gold:'var(--tx3)',cursor:'pointer',fontFamily:F,transition:'.15s'}}>
       <span style={{fontSize:12,fontWeight:600}}>{label}</span><span style={{fontSize:9,fontWeight:600,opacity:.8}}>{sub}</span>
@@ -1920,14 +1953,6 @@ const renderKafalaPolicyCard=(s)=>{
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           {lbl('أساس احتساب رخصة العمل')}
           <div style={{display:'flex',gap:8}}>{seg(!wc,()=>save('kafalaWpBasis','iqama'),'انتهاء الإقامة','الافتراضي')}{seg(wc,()=>save('kafalaWpBasis','workcard'),'انتهاء كرت العمل','تاريخ مستقل')}</div>
-        </div>
-        <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {lbl('طريقة حساب رسوم المكتب')}
-          <div style={{display:'flex',gap:8}}>{seg(!daily,()=>save('kafalaOfficeFeeMode','flat'),'سعر ثابت','نفس المبلغ')}{seg(daily,()=>save('kafalaOfficeFeeMode','daily'),'يومي','سعر اليوم × الأيام')}</div>
-        </div>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
-          <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}>{lbl('السماح بخصم المكتب عند التصديق')}<span style={{fontSize:10,color:'var(--tx4)',fontWeight:600}}>مبلغ بأرضية = سعر اليوم × أيام التجديد</span></div>
-          {Switch(discOn,()=>save('kafalaOfficeDiscountEnabled',!discOn))}
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:10,padding:'12px 14px',borderRadius:10,background:resetOn?'rgba(176,125,0,.05)':'rgba(255,255,255,.02)',border:`1px solid ${resetOn?C.gold+'33':'rgba(255,255,255,.07)'}`}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>

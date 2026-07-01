@@ -1,6 +1,6 @@
 import React,{useState,useEffect,useCallback,useMemo,useRef} from 'react'
 import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Languages,Wallet,Printer,Plane,PlaneTakeoff,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Paperclip,Copy,Check,MapPin,Sparkles,TrendingUp,Coins} from 'lucide-react'
-import {isServiceActive,isServiceBillable,isServiceActiveFor,isServiceBillableFor,getPricingFor,getDocTypes,docTypeLabel} from './ServiceAdminPage.jsx'
+import {isServiceActive,isServiceBillable,isServiceActiveFor,isServiceBillableFor,getPricingFor,getBranchOverrides,getDocTypes,docTypeLabel} from './ServiceAdminPage.jsx'
 import {TXN_SERVICES} from './pages/txnServices.js'
 import {noDash} from './lib/utils.js'
 import {KAFALA_DEFAULTS,getKafalaPricingConfig} from './lib/kafalaPricing.js'
@@ -799,8 +799,10 @@ return{transferFee,iqamaRenewalFee,workPermitFee,profChangeFee,medicalFee,office
 // ── Iqama renewal is now quote-driven: the invoice no longer computes any pricing. The old inline
 //    auto-calc/line-item memos were removed — prices come verbatim from the chosen iqama_renewal_calculation. ──
 
-// ── Other services: read settings from localStorage ──
-const getServicesConfig=()=>{
+// ── Other services: read settings from localStorage, then overlay per-office (branch) overrides ──
+// خريطة الأقسام ↔ معرّف الخدمة لتطبيق تخصيص المكتب (jisr_branch_overrides) على كل خدمة.
+const OTHER_SVC_SUB_MAP={ajeer:'ajeer_contract',exitReentry:'exit_reentry_visa',finalExit:'final_exit_visa',professionChange:'profession_change',passportUpdate:'passport_update',nameTranslation:'name_translation',iqamaPrint:'iqama_print',chamberCert:'chamber_certification',documents:'documents',medicalInsurance:'medical_insurance'}
+const getServicesConfig=(branchId=null)=>{
 const d={
   ajeer:{baseFee:300,baseMonths:3,perMonthAfter:100,saudizationEnabled:true,saudizationThreshold:6,saudizationPerWorker:250},
   exitReentry:{issueSingleBase:300,issueMultipleBase:500,issueSingleCovered:3,issueMultipleCovered:3,issueSinglePerMonth:100,issueMultiplePerMonth:200,extendSingle:100,extendMultiple:200,officeFeeFixed:50},
@@ -814,6 +816,8 @@ const d={
   medicalInsurance:{perMonthMultiplier:1}
 }
 try{const r=localStorage.getItem('servicesPricingConfig');if(r){const p=JSON.parse(r);Object.keys(d).forEach(k=>{d[k]={...d[k],...(p[k]||{})}})}}catch(e){}
+// تخصيص المكتب: أي حقل مخصَّص لهذا الفرع يحل محل السعر العام
+if(branchId){try{const ov=getBranchOverrides()[branchId]||{};Object.entries(OTHER_SVC_SUB_MAP).forEach(([sub,svcId])=>{const op=ov[svcId]?.pricing;if(op&&typeof op==='object')d[sub]={...d[sub],...op}})}catch(e){}}
 return d
 }
 
@@ -821,7 +825,7 @@ return d
 const SVC_WITH_PRICING=new Set(['ajeer_contract','exit_reentry_visa','final_exit_visa','profession_change','passport_update','name_translation','iqama_print','medical_insurance','chamber_certification','documents','custom'])
 const otherServiceAutoCalc=useMemo(()=>{
 if(!SVC_WITH_PRICING.has(selSvc))return null
-const cfg=getServicesConfig()
+const cfg=getServicesConfig(user?.primary_branch_id||branchId||null)
 if(selSvc==='ajeer_contract'){
   const months=parseInt(fields.contract_months)||0
   const{baseFee,baseMonths,perMonthAfter,saudizationEnabled,saudizationThreshold,saudizationPerWorker}=cfg.ajeer
@@ -908,7 +912,7 @@ if(selSvc==='custom'){
   return{lines:[{label:customName.trim()||'خدمة عامة',amount:0}]}
 }
 return null
-},[selSvc,fields,selWorker,customName,ajeerWorkerCount])
+},[selSvc,fields,selWorker,customName,ajeerWorkerCount,user,branchId])
 
 // ── Other services: editable pricing state + lines ──
 const[otherServicePricing,setOtherServicePricing]=useState({overrides:{},extras:[],absherBalance:'',discount:''})
@@ -3732,9 +3736,13 @@ const auto=Number(ac.lines[i]?.amount)||0
 const curVal=otherServicePricing.overrides?.[i]??''
 // طباعة الإقامة / تحديث بيانات الجواز / خروج وعودة: السعر ثابت من الإعدادات (لا يُعدَّل) — يُعرض كرقم بدل حقل إدخال.
 const fixed=selSvc==='iqama_print'||selSvc==='passport_update'||selSvc==='exit_reentry_visa'||selSvc==='name_translation'||selSvc==='profession_change'||selSvc==='chamber_certification'||selSvc==='ajeer_contract'
-return<div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:fixed?'10px 12px':'7px 12px',borderBottom:'1px solid var(--bd)'}}>
+// «رسوم المكتب» تبقى حقل إدخال (بحدّ أدنى = رسوم المكتب المضبوطة في الإدارة لهذه الخدمة/المكتب) حتى في الخدمات ثابتة السعر.
+// نقل الكفالة وتجديد الإقامة مستثناتان لأنهما حسبتان مصدّقتان لا تمرّان من هذا البلوك أصلاً (ليستا ضمن SVC_WITH_PRICING).
+const isOfficeFee=line.label==='رسوم مكتب'||line.label==='رسوم المكتب'
+const dispFixed=fixed&&!isOfficeFee
+return<div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:dispFixed?'10px 12px':'7px 12px',borderBottom:'1px solid var(--bd)'}}>
 <span style={{display:'inline-flex',alignItems:'center',gap:7}}><span style={{width:16,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap'}}>{priceLabel(line.label,isAr)}{line.detail&&<span style={{color:'var(--tx5)',fontSize:10,marginRight:4,fontWeight:600}}>({line.detail})</span>}</span></span>
-{fixed
+{dispFixed
 ?<span style={{display:'flex',alignItems:'baseline',gap:5,direction:'ltr',whiteSpace:'nowrap'}}><span style={{fontSize:10.5,color:'var(--tx4)',fontWeight:600}}>{T('ريال','SAR')}</span><span style={{fontSize:14,fontWeight:600,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{fmtAmt(Number(line.amount)||auto)}</span></span>
 :<input type="text" inputMode="decimal" value={fmtAmt(curVal)}
 onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setOV(i,raw)}}

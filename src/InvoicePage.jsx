@@ -897,7 +897,9 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       sb.from('v_invoice_stats').select('*'),
       sb.from('v_invoice_daily').select('*'),
       sb.from('v_invoice_aging').select('*'),
-      (officeScope ? sb.from('invoices').select('id', { count: 'exact', head: true }).is('deleted_at', null).or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`)
+      // العدّاد يخضع لـ RLS مثل القائمة تماماً: المستخدم المحصور لا يرى إلا فواتير مكاتبه (بلا فواتير عديمة المكتب)،
+      // فنقصر العدّ على مكاتبه ليطابق ما يظهر له فعلاً (كان يضمّ branch_id IS NULL وهو مستبعَد أصلاً بـ RLS).
+      (officeScope ? sb.from('invoices').select('id', { count: 'exact', head: true }).is('deleted_at', null).in('branch_id', officeScope)
                    : sb.from('invoices').select('id', { count: 'exact', head: true }).is('deleted_at', null)),
       sb.from('payments').select('amount,payment_method:payment_method_id!inner(code)')
         .eq('payment_method.code', 'cash')
@@ -1832,7 +1834,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       } else {
         stageStatus.push(<StageRow key="done" done icon={<DoneCheckIco />} label={T('المعاملة منجزة','Transaction completed')} />)
       }
-    } else if (!cancelledRO && !reqCancelled && !acctRejected && canStagePerm && stageModalOk('inv_action_done')) {
+    } else if (!cancelledRO && !reqCancelled && !acctRejected && canStagePerm) {
       // زر المرحلة يخصّ كل خدمة: نقل الكفالة يفتح «بيانات التجديد» (مهنة + انتهاء الإقامة + ملف مقيم)،
       // وبقية الخدمات (رواتب سبلاير/المستندات/النقل الخارجي) تفتح نافذة «حالة المعاملة».
       const isTransferStage = baseSvcCode(_c) === 'transfer'
@@ -1855,10 +1857,10 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         if (insDone) stageStatus.push(<StageRow key="st-ins" done color={insCancelled ? C.red : C.ok} icon={<DoneCheckIco />} label={insCancelled ? T('التأمين — ملغاة','Insurance — cancelled') : T('تم إدخال بيانات التأمين','Insurance saved')} />)
         if (!transferOnly && wpDone) stageStatus.push(<StageRow key="st-wp" done color={wpCancelled ? C.red : C.ok} icon={<DoneCheckIco />} label={wpCancelled ? T('رخصة العمل — ملغاة','Work permit — cancelled') : T('تم إدخال رخصة العمل','Work permit saved')} />)
         // المرحلة القابلة للإجراء التالية (بالتتابع) — النقل أولاً ثم التأمين ثم رخصة العمل ثم الإقامة.
-        if (!transferDone) stageActions.push(<StageRow key="mark" color={C.gold} label={T('النقل','Transfer')} icon={<TransferStageIco />} onClick={() => openTransferStage('transfer')} />)
-        else if (!insDone) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />)
-        else if (!transferOnly && !wpDone) stageActions.push(<StageRow key="mark" color={C.gold} label={T('رخصة العمل','Work Permit')} icon={<RenewalDataIco />} onClick={() => openTransferStage('workpermit')} />)
-        else if (!muqeemDone) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('muqeem')} />)
+        if (!transferDone) { if (stageModalOk('inv_stage_transfer')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('النقل','Transfer')} icon={<TransferStageIco />} onClick={() => openTransferStage('transfer')} />) }
+        else if (!insDone) { if (stageModalOk('inv_stage_transfer_insurance')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />) }
+        else if (!transferOnly && !wpDone) { if (stageModalOk('inv_stage_transfer_workpermit')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('رخصة العمل','Work Permit')} icon={<RenewalDataIco />} onClick={() => openTransferStage('workpermit')} />) }
+        else if (!muqeemDone) { if (stageModalOk('inv_stage_transfer_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('muqeem')} />) }
       } else if (isRenewalStage) {
         // تجديد الإقامة: «حالة المعاملة» على مرحلتين متتابعتين — التأمين (مع خيار «لا يحتاج») ثم الإقامة.
         const tc = data?.tc || {}
@@ -1868,14 +1870,16 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         const insCancelled = sd.insurance?.status === 'cancelled'
         const insSkipped = sd.insurance?.status === 'skipped'
         if (insDone) stageStatus.push(<StageRow key="st-ins" done color={insCancelled ? C.red : insSkipped ? C.gold : C.ok} icon={<DoneCheckIco />} label={insCancelled ? T('التأمين — ملغاة','Insurance — cancelled') : insSkipped ? T('التأمين — لا يحتاج','Insurance — not needed') : T('تم إدخال بيانات التأمين','Insurance saved')} />)
-        if (!insDone) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />)
-        else if (!iqamaDone) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('iqama')} />)
+        if (!insDone) { if (stageModalOk('inv_stage_renewal_insurance')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />) }
+        else if (!iqamaDone) { if (stageModalOk('inv_stage_renewal_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('iqama')} />) }
       } else {
         // خدمات موافقة المحاسب قبل الموافقة: الزر يفتح مرحلة «موافقة المحاسب» — فنسمّيه بها وأيقونتها.
         const acctApprovalStage = needsAcctApproval(_c) && inv.service_request?.accountant_status !== 'approved'
-        stageActions.push(acctApprovalStage
-          ? <StageRow key="mark" color={C.gold} label={T('موافقة المحاسب','Accountant Approval')} icon={<AcctApprovalIco />} onClick={onMarkDone} />
-          : <StageRow key="mark" color={C.gold} label={T('حالة المعاملة','Transaction Status')} icon={<TxnStatusIco />} onClick={onMarkDone} />)
+        if (acctApprovalStage) {
+          if (stageModalOk('inv_stage_acct_approval')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('موافقة المحاسب','Accountant Approval')} icon={<AcctApprovalIco />} onClick={onMarkDone} />)
+        } else if (stageModalOk('inv_stage_status')) {
+          stageActions.push(<StageRow key="mark" color={C.gold} label={T('حالة المعاملة','Transaction Status')} icon={<TxnStatusIco />} onClick={onMarkDone} />)
+        }
       }
     }
   }

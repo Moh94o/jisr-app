@@ -9,6 +9,7 @@ import {
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
 import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, groupFields, tabModule as catTabModule } from '../../lib/permCatalog.js'
 import { isGM as isGmUser } from '../../lib/permissions.js'
+import { ALL_SERVICES, SVC_CODE_MAP } from '../../ServiceRequestPage.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -1098,6 +1099,79 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
   )
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// InvoiceServiceScopeCard — per-user scope over WHICH invoice service
+// types this employee may see. Persists users.ui_visibility['svc:invoices']
+// = { mode:'all'|'specific', ids:[service_type lookup_item id…] }. The DB
+// RLS policy on invoices (current_user_invoice_service_scope) enforces it;
+// this card is the only place to configure it. Office scope lives on the
+// role assignment above (per-role branch scope). GM sees everything.
+// ═══════════════════════════════════════════════════════════════════
+// service_type codes that actually appear in the invoice-creation popup
+// (ALL_SERVICES mapped through SVC_CODE_MAP) — the dropdown lists only these,
+// not every lookup_items service_type (which includes non-invoice services).
+const INVOICE_SVC_CODES = new Set(ALL_SERVICES.map(s => SVC_CODE_MAP[s.id]).filter(Boolean))
+
+function InvoiceServiceScopeCard({ sb, currentUser, u, toast, onChanged }) {
+  const userIsGM = isGmUser(u)
+  const canManage = isGmUser(currentUser)
+  const [serviceTypes, setServiceTypes] = useState([])
+  const [pol, setPol] = useState(() => {
+    const raw = u.ui_visibility?.['svc:invoices']
+    return (raw && raw.mode === 'specific') ? { mode: 'specific', ids: Array.isArray(raw.ids) ? raw.ids : [] } : { mode: 'all', ids: [] }
+  })
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)')
+      .eq('category.category_key', 'service_type')
+      .then(({ data }) => { if (live) setServiceTypes((data || []).filter(li => INVOICE_SVC_CODES.has(li.code))) })
+    return () => { live = false }
+  }, [sb])
+
+  // Merge into the current ui_visibility (read fresh so we never clobber other
+  // keys). mode 'all' ⇒ remove the key entirely (default = no restriction).
+  const persist = async (nextPol) => {
+    if (!canManage) return
+    setBusy(true)
+    const { data: cur } = await sb.from('users').select('ui_visibility').eq('id', u.id).maybeSingle()
+    const vis = { ...(cur?.ui_visibility || {}) }
+    if (nextPol.mode === 'specific') vis['svc:invoices'] = { mode: 'specific', ids: nextPol.ids }
+    else delete vis['svc:invoices']
+    const { error } = await sb.from('users').update({ ui_visibility: vis, updated_at: new Date().toISOString() }).eq('id', u.id)
+    setBusy(false)
+    if (error) { toast?.('خطأ: ' + (error.message || '').slice(0, 80)); return }
+    onChanged?.()
+  }
+
+  const setMode = (m) => { const next = { mode: m, ids: m === 'specific' ? (pol.ids || []) : [] }; setPol(next); persist(next) }
+  const setIds = (ids) => { const next = { mode: 'specific', ids }; setPol(next); persist(next) }
+
+  if (userIsGM) return null   // GM bypasses every scope — nothing to configure.
+
+  return (
+    <div style={cardChrome}>
+      <div style={cardHeader}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+        <span style={cardTitle}>أنواع خدمات الفواتير المسموح بها</span>
+      </div>
+      <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, lineHeight: 1.6 }}>
+          يحصر الفواتير التي يراها هذا المستخدم على أنواع الخدمات المحددة فقط — عبر كل مكاتبه. (نطاق المكاتب يُضبط من «الأدوار والصلاحيات» أعلاه.)
+        </span>
+        <Seg value={pol.mode} disabled={busy || !canManage} onChange={setMode}
+          options={[{ v: 'all', l: 'كل الأنواع' }, { v: 'specific', l: 'أنواع محددة' }]} />
+        {pol.mode === 'specific' && (
+          <MultiSelect placeholder="اختر أنواع الخدمات…" value={pol.ids || []}
+            onChange={setIds} options={serviceTypes} getKey={s => s.id} getLabel={s => s.value_ar || s.value_en} />
+        )}
+        {pol.mode === 'all' && <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>يرى فواتير كل أنواع الخدمات.</span>}
+      </div>
+    </div>
+  )
+}
+
 // Collapsible wrapper for the granular per-user exception panel — kept out of
 // the way; opens only when the GM needs to override a single item.
 function AdvancedExceptions({ children }) {
@@ -1463,6 +1537,7 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
           {/* Permissions — assign role(s) with a branch scope. The full granular
               control of what each role sees/does lives in the Roles admin page. */}
           <RoleAssignmentCard sb={sb} currentUser={currentUser} u={u} roles={roles} branches={branches} toast={toast} onChanged={onChanged} />
+          <InvoiceServiceScopeCard sb={sb} currentUser={currentUser} u={u} toast={toast} onChanged={onChanged} />
         </div>
 
         {/* Left column — الهوية (sticky) */}

@@ -143,16 +143,22 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   const cfg = useMemo(() => getIqamaRenewalPricingConfig(), [])
   // هل خصم المكتب مسموح (سياسة الأدمن في الخدمات)؟
   const discountEnabled = cfg.iqamaOfficeDiscountEnabled !== false
-  // خصم المكتب: مبلغ فقط، مفتوح بدون أرضية — يُسمح بخصم كامل رسوم المكتب حتى الصفر
+  // خصم المكتب عند التصديق: المُصدِّق يختار أرضية للخصم — «بدون» أو «مبلغ ثابت» أو «يومي» (سعر اليوم × أيام التجديد).
+  // الأرضية = الحد الأدنى لرسوم المكتب بعد الخصم؛ فأقصى خصم = رسوم المكتب − الأرضية.
   const computeApprovalDiscount = (af) => {
     const officeFee = Number(af?._officeFee || 0)
     const renewalMonths = Number(af?._renewalMonths || 0)
-    const floor = 0
-    const maxDiscount = discountEnabled ? officeFee : 0
+    const floorDays = renewalMonths * 30
+    const dailyRate = parseFloat(af?.floorDaily) || 0
+    const mode = af?.floorMode || 'none'
+    const floor = mode === 'fixed' ? Math.max(0, Math.round(parseFloat(af?.floorFixed) || 0))
+      : mode === 'daily' ? Math.round(dailyRate * floorDays)
+      : 0
+    const maxDiscount = discountEnabled ? Math.max(0, officeFee - Math.min(floor, officeFee)) : 0
     const want = Math.round(parseFloat(af?.discValue) || 0)
     const applied = Math.min(Math.max(0, want), maxDiscount)
     const newTotal = Math.max(0, Math.round(Number(af?._total || 0)) - applied)
-    return { officeFee, floor, maxDiscount, want, applied, capped: want > maxDiscount, newTotal }
+    return { officeFee, floor, floorDays, dailyRate, mode, maxDiscount, want, applied, capped: want > maxDiscount, newTotal }
   }
 
   // ── خريطة الحالات (لون + اسم) ──
@@ -1169,7 +1175,7 @@ ${noticeBlk}
             const showCancel = ['priced', 'approved'].includes(r.status) && canApprove && canCardBtn(user, 'renewal_calc', 'actions_print', 'cancel') && modalAllowed(user, 'renewal_calc', 'cancel_quote')
             return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
-              {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), discValue: '', approval_note: '' }) }} disabled={expired}
+              {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), discValue: '', floorMode: 'none', floorFixed: '', floorDaily: String(getIqamaRenewalPricingConfig(r.branch_id || null).officeDailyRate || cfg.officeDailyRate || ''), approval_note: '' }) }} disabled={expired}
                 onMouseEnter={e => { if (!expired) e.currentTarget.style.filter = 'brightness(.93)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
                 style={{ flex: 1, height: 44, padding: '0 14px', borderRadius: 9, background: C.blue, border: '1px solid ' + C.blue, boxShadow: '0 3px 7px rgba(0,0,0,.2)', color: '#fff', cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
                 <span>{T('تصديق الحسبة', 'Approve Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -1219,7 +1225,34 @@ ${noticeBlk}
                 {discountEnabled && d && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('خصم المكتب', 'Office Discount')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
+                      {/* أرضية الخصم: يختارها المُصدِّق — بدون / مبلغ ثابت / يومي */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{T('أرضية الخصم', 'Discount floor')}</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[['none', T('بدون', 'None')], ['fixed', T('مبلغ ثابت', 'Fixed')], ['daily', T('يومي', 'Daily')]].map(([mode, lbl]) => (
+                            <button key={mode} type="button" onClick={() => setF('floorMode', mode)} style={{ flex: 1, height: 34, borderRadius: 8, border: `1px solid ${f.floorMode === mode ? C.gold : 'var(--bd)'}`, background: f.floorMode === mode ? 'rgba(176,125,0,.1)' : 'var(--inputBg)', color: f.floorMode === mode ? C.gold : 'var(--tx3)', fontFamily: F, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', outline: 'none' }}>{lbl}</button>
+                          ))}
+                        </div>
+                        {f.floorMode === 'fixed' && (
+                          <input type="text" inputMode="decimal" value={f.floorFixed} onChange={e => setF('floorFixed', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('أقل مبلغ لرسوم المكتب (ريال)', 'Min office fee (SAR)')} style={{ width: '100%', height: 36, padding: '0 12px', border: '1px solid var(--bd)', borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx2)', outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
+                        )}
+                        {f.floorMode === 'daily' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <input type="text" inputMode="decimal" value={f.floorDaily} onChange={e => setF('floorDaily', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('سعر اليوم', 'Daily rate')} style={{ width: 120, height: 36, padding: '0 12px', border: '1px solid var(--bd)', borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx2)', outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
+                              <span style={{ fontSize: 11, color: 'var(--tx4)' }}>{T('ريال/يوم', 'SAR/day')} × {d.floorDays} {T('يوم', 'days')}</span>
+                            </div>
+                          </div>
+                        )}
+                        {f.floorMode !== 'none' && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--tx3)' }}>
+                            <span>{T('الأرضية', 'Floor')}: <b style={{ color: 'var(--tx2)' }}>{nm(d.floor)}</b> {T('ريال', 'SAR')}</span>
+                            <span>{T('أقصى خصم', 'Max discount')}: <b style={{ color: 'var(--tx2)' }}>{nm(d.maxDiscount)}</b> {T('ريال', 'SAR')}</span>
+                          </div>
+                        )}
+                      </div>
                       <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: `1px solid ${belowFloor ? 'rgba(192,57,43,.55)' : 'var(--bd)'}`, borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
+                      {belowFloor && <div style={{ fontSize: 11, fontWeight: 600, color: '#c0392b' }}>{T(`الخصم يتجاوز الحد المسموح (${nm(d.maxDiscount)} ريال) — سينزل رسوم المكتب تحت الأرضية.`, `Discount exceeds the allowed max (${nm(d.maxDiscount)} SAR) — it would push the office fee below the floor.`)}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(176,125,0,.3)' }}>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
                         <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
