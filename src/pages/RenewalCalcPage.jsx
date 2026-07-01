@@ -1175,7 +1175,7 @@ ${noticeBlk}
             const showCancel = ['priced', 'approved'].includes(r.status) && canApprove && canCardBtn(user, 'renewal_calc', 'actions_print', 'cancel') && modalAllowed(user, 'renewal_calc', 'cancel_quote')
             return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
-              {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), discValue: '', floorMode: 'none', floorFixed: '', floorDaily: String(getIqamaRenewalPricingConfig(r.branch_id || null).officeDailyRate || cfg.officeDailyRate || ''), approval_note: '' }) }} disabled={expired}
+              {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); const _rc = getIqamaRenewalPricingConfig(r.branch_id || null); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), discValue: '', floorMode: _rc.iqamaOfficeDiscountEnabled === false ? 'none' : 'daily', floorFixed: '', floorDaily: String(_rc.officeDailyRate || cfg.officeDailyRate || ''), approval_note: '' }) }} disabled={expired}
                 onMouseEnter={e => { if (!expired) e.currentTarget.style.filter = 'brightness(.93)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
                 style={{ flex: 1, height: 44, padding: '0 14px', borderRadius: 9, background: C.blue, border: '1px solid ' + C.blue, boxShadow: '0 3px 7px rgba(0,0,0,.2)', color: '#fff', cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
                 <span>{T('تصديق الحسبة', 'Approve Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -1215,7 +1215,7 @@ ${noticeBlk}
           success={approveSaved ? <SuccessView title={T('تم تصديق الحسبة', 'Quote approved')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
           title={T('تصديق الحسبة', 'Approve Quote') + (f._quoteNo ? ' — ' + noDash(f._quoteNo) : '')} subtitle={f._workerName || undefined} Icon={BadgeCheck}
           onSubmit={submitApproval} submitting={approveSaving} submitLabel={T('تصديق الحسبة', 'Approve Quote')}
-          pages={[{ valid: !belowFloor, content: (
+          pages={[{ valid: isGM(user) ? !belowFloor : true, content: (
             <ModalSection Icon={BadgeCheck} label={T('تأكيد التصديق', 'Confirm Approval')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 10, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)' }}>
@@ -1252,10 +1252,15 @@ ${noticeBlk}
                         )}
                       </div>)}
                       <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: `1px solid ${belowFloor ? 'rgba(192,57,43,.55)' : 'var(--bd)'}`, borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
-                      {belowFloor && <div style={{ fontSize: 11, fontWeight: 600, color: '#c0392b' }}>{T(`الخصم يتجاوز الحد المسموح (${nm(d.maxDiscount)} ريال) — سينزل رسوم المكتب تحت الأرضية.`, `Discount exceeds the allowed max (${nm(d.maxDiscount)} SAR) — it would push the office fee below the floor.`)}</div>}
+                      {belowFloor && <div style={{ fontSize: 11, fontWeight: 600, color: '#c0392b' }}>{isGM(user) ? T(`الخصم يتجاوز الحد المسموح (${nm(d.maxDiscount)} ريال) — سينزل رسوم المكتب تحت الأرضية.`, `Discount exceeds the allowed max (${nm(d.maxDiscount)} SAR) — it would push the office fee below the floor.`) : T('الخصم المُدخل يتجاوز الحد المسموح — سيُطبَّق الحد الأقصى المسموح تلقائياً.', 'The entered discount exceeds the allowed limit — the maximum allowed will be applied automatically.')}</div>}
+                      {/* الخصم يُطبَّق على رسوم المكتب (لا على الإجمالي) — نُبرز رسوم المكتب بعد الخصم، والإجمالي سطرٌ ثانوي. */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(176,125,0,.3)' }}>
-                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
-                        <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('رسوم المكتب بعد الخصم', 'Office fee after discount')}</span>
+                        <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.max(0, (f._officeFee || 0) - d.applied))}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: '1px dashed rgba(176,125,0,.22)' }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
+                        <span style={{ color: 'var(--tx3)', display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 12.5, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
                       </div>
                     </div>
                 )}
