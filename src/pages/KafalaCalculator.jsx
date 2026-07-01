@@ -1238,7 +1238,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       manual_discount: 0,
       extras: f.extras || [],
       expected_expiry_date: expectedExpiry,
-      duration_months: Math.max(0, officeMos - renewalMos),
+      // المدة المتوقعة في الإقامة = ما تبقّى من الإقامة الحالية + أشهر التجديد (officeMos = iqamaRemainderParts.months + renewalMos).
+      // (كان يُطرح renewalMos خطأً فيُلغي التجديد ويُظهر المتبقّي فقط.)
+      duration_months: officeMos,
       duration_days: officeDays,
       warnings,
     }
