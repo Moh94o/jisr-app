@@ -1331,8 +1331,9 @@ const defaultEach=total/(hasResidence?3:2)
 const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
 if(issuanceVal<numVisas*cfg.issuance){setErr(T('دفعة «عند إصدار التأشيرة» أقل من الحد المسموح','The "on visa issuance" installment is below the allowed minimum'));return false}
 if(hasResidence){
-// دفعة «عند توكيل التأشيرة» (الدائمة) بلا حد أدنى — تُترك حرّة بلا تحقّق.
 const authVal=visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)
+// دفعة «عند توكيل التأشيرة» (الدائمة): تُفرض بالحد الأدنى لدفعة الوكالة من إعدادات الخدمة.
+if((Number(cfg.authorization)||0)>0&&authVal<numVisas*cfg.authorization){setErr(T('دفعة «عند توكيل التأشيرة» أقل من الحد المسموح','The "on visa authorization" installment is below the allowed minimum'));return false}
 const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
 const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
 if((Number(cfg.residence)||0)>0&&residencePerVisa<Number(cfg.residence)){setErr(T('دفعة «عند إصدار الإقامة» أقل من الحد المسموح','The "on Iqama issuance" installment is below the allowed minimum'));return false}
@@ -1554,10 +1555,12 @@ if(VISA_SERVICES.has(selSvc)&&isServiceBillable(selSvc)){
   if(minIss>0&&issuanceVal<minIss){setErr(T('دفعة إصدار التأشيرة أقل من الحد الأدنى المسموح','The visa-issuance installment is below the allowed minimum'));return}
   if(hasResidence){
   const authVal=visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)
+  // دفعة «توكيل التأشيرة» (الدائمة): تُفرض بالحد الأدنى لدفعة الوكالة من إعدادات الخدمة.
+  const minAuth=(Number(minCfg.authorization)||0)*numVisas
+  if(minAuth>0&&authVal<minAuth){setErr(T('دفعة توكيل التأشيرة أقل من الحد الأدنى المسموح','The visa-authorization installment is below the allowed minimum'));return}
   const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
   const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
   const minRes=Number(minCfg.residence)||0
-  // دفعة «توكيل التأشيرة» (الدائمة) بلا حد أدنى — لا تحقّق ولا تحمير.
   if(minRes>0&&residencePerVisa<minRes){setErr(T('دفعة إصدار الإقامة أقل من الحد الأدنى المسموح','The Iqama-issuance installment is below the allowed minimum'));return}
   }else{
   // المؤقتة: التوكيل هو الباقي بعد الإصدار — يُفرض حدّه الأدنى أيضاً.
@@ -3833,8 +3836,8 @@ const sumCheck=issuanceVal+authVal+residenceTotalCalc
 const matchesTotal=Math.abs(sumCheck-total)<0.01
 // Silent per-installment validation — only flags when user has typed something
 const issuanceBad=visaInstallments.issuance!==''&&issuanceVal<minIssuance
-// دفعة «توكيل التأشيرة» (الدائمة) بلا حد أدنى — لا تحمير إطلاقاً.
-const authBad=false
+// دفعة «توكيل التأشيرة» (الدائمة): تُحمَّر عند النزول تحت «الحد الأدنى لدفعة الوكالة» من إعدادات الخدمة.
+const authBad=hasResidence&&visaInstallments.authorization!==''&&authVal<numVisas*cfg.authorization
 // صندوق عملة بنمط معرض الفورمات (الوحدة + الرقم متوسّط داخل إطار)
 const moneyBox=(val,onCh,ph,bad)=><div style={{display:'flex',direction:'ltr',alignItems:'center',justifyContent:'center',gap:6,border:`1px solid ${bad?C.red:'transparent'}`,borderRadius:9,background:'var(--fk-input-bg)',boxShadow:bad?`inset 0 0 0 1.6px ${C.red}`:'none',height:42,width:140,padding:'0 10px',flexShrink:0}}>
 <span style={{fontSize:12,fontWeight:600,color:bad?C.red:C.bentoGold,flexShrink:0}}>{T('ريال','SAR')}</span>
