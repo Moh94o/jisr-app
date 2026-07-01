@@ -2968,8 +2968,8 @@ return <FKModal open onClose={()=>{if(approveSaving)return;setApproveForm(null);
  <ModalSection Icon={Banknote} label={T('الخصم والملاحظة','Discount & Note')}>
  <div style={GRID}>
  {_discEnabled?<>
- {/* أرضية الخصم: يختارها المُصدِّق — بدون / مبلغ ثابت / يومي */}
- <div style={{gridColumn:'1/-1',display:'flex',flexDirection:'column',gap:7,padding:'10px 12px',borderRadius:9,background:'var(--inputBg)',border:'1px solid var(--bd)'}}>
+ {/* أرضية الخصم: يختارها المُصدِّق — بدون / مبلغ ثابت / يومي. مقصورة على المدير العام؛ لغيره تبقى «بدون» (القيمة الافتراضية). */}
+ {isGM&&<div style={{gridColumn:'1/-1',display:'flex',flexDirection:'column',gap:7,padding:'10px 12px',borderRadius:9,background:'var(--inputBg)',border:'1px solid var(--bd)'}}>
  <span style={{fontSize:11,fontWeight:600,color:'var(--tx3)'}}>{T('أرضية الخصم','Discount floor')}</span>
  <div style={{display:'flex',gap:6}}>
  {[['none',T('بدون','None')],['fixed',T('مبلغ ثابت','Fixed')],['daily',T('يومي','Daily')]].map(([mode,lbl])=>(
@@ -2979,7 +2979,7 @@ return <FKModal open onClose={()=>{if(approveSaving)return;setApproveForm(null);
  {f.floorMode==='fixed'&&<input type="text" inputMode="decimal" value={f.floorFixed} onChange={e=>setF('floorFixed',e.target.value.replace(/[^0-9.]/g,''))} placeholder={T('أقل مبلغ لرسوم المكتب (ريال)','Min office fee (SAR)')} style={{height:36,padding:'0 12px',border:'1px solid var(--bd)',borderRadius:8,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx2)',outline:'none',background:'var(--inputBg)',boxSizing:'border-box',textAlign:'center',direction:'ltr'}}/>}
  {f.floorMode==='daily'&&<div style={{display:'flex',alignItems:'center',gap:8}}><input type="text" inputMode="decimal" value={f.floorDaily} onChange={e=>setF('floorDaily',e.target.value.replace(/[^0-9.]/g,''))} placeholder={T('سعر اليوم','Daily rate')} style={{width:120,height:36,padding:'0 12px',border:'1px solid var(--bd)',borderRadius:8,fontFamily:F,fontSize:13,fontWeight:600,color:'var(--tx2)',outline:'none',background:'var(--inputBg)',boxSizing:'border-box',textAlign:'center',direction:'ltr'}}/><span style={{fontSize:11,color:'var(--tx4)'}}>{T('ريال/يوم','SAR/day')} × {_dd.floorDays} {T('يوم','days')}</span></div>}
  {f.floorMode!=='none'&&<div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx3)'}}><span>{T('الأرضية','Floor')}: <b style={{color:'var(--tx2)'}}>{nm(_dd.floor)}</b> {T('ريال','SAR')}</span><span>{T('أقصى خصم','Max discount')}: <b style={{color:'var(--tx2)'}}>{nm(_dd.maxDiscount)}</b> {T('ريال','SAR')}</span></div>}
- </div>
+ </div>}
  <CurrencyField full label={T(<>خصم المكتب <span style={{fontSize:11,fontWeight:500,color:'var(--tx4)'}}>(اختياري)</span></>,<>Office Discount <span style={{fontSize:11,fontWeight:500,color:'var(--tx4)'}}>(optional)</span></>)} value={f.manual_discount||''} onChange={v=>setF('manual_discount',v)}/>
  {belowFloor&&<div style={{gridColumn:'1/-1',fontSize:11,fontWeight:600,color:'#c0392b'}}>{T(`الخصم يتجاوز الحد المسموح (${nm(_dd.maxDiscount)} ريال) — سينزل رسوم المكتب تحت الأرضية.`,`Discount exceeds the allowed max (${nm(_dd.maxDiscount)} SAR) — it would push the office fee below the floor.`)}</div>}
  </>:<div style={{gridColumn:'1/-1',fontSize:11.5,color:'var(--tx4)',fontWeight:600,padding:'10px 12px',borderRadius:9,background:'var(--inputBg)',border:'1px solid var(--bd)'}}>{T('خصم المكتب غير مُتاح (معطّل من إعدادات الخدمات).','Office discount is disabled in service settings.')}</div>}

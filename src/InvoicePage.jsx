@@ -2954,16 +2954,21 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
               const safe = (f.name || 'file').replace(/[^\w.\-]+/g, '_')
               const path = `payments/${payRow.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`
               const { error: upErr } = await sb.storage.from('attachments').upload(path, f, { cacheControl: '3600', upsert: false })
-              if (!upErr) {
-                const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
-                await sb.from('attachments').insert({
-                  entity_type: 'payment', entity_id: payRow.id,
-                  file_name: f.name, file_url: pub?.publicUrl || path, storage_path: path,
-                  mime_type: f.type || null, size_bytes: f.size || null,
-                  notes: 'bank_transfer_receipt', uploaded_by: user?.id || null,
-                })
-              }
-            } catch { /* receipt upload is best-effort — never block the payment */ }
+              // نُبقيها غير حاجبة للدفعة، لكن لا نبتلع الخطأ بصمت: أي فشل في رفع الإيصال
+              // (تخزين أو صف المرفق) يُسجَّل بالكونسول ليَظهر بدل أن يختفي الإيصال دون أثر.
+              if (upErr) throw upErr
+              const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+              const { error: insErr } = await sb.from('attachments').insert({
+                entity_type: 'payment', entity_id: payRow.id,
+                file_name: f.name, file_url: pub?.publicUrl || path, storage_path: path,
+                mime_type: f.type || null, size_bytes: f.size || null,
+                notes: 'bank_transfer_receipt', uploaded_by: user?.id || null,
+              })
+              if (insErr) throw insErr
+            } catch (rcErr) {
+              // best-effort — never block the payment, but keep the failure visible for diagnosis.
+              console.error('تعذّر حفظ إيصال الحوالة لهذه الدفعة', rcErr)
+            }
           }
         }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { RefreshCw, Printer, BadgeCheck, MessageSquare, Plus, Paperclip, User, FileText, Banknote, Building2, AlertCircle } from 'lucide-react'
 import { C, F, EmptyState, Modal as FKModal, ModalSection, TextArea, TextField, FileField, CurrencyField, YesNo, Select as FKSelect, DateField as FKDateField, GRID, SuccessView } from '../components/ui/FormKit.jsx'
-import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../lib/permissions.js'
+import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed, isGM } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
@@ -1225,8 +1225,8 @@ ${noticeBlk}
                 {discountEnabled && d && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('خصم المكتب', 'Office Discount')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
-                      {/* أرضية الخصم: يختارها المُصدِّق — بدون / مبلغ ثابت / يومي */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {/* أرضية الخصم: يختارها المُصدِّق — بدون / مبلغ ثابت / يومي. مقصورة على المدير العام؛ لغيره تبقى «بدون» (القيمة الافتراضية). */}
+                      {isGM(user) && (<div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{T('أرضية الخصم', 'Discount floor')}</span>
                         <div style={{ display: 'flex', gap: 6 }}>
                           {[['none', T('بدون', 'None')], ['fixed', T('مبلغ ثابت', 'Fixed')], ['daily', T('يومي', 'Daily')]].map(([mode, lbl]) => (
@@ -1250,7 +1250,7 @@ ${noticeBlk}
                             <span>{T('أقصى خصم', 'Max discount')}: <b style={{ color: 'var(--tx2)' }}>{nm(d.maxDiscount)}</b> {T('ريال', 'SAR')}</span>
                           </div>
                         )}
-                      </div>
+                      </div>)}
                       <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: `1px solid ${belowFloor ? 'rgba(192,57,43,.55)' : 'var(--bd)'}`, borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
                       {belowFloor && <div style={{ fontSize: 11, fontWeight: 600, color: '#c0392b' }}>{T(`الخصم يتجاوز الحد المسموح (${nm(d.maxDiscount)} ريال) — سينزل رسوم المكتب تحت الأرضية.`, `Discount exceeds the allowed max (${nm(d.maxDiscount)} SAR) — it would push the office fee below the floor.`)}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(176,125,0,.3)' }}>
