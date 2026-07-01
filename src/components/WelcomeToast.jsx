@@ -8,22 +8,22 @@ function WelcomeToastCss() {
   display:flex;align-items:center;gap:13px;min-width:288px;max-width:calc(100vw - 28px);
   padding:13px 18px;border-radius:15px;cursor:pointer;overflow:hidden;
   background:linear-gradient(135deg,var(--sf) 0%,var(--bg) 100%);
-  border:1px solid rgba(212,160,23,.42);
-  box-shadow:0 14px 44px var(--shadowClr),0 0 30px rgba(212,160,23,.14),inset 0 1px 0 rgba(255,255,255,.4);
+  border:1px solid rgba(176,125,0,.42);
+  box-shadow:0 14px 44px var(--shadowClr),0 0 30px rgba(176,125,0,.14),inset 0 1px 0 rgba(255,255,255,.4);
   -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
   font-family:'Cairo','Tajawal',sans-serif;
   transition:transform .5s cubic-bezier(.18,.89,.27,1),opacity .5s ease;}
 .wt.wt-in{transform:translate(-50%,0);opacity:1;}
 .wt-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;transform-origin:left;
-  background:linear-gradient(90deg,#E2B53A,#C8930F);animation:wt-bar var(--wt-dur,3800ms) linear forwards;}
+  background:linear-gradient(90deg,#B07D00,#B07D00);animation:wt-bar var(--wt-dur,3800ms) linear forwards;}
 .wt-badge{position:relative;flex-shrink:0;width:38px;height:38px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 50% 32%,#E2B53A,#C8930F 80%);
-  box-shadow:0 3px 12px rgba(156,111,18,.45),inset 0 1px 0 rgba(255,255,255,.45);
+  background:radial-gradient(circle at 50% 32%,#B07D00,#B07D00 80%);
+  box-shadow:0 3px 12px rgba(176,125,0,.45),inset 0 1px 0 rgba(255,255,255,.45);
   animation:wt-pop .55s cubic-bezier(.2,.85,.25,1) .08s both;}
 .wt-check{stroke-dasharray:26;stroke-dashoffset:26;animation:wt-draw .5s ease .34s forwards;}
 .wt-txt{display:flex;flex-direction:column;gap:2px;min-width:0;}
-.wt-name{font-size:15.5px;font-weight:700;color:var(--tx);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px;}
+.wt-name{font-size:15.5px;font-weight:600;color:var(--tx);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px;}
 .wt-sub{font-family:'Cairo','Tajawal',sans-serif;font-size:11.5px;font-weight:500;color:var(--tx3);line-height:1.25;}
 @keyframes wt-pop{0%{transform:scale(.35);opacity:0}60%{transform:scale(1.14)}100%{transform:scale(1);opacity:1}}
 @keyframes wt-draw{to{stroke-dashoffset:0}}

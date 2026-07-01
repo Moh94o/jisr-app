@@ -4,7 +4,7 @@ import { can as canPerm, canCardBtn } from '../../lib/permissions.js'
 import { Modal as FKModal, ModalSection as FKSection, TextField, CurrencyField, DateField, Select as FKSelect, SuccessView } from '../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const GOLD = '#D4A017'
+const GOLD = '#B07D00'
 const C = { gold: GOLD, ok: '#2ecc71', warn: '#eab308', red: '#e87265', blue: '#5dade2', gray: '#95a5a6' }
 const MONO = "'JetBrains Mono','Cairo',sans-serif"
 
@@ -70,7 +70,7 @@ export default function BranchObligationsCard({ sb, branch, user, cardKey = 'ele
   const dueText = (o) => o.start_date
     ? (o.frequency === 'monthly' ? `مستحقة يوم ${Number(o.start_date.slice(8, 10))} من كل شهر` : `${freqLabel(o.frequency)} · يوم ${Number(o.start_date.slice(8, 10))}`)
     : freqLabel(o.frequency)
-  const badge = (o) => <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: `${accent}1a`, color: accent, border: `1px solid ${accent}33`, flexShrink: 0 }}>{typeMap[o.obligation_type] || 'بند'}</span>
+  const badge = (o) => <span style={{ fontSize: 9.5, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: `${accent}1a`, color: accent, border: `1px solid ${accent}33`, flexShrink: 0 }}>{typeMap[o.obligation_type] || 'بند'}</span>
   const copyBtn = (o, color = 'var(--tx4)') => o.account_no ? (
     <button onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(o.account_no); setCopiedId(o.id); setTimeout(() => setCopiedId(c => c === o.id ? null : c), 1500) }} title="نسخ"
       onMouseEnter={e => { if (copiedId !== o.id) e.currentTarget.style.color = GOLD }}
@@ -95,9 +95,9 @@ export default function BranchObligationsCard({ sb, branch, user, cardKey = 'ele
           if (!(existing ? canCardEdit : canCardCreate)) return null
           return (
             <button onClick={() => setModal(existing || {})}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.12)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-              style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               {existing ? 'تعديل' : addLabel}
               {existing
                 ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -123,9 +123,9 @@ export default function BranchObligationsCard({ sb, branch, user, cardKey = 'ele
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                   <div style={{ width: 34, height: 34, borderRadius: 9, background: `${accent}26`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon size={18} strokeWidth={2} /></div>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)', fontFamily: MONO, direction: 'ltr' }}>{num}</span>{copyBtn(o)}
+                    <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx)', fontFamily: MONO, direction: 'ltr' }}>{num}</span>{copyBtn(o)}
                   </div>
-                  {Number(o.amount) > 0 && <span style={{ fontSize: 13, fontWeight: 800, color: GOLD, fontFamily: MONO, direction: 'ltr', flexShrink: 0 }}>{fmtAmt(o.amount)}</span>}
+                  {Number(o.amount) > 0 && <span style={{ fontSize: 13, fontWeight: 600, color: GOLD, fontFamily: MONO, direction: 'ltr', flexShrink: 0 }}>{fmtAmt(o.amount)}</span>}
                   {badge(o)}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--tx5)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: '.2s', flexShrink: 0 }}><polyline points="6 9 12 15 18 9" /></svg>
                 </div>
@@ -138,13 +138,13 @@ export default function BranchObligationsCard({ sb, branch, user, cardKey = 'ele
               {isOpen && (
                 <div style={{ padding: '4px 16px 14px', borderTop: '1px dashed rgba(255,255,255,.08)' }}>
                   {o.document_url && (
-                    <a href={o.document_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: C.blue, textDecoration: 'none', margin: '8px 0' }}>
+                    <a href={o.document_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: C.blue, textDecoration: 'none', margin: '8px 0' }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                       عرض الملف
                     </a>
                   )}
                   <div style={{ margin: '8px 0 6px' }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx3)' }}>الدفعات ({pays.length})</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)' }}>الدفعات ({pays.length})</span>
                   </div>
                   {pays.length === 0 ? (
                     <div style={{ padding: 12, textAlign: 'center', color: 'var(--tx5)', fontSize: 11 }}>لا توجد دفعات.</div>
@@ -155,9 +155,9 @@ export default function BranchObligationsCard({ sb, branch, user, cardKey = 'ele
                         return (
                           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', borderRadius: 8, background: 'rgba(0,0,0,.16)' }}>
                             <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.c, flexShrink: 0 }} />
-                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', fontFamily: MONO, direction: 'ltr' }}>{p.due_date}</span>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: GOLD, fontFamily: MONO, direction: 'ltr' }}>{fmtAmt(p.amount)}</span>
-                            <span style={{ marginInlineStart: 'auto', fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: `${st.c}1a`, color: st.c, border: `1px solid ${st.c}33` }}>{st.l}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', fontFamily: MONO, direction: 'ltr' }}>{p.due_date}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: GOLD, fontFamily: MONO, direction: 'ltr' }}>{fmtAmt(p.amount)}</span>
+                            <span style={{ marginInlineStart: 'auto', fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: `${st.c}1a`, color: st.c, border: `1px solid ${st.c}33` }}>{st.l}</span>
                           </div>
                         )
                       })}

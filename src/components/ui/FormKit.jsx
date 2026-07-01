@@ -32,7 +32,7 @@ export const F = "'Cairo','Tajawal',sans-serif"
 // <html>) فالنوافذ المنبثقة — حتى المرسومة عبر بورتال في body — ترث قيم الثيم
 // الفاتح تلقائياً. الحجاب (overlay) والظلال أيضاً tokens (--overlayBg/--shadowClr).
 export const C = {
-  gold:    '#D4A017',
+  gold:    '#B07D00',
   ok:      '#27a046',
   red:     '#c0392b',
   blue:    '#3483b4',
@@ -484,7 +484,7 @@ export const CurrencyField = ({ label, req, error, hint, value, onChange, placeh
         <input value={display} inputMode="decimal" disabled={disabled}
           onChange={e => { let v = e.target.value.replace(/,/g, '').replace(RE_DECIMAL, ''); const p = v.split('.'); if (p.length > 2) v = p[0] + '.' + p.slice(1).join(''); onChange(v) }}
           placeholder={placeholder}
-          style={{ width: widthCh + 'ch', maxWidth: '70%', height: '100%', padding: 0, border: 'none', background: 'transparent', fontFamily: F, fontSize: big ? 26 : 14, fontWeight: big ? 700 : 600, color: C.tx, outline: 'none', textAlign: 'center', letterSpacing: big ? '.5px' : undefined, ...(disabled ? { cursor: 'not-allowed' } : {}) }} />
+          style={{ width: widthCh + 'ch', maxWidth: '70%', height: '100%', padding: 0, border: 'none', background: 'transparent', fontFamily: F, fontSize: big ? 26 : 14, fontWeight: big ? 600 : 600, color: C.tx, outline: 'none', textAlign: 'center', letterSpacing: big ? '.5px' : undefined, ...(disabled ? { cursor: 'not-allowed' } : {}) }} />
       </div>
     </Field>
   )
@@ -498,7 +498,7 @@ export const PhoneField = ({ label, req, error, hint, value, onChange, full, sil
   return (
     <Field label={label} req={req} error={err} hint={hint} full={full}>
       <div style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(err), height: 42, ...(disabled ? { opacity: .5 } : {}) }}>
-        <div style={{ height: '100%', padding: '0 10px', background: 'rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
+        <div style={{ height: '100%', padding: '0 10px', background: 'rgba(176,125,0,.12)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
         <input value={value || ''} onChange={e => onChange(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))} placeholder="5X XXX XXXX" maxLength={9} disabled={disabled}
           style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left', ...(disabled ? { cursor: 'not-allowed' } : {}) }} />
       </div>
@@ -525,7 +525,7 @@ export const PhoneListField = ({ label, req, error, hint, value, onChange, full,
     <Field label={label} req={req} error={error} hint={hint} full={full}>
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ flex: 1, display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(error), height: 42 }}>
-          <div style={{ height: '100%', padding: '0 10px', background: 'rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
+          <div style={{ height: '100%', padding: '0 10px', background: 'rgba(176,125,0,.12)', display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: ac, flexShrink: 0 }}>+966</div>
           <input value={draft} onChange={e => setDraft(e.target.value.replace(RE_DIGITS, '').replace(/^[^5]+/, '').slice(0, 9))}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }} placeholder="5X XXX XXXX" maxLength={9}
             style={{ width: '100%', height: '100%', padding: '0 12px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'left' }} />
@@ -811,7 +811,7 @@ export const Stepper = ({ label, req, error, hint, value, onChange, min = 0, max
 
 /* ════════════════════════════ مُنتقي اللون ════════════════════════════ */
 // لوحة الألوان المعتمدة في الموقع — تُستخدم لألوان الفروع/الأدوار/التصنيفات.
-export const SWATCHES = ['#D4A017', '#36a8e6', '#27a046', '#c0392b', '#8e44ad', '#e67e22', '#16a085', '#2c3e50', '#d81b60', '#00838f', '#7f8c8d', '#2980b9']
+export const SWATCHES = ['#B07D00', '#36a8e6', '#27a046', '#c0392b', '#8e44ad', '#e67e22', '#16a085', '#2c3e50', '#d81b60', '#00838f', '#7f8c8d', '#2980b9']
 
 // حقل اختيار لون — مربّع اللون + كوده، يفتح لوحة سواتش + منتقي مخصّص.
 export const ColorField = ({ label, req, error, hint, value, onChange, swatches = SWATCHES, full }) => {
@@ -856,7 +856,7 @@ export const ColorField = ({ label, req, error, hint, value, onChange, swatches 
             <span style={{ fontSize: 12, fontWeight: 600, color: C.tx3 }}>لون مخصّص</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: C.tx4, direction: 'ltr', fontFamily: SUCCESS_MONO }}>{(value || '#000000').toUpperCase()}</span>
-              <input type="color" value={value || '#D4A017'} onChange={e => onChange(e.target.value)}
+              <input type="color" value={value || '#B07D00'} onChange={e => onChange(e.target.value)}
                 style={{ width: 28, height: 28, padding: 0, border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer' }} />
             </span>
           </label>
@@ -1213,7 +1213,7 @@ export function SuccessView({ title, code, action }) {
       <div style={{ animation: 'fkFade .4s .45s both', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         <div style={{ textAlign: 'center', fontSize: 19, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px' }}>{title}</div>
         {code && (
-          <span style={{ color: C.gold, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontSize: 13.5, fontWeight: 800, letterSpacing: '.3px', direction: 'ltr' }}>{code}</span>
+          <span style={{ color: C.gold, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontSize: 13.5, fontWeight: 600, letterSpacing: '.3px', direction: 'ltr' }}>{code}</span>
         )}
         {action || null}
       </div>

@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef } from 'react'
 // No real backend is wired here. `onComplete` is called when the user reaches
 // step 3 so the parent can swap in real data later.
 
-const C = { gold: '#D4A017', green: '#22c55e', red: '#ef4444' }
+const C = { gold: '#B07D00', green: '#22c55e', red: '#ef4444' }
 const F = "'Cairo','Tajawal',sans-serif"
 const HUB_CARD = {
   background: 'linear-gradient(180deg, #1d1d1d 0%, #181818 100%)',
@@ -55,7 +55,7 @@ function ClassicVariant({ T, lang, operator, onComplete }) {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)' }}>{T('تسجيل دخول عبر نفاذ', 'Sign in via Nafath')}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)' }}>{T('تسجيل دخول عبر نفاذ', 'Sign in via Nafath')}</div>
           <div style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600, marginTop: 2 }}>
             {T('برقم الهوية وكلمة المرور', 'With your ID and password')}
           </div>
@@ -82,7 +82,7 @@ function ClassicVariant({ T, lang, operator, onComplete }) {
             <span>{T('فتح تطبيق نفاذ واعرض الرمز المعروض على الشاشة. يبقى صالحاً لمدة دقيقتين.', 'Open the Nafath app and show the code displayed on screen. It is valid for 2 minutes.')}</span>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)', marginBottom: 8 }}>{T('رمز نفاذ', 'Nafath code')}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', marginBottom: 8 }}>{T('رمز نفاذ', 'Nafath code')}</div>
             <OtpBoxes value={otp} onChange={setOtp} count={4} />
           </div>
           <button disabled={f.loading || otp.length < 4}
@@ -119,7 +119,7 @@ function StepperVariant({ T, lang, operator, onComplete }) {
     <div style={{ ...HUB_CARD, padding: 0, overflow: 'hidden', display: 'grid', gridTemplateColumns: '210px 1fr', minHeight: 360, borderColor: f.step === 3 ? '#22c55e44' : 'rgba(255,255,255,.08)' }}>
       {/* Rail */}
       <div style={{ background: 'rgba(0,0,0,.18)', borderInlineEnd: '1px solid rgba(255,255,255,.05)', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--tx5)', letterSpacing: '.5px', textTransform: 'uppercase' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.5px', textTransform: 'uppercase' }}>
           {T('توثيق نفاذ', 'Nafath verification')}
         </div>
         {steps.map(s => {
@@ -128,13 +128,13 @@ function StepperVariant({ T, lang, operator, onComplete }) {
           const color = done ? C.green : active ? C.gold : 'var(--tx5)'
           return (
             <div key={s.n} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', opacity: active || done ? 1 : .55, transition: '.2s' }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1.5px solid ${done ? `${C.green}66` : active ? `${C.gold}88` : 'rgba(255,255,255,.1)'}`, background: done ? `${C.green}1A` : active ? `${C.gold}1A` : 'transparent', color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12, flexShrink: 0 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1.5px solid ${done ? `${C.green}66` : active ? `${C.gold}88` : 'rgba(255,255,255,.1)'}`, background: done ? `${C.green}1A` : active ? `${C.gold}1A` : 'transparent', color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 12, flexShrink: 0 }}>
                 {done ? (
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 ) : s.n}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: active ? 'var(--tx)' : 'var(--tx3)' }}>{s.title}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: active ? 'var(--tx)' : 'var(--tx3)' }}>{s.title}</div>
                 <div style={{ fontSize: 10.5, color: 'var(--tx5)', fontWeight: 500, marginTop: 3, lineHeight: 1.5 }}>{s.desc}</div>
               </div>
             </div>
@@ -146,7 +146,7 @@ function StepperVariant({ T, lang, operator, onComplete }) {
       <div style={{ padding: '24px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         {f.step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--tx)', letterSpacing: '-.2px' }}>{T('سجّل دخول نفاذ', 'Sign in to Nafath')}</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{T('سجّل دخول نفاذ', 'Sign in to Nafath')}</div>
             <Field label={T('رقم الهوية', 'ID number')} value={id} onChange={setId} placeholder="1xxxxxxxxx" ltr mono maxLength={10} />
             <Field label={T('كلمة المرور', 'Password')} value={pwd} onChange={setPwd} placeholder="••••••••" type="password" />
             <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end' }}>
@@ -161,7 +161,7 @@ function StepperVariant({ T, lang, operator, onComplete }) {
 
         {f.step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--tx)', letterSpacing: '-.2px' }}>{T('أدخل رمز التحقق', 'Enter verification code')}</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{T('أدخل رمز التحقق', 'Enter verification code')}</div>
             <div style={{ fontSize: 12.5, color: 'var(--tx4)', lineHeight: 1.7 }}>
               {T('افتح تطبيق نفاذ في جوالك واعرض الرمز.', 'Open the Nafath app on your phone and show the code.')}
             </div>
@@ -208,14 +208,14 @@ function WalletVariant({ T, lang, operator, onComplete }) {
               <span key={n} style={{ width: f.step === n ? 18 : 6, height: 6, borderRadius: 999, background: f.step >= n ? (f.step === 3 ? C.green : C.gold) : 'rgba(255,255,255,.12)', transition: '.25s' }} />
             ))}
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx5)', letterSpacing: '.3px' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.3px' }}>
             {T(`خطوة ${Math.min(f.step, 3)} من 3`, `Step ${Math.min(f.step, 3)} of 3`)}
           </div>
         </div>
 
         {f.step === 1 && (
           <>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--tx)' }}>{T('من أنت في نفاذ؟', 'Who are you on Nafath?')}</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)' }}>{T('من أنت في نفاذ؟', 'Who are you on Nafath?')}</div>
             <div style={{ fontSize: 12, color: 'var(--tx4)', lineHeight: 1.7, marginBottom: 4 }}>
               {T('سنستخدم بياناتك لمزامنة الهوية الرسمية وتفاصيل التأمينات والمنشآت.', 'We\'ll use your details to sync your official identity, GOSI status, and facilities.')}
             </div>
@@ -231,7 +231,7 @@ function WalletVariant({ T, lang, operator, onComplete }) {
 
         {f.step === 2 && (
           <>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--tx)' }}>{T('أدخل رمز نفاذ', 'Enter Nafath code')}</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)' }}>{T('أدخل رمز نفاذ', 'Enter Nafath code')}</div>
             <div style={{ fontSize: 12, color: 'var(--tx4)', lineHeight: 1.7 }}>
               {T('الرمز معروض في تطبيق نفاذ بجوالك.', 'The code is shown in the Nafath app on your phone.')}
             </div>
@@ -259,7 +259,7 @@ function WalletVariant({ T, lang, operator, onComplete }) {
       }}>
         <div style={{ position: 'absolute', insetInlineEnd: -60, top: -60, width: 200, height: 200, borderRadius: '50%', background: `radial-gradient(circle, ${filled ? '#22c55e26' : `${C.gold}1A`} 0%, transparent 65%)`, pointerEvents: 'none' }} />
         <div style={{ position: 'relative', padding: '18px 18px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 9.5, fontWeight: 900, color: filled ? C.green : C.gold, letterSpacing: '1px', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 9.5, fontWeight: 600, color: filled ? C.green : C.gold, letterSpacing: '1px', textTransform: 'uppercase' }}>
             {T('بطاقة نفاذ', 'Nafath Card')}
           </div>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: `${filled ? C.green : C.gold}1A`, border: `1px solid ${filled ? C.green : C.gold}55`, color: filled ? C.green : C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -276,7 +276,7 @@ function WalletVariant({ T, lang, operator, onComplete }) {
           <WalletRow label={T('الجنسية', 'Nationality')} value={filled ? T('المملكة العربية السعودية', 'Saudi Arabia') : null} pending={!filled} />
         </div>
 
-        <div style={{ position: 'relative', padding: '12px 18px', borderTop: '1px dashed rgba(255,255,255,.06)', fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)', letterSpacing: '.5px', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ position: 'relative', padding: '12px 18px', borderTop: '1px dashed rgba(255,255,255,.06)', fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.5px', display: 'flex', justifyContent: 'space-between' }}>
           <span>{T('مصدر', 'Source')}: <b style={{ color: filled ? C.green : C.gold }}>iam.gov.sa</b></span>
           <span style={{ direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{filled ? '✓ verified' : '...pending'}</span>
         </div>
@@ -292,7 +292,7 @@ function WalletVariant({ T, lang, operator, onComplete }) {
 function Field({ label, value, onChange, placeholder, type = 'text', ltr, mono, maxLength }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)' }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>{label}</span>
       <input
         type={type}
         value={value}
@@ -342,7 +342,7 @@ function OtpBoxes({ value, onChange, count = 4 }) {
           maxLength={1}
           inputMode="numeric"
           style={{
-            width: 52, height: 58, textAlign: 'center', fontSize: 24, fontWeight: 900,
+            width: 52, height: 58, textAlign: 'center', fontSize: 24, fontWeight: 600,
             borderRadius: 11, background: 'rgba(255,255,255,.03)',
             border: `1.5px solid ${chars[i] ? `${C.gold}aa` : 'rgba(255,255,255,.08)'}`,
             color: 'var(--tx)', outline: 'none', fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
@@ -362,7 +362,7 @@ function SuccessPanel({ T, compact, onReset }) {
       <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(34,197,94,.16)', border: '2px solid rgba(34,197,94,.5)', color: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 8px 24px rgba(34,197,94,.25)` }}>
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)' }}>{T('تمت المزامنة بنجاح', 'Sync complete')}</div>
+      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx)' }}>{T('تمت المزامنة بنجاح', 'Sync complete')}</div>
       <div style={{ fontSize: 12, color: 'var(--tx4)', lineHeight: 1.7, maxWidth: 280 }}>
         {T('تم استيراد هويتك الكاملة وسجل دخولك من نفاذ. شاهد البطاقة لأعلى الصفحة.', 'Your full identity and sign-in history have been imported from Nafath. See the card above.')}
       </div>
@@ -377,9 +377,9 @@ function SuccessPanel({ T, compact, onReset }) {
 function WalletRow({ label, value, pending, mono }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-      <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)', letterSpacing: '.3px' }}>{label}</span>
+      <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.3px' }}>{label}</span>
       <span style={{
-        fontSize: 12, fontWeight: 700, color: pending ? 'var(--tx5)' : 'var(--tx)',
+        fontSize: 12, fontWeight: 600, color: pending ? 'var(--tx5)' : 'var(--tx)',
         fontFamily: mono ? 'ui-monospace, monospace' : undefined,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         maxWidth: 200, textAlign: 'end',
@@ -395,7 +395,7 @@ const primaryBtn = (disabled) => ({
   width: '100%', height: 44, borderRadius: 10,
   background: disabled ? 'rgba(255,255,255,.05)' : C.gold,
   color: disabled ? 'var(--tx5)' : '#1a1a1a',
-  border: 'none', fontFamily: F, fontSize: 13.5, fontWeight: 900,
+  border: 'none', fontFamily: F, fontSize: 13.5, fontWeight: 600,
   cursor: disabled ? 'not-allowed' : 'pointer',
   boxShadow: disabled ? 'none' : `0 6px 18px ${C.gold}55, inset 0 1px 0 rgba(255,255,255,.3)`,
   transition: '.15s',
@@ -405,7 +405,7 @@ const ghostBtn = () => ({
   height: 36, padding: '0 14px', borderRadius: 9,
   background: 'rgba(255,255,255,.04)', color: 'var(--tx3)',
   border: '1px solid rgba(255,255,255,.08)', fontFamily: F,
-  fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: '.15s',
+  fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: '.15s',
 })
 
 // ════════════════════════════════════════════════════════════════════
@@ -427,7 +427,7 @@ export default function NafathLoginVariants({ T, lang, operator, onComplete }) {
         ...HUB_CARD, padding: '10px 12px', marginBottom: 14,
         display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
       }}>
-        <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--tx5)', letterSpacing: '.5px', textTransform: 'uppercase', marginInlineEnd: 6 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.5px', textTransform: 'uppercase', marginInlineEnd: 6 }}>
           {T('اختر التصميم', 'Pick a design')}
         </div>
         {variants.map(v => {
@@ -439,7 +439,7 @@ export default function NafathLoginVariants({ T, lang, operator, onComplete }) {
                 background: active ? `${C.gold}1A` : 'rgba(255,255,255,.025)',
                 border: `1px solid ${active ? `${C.gold}77` : 'rgba(255,255,255,.06)'}`,
                 color: active ? C.gold : 'var(--tx3)',
-                fontFamily: F, fontSize: 11.5, fontWeight: 800, cursor: 'pointer',
+                fontFamily: F, fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
                 display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
                 lineHeight: 1.2, transition: '.15s',
               }}>

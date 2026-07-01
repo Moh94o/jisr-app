@@ -16,7 +16,7 @@ function SandboxBadge() {
     <div style={{
       position: 'fixed', bottom: 12, left: 12, zIndex: 999999, pointerEvents: 'none',
       background: 'rgba(192,57,43,.92)', color: '#fff', fontFamily: "'Cairo',sans-serif",
-      fontSize: 12, fontWeight: 800, padding: '6px 14px', borderRadius: 10,
+      fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 10,
       boxShadow: '0 4px 18px rgba(0,0,0,.45)', letterSpacing: '.3px', direction: 'rtl'
     }}>
       ⚠ بيئة تجريبية — البيانات هنا للتجربة فقط

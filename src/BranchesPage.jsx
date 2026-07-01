@@ -28,7 +28,7 @@ const BPill = ({ color, value, label }) => (
   }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: '0 0 5px ' + color }} />
-      <div style={{ fontSize: 18, fontWeight: 700, color, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 18, fontWeight: 600, color, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{value}</div>
     </div>
     <div style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>{label}</div>
   </div>
@@ -327,7 +327,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
         border-bottom: 1px solid var(--bd);
         letter-spacing: -.2px;
       }
-      .brs-add-btn:hover{background:rgba(212,160,23,.10) !important;border-color:rgba(212,160,23,.7) !important}
+      .brs-add-btn:hover{background:rgba(176,125,0,.10) !important;border-color:rgba(176,125,0,.7) !important}
     `}</style>
   )
 
@@ -370,14 +370,14 @@ export default function BranchesPage({ sb, toast, user, lang }) {
       {sharedStyle}
       <style>{`
         .brs-row{transition:all .15s}
-        .brs-row:hover{border-color:rgba(212,160,23,.35) !important}
-        .brs-add-btn:hover{background:rgba(212,160,23,.10) !important;border-color:rgba(212,160,23,.7) !important}
+        .brs-row:hover{border-color:rgba(176,125,0,.35) !important}
+        .brs-add-btn:hover{background:rgba(176,125,0,.10) !important;border-color:rgba(176,125,0,.7) !important}
         .brs-hero-grid{display:grid;grid-template-columns:2.2fr 1fr 1.5fr;gap:14px;margin-bottom:24px}
         @media (max-width: 1100px){.brs-hero-grid{grid-template-columns:1fr 1fr;}.brs-hero-grid > :nth-child(3){grid-column:1/-1}}
         @media (max-width: 720px){.brs-hero-grid{grid-template-columns:1fr}}
         .brs-row-grid{display:grid;grid-template-columns:auto 1px 1fr auto;gap:18px;align-items:center}
         @media (max-width: 720px){.brs-row-grid{grid-template-columns:1fr;gap:12px}.brs-row-vdiv{display:none}}
-        .brs-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(212,160,23,.22) !important}
+        .brs-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(176,125,0,.22) !important}
         .brs-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,var(--bd) 50%,transparent 100%);min-height:46px}
         .brs-staff-box{background:linear-gradient(160deg,rgba(52,131,180,.12) 0%,rgba(52,131,180,.04) 100%);border:1px solid rgba(52,131,180,.24);border-radius:12px;padding:8px 16px;display:flex;align-items:center;gap:10px;transition:.2s}
         .brs-row:hover .brs-staff-box{background:linear-gradient(160deg,rgba(52,131,180,.20) 0%,rgba(52,131,180,.08) 100%);border-color:rgba(52,131,180,.42)}
@@ -394,7 +394,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
           </div>
           {canPerm(user, 'admin_offices.create') && (
           <button onClick={openAdd} className="btn-primary-modal"
-            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
             مكتب جديد <Plus size={16} strokeWidth={2.2} />
           </button>
           )}
@@ -420,7 +420,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
             <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>المكاتب</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: C.ok, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{topStats.active}</span>
+            <span style={{ fontSize: 42, fontWeight: 600, color: C.ok, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{topStats.active}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
             <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>
@@ -455,7 +455,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
                   <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>المستخدمون</span>
                 </div>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-                  <span style={{ fontSize: 42, fontWeight: 800, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{nm(topStats.totalStaff)}</span>
+                  <span style={{ fontSize: 42, fontWeight: 600, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{nm(topStats.totalStaff)}</span>
                 </div>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
                   <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>
@@ -497,7 +497,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>التوزّع حسب المدينة</span>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                  <span style={{ color: GOLD, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(totalCnt)}</span> مكتب
+                  <span style={{ color: GOLD, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(totalCnt)}</span> مكتب
                 </span>
               </div>
               {totalCnt > 0 && (() => {
@@ -523,7 +523,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
                       })}
                       <text x="0" y="0" textAnchor="middle" dominantBaseline="central"
                         transform="rotate(90)"
-                        style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                        style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                         {nm(totalCnt)}
                       </text>
                     </svg>
@@ -534,7 +534,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
                           <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, minWidth: 0 }}>
                             <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
                             <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                            <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{nm(r.cnt)}</span>
+                            <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 600 }}>{nm(r.cnt)}</span>
                           </div>
                         )
                       })}
@@ -566,9 +566,9 @@ export default function BranchesPage({ sb, toast, user, lang }) {
           return (
             <button onClick={() => setAdvOpen(o => !o)} style={{
               height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0,
-              background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)',
-              border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid var(--bd)',
-              color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)',
+              border: active ? '1px solid rgba(176,125,0,.4)' : '1px solid var(--bd)',
+              color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
               fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s',
             }}>
               تصفية
@@ -621,8 +621,8 @@ export default function BranchesPage({ sb, toast, user, lang }) {
       {/* List — region-grouped row cards (matches InvoicePage day-grouped pattern) */}
       {!loading && filteredBranches.length === 0 && (() => {
         const noneAtAll = branches.length === 0
-        const storeIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="m2 7 4.41-4.41A2 2 0 017.83 2h8.34a2 2 0 011.42.59L22 7" /><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><path d="M15 22v-4a2 2 0 00-2-2h-2a2 2 0 00-2 2v4" /><path d="M2 7h20" /></svg>
-        const searchIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+        const storeIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="m2 7 4.41-4.41A2 2 0 017.83 2h8.34a2 2 0 011.42.59L22 7" /><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><path d="M15 22v-4a2 2 0 00-2-2h-2a2 2 0 00-2 2v4" /><path d="M2 7h20" /></svg>
+        const searchIcon = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
         return (
           <EmptyState
             icon={noneAtAll ? storeIcon : searchIcon}
@@ -694,11 +694,11 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
   }
 
   const codeEl = (sz) => (
-    <span style={{ fontSize: sz, fontWeight: 800, color: GOLD, fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.5px', direction: 'ltr', lineHeight: 1 }}>{code}</span>
+    <span style={{ fontSize: sz, fontWeight: 600, color: GOLD, fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.5px', direction: 'ltr', lineHeight: 1 }}>{code}</span>
   )
 
   const StatusPill = ({ size = 10 }) => (
-    <span style={{ fontSize: size, color: tone, fontWeight: 700, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <span style={{ fontSize: size, color: tone, fontWeight: 600, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: tone, boxShadow: `0 0 6px ${tone}` }} />
       {isActive ? 'نشط' : 'معطّل'}
     </span>
@@ -737,7 +737,7 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
       )}
       {alerts > 0 && (
         <span title={`${alerts} تنبيه رصيد منخفض`}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5, background: 'rgba(232,114,101,.14)', border: '1px solid rgba(232,114,101,.4)', fontSize: 10, fontWeight: 700, color: C.red }}>
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 5, background: 'rgba(232,114,101,.14)', border: '1px solid rgba(232,114,101,.4)', fontSize: 10, fontWeight: 600, color: C.red }}>
           <AlertCircle size={10} />{alerts} تنبيه
         </span>
       )}
@@ -750,7 +750,7 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
       : (big ? { padding: '11px 20px' } : undefined)}>
       <Users size={tile || big ? 18 : 16} color={C.blue} strokeWidth={2.2} />
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: tile ? 'center' : 'flex-start', lineHeight: 1 }}>
-        <span style={{ fontSize: tile || big ? 24 : 20, fontWeight: 800, color: C.blue, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{nm(staff)}</span>
+        <span style={{ fontSize: tile || big ? 24 : 20, fontWeight: 600, color: C.blue, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{nm(staff)}</span>
         <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginTop: 2 }}>مستخدم</span>
       </div>
     </div>
@@ -762,7 +762,7 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
       <span style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${tone} 0%, ${tone}55 100%)` }} />
       <div style={{ padding: '20px 30px 20px 26px' }}>
         <div className="brs-row-grid" style={{ gap: 22 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '13px 18px', borderRadius: 12, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.18)', minWidth: 96 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '13px 18px', borderRadius: 12, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.18)', minWidth: 96 }}>
             {codeEl(25)}<StatusPill size={10.5} />
           </div>
           <div className="brs-row-vdiv" style={{ minHeight: 56 }} />
@@ -783,12 +783,12 @@ const Metric = ({ Icon, value, label, color, borderL, borderR, mono }) => (
     borderInlineStart: borderL ? '1px solid var(--bd2)' : 'none',
   }}>
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
-      color, fontSize: 13, fontWeight: 900, lineHeight: 1.2, marginBottom: 2,
+      color, fontSize: 13, fontWeight: 600, lineHeight: 1.2, marginBottom: 2,
       direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? "'JetBrains Mono', Cairo, sans-serif" : F }}>
       <Icon size={11} strokeWidth={2} />
       <span>{value}</span>
     </div>
-    <div style={{ fontSize: 9, fontWeight: 700, color, opacity: .7 }}>{label}</div>
+    <div style={{ fontSize: 9, fontWeight: 600, color, opacity: .7 }}>{label}</div>
   </div>
 )
 
@@ -808,7 +808,7 @@ function BranchActivityChart({ days, color, label }) {
           <Activity size={13} color={color} /> {label}
         </span>
         <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>
-          الإجمالي: <span style={{ color, fontWeight: 700 }}>{total}</span> عملية
+          الإجمالي: <span style={{ color, fontWeight: 600 }}>{total}</span> عملية
         </span>
       </div>
       <div style={{ position: 'relative', height: 130, padding: '4px 2px 10px', overflow: 'hidden' }}>
@@ -854,9 +854,9 @@ function LocationBody({ branch }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '4px 0' }}>
       {tiles.map((t, i) => (
-        <div key={i} style={{ padding: '12px 14px', borderRadius: 11, background: t.gold ? 'rgba(212,160,23,.07)' : 'var(--bd2)', border: `1px solid ${t.gold ? 'rgba(212,160,23,.2)' : 'var(--bd)'}` }}>
-          <div style={{ fontSize: 12, color: t.gold ? 'rgba(212,160,23,.8)' : 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginBottom: 5 }}>{t.l}</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: t.gold ? GOLD : (t.v ? 'var(--tx)' : 'var(--tx5)'), direction: t.ltr ? 'ltr' : 'rtl', textAlign: 'right', fontFamily: t.ltr ? "'JetBrains Mono','Cairo',sans-serif" : F }}>{t.v || '—'}</div>
+        <div key={i} style={{ padding: '12px 14px', borderRadius: 11, background: t.gold ? 'rgba(176,125,0,.07)' : 'var(--bd2)', border: `1px solid ${t.gold ? 'rgba(176,125,0,.2)' : 'var(--bd)'}` }}>
+          <div style={{ fontSize: 12, color: t.gold ? 'rgba(176,125,0,.8)' : 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginBottom: 5 }}>{t.l}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: t.gold ? GOLD : (t.v ? 'var(--tx)' : 'var(--tx5)'), direction: t.ltr ? 'ltr' : 'rtl', textAlign: 'right', fontFamily: t.ltr ? "'JetBrains Mono','Cairo',sans-serif" : F }}>{t.v || '—'}</div>
         </div>
       ))}
     </div>
@@ -1039,7 +1039,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         .brd-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:var(--tx);letter-spacing:.2px}
         .brd-section-body{padding:14px 22px}
         .brd-section-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-        .brd-section-count{padding:2px 8px;border-radius:999px;background:var(--bd);font-size:10px;font-weight:700;color:var(--tx3)}
+        .brd-section-count{padding:2px 8px;border-radius:999px;background:var(--bd);font-size:10px;font-weight:600;color:var(--tx3)}
         /* Two-column detail layout — matches UserDetailPage .usrd-grid */
         .brd-grid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:flex-start}
         @media (max-width:900px){.brd-grid{grid-template-columns:1fr}.brd-side,.brd-main{grid-column:auto !important;position:static !important}.brd-side{order:1 !important}.brd-main{order:2 !important}}
@@ -1064,7 +1064,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
         {(branch.phone || lastActivity || alerts > 0) && (
           <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tx3)' }}>
             {branch.phone && (
-              <a href={`tel:${branch.phone}`} style={{ color: C.ok, fontWeight: 700, direction: 'ltr', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <a href={`tel:${branch.phone}`} style={{ color: C.ok, fontWeight: 600, direction: 'ltr', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <Phone size={11} /> {String(branch.phone).replace(/^\+?966/, '0')}
               </a>
             )}
@@ -1077,7 +1077,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
             {alerts > 0 && (
               <>
                 {(branch.phone || lastActivity) && <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--tx5)' }} />}
-                <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(229,134,122,.10)', border: `1px solid ${C.red}`, color: C.red, fontSize: 10.5, fontWeight: 800, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(229,134,122,.10)', border: `1px solid ${C.red}`, color: C.red, fontSize: 10.5, fontWeight: 600, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <AlertCircle size={11} /> {alerts} تنبيه رصيد
                 </span>
               </>
@@ -1102,7 +1102,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
               <button onClick={onEdit}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-bg)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-soft)' }}
-                style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+                style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
                 تعديل
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
               </button>
@@ -1162,8 +1162,8 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
           </span>
           {users.length > 0 && (
             <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-              <span style={{ color: C.ok, fontWeight: 700 }}>{activeStaff}</span> نشط
-              {users.length > activeStaff && <> · <span style={{ color: '#777', fontWeight: 700 }}>{users.length - activeStaff}</span> معطّل</>}
+              <span style={{ color: C.ok, fontWeight: 600 }}>{activeStaff}</span> نشط
+              {users.length > activeStaff && <> · <span style={{ color: '#777', fontWeight: 600 }}>{users.length - activeStaff}</span> معطّل</>}
             </span>
           )}
         </div>
@@ -1205,7 +1205,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                     </div>
                   </div>
                   {d.expiry_date && (
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 9px', borderRadius: 6, background: `${c}15`, color: c, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '4px 9px', borderRadius: 6, background: `${c}15`, color: c, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ width: 5, height: 5, borderRadius: '50%', background: c }} />
                       {isExpired ? 'منتهي' : expSoon ? 'ينتهي قريباً' : 'ساري'} · {d.expiry_date}
                     </span>
@@ -1230,7 +1230,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
               </span>
               {canCardBtn(user, 'admin_offices', 'overview_stats', 'toggle') && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? C.ok : 'var(--tx5)' }}>{isActive ? 'نشط' : 'معطّل'}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? C.ok : 'var(--tx5)' }}>{isActive ? 'نشط' : 'معطّل'}</span>
                 <button type="button" disabled={activeBusy} onClick={toggleBranchActive} title={isActive ? 'تعطيل المكتب' : 'تفعيل المكتب'}
                   style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: isActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'var(--bd)', cursor: activeBusy ? 'not-allowed' : 'pointer', opacity: activeBusy ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: isActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
                   <span style={{ position: 'absolute', width: 18, height: 18, borderRadius: '50%', background: '#fff', top: 3, right: isActive ? 3 : 23, transition: '.2s', boxShadow: '0 2px 4px rgba(0,0,0,.3)' }} />
@@ -1241,14 +1241,14 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
             <div className="brd-section-body" style={{ paddingTop: 6, paddingBottom: 12 }}>
               <div className="brd-irow">
                 <span className="brd-irow-l" style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>كود المكتب</span>
-                <span className="brd-irow-v" style={{ direction: 'ltr', color: 'var(--tx)', fontWeight: 800, fontVariantNumeric: 'tabular-nums', fontSize: 14, letterSpacing: '.5px' }}>{branch.branch_code || '—'}</span>
+                <span className="brd-irow-v" style={{ direction: 'ltr', color: 'var(--tx)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontSize: 14, letterSpacing: '.5px' }}>{branch.branch_code || '—'}</span>
               </div>
               {[
                 { l: 'المستخدمون', v: users.length > activeStaff ? `${nm(users.length)} / ${nm(activeStaff)}` : nm(activeStaff), c: C.blue },
               ].map(({ l, v, c }) => (
                 <div key={l} className="brd-irow">
                   <span className="brd-irow-l" style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{l}</span>
-                  <span className="brd-irow-v" style={{ direction: 'ltr', color: c, fontWeight: 800, fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>{v}</span>
+                  <span className="brd-irow-v" style={{ direction: 'ltr', color: c, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>{v}</span>
                 </div>
               ))}
               {/* Last-updated timestamp — auto-maintained by the trg_branches_updated_at trigger.
@@ -1281,7 +1281,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>نشاط الفواتير — آخر 14 يوم</span>
                       <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                        <span style={{ color: GOLD, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(total)}</span> فاتورة
+                        <span style={{ color: GOLD, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(total)}</span> فاتورة
                       </span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3, alignItems: 'end', height: 70, direction: 'rtl' }}>
@@ -1720,7 +1720,7 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
   const purposeBadges = purposeParts.length ? purposeParts.map((p, i) => {
     const { Icon, hue } = PURPOSE_META[p] || { Icon: CreditCard, hue: GOLD }
     return (
-      <span key={i} style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 7, background: `linear-gradient(135deg, ${hue}26 0%, ${hue}12 100%)`, color: hue, border: `1px solid ${hue}45`, boxShadow: `0 1px 4px ${hue}1a, inset 0 1px 0 rgba(255,255,255,.04)`, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+      <span key={i} style={{ fontSize: 10.5, fontWeight: 600, padding: '4px 9px', borderRadius: 7, background: `linear-gradient(135deg, ${hue}26 0%, ${hue}12 100%)`, color: hue, border: `1px solid ${hue}45`, boxShadow: `0 1px 4px ${hue}1a, inset 0 1px 0 rgba(255,255,255,.04)`, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
         <Icon size={11} strokeWidth={2.4} />{p}
       </span>
     )
@@ -1730,7 +1730,7 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
     <button type="button" onClick={() => onEdit?.(account)}
       onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-bg)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-soft)' }}
-      style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+      style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
       تعديل
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
     </button>
@@ -1760,7 +1760,7 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
   ) : null
   const linksNode = links.length ? (
     <div style={{ marginTop: 10 }}>
-      <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 700, marginBottom: 6 }}>المكاتب المرتبطة بهذا الحساب:</div>
+      <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6 }}>المكاتب المرتبطة بهذا الحساب:</div>
       {linksInner}
     </div>
   ) : null
@@ -1788,7 +1788,7 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
 
             {/* Top: bank label + reveal / edit */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 800, color: GOLD, letterSpacing: '.4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.bank_name}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: GOLD, letterSpacing: '.4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.bank_name}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <button type="button" onClick={() => setReveal(p => ({ ...p, [card.id]: !p[card.id] }))} title={shown ? 'إخفاء' : 'إظهار'} style={cardBtn({ border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' })}>
                   {shown
@@ -1808,15 +1808,15 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
             </div>
 
             {/* Card number */}
-            <div style={{ position: 'relative', fontSize: 16.5, fontWeight: 700, color: 'rgba(255,255,255,.93)', direction: 'ltr', fontFamily: MONO_F, letterSpacing: '2.5px' }}>
+            <div style={{ position: 'relative', fontSize: 16.5, fontWeight: 600, color: 'rgba(255,255,255,.93)', direction: 'ltr', fontFamily: MONO_F, letterSpacing: '2.5px' }}>
               {shown ? (card.card_number || '—') : maskNum(card.card_number)}
             </div>
 
             {/* Bottom: holder + toggle */}
             <div style={{ position: 'relative', marginTop: 'auto', paddingTop: 13, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 7.5, fontWeight: 800, color: 'var(--tx5)', letterSpacing: '.6px', marginBottom: 2 }}>حامل البطاقة</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.86)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{card.holder_name || '—'}</div>
+                <div style={{ fontSize: 7.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.6px', marginBottom: 2 }}>حامل البطاقة</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.86)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{card.holder_name || '—'}</div>
               </div>
               {switchBtn(card.is_active !== false, () => toggleCard(card), card.is_active !== false ? 'تعطيل البطاقة' : 'تفعيل البطاقة')}
             </div>
@@ -1840,7 +1840,7 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
       <button type="button" onClick={() => { setEditCard(null); setShowCardModal(true) }}
         onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-bg)' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-soft)' }}
-        style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+        style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
         بطاقة بنكية جديدة <Plus size={13} strokeWidth={2.2} />
       </button>
     </div>
@@ -1867,7 +1867,7 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
               </span>
             </div>
             <div title={account._bal ? `الرصيد = الإيداعات − المدفوعات\n+ تحويلات واردة: ${nm(account._bal.in_payments)}\n+ إيداعات نقدية: ${nm(account._bal.in_cash_deposits)}\n− المدفوعات: ${nm(account._bal.out_fees)}` : undefined}
-              style={{ fontSize: 30, fontWeight: 800, color: c, fontFamily: MONO_F, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1.05, cursor: account._bal ? 'help' : 'default' }}>{nm(account.current_balance || 0)}</div>
+              style={{ fontSize: 30, fontWeight: 600, color: c, fontFamily: MONO_F, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1.05, cursor: account._bal ? 'help' : 'default' }}>{nm(account.current_balance || 0)}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>{primaryBadge}{purposeBadges}</div>
             {toggle}
           </div>
@@ -1958,7 +1958,7 @@ const MetaRow = ({ Icon, dot, value, label, mono, color }) => {
       background: 'var(--inputBg)', border: '1px solid var(--bd2)',
       fontSize: 11, color: 'var(--tx2)', fontWeight: 600,
     }}>
-      <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 700, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
       <span style={{ marginInlineStart: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? "'JetBrains Mono','Cairo',sans-serif" : F }}>{value}</span>
       {Icon && <Icon size={11} color={color || 'var(--tx4)'} strokeWidth={2.3} style={{ flexShrink: 0 }} />}
       {dot && <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0 }} />}
@@ -1994,7 +1994,7 @@ function UsersSpotlight({ users, branch, sb, toast, onReload }) {
           border: `1px solid ${c}45`, boxShadow: `0 3px 10px ${c}22, inset 0 1px 0 rgba(255,255,255,.06)`,
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           background: u.nationality_flag ? '#1a1a1a' : `linear-gradient(135deg, ${c}2e 0%, ${c}12 100%)`,
-          fontSize: Math.round(size * 0.37), fontWeight: 700, color: c }}>
+          fontSize: Math.round(size * 0.37), fontWeight: 600, color: c }}>
         {u.nationality_flag
           ? <img src={u.nationality_flag} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : initialOf(u)}
@@ -2012,7 +2012,7 @@ function UsersSpotlight({ users, branch, sb, toast, onReload }) {
   )
 
   const MgrTag = ({ small }) => (
-    <span style={{ fontSize: small ? 9 : 9.5, fontWeight: 700, padding: small ? '1px 6px' : '2px 7px', borderRadius: 5, background: `${GOLD}22`, color: GOLD, border: `1px solid ${GOLD}48`, letterSpacing: '.2px' }}>المدير</span>
+    <span style={{ fontSize: small ? 9 : 9.5, fontWeight: 600, padding: small ? '1px 6px' : '2px 7px', borderRadius: 5, background: `${GOLD}22`, color: GOLD, border: `1px solid ${GOLD}48`, letterSpacing: '.2px' }}>المدير</span>
   )
 
   const RoleLine = ({ u, size = 11 }) => u.role_name ? (
@@ -2024,8 +2024,8 @@ function UsersSpotlight({ users, branch, sb, toast, onReload }) {
   const GroupHead = ({ color, label, count }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 11 }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
-      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)', letterSpacing: '.2px' }}>{label}</span>
-      <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700, direction: 'ltr' }}>{nm(count)}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', letterSpacing: '.2px' }}>{label}</span>
+      <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr' }}>{nm(count)}</span>
       <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
     </div>
   )
@@ -2052,7 +2052,7 @@ function UsersSpotlight({ users, branch, sb, toast, onReload }) {
                 <Flag u={u} size={60} radius={14} />
                 <div style={{ flex: 1, minWidth: 140 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--tx)' }}>{u.name_ar || u.email || '—'}</span>
+                    <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)' }}>{u.name_ar || u.email || '—'}</span>
                     <MgrTag />
                   </div>
                   <div style={{ marginTop: 5 }}><RoleLine u={u} size={12} /></div>
@@ -2077,7 +2077,7 @@ function UsersSpotlight({ users, branch, sb, toast, onReload }) {
               }}>
                 <Flag u={u} size={52} radius={13} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>{u.name_ar || u.email || '—'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{u.name_ar || u.email || '—'}</div>
                   <div style={{ marginTop: 4, display: 'flex', justifyContent: 'center' }}><RoleLine u={u} size={10.5} /></div>
                 </div>
                 <Sw u={u} />
@@ -2093,7 +2093,7 @@ function UsersSpotlight({ users, branch, sb, toast, onReload }) {
 const PillMeta = ({ label, value, color }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '6px 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
     <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
-    <span style={{ fontSize: 12, fontWeight: 700, color: color || 'var(--tx)', direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }}>{value}</span>
+    <span style={{ fontSize: 12, fontWeight: 600, color: color || 'var(--tx)', direction: 'ltr', fontFamily: "'JetBrains Mono','Cairo',sans-serif" }}>{value}</span>
   </div>
 )
 
@@ -2211,7 +2211,7 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setCodeEditing(false) } }}
                 placeholder="RYD01" dir="ltr"
                 style={{ ...sF, direction: 'ltr', textAlign: 'center', fontSize: 14,
-                  fontFamily: "'JetBrains Mono','Cairo',sans-serif", fontWeight: 700 }} />
+                  fontFamily: "'JetBrains Mono','Cairo',sans-serif", fontWeight: 600 }} />
             ) : (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px',

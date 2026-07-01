@@ -5,7 +5,7 @@ import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, Select
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
-  gold: '#D4A017',
+  gold: '#B07D00',
   blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
   ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
@@ -107,7 +107,7 @@ const StatusBadge = ({ code, T }) => {
   const th = statusTheme(code)
   if (!code) return <span style={{ color: 'var(--tx5)' }}>—</span>
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: th.c + '18', border: '1px solid ' + th.c + '38', color: th.c, fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: th.c + '18', border: '1px solid ' + th.c + '38', color: th.c, fontSize: 10.5, fontWeight: 600, whiteSpace: 'nowrap' }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: th.c, boxShadow: '0 0 5px ' + th.c }} />
       {T(th.ar, th.en)}
     </span>
@@ -116,16 +116,16 @@ const StatusBadge = ({ code, T }) => {
 
 const btnFilter = (active) => ({
   height: 44, padding: '0 16px', borderRadius: 12,
-  background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)',
-  border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'),
+  background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)',
+  border: '1px solid ' + (active ? 'rgba(176,125,0,.3)' : 'rgba(255,255,255,.05)'),
   color: active ? C.gold : 'var(--tx2)',
-  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
   display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box',
 })
 const selStyle = { width: '100%', height: 40, padding: '0 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, fontFamily: F, outline: 'none', cursor: 'pointer' }
 const FilterField = ({ label, children }) => (
   <div>
-    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', marginBottom: 6 }}>{label}</div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{label}</div>
     {children}
   </div>
 )
@@ -157,7 +157,7 @@ function VisasSkeleton() {
 
 const Empty = ({ T, hasData }) => (
   <EmptyState
-    icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 22h14a2 2 0 0 0 2-2V7l-5-5H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z"/><path d="M14 2v5h5"/><circle cx="10" cy="13" r="2"/><path d="M10 15v3"/></svg>}
+    icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 22h14a2 2 0 0 0 2-2V7l-5-5H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z"/><path d="M14 2v5h5"/><circle cx="10" cy="13" r="2"/><path d="M10 15v3"/></svg>}
     title={hasData ? T('لا توجد نتائج للبحث', 'No results match the search') : T('لا توجد تأشيرات بعد', 'No visas yet')}
     desc={hasData ? T('جرّب تعديل كلمة البحث أو الفلاتر', 'Try adjusting your search or filters') : T('تظهر هنا تأشيرات العمل من فواتير «تأشيرة وإقامة»', 'Work visas from “visa + residence” invoices appear here')} />
 )
@@ -351,7 +351,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
             <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T(arCount(stats.total, 'تأشيرة', 'تأشيرات'), 'Visas')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(stats.total)}</span>
+            <span style={{ fontSize: 42, fontWeight: 600, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(stats.total)}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', gap: 8 }}>
             <span style={{ fontSize: 12, color: C.ok, fontWeight: 600, direction: 'rtl', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -389,17 +389,17 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
                 </g>
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                <span style={{ fontSize: 24, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums', direction: 'ltr', color: 'var(--tx)' }}>{usedPct}%</span>
-                <span style={{ fontSize: 9.5, fontWeight: 800, marginTop: 4, letterSpacing: '.2px', color: 'var(--tx2)' }}>{T('مستخدمة', 'used')}</span>
+                <span style={{ fontSize: 24, fontWeight: 600, lineHeight: 1, fontVariantNumeric: 'tabular-nums', direction: 'ltr', color: 'var(--tx)' }}>{usedPct}%</span>
+                <span style={{ fontSize: 9.5, fontWeight: 600, marginTop: 4, letterSpacing: '.2px', color: 'var(--tx2)' }}>{T('مستخدمة', 'used')}</span>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
               {statusSegs.map(s => (
                 <button key={s.k} onClick={() => { setAdv(a => ({ ...a, status: a.status === s.k ? '' : s.k })); setPage(0) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, opacity: s.v === 0 ? 0.4 : 1, background: adv.status === s.k ? 'rgba(212,160,23,.08)' : 'transparent', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, fontFamily: F, textAlign: 'right' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, opacity: s.v === 0 ? 0.4 : 1, background: adv.status === s.k ? 'rgba(176,125,0,.08)' : 'transparent', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, fontFamily: F, textAlign: 'right' }}>
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: s.c, flexShrink: 0 }} />
                   <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{s.l}</span>
-                  <span style={{ color: s.v === 0 ? 'var(--tx4)' : s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', fontWeight: 800, flexShrink: 0 }}>{num(s.v)}</span>
+                  <span style={{ color: s.v === 0 ? 'var(--tx4)' : s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', fontWeight: 600, flexShrink: 0 }}>{num(s.v)}</span>
                 </button>
               ))}
             </div>
@@ -410,15 +410,15 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
         <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الجنسيات', 'Nationalities')}</span>
-            <span style={{ fontSize: 10.5, color: C.purple, fontWeight: 700 }}>{num(natTop.length)} {T('جنسية', 'total')}</span>
+            <span style={{ fontSize: 10.5, color: C.purple, fontWeight: 600 }}>{num(natTop.length)} {T('جنسية', 'total')}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, flex: 1 }}>
             {natTop.slice(0, 4).map(n => (
               <button key={n.ar} onClick={() => { setAdv(a => ({ ...a, nationality: a.nationality === n.ar ? '' : n.ar })); setPage(0) }}
-                style={{ borderRadius: 12, padding: '8px 10px', background: adv.nationality === n.ar ? 'rgba(212,160,23,.12)' : 'rgba(255,255,255,.025)', border: '1px solid ' + (adv.nationality === n.ar ? 'rgba(212,160,23,.4)' : 'rgba(255,255,255,.04)'), display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4, cursor: 'pointer', textAlign: 'start', fontFamily: F }}>
+                style={{ borderRadius: 12, padding: '8px 10px', background: adv.nationality === n.ar ? 'rgba(176,125,0,.12)' : 'rgba(255,255,255,.025)', border: '1px solid ' + (adv.nationality === n.ar ? 'rgba(176,125,0,.4)' : 'rgba(255,255,255,.04)'), display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4, cursor: 'pointer', textAlign: 'start', fontFamily: F }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <NatFlag name_ar={n.ar} name_en={n.en} size={16} />
-                  <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{num(n.count)}</span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{num(n.count)}</span>
                 </div>
                 <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.ar}</span>
               </button>
@@ -499,24 +499,24 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
         <>
           <style>{`
             .wf-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-            .wf-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:14px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+            .wf-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:14px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
             .wf-tbl tbody td{padding:10px 4px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.02)}
             .wf-tbl tbody tr{transition:background .12s}
             .wf-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-            .wf-tbl tbody tr.clk:hover td{background:rgba(212,160,23,.06)}
+            .wf-tbl tbody tr.clk:hover td{background:rgba(176,125,0,.06)}
             .wf-tbl tbody tr:last-child td:first-child{border-bottom-right-radius:9px}
             .wf-tbl tbody tr:last-child td:last-child{border-bottom-left-radius:9px}
             .wf-tbl tbody tr:last-child td{border-bottom:none}
             .wf-tbl thead tr:first-child th:first-child{border-top-right-radius:9px}
             .wf-tbl thead tr:first-child th:last-child{border-top-left-radius:9px}
-            .wf-tbl .num{direction:ltr;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;font-weight:700}
+            .wf-tbl .num{direction:ltr;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;font-weight:600}
             .wf-tbl .muted{color:var(--tx5)}
             .wf-tbl .name-marquee{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
             .wf-tbl .fac-link:hover{color:${C.gold};text-decoration:underline}
             @keyframes wf-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.78)}}
             .wf-tbl .wf-dot-pulse{animation:wf-pulse 1.5s ease-in-out infinite}
             .wf-tbl .wf-status.clk{transition:filter .15s,box-shadow .15s}
-            .wf-tbl .wf-status.clk:hover{filter:brightness(1.18);box-shadow:0 0 0 1px rgba(212,160,23,.35)}
+            .wf-tbl .wf-status.clk:hover{filter:brightness(1.18);box-shadow:0 0 0 1px rgba(176,125,0,.35)}
           `}</style>
 
           <div style={{ borderRadius: 10 }}>
@@ -541,7 +541,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
                   <tr key={v.id}>
                     <td>
                       <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
-                        <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontSize: 14.5, letterSpacing: '.3px', color: v.sr?.branch?.branch_code ? C.gold : 'var(--tx4)' }}>{v.sr?.branch?.branch_code || '—'}</span>
+                        <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, fontSize: 14.5, letterSpacing: '.3px', color: v.sr?.branch?.branch_code ? C.gold : 'var(--tx4)' }}>{v.sr?.branch?.branch_code || '—'}</span>
                         {v.sr?.request_date && <span style={{ direction: 'ltr', fontFamily: 'monospace', color: 'var(--tx4)', fontWeight: 500, fontSize: 10, fontVariantNumeric: 'tabular-nums' }}>{String(v.sr.request_date).slice(0, 10)}</span>}
                       </span>
                     </td>
@@ -603,7 +603,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
                         const badge = code ? (
                           <div className={canEdit ? 'wf-status clk' : 'wf-status'} title={tip} onClick={onClick}
                             style={{ display: 'inline-flex', flexDirection: 'column', gap: 4, minWidth: 100, borderInlineStart: `3px solid ${c}`, background: `${c}10`, padding: '8px 11px', direction: isAr ? 'rtl' : 'ltr', textAlign: isAr ? 'right' : 'left', cursor: canEdit ? 'pointer' : 'default' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: c, whiteSpace: 'nowrap' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: c, whiteSpace: 'nowrap' }}>
                               {live && <span className="wf-dot-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />}{T(th.ar, th.en)}
                             </span>
                             {dur && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{dur}</span>}
@@ -627,14 +627,14 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
             return (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px 4px', borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 18 }}>
                 <style>{`
-                  .wf-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
+                  .wf-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(176,125,0,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
                   .wf-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
                   .wf-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
-                  .wf-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+                  .wf-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:600;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
                   .wf-pg-input::-webkit-outer-spin-button,.wf-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 `}</style>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من', 'of')} {num(filtered.length)}</span>
+                  <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من', 'of')} {num(filtered.length)}</span>
                   <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{T('صفحة', 'Page')} {page + 1} {T('من', 'of')} {totalPages}</span>
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>

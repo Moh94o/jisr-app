@@ -21,7 +21,7 @@ export function clientLangs(code) {
 
 // ── message label dictionary (ar authored; en/hi/ur/bn from translation workflow) ──
 const MSG = {
-  ar: { new_invoice: 'فاتورة جديدة', new_payment: 'دفعة جديدة', refund_title: 'استرجاع مبلغ', payment_voided_title: 'إلغاء دفعة', payment_edit_title: 'تعديل دفعة', pricing_edit_title: 'تعديل تسعيرة', cancel_title: 'إلغاء فاتورة', ref: 'المرجع', total: 'الإجمالي', paid: 'المدفوع', remaining: 'المتبقي', amount: 'المبلغ', remaining_after: 'المتبقي بعد الدفعة', refunded_amount: 'المبلغ المسترجع', updated_paid: 'المدفوع المحدّث', updated_remaining: 'المتبقي المحدّث', reason: 'السبب', cancelled_amount: 'المبلغ الملغى', method_cash: 'نقداً', method_bank: 'حوالة بنكية', method_pos: 'شبكة', method_cheque: 'شيك', currency: 'ريال', office: 'مكتب حسين', client: 'العميل', service: 'الخدمة', thanks: 'شكراً لتعاملكم معنا', inquiry: 'للإستفسارات أو الشكاوى', thanks_card: 'شكراً لتعاملكم', amount_paid: 'دفعة مستلمة', voided_amount: 'دفعة ملغاة' },
+  ar: { new_invoice: 'فاتورة جديدة', new_payment: 'دفعة جديدة', refund_title: 'استرجاع مبلغ', payment_voided_title: 'إلغاء دفعة', payment_edit_title: 'تعديل دفعة', pricing_edit_title: 'تعديل تسعيرة', cancel_title: 'إلغاء فاتورة', ref: 'المرجع', total: 'الإجمالي', paid: 'المدفوع', remaining: 'المتبقي', amount: 'المبلغ', remaining_after: 'المتبقي بعد الدفعة', refunded_amount: 'المبلغ المسترجع', updated_paid: 'المدفوع المحدّث', updated_remaining: 'المتبقي المحدّث', reason: 'السبب', cancelled_amount: 'المبلغ الملغى', method_cash: 'نقداً', method_bank: 'حوالة بنكية', method_pos: 'شبكة', method_cheque: 'شيك', currency: 'ريال', office: 'مكتب حسين', client: 'العميل', service: 'الخدمة', thanks: 'شكراً لتعاملكم معنا', inquiry: 'للإستفسارات أو الشكاوى', thanks_card: 'شكراً لتعاملكم', amount_paid: 'المبلغ المستلم اليوم', voided_amount: 'دفعة ملغاة' },
   en: { new_invoice: 'New invoice', new_payment: 'New payment received', refund_title: 'Amount refunded', payment_voided_title: 'Payment cancelled', payment_edit_title: 'Payment amount modified', pricing_edit_title: 'Invoice total modified', cancel_title: 'Invoice cancelled', ref: 'Invoice no', total: 'Total', paid: 'Paid', remaining: 'Remaining', amount: 'Amount', remaining_after: 'Remaining after this payment', refunded_amount: 'Refunded amount', updated_paid: 'Updated paid amount', updated_remaining: 'Updated remaining', reason: 'Reason', cancelled_amount: 'Cancelled amount', method_cash: 'Cash', method_bank: 'Bank transfer', method_pos: 'Card POS', method_cheque: 'Cheque', currency: 'SAR', office: 'Hussain Office', client: 'Client', service: 'Service', thanks: 'Thank you for your business', inquiry: 'For inquiries or complaints', thanks_card: 'Thank you for your business', amount_paid: 'Payment received', voided_amount: 'Cancelled payment' },
   hi: { new_invoice: 'नया बिल', new_payment: 'नया भुगतान प्राप्त', refund_title: 'राशि वापस', payment_voided_title: 'भुगतान रद्द', payment_edit_title: 'भुगतान राशि बदली', pricing_edit_title: 'बिल कुल बदला', cancel_title: 'बिल रद्द', ref: 'संदर्भ', total: 'कुल', paid: 'भुगतान', remaining: 'बकाया', amount: 'राशि', remaining_after: 'इस भुगतान के बाद बकाया', refunded_amount: 'वापस की गई राशि', updated_paid: 'अद्यतन भुगतान', updated_remaining: 'अद्यतन बकाया', reason: 'कारण', cancelled_amount: 'रद्द राशि', method_cash: 'नकद', method_bank: 'बैंक हस्तांतरण', method_pos: 'कार्ड', method_cheque: 'चेक', currency: 'रि.', office: 'हुसैन ऑफिस', client: 'ग्राहक', service: 'सेवा', thanks: 'आपके सहयोग के लिए धन्यवाद', inquiry: 'पूछताछ या शिकायत के लिए', thanks_card: 'आपके सहयोग के लिए धन्यवाद', amount_paid: 'प्राप्त भुगतान', voided_amount: 'रद्द भुगतान' },
   ur: { new_invoice: 'نیا انوائس', new_payment: 'نئی ادائیگی موصول', refund_title: 'رقم واپس', payment_voided_title: 'ادائیگی منسوخ', payment_edit_title: 'ادائیگی میں ترمیم', pricing_edit_title: 'انوائس مجموعہ میں ترمیم', cancel_title: 'انوائس منسوخ', ref: 'حوالہ', total: 'کل', paid: 'ادا شدہ', remaining: 'باقی', amount: 'رقم', remaining_after: 'ادائیگی کے بعد باقی', refunded_amount: 'واپس کی گئی رقم', updated_paid: 'تازہ شدہ ادا شدہ', updated_remaining: 'تازہ شدہ باقی', reason: 'وجہ', cancelled_amount: 'منسوخ رقم', method_cash: 'نقد', method_bank: 'بینک ٹرانسفر', method_pos: 'کارڈ', method_cheque: 'چیک', currency: 'ر.س', office: 'حسین آفس', client: 'کلائنٹ', service: 'خدمت', thanks: 'آپ کے تعاون کا شکریہ', inquiry: 'استفسار یا شکایت کے لیے', thanks_card: 'آپ کے تعاون کا شکریہ', amount_paid: 'موصول ادائیگی', voided_amount: 'منسوخ ادائیگی' },
@@ -41,7 +41,9 @@ export function party(inv) {
   const worker = pickWorker(sr.transfer_applications) || pickWorker(sr.ajeer_applications)
     || pickWorker(sr.iqama_renewal_applications) || pickWorker(sr.supplier_payroll_applications)
     || pickWorker(sr.other_applications) || null
-  const p = sr.client || worker
+  // نقل الكفالة وتجديد الإقامة: نعرض العامل (اسمه وجواله) لا العميل عند اختلافهما؛ باقي الخدمات تُبقي العميل أولاً.
+  const isWorkerSvc = inv.service_type?.code === 'transfer' || inv.service_type?.code === 'iqama_renewal'
+  const p = isWorkerSvc ? (worker || sr.client) : (sr.client || worker)
   const otherWP = Array.isArray(sr.other_applications) ? sr.other_applications[0]?.worker_phone : sr.other_applications?.worker_phone
   const dg = String(p?.phone || otherWP || '').replace(/\D/g, '')
   const wa = dg ? (dg.startsWith('966') ? dg : '966' + dg.slice(-9)) : ''
@@ -86,20 +88,54 @@ const localPhone = raw => {
   if (!dg) return ''
   return dg.startsWith('966') ? '0' + dg.slice(3) : (dg.startsWith('0') ? dg : '0' + dg.slice(-9))
 }
+// نقل الكفالة وتجديد الإقامة (بالعربية): أسطر إضافية أسفل الأرصدة — الوسيط + جواله (نقل فقط)،
+// المدة (المتوقعة/التجديد)، وفائدة المكتب (صافي الرسوم المكتبية بعد الخصم).
+function calcExtra(inv, lang) {
+  const code = inv.service_type?.code
+  const isTransfer = code === 'transfer'
+  const isRenewal = code === 'iqama_renewal'
+  if (lang !== 'ar' || (!isTransfer && !isRenewal)) return []
+  const tcRaw = isTransfer ? inv.transfer_calculation : inv.iqama_renewal_calculation
+  const tc = Array.isArray(tcRaw) ? tcRaw.find(x => x && !x.deleted_at) : (tcRaw && !tcRaw.deleted_at ? tcRaw : null)
+  const out = []
+  // الوسيط خاص بنقل الكفالة فقط — تجديد الإقامة لا يمرّ بوسيط.
+  if (isTransfer) {
+    const ag = inv.agent || (Array.isArray(inv.service_request?.service_request_agents) ? inv.service_request.service_request_agents[0]?.agent : null)
+    if (ag) {
+      const nm = ag.name_ar || ag.name_en || ''
+      const ph = localPhone(ag.phone)
+      if (nm) out.push(` الوسيط: ${nm}${ph ? ' | ' + ph : ''}`)
+    }
+  }
+  const months = Number(tc?.expected_duration_months || tc?.billed_renewal_months || tc?.renewal_months || 0)
+  if (months > 0) out.push(`${isRenewal ? ' مدة التجديد' : ' المدة المتوقعة'}: ${months} شهر`)
+  const officeNet = tc ? (tc.office_fee_net != null ? Number(tc.office_fee_net) : Number(tc.office_fee || 0)) : 0
+  if (officeNet > 0) out.push(` الفائدة: ${num(officeNet)} ريال`)
+  return out
+}
 // الهيكل المشترك للبطاقة المزخرفة (رأس + خدمة + عميل + أسطر المبالغ + تذييل).
 function decoCard(inv, lang, titleKey, moneyLines) {
   const M = MSG[lang] || MSG.ar
   const { name, phone } = party(inv)
   const bPhone = localPhone(inv.branch?.phone)
+  const extra = calcExtra(inv, lang)
+  const issueDate = (lang === 'ar' && inv.created_at) ? ` ${String(inv.created_at).slice(0, 10)}` : ''
+  const updateLine = (lang === 'ar' && (inv.last_activity_at || inv.created_at)) ? ` ${String(inv.last_activity_at || inv.created_at).slice(0, 10)}` : ''
+  // نقل الكفالة وتجديد الإقامة يعرضان العامل → نسبق سطر الطرف بـ «اسم العامل:» (بالعربية).
+  const partyLabel = (lang === 'ar' && (inv.service_type?.code === 'transfer' || inv.service_type?.code === 'iqama_renewal')) ? 'اسم العامل: ' : ''
+  const money = Array.isArray(moneyLines) ? moneyLines : []
   return [
-    `🧾 *${M[titleKey]} — ${branchLabel(inv)}*`,
+    `🧾 *${M[titleKey]} — ${branchLabel(inv)}* | \`${noDash(invNo(inv))}\``,
+    issueDate,
     DIV_SQ,
-    `*${svcLabel(inv, lang)}* | \`${noDash(invNo(inv))}\``,
-    ` ${name}${phone ? ' | ' + phone : ''}`,
+    `*${svcLabel(inv, lang)}*`,
+    ` ${partyLabel}${name}${phone ? ' | ' + phone : ''}`,
     DIV_DOT,
-    ...moneyLines,
+    money[0] || '',
+    updateLine,
+    ...money.slice(1),
     DIV_DOT,
-    DIV_SQ,
+    ...(extra.length ? [...extra, DIV_SQ] : [DIV_SQ]),
     M.inquiry,
     bPhone,
     `${M.thanks_card} 🙏`,
@@ -119,17 +155,18 @@ function decoMoneyLines(kind, M, inv, payload) {
   const cur = M.currency
   const { total, paid } = totals(inv)
   const bal = balanceLines(M, inv)
-  const methodBlk = () => { const m = M['method_' + payload.method] || ''; return m ? [codeBlock('(' + m + ')')] : [] }
+  const mtxt = M['method_' + payload.method] || ''
+  const inlM = mtxt ? ' (' + mtxt + ')' : ''
   switch (kind) {
-    // فاتورة جديدة: سطر «دفعة مستلمة» يظهر فقط لو فيه دفعة أولى (بدون طريقة — غير متاحة).
+    // فاتورة جديدة: سطر «المبلغ المستلم» يظهر فقط لو فيه دفعة أولى (بدون طريقة — غير متاحة).
     case 'invoice_created':
       return paid > 0 ? [`💵 *${M.amount_paid}: ${num(paid)} ${cur}*`, DIV_DOT, ...bal] : bal
-    // دفعة جديدة: المبلغ بارز + الطريقة بأيقونتها.
+    // دفعة جديدة: المبلغ بارز + الطريقة بين قوسين في نفس السطر.
     case 'payment':
-      return [`${PAY_ICONS[payload.method] || '🏦'} *${M.amount_paid}: ${num(payload.amount)} ${cur}*`, ...methodBlk(), DIV_DOT, ...bal]
+      return [`💵 *${M.amount_paid}: ${num(payload.amount)} ${cur}*${inlM}`, DIV_DOT, ...bal]
     // استرجاع مبلغ: المبلغ المسترجع بارز (خارج للعميل).
     case 'refund':
-      return [`↩️ *${M.refunded_amount}: ${num(Math.abs(Number(payload.amount || 0)))} ${cur}*`, ...methodBlk(), DIV_DOT, ...bal]
+      return [`↩️ *${M.refunded_amount}: ${num(Math.abs(Number(payload.amount || 0)))} ${cur}*${inlM}`, DIV_DOT, ...bal]
     // إلغاء دفعة: دفعة سابقة أُلغيت.
     case 'payment_voided':
       return [`❌ *${M.voided_amount}: ${num(payload.amount)} ${cur}*`, DIV_DOT, ...bal]

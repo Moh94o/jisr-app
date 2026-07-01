@@ -11,9 +11,9 @@ import { can, cardVisible, canCardBtn } from './lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const MONO_F = "'JetBrains Mono','Cairo',sans-serif"
-const GOLD = '#D4A017'
-const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', warn: '#e6a23c', purple: '#bb8fce' }
-const PALETTE = ['#3483b4', '#27a046', '#D4A017', '#bb8fce', '#e6a23c', '#e87265', '#5dade2', '#48c9b0']
+const GOLD = '#B07D00'
+const C = { gold: '#B07D00', ok: '#27a046', red: '#c0392b', blue: '#3483b4', warn: '#e6a23c', purple: '#bb8fce' }
+const PALETTE = ['#3483b4', '#27a046', '#B07D00', '#bb8fce', '#e6a23c', '#e87265', '#5dade2', '#48c9b0']
 const nm = v => Number(v || 0).toLocaleString('en-US')
 const maskNum = v => { const s = String(v || '').replace(/\s+/g, ''); return s.length > 4 ? '•••• ' + s.slice(-4) : s }
 const PURPOSE_META = {
@@ -27,7 +27,7 @@ const dashedBtn = (label, Icon, onClick, clr = GOLD, height = 32) => (
   <button type="button" onClick={onClick}
     onMouseEnter={e => { e.currentTarget.style.background = `${clr}1f` }}
     onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-    style={{ height, padding: '0 14px', borderRadius: 9, background: 'transparent', border: `1px dashed ${clr}80`, color: clr, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s', whiteSpace: 'nowrap' }}>
+    style={{ height, padding: '0 14px', borderRadius: 9, background: 'transparent', border: `1px dashed ${clr}80`, color: clr, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: '.15s', whiteSpace: 'nowrap' }}>
     {label} {Icon && <Icon size={14} strokeWidth={2.2} />}
   </button>
 )
@@ -42,7 +42,7 @@ const switchBtn = (on, onClick, title) => (
 const CopyRow = ({ label, value, onCopy }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
     <button onClick={onCopy} title="نسخ" style={{ width: 28, height: 28, borderRadius: 7, background: `${GOLD}14`, border: `1px solid ${GOLD}33`, color: GOLD, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Copy size={13} /></button>
-    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontFamily: MONO_F, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
+    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: MONO_F, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
     <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
   </div>
 )
@@ -72,7 +72,7 @@ const CardChip = ({ card, bankName, shown, onReveal, onEdit, onToggle, canEdit =
     <div style={{ position: 'relative', width: '100%', minHeight: 168, borderRadius: 14, padding: '15px 17px', overflow: 'hidden', background: 'linear-gradient(135deg, #313131 0%, #1d1d1d 52%, #151515 100%)', border: `1px solid ${GOLD}33`, boxShadow: `0 10px 26px rgba(0,0,0,.42), inset 0 1px 0 ${GOLD}1f`, display: 'flex', flexDirection: 'column', opacity: inactive ? .5 : 1, transition: 'opacity .2s' }}>
       <div style={{ position: 'absolute', insetInlineEnd: -34, top: -34, width: 130, height: 130, borderRadius: '50%', background: `radial-gradient(circle, ${GOLD}26 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: 10.5, fontWeight: 800, color: GOLD, letterSpacing: '.4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bankName}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: GOLD, letterSpacing: '.4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bankName}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <button type="button" onClick={onReveal} title={shown ? 'إخفاء' : 'إظهار'} style={cardBtn({ border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' })}>{shown ? <EyeOff size={13} /> : <Eye size={13} />}</button>
           {canEdit && <button type="button" onClick={onEdit} title="تعديل البطاقة" style={cardBtn({ border: `1px solid ${GOLD}40`, background: `${GOLD}1f`, color: GOLD })}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}
@@ -82,11 +82,11 @@ const CardChip = ({ card, bankName, shown, onReveal, onEdit, onToggle, canEdit =
         <div style={{ position: 'absolute', inset: '6px 5px', borderRadius: 3, border: '1px solid rgba(0,0,0,.22)' }} />
         <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(0,0,0,.2)' }} />
       </div>
-      <div style={{ position: 'relative', fontSize: 16.5, fontWeight: 700, color: 'rgba(255,255,255,.93)', direction: 'ltr', fontFamily: MONO_F, letterSpacing: '2.5px' }}>{shown ? (card.card_number || '—') : maskNum(card.card_number)}</div>
+      <div style={{ position: 'relative', fontSize: 16.5, fontWeight: 600, color: 'rgba(255,255,255,.93)', direction: 'ltr', fontFamily: MONO_F, letterSpacing: '2.5px' }}>{shown ? (card.card_number || '—') : maskNum(card.card_number)}</div>
       <div style={{ position: 'relative', marginTop: 'auto', paddingTop: 13, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 7.5, fontWeight: 800, color: 'var(--tx5)', letterSpacing: '.6px', marginBottom: 2 }}>حامل البطاقة</div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.86)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{card.holder_name || '—'}</div>
+          <div style={{ fontSize: 7.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.6px', marginBottom: 2 }}>حامل البطاقة</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.86)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{card.holder_name || '—'}</div>
         </div>
         {canToggle && switchBtn(card.is_active !== false, onToggle, card.is_active !== false ? 'تعطيل البطاقة' : 'تفعيل البطاقة')}
       </div>
@@ -132,7 +132,7 @@ const StatusSeg = ({ accActive, onToggle }) => (
     <div style={{ display: 'inline-flex', borderRadius: 10, border: '1px solid var(--bd)', overflow: 'hidden', background: 'var(--inputBg)' }}>
       {[{ v: true, l: 'نشط', clr: C.ok }, { v: false, l: 'معطّل', clr: '#95a5a6' }].map(seg => {
         const sel = accActive === seg.v
-        return (<button key={String(seg.v)} type="button" onClick={() => { if (!sel) onToggle() }} style={{ padding: '8px 18px', border: 'none', cursor: sel ? 'default' : 'pointer', fontFamily: F, fontSize: 13, fontWeight: 700, background: sel ? `${seg.clr}22` : 'transparent', color: sel ? seg.clr : 'var(--tx4)', transition: '.15s', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{sel && <Check size={13} strokeWidth={3} />} {seg.l}</button>)
+        return (<button key={String(seg.v)} type="button" onClick={() => { if (!sel) onToggle() }} style={{ padding: '8px 18px', border: 'none', cursor: sel ? 'default' : 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, background: sel ? `${seg.clr}22` : 'transparent', color: sel ? seg.clr : 'var(--tx4)', transition: '.15s', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{sel && <Check size={13} strokeWidth={3} />} {seg.l}</button>)
       })}
     </div>
   </div>
@@ -147,7 +147,7 @@ const BodyHero = ({ account, copy }) => (
         <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.bank_name}</div>
         {account.account_name && <div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, marginTop: 2 }}>{account.account_name}</div>}
       </div>
-      {account.is_primary && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: `${GOLD}22`, color: GOLD, flexShrink: 0 }}>رئيسي</span>}
+      {account.is_primary && <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 6, background: `${GOLD}22`, color: GOLD, flexShrink: 0 }}>رئيسي</span>}
     </div>
     {accFields(account).filter(f => !['البنك', 'اسم الحساب', 'حساب رئيسي'].includes(f.k)).map((f, i) => (
       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 2px', borderBottom: '1px dashed var(--bd)' }}>
@@ -306,7 +306,7 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
         .brd-section-head-l{display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:var(--tx);letter-spacing:.2px}
         .brd-section-body{padding:14px 22px}
         .brd-section-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-        .brd-section-count{padding:2px 8px;border-radius:999px;background:var(--bd);font-size:10px;font-weight:700;color:var(--tx3)}
+        .brd-section-count{padding:2px 8px;border-radius:999px;background:var(--bd);font-size:10px;font-weight:600;color:var(--tx3)}
         .brd-grid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:flex-start}
         @media (max-width:900px){.brd-grid{grid-template-columns:1fr}.brd-side,.brd-main{grid-column:auto !important;position:static !important}}
         .brd-irow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dashed var(--bd)}
@@ -325,7 +325,7 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Landmark size={26} color={GOLD} strokeWidth={1.8} style={{ flexShrink: 0 }} />
           <div style={{ fontSize: 22, fontWeight: 600, color: GOLD, letterSpacing: '-.2px', lineHeight: 1 }}>{account.bank_name}</div>
-          {account.is_primary && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: `${GOLD}15`, color: GOLD }}>رئيسي</span>}
+          {account.is_primary && <span style={{ fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: `${GOLD}15`, color: GOLD }}>رئيسي</span>}
         </div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>عرض تفاصيل الحساب البنكي وبطاقاته ومكاتبه المرتبطة ومرفقاته.</div>
       </div>
@@ -351,7 +351,7 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
                 {links.map(l => {
                   const meta = PURPOSE_META[l.account_purpose] || { Icon: CreditCard, hue: C.blue }
                   return (
-                    <span key={l.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 9, background: `linear-gradient(135deg, ${meta.hue}1f 0%, rgba(255,255,255,.02) 70%)`, border: `1px solid ${meta.hue}40`, fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>
+                    <span key={l.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 9, background: `linear-gradient(135deg, ${meta.hue}1f 0%, rgba(255,255,255,.02) 70%)`, border: `1px solid ${meta.hue}40`, fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>
                       <span style={{ fontFamily: MONO_F, direction: 'ltr', color: meta.hue }}>{l.branches?.branch_code}</span>
                       {l.account_purpose && <><span style={{ width: 1, height: 12, background: 'var(--bd)' }} /><meta.Icon size={12} style={{ color: meta.hue }} /><span style={{ fontSize: 11, color: 'var(--tx2)' }}>{l.account_purpose}</span></>}
                     </span>
@@ -411,7 +411,7 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
           {cardVisible(user, 'admin_bank_accounts', 'overview') && (
           <Section title="نظرة عامة" Icon={Wallet} dot={C.blue} action={
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: accActive ? C.ok : 'var(--tx5)' }}>{accActive ? 'نشط' : 'معطّل'}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: accActive ? C.ok : 'var(--tx5)' }}>{accActive ? 'نشط' : 'معطّل'}</span>
               {canCardBtn(user, 'admin_bank_accounts', 'overview', 'toggle') && (
               <button type="button" disabled={accBusy} onClick={toggleAccount} title={accActive ? 'تعطيل الحساب' : 'تفعيل الحساب'}
                 style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: accActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'linear-gradient(180deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.10) 100%)', cursor: accBusy ? 'not-allowed' : 'pointer', opacity: accBusy ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: accActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
@@ -421,7 +421,7 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
             </div>
           }>
             <div style={{ textAlign: 'center', padding: '6px 0 14px' }}>
-              <div style={{ fontSize: 36, fontWeight: 800, color: balColor, fontFamily: MONO_F, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1.05 }}>{nm(account.current_balance || 0)}</div>
+              <div style={{ fontSize: 36, fontWeight: 600, color: balColor, fontFamily: MONO_F, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1.05 }}>{nm(account.current_balance || 0)}</div>
               <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginTop: 4 }}>الرصيد الحالي · ريال</div>
             </div>
             {lowBal && (
@@ -436,7 +436,7 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
                     <span style={{ width: 24, height: 24, borderRadius: 7, background: `${b.hue}1a`, color: b.hue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><b.Icon size={13} /></span>
                     {b.l}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: b.hue, fontFamily: MONO_F, direction: 'ltr' }}>{b.sign} {nm(b.v)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: b.hue, fontFamily: MONO_F, direction: 'ltr' }}>{b.sign} {nm(b.v)}</span>
                 </div>
               ))}
             </div>
@@ -468,9 +468,9 @@ function AccountCard({ account, onClick }) {
       <div style={{ padding: '20px 30px 20px 26px' }}>
         <div className="brs-row-grid" style={{ gap: 22 }}>
           {/* Code block (right) — framed masked account + status */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', gap: 10, padding: '13px 18px', borderRadius: 12, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.18)', minWidth: 104 }}>
-            <span style={{ fontSize: 23, fontWeight: 800, color: GOLD, fontFamily: MONO_F, letterSpacing: '-.5px', direction: 'ltr', lineHeight: 1 }}>{maskNum(account.account_number || account.iban)}</span>
-            <span style={{ fontSize: 11, color: tone, fontWeight: 700, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', gap: 10, padding: '13px 18px', borderRadius: 12, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.18)', minWidth: 104 }}>
+            <span style={{ fontSize: 23, fontWeight: 600, color: GOLD, fontFamily: MONO_F, letterSpacing: '-.5px', direction: 'ltr', lineHeight: 1 }}>{maskNum(account.account_number || account.iban)}</span>
+            <span style={{ fontSize: 11, color: tone, fontWeight: 600, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: tone, boxShadow: `0 0 6px ${tone}` }} />
               {isActive ? 'نشط' : 'معطّل'}
             </span>
@@ -483,7 +483,7 @@ function AccountCard({ account, onClick }) {
             <div className="brs-meta-row" style={{ flexWrap: 'wrap', fontSize: 15 }}>
               <Landmark size={16} color={GOLD} strokeWidth={2.2} />
               <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{account.bank_name}</span>
-              {account.is_primary && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 5, background: `${GOLD}15`, color: GOLD }}>رئيسي</span>}
+              {account.is_primary && <span style={{ fontSize: 9.5, fontWeight: 600, padding: '1px 6px', borderRadius: 5, background: `${GOLD}15`, color: GOLD }}>رئيسي</span>}
             </div>
             <div className="brs-meta-row" style={{ fontSize: 11.5, gap: 12, flexWrap: 'wrap' }}>
               {account.account_name && (
@@ -507,7 +507,7 @@ function AccountCard({ account, onClick }) {
           <div className="ba-bal-box" style={{ padding: '11px 20px', alignSelf: 'stretch', borderColor: `${balColor}40`, background: `linear-gradient(160deg, ${balColor}1a 0%, ${balColor}06 100%)` }}>
             <TrendingIcon color={balColor} size={20} />
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
-              <span style={{ fontSize: 27, fontWeight: 800, color: balColor, fontFamily: MONO_F, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px', direction: 'ltr' }}>{nm(account.current_balance || 0)}</span>
+              <span style={{ fontSize: 27, fontWeight: 600, color: balColor, fontFamily: MONO_F, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px', direction: 'ltr' }}>{nm(account.current_balance || 0)}</span>
               <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginTop: 3, alignSelf: 'flex-end' }}>ريال</span>
             </div>
           </div>
@@ -527,7 +527,7 @@ const HeroStat = ({ title, value, color, foot, valueSize = 42 }) => (
       <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{title}</span>
     </div>
     <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-      <span style={{ fontSize: valueSize, fontWeight: 800, color, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+      <span style={{ fontSize: valueSize, fontWeight: 600, color, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
     </div>
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
       <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{foot}</span>
@@ -729,7 +729,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
         .brs-row{transition:all .15s}
-        .brs-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(212,160,23,.22) !important}
+        .brs-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(176,125,0,.22) !important}
         .brs-hero-grid{display:grid;grid-template-columns:2.2fr 1fr 1.5fr;gap:14px;margin-bottom:24px}
         @media (max-width: 1100px){.brs-hero-grid{grid-template-columns:1fr 1fr}.brs-hero-grid > :nth-child(3){grid-column:1/-1}}
         @media (max-width: 720px){.brs-hero-grid{grid-template-columns:1fr}}
@@ -750,7 +750,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
           </div>
           {can(user, 'admin_bank_accounts.create') && (
           <button onClick={openAdd} className="btn-primary-modal"
-            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
             حساب بنكي جديد <Plus size={16} strokeWidth={2.2} />
           </button>
           )}
@@ -770,7 +770,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
         <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>التوزّع حسب البنك</span>
-            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}><span style={{ color: GOLD, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(accounts.length)}</span> حساب</span>
+            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}><span style={{ color: GOLD, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(accounts.length)}</span> حساب</span>
           </div>
           {accounts.length > 0 && (() => {
             const R = 32, CIRC = 2 * Math.PI * R
@@ -786,7 +786,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
                     offset += dash
                     return seg
                   })}
-                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(accounts.length)}</text>
+                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nm(accounts.length)}</text>
                 </svg>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px 24px', minWidth: 0 }}>
                   {byBank.slice(0, 6).map((r, i) => {
@@ -795,7 +795,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
                       <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, minWidth: 0 }}>
                         <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
                         <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shortBank(r.name)}</span>
-                        <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{nm(r.cnt)}</span>
+                        <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 600 }}>{nm(r.cnt)}</span>
                       </div>
                     )
                   })}
@@ -818,7 +818,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
           const active = advOpen || hasFilters
           const clearAll = () => { setBankFilter(''); setBranchFilter(''); setStatusFilter('') }
           return (
-            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid var(--bd)', color: active ? FKC.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(176,125,0,.4)' : '1px solid var(--bd)', color: active ? FKC.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
               تصفية
               {hasFilters ? (
                 <span role="button" tabIndex={0} title="مسح الفلاتر"
@@ -866,8 +866,8 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
       {!loading && filtered.length === 0 && (
         <EmptyState
           icon={accounts.length === 0
-            ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="3" x2="21" y1="22" y2="22" /><line x1="6" x2="6" y1="18" y2="11" /><line x1="10" x2="10" y1="18" y2="11" /><line x1="14" x2="14" y1="18" y2="11" /><line x1="18" x2="18" y1="18" y2="11" /><polygon points="12 2 20 7 4 7" /></svg>
-            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>}
+            ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="3" x2="21" y1="22" y2="22" /><line x1="6" x2="6" y1="18" y2="11" /><line x1="10" x2="10" y1="18" y2="11" /><line x1="14" x2="14" y1="18" y2="11" /><line x1="18" x2="18" y1="18" y2="11" /><polygon points="12 2 20 7 4 7" /></svg>
+            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>}
           title={accounts.length === 0 ? 'لا توجد حسابات بنكية بعد' : 'لا توجد نتائج مطابقة'}
           desc={accounts.length === 0 ? 'أضِف أول حساب بنكي لإدارة الأرصدة والبطاقات' : 'جرّب تعديل كلمة البحث'} />
       )}

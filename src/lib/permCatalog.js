@@ -464,7 +464,7 @@ export const TAB_FIELDS = {
     F('il_remaining', 'المتبقي', 'invoices_log'),
     // الملخص المالي (عرض فقط)
     F('fs_invoiced', 'إجمالي الفوترة', 'financial_summary'),
-    F('fs_paid', 'المسدّد', 'financial_summary'),
+    F('fs_paid', 'المدفوع', 'financial_summary'),
     F('fs_remaining', 'المتبقي', 'financial_summary'),
     F('fs_paid_pct', 'نسبة السداد', 'financial_summary'),
     // إحصاءات (عرض فقط)

@@ -303,9 +303,9 @@ const Skel = () => (
 
 const AddRowBtn = ({ text, onClick }) => (
   <button type="button" onClick={onClick}
-    style={{ marginTop: 8, width: '100%', height: 36, borderRadius: 8, border: '1px dashed rgba(212,160,23,.3)', background: 'rgba(212,160,23,.04)', color: C.gold, fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.15s' }}
-    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)' }}
-    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.04)' }}>
+    style={{ marginTop: 8, width: '100%', height: 36, borderRadius: 8, border: '1px dashed rgba(176,125,0,.3)', background: 'rgba(176,125,0,.04)', color: C.gold, fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.15s' }}
+    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.1)' }}
+    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.04)' }}>
     <span style={{ fontSize: 14, fontWeight: 600 }}>+</span> {text}
   </button>
 )
@@ -320,7 +320,7 @@ const RoleMiniCard = ({ label, linked, onClick, Icon, color }) => (
       <div style={{ fontSize: 10, fontWeight: 600, color: linked ? color : 'var(--tx4)', marginTop: 2 }}>{linked ? '● مُرتبط' : 'غير مُرتبط'}</div>
     </div>
     <button type="button" onClick={onClick}
-      style={{ height: 26, padding: '0 10px', borderRadius: 7, border: `1px solid ${linked ? 'rgba(192,57,43,.3)' : C.gold + '40'}`, background: linked ? 'rgba(192,57,43,.08)' : 'rgba(212,160,23,.08)', color: linked ? '#e68a80' : C.gold, fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+      style={{ height: 26, padding: '0 10px', borderRadius: 7, border: `1px solid ${linked ? 'rgba(192,57,43,.3)' : C.gold + '40'}`, background: linked ? 'rgba(192,57,43,.08)' : 'rgba(176,125,0,.08)', color: linked ? '#e68a80' : C.gold, fontFamily: "'Cairo','Tajawal',sans-serif", fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
       {linked ? 'فتح' : 'ربط'}
     </button>
   </div>

@@ -6,7 +6,7 @@
   position: relative;
   display: inline-block;
   padding: 9px 18px;
-  color: var(--stamp-color, #c9a84c);
+  color: var(--stamp-color, #B07D00);
   background: transparent;
   opacity: 0.94;
   font-family: 'Cairo', sans-serif;
@@ -33,23 +33,23 @@
   align-items: center;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-size: 9px;
-  font-weight: 700;
+  font-weight:600;
   letter-spacing: 1.5px;
   opacity: 0.78;
 }
 .official-stamp__branch,
-.official-stamp__date { color: var(--stamp-color, #c9a84c); }
+.official-stamp__date { color: var(--stamp-color, #B07D00); }
 
 .official-stamp__status {
   font-size: 14px;
-  font-weight: 900;
+  font-weight:600;
   letter-spacing: 2px;
   line-height: 1.2;
   padding: 2px 0;
 }
 .official-stamp__employee {
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight:600;
   letter-spacing: .8px;
   opacity: 0.88;
 }
@@ -67,13 +67,13 @@
 }
 .official-stamp--corners::before {
   top: 0; left: 0;
-  border-top: 2px solid var(--stamp-color, #c9a84c);
-  border-left: 2px solid var(--stamp-color, #c9a84c);
+  border-top: 2px solid var(--stamp-color, #B07D00);
+  border-left: 2px solid var(--stamp-color, #B07D00);
 }
 .official-stamp--corners::after {
   bottom: 0; right: 0;
-  border-bottom: 2px solid var(--stamp-color, #c9a84c);
-  border-right: 2px solid var(--stamp-color, #c9a84c);
+  border-bottom: 2px solid var(--stamp-color, #B07D00);
+  border-right: 2px solid var(--stamp-color, #B07D00);
 }
 .official-stamp--corners .official-stamp__body::before,
 .official-stamp--corners .official-stamp__body::after {
@@ -85,20 +85,20 @@
 }
 .official-stamp--corners .official-stamp__body::before {
   top: -9px; right: -18px;
-  border-top: 2px solid var(--stamp-color, #c9a84c);
-  border-right: 2px solid var(--stamp-color, #c9a84c);
+  border-top: 2px solid var(--stamp-color, #B07D00);
+  border-right: 2px solid var(--stamp-color, #B07D00);
 }
 .official-stamp--corners .official-stamp__body::after {
   bottom: -9px; left: -18px;
-  border-bottom: 2px solid var(--stamp-color, #c9a84c);
-  border-left: 2px solid var(--stamp-color, #c9a84c);
+  border-bottom: 2px solid var(--stamp-color, #B07D00);
+  border-left: 2px solid var(--stamp-color, #B07D00);
 }
 
 /* =========================================================
    VARIANT 2: rounded (solid rounded border, classic)
    ========================================================= */
 .official-stamp--rounded {
-  border: 2px solid var(--stamp-color, #c9a84c);
+  border: 2px solid var(--stamp-color, #B07D00);
   border-radius: 12px;
   padding: 10px 18px;
 }
@@ -107,7 +107,7 @@
    VARIANT 3: double (two concentric borders, formal)
    ========================================================= */
 .official-stamp--double {
-  border: 2.5px double var(--stamp-color, #c9a84c);
+  border: 2.5px double var(--stamp-color, #B07D00);
   border-radius: 8px;
   padding: 11px 20px;
   box-shadow: inset 0 0 0 4px transparent;
@@ -117,7 +117,7 @@
    VARIANT 4: dashed (dashed border, ticket-like)
    ========================================================= */
 .official-stamp--dashed {
-  border: 2px dashed var(--stamp-color, #c9a84c);
+  border: 2px dashed var(--stamp-color, #B07D00);
   border-radius: 10px;
   padding: 10px 18px;
 }
@@ -126,19 +126,19 @@
    VARIANT 5: filled (subtle filled background, modern)
    ========================================================= */
 .official-stamp--filled {
-  border: 1.5px solid var(--stamp-color, #c9a84c);
+  border: 1.5px solid var(--stamp-color, #B07D00);
   border-radius: 10px;
   padding: 10px 18px;
-  background: color-mix(in srgb, var(--stamp-color, #c9a84c) 10%, transparent);
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--stamp-color, #c9a84c) 12%, transparent);
+  background: color-mix(in srgb, var(--stamp-color, #B07D00) 10%, transparent);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--stamp-color, #B07D00) 12%, transparent);
 }
 
 /* =========================================================
    VARIANT 6: arched (top/bottom arcs, real-stamp feel)
    ========================================================= */
 .official-stamp--arched {
-  border-top: 2px solid var(--stamp-color, #c9a84c);
-  border-bottom: 2px solid var(--stamp-color, #c9a84c);
+  border-top: 2px solid var(--stamp-color, #B07D00);
+  border-bottom: 2px solid var(--stamp-color, #B07D00);
   padding: 10px 22px;
   position: relative;
 }
@@ -148,7 +148,7 @@
   position: absolute;
   top: -2px; bottom: -2px;
   width: 10px;
-  border: 2px solid var(--stamp-color, #c9a84c);
+  border: 2px solid var(--stamp-color, #B07D00);
   pointer-events: none;
 }
 .official-stamp--arched::before {

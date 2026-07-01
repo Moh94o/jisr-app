@@ -10,7 +10,7 @@ const pickWorker = rel => (Array.isArray(rel) ? rel[0]?.worker : rel?.worker)
 const M = {
   new_invoice: 'فاتورة جديدة', payment_title: 'دفعة مستلمة', refund_title: 'استرجاع مبلغ', cancel_title: 'إلغاء فاتورة',
   total: 'الإجمالي', paid: 'المدفوع', remaining: 'المتبقي',
-  amount_paid: 'دفعة مستلمة', amount_received: 'المبلغ المستلم', amount_refunded: 'المبلغ المسترد', amount_void: 'المبلغ الملغى',
+  amount_paid: 'دفعة مستلمة', amount_received: 'المبالغ المستلمة اليوم', amount_refunded: 'المبلغ المسترد', amount_void: 'المبلغ الملغى',
   pay_method: 'طريقة الدفع', refund_method: 'طريقة الاسترجاع', currency: 'ريال',
 }
 const DIV_SQ = '▪▪▪▪▪▪▪▪▪'
@@ -21,12 +21,27 @@ function party(inv) {
   const worker = pickWorker(sr.transfer_applications) || pickWorker(sr.ajeer_applications)
     || pickWorker(sr.iqama_renewal_applications) || pickWorker(sr.supplier_payroll_applications)
     || pickWorker(sr.other_applications) || null
-  const p = sr.client || worker
+  // نقل الكفالة وتجديد الإقامة: نعرض العامل الفعلي لا العميل. اسمه يأتي أولاً من الحسبة المرتبطة
+  // (worker_name — نفس مصدر بطاقة الفاتورة)، ثم من سجل العامل، وإلا نسقط للعميل.
+  const code = inv.service_type?.code
+  const isWorkerSvc = code === 'transfer' || code === 'iqama_renewal'
+  const tcRaw = code === 'transfer' ? inv.transfer_calculation : (code === 'iqama_renewal' ? inv.iqama_renewal_calculation : null)
+  const tc = Array.isArray(tcRaw) ? tcRaw.find(x => x && !x.deleted_at) : (tcRaw && !tcRaw.deleted_at ? tcRaw : null)
+  const tcWorkerName = isWorkerSvc ? String(tc?.worker_name || '').trim() : ''
+  const tcPhone = isWorkerSvc ? String(tc?.phone || '').trim() : ''
+  // اللابل «اسم العامل» يُوضع فقط حين نعرض عاملاً فعليًا (سجل عامل أو اسم من الحسبة)؛
+  // إن سقطنا إلى العميل نعرض اسمه بلا لابل كباقي الخدمات — لا نُسمّي العميل «اسم العامل».
+  const isWorker = isWorkerSvc && !!(worker || tcWorkerName)
+  const p = isWorker ? worker : (sr.client || worker)
   const otherWP = Array.isArray(sr.other_applications) ? sr.other_applications[0]?.worker_phone : sr.other_applications?.worker_phone
-  const dg = String(p?.phone || otherWP || '').replace(/\D/g, '')
+  // جوال العامل من سجله ثم من الحسبة (tc.phone) — لا نُلصق جوال العميل باسم العامل.
+  const dg = String((isWorker ? (worker?.phone || tcPhone) : (p?.phone || otherWP)) || '').replace(/\D/g, '')
   const wa = dg ? (dg.startsWith('966') ? dg : '966' + dg.slice(-9)) : ''
   const phone = wa ? '0' + wa.slice(3) : ''
-  return { name: p?.name_ar || p?.name_en || '— بدون عميل —', phone }
+  const name = (isWorker
+    ? ((worker ? (worker.name_ar || worker.name_en) : '') || tcWorkerName)
+    : (p?.name_ar || p?.name_en)) || '— بدون عميل —'
+  return { name, phone, isWorker }
 }
 // عنوان الفرع = اسم المدينة + الرقم في كود الفرع (JUB5 → «الجبيل 5»).
 function branchLabel(inv) {
@@ -35,17 +50,83 @@ function branchLabel(inv) {
   const n = (String(b.branch_code || '').match(/\d+/) || [''])[0]
   return [city, n].filter(Boolean).join(' ') || b.branch_code || ''
 }
-const svcLabel = inv => inv.service_type?.value_ar || inv.service_type?.value_en || 'خدمة'
+// تأشيرات العمل: يُعرض سطر الخدمة بصيغة «الكمية x نوع التأشيرة» (مثال: «3 x تأشيرة دائمة»).
+// الكمية = عدد صفوف التأشيرات الفعلية (كبطاقة الفاتورة)، لا service_request.quantity الذي قد يبقى 1
+// رغم أن الطلب يحزم عدة تأشيرات.
+const svcLabel = inv => {
+  const code = inv.service_type?.code
+  const visaApps = inv.service_request?.visa_applications
+  const qty = (Array.isArray(visaApps) ? visaApps.length : 0) || Number(inv.service_request?.quantity || 0) || 1
+  if (code === 'work_visa_permanent') return `${qty} x تأشيرة دائمة`
+  if (code === 'work_visa_temporary') return `${qty} x تأشيرة مؤقتة`
+  return inv.service_type?.value_ar || inv.service_type?.value_en || 'خدمة'
+}
+
+// نقل الكفالة وتجديد الإقامة: أسطر إضافية أسفل الأرصدة — الوسيط + جواله (نقل فقط)،
+// المدة (المتوقعة/التجديد)، وفائدة المكتب (صافي الرسوم المكتبية بعد الخصم).
+function calcExtra(inv) {
+  const code = inv.service_type?.code
+  const isTransfer = code === 'transfer'
+  const isRenewal = code === 'iqama_renewal'
+  if (!isTransfer && !isRenewal) return []
+  const tcRaw = isTransfer ? inv.transfer_calculation : inv.iqama_renewal_calculation
+  const tc = Array.isArray(tcRaw) ? tcRaw.find(x => x && !x.deleted_at) : (tcRaw && !tcRaw.deleted_at ? tcRaw : null)
+  const out = []
+  // الوسيط خاص بنقل الكفالة فقط — تجديد الإقامة لا يمرّ بوسيط.
+  if (isTransfer) {
+    const ag = inv.agent || (Array.isArray(inv.service_request?.service_request_agents) ? inv.service_request.service_request_agents[0]?.agent : null)
+    if (ag) {
+      const nm = ag.name_ar || ag.name_en || ''
+      const dg = String(ag.phone || '').replace(/\D/g, '')
+      const ph = dg ? (dg.startsWith('966') ? '0' + dg.slice(3) : (dg.startsWith('0') ? dg : '0' + dg.slice(-9))) : ''
+      if (nm) out.push(` الوسيط: ${nm}${ph ? ' | ' + ph : ''}`)
+    }
+  }
+  const months = Number(tc?.expected_duration_months || tc?.billed_renewal_months || tc?.renewal_months || 0)
+  if (months > 0) out.push(`${isRenewal ? ' مدة التجديد' : ' المدة المتوقعة'}: ${months} شهر`)
+  const officeNet = tc ? (tc.office_fee_net != null ? Number(tc.office_fee_net) : Number(tc.office_fee || 0)) : 0
+  if (officeNet > 0) out.push(` الفائدة: ${num(officeNet)} ${M.currency}`)
+  return out
+}
 
 // بطاقة حركة اليوم — تُرسل للقروب لتلخيص ما صار على الفاتورة في يوم العمل (يبدأ 5 فجراً).
 // `day` (اختياري) يحمل حركة ذلك اليوم فقط: المبلغ المستلم + طريقة الدفع، والاسترجاع/الإلغاء إن وقعا اليوم.
 // بدونه ترجع للصيغة القديمة (إجمالي المدفوع بلا طريقة).
 export function buildInvoiceWaMessage(inv, day = null) {
-  const { name, phone } = party(inv)
+  const { name, phone, isWorker } = party(inv)
   const total = Number(inv.total_amount || 0), paid = Number(inv.paid_amount || 0), rem = Number(inv.remaining_amount || 0)
   const cur = M.currency
   const bal = [`🟡 ${M.total}: ${num(total)} ${cur}`, `🟢 ${M.paid}: ${num(paid)} ${cur}`, `🔴 ${M.remaining}: ${num(rem)} ${cur}`]
   const methods = arr => (Array.isArray(arr) ? arr.filter(Boolean) : []).join('، ')
+  const updateDate = (inv.last_activity_at || inv.created_at) ? String(inv.last_activity_at || inv.created_at).slice(0, 10) : ''
+  const updateLine = updateDate ? ` ${updateDate}` : ''
+
+  // فاتورة ملغاة: صيغة إلغاء خاصة (❌❌❌) — المبلغ الملغى + السبب، ثم الأرصدة والأسطر الإضافية كما هي.
+  // تُفعَّل بحالة الفاتورة (ملغاة) أو بوقوع الإلغاء اليوم (بطاقة حركة اليوم للقروب).
+  const isCancelled = inv.status?.code === 'cancelled' || !!(day && day.cancelledToday)
+  if (isCancelled) {
+    const clog = Array.isArray(inv.cancel_log) ? inv.cancel_log : []
+    const lastCancel = clog.length ? clog[clog.length - 1] : null
+    const reason = (lastCancel?.reason || '').trim()
+    const voidAmt = (day && day.cancelledAmt > 0) ? day.cancelledAmt : paid
+    const cancelDate = lastCancel?.at ? String(lastCancel.at).slice(0, 10) : (updateDate || (inv.created_at ? String(inv.created_at).slice(0, 10) : ''))
+    const extraC = calcExtra(inv)
+    const partyLabelC = isWorker ? 'اسم العامل: ' : ''
+    return [
+      `❌❌❌  *${M.cancel_title}— ${branchLabel(inv)}* | \`${noDash(inv.invoice_no || '')}\` ❌❌❌`,
+      cancelDate ? ` ${cancelDate}` : '',
+      DIV_SQ,
+      `*${svcLabel(inv)}*`,
+      ` ${partyLabelC}${name}${phone ? ' | ' + phone : ''}`,
+      DIV_DOT,
+      `💸 ${M.amount_void}: ${num(voidAmt)} ${cur}`,
+      reason || 'اذكر السبب هنا',
+      DIV_DOT,
+      ...bal,
+      ...(extraC.length ? [DIV_DOT, ...extraC] : []),
+      DIV_SQ,
+    ].filter(l => l !== '').join('\n')
+  }
 
   let title, money
   if (day) {
@@ -56,14 +137,22 @@ export function buildInvoiceWaMessage(inv, day = null) {
       if (day.cancelledAmt > 0) m.push(`💸 ${M.amount_void}: ${num(day.cancelledAmt)} ${cur}`)
     } else {
       if (day.received > 0) {
-        m.push(`💵 *${M.amount_received}: ${num(day.received)} ${cur}*`)
-        const ms = methods(day.recvMethods)
-        if (ms) m.push(`💳 ${M.pay_method}: ${ms}`)
+        const bd = Array.isArray(day.recvBreakdown) ? day.recvBreakdown : []
+        if (bd.length > 1) {
+          // أكثر من طريقة في نفس اليوم (نقد + حوالة) → إجمالي المقبوض ثم سطر لكل طريقة (المبلغ + العدد).
+          m.push(`💵 *${M.amount_received}: ${num(day.received)} ${cur}*`)
+          for (const b of bd) m.push(` ${b.method}: ${num(b.amount)} ${cur} (${b.count})`)
+        } else {
+          // طريقة واحدة → المبلغ مع الطريقة وعدد دفعاتها بين قوسين.
+          const b = bd[0]
+          m.push(`💵 *${M.amount_received}: ${num(day.received)} ${cur}*${b ? ` (${b.method} ${b.count})` : ''}`)
+        }
+        // تاريخ آخر تحديث — أسفل سطر المبالغ المستلمة مباشرة.
+        if (updateLine) m.push(updateLine)
       }
       if (day.refunded > 0) {
-        m.push(`↩️ *${M.amount_refunded}: ${num(day.refunded)} ${cur}*`)
         const ms = methods(day.refundMethods)
-        if (ms) m.push(`💳 ${M.refund_method}: ${ms}`)
+        m.push(`↩️ *${M.amount_refunded}: ${num(day.refunded)} ${cur}*${ms ? ' (' + ms + ')' : ''}`)
       }
       title = (day.refunded > 0 && day.received <= 0) ? M.refund_title
         : day.createdToday ? M.new_invoice
@@ -76,14 +165,20 @@ export function buildInvoiceWaMessage(inv, day = null) {
     money = paid > 0 ? [`💵 *${M.amount_paid}: ${num(paid)} ${cur}*`, DIV_DOT, ...bal] : bal
   }
 
+  const extra = calcExtra(inv)
+  const issueDate = inv.created_at ? String(inv.created_at).slice(0, 10) : ''
+  // نقل الكفالة يعرض العامل → نسبق سطر الطرف بـ «اسم العامل:» فقط حين يوجد عامل فعلي (لا عند السقوط للعميل).
+  const partyLabel = isWorker ? 'اسم العامل: ' : ''
   return [
-    `🧾 *${title} — ${branchLabel(inv)}*`,
+    `🧾 *فاتورة — ${branchLabel(inv)}* | \`${noDash(inv.invoice_no || '')}\``,
+    issueDate ? ` ${issueDate}` : '',
     DIV_SQ,
-    `*${svcLabel(inv)}* | \`${noDash(inv.invoice_no || '')}\``,
-    ` ${name}${phone ? ' | ' + phone : ''}`,
+    `*${svcLabel(inv)}*`,
+    ` ${partyLabel}${name}${phone ? ' | ' + phone : ''}`,
     DIV_DOT,
     ...money,
-    DIV_DOT,
+    ...(extra.length ? [DIV_DOT, ...extra] : []),
+    DIV_SQ,
   ].filter(l => l !== '').join('\n')
 }
 

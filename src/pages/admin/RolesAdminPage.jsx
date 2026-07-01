@@ -9,8 +9,8 @@ import * as svc from '../../services/rolesAdminService.js'
 import { PermissionsPanel } from './PermissionsPage.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', red: '#c0392b', ok: '#27a046', blue: '#3483b4' }
-const PALETTE = ['#D4A017', '#3483b4', '#16a085', '#bb8fce', '#f39c12', '#27a046', '#e8c77a', '#5dade2', '#e74c3c', '#9b59b6']
+const C = { gold: '#B07D00', red: '#c0392b', ok: '#27a046', blue: '#3483b4' }
+const PALETTE = ['#B07D00', '#3483b4', '#16a085', '#bb8fce', '#f39c12', '#27a046', '#e8c77a', '#5dade2', '#e74c3c', '#9b59b6']
 const resolveIcon = (name) => (name && LucideIcons[name]) || ShieldCheck
 
 // «view»/«access» is the gate that opens a whole section — surface it clearly.
@@ -57,7 +57,7 @@ export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, 
         </div>
         {canManage && (
           <button onClick={() => setModal({ mode: 'create' })} className="btn-primary-modal"
-            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
             دور جديد <Plus size={16} strokeWidth={2.4} />
           </button>
         )}
@@ -102,7 +102,7 @@ function RoleCard({ role, totalPerms, onClick }) {
             <ShieldCheck size={15} color={c} />
           </span>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{role.name_ar}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{role.name_ar}</div>
             {role.name_en && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx5)', direction: 'ltr', textAlign: 'right' }}>{role.name_en}</div>}
           </div>
           {role.is_system && <Lock size={12} color="var(--tx5)" title="دور نظامي" />}
@@ -110,7 +110,7 @@ function RoleCard({ role, totalPerms, onClick }) {
         <div style={{ height: 4, borderRadius: 4, background: 'var(--bd)', overflow: 'hidden' }}>
           <div style={{ width: `${pct}%`, height: '100%', background: c, transition: 'width .4s' }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: c }}>
             <ShieldCheck size={11} /> {role.perm_count} صلاحية
           </span>
@@ -118,7 +118,7 @@ function RoleCard({ role, totalPerms, onClick }) {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--tx4)' }}>
             <Users size={11} /> {role.user_count} مستخدم
           </span>
-          {!role.is_active && <span style={{ marginInlineStart: 'auto', fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: 'var(--bd)', color: 'var(--tx5)' }}>معطّل</span>}
+          {!role.is_active && <span style={{ marginInlineStart: 'auto', fontSize: 9.5, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'var(--bd)', color: 'var(--tx5)' }}>معطّل</span>}
         </div>
       </div>
     </div>
@@ -148,7 +148,7 @@ function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, on
           <ShieldCheck size={18} color={c} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: c }}>{role.name_ar}</div>
+          <div style={{ fontSize: 22, fontWeight: 600, color: c }}>{role.name_ar}</div>
           {role.name_en && <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx5)', direction: 'ltr', textAlign: 'right' }}>{role.name_en}</div>}
         </div>
         {canManage && !role.is_system && (
@@ -164,7 +164,7 @@ function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, on
       {isGmRole ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderRadius: 12, background: c + '12', border: `1px solid ${c}33` }}>
           <ShieldCheck size={18} color={c} />
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>
             المدير العام يملك كل الصلاحيات تلقائياً — لا حاجة لضبطها.
           </div>
         </div>
@@ -193,12 +193,12 @@ function ModuleBlock({ mod, granted, busy, canManage, onToggle, onToggleModule }
           <Icon size={14} color={c} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tx)' }}>{mod.label_ar || mod.module}</div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: onCount ? C.ok : 'var(--tx5)' }}>{onCount}/{mod.perms.length} مفعّلة</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{mod.label_ar || mod.module}</div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: onCount ? C.ok : 'var(--tx5)' }}>{onCount}/{mod.perms.length} مفعّلة</div>
         </div>
         {canManage && (
           <button onClick={() => onToggleModule(mod, !allOn)}
-            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
+            style={{ fontSize: 10.5, fontWeight: 600, padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
               border: `1px solid ${allOn ? C.red + '55' : c + '55'}`, background: 'transparent', color: allOn ? C.red : c, fontFamily: F }}>
             {allOn ? 'إلغاء الكل' : 'تفعيل الكل'}
           </button>
@@ -214,7 +214,7 @@ function ModuleBlock({ mod, granted, busy, canManage, onToggle, onToggleModule }
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 8,
                 border: `1px solid ${on ? C.ok + '55' : 'var(--bd)'}`,
                 background: on ? 'rgba(39,160,70,.12)' : 'var(--card-bg)',
-                color: on ? '#3ec46a' : 'var(--tx4)', fontFamily: F, fontSize: 11.5, fontWeight: 700,
+                color: on ? '#3ec46a' : 'var(--tx4)', fontFamily: F, fontSize: 11.5, fontWeight: 600,
                 cursor: canManage ? (saving ? 'wait' : 'pointer') : 'default', opacity: saving ? .5 : 1, transition: '.15s' }}>
               {view && <Eye size={11} />}
               {on && !view && <Check size={11} />}

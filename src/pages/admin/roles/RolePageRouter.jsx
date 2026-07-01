@@ -12,7 +12,7 @@ import TrackerRolePage from './TrackerRolePage.jsx'
 import SaudizationRolePage from './SaudizationRolePage.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const GOLD = '#D4A017'
+const GOLD = '#B07D00'
 
 export default function RolePageRouter({ roleKey, personId, onBack, toast, countries, branches, idTypes, genders, user }) {
   const [person, setPerson] = useState(null)
@@ -38,9 +38,9 @@ export default function RolePageRouter({ roleKey, personId, onBack, toast, count
     return (
       <div style={{ padding: 80, textAlign: 'center', color: 'var(--tx4)', fontFamily: F }}>
         <div style={{ display: 'inline-block', width: 30, height: 30,
-          border: `3px solid rgba(212,160,23,.15)`, borderTopColor: GOLD,
+          border: `3px solid rgba(176,125,0,.15)`, borderTopColor: GOLD,
           borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        <div style={{ marginTop: 14, fontSize: 12, fontWeight: 700 }}>جاري التحميل...</div>
+        <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600 }}>جاري التحميل...</div>
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     )

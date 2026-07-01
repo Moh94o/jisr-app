@@ -109,7 +109,7 @@ export const TXN_SERVICES = {
     ],
   },
   iqama_print: {
-    theme: { c: '#d4a017', label_ar: 'طباعة الإقامة', label_en: 'Iqama Print' },
+    theme: { c: '#B07D00', label_ar: 'طباعة الإقامة', label_en: 'Iqama Print' },
     hero: { ar: 'طباعة الإقامة', en: 'Iqama Print', dAr: 'إصدار ومتابعة طلبات طباعة الإقامات وتسليمها للعمّال', dEn: 'Issue and track iqama print & delivery requests for workers' },
     party: 'worker', billable: true, listMode: 'worker',
     inputs: [
@@ -237,7 +237,7 @@ export const TXN_SERVICES = {
 
   /* ─────── documents — existing lookup, now a full tab ─────── */
   documents: {
-    theme: { c: '#d4a017', label_ar: 'استخراج الوثائق', label_en: 'Document Issuance' },
+    theme: { c: '#B07D00', label_ar: 'استخراج الوثائق', label_en: 'Document Issuance' },
     hero: { ar: 'استخراج الوثائق', en: 'Document Issuance', dAr: 'إصدار ومتابعة طلبات استخراج الوثائق والمستندات الرسمية', dEn: 'Issue and track official document-issuance requests' },
     party: 'worker', billable: true, listMode: 'worker',
     inputs: [
@@ -297,7 +297,7 @@ export const TXN_SERVICES = {
       { src: 'w_iqama', l_ar: 'رقم الإقامة', l_en: 'Iqama No', mono: true },
       { src: 'f_name', l_ar: 'المنشأة', l_en: 'Facility' },
       { src: 'f_gosi', l_ar: 'رقم التأمينات', l_en: 'GOSI No', mono: true },
-      { src: 'd:gosi_salary', l_ar: 'الراتب لدى التأمينات', l_en: 'GOSI Salary', mono: true, money: true, color: '#d4a017' },
+      { src: 'd:gosi_salary', l_ar: 'الراتب لدى التأمينات', l_en: 'GOSI Salary', mono: true, money: true, color: '#B07D00' },
       { src: 'd:effective_month', l_ar: 'شهر السريان', l_en: 'Effective Month', months: true },
     ],
   },
@@ -338,7 +338,7 @@ export const TXN_SERVICES = {
       { src: 'f_unified', l_ar: 'الرقم الموحد', l_en: 'Unified No', mono: true },
       { src: 'd:declaration_type', l_ar: 'نوع الإقرار', l_en: 'Declaration', opts: { vat: 'القيمة المضافة', zakat: 'الزكاة', withholding: 'الاستقطاع' } },
       { src: 'd:period', l_ar: 'الفترة', l_en: 'Period', opts: { q1: 'الربع الأول', q2: 'الربع الثاني', q3: 'الربع الثالث', q4: 'الربع الرابع', annual: 'سنوي' } },
-      { src: 'd:amount', l_ar: 'مبلغ الإقرار', l_en: 'Amount', mono: true, money: true, color: '#d4a017' },
+      { src: 'd:amount', l_ar: 'مبلغ الإقرار', l_en: 'Amount', mono: true, money: true, color: '#B07D00' },
     ],
   },
   violation_fee: {

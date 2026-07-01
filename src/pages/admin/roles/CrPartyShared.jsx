@@ -122,7 +122,7 @@ export default function CrPartyPage({ person, onBack, toast, countries, reload, 
           ))}
           {endedRows.length > 0 && (
             <>
-              <div style={{ marginTop: 18, fontSize: 11, fontWeight: 800, color: 'var(--tx5)', letterSpacing: '.5px' }}>السجلات المنتهية</div>
+              <div style={{ marginTop: 18, fontSize: 11, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.5px' }}>السجلات المنتهية</div>
               {endedRows.map(r => (
                 <FacilityCard key={r.id} facility={r.facility} color="#777" isActive={false}
                   badges={[
@@ -161,7 +161,7 @@ function AssignedPill({ text, onUnassign }) {
       border: `1px solid ${okColor}55`, background: `${okColor}14`,
       boxShadow: `inset 0 0 0 1px ${okColor}1a, 0 0 12px ${okColor}18` }}>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8,
-        padding: '0 14px', color: okColor, fontFamily: F, fontSize: 12, fontWeight: 800 }}>
+        padding: '0 14px', color: okColor, fontFamily: F, fontSize: 12, fontWeight: 600 }}>
         <CheckCircle2 size={14} strokeWidth={2.5} />
         {text}
       </div>
@@ -203,11 +203,11 @@ function OwnershipActivityChart({ rows, color, title }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 20, padding: '0 4px' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-          fontSize: 11.5, fontWeight: 800, color: 'var(--tx)' }}>
+          fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>
           <Activity size={13} color={color} /> نشاط {title} (آخر 12 شهر)
         </span>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--tx4)' }}>
-          الإجمالي: <span style={{ color, fontWeight: 800 }}>{total}</span> سجل
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)' }}>
+          الإجمالي: <span style={{ color, fontWeight: 600 }}>{total}</span> سجل
         </span>
       </div>
       <div style={{ position: 'relative', height: 130, padding: '4px 2px 10px' }}>

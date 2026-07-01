@@ -27,7 +27,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_sync_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#D4A017;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(212,160,23,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
     d.textContent = 'جسر: ' + m;
@@ -768,7 +768,7 @@ function bodyPdf({ personId, proxyBaseUrl }) {
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_sync_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#D4A017;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(212,160,23,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
     d.textContent = 'جسر PDFs: ' + m;

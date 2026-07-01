@@ -11,15 +11,15 @@ import { Wallet, Upload, IdCard, Truck, Building2, FileText, Landmark } from 'lu
 // its own button that opens a FormKit popup (نافذة منبثقة) holding that card's inputs —
 // the page itself never hosts raw inputs.
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', blue: '#5dade2', cyan: '#16a085', purple: '#bb8fce', ok: '#2ecc71', warn: '#eab308', red: '#e87265', orange: '#f39c12' }
+const C = { gold: '#B07D00', blue: '#5dade2', cyan: '#16a085', purple: '#bb8fce', ok: '#2ecc71', warn: '#eab308', red: '#e87265', orange: '#f39c12' }
 const cardChrome = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }
 const cardTitle = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }
 const fm = v => Number(v || 0).toLocaleString('en-US')
 const fmtGreg = iso => { if (!iso) return '—'; try { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` } catch { return '—' } }
 
-const pill = c => ({ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, color: c, background: c + '1f', border: '1px solid ' + c + '55' })
-const tinyLbl = { fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px' }
+const pill = c => ({ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 999, color: c, background: c + '1f', border: '1px solid ' + c + '55' })
+const tinyLbl = { fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px' }
 
 const CheckIco = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 const ClockIco = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -28,7 +28,7 @@ const DocIco = ({ s = 26 }) => <svg width={s} height={s} viewBox="0 0 24 24" fil
 /* زر فتح النافذة — يسكن في رأس كرت العرض الخاص به */
 const CardBtn = ({ onClick, children, disabled = false, color = C.gold }) => (
   <button type="button" disabled={disabled} onClick={onClick}
-    style={{ height: 30, padding: '0 13px', borderRadius: 8, background: disabled ? 'transparent' : color + '12', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.08)' : color + '55'), color: disabled ? 'var(--tx4)' : color, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}
+    style={{ height: 30, padding: '0 13px', borderRadius: 8, background: disabled ? 'transparent' : color + '12', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.08)' : color + '55'), color: disabled ? 'var(--tx4)' : color, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }}
     onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = color + '22' }}
     onMouseLeave={e => { if (!disabled) e.currentTarget.style.background = color + '12' }}>
     {children}
@@ -281,7 +281,7 @@ function StageList({ T, isAr, title, desc, rows, stateOf, columns, onOpen, loadi
     <div style={{ fontFamily: F, paddingBottom: 40, color: 'var(--tx2)' }}>
       {title && (
         <div style={{ marginBottom: 18, marginTop: 6 }}>
-          <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--tx1)', letterSpacing: '-.3px' }}>{title}</div>
+          <div style={{ fontSize: 26, fontWeight: 600, color: 'var(--tx1)', letterSpacing: '-.3px' }}>{title}</div>
           {desc && <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 8, lineHeight: 1.6 }}>{desc}</div>}
         </div>
       )}
@@ -290,19 +290,19 @@ function StageList({ T, isAr, title, desc, rows, stateOf, columns, onOpen, loadi
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12, marginBottom: 16 }}>
         <div style={{ ...cardChrome, padding: '16px 20px', position: 'relative' }}>
           <span style={{ position: 'absolute', insetInlineEnd: 16, top: 16, width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tx1)' }}>{T('إجمالي الطلبات','Total')}</div>
-          <div style={{ fontSize: 34, fontWeight: 800, color: C.gold, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{rows.length}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx1)' }}>{T('إجمالي الطلبات','Total')}</div>
+          <div style={{ fontSize: 34, fontWeight: 600, color: C.gold, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{rows.length}</div>
         </div>
         <div style={{ ...cardChrome, padding: '16px 20px' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx1)', marginBottom: 10 }}>{T('الحالات','Statuses')}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx1)', marginBottom: 10 }}>{T('الحالات','Statuses')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-              <span style={{ color: C.warn, fontWeight: 700 }}>{T('بانتظار الإجراء','Pending')}</span>
-              <span style={{ color: C.warn, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{pendingN}</span>
+              <span style={{ color: C.warn, fontWeight: 600 }}>{T('بانتظار الإجراء','Pending')}</span>
+              <span style={{ color: C.warn, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{pendingN}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-              <span style={{ color: C.ok, fontWeight: 700 }}>{T('مكتملة','Done')}</span>
-              <span style={{ color: C.ok, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{doneN}</span>
+              <span style={{ color: C.ok, fontWeight: 600 }}>{T('مكتملة','Done')}</span>
+              <span style={{ color: C.ok, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{doneN}</span>
             </div>
           </div>
         </div>
@@ -317,7 +317,7 @@ function StageList({ T, isAr, title, desc, rows, stateOf, columns, onOpen, loadi
         </div>
         {[{ v: '', l: T('الكل','All') }, { v: 'pending', l: T('بانتظار','Pending') }, { v: 'done', l: T('مكتملة','Done') }].map(o => (
           <button key={o.v} type="button" onClick={() => setFlt(o.v)}
-            style={{ height: 44, padding: '0 16px', borderRadius: 12, background: flt === o.v ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (flt === o.v ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: flt === o.v ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>
+            style={{ height: 44, padding: '0 16px', borderRadius: 12, background: flt === o.v ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: '1px solid ' + (flt === o.v ? 'rgba(176,125,0,.3)' : 'rgba(255,255,255,.05)'), color: flt === o.v ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
             {o.l}
           </button>
         ))}
@@ -328,11 +328,11 @@ function StageList({ T, isAr, title, desc, rows, stateOf, columns, onOpen, loadi
         <div style={{ borderRadius: 10, overflow: 'hidden' }}>
           <style>{`
 .stg-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-.stg-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.stg-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:600;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
 .stg-tbl tbody td{padding:13px 12px;font-size:12px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
 .stg-tbl tbody tr{cursor:pointer;transition:background .12s}
 .stg-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-.stg-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+.stg-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
 .stg-tbl tbody tr:last-child td{border-bottom:none}
           `}</style>
           <table className="stg-tbl">
@@ -354,32 +354,32 @@ function StageList({ T, isAr, title, desc, rows, stateOf, columns, onOpen, loadi
 }
 
 const StatusCell = ({ st }) => (
-  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: st.c, background: st.c + '1f', border: '1px solid ' + st.c + '4d', borderRadius: 8, padding: '5px 12px', whiteSpace: 'nowrap' }}>
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: st.c, background: st.c + '1f', border: '1px solid ' + st.c + '4d', borderRadius: 8, padding: '5px 12px', whiteSpace: 'nowrap' }}>
     <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.c }} />
     {st.label}
   </span>
 )
 
 const lifecycleColumns = (T, isAr) => [
-  { h: T('التاريخ','Date'), cell: r => <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(r.created_at)}</span> },
+  { h: T('التاريخ','Date'), cell: r => <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(r.created_at)}</span> },
   { h: T('العامل','Worker'), cell: r => (
     <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700 }}>{natOf(r, isAr)}</span>
+      <span style={{ fontSize: 12.5, fontWeight: 600 }}>{natOf(r, isAr)}</span>
       <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{occOf(r, isAr)}</span>
     </div>
   ) },
-  { h: T('رقم الحدود','Border No'), cell: r => <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, color: C.gold, fontVariantNumeric: 'tabular-nums' }}>{r.visa?.border_number || '—'}</span> },
-  { h: T('رقم التأشيرة','Visa No'), cell: r => <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{r.visa?.visa_number || '—'}</span> },
+  { h: T('رقم الحدود','Border No'), cell: r => <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, color: C.gold, fontVariantNumeric: 'tabular-nums' }}>{r.visa?.border_number || '—'}</span> },
+  { h: T('رقم التأشيرة','Visa No'), cell: r => <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{r.visa?.visa_number || '—'}</span> },
   { h: T('المنشأة','Facility'), cell: r => (
     <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, alignItems: 'center', minWidth: 0 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis' }}>{facName(r, isAr)}</span>
+      <span style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis' }}>{facName(r, isAr)}</span>
       {r.facility?.unified_number && <span style={{ fontSize: 10.5, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace' }}>{r.facility.unified_number}</span>}
     </div>
   ) },
-  { h: T('العميل','Client'), cell: r => <span style={{ fontSize: 12, fontWeight: 700 }}>{clientName(r, isAr)}</span> },
+  { h: T('العميل','Client'), cell: r => <span style={{ fontSize: 12, fontWeight: 600 }}>{clientName(r, isAr)}</span> },
   { h: T('المرجع','Reference'), cell: r => { const ref = refOf(r.sr); return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
-      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>{ref}</span>
+      <span style={{ fontFamily: 'monospace', fontWeight: 600, color: C.gold }}>{ref}</span>
       <CopyRefBtn value={ref} />
     </span>
   ) } },
@@ -399,7 +399,7 @@ function StageDetail({ T, isAr, title, desc, r, st, onBack, atts, children }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <DocIco />
           <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px', lineHeight: 1 }}>{title}</div>
-          <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 700, fontSize: 14, direction: 'ltr' }}>#{r.visa?.border_number || '—'}</span>
+          <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 600, fontSize: 14, direction: 'ltr' }}>#{r.visa?.border_number || '—'}</span>
         </div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>{desc}</div>
       </div>
@@ -432,7 +432,7 @@ function StageDetail({ T, isAr, title, desc, r, st, onBack, atts, children }) {
               {passport.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('ملف الجواز','Passport')}</span>
-                  {passport.map(a => <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: C.gold, fontWeight: 700 }}>{a.file_name}</a>)}
+                  {passport.map(a => <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: C.gold, fontWeight: 600 }}>{a.file_name}</a>)}
                 </div>
               )}
             </div>
@@ -458,7 +458,7 @@ function StageDetail({ T, isAr, title, desc, r, st, onBack, atts, children }) {
             const tile = (l, v, c) => (
               <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)' }}>
                 <div style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4, letterSpacing: '.5px' }}>{l}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: c || '#fff', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: c || '#fff', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
               </div>
             )
             const ref = refOf(r.sr)
@@ -466,7 +466,7 @@ function StageDetail({ T, isAr, title, desc, r, st, onBack, atts, children }) {
               <div style={{ ...cardChrome, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: st.c, boxShadow: `0 0 10px ${st.c}aa` }} />
-                  <span style={{ fontSize: 16, fontWeight: 800, color: st.c }}>{st.label}</span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: st.c }}>{st.label}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {tile(T('تاريخ الإنشاء','Created'), fmtGreg(r.created_at))}
@@ -480,7 +480,7 @@ function StageDetail({ T, isAr, title, desc, r, st, onBack, atts, children }) {
                 <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7, fontSize: 10.5, color: 'var(--tx4)' }}>
                     <span>{T('تقدم الخدمة','Service progress')}</span>
-                    <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr' }}>{lifeDone}/5</span>
+                    <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr' }}>{lifeDone}/5</span>
                   </div>
                   <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.05)', overflow: 'hidden', marginBottom: 9 }}>
                     <div style={{ height: '100%', width: (lifeDone / 5 * 100) + '%', background: `linear-gradient(90deg, ${C.gold}, ${C.gold}cc)`, transition: 'width .3s' }} />
@@ -489,7 +489,7 @@ function StageDetail({ T, isAr, title, desc, r, st, onBack, atts, children }) {
                     {LIFECYCLE.map(s => {
                       const ok = s.test(r)
                       return (
-                        <div key={s.k} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 700, color: ok ? C.ok : 'var(--tx4)' }}>
+                        <div key={s.k} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, color: ok ? C.ok : 'var(--tx4)' }}>
                           {ok ? <CheckIco /> : <ClockIco />}
                           <span>{s.ar}</span>
                         </div>
@@ -980,15 +980,15 @@ function OfficesModal({ sb, user, toast, T, isAr, g, onClose, onDone }) {
               </div>
               <button type="button" disabled={!master.trim()}
                 onClick={() => { const o = master.trim(); if (!o) return; setVals(s => { const n = { ...s }; g.forEach(v => { if (!v.wakalah_number) n[v.id] = o }); return n }) }}
-                style={{ height: 42, padding: '0 16px', borderRadius: 9, background: master.trim() ? 'rgba(212,160,23,.12)' : 'transparent', border: '1px solid ' + (master.trim() ? 'rgba(212,160,23,.5)' : 'rgba(255,255,255,.08)'), color: master.trim() ? C.gold : 'var(--tx4)', cursor: master.trim() ? 'pointer' : 'not-allowed', fontFamily: F, fontSize: 12, fontWeight: 800 }}>
+                style={{ height: 42, padding: '0 16px', borderRadius: 9, background: master.trim() ? 'rgba(176,125,0,.12)' : 'transparent', border: '1px solid ' + (master.trim() ? 'rgba(176,125,0,.5)' : 'rgba(255,255,255,.08)'), color: master.trim() ? C.gold : 'var(--tx4)', cursor: master.trim() ? 'pointer' : 'not-allowed', fontFamily: F, fontSize: 12, fontWeight: 600 }}>
                 {T('تطبيق على الكل','Apply to all')}
               </button>
             </div>
             {g.map((v, i) => (
               <div key={v.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1.2fr', alignItems: 'center', gap: 10 }}>
-                <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(212,160,23,.15)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, fontSize: 10.5, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
+                <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(176,125,0,.15)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 700 }}>{isAr ? v.nationality?.name_ar : (v.nationality?.name_en || v.nationality?.name_ar)}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600 }}>{isAr ? v.nationality?.name_ar : (v.nationality?.name_en || v.nationality?.name_ar)}</div>
                   <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontFamily: 'monospace', direction: 'ltr' }}>#{v.border_number}</div>
                 </div>
                 <TextField label="" value={vals[v.id] || ''} onChange={x => setVals(s => ({ ...s, [v.id]: x }))} placeholder={T('مكتب التفويض','Attorney office')} />
@@ -1098,7 +1098,7 @@ export function WakalahChamberPage({ sb, user, toast, lang }) {
     const tile = (l, v, c) => (
       <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid rgba(255,255,255,.04)' }}>
         <div style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4, letterSpacing: '.5px' }}>{l}</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: c || '#fff', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: c || '#fff', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
       </div>
     )
     return (
@@ -1110,7 +1110,7 @@ export function WakalahChamberPage({ sb, user, toast, lang }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <DocIco />
             <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px', lineHeight: 1 }}>{T('وكالة التأشيرات','Visa Wakalah')}</div>
-            <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 700, fontSize: 14, direction: 'ltr' }}>{ref}</span>
+            <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 600, fontSize: 14, direction: 'ltr' }}>{ref}</span>
           </div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>
             {T('صفحة عرض — استخدم زر كل كرت لفتح نافذة الإدخال الخاصة به.','Display page — each card opens its own popup.')}
@@ -1142,8 +1142,8 @@ export function WakalahChamberPage({ sb, user, toast, lang }) {
               {g.map((v, i) => (
                 <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '6px 0', minHeight: 28 }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                    <span style={{ flexShrink: 0, width: 19, height: 19, borderRadius: '50%', background: 'rgba(212,160,23,.15)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, fontSize: 10.5, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
-                    <span style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 700 }}>{isAr ? v.nationality?.name_ar : (v.nationality?.name_en || v.nationality?.name_ar)}</span>
+                    <span style={{ flexShrink: 0, width: 19, height: 19, borderRadius: '50%', background: 'rgba(176,125,0,.15)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600 }}>{isAr ? v.nationality?.name_ar : (v.nationality?.name_en || v.nationality?.name_ar)}</span>
                     <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontFamily: 'monospace', direction: 'ltr' }}>#{v.border_number}</span>
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -1179,7 +1179,7 @@ export function WakalahChamberPage({ sb, user, toast, lang }) {
             <div style={{ ...cardChrome, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: st.c, boxShadow: `0 0 10px ${st.c}aa` }} />
-                <span style={{ fontSize: 16, fontWeight: 800, color: st.c }}>{st.label}</span>
+                <span style={{ fontSize: 16, fontWeight: 600, color: st.c }}>{st.label}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {tile(T('تاريخ الطلب','Request date'), fmtGreg(sr?.request_date))}
@@ -1216,19 +1216,19 @@ export function WakalahChamberPage({ sb, user, toast, lang }) {
   }
 
   const columns = [
-    { h: T('التاريخ','Date'), cell: g => <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(g[0].sr?.request_date)}</span> },
+    { h: T('التاريخ','Date'), cell: g => <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(g[0].sr?.request_date)}</span> },
     { h: T('المنشأة','Facility'), cell: g => (
       <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, alignItems: 'center', minWidth: 0 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{(isAr ? g[0].main_facility?.name_ar : (g[0].main_facility?.name_en || g[0].main_facility?.name_ar)) || '—'}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{(isAr ? g[0].main_facility?.name_ar : (g[0].main_facility?.name_en || g[0].main_facility?.name_ar)) || '—'}</span>
         {g[0].main_facility?.unified_number && <span style={{ fontSize: 10.5, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'monospace' }}>{g[0].main_facility.unified_number}</span>}
       </div>
     ) },
-    { h: T('العميل','Client'), cell: g => <span style={{ fontSize: 12, fontWeight: 700 }}>{(isAr ? g[0].sr?.client?.name_ar : (g[0].sr?.client?.name_en || g[0].sr?.client?.name_ar)) || '—'}</span> },
-    { h: T('التأشيرات','Visas'), cell: g => <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{g.length}</span> },
-    { h: T('الموكَّلة','Authorized'), cell: g => <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: g.every(v => v.wakalah_number) ? C.ok : C.warn }}>{g.filter(v => v.wakalah_number).length}/{g.length}</span> },
+    { h: T('العميل','Client'), cell: g => <span style={{ fontSize: 12, fontWeight: 600 }}>{(isAr ? g[0].sr?.client?.name_ar : (g[0].sr?.client?.name_en || g[0].sr?.client?.name_ar)) || '—'}</span> },
+    { h: T('التأشيرات','Visas'), cell: g => <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{g.length}</span> },
+    { h: T('الموكَّلة','Authorized'), cell: g => <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: g.every(v => v.wakalah_number) ? C.ok : C.warn }}>{g.filter(v => v.wakalah_number).length}/{g.length}</span> },
     { h: T('المرجع','Reference'), cell: g => { const ref = refOf(g[0].sr); return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
-        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>{ref}</span>
+        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: C.gold }}>{ref}</span>
         <CopyRefBtn value={ref} />
       </span>
     ) } },

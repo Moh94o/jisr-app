@@ -2,7 +2,7 @@ import React from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 
 const F = `'Cairo','Tajawal',sans-serif`
-const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b' }
+const C = { gold: '#B07D00', ok: '#27a046', red: '#c0392b' }
 
 const VIS_KEY = 'jisr_visibility'
 const LOCKED = ['admin_hub', 'admin_visibility']
@@ -46,7 +46,7 @@ export default function VisibilityAdmin({ lang, toast, nav, hubTabs, visibility,
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)', opacity: locked ? .6 : 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ color: on ? 'var(--tx)' : 'var(--tx4)', fontSize: 13, fontWeight: 600 }}>{label}</span>
-          {locked && <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 5, background: 'rgba(212,160,23,.1)', color: C.gold, fontWeight: 700 }}>{isAr ? 'دائم' : 'Always'}</span>}
+          {locked && <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 5, background: 'rgba(176,125,0,.1)', color: C.gold, fontWeight: 600 }}>{isAr ? 'دائم' : 'Always'}</span>}
         </div>
         <button type="button" disabled={locked} onClick={() => update(id, !on)}
           style={{ width: 44, height: 22, borderRadius: 999, border: 'none', background: on ? C.ok : 'rgba(255,255,255,.15)', cursor: locked ? 'not-allowed' : 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0 }}>
@@ -58,14 +58,14 @@ export default function VisibilityAdmin({ lang, toast, nav, hubTabs, visibility,
     )
   }
 
-  const fieldset = { borderRadius: 12, border: '1.5px solid rgba(212,160,23,.25)', padding: '18px 14px 14px', position: 'relative' }
-  const legend = { position: 'absolute', top: -9, right: 14, background: 'var(--bg,#111)', padding: '0 8px', fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F }
-  const quickBtn = { height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(212,160,23,.25)', background: 'rgba(212,160,23,.06)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }
+  const fieldset = { borderRadius: 12, border: '1.5px solid rgba(176,125,0,.25)', padding: '18px 14px 14px', position: 'relative' }
+  const legend = { position: 'absolute', top: -9, right: 14, background: 'var(--bg,#111)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F }
+  const quickBtn = { height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(176,125,0,.25)', background: 'rgba(176,125,0,.06)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }
 
   return (
     <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16, direction: isAr ? 'rtl' : 'ltr', fontFamily: F }}>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>{isAr ? 'التبويبات المرئية' : 'Visible Tabs'}</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--tx)' }}>{isAr ? 'التبويبات المرئية' : 'Visible Tabs'}</div>
         <div style={{ fontSize: 11, color: 'var(--tx5)', marginTop: 2 }}>{isAr ? 'تحكم بظهور التبويبات والصفحات للموظفين' : 'Control which tabs are shown to employees'}</div>
       </div>
 
@@ -88,7 +88,7 @@ export default function VisibilityAdmin({ lang, toast, nav, hubTabs, visibility,
               <div key={n.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <Toggle id={n.id} label={n.l} />
                 {subs.length > 0 && (
-                  <div style={{ [isAr ? 'paddingRight' : 'paddingLeft']: 20, display: 'flex', flexDirection: 'column', gap: 4, borderRight: isAr ? '2px solid rgba(212,160,23,.12)' : undefined, borderLeft: isAr ? undefined : '2px solid rgba(212,160,23,.12)', marginRight: isAr ? 8 : undefined, marginLeft: isAr ? undefined : 8 }}>
+                  <div style={{ [isAr ? 'paddingRight' : 'paddingLeft']: 20, display: 'flex', flexDirection: 'column', gap: 4, borderRight: isAr ? '2px solid rgba(176,125,0,.12)' : undefined, borderLeft: isAr ? undefined : '2px solid rgba(176,125,0,.12)', marginRight: isAr ? 8 : undefined, marginLeft: isAr ? undefined : 8 }}>
                     {subs.map(t => <Toggle key={t.id} id={t.id} label={t.l} />)}
                   </div>
                 )}

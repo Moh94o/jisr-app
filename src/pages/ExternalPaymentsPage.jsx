@@ -5,7 +5,7 @@ import { can, cardVisible } from '../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
-  gold: '#D4A017', blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085',
+  gold: '#B07D00', blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085',
   orange: '#f39c12', gray: '#95a5a6', ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
 const num = (v) => Number(v || 0).toLocaleString('en-US')
@@ -116,7 +116,7 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
         </div>
         {can(user, 'ext_payments.create') && (
         <button onClick={() => setAddOpen(true)} className="btn-primary-modal"
-          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           {T('إضافة حوالة بنكية', 'Add bank transfer')}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
@@ -135,11 +135,11 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
             <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{T('بانتظار السداد', 'Pending')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: C.warn, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(stats.pendSum)}</span>
+            <span style={{ fontSize: 42, fontWeight: 600, color: C.warn, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(stats.pendSum)}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
             <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد البنود', 'Items')}</span>
-            <span style={{ fontSize: 13, color: C.warn, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.pendCnt)}</span>
+            <span style={{ fontSize: 13, color: C.warn, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.pendCnt)}</span>
           </div>
         </div>
 
@@ -158,7 +158,7 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
                 </div>
               </div>
               <div style={{ direction: 'ltr', display: 'flex' }}>
-                <span style={{ fontSize: 20, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{fmtAmt(s.sum)}</span>
+                <span style={{ fontSize: 20, fontWeight: 600, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{fmtAmt(s.sum)}</span>
               </div>
             </div>
           ))}
@@ -168,7 +168,7 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
         <div style={{ ...card, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 190 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('بانتظار السداد — حسب النوع', 'Pending — by kind')}</span>
-            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}><span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.pendCnt)}</span> {T('بند', 'items')}</span>
+            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}><span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.pendCnt)}</span> {T('بند', 'items')}</span>
           </div>
           {stats.pendSum > 0 && (
             <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'rgba(255,255,255,.04)' }}>
@@ -179,7 +179,7 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 16px' }}>
               {stats.breakdown.map(b => (
                 <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600 }}>
-                  <span style={{ color: b.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 700 }}>{num(b.cnt)}</span>
+                  <span style={{ color: b.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 600 }}>{num(b.cnt)}</span>
                   <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.label}</span>
                 </div>
               ))}
@@ -191,7 +191,7 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {[['all', T('الكل', 'All')], ['pending', T('بانتظار السداد', 'Pending')], ['paid', T('مدفوعة', 'Paid')]].map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ height: 36, padding: '0 16px', borderRadius: 10, background: tab === k ? 'rgba(212,160,23,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (tab === k ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: tab === k ? C.gold : 'var(--tx2)', fontFamily: F, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} style={{ height: 36, padding: '0 16px', borderRadius: 10, background: tab === k ? 'rgba(176,125,0,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (tab === k ? 'rgba(176,125,0,.3)' : 'rgba(255,255,255,.05)'), color: tab === k ? C.gold : 'var(--tx2)', fontFamily: F, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{l}</button>
         ))}
       </div>
 
@@ -202,13 +202,13 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
         <div style={{ borderRadius: 10, overflow: 'hidden' }}>
           <style>{`
 .ext-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-.ext-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 10px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.ext-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:600;text-align:center;padding:14px 10px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
 .ext-tbl tbody td{padding:11px 10px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
 .ext-tbl tbody tr.payable{cursor:pointer;transition:background .12s}
 .ext-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-.ext-tbl tbody tr.payable:hover td{background:rgba(212,160,23,.06)}
+.ext-tbl tbody tr.payable:hover td{background:rgba(176,125,0,.06)}
 .ext-tbl tbody tr:last-child td{border-bottom:none}
-.ext-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-size:10.5px;font-weight:700;white-space:nowrap;line-height:1.5}
+.ext-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;line-height:1.5}
 .ext-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
           `}</style>
           <table className="ext-tbl">
@@ -232,15 +232,15 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
                   <tr key={r.key} className={isPaid ? '' : 'payable'} onClick={isPaid ? undefined : () => setPayRow(r)} title={isPaid ? undefined : T('تسجيل السداد', 'Record payment')}>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                        <span style={{ direction: 'ltr', fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtDate(isPaid ? r.paid_date || r.due_date : r.due_date)}</span>
-                        {overdue && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.red }}>{T('متأخر', 'Overdue')}</span>}
+                        <span style={{ direction: 'ltr', fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtDate(isPaid ? r.paid_date || r.due_date : r.due_date)}</span>
+                        {overdue && <span style={{ fontSize: 9.5, fontWeight: 600, color: C.red }}>{T('متأخر', 'Overdue')}</span>}
                       </div>
                     </td>
-                    <td><span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>{r.branchCode || '—'}</span></td>
-                    <td style={{ fontWeight: 700, color: r.color }}><span className="ext-pill" style={{ color: r.color, background: r.color + '18', border: '1px solid ' + r.color + '38' }}><span className="ext-dot" style={{ background: r.color }} />{r.typeLabel}</span></td>
+                    <td><span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 600, color: C.gold }}>{r.branchCode || '—'}</span></td>
+                    <td style={{ fontWeight: 600, color: r.color }}><span className="ext-pill" style={{ color: r.color, background: r.color + '18', border: '1px solid ' + r.color + '38' }}><span className="ext-dot" style={{ background: r.color }} />{r.typeLabel}</span></td>
                     <td><span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{r.party}</span></td>
-                    <td>{r.account && r.account !== '—' ? <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700 }}>{r.account}</span> : <span style={{ color: 'var(--tx5)' }}>—</span>}</td>
-                    <td style={{ fontWeight: 900, direction: 'ltr', color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(r.amount)}</td>
+                    <td>{r.account && r.account !== '—' ? <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 600 }}>{r.account}</span> : <span style={{ color: 'var(--tx5)' }}>—</span>}</td>
+                    <td style={{ fontWeight: 600, direction: 'ltr', color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(r.amount)}</td>
                     <td>
                       <span className="ext-pill" style={{ color: sc, background: sc + '18', border: '1px solid ' + sc + '38' }}>
                         <span className="ext-dot" style={{ background: sc }} />
@@ -313,11 +313,11 @@ function AddBankTransferModal({ sb, user, lang, branches, defaultBranch, onClose
         <TextField label={T('البنك', 'Bank')} value={f.bank_name} onChange={(v) => set('bank_name', v)} />
         <TextField label={T('الآيبان', 'IBAN')} value={f.iban} onChange={(v) => set('iban', v)} dir="ltr" upper placeholder="SA…" />
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 6 }}>{T('المبلغ', 'Amount')} *</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('المبلغ', 'Amount')} *</div>
           <input type="number" min="0" step="0.01" value={f.amount} onChange={e => set('amount', e.target.value)} style={{ ...inputS, direction: 'ltr', textAlign: 'left', boxShadow: err.amount ? `0 0 0 1.5px ${C.red}80` : undefined }} />
         </div>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx3)', marginBottom: 6 }}>{T('تاريخ الاستحقاق', 'Due date')} *</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('تاريخ الاستحقاق', 'Due date')} *</div>
           <input type="date" value={f.due_date} onChange={e => set('due_date', e.target.value)} style={{ ...inputS, direction: 'ltr', boxShadow: err.due_date ? `0 0 0 1.5px ${C.red}80` : undefined }} />
         </div>
         <TextField label={T('ملاحظات', 'Notes')} value={f.notes} onChange={(v) => set('notes', v)} full />

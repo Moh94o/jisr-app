@@ -4,7 +4,7 @@ import { Modal as FKModal, C, F, ActionButton, Select } from '../components/ui/F
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { noDash } from '../lib/utils.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
-import { stageVisible, fieldVisible, fieldEditable } from '../lib/permissions.js'
+import { stageVisible, fieldVisible, fieldEditable, isGM } from '../lib/permissions.js'
 
 // حدود الرسوم الحكومية المشمولة في «رسوم المكتب» — ما يتجاوزها يُضاف. (تُنقل للإعدادات لاحقًا)
 const COVER = { iqama: 650, workPermit: 100, medical: 1000 }
@@ -63,7 +63,7 @@ const ChiCountdown = ({ captchaKey, onExpire, color = '#3bb27a' }) => {
     return () => clearInterval(iv)
   }, [captchaKey])
   const urgent = rem <= 10
-  return <div style={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: urgent ? C.red : color, border: `2px solid ${urgent ? 'rgba(192,57,43,.4)' : 'rgba(59,178,122,.35)'}` }}>{rem}</div>
+  return <div style={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: urgent ? C.red : color, border: `2px solid ${urgent ? 'rgba(192,57,43,.4)' : 'rgba(59,178,122,.35)'}` }}>{rem}</div>
 }
 const nm = v => Number(v || 0).toLocaleString('en-US')
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
@@ -160,7 +160,9 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   // ── بوابات الصلاحيات (per-user) — حسبة تجديد الإقامة ──
   const stShow = (k) => stageVisible(user, 'renewal_calc', k)
   const fShow = (k) => fieldVisible(user, 'renewal_calc', k)
-  const fEdit = (k) => fieldEditable(user, 'renewal_calc', k)
+  // نافذة إنشاء حسبة جديدة: قابلية تعديل الحقول تتبع صلاحية «إنشاء» أو «تعديل» —
+  // كي يقدر منشئ الحسبة (create فقط) تعبئة النموذج دون الحاجة لصلاحية edit.
+  const fEdit = (k) => fieldEditable(user, 'renewal_calc', k, 'create') || fieldEditable(user, 'renewal_calc', k, 'edit')
   const [submitting, setSubmitting] = useState(false)
   const [issuedQuote, setIssuedQuote] = useState(null)
   // استعلام التأمين الطبي (CHI) — phase: idle | loading | captcha | verifying | error
@@ -172,13 +174,22 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     if (!sb || !worker?.iqama_number) { setDupQuote(null); return }
     ;(async () => {
       const { data } = await sb.from('iqama_renewal_calculation')
-        .select('id,quote_no,status,priced_at,branch_id')
+        .select('id,quote_no,status,priced_at,branch_id,invoice_id')
         .eq('iqama_number', worker.iqama_number)
         .in('status', ['approved', 'invoiced', 'completed'])
         .is('deleted_at', null)
-        .order('priced_at', { ascending: false }).limit(1).maybeSingle()
+        .order('priced_at', { ascending: false }).limit(10)
+      // حسبة فاتورتها ملغاة لا تُعدّ «سارية» — إلغاء الفاتورة يحرّر العامل ولا يحجب إصدار حسبة جديدة.
+      let candidates = data || []
+      const invIds = [...new Set(candidates.map(c => c.invoice_id).filter(Boolean))]
+      if (invIds.length) {
+        const { data: invRows } = await sb.from('invoices')
+          .select('id,status:status_id(code)').in('id', invIds)
+        const cancelledInv = new Set((invRows || []).filter(r => r.status?.code === 'cancelled').map(r => r.id))
+        candidates = candidates.filter(c => !c.invoice_id || !cancelledInv.has(c.invoice_id))
+      }
       // كود المكتب باستعلام منفصل — لا يوجد FK يسمح بالتضمين المباشر
-      let dq = data || null
+      let dq = candidates[0] || null
       if (dq?.branch_id) {
         const { data: br } = await sb.from('branches').select('branch_code').eq('id', dq.branch_id).maybeSingle()
         dq = { ...dq, branch_code: br?.branch_code || null }
@@ -493,13 +504,13 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
 
   // كرت الإجمالي المتوقع — يظهر فقط في خطوة المراجعة
   const heroTotal = (
-    <div style={{ marginTop: 'auto', padding: '14px 18px', borderRadius: 16, background: 'linear-gradient(135deg, rgba(212,160,23,.12), var(--bd2))', border: '1px solid rgba(212,160,23,.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-md)' }}>
+    <div style={{ marginTop: 'auto', padding: '14px 18px', borderRadius: 16, background: 'linear-gradient(135deg, rgba(176,125,0,.12), var(--bd2))', border: '1px solid rgba(176,125,0,.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-md)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(212,160,23,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, flexShrink: 0 }}><Calculator size={19} strokeWidth={2.2} /></div>
+        <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(176,125,0,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, flexShrink: 0 }}><Calculator size={19} strokeWidth={2.2} /></div>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.gold }}>{T('الإجمالي المتوقع', 'Expected Total')}</span>
       </div>
       <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, color: C.gold, direction: dir }}>
-        <span style={{ fontSize: 27, fontWeight: 700, lineHeight: 1, letterSpacing: '.5px' }}>{nm(grandTotal.toFixed(2))}</span>
+        <span style={{ fontSize: 27, fontWeight: 600, lineHeight: 1, letterSpacing: '.5px' }}>{nm(grandTotal.toFixed(2))}</span>
         <span style={{ fontSize: 13, fontWeight: 600, opacity: .7 }}>{T('ريال', 'SAR')}</span>
       </span>
     </div>
@@ -532,7 +543,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
             return (
               <div>
                 {/* رأس الجدول */}
-                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '0 2px 7px', fontSize: 9.5, fontWeight: 700, color: 'var(--tx4)', lineHeight: 1.3 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '0 2px 7px', fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', lineHeight: 1.3 }}>
                   <span style={{ textAlign: 'start' }}>{T('البند', 'Item')}</span>
                   <span style={num}>{T('الإجمالي', 'Total')}</span>
                   <span style={num}>{T('يشمله المكتب', 'Covered')}</span>
@@ -545,24 +556,24 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                       <span style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
                         <span style={{ fontWeight: 600, color: 'var(--tx)' }}>{r.label}</span>
                         <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
-                          {r.months ? <span style={{ fontSize: 9, fontWeight: 600, color: C.gold, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.25)', borderRadius: 20, padding: '1px 6px' }}>{r.months} {T('شهر', 'mo')}</span> : null}
+                          {r.months ? <span style={{ fontSize: 9, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.25)', borderRadius: 20, padding: '1px 6px' }}>{r.months} {T('شهر', 'mo')}</span> : null}
                           {typeof r.exempt === 'boolean' && <span style={{ fontSize: 9, fontWeight: 600, color: r.exempt ? '#2ea043' : C.red, background: r.exempt ? 'rgba(46,160,67,.1)' : 'rgba(192,57,43,.1)', border: `1px solid ${r.exempt ? 'rgba(46,160,67,.3)' : 'rgba(192,57,43,.3)'}`, borderRadius: 20, padding: '1px 6px' }}>{r.exempt ? T('إعفاء', 'Exempt') : T('بدون إعفاء', 'No exempt')}</span>}
-                          {r.fresh && <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.35)', borderRadius: 20, padding: '1px 6px' }}>{T('إصدار جديد', 'New')}</span>}
+                          {r.fresh && <span style={{ fontSize: 9, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.35)', borderRadius: 20, padding: '1px 6px' }}>{T('إصدار جديد', 'New')}</span>}
                           {r.insured && <span style={{ fontSize: 9, fontWeight: 600, color: '#2ea043', background: 'rgba(46,160,67,.1)', border: '1px solid rgba(46,160,67,.3)', borderRadius: 20, padding: '1px 6px' }}>{T('تأمين ساري', 'Insured')}</span>}
                         </span>
                       </span>
-                      <span style={{ ...num, fontWeight: 700, color: 'var(--tx)' }}>{nm(r.amt)}</span>
+                      <span style={{ ...num, fontWeight: 600, color: 'var(--tx)' }}>{nm(r.amt)}</span>
                       <span style={{ ...num, fontWeight: 600, color: '#2ea043' }}>{nm(covered)}</span>
-                      <span style={{ ...num, fontWeight: 700, color: r.excess > 0 ? C.red : 'var(--tx5)' }}>{r.excess > 0 ? `+${nm(r.excess)}` : '—'}</span>
+                      <span style={{ ...num, fontWeight: 600, color: r.excess > 0 ? C.red : 'var(--tx5)' }}>{r.excess > 0 ? `+${nm(r.excess)}` : '—'}</span>
                     </div>
                   )
                 })}
                 {/* صف الإجمالي */}
-                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '9px 2px 1px', borderTop: '1px dashed rgba(212,160,23,.35)', fontSize: 12.5 }}>
-                  <span style={{ fontWeight: 700, color: C.gold }}>{T('الإجمالي', 'Total')}</span>
-                  <span style={{ ...num, fontWeight: 800, color: C.gold }}>{nm(totAmt)}</span>
-                  <span style={{ ...num, fontWeight: 700, color: '#2ea043' }}>{nm(totCov)}</span>
-                  <span style={{ ...num, fontWeight: 800, color: totExcess > 0 ? C.red : 'var(--tx5)' }}>{totExcess > 0 ? `+${nm(totExcess)}` : '—'}</span>
+                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '9px 2px 1px', borderTop: '1px dashed rgba(176,125,0,.35)', fontSize: 12.5 }}>
+                  <span style={{ fontWeight: 600, color: C.gold }}>{T('الإجمالي', 'Total')}</span>
+                  <span style={{ ...num, fontWeight: 600, color: C.gold }}>{nm(totAmt)}</span>
+                  <span style={{ ...num, fontWeight: 600, color: '#2ea043' }}>{nm(totCov)}</span>
+                  <span style={{ ...num, fontWeight: 600, color: totExcess > 0 ? C.red : 'var(--tx5)' }}>{totExcess > 0 ? `+${nm(totExcess)}` : '—'}</span>
                 </div>
               </div>
             )
@@ -575,15 +586,15 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   const summaryCards = calc && (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
       {/* رسوم المكتب — الرسم الأساسي للخدمة */}
-      <div style={{ borderRadius: 13, padding: '13px 14px', background: 'linear-gradient(135deg, rgba(212,160,23,.14), rgba(212,160,23,.035))', border: '1px solid rgba(212,160,23,.32)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ borderRadius: 13, padding: '13px 14px', background: 'linear-gradient(135deg, rgba(176,125,0,.14), rgba(176,125,0,.035))', border: '1px solid rgba(176,125,0,.32)', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: C.gold }}><Briefcase size={15} strokeWidth={2.3} />{T('رسوم المكتب', 'Office Fee')}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 800, color: C.gold, lineHeight: 1 }}>{nm(calc.officeFee)}</span><span style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, opacity: .65 }}>{T('ريال', 'SAR')}</span></span>
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 600, color: C.gold, lineHeight: 1 }}>{nm(calc.officeFee)}</span><span style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, opacity: .65 }}>{T('ريال', 'SAR')}</span></span>
       </div>
       {/* الزائد على العميل — مجموع ما تجاوز حدود المكتب + رسوم تغيير المهنة (تُحمّل كاملةً على العميل) */}
       {(() => { const clientExcess = calc.govExcess + calc.profChange; return (
       <div style={{ borderRadius: 13, padding: '13px 14px', background: clientExcess > 0 ? 'linear-gradient(135deg, rgba(192,57,43,.13), rgba(192,57,43,.03))' : 'linear-gradient(135deg, rgba(46,160,67,.13), rgba(46,160,67,.03))', border: `1px solid ${clientExcess > 0 ? 'rgba(192,57,43,.32)' : 'rgba(46,160,67,.32)'}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: clientExcess > 0 ? C.red : '#2ea043' }}>{clientExcess > 0 ? <AlertCircle size={15} strokeWidth={2.3} /> : <Check size={15} strokeWidth={2.6} />}{T('الزائد على العميل', 'Excess on Customer')}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 800, color: clientExcess > 0 ? C.red : '#2ea043', lineHeight: 1 }}>{clientExcess > 0 ? '+' : ''}{nm(clientExcess)}</span><span style={{ fontSize: 10.5, fontWeight: 600, opacity: .65, color: clientExcess > 0 ? C.red : '#2ea043' }}>{T('ريال', 'SAR')}</span></span>
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 600, color: clientExcess > 0 ? C.red : '#2ea043', lineHeight: 1 }}>{clientExcess > 0 ? '+' : ''}{nm(clientExcess)}</span><span style={{ fontSize: 10.5, fontWeight: 600, opacity: .65, color: clientExcess > 0 ? C.red : '#2ea043' }}>{T('ريال', 'SAR')}</span></span>
       </div>
       )})()}
     </div>
@@ -605,7 +616,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                 <input value={q} onChange={e => setQ(e.target.value)} disabled={!fEdit('rw_search')} placeholder={T('ابحث بالاسم أو رقم الإقامة…', 'Search by name or Iqama…')} style={{ width: '100%', height: 42, paddingBlock: 0, paddingInlineStart: 14, paddingInlineEnd: 40, borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontFamily: F, fontSize: 12.5, fontWeight: 600, outline: 'none', boxSizing: 'border-box', textAlign: 'start' }} />
               </div>
               )}
-              <style>{`.rnw-scroll{scrollbar-width:thin;scrollbar-color:rgba(212,160,23,.4) transparent}.rnw-scroll::-webkit-scrollbar{width:8px}.rnw-scroll::-webkit-scrollbar-track{background:transparent;margin:2px 0}.rnw-scroll::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(212,160,23,.6),rgba(212,160,23,.22));border-radius:99px;border:2px solid transparent;background-clip:padding-box}.rnw-scroll::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,rgba(240,201,71,.85),rgba(212,160,23,.45));background-clip:padding-box}`}</style>
+              <style>{`.rnw-scroll{scrollbar-width:thin;scrollbar-color:rgba(176,125,0,.4) transparent}.rnw-scroll::-webkit-scrollbar{width:8px}.rnw-scroll::-webkit-scrollbar-track{background:transparent;margin:2px 0}.rnw-scroll::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(176,125,0,.6),rgba(176,125,0,.22));border-radius:99px;border:2px solid transparent;background-clip:padding-box}.rnw-scroll::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,rgba(176,125,0,.85),rgba(176,125,0,.45));background-clip:padding-box}`}</style>
               <div className="rnw-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto', paddingInline: 14 }}>
                 {(q.trim() ? results : workerPreview.slice(0, 3)).map(w => {
                   const wnat = natOf(w)
@@ -615,9 +626,9 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                   const expColor = days == null ? 'var(--tx5)' : days < 0 ? C.red : days < 30 ? '#e5b534' : '#27a046'
                   return (
                     <div key={w.id} onClick={() => pickWorker(w)}
-                      style={{ cursor: 'pointer', border: '1px solid rgba(212,160,23,.22)', background: 'linear-gradient(135deg,rgba(212,160,23,.07),rgba(255,255,255,.015))', boxShadow: 'var(--shadow-md)', transition: 'all .22s ease', padding: 14, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 12 }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.32)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.07),rgba(255,255,255,.015))'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.22)' }}>
+                      style={{ cursor: 'pointer', border: '1px solid rgba(176,125,0,.22)', background: 'linear-gradient(135deg,rgba(176,125,0,.07),rgba(255,255,255,.015))', boxShadow: 'var(--shadow-md)', transition: 'all .22s ease', padding: 14, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 12 }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.32)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.07),rgba(255,255,255,.015))'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.22)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                         <div title={wnat?.name_ar || ''} style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--bd2)', border: '1px solid var(--bd)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {wnat?.flag_url ? <img src={wnat.flag_url} alt={wnat?.name_ar || ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <Globe size={20} strokeWidth={1.6} color="var(--tx4)" />}
@@ -638,8 +649,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                 {searching && results.length === 0 && <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: 16 }}>{T('جارٍ البحث…', 'Searching…')}</div>}
                 {!searching && q.trim() && results.length === 0 && (
                   <div style={{ padding: '24px 20px', borderRadius: 9, background: 'transparent', border: '1px dashed var(--bd)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(212,160,23,.08)', border: '1px dashed rgba(212,160,23,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(212,160,23,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" /></svg>
+                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(176,125,0,.08)', border: '1px dashed rgba(176,125,0,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(176,125,0,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" /></svg>
                     </div>
                     <div style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, fontFamily: F }}>{T('لا يوجد عامل بهذا البحث', 'No worker matches this search')}</div>
                     <div style={{ fontSize: 10.5, color: 'var(--tx5)', fontWeight: 500, fontFamily: F }}>{T('جرّب البحث باسم آخر أو رقم الإقامة', 'Try another name or Iqama number')}</div>
@@ -662,7 +673,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
             return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {/* بطاقة العامل المختار — نفس تصميم الفاتورة */}
-              <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),var(--bd2))', boxShadow: 'var(--shadow-md)', padding: 14, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),var(--bd2))', boxShadow: 'var(--shadow-md)', padding: 14, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div title={natLabel || ''} style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--bd2)', border: '1px solid var(--bd)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {flagUrl ? <img src={flagUrl} alt={natLabel || ''} title={natLabel || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <Globe size={20} strokeWidth={1.6} color="var(--tx4)" />}
                 </div>
@@ -754,7 +765,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
               const lbl = { fontSize: 10, color: 'var(--tx5)', fontWeight: 600, letterSpacing: '.2px', lineHeight: 1.2 }
               const val = { fontSize: 13, color: 'var(--tx)', fontWeight: 600, direction: 'ltr', lineHeight: 1.2, textAlign: isAr ? 'right' : 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
               return (
-                <div style={{ padding: '20px 14px 12px', borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ padding: '20px 14px 12px', borderRadius: 12, border: '1.5px solid rgba(176,125,0,.35)', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ position: 'absolute', top: -9, insetInlineStart: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, maxWidth: 'calc(100% - 28px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(isAr ? (fac.name_ar || fac.name_en) : (fac.name_en || fac.name_ar)) || T('منشأة العامل', "Worker's Establishment")}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                     {stShow('rw_details') && fShow('rw_d_fac_unified') && (
@@ -818,7 +829,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                     options={occupations} getKey={o => o.id} getLabel={o => o.name_ar || o.name_en || ''} getSub={o => o.name_en || ''} disabled={!fEdit('rw_new_occupation')}
                     value={f.newOccupationId || ''} onChange={(id, item) => setF(p => ({ ...p, newOccupationId: id, newOccupation: item?.name_ar || item?.name_en || '' }))} />
                   {calc.profChangeIsFree && (
-                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 700, color: '#2ea043', background: 'rgba(46,160,67,.08)', border: '1px solid rgba(46,160,67,.3)', borderRadius: 8, padding: '8px 10px' }}>
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, color: '#2ea043', background: 'rgba(46,160,67,.08)', border: '1px solid rgba(46,160,67,.3)', borderRadius: 8, padding: '8px 10px' }}>
                       <Check size={14} strokeWidth={2.6} style={{ flexShrink: 0 }} />{T('المهنة معفاة — لن تُحتسب رسوم تغيير المهنة (0 ريال).', 'Occupation exempt — no profession-change fee (0 SAR).')}
                     </div>
                   )}
@@ -846,23 +857,23 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
               {/* الإقامة الحالية */}
               <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('الإقامة الحالية', 'Current Iqama')}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, direction: 'ltr', color: calc.expired ? C.red : 'var(--tx)' }}>{fmtD(worker?.iqama_expiry_date)}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, direction: 'ltr', color: calc.expired ? C.red : 'var(--tx)' }}>{fmtD(worker?.iqama_expiry_date)}</div>
               </div>
               {/* الموصل + مدة التجديد */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: C.gold, flex: 1.2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <span style={{ height: 2, flex: 1, background: 'rgba(212,160,23,.35)' }} />
+                  <span style={{ height: 2, flex: 1, background: 'rgba(176,125,0,.35)' }} />
                   {lang === 'en'
                     ? <ChevronRight size={18} strokeWidth={2.4} style={{ margin: '0 4px', flexShrink: 0 }} />
                     : <ChevronLeft size={18} strokeWidth={2.4} style={{ margin: '0 4px', flexShrink: 0 }} />}
-                  <span style={{ height: 2, flex: 1, background: 'rgba(212,160,23,.35)' }} />
+                  <span style={{ height: 2, flex: 1, background: 'rgba(176,125,0,.35)' }} />
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(212,160,23,.14)', border: '1px solid rgba(212,160,23,.3)', borderRadius: 20, padding: '2px 12px', marginTop: 8, whiteSpace: 'nowrap' }}>{f.renewalMonths} {T('شهر', 'mo')}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, background: 'rgba(176,125,0,.14)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 20, padding: '2px 12px', marginTop: 8, whiteSpace: 'nowrap' }}>{f.renewalMonths} {T('شهر', 'mo')}</span>
               </div>
               {/* بعد التجديد */}
               <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: C.gold, marginBottom: 6 }}>{T('بعد التجديد', 'After Renewal')}</div>
-                <div style={{ fontSize: 15, fontWeight: 800, direction: 'ltr', color: C.gold }}>{fmtD(calc.expectedExpiry)}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, direction: 'ltr', color: C.gold }}>{fmtD(calc.expectedExpiry)}</div>
               </div>
             </div>
           </div>
@@ -912,7 +923,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                           {it.fineToggle && (
                             <button type="button" onClick={() => set('repeatViolation', !f.repeatViolation)}
                               title={f.repeatViolation ? T(`إزالة غرامة المرة الثانية (−${nm(fineBump)})`, `Remove repeat fine (−${nm(fineBump)})`) : T(`إضافة غرامة المرة الثانية (+${nm(fineBump)})`, `Add repeat fine (+${nm(fineBump)})`)}
-                              style={{ width: 20, height: 20, borderRadius: '50%', border: 'none', background: f.repeatViolation ? 'rgba(192,57,43,.18)' : 'rgba(212,160,23,.15)', color: f.repeatViolation ? C.red : C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0, transition: '.15s' }}>
+                              style={{ width: 20, height: 20, borderRadius: '50%', border: 'none', background: f.repeatViolation ? 'rgba(192,57,43,.18)' : 'rgba(176,125,0,.15)', color: f.repeatViolation ? C.red : C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0, transition: '.15s' }}>
                               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                                 <line x1="5" y1="12" x2="19" y2="12" />
                                 {!f.repeatViolation && <line x1="12" y1="5" x2="12" y2="19" />}
@@ -960,9 +971,9 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                   </div>
                   )}
                   {/* الإجمالي */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0 0', marginTop: 2, borderTop: '1px dashed rgba(212,160,23,.25)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0 0', marginTop: 2, borderTop: '1px dashed rgba(176,125,0,.25)' }}>
                     <span style={{ color: C.gold, fontWeight: 600, fontSize: 15 }}>{T('الإجمالي', 'Grand Total')}</span>
-                    <span style={{ fontWeight: 700, color: C.gold, fontSize: 16 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(grandTotal)}</span> {T('ريال', 'SAR')}</span>
+                    <span style={{ fontWeight: 600, color: C.gold, fontSize: 16 }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(grandTotal)}</span> {T('ريال', 'SAR')}</span>
                   </div>
                 </div>
               )
@@ -975,14 +986,15 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
 
   // ── بناء صفحات الويزارد ──
   const titles = [T('العامل', 'Worker'), T('التفاصيل', 'Details'), T('التجديد', 'Renewal'), T('التسعيرة', 'Pricing'), T('المراجعة', 'Review'), T('التكلفة', 'Cost')]
-  // حسبة سابقة سارية تُعرض كتحذير فقط (في تذييل الصفحة) ولا تعطّل «التالي» — بطلب المستخدم.
-  const tab0Valid = !!worker && phoneValid && !workerDataIncomplete
+  // حسبة سابقة سارية لنفس العامل تمنع «التالي» (تظهر كإشعار في التذييل) حتى تُلغى؛ المدير العام يتجاوزها — انظر dupBlocks.
+  const dupBlocks = !!dupQuote && !isGM(user)
+  const tab0Valid = !!worker && phoneValid && !workerDataIncomplete && !dupBlocks
   const pages = titles.map((title, i) => ({
     title,
     content: body,
     valid: i === 0 ? tab0Valid : true,
     error: i === 0 && worker && dupQuote
-      ? T(`يوجد حسبة تجديد ${dupQuote.status === 'approved' ? 'مصدّقة' : 'مفوترة'} سارية لهذا العامل (${dupQuote.branch_code || '—'})`, `An active ${dupQuote.status} renewal quote already exists for this worker (${dupQuote.branch_code || '—'})`)
+      ? T(`يوجد حسبة تجديد ${dupQuote.status === 'approved' ? 'مصدّقة' : 'مفوترة'} سارية لهذا العامل (${dupQuote.branch_code || '—'})${dupBlocks ? ' — ألغِ الحسبة للمتابعة' : ''}`, `An active ${dupQuote.status} renewal quote already exists for this worker (${dupQuote.branch_code || '—'})${dupBlocks ? ' — cancel it to continue' : ''}`)
       : (i === 0 && worker && workerDataIncomplete ? T('بيانات العامل غير مكتملة — راجع الموظف المختص', 'Worker data incomplete — contact the responsible employee') : ''),
   }))
   const onNext = () => {
@@ -1037,9 +1049,9 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                 </div>
                 <input value={chi.captchaInput} onChange={e => setChi(c => ({ ...c, captchaInput: e.target.value.replace(/\s/g, '').slice(0, 8) }))}
                   onKeyDown={e => { if (e.key === 'Enter') submitChiCaptcha() }} placeholder="______" autoFocus maxLength={8}
-                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid var(--bd)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'var(--bd2)', textAlign: 'center', letterSpacing: '8px', direction: 'ltr' }} />
+                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid var(--bd)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'var(--bd2)', textAlign: 'center', letterSpacing: '8px', direction: 'ltr' }} />
                 {chi.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{chi.error}</div>}
-                <button onClick={submitChiCaptcha} disabled={!chi.captchaInput || chi.captchaInput.length < 3} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 700, cursor: (!chi.captchaInput || chi.captchaInput.length < 3) ? 'not-allowed' : 'pointer', opacity: (!chi.captchaInput || chi.captchaInput.length < 3) ? 0.45 : 1 }}>{T('استعلام', 'Check')}</button>
+                <button onClick={submitChiCaptcha} disabled={!chi.captchaInput || chi.captchaInput.length < 3} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 600, cursor: (!chi.captchaInput || chi.captchaInput.length < 3) ? 'not-allowed' : 'pointer', opacity: (!chi.captchaInput || chi.captchaInput.length < 3) ? 0.45 : 1 }}>{T('استعلام', 'Check')}</button>
               </div>
             )}
 
@@ -1071,13 +1083,13 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
           const [copied, setCopied] = useState(false)
           return (
             <button onClick={() => { try { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch {} }} title={T('نسخ', 'Copy')}
-              style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: copied ? C.ok : C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'color .15s' }}>
+              style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.3)', color: copied ? C.ok : C.gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'color .15s' }}>
               {copied ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>}
             </button>
           )
         }
         const row = (label, value, withCopy, isTotal) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: isTotal ? 'rgba(212,160,23,.08)' : 'var(--bd2)', border: `1px solid ${isTotal ? 'rgba(212,160,23,.3)' : 'var(--bd)'}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: isTotal ? 'rgba(176,125,0,.08)' : 'var(--bd2)', border: `1px solid ${isTotal ? 'rgba(176,125,0,.3)' : 'var(--bd)'}` }}>
             <span style={{ flex: 1, fontSize: 14, color: isTotal ? C.gold : 'var(--tx3)', fontWeight: 600 }}>{label}</span>
             <span style={{ fontSize: 14, fontWeight: 600, color: isTotal ? C.gold : 'var(--tx)', direction: 'ltr' }}>{value}</span>
             {withCopy && <CopyBtn text={String(value)} />}
@@ -1093,7 +1105,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                 {issuedQuote.warnings && issuedQuote.warnings.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 }}>
                     {issuedQuote.warnings.map((w, i) => {
-                      const clr = w.level === 'danger' ? { bg: 'rgba(192,57,43,.08)', bd: 'rgba(192,57,43,.3)', tx: '#e67265' } : { bg: 'rgba(212,160,23,.08)', bd: 'rgba(212,160,23,.3)', tx: C.gold }
+                      const clr = w.level === 'danger' ? { bg: 'rgba(192,57,43,.08)', bd: 'rgba(192,57,43,.3)', tx: '#e67265' } : { bg: 'rgba(176,125,0,.08)', bd: 'rgba(176,125,0,.3)', tx: C.gold }
                       return (
                         <div key={i} style={{ background: clr.bg, border: `1px solid ${clr.bd}`, borderRadius: 8, padding: '7px 11px', fontSize: 14, color: clr.tx, fontWeight: 500, lineHeight: 1.55, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
                           <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 2 }} /><span>{w.text}</span>

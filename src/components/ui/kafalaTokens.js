@@ -3,8 +3,8 @@
 // Reference page: TransferCalcPage in App.jsx
 
 export const C = {
-  gold: '#D4A017',
-  goldLight: '#dcc06e',
+  gold: '#B07D00',
+  goldLight: '#B07D00',
   ok: '#27a046',
   okDark: '#1a8a3e',
   red: '#c0392b',
@@ -93,9 +93,9 @@ export const filterBtn = (active = false) => ({
   height: 40,
   padding: '0 14px',
   borderRadius: 11,
-  border: active ? '1px solid rgba(212,160,23,.45)' : '1px solid var(--bd)',
+  border: active ? '1px solid rgba(176,125,0,.45)' : '1px solid var(--bd)',
   background: active
-    ? 'linear-gradient(180deg,rgba(212,160,23,.16),rgba(212,160,23,.08))'
+    ? 'linear-gradient(180deg,rgba(176,125,0,.16),rgba(176,125,0,.08))'
     : 'var(--inputBg)',
   color: active ? C.gold : 'var(--tx2)',
   fontFamily: F,
@@ -108,7 +108,7 @@ export const filterBtn = (active = false) => ({
   gap: 10,
   flexShrink: 0,
   boxShadow: active
-    ? '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)'
+    ? '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)'
     : '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',
   transition: '.2s',
 })
@@ -144,8 +144,8 @@ export const goldBtn = {
   height: 40,
   padding: '0 18px',
   borderRadius: 11,
-  border: '1px solid rgba(212,160,23,.45)',
-  background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',
+  border: '1px solid rgba(176,125,0,.45)',
+  background: 'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)',
   color: C.gold,
   fontFamily: F,
   fontSize: 12,
@@ -155,7 +155,7 @@ export const goldBtn = {
   alignItems: 'center',
   justifyContent: 'center',
   gap: 8,
-  boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',
+  boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)',
   transition: '.2s',
 }
 
@@ -246,7 +246,7 @@ export const emptyState = {
 //
 // <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
 //   <div style={{width:10,height:10,borderRadius:'50%',background:isToday?C.gold:'rgba(255,255,255,.18)',
-//     border:isToday?'2px solid rgba(212,160,23,.25)':'none',flexShrink:0}}/>
+//     border:isToday?'2px solid rgba(176,125,0,.25)':'none',flexShrink:0}}/>
 //   <div style={{fontSize:13,fontWeight:600,color:isToday?C.gold:'rgba(255,255,255,.65)'}}>{dayName}</div>
 //   <div style={{fontSize:11,fontWeight:500,color:'var(--tx5)'}}>{fullDate}</div>
 //   <div style={{flex:1,height:1,background:'rgba(255,255,255,.07)'}}/>

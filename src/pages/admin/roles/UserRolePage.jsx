@@ -57,10 +57,10 @@ export default function UserRolePage({ person, profile, onBack, toast, countries
         <button onClick={() => setShowModal(true)}
           style={{ height: 34, padding: '0 14px', borderRadius: 8,
             border: `1px solid ${C.gold}`, background: 'transparent',
-            color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 800,
+            color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 600,
             cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
             transition: '.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.08)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
           تعديل <Edit2 size={13} strokeWidth={2.5} />
         </button>
@@ -90,11 +90,11 @@ export default function UserRolePage({ person, profile, onBack, toast, countries
         <div style={{ padding: 60, textAlign: 'center',
           background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.06)', borderRadius: 12 }}>
           <User size={40} color={C.gold} style={{ opacity: .6 }} />
-          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>لا يوجد ملف مستخدم لهذا الشخص</div>
+          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>لا يوجد ملف مستخدم لهذا الشخص</div>
           <button onClick={() => setShowModal(true)}
             style={{ marginTop: 16, height: 36, padding: '0 16px', borderRadius: 9,
               border: `1px solid ${C.gold}55`, background: C.gold + '15',
-              color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+              color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Plus size={14} /> ربط ملف مستخدم
           </button>
@@ -139,11 +139,11 @@ function ActivityChart({ row }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 20, padding: '0 4px' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-          fontSize: 11.5, fontWeight: 800, color: 'var(--tx)' }}>
+          fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>
           <Activity size={13} color={C.gold} /> جلسات المستخدم (آخر 14 يوم)
         </span>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--tx4)' }}>
-          الإجمالي: <span style={{ color: C.gold, fontWeight: 800 }}>{total}</span> جلسة
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)' }}>
+          الإجمالي: <span style={{ color: C.gold, fontWeight: 600 }}>{total}</span> جلسة
         </span>
       </div>
       <div style={{ position: 'relative', height: 130, padding: '4px 2px 10px' }}>

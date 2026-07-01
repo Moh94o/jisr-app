@@ -128,7 +128,7 @@ const pillBtnStyle = (active) => ({
   border: active ? '1px solid rgba(52,131,180,.55)' : '1px solid rgba(255,255,255,.08)',
   background: active ? 'rgba(52,131,180,.18)' : 'rgba(255,255,255,.03)',
   color: active ? '#6bb6e6' : 'var(--tx3)',
-  fontFamily: F, fontSize: 11, fontWeight: 800, cursor: 'pointer'
+  fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer'
 })
 
 function SaudizationModal({ open, onClose, personId, row, facilities, toast, onSaved }) {

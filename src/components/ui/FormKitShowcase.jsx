@@ -54,7 +54,7 @@ function DesignSystemPanel() {
       {/* الارتفاعات والحواف */}
       <div style={{ fontSize: 11, fontWeight: 600, color: C.gold, margin: '8px 0 2px' }}>الارتفاعات — H · الحواف — R</div>
       <RefRow name="H.field" val={`${H.field}px`}><div style={{ height: H.field, borderRadius: R.field, background: C.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }} /></RefRow>
-      <RefRow name="H.actionBtn" val={`${H.actionBtn}px`}><div style={{ height: H.actionBtn, width: 120, borderRadius: R.btn, background: 'rgba(212,160,23,.12)', border: `1px solid ${C.gold}40` }} /></RefRow>
+      <RefRow name="H.actionBtn" val={`${H.actionBtn}px`}><div style={{ height: H.actionBtn, width: 120, borderRadius: R.btn, background: 'rgba(176,125,0,.12)', border: `1px solid ${C.gold}40` }} /></RefRow>
       <RefRow name="R.modal" val={`${R.modal}px`}><div style={{ height: 28, width: 60, borderRadius: R.modal, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }} /></RefRow>
       <RefRow name="R.section" val={`${R.section}px`}><div style={{ height: 28, width: 60, borderRadius: R.section, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }} /></RefRow>
       {/* الألوان */}
@@ -89,7 +89,7 @@ const INITIAL = {
   text: '', ar: '', en: '', num: '', money: '', phone: '', idn: '',
   note: '', country: null, services: [], date: '', sw: true, seg: 'b',
   yn: true, chk: false, radio: 'r2', count: 2, file: null,
-  color: '#D4A017', time: '09:30',
+  color: '#B07D00', time: '09:30',
 }
 
 // جدول السداد (مثال للاستثناء: هذا القسم وحده يتمرّر داخلياً، النافذة لا)

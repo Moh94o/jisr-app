@@ -4,7 +4,7 @@ import { X, Save, ChevronDown, CreditCard, Flag, Calendar, Phone, Mail, Plus, Ed
 import { Modal as FkModal } from '../../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
+const C = { gold: '#B07D00', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
 
 // Shared input style — matches PersonFormModal's sF.
 export const sF = {
@@ -18,7 +18,7 @@ export const sF = {
 }
 
 export const Lbl = ({ children, req }) => (
-  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>
+  <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.58)', marginBottom: 5, textAlign: 'start' }}>
     {children}{req && <span style={{ color: C.red }}> *</span>}
   </div>
 )
@@ -26,12 +26,12 @@ export const Lbl = ({ children, req }) => (
 // KCard — gold outlined fieldset with label cut-out at top-right (matches PersonFormModal's KCard).
 export const KCard = ({ Icon, label, children, actions }) => (
   <div style={{
-    borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)',
+    borderRadius: 12, border: '1.5px solid rgba(176,125,0,.35)',
     padding: '18px 14px 14px', position: 'relative', marginTop: 10, transition: '.2s'
   }}>
     <div style={{ position: 'absolute', top: -9, right: 14,
       background: '#1a1a1a', padding: '0 8px',
-      fontSize: 12, fontWeight: 800, color: C.gold, fontFamily: F,
+      fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F,
       display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       {Icon && <Icon size={12} strokeWidth={2.2} />}<span>{label}</span>
     </div>
@@ -60,10 +60,10 @@ export const KpiBox = ({ label, value, color }) => (
   <div style={{ padding: '7px 12px', borderRadius: 10,
     background: '#1a1a1a', border: '1px solid rgba(255,255,255,.04)',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-    <div style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 700 }}>{label}</div>
+    <div style={{ fontSize: 10.5, color: 'var(--tx2)', fontWeight: 600 }}>{label}</div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: `0 0 5px ${color}` }} />
-      <div style={{ fontSize: 14, fontWeight: 900, color, letterSpacing: '-.2px', direction: 'ltr', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color, letterSpacing: '-.2px', direction: 'ltr', lineHeight: 1 }}>{value}</div>
     </div>
   </div>
 )
@@ -73,14 +73,14 @@ export const HeroStat = ({ label, value, unit, color = C.gold, footer }) => (
   <div style={{ background: '#141414', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14,
     padding: '18px 14px', display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'space-between', gap: 12, transition: '.2s' }}>
-    <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)', letterSpacing: '.2px' }}>{label}</span>
+    <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px' }}>{label}</span>
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 52, fontWeight: 900, color, letterSpacing: '-1.3px', lineHeight: 1,
+        <span style={{ fontSize: 52, fontWeight: 600, color, letterSpacing: '-1.3px', lineHeight: 1,
           textShadow: `0 0 22px ${color}33`, direction: 'ltr' }}>{value}</span>
-        <span style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{unit}</span>
+        <span style={{ fontSize: 20, fontWeight: 600, color, lineHeight: 1 }}>{unit}</span>
       </div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.3px',
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.3px',
         textAlign: 'center', minHeight: 14 }}>
         {footer || '\u00A0'}
       </div>
@@ -106,7 +106,7 @@ export const FacilityCard = ({ facility, color = C.gold, badges = [], fields = [
         <Building2 size={16} color={color} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tx)', lineHeight: 1.3 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.3 }}>
           {facility?.name_ar || '—'}
         </div>
         {facility?.cr_number && (
@@ -117,7 +117,7 @@ export const FacilityCard = ({ facility, color = C.gold, badges = [], fields = [
         )}
       </div>
       {badges.map((b, i) => (
-        <span key={i} style={{ fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 5,
+        <span key={i} style={{ fontSize: 9, fontWeight: 600, padding: '3px 8px', borderRadius: 5,
           background: (b.color || color) + '22', color: b.color || color, border: `1px solid ${(b.color || color)}44` }}>
           {b.text}
         </span>
@@ -129,8 +129,8 @@ export const FacilityCard = ({ facility, color = C.gold, badges = [], fields = [
         paddingTop: 8, borderTop: '1px dashed rgba(255,255,255,.06)' }}>
         {fields.map((f, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)', letterSpacing: '.2px' }}>{f.label}</span>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)', direction: f.dir || 'rtl' }}>
+            <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.2px' }}>{f.label}</span>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)', direction: f.dir || 'rtl' }}>
               {f.value ?? '—'}
             </span>
           </div>
@@ -144,7 +144,7 @@ export const FacilityCard = ({ facility, color = C.gold, badges = [], fields = [
           <button onClick={onEdit}
             style={{ height: 26, padding: '0 10px', borderRadius: 7,
               border: `1px solid ${color}44`, background: color + '12', color,
-              fontFamily: F, fontSize: 10, fontWeight: 800, cursor: 'pointer',
+              fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 5 }}>
             <Edit2 size={11} /> تعديل
           </button>
@@ -153,7 +153,7 @@ export const FacilityCard = ({ facility, color = C.gold, badges = [], fields = [
           <button onClick={onEnd}
             style={{ height: 26, padding: '0 10px', borderRadius: 7,
               border: '1px solid rgba(192,57,43,.3)', background: 'rgba(192,57,43,.08)',
-              color: '#e68a80', fontFamily: F, fontSize: 10, fontWeight: 800, cursor: 'pointer',
+              color: '#e68a80', fontFamily: F, fontSize: 10, fontWeight: 600, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 5 }}>
             <Trash2 size={11} /> إنهاء
           </button>
@@ -170,7 +170,7 @@ export const AddBtn = ({ text, onClick, color = C.gold, Icon, iconAfter = false 
     <button onClick={onClick}
       style={{ height: 38, padding: '0 16px', borderRadius: 10,
         border: `1px solid ${color}55`, background: color + '0d',
-        color, fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+        color, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
         display: 'inline-flex', alignItems: 'center', gap: 8, transition: '.15s' }}
       onMouseEnter={e => { e.currentTarget.style.background = color + '18' }}
       onMouseLeave={e => { e.currentTarget.style.background = color + '0d' }}>
@@ -244,7 +244,7 @@ export const FacilityPicker = ({ value, onChange, options, placeholder = 'اخت
           color: selected ? 'var(--tx)' : 'var(--tx5)', padding: '0 32px', position: 'relative',
           opacity: disabled ? .6 : 1 }}>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap',
-          overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: selected ? 700 : 500 }}>
+          overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: selected ? 600 : 500 }}>
           {selected ? selected.name_ar : placeholder}
         </span>
         <ChevronDown size={12} color={C.gold} strokeWidth={2.5}
@@ -278,11 +278,11 @@ export const FacilityPicker = ({ value, onChange, options, placeholder = 'اخت
                 <div key={o.id} onClick={() => { onChange(o.id, o); setOpen(false); setQ('') }}
                   style={{ padding: '10px 14px', cursor: 'pointer',
                     borderBottom: '1px solid rgba(255,255,255,.03)',
-                    background: sel ? 'rgba(212,160,23,.1)' : 'transparent', transition: '.12s',
+                    background: sel ? 'rgba(176,125,0,.1)' : 'transparent', transition: '.12s',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
-                  onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(212,160,23,.1)' }}
+                  onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(176,125,0,.1)' }}
                   onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}>
-                  <span style={{ fontSize: 13, fontWeight: sel ? 800 : 700,
+                  <span style={{ fontSize: 13, fontWeight: sel ? 600 :600,
                     color: sel ? C.gold : 'rgba(255,255,255,.92)' }}>{o.name_ar}</span>
                   {o.cr_number && (
                     <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', direction: 'ltr',
@@ -302,13 +302,13 @@ export const FacilityPicker = ({ value, onChange, options, placeholder = 'اخت
 export const SaveBtn = ({ onClick, disabled, label = 'حفظ', icon }) => (
   <>
     <style>{`
-      .kc-nav-btn { height: 40px; padding: 0 6px; background: transparent; border: none; color: #D4A017;
-        font-family: ${F}; font-size: 14px; font-weight: 700; cursor: pointer;
+      .kc-nav-btn { height: 40px; padding: 0 6px; background: transparent; border: none; color: #B07D00;
+        font-family: ${F}; font-size: 14px; font-weight:600; cursor: pointer;
         display: inline-flex; align-items: center; gap: 10px; transition: .2s }
       .kc-nav-btn .nav-ico { width: 32px; height: 32px; border-radius: 50%;
-        background: rgba(212,160,23,.1); display: flex; align-items: center; justify-content: center;
-        transition: .2s; color: #D4A017 }
-      .kc-nav-btn:hover .nav-ico { background: #D4A017; color: #000 }
+        background: rgba(176,125,0,.1); display: flex; align-items: center; justify-content: center;
+        transition: .2s; color: #B07D00 }
+      .kc-nav-btn:hover .nav-ico { background: #B07D00; color: #000 }
       .kc-nav-btn:disabled { opacity: .5; cursor: not-allowed }
     `}</style>
     <button onClick={onClick} disabled={disabled} className="kc-nav-btn">
@@ -327,12 +327,12 @@ export const PersonIdentityChip = ({ person, nationality, color = C.gold }) => (
       background: `linear-gradient(135deg, ${color}22, ${color}08)`,
       border: `1.5px solid ${color}44`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 14, fontWeight: 900, color, direction: 'ltr' }}>
+      fontSize: 14, fontWeight: 600, color, direction: 'ltr' }}>
       {(person?.name_ar || '').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('') || '—'}
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tx)' }}>{person?.name_ar}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{person?.name_ar}</span>
         {nationality?.code && (
           <img src={`https://flagcdn.com/w40/${nationality.code.toLowerCase()}.png`}
             width={18} height={13} alt="" style={{ borderRadius: 2, objectFit: 'cover' }} />

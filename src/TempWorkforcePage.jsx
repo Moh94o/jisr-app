@@ -6,7 +6,7 @@ import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextFi
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
-  gold: '#D4A017',
+  gold: '#B07D00',
   blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
   ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
@@ -92,7 +92,7 @@ const cardHeader = {
   padding: '12px 22px',
   borderBottom: '1px solid var(--bd)',
 }
-const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.2px' }
+const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }
 
 const STATUS_THEME = {
   active:    { c: C.ok,     label_ar: 'نشط',     label_en: 'Active' },
@@ -141,7 +141,7 @@ const CopyBtn = ({ value, T }) => {
 }
 
 const Badge = ({ theme, T }) => theme ? (
-  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: theme.c + '18', border: '1px solid ' + theme.c + '38', color: theme.c, fontSize: 10.5, fontWeight: 700 }}>
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: theme.c + '18', border: '1px solid ' + theme.c + '38', color: theme.c, fontSize: 10.5, fontWeight: 600 }}>
     <span style={{ width: 5, height: 5, borderRadius: '50%', background: theme.c, boxShadow: '0 0 5px ' + theme.c }} />
     {T(theme.label_ar, theme.label_en)}
   </span>
@@ -168,7 +168,7 @@ const IqamaCell = ({ iso, T }) => {
   const tooltip = T(`${value} ${wordAr}`, `${value} ${wordEn}`)
   return (
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      <span style={{ fontSize: 14, color: c, fontWeight: 700, direction: 'ltr', fontFamily: 'ui-monospace, monospace', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(iso)}</span>
+      <span style={{ fontSize: 14, color: c, fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(iso)}</span>
       <span title={tooltip} style={{
         display: 'inline-flex', alignItems: 'baseline', gap: 4,
         color: c, fontWeight: 600, fontSize: 10,
@@ -184,10 +184,10 @@ const IqamaCell = ({ iso, T }) => {
 // Filter button style — matches SbcFacilities btnFilter
 const btnFilter = (active) => ({
   height: 44, padding: '0 16px', borderRadius: 12,
-  background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)',
-  border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'var(--bd)'),
+  background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)',
+  border: '1px solid ' + (active ? 'rgba(176,125,0,.3)' : 'var(--bd)'),
   color: active ? C.gold : 'var(--tx2)',
-  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
   display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box',
 })
 
@@ -204,7 +204,7 @@ const FacInfoBox = ({ Icon, label, value }) => value ? (
 ) : null
 // أفاتار المنشأة — أيقونة مبنى داخل مربّع، يتلوّن ذهبياً عند الاختيار.
 const FacAvatar = ({ size, sel }) => (
-  <div style={{ width: size, height: size, borderRadius: 12, background: 'rgba(0,0,0,.25)', border: sel ? '1.5px solid rgba(212,160,23,.4)' : '1px solid rgba(255,255,255,.08)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: sel ? '0 2px 8px rgba(212,160,23,.15)' : 'none' }}>
+  <div style={{ width: size, height: size, borderRadius: 12, background: 'rgba(0,0,0,.25)', border: sel ? '1.5px solid rgba(176,125,0,.4)' : '1px solid rgba(255,255,255,.08)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: sel ? '0 2px 8px rgba(176,125,0,.15)' : 'none' }}>
     <Building2 size={Math.round(size * 0.5)} strokeWidth={1.7} color={sel ? C.gold : 'rgba(255,255,255,.5)'} />
   </div>
 )
@@ -243,7 +243,7 @@ const ChiCountdown = ({ captchaKey, onExpire, color = '#3bb27a' }) => {
     return () => clearInterval(iv)
   }, [captchaKey])
   const urgent = rem <= 10
-  return <div style={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: urgent ? C.red : color, border: `2px solid ${urgent ? 'rgba(192,57,43,.4)' : 'rgba(59,178,122,.35)'}` }}>{rem}</div>
+  return <div style={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: urgent ? C.red : color, border: `2px solid ${urgent ? 'rgba(192,57,43,.4)' : 'rgba(59,178,122,.35)'}` }}>{rem}</div>
 }
 
 // المنتقي: حقل بحث ثم كروت نتائج؛ وعند الاختيار يُستبدل بكرت المنشأة كاملاً + زر إلغاء.
@@ -265,7 +265,7 @@ function FacilityPicker({ facilities, value, onChange, T }) {
   if (selected) {
     const both = selected.name_ar && selected.name_en
     return (
-      <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <button onClick={() => { onChange(null); setQ('') }} title={T('تغيير المنشأة', 'Change facility')}
           style={{ position: 'absolute', top: 8, left: 8, height: 28, padding: '0 12px', borderRadius: 8, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.35)', color: C.red, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, transition: '.15s', fontFamily: F, fontSize: 12, fontWeight: 600 }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,114,101,.22)' }}
@@ -293,7 +293,7 @@ function FacilityPicker({ facilities, value, onChange, T }) {
   }
 
   // ── وضع البحث: حقل + كروت نتائج مختصرة قابلة للضغط للاختيار ──
-  const G = { base: 'linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))', baseB: 'rgba(255,255,255,.08)', hover: 'linear-gradient(135deg,rgba(212,160,23,.08),rgba(255,255,255,.02))', hoverB: 'rgba(212,160,23,.25)' }
+  const G = { base: 'linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))', baseB: 'rgba(255,255,255,.08)', hover: 'linear-gradient(135deg,rgba(176,125,0,.08),rgba(255,255,255,.02))', hoverB: 'rgba(176,125,0,.25)' }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <style>{`.fac-results::-webkit-scrollbar{width:0;height:0;display:none}`}</style>
@@ -335,8 +335,8 @@ function FacilityPicker({ facilities, value, onChange, T }) {
         </div>
       ) : (
         <div style={{ padding: '24px 20px', borderRadius: 12, border: '1px dashed var(--bd)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(212,160,23,.08)', border: '1px dashed rgba(212,160,23,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Building2 size={18} strokeWidth={1.7} color="rgba(212,160,23,.65)" />
+          <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(176,125,0,.08)', border: '1px dashed rgba(176,125,0,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Building2 size={18} strokeWidth={1.7} color="rgba(176,125,0,.65)" />
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600 }}>{T('لا توجد منشأة بهذا البحث', 'No facility matches this search')}</div>
         </div>
@@ -1017,7 +1017,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
           style={{
             height: 42, padding: '0 18px', borderRadius: 11,
             cursor: 'pointer',
-            fontFamily: F, fontSize: 13, fontWeight: 700,
+            fontFamily: F, fontSize: 13, fontWeight: 600,
             display: 'inline-flex', alignItems: 'center', gap: 8,
             whiteSpace: 'nowrap', flexShrink: 0,
             transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease',
@@ -1046,7 +1046,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
             <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T(arCount(stats.total, 'عامل', 'عمال'),'Workers')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(stats.total)}</span>
+            <span style={{ fontSize: 42, fontWeight: 600, color: C.blue, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(stats.total)}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)', gap: 8 }}>
             <span style={{ fontSize: 12, color: C.ok, fontWeight: 600, direction: 'rtl', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1097,18 +1097,18 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
                 </g>
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                <span style={{ fontSize: 24, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums', direction: 'ltr', color: 'var(--tx)' }}>{validPct}%</span>
-                <span style={{ fontSize: 9.5, fontWeight: 800, marginTop: 4, letterSpacing: '.2px', color: 'var(--tx2)' }}>{T('سارية','valid')}</span>
+                <span style={{ fontSize: 24, fontWeight: 600, lineHeight: 1, fontVariantNumeric: 'tabular-nums', direction: 'ltr', color: 'var(--tx)' }}>{validPct}%</span>
+                <span style={{ fontSize: 9.5, fontWeight: 600, marginTop: 4, letterSpacing: '.2px', color: 'var(--tx2)' }}>{T('سارية','valid')}</span>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
               {iqamaSegs.map(s => (
                 <button key={s.k}
                   onClick={() => { setAdv(a => ({ ...a, iqama: a.iqama === s.k ? '' : s.k })); setPage(0) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, opacity: s.v === 0 ? 0.4 : 1, background: adv.iqama === s.k ? 'rgba(212,160,23,.08)' : 'transparent', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, fontFamily: F, textAlign: 'right' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, opacity: s.v === 0 ? 0.4 : 1, background: adv.iqama === s.k ? 'rgba(176,125,0,.08)' : 'transparent', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, fontFamily: F, textAlign: 'right' }}>
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: s.c, flexShrink: 0 }} />
                   <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{s.l}</span>
-                  <span style={{ color: s.v === 0 ? 'var(--tx4)' : s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', fontWeight: 800, flexShrink: 0 }}>{num(s.v)}</span>
+                  <span style={{ color: s.v === 0 ? 'var(--tx4)' : s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', fontWeight: 600, flexShrink: 0 }}>{num(s.v)}</span>
                 </button>
               ))}
             </div>
@@ -1126,21 +1126,21 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الجنسيات','Nationalities')}</span>
-            <span style={{ fontSize: 10.5, color: C.purple, fontWeight: 700 }}>{num(natTop.length)} {T('جنسية','total')}</span>
+            <span style={{ fontSize: 10.5, color: C.purple, fontWeight: 600 }}>{num(natTop.length)} {T('جنسية','total')}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, flex: 1 }}>
             {natTop.slice(0, 4).map(([n, count]) => (
               <button key={n} onClick={() => { setAdv(a => ({ ...a, nationality: a.nationality === n ? '' : n })); setPage(0) }}
                 style={{
                   borderRadius: 12, padding: '8px 10px',
-                  background: adv.nationality === n ? 'rgba(212,160,23,.12)' : 'var(--bd2)',
-                  border: '1px solid ' + (adv.nationality === n ? 'rgba(212,160,23,.4)' : 'var(--bd2)'),
+                  background: adv.nationality === n ? 'rgba(176,125,0,.12)' : 'var(--bd2)',
+                  border: '1px solid ' + (adv.nationality === n ? 'rgba(176,125,0,.4)' : 'var(--bd2)'),
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
                   cursor: 'pointer', textAlign: 'start', fontFamily: F,
                 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <NatFlag nationality={n} size={16} />
-                  <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{num(count)}</span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{num(count)}</span>
                 </div>
                 <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span>
               </button>
@@ -1225,19 +1225,19 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
         <>
           <style>{`
             .wf-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-            .wf-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:14px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+            .wf-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:14px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
             .wf-tbl thead .hd-icon{color:${C.gold};display:inline-flex;align-items:center;justify-content:center;margin-inline-end:6px;vertical-align:middle}
             .wf-tbl thead .hd-icon svg{width:14px;height:14px;display:block}
             .wf-tbl tbody td{padding:10px 4px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.02)}
             .wf-tbl tbody tr{cursor:pointer;transition:background .12s}
             .wf-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-            .wf-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+            .wf-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
             .wf-tbl tbody tr:last-child td:first-child{border-bottom-right-radius:9px}
             .wf-tbl tbody tr:last-child td:last-child{border-bottom-left-radius:9px}
             .wf-tbl tbody tr:last-child td{border-bottom:none}
             .wf-tbl thead tr:first-child th:first-child{border-top-right-radius:9px}
             .wf-tbl thead tr:first-child th:last-child{border-top-left-radius:9px}
-            .wf-tbl .num{direction:ltr;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;font-weight:700}
+            .wf-tbl .num{direction:ltr;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;font-weight:600}
             .wf-tbl .muted{color:var(--tx5)}
             .wf-tbl .name-cell{overflow:hidden;padding-inline:14px}
             /* Marquee — long text ellipsis by default, scrolls horizontally on row hover */
@@ -1275,7 +1275,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
                     <tr key={w.id} onClick={() => setDetail(w)}>
                       <td className="name-cell" title={w.name_ar || w.name_en || ''}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                          <div className="name-marquee" style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)' }}>
+                          <div className="name-marquee" style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>
                             <span className="marquee-inner">{w.name_ar || w.name_en || '—'}</span>
                           </div>
                           {w.name_en && w.name_ar && (
@@ -1315,7 +1315,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
                           const city = asg.city ? T(asg.city.name_ar, asg.city.name_en || asg.city.name_ar) : null
                           return (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0, width: '100%' }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{asg.branch_code || '—'}</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{asg.branch_code || '—'}</span>
                               {city && <span style={{ fontSize: 9.5, fontWeight: 500, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap' }}>{city}</span>}
                             </div>
                           )
@@ -1337,14 +1337,14 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
             return (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px 4px', borderTop: '1px solid var(--bd)', marginTop: 18 }}>
                 <style>{`
-                  .wf-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
+                  .wf-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(176,125,0,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
                   .wf-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
                   .wf-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:var(--bd)}
-                  .wf-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+                  .wf-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:600;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
                   .wf-pg-input::-webkit-outer-spin-button,.wf-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 `}</style>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 700 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(filtered.length)}</span>
+                  <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600 }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(filtered.length)}</span>
                   <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{T('صفحة','Page')} {page + 1} {T('من','of')} {totalPages}</span>
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1433,13 +1433,13 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
 const selStyle = { width: '100%', height: 40, padding: '0 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 12.5, fontFamily: F, outline: 'none', cursor: 'pointer' }
 const FilterField = ({ label, children }) => (
   <div>
-    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', marginBottom: 6 }}>{label}</div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{label}</div>
     {children}
   </div>
 )
 function PageBtn({ children, onClick, disabled }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bd2)', border: '1px solid var(--bd)', color: disabled ? 'var(--tx5)' : 'var(--tx2)', cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 700, opacity: disabled ? .4 : 1, fontFamily: F }}>{children}</button>
+    <button onClick={onClick} disabled={disabled} style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bd2)', border: '1px solid var(--bd)', color: disabled ? 'var(--tx5)' : 'var(--tx2)', cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 600, opacity: disabled ? .4 : 1, fontFamily: F }}>{children}</button>
   )
 }
 
@@ -1447,8 +1447,8 @@ function Empty({ T, hasData }) {
   return (
     <EmptyState
       icon={hasData
-        ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-        : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>}
+        ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+        : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>}
       title={hasData ? T('لا توجد نتائج للبحث', 'No results match the search') : T('لا يوجد عمال مؤقتون بعد', 'No temporary workers yet')}
       desc={hasData ? T('جرّب تعديل كلمة البحث', 'Try adjusting your search') : T('استخدم زر «إضافة عامل مؤقت» في الأعلى', 'Use the “Add Temporary Worker” button above')} />
   )
@@ -1491,29 +1491,29 @@ function WorkerEditLog({ entries, created, fileUrls = {}, T }) {
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
-                    <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700 }}>{isCreate ? T('تمت الإضافة', 'Added') : isTransfer ? T('تم النقل', 'Transferred') : T('تم التعديل', 'Edited')}</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{isCreate ? T('تمت الإضافة', 'Added') : isTransfer ? T('تم النقل', 'Transferred') : T('تم التعديل', 'Edited')}</span>
                     {c.via === 'insurance_check' && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: C.ok, background: C.ok + '1a', border: '1px solid ' + C.ok + '47', borderRadius: 6, padding: '1px 7px' }}>{T('عبر استعلام التأمين', 'via insurance check')}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: C.ok, background: C.ok + '1a', border: '1px solid ' + C.ok + '47', borderRadius: 6, padding: '1px 7px' }}>{T('عبر استعلام التأمين', 'via insurance check')}</span>
                     )}
-                    {c.by_name && <span style={{ fontSize: 11, color: accent, fontWeight: 700 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
+                    {c.by_name && <span style={{ fontSize: 11, color: accent, fontWeight: 600 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
                   </div>
                   <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', flexShrink: 0 }}>{fmtDateTime(c.at)}</span>
                 </div>
                 {isCreate ? (
                   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     <span>{T('تمت إضافة العامل', 'Worker added')}</span>
-                    {c.label && <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{c.label}</span>}
+                    {c.label && <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{c.label}</span>}
                   </div>
                 ) : isTransfer ? (
                   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                    <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{c.from === 'permanent' ? T('نُقل من العمالة الدائمة', 'Moved from permanent workforce') : T('نُقل من العمالة المؤقتة', 'Moved from temporary workforce')}</span>
+                    <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{c.from === 'permanent' ? T('نُقل من العمالة الدائمة', 'Moved from permanent workforce') : T('نُقل من العمالة المؤقتة', 'Moved from temporary workforce')}</span>
                   </div>
                 ) : c.changes.map((ch, j) => {
                   const isFile = FILE_FIELDS.has(ch.field)
                   return (
                   <div key={j} style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     <span>{T(WORKER_LBL[ch.field]?.[0] || ch.field, WORKER_LBL[ch.field]?.[1] || ch.field)}:</span>
-                    <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{(ch.to == null || ch.to === '') ? '—' : (isFile ? fileLink(ch.to) : ch.to)}</span>
+                    <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{(ch.to == null || ch.to === '') ? '—' : (isFile ? fileLink(ch.to) : ch.to)}</span>
                     {(ch.from == null || ch.from === '')
                       ? <span style={{ color: 'var(--tx5)' }}>({T('جديد', 'new')})</span>
                       : <span style={{ color: 'var(--tx5)' }}>({T('كان', 'was')}: <span style={{ textDecoration: 'line-through' }}>{isFile ? fileLink(ch.from) : ch.from}</span>)</span>}
@@ -1708,7 +1708,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
     return (
       <div onClick={link && !empty ? () => goFacility(link) : undefined}
         style={{ gridColumn: full ? '1 / -1' : undefined, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, cursor: link && !empty ? 'pointer' : 'default', transition: 'border-color .15s' }}
-        onMouseEnter={link && !empty ? (e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }) : undefined}
+        onMouseEnter={link && !empty ? (e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }) : undefined}
         onMouseLeave={link && !empty ? (e => { e.currentTarget.style.borderColor = 'var(--bd)' }) : undefined}>
         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
@@ -1721,7 +1721,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   }
   // بطاقة ملف وثيقة (تصميم مربّع) — عرض الملف إن وُجد، وإلا «لا يوجد» (الرفع يتم من نافذة التعديل).
   const FileTile = ({ label, att }) => (
-    <div style={{ background: 'rgba(0,0,0,.25)', border: att ? '1px solid rgba(212,160,23,.25)' : '1px dashed var(--bd)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
+    <div style={{ background: 'rgba(0,0,0,.25)', border: att ? '1px solid rgba(176,125,0,.25)' : '1px dashed var(--bd)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
       {att ? (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
       ) : (
@@ -1730,7 +1730,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
       <span style={{ fontSize: 11, color: att ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{label}</span>
       {att ? (
         <a href={att.file_url} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, textDecoration: 'none' }}>{T('عرض الملف','View file')}</a>
+          style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, textDecoration: 'none' }}>{T('عرض الملف','View file')}</a>
       ) : (
         <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('لا يوجد','None')}</span>
       )}
@@ -1738,7 +1738,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   )
   const EditBtn = ({ onClick, allow = canEdit }) => allow && onClick ? (
     <button onClick={onClick} title={T('تعديل', 'Edit')}
-      style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
+      style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
       onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-bg)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-soft)' }}>
       {T('تعديل', 'Edit')}
@@ -1756,7 +1756,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   // زر إجراء في الترويسة — نفس تصميم زر «حذف المنشأة» (إطار متقطّع بلون قابل للتمرير).
   const HeaderBtn = ({ onClick, color, label, children }) => (
     <button onClick={onClick} title={label}
-      style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: `1px dashed ${color}80`, color, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s' }}
+      style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: `1px dashed ${color}80`, color, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s' }}
       onMouseEnter={e => { e.currentTarget.style.background = `${color}1f` }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
       <span>{label}</span>
@@ -1824,7 +1824,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('تاريخ الميلاد','Date of Birth')}</span>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
                   {w.birth_date && calcAge(w.birth_date) != null && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', fontFamily: F, flexShrink: 0 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', fontFamily: F, flexShrink: 0 }}>
                       {T(`${calcAge(w.birth_date)} سنة`, `${calcAge(w.birth_date)} yrs`)}
                     </span>
                   )}
@@ -1875,7 +1875,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
               <div style={cardChrome}>
                 <CardHead action={canCardBtn(user, 'temp_workers', 'medical_insurance_data', 'check_insurance') ? (
                   <button onClick={startChiCheck} disabled={!w.iqama_number} title={!w.iqama_number ? T('لا يوجد رقم إقامة', 'No Iqama number') : T('استعلام التأمين من منصة CHI', 'Check insurance via CHI')}
-                    style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(59,178,122,.1)', border: '1px solid rgba(59,178,122,.5)', color: '#3bb27a', cursor: w.iqama_number ? 'pointer' : 'not-allowed', opacity: w.iqama_number ? 1 : .5, fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
+                    style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(59,178,122,.1)', border: '1px solid rgba(59,178,122,.5)', color: '#3bb27a', cursor: w.iqama_number ? 'pointer' : 'not-allowed', opacity: w.iqama_number ? 1 : .5, fontFamily: F, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
                     onMouseEnter={e => { if (w.iqama_number) e.currentTarget.style.background = 'rgba(59,178,122,.18)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,178,122,.1)' }}>
                     {T('استعلام التأمين', 'Check insurance')}
@@ -1900,7 +1900,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('نوع التأشيرة','Visa Type')}</span>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
                   {w.exit_visa_type === 'final_exit' && finalExitKindLabel(w.final_exit_kind, T) && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', fontFamily: F, flexShrink: 0 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', fontFamily: F, flexShrink: 0 }}>
                       {finalExitKindLabel(w.final_exit_kind, T)}
                     </span>
                   )}
@@ -1927,8 +1927,8 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 {billingList.length ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {billingList.map((p, i) => (
-                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 8, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.25)' }}>
-                        <span style={{ fontSize: 12.5, fontWeight: 700, color: C.gold, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{fmtMobile(p)}</span>
+                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 8, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.25)' }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.gold, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{fmtMobile(p)}</span>
                         <CopyBtn value={fmtMobile(p)} toast={toast} T={T} />
                       </span>
                     ))}
@@ -1995,10 +1995,10 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   return (
                     <div key={i} onClick={r.invoice_id ? () => goInvoice(r.invoice_id) : undefined} title={r.invoice_id ? T('عرض تفاصيل الفاتورة', 'View invoice') : ''}
                       style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: cancelled ? 'rgba(232,114,101,.07)' : 'rgba(0,0,0,.18)', border: `1px solid ${cancelled ? 'rgba(232,114,101,.28)' : 'var(--bd)'}`, borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', transition: 'border-color .15s' }}
-                      onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.7)' : 'rgba(212,160,23,.5)' }}
+                      onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.7)' : 'rgba(176,125,0,.5)' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.28)' : 'var(--bd)' }}>
                       {cancelled && (
-                        <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%, -50%) rotate(-16deg)', fontSize: 30, fontWeight: 800, letterSpacing: 2, color: 'rgba(232,114,101,.13)', border: '3px solid rgba(232,114,101,.16)', borderRadius: 10, padding: '2px 24px', pointerEvents: 'none', whiteSpace: 'nowrap', fontFamily: F }}>{T('ملغاة', 'Cancelled')}</div>
+                        <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%, -50%) rotate(-16deg)', fontSize: 30, fontWeight: 600, letterSpacing: 2, color: 'rgba(232,114,101,.13)', border: '3px solid rgba(232,114,101,.16)', borderRadius: 10, padding: '2px 24px', pointerEvents: 'none', whiteSpace: 'nowrap', fontFamily: F }}>{T('ملغاة', 'Cancelled')}</div>
                       )}
                       <div style={{ position: 'relative', minWidth: 0 }}>
                         <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.service_ar || T('خدمة', 'Service')}</div>
@@ -2153,9 +2153,9 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 </div>
                 <input value={chi.captchaInput} onChange={e => setChi(c => ({ ...c, captchaInput: e.target.value.replace(/\s/g, '').slice(0, 8) }))}
                   onKeyDown={e => { if (e.key === 'Enter') submitChiCaptcha() }} placeholder="______" autoFocus maxLength={8}
-                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 700, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.25)', textAlign: 'center', letterSpacing: '8px', direction: 'ltr' }} />
+                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.25)', textAlign: 'center', letterSpacing: '8px', direction: 'ltr' }} />
                 {chi.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{chi.error}</div>}
-                <button onClick={submitChiCaptcha} disabled={!chi.captchaInput || chi.captchaInput.length < 3} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 700, cursor: (!chi.captchaInput || chi.captchaInput.length < 3) ? 'not-allowed' : 'pointer', opacity: (!chi.captchaInput || chi.captchaInput.length < 3) ? 0.45 : 1 }}>{T('استعلام', 'Check')}</button>
+                <button onClick={submitChiCaptcha} disabled={!chi.captchaInput || chi.captchaInput.length < 3} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 600, cursor: (!chi.captchaInput || chi.captchaInput.length < 3) ? 'not-allowed' : 'pointer', opacity: (!chi.captchaInput || chi.captchaInput.length < 3) ? 0.45 : 1 }}>{T('استعلام', 'Check')}</button>
               </div>
             )}
 
@@ -2185,11 +2185,11 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   </>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 0' }}>
-                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(212,160,23,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}><AlertCircle size={28} /></div>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(176,125,0,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}><AlertCircle size={28} /></div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: C.gold, textAlign: 'center' }}>{T('لا يوجد تأمين ساري للعامل', 'No active insurance found')}</div>
                   </div>
                 )}
-                <button onClick={closeChi} style={{ height: 44, borderRadius: 11, border: '1px solid rgba(59,178,122,.4)', background: 'rgba(59,178,122,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{T('تم', 'Done')}</button>
+                <button onClick={closeChi} style={{ height: 44, borderRadius: 11, border: '1px solid rgba(59,178,122,.4)', background: 'rgba(59,178,122,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{T('تم', 'Done')}</button>
               </div>
             )}
 
@@ -2214,8 +2214,8 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
 function FacChip({ label, value, toast, T }) {
   return (
     <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px' }}>
-      <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 12.5, color: value ? 'var(--tx)' : 'var(--tx5)', fontWeight: 700, direction: 'ltr', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 12.5, color: value ? 'var(--tx)' : 'var(--tx5)', fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         {value || '—'}
         {value && <CopyBtn value={value} toast={toast} T={T} />}
       </div>

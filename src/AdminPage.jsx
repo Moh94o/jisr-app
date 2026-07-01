@@ -3,17 +3,17 @@ import {C as FKC, Modal as FKModal, ModalSection as FKSection, ActionButton as F
 import {Building2, MapPin, Phone as PhoneIcon, Mail, CalendarDays, Wallet, StickyNote, ClipboardList, Landmark, CreditCard, Link2, Settings2, User, Users, UserCog, UserCheck, UserX, RefreshCcw, Shield, KeyRound, FileText, Eye, Palette, Activity, LogIn, Languages, ListChecks, Briefcase, AlertTriangle, Info, Pencil} from 'lucide-react'
 import PageSkeleton, {Shimmer} from './components/ui/Skeleton.jsx'
 const F="'Cairo','Tajawal',sans-serif"
-const C={dk:'#171717',fm:'#1e1e1e',gold:'#D4A017',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
+const C={dk:'#171717',fm:'#1e1e1e',gold:'#B07D00',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const num=v=>Number(v||0).toLocaleString('en-US')
 const roleClrs={'المدير العام':'#e8c547','مدير فرع':'#85B7EB','محاسب':'#AFA9EC','موظف استقبال':'#5DCAA5'}
 const daysSince=iso=>{if(!iso)return 0;return Math.floor((Date.now()-new Date(iso).getTime())/86400000)}
 
 const GLASS={background:'var(--card-grad)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid var(--bd)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
 const fS={width:'100%',height:42,padding:'0 14px',border:'1px solid var(--bd)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:500,color:'var(--tx)',outline:'none',background:'var(--inputBg)',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',textAlign:'center',boxSizing:'border-box'}
-const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(212,160,23,.45)',background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)',transition:'.2s'}
+const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(176,125,0,.45)',background:'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)',transition:'.2s'}
 const sBS={height:40,padding:'0 14px',borderRadius:11,border:'1px solid var(--bd)',background:'var(--card-bg)',color:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:10,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
 const lblS={fontSize:12,fontWeight:500,color:'var(--tx3)',paddingInlineStart:2,marginBottom:7}
-const IB=({l,v,copy,toast,isAr})=>{const[copied,setCopied]=useState(false);return <div style={{background:'var(--bd2)',borderRadius:10,padding:'14px 16px',border:'1px solid var(--bd2)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:700,color:'var(--tx)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();try{navigator.clipboard.writeText(String(v));setCopied(true);setTimeout(()=>setCopied(false),1200)}catch{}}} onMouseEnter={e=>{if(!copied)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copied)e.currentTarget.style.color='var(--tx5)'}} style={{width:20,height:20,borderRadius:5,border:'none',background:'var(--bd)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:copied?C.ok:'var(--tx5)',transition:'color .15s'}}>{copied?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}</button>}</div></div>}
+const IB=({l,v,copy,toast,isAr})=>{const[copied,setCopied]=useState(false);return <div style={{background:'var(--bd2)',borderRadius:10,padding:'14px 16px',border:'1px solid var(--bd2)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:600,color:'var(--tx)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();try{navigator.clipboard.writeText(String(v));setCopied(true);setTimeout(()=>setCopied(false),1200)}catch{}}} onMouseEnter={e=>{if(!copied)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copied)e.currentTarget.style.color='var(--tx5)'}} style={{width:20,height:20,borderRadius:5,border:'none',background:'var(--bd)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:copied?C.ok:'var(--tx5)',transition:'color .15s'}}>{copied?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}</button>}</div></div>}
 
 const BadgeStatus=({v})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'rgba(192,57,43,.1)',color:v?C.ok:C.red}}>{v?'نشط':'معطّل'}</span>
 
@@ -162,8 +162,8 @@ return(b.name_ar||'').includes(s)||(b.name_en||'').toLowerCase().includes(s)||(b
 
 const allTabs=[{id:'branches',l:'المكاتب',le:'Branches'},{id:'bank_accounts',l:'الحسابات البنكية',le:'Bank Accounts'},{id:'users',l:'الموظفين',le:'Users'},{id:'roles',l:'الأدوار والصلاحيات',le:'Roles & Permissions'},{id:'ui_controls',l:'التحكم بالعرض',le:'UI Controls'}];const tabs=defaultTab==='users'?[{id:'users',l:'الموظفين'},{id:'performance',l:'الأداء'},{id:'attendance_tab',l:'الحضور'},{id:'roles',l:'الأدوار والصلاحيات'},{id:'ui_controls',l:'التحكم بالعرض'}]:allTabs
 
-const openAdd=()=>{setForm({_table:'branches',name_ar:'',name_en:'',code:'',region_id:'',city_id:'',mobile:'',email:'',color:'#c9a84c',manager_id:'',work_from:'08:00',work_to:'17:00',work_days:'الأحد,الاثنين,الثلاثاء,الأربعاء,الخميس',opening_balance:'',daily_cash_limit:'',is_active:'true',address:'',google_maps_url:'',notes:''});setStep(1);setPop('add')}
-const openEdit=(b)=>{setForm({_table:'branches',_id:b.id,name_ar:b.name_ar||'',name_en:b.name_en||'',code:b.code?b.code.split('-').pop():'',region_id:b.region_id||'',city_id:b.city_id||'',mobile:b.mobile?b.mobile.replace('+966',''):'',email:b.email||'',color:b.color||'#c9a84c',manager_id:b.manager_id||'',work_from:b.work_from||'08:00',work_to:b.work_to||'17:00',work_days:b.work_days||'الأحد,الاثنين,الثلاثاء,الأربعاء,الخميس',opening_balance:b.opening_balance||'',daily_cash_limit:b.daily_cash_limit||'',is_active:String(b.is_active!==false),address:b.address||'',google_maps_url:b.google_maps_url||'',notes:b.notes||''});setStep(1);setPop('edit')}
+const openAdd=()=>{setForm({_table:'branches',name_ar:'',name_en:'',code:'',region_id:'',city_id:'',mobile:'',email:'',color:'#B07D00',manager_id:'',work_from:'08:00',work_to:'17:00',work_days:'الأحد,الاثنين,الثلاثاء,الأربعاء,الخميس',opening_balance:'',daily_cash_limit:'',is_active:'true',address:'',google_maps_url:'',notes:''});setStep(1);setPop('add')}
+const openEdit=(b)=>{setForm({_table:'branches',_id:b.id,name_ar:b.name_ar||'',name_en:b.name_en||'',code:b.code?b.code.split('-').pop():'',region_id:b.region_id||'',city_id:b.city_id||'',mobile:b.mobile?b.mobile.replace('+966',''):'',email:b.email||'',color:b.color||'#B07D00',manager_id:b.manager_id||'',work_from:b.work_from||'08:00',work_to:b.work_to||'17:00',work_days:b.work_days||'الأحد,الاثنين,الثلاثاء,الأربعاء,الخميس',opening_balance:b.opening_balance||'',daily_cash_limit:b.daily_cash_limit||'',is_active:String(b.is_active!==false),address:b.address||'',google_maps_url:b.google_maps_url||'',notes:b.notes||''});setStep(1);setPop('edit')}
 
 const permModules=[...new Set(perms.map(p=>p.module))]
 
@@ -197,7 +197,7 @@ else if(tab==='roles'){setForm({_table:'roles',name_ar:'',name_en:'',description
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
 <input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالاسم، الكود، الجوال، البريد..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'var(--inputBg)',border:'1px solid var(--bd)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
 </div>
-{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(212,160,23,.45)':'var(--bd)'),background:sel?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'var(--card-bg)',color:sel?C.gold:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
+{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(176,125,0,.45)':'var(--bd)'),background:sel?'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)':'var(--card-bg)',color:sel?C.gold:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
 {regions.length>0&&<select value={filterRegion} onChange={e=>setFilterRegion(e.target.value)} style={{...sBS,width:160,cursor:'pointer'}}>
 <option value="all">كل المناطق</option>
 {regions.map(r=><option key={r.id} value={r.id}>{r.name_ar}</option>)}
@@ -234,12 +234,12 @@ return<div key={b.id} onClick={()=>{setViewTab('info');setViewPop(b)}} onMouseEn
 {/* Header: icon + names + code + status */}
 <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
 <div style={{width:38,height:38,borderRadius:10,background:(b.color||C.gold)+'18',border:'1.5px solid '+(b.color||C.gold)+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<span style={{fontSize:15,fontWeight:800,color:b.color||C.gold}}>{b.name_ar?.[0]}</span>
+<span style={{fontSize:15,fontWeight:600,color:b.color||C.gold}}>{b.name_ar?.[0]}</span>
 </div>
 <div style={{flex:1,minWidth:0}}>
 <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name_ar}</span>
-{b.code&&<span style={{fontSize:8,fontWeight:700,color:b.color||C.gold,background:(b.color||C.gold)+'12',padding:'2px 6px',borderRadius:5,fontFamily:'monospace',direction:'ltr',flexShrink:0}}>{b.code}</span>}
+<span style={{fontSize:14,fontWeight:600,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name_ar}</span>
+{b.code&&<span style={{fontSize:8,fontWeight:600,color:b.color||C.gold,background:(b.color||C.gold)+'12',padding:'2px 6px',borderRadius:5,fontFamily:'monospace',direction:'ltr',flexShrink:0}}>{b.code}</span>}
 </div>
 {b.name_en&&<div style={{fontSize:10,color:'var(--tx5)',direction:'ltr',textAlign:'right'}}>{b.name_en}</div>}
 </div>
@@ -295,7 +295,7 @@ if(!q)return true;const s=q.toLowerCase();return(a.bank_name||'').includes(s)||(
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="2" style={{position:'absolute',top:'50%',transform:'translateY(-50%)',right:14}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
 <input value={q} onChange={e=>setQ(e.target.value)} placeholder="بحث بالبنك، الآيبان، رقم الحساب..." style={{width:'100%',height:40,padding:'0 38px 0 14px',background:'var(--inputBg)',border:'1px solid var(--bd)',borderRadius:11,fontFamily:F,fontSize:14,fontWeight:400,color:'var(--tx)',outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',textAlign:'right',boxSizing:'border-box'}}/>
 </div>
-{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(212,160,23,.45)':'var(--bd)'),background:sel?'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)':'var(--card-bg)',color:sel?C.gold:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
+{[['all','الكل'],['active','نشط'],['inactive','معطّل']].map(([k,l])=>{const sel=filterStatus===k;return<div key={k} onClick={()=>setFilterStatus(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?'rgba(176,125,0,.45)':'var(--bd)'),background:sel?'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)':'var(--card-bg)',color:sel?C.gold:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
 {[['all','الكل',C.gold],['deposit','إيداع',C.gold],['sadad','سداد',C.blue],['international','خارجي',C.ok]].map(([k,l,c])=>{const sel=filterRegion===k;return<div key={k} onClick={()=>setFilterRegion(k)} style={{height:40,padding:'0 14px',borderRadius:11,border:'1px solid '+(sel?c+'66':'var(--bd)'),background:sel?'linear-gradient(180deg,'+c+'33 0%,'+c+'14 100%)':'var(--card-bg)',color:sel?c:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:sel?600:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:sel?'0 2px 8px '+c+'2a, inset 0 1px 0 '+c+'22':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}}>{l}</div>})}
 </div>
 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
@@ -309,12 +309,12 @@ return<div key={a.id} onMouseEnter={e=>{e.currentTarget.style.transform='transla
 </div>
 <div style={{flex:1}}>
 <div style={{display:'flex',alignItems:'center',gap:6}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{a.bank_name}</span>
-{a.is_primary&&<span style={{fontSize:8,color:C.gold,background:'rgba(201,168,76,.1)',padding:'2px 6px',borderRadius:6,fontWeight:700}}>رئيسي</span>}
+<span style={{fontSize:14,fontWeight:600,color:'var(--tx)'}}>{a.bank_name}</span>
+{a.is_primary&&<span style={{fontSize:8,color:C.gold,background:'rgba(201,168,76,.1)',padding:'2px 6px',borderRadius:6,fontWeight:600}}>رئيسي</span>}
 </div>
 {a.account_name&&<div style={{fontSize:10,color:'var(--tx5)',marginTop:2}}>{a.account_name}</div>}
 </div>
-<span style={{fontSize:9,color:tp.c,background:tp.c+'12',padding:'3px 8px',borderRadius:6,fontWeight:700}}>{tp.l}</span>
+<span style={{fontSize:9,color:tp.c,background:tp.c+'12',padding:'3px 8px',borderRadius:6,fontWeight:600}}>{tp.l}</span>
 </div>
 
 <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10}}>
@@ -381,7 +381,7 @@ return <div>
 <div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(39,160,70,.18) 0%,rgba(39,160,70,.06) 100%)',border:'1px solid rgba(39,160,70,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2"><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
 <div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>إجمالي الموظفين</div>
-<div style={{fontSize:24,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{users.length}</div>
+<div style={{fontSize:24,fontWeight:600,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{users.length}</div>
 <div style={{fontSize:10,marginTop:6,display:'flex',gap:8}}>
 <span style={{color:C.ok}}>● {activeUsers.length} نشط</span>
 <span style={{color:C.red}}>● {disabled.length} معطل</span>
@@ -393,7 +393,7 @@ return <div>
 <div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(184,114,42,.18) 0%,rgba(184,114,42,.06) 100%)',border:'1px solid rgba(184,114,42,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b8722a" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
 <div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>بانتظار الموافقة</div>
-<div style={{fontSize:24,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{pending.length}</div>
+<div style={{fontSize:24,fontWeight:600,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{pending.length}</div>
 <div style={{fontSize:10,marginTop:6,color:pending.length>0?'#b8722a':'var(--tx5)'}}>{pending.length>0?'يحتاج مراجعة منك →':'لا يوجد طلبات'}</div>
 </div>
 </div>
@@ -401,7 +401,7 @@ return <div>
 <div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(52,131,180,.18) 0%,rgba(52,131,180,.06) 100%)',border:'1px solid rgba(52,131,180,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
 <div style={{textAlign:'left',flex:1}}>
 <div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>الأدوار المعيّنة</div>
-<div style={{fontSize:24,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{Object.keys(roleCounts).length}</div>
+<div style={{fontSize:24,fontWeight:600,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{Object.keys(roleCounts).length}</div>
 <div style={{fontSize:10,marginTop:6,color:'var(--tx5)'}}>{gmCount>0?gmCount+' مدير عام · ':''}{otherRoles} أدوار أخرى</div>
 </div>
 </div>
@@ -409,13 +409,13 @@ return <div>
 <div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(180deg,rgba(39,160,70,.18) 0%,rgba(39,160,70,.06) 100%)',border:'1px solid rgba(39,160,70,.25)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg></div>
 <div style={{textAlign:'left',flex:1,minWidth:0}}>
 <div style={{fontSize:12,color:'var(--tx4)',fontWeight:500}}>توزيع الفروع</div>
-<div style={{fontSize:24,fontWeight:700,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{usedBranches.length}</div>
+<div style={{fontSize:24,fontWeight:600,color:'var(--tx)',lineHeight:1.1,marginTop:4,letterSpacing:'-.3px'}}>{usedBranches.length}</div>
 <div style={{fontSize:10,marginTop:6,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{usedBranches.join(' · ')||'—'}</div>
 </div>
 </div>
 </div>
-{pending.length>0?<div style={{...GLASS,padding:'16px 18px',display:'flex',alignItems:'center',gap:14,marginBottom:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), 0 0 0 1px rgba(212,160,23,.22), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
-<div style={{width:40,height:40,borderRadius:11,background:'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.06) 100%)',border:'1px solid rgba(212,160,23,.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+{pending.length>0?<div style={{...GLASS,padding:'16px 18px',display:'flex',alignItems:'center',gap:14,marginBottom:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), 0 0 0 1px rgba(176,125,0,.22), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
+<div style={{width:40,height:40,borderRadius:11,background:'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.06) 100%)',border:'1px solid rgba(176,125,0,.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 <div style={{flex:1}}>
 <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:4}}>طلب تسجيل جديد بحاجة للمراجعة</div>
 <div style={{fontSize:11,color:'var(--tx4)',lineHeight:1.6}}>{pending[0].name_ar} سجّل حساب جديد بتاريخ {new Date(pending[0].created_at).toLocaleDateString('ar-SA',{day:'numeric',month:'long',year:'numeric'})}. قم بتعيين دور وتفعيل الحساب للسماح بالدخول.</div>
@@ -437,15 +437,15 @@ return <div>
 {filtUsers.map(u=>{const br=branches.find(b=>b.id===u.branch_id);const rc=roleClrs[u.roles?.name_ar]||u.roles?.color||'#888';const st=statusOf(u);const stClr=st==='active'?C.ok:st==='pending'?'#b8722a':C.red;const stLbl=st==='active'?'نشط':st==='pending'?'بانتظار الموافقة':'معطل';return <div key={u.id} onClick={()=>{setViewUser(u);setUserTab('data')}} style={{display:'grid',gridTemplateColumns:'28px 2.2fr 1.4fr 1fr 1fr 1.1fr 1.1fr 100px',gap:10,padding:'14px 18px',borderBottom:'1px solid var(--bd2)',alignItems:'center',cursor:'pointer',transition:'.12s',borderRight:st==='pending'?'3px solid rgba(184,114,42,.7)':st==='inactive'?'3px solid rgba(192,57,43,.5)':'3px solid transparent'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(201,168,76,.02)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
 <div onClick={e=>e.stopPropagation()}><input type="checkbox" style={{cursor:'pointer'}}/></div>
 <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
-<div style={{width:34,height:34,borderRadius:'50%',background:rc+'20',border:'1px solid '+rc+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:rc,flexShrink:0}}>{(u.name_ar||'?')[0]}</div>
+<div style={{width:34,height:34,borderRadius:'50%',background:rc+'20',border:'1px solid '+rc+'30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,color:rc,flexShrink:0}}>{(u.name_ar||'?')[0]}</div>
 <div style={{minWidth:0,flex:1}}>
-<div style={{fontSize:12,fontWeight:800,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.name_ar}</div>
+<div style={{fontSize:12,fontWeight:600,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.name_ar}</div>
 <div style={{fontSize:10,color:'var(--tx5)',direction:'ltr',textAlign:'right',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.email||u.name_en||''}</div>
 </div>
 </div>
-<div>{u.roles?<span style={{fontSize:10,padding:'4px 10px',borderRadius:12,background:rc+'15',border:'1px solid '+rc+'25',color:rc,fontWeight:700,whiteSpace:'nowrap'}}>{u.roles.name_ar}</span>:<span style={{fontSize:10,padding:'4px 10px',borderRadius:12,border:'1px dashed var(--bd)',color:'var(--tx5)',whiteSpace:'nowrap'}}>لم يتم التعيين</span>}</div>
+<div>{u.roles?<span style={{fontSize:10,padding:'4px 10px',borderRadius:12,background:rc+'15',border:'1px solid '+rc+'25',color:rc,fontWeight:600,whiteSpace:'nowrap'}}>{u.roles.name_ar}</span>:<span style={{fontSize:10,padding:'4px 10px',borderRadius:12,border:'1px dashed var(--bd)',color:'var(--tx5)',whiteSpace:'nowrap'}}>لم يتم التعيين</span>}</div>
 <div style={{fontSize:10,color:'var(--tx3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.is_all_branches?'كل الفروع':br?br.name_ar:'—'}</div>
-<div><span style={{fontSize:10,padding:'4px 10px',borderRadius:12,background:stClr+'12',color:stClr,fontWeight:700,display:'inline-flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}><span style={{width:5,height:5,borderRadius:'50%',background:stClr}}/>{stLbl}</span></div>
+<div><span style={{fontSize:10,padding:'4px 10px',borderRadius:12,background:stClr+'12',color:stClr,fontWeight:600,display:'inline-flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}><span style={{width:5,height:5,borderRadius:'50%',background:stClr}}/>{stLbl}</span></div>
 <div style={{display:'flex',flexDirection:'column',gap:1}}>
 <span style={{fontSize:10,color:'var(--tx3)',fontWeight:600}}>{relTime(u.last_login_at)}</span>
 {u.last_login_at?<span style={{fontSize:8,color:'var(--tx5)'}}>{String(u.last_login_at).slice(0,10)}</span>:null}
@@ -476,21 +476,21 @@ return<div key={r.id} onMouseEnter={e=>{e.currentTarget.style.transform='transla
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
 <div style={{display:'flex',alignItems:'center',gap:8}}>
 <span style={{width:8,height:8,borderRadius:'50%',background:rc,flexShrink:0}}/>
-<span style={{fontSize:15,fontWeight:700,color:'var(--tx)'}}>{r.name_ar}</span>
-{r.is_system&&<span style={{fontSize:8,padding:'2px 6px',borderRadius:4,background:'rgba(201,168,76,.1)',color:C.gold,fontWeight:700}}>نظامي</span>}
+<span style={{fontSize:15,fontWeight:600,color:'var(--tx)'}}>{r.name_ar}</span>
+{r.is_system&&<span style={{fontSize:8,padding:'2px 6px',borderRadius:4,background:'rgba(201,168,76,.1)',color:C.gold,fontWeight:600}}>نظامي</span>}
 </div>
-<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:r.is_active?'rgba(39,160,70,.1)':'rgba(153,153,153,.1)',color:r.is_active?C.ok:'#999',fontWeight:700}}>{r.is_active?'نشط':'معطّل'}</span>
+<span style={{fontSize:9,padding:'2px 8px',borderRadius:5,background:r.is_active?'rgba(39,160,70,.1)':'rgba(153,153,153,.1)',color:r.is_active?C.ok:'#999',fontWeight:600}}>{r.is_active?'نشط':'معطّل'}</span>
 </div>
 {r.name_en&&<div style={{fontSize:11,color:'var(--tx5)',direction:'ltr',marginBottom:4}}>{r.name_en}</div>}
 {r.description&&<div style={{fontSize:10,color:'var(--tx4)',marginBottom:8}}>{r.description}</div>}
 </div>
 <div style={{display:'flex',borderTop:'1px solid var(--bd2)'}}>
-<div style={{flex:1,padding:'10px 16px',textAlign:'center',borderLeft:'1px solid var(--bd2)'}}><div style={{fontSize:18,fontWeight:800,color:rc}}>{rp.length}</div><div style={{fontSize:8,color:rc,opacity:.6,marginTop:2}}>صلاحية</div></div>
-<div style={{flex:1,padding:'10px 16px',textAlign:'center'}}><div style={{fontSize:18,fontWeight:800,color:C.gold}}>{rUsers.length}</div><div style={{fontSize:8,color:C.gold,opacity:.6,marginTop:2}}>موظف</div></div>
+<div style={{flex:1,padding:'10px 16px',textAlign:'center',borderLeft:'1px solid var(--bd2)'}}><div style={{fontSize:18,fontWeight:600,color:rc}}>{rp.length}</div><div style={{fontSize:8,color:rc,opacity:.6,marginTop:2}}>صلاحية</div></div>
+<div style={{flex:1,padding:'10px 16px',textAlign:'center'}}><div style={{fontSize:18,fontWeight:600,color:C.gold}}>{rUsers.length}</div><div style={{fontSize:8,color:C.gold,opacity:.6,marginTop:2}}>موظف</div></div>
 </div>
 <div style={{display:'flex',borderTop:'1px solid var(--bd2)'}}>
-<button onClick={()=>{setSelPerms(rp.map(p=>p.permission_id));setPermPop(r.id)}} style={{flex:1,height:34,border:'none',borderLeft:'1px solid var(--bd2)',background:'rgba(52,131,180,.04)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>إدارة الصلاحيات</button>
-<button onClick={()=>{setForm({_table:'roles',_id:r.id,name_ar:r.name_ar||'',name_en:r.name_en||'',description:r.description||'',color:r.color||'',is_active:String(r.is_active!==false)});setPop('edit_role')}} style={{width:50,height:34,border:'none',background:'rgba(201,168,76,.04)',color:C.gold,fontFamily:F,fontSize:10,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>تعديل</button>
+<button onClick={()=>{setSelPerms(rp.map(p=>p.permission_id));setPermPop(r.id)}} style={{flex:1,height:34,border:'none',borderLeft:'1px solid var(--bd2)',background:'rgba(52,131,180,.04)',color:C.blue,fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>إدارة الصلاحيات</button>
+<button onClick={()=>{setForm({_table:'roles',_id:r.id,name_ar:r.name_ar||'',name_en:r.name_en||'',description:r.description||'',color:r.color||'',is_active:String(r.is_active!==false)});setPop('edit_role')}} style={{width:50,height:34,border:'none',background:'rgba(201,168,76,.04)',color:C.gold,fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>تعديل</button>
 </div>
 </div>})}
 </div>
@@ -514,25 +514,25 @@ return<>
 {/* Employees */}
 <div style={{...GLASS,padding:'16px 18px',textAlign:'center'}}>
 <div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginBottom:8}}>الموظفين</div>
-<div style={{fontSize:24,fontWeight:700,color:C.ok,lineHeight:1.1,letterSpacing:'-.3px'}}>{filtered.length}</div>
+<div style={{fontSize:24,fontWeight:600,color:C.ok,lineHeight:1.1,letterSpacing:'-.3px'}}>{filtered.length}</div>
 <div style={{fontSize:10,color:'var(--tx5)',marginTop:6}}>{perfData.length} إجمالي</div>
 </div>
 {/* Avg Score with comparison */}
 <div style={{...GLASS,padding:'16px 18px',textAlign:'center'}}>
 <div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginBottom:8}}>متوسط النقاط</div>
-<div style={{fontSize:24,fontWeight:700,color:C.gold,lineHeight:1.1,letterSpacing:'-.3px'}}>{avgScore}<span style={{fontSize:12,fontWeight:500,opacity:.5}}>/{MAX_SCORE}</span></div>
+<div style={{fontSize:24,fontWeight:600,color:C.gold,lineHeight:1.1,letterSpacing:'-.3px'}}>{avgScore}<span style={{fontSize:12,fontWeight:500,opacity:.5}}>/{MAX_SCORE}</span></div>
 {scoreDiff!==0&&<div style={{fontSize:10,fontWeight:600,color:scoreDiff>0?C.ok:C.red,marginTop:6}}>{scoreDiff>0?'▲':'▼'} {Math.abs(scoreDiff)} عن الشهر السابق</div>}
 </div>
 {/* Total Transactions */}
 <div style={{...GLASS,padding:'16px 18px',textAlign:'center'}}>
 <div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginBottom:8}}>المعاملات المنجزة</div>
-<div style={{fontSize:24,fontWeight:700,color:C.blue,lineHeight:1.1,letterSpacing:'-.3px'}}>{totalTxn}</div>
+<div style={{fontSize:24,fontWeight:600,color:C.blue,lineHeight:1.1,letterSpacing:'-.3px'}}>{totalTxn}</div>
 <div style={{fontSize:10,color:'var(--tx5)',marginTop:6}}>نسبة الإنجاز: {totalTxnAll>0?Math.round(totalTxn/totalTxnAll*100):0}%</div>
 </div>
 {/* Overdue */}
 <div style={{...GLASS,padding:'16px 18px',textAlign:'center'}}>
 <div style={{fontSize:12,fontWeight:500,color:'var(--tx4)',marginBottom:8}}>المتأخرات</div>
-<div style={{fontSize:24,fontWeight:700,color:totalOverdue>0?C.red:'var(--tx5)',lineHeight:1.1,letterSpacing:'-.3px'}}>{totalOverdue}</div>
+<div style={{fontSize:24,fontWeight:600,color:totalOverdue>0?C.red:'var(--tx5)',lineHeight:1.1,letterSpacing:'-.3px'}}>{totalOverdue}</div>
 <div style={{fontSize:10,color:totalOverdue>0?C.red:'var(--tx5)',marginTop:6,opacity:.85}}>{overdueUsers} موظف عنده متأخرات</div>
 </div>
 </div>
@@ -555,12 +555,12 @@ return<>
 return<div key={e.user_id} onMouseEnter={ev=>{ev.currentTarget.style.transform='translateY(-3px)';ev.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+accent+'33, inset 0 1px 0 rgba(255,255,255,.08)'}} onMouseLeave={ev=>{ev.currentTarget.style.transform='translateY(0)';ev.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}} style={{...GLASS,overflow:'hidden',transition:'.2s'}}>
 {/* Header */}
 <div style={{padding:'14px 18px',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:38,height:38,borderRadius:'50%',background:i<3?'rgba(201,168,76,.12)':'var(--bd2)',border:'1.5px solid '+(i<3?'rgba(201,168,76,.25)':'var(--bd)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?16:13,fontWeight:800,color:i<3?C.gold:'var(--tx4)',flexShrink:0}}>
+<div style={{width:38,height:38,borderRadius:'50%',background:i<3?'rgba(201,168,76,.12)':'var(--bd2)',border:'1.5px solid '+(i<3?'rgba(201,168,76,.25)':'var(--bd)'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?16:13,fontWeight:600,color:i<3?C.gold:'var(--tx4)',flexShrink:0}}>
 {i<3?medals[i]:'#'+(i+1)}
 </div>
 <div style={{flex:1,minWidth:0}}>
 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
-<span style={{fontSize:14,fontWeight:700,color:'var(--tx)'}}>{e.name_ar}</span>
+<span style={{fontSize:14,fontWeight:600,color:'var(--tx)'}}>{e.name_ar}</span>
 {hasOverdue&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:3,background:'rgba(192,57,43,.1)',color:C.red,fontWeight:600}}>متأخرات</span>}
 </div>
 <div style={{fontSize:10,color:'var(--tx4)'}}>{e.role_name||'—'}{e.branch_name?' · '+e.branch_name:''}</div>
@@ -568,10 +568,10 @@ return<div key={e.user_id} onMouseEnter={ev=>{ev.currentTarget.style.transform='
 {/* Score with max */}
 <div style={{textAlign:'center',flexShrink:0,minWidth:90}}>
 <div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:2}}>
-<span style={{fontSize:26,fontWeight:900,color:scoreColor(sc)}}>{sc}</span>
+<span style={{fontSize:26,fontWeight:600,color:scoreColor(sc)}}>{sc}</span>
 <span style={{fontSize:11,color:'var(--tx5)'}}>/ {MAX_SCORE}</span>
 </div>
-{diff!==0&&<div style={{fontSize:9,fontWeight:700,color:diff>0?C.ok:C.red,marginTop:2}}>{diff>0?'▲ +':'▼ '}{Math.abs(diff)} عن السابق</div>}
+{diff!==0&&<div style={{fontSize:9,fontWeight:600,color:diff>0?C.ok:C.red,marginTop:2}}>{diff>0?'▲ +':'▼ '}{Math.abs(diff)} عن السابق</div>}
 </div>
 </div>
 {/* Progress bar */}
@@ -585,7 +585,7 @@ return<div key={e.user_id} onMouseEnter={ev=>{ev.currentTarget.style.transform='
 <div style={{display:'flex',borderTop:'1px solid var(--bd2)',background:'var(--bd2)'}}>
 {[['معاملات',e.txn_completed,C.blue],['تحصيل',num(e.amount_collected),C.ok],['مهام',e.tasks_done,C.gold],['متأخرة',e.tasks_overdue,Number(e.tasks_overdue)>0?C.red:'var(--tx5)'],['تصعيدات',e.escalations,Number(e.escalations)>0?'#e67e22':'var(--tx5)'],['م.الأيام',e.avg_completion_days,'#9b59b6']].map(([l,v,c],j)=>
 <div key={l} style={{flex:1,padding:'8px 4px',textAlign:'center',borderLeft:j>0?'1px solid var(--bd2)':'none'}}>
-<div style={{fontSize:14,fontWeight:700,color:c}}>{v||0}</div>
+<div style={{fontSize:14,fontWeight:600,color:c}}>{v||0}</div>
 <div style={{fontSize:7,color:'var(--tx5)',marginTop:2}}>{l}</div>
 </div>)}
 </div>
@@ -604,13 +604,13 @@ const dayNameAr={'sun':'الأحد','mon':'الاثنين','tue':'الثلاثا
 const isHoliday=dayOfWeek==='fri'||dayOfWeek==='sat'
 return<>
 {/* Holiday alert */}
-{isHoliday&&brAtt.length===0&&<div style={{...GLASS,padding:'14px 18px',marginBottom:16,display:'flex',alignItems:'center',gap:8,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), 0 0 0 1px rgba(212,160,23,.22), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
+{isHoliday&&brAtt.length===0&&<div style={{...GLASS,padding:'14px 18px',marginBottom:16,display:'flex',alignItems:'center',gap:8,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), 0 0 0 1px rgba(176,125,0,.22), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}}>
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
 <span style={{fontSize:13,fontWeight:600,color:C.gold}}>يوم إجازة — {dayNameAr[dayOfWeek]||dayOfWeek}</span>
 </div>}
 {/* Dynamic Stat cards */}
 <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:18}}>
-{[['الحاضرين',brAtt.length,C.ok],['في الوقت',dayOnTime,C.ok],['متأخر',dayLate,dayLate>0?'#e67e22':'var(--tx5)'],['غائب',absent.length,absent.length>0?C.red:'var(--tx5)'],['متوسط الساعات',dayAvgHrs,C.blue]].map(([l,v,c],i)=><div key={i} style={{...GLASS,padding:14,textAlign:'center'}}><div style={{fontSize:22,fontWeight:700,color:c,letterSpacing:'-.3px',lineHeight:1.1}}>{v}</div><div style={{fontSize:11,color:'var(--tx4)',marginTop:6,fontWeight:500}}>{l}</div></div>)}
+{[['الحاضرين',brAtt.length,C.ok],['في الوقت',dayOnTime,C.ok],['متأخر',dayLate,dayLate>0?'#e67e22':'var(--tx5)'],['غائب',absent.length,absent.length>0?C.red:'var(--tx5)'],['متوسط الساعات',dayAvgHrs,C.blue]].map(([l,v,c],i)=><div key={i} style={{...GLASS,padding:14,textAlign:'center'}}><div style={{fontSize:22,fontWeight:600,color:c,letterSpacing:'-.3px',lineHeight:1.1}}>{v}</div><div style={{fontSize:11,color:'var(--tx4)',marginTop:6,fontWeight:500}}>{l}</div></div>)}
 </div>
 {/* Filters */}
 <div style={{display:'flex',gap:10,marginBottom:18,flexWrap:'wrap',alignItems:'center'}}>
@@ -628,27 +628,27 @@ return<>
 {brAtt.map(a=>{const u=users.find(x=>x.id===a.user_id);const rc=u?.roles?.color||C.gold;const cin=a.check_in_at?new Date(a.check_in_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const cout=a.check_out_at?new Date(a.check_out_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';const isLate=a.is_late
 return<div key={a.id} style={{borderRadius:12,background:'var(--bg)',border:'1px solid '+(isLate?'rgba(230,126,34,.15)':'var(--bd)'),overflow:'hidden'}}>
 <div style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
-<div style={{width:38,height:38,borderRadius:10,background:rc+'15',border:'1px solid '+rc+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:800,color:rc,flexShrink:0}}>{(u?.name_ar||'?')[0]}</div>
+<div style={{width:38,height:38,borderRadius:10,background:rc+'15',border:'1px solid '+rc+'25',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:600,color:rc,flexShrink:0}}>{(u?.name_ar||'?')[0]}</div>
 <div style={{flex:1}}>
-<div style={{fontSize:13,fontWeight:700,color:'var(--tx)'}}>{u?.name_ar||'—'}</div>
+<div style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{u?.name_ar||'—'}</div>
 <div style={{fontSize:9,color:'var(--tx4)',marginTop:2}}>{u?.roles?.name_ar||'—'}{a.branch_id?' · '+(branches.find(b=>b.id===a.branch_id)?.name_ar||''):''}</div>
 </div>
-<span style={{fontSize:10,padding:'3px 10px',borderRadius:6,background:isLate?'rgba(230,126,34,.1)':'rgba(39,160,70,.1)',color:isLate?'#e67e22':C.ok,fontWeight:700}}>{isLate?'⏰ متأخر '+a.late_minutes+' د':'✓ في الوقت'}</span>
+<span style={{fontSize:10,padding:'3px 10px',borderRadius:6,background:isLate?'rgba(230,126,34,.1)':'rgba(39,160,70,.1)',color:isLate?'#e67e22':C.ok,fontWeight:600}}>{isLate?'⏰ متأخر '+a.late_minutes+' د':'✓ في الوقت'}</span>
 </div>
 <div style={{display:'flex',borderTop:'1px solid var(--bd2)',background:'var(--bd2)'}}>
 {[['الدخول',cin,C.ok],['الخروج',cout,C.blue],['الساعات',Number(a.work_hours||0).toFixed(1)+' ساعة',C.gold],['الحالة',isLate?'+'+a.late_minutes+' دقيقة':'في الوقت',isLate?'#e67e22':C.ok]].map(([l,v,c],j)=>
 <div key={l} style={{flex:1,padding:'8px 10px',textAlign:'center',borderLeft:j>0?'1px solid var(--bd2)':'none'}}>
 <div style={{fontSize:8,color:'var(--tx5)',marginBottom:2}}>{l}</div>
-<div style={{fontSize:11,fontWeight:700,color:c,direction:'ltr'}}>{v}</div>
+<div style={{fontSize:11,fontWeight:600,color:c,direction:'ltr'}}>{v}</div>
 </div>)}
 </div>
 {a.check_in_distance_meters&&<div style={{padding:'4px 16px 6px',fontSize:9,color:'var(--tx5)'}}>📍 المسافة: {a.check_in_distance_meters}م من الموقع المحدد</div>}
 </div>})}
 {/* Absent employees */}
 {absent.length>0&&!isHoliday&&<>
-<div style={{fontSize:11,fontWeight:700,color:C.red,marginTop:12,marginBottom:6,paddingBottom:6,borderBottom:'1px solid rgba(192,57,43,.12)'}}>غائبين ({absent.length})</div>
+<div style={{fontSize:11,fontWeight:600,color:C.red,marginTop:12,marginBottom:6,paddingBottom:6,borderBottom:'1px solid rgba(192,57,43,.12)'}}>غائبين ({absent.length})</div>
 {absent.slice(0,10).map(u=>{const rc=u.roles?.color||'#999';return<div key={u.id} style={{padding:'10px 16px',borderRadius:10,background:'rgba(192,57,43,.02)',border:'1px solid rgba(192,57,43,.06)',display:'flex',alignItems:'center',gap:10}}>
-<div style={{width:32,height:32,borderRadius:8,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:C.red,flexShrink:0}}>{(u.name_ar||'?')[0]}</div>
+<div style={{width:32,height:32,borderRadius:8,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,color:C.red,flexShrink:0}}>{(u.name_ar||'?')[0]}</div>
 <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx3)'}}>{u.name_ar}</div><div style={{fontSize:9,color:'var(--tx5)'}}>{u.roles?.name_ar||'—'}</div></div>
 <span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(192,57,43,.08)',color:C.red,fontWeight:600}}>✕ غائب</span>
 </div>})}
@@ -658,7 +658,7 @@ return<div key={a.id} style={{borderRadius:12,background:'var(--bg)',border:'1px
 </>})()}
 
 {/* ═══ EMPLOYEE DETAIL SIDE PANEL ═══ */}
-{viewUser&&(()=>{const u=viewUser;const br=branches.find(b=>b.id===u.branch_id);const rc=u.roles?.color||C.gold;const activeTasks=userTasks.filter(t=>t.tasks&&t.tasks.status!=='completed'&&t.tasks.status!=='cancelled');const completedTasks=userTasks.filter(t=>t.tasks&&t.tasks.status==='completed');const attDays=attendance.length;const onTime=attendance.filter(a=>!a.is_late).length;const lateDays=attendance.filter(a=>a.is_late).length;const avgHrs=attDays>0?(attendance.reduce((s,a)=>s+Number(a.work_hours||0),0)/attDays).toFixed(1):0;const SH3=({t,c})=><div style={{fontSize:12,fontWeight:700,color:c||C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid '+(c||C.gold)+'20'}}>{t}</div>;const priClr={urgent:C.red,high:'#e67e22',medium:C.gold,low:C.ok};const priLbl={urgent:'عاجل',high:'عالي',medium:'متوسط',low:'منخفض'};const stLbl={in_progress:'جاري',pending:'معلّق',completed:'مكتمل',cancelled:'ملغى'}
+{viewUser&&(()=>{const u=viewUser;const br=branches.find(b=>b.id===u.branch_id);const rc=u.roles?.color||C.gold;const activeTasks=userTasks.filter(t=>t.tasks&&t.tasks.status!=='completed'&&t.tasks.status!=='cancelled');const completedTasks=userTasks.filter(t=>t.tasks&&t.tasks.status==='completed');const attDays=attendance.length;const onTime=attendance.filter(a=>!a.is_late).length;const lateDays=attendance.filter(a=>a.is_late).length;const avgHrs=attDays>0?(attendance.reduce((s,a)=>s+Number(a.work_hours||0),0)/attDays).toFixed(1):0;const SH3=({t,c})=><div style={{fontSize:12,fontWeight:600,color:c||C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid '+(c||C.gold)+'20'}}>{t}</div>;const priClr={urgent:C.red,high:'#e67e22',medium:C.gold,low:C.ok};const priLbl={urgent:'عاجل',high:'عالي',medium:'متوسط',low:'منخفض'};const stLbl={in_progress:'جاري',pending:'معلّق',completed:'مكتمل',cancelled:'ملغى'}
 const utabs=[{id:'data',l:'البيانات'},{id:'tasks',l:'المهام',n:activeTasks.length},{id:'attend',l:'الحضور',n:attDays},{id:'logins',l:'سجل الدخول',n:loginLogs.length}]
 const tabIcons={data:User,tasks:ClipboardList,attend:CalendarDays,logins:LogIn}
 const profLbl=p=>p==='native'?'لغة أم':p==='advanced'?'متقدم':p==='intermediate'?'متوسط':'مبتدئ'
@@ -1267,7 +1267,7 @@ pages={[
 function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityChange}){
   const isAr=lang!=='en'
   const F="'Cairo',sans-serif"
-  const C={gold:'#D4A017',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
+  const C={gold:'#B07D00',ok:'#27a046',red:'#c0392b',blue:'#3483b4'}
   // Sections grouped by feature area — add new sections here as you gate more features
   const SECTIONS=[]
   const MODES=[
@@ -1291,7 +1291,7 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
     return<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'8px 12px',borderRadius:8,background:'var(--bd2)',border:'1px solid var(--bd)',opacity:locked?.6:1}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}>
         <span style={{color:on?'var(--tx)':'var(--tx4)',fontSize:12,fontWeight:600}}>{label}</span>
-        {locked&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(212,160,23,.1)',color:C.gold,fontWeight:700}}>دائم</span>}
+        {locked&&<span style={{fontSize:8,padding:'1px 6px',borderRadius:4,background:'rgba(176,125,0,.1)',color:C.gold,fontWeight:600}}>دائم</span>}
       </div>
       <button type="button" disabled={locked} onClick={()=>visToggle(id)} style={{width:40,height:20,borderRadius:999,border:'none',background:on?C.ok:'var(--bd)',cursor:locked?'not-allowed':'pointer',position:'relative',padding:0,transition:'.2s',flexShrink:0}}>
         <span style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'#fff',top:3,right:on?3:23,transition:'.2s'}}/>
@@ -1302,18 +1302,18 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
 
     {/* ─── Sidebar Visibility Section ─── */}
     {nav&&hubTabs&&<div style={{marginBottom:24}}>
-      <div style={{fontSize:13,fontWeight:800,color:C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+      <div style={{fontSize:13,fontWeight:600,color:C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(176,125,0,.15)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <span style={{fontSize:15}}>📂</span>
           <span>التبويبات المرئية — القائمة الجانبية</span>
         </div>
-        <button onClick={showAllNav} style={{height:28,padding:'0 12px',borderRadius:7,border:'1px solid rgba(212,160,23,.25)',background:'rgba(212,160,23,.06)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:700,cursor:'pointer'}}>إظهار الكل</button>
+        <button onClick={showAllNav} style={{height:28,padding:'0 12px',borderRadius:7,border:'1px solid rgba(176,125,0,.25)',background:'rgba(176,125,0,.06)',color:C.gold,fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>إظهار الكل</button>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:8}}>
         {nav.map(n=>{const subs=hubTabs[n.id]||[]
         return<div key={n.id} style={{padding:10,borderRadius:10,background:'var(--inputBg)',border:'1px solid var(--bd2)'}}>
           <NavToggle id={n.id} label={n.l}/>
-          {subs.length>0&&<div style={{paddingRight:14,marginTop:5,display:'flex',flexDirection:'column',gap:4,borderRight:'2px solid rgba(212,160,23,.12)',marginRight:8}}>
+          {subs.length>0&&<div style={{paddingRight:14,marginTop:5,display:'flex',flexDirection:'column',gap:4,borderRight:'2px solid rgba(176,125,0,.12)',marginRight:8}}>
             {subs.map(t=><NavToggle key={t.id} id={t.id} label={t.l}/>)}
           </div>}
         </div>})}
@@ -1321,7 +1321,7 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
     </div>}
 
     {SECTIONS.map(section=><div key={section.id} style={{marginBottom:24}}>
-      <div style={{fontSize:13,fontWeight:800,color:C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(212,160,23,.15)',display:'flex',alignItems:'center',gap:8}}>
+      <div style={{fontSize:13,fontWeight:600,color:C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid rgba(176,125,0,.15)',display:'flex',alignItems:'center',gap:8}}>
         <span style={{fontSize:15}}>{section.icon}</span>
         <span>{section.l}</span>
       </div>
@@ -1330,12 +1330,12 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
         return<div key={ctrl.k} style={{padding:'14px 16px',borderRadius:12,background:'var(--bd2)',border:'1px solid var(--bd)'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,marginBottom:10,flexWrap:'wrap'}}>
             <div style={{flex:1,minWidth:240}}>
-              <div style={{fontSize:14,fontWeight:800,color:'var(--tx)',marginBottom:3}}>{ctrl.l}</div>
+              <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:3}}>{ctrl.l}</div>
               <div style={{fontSize:11,color:'var(--tx3)'}}>{ctrl.d}</div>
             </div>
             <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
               {MODES.map(m=>{const active=p.mode===m.v
-              return<button key={m.v} onClick={()=>updateMode(ctrl.k,m.v)} style={{fontSize:11,fontWeight:700,padding:'6px 12px',borderRadius:7,border:'1px solid '+(active?m.c+'66':'var(--bd)'),background:active?m.c+'1a':'transparent',color:active?m.c:'var(--tx3)',cursor:'pointer',fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
+              return<button key={m.v} onClick={()=>updateMode(ctrl.k,m.v)} style={{fontSize:11,fontWeight:600,padding:'6px 12px',borderRadius:7,border:'1px solid '+(active?m.c+'66':'var(--bd)'),background:active?m.c+'1a':'transparent',color:active?m.c:'var(--tx3)',cursor:'pointer',fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
                 <span>{m.ic}</span>{m.l}
               </button>})}
             </div>
@@ -1344,7 +1344,7 @@ function UiControlsTab({sb,users,toast,lang,nav,hubTabs,visibility,onVisibilityC
             <div style={{fontSize:10,color:'var(--tx3)',fontWeight:600,marginBottom:6}}>اختر الموظفين المسموح لهم:</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
               {users.map(u=>{const sel=(p.allowed_user_ids||[]).includes(u.id)
-              return<button key={u.id} onClick={()=>toggleUser(ctrl.k,u.id)} style={{fontSize:10.5,fontWeight:700,padding:'4px 10px',borderRadius:5,border:'1px solid '+(sel?'rgba(39,160,70,.4)':'var(--bd)'),background:sel?'rgba(39,160,70,.1)':'transparent',color:sel?C.ok:'var(--tx3)',cursor:'pointer',fontFamily:F}}>{u.name_ar}</button>})}
+              return<button key={u.id} onClick={()=>toggleUser(ctrl.k,u.id)} style={{fontSize:10.5,fontWeight:600,padding:'4px 10px',borderRadius:5,border:'1px solid '+(sel?'rgba(39,160,70,.4)':'var(--bd)'),background:sel?'rgba(39,160,70,.1)':'transparent',color:sel?C.ok:'var(--tx3)',cursor:'pointer',fontFamily:F}}>{u.name_ar}</button>})}
             </div>
           </div>}
         </div>})}

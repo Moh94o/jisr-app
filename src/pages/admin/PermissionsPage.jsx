@@ -11,7 +11,7 @@ import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, TAB_FIELDS, TAB_MODALS, T
 import { isGM as isGmUser } from '../../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
+const C = { gold: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
 const ROLE_PALETTE = [C.gold, C.blue, '#16a085', '#bb8fce', '#f39c12', C.ok, '#e8c77a', '#5dade2', '#27ae60']
 const nm = v => Number(v || 0).toLocaleString('en-US')
 
@@ -41,7 +41,7 @@ const genPassword = () => {
 function PwSuggestBtn({ onClick }) {
   return (
     <button type="button" onClick={onClick}
-      style={{ height: 26, padding: '0 10px', borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+      style={{ height: 26, padding: '0 10px', borderRadius: 7, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.3)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
       اقتراح جديد
     </button>
@@ -65,7 +65,7 @@ function HeroStat({ tone, label, value, footer }) {
         <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-        <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+        <span style={{ fontSize: 42, fontWeight: 600, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
@@ -135,7 +135,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
         </div>
         {isGM && (
           <button onClick={() => setAdding(true)} className="btn-primary-modal"
-            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+            style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
             مستخدم جديد
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
           </button>
@@ -235,7 +235,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
         .usr-hero-grid{display:grid;grid-template-columns:1.8fr 1fr;gap:14px;margin-bottom:24px}
         @media (max-width:720px){.usr-hero-grid{grid-template-columns:1fr}}
         .usr-row{transition:all .15s}
-        .usr-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(212,160,23,.22) !important}
+        .usr-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(176,125,0,.22) !important}
         .usr-row-grid{display:grid;grid-template-columns:auto 1px 1fr auto;gap:18px;align-items:center}
         @media (max-width:720px){.usr-row-grid{grid-template-columns:1fr;gap:12px}.usr-row-vdiv{display:none}}
         .usr-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,var(--bd) 50%,transparent 100%);min-height:46px}
@@ -310,7 +310,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>التوزّع حسب الجنسيات</span>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                  <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{nm(users.length)}</span>{users.length >= 3 && users.length <= 9 ? 'مستخدمين' : 'مستخدم'}
+                  <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{nm(users.length)}</span>{users.length >= 3 && users.length <= 9 ? 'مستخدمين' : 'مستخدم'}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
@@ -330,7 +330,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
                     return seg
                   })}
                   <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)"
-                    style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                     {nm(users.length)}
                   </text>
                 </svg>
@@ -341,7 +341,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
                       <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, minWidth: 0 }}>
                         <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
                         <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                        <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{nm(r.cnt)}</span>
+                        <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 600 }}>{nm(r.cnt)}</span>
                       </div>
                     )
                   })}
@@ -364,7 +364,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
           const active = advOpen || hasFilters
           const clearAll = () => { setRoleFilter(''); setBranchFilter(''); setStatusFilter('all') }
           return (
-            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid var(--bd)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(176,125,0,.4)' : '1px solid var(--bd)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
               تصفية
               {hasFilters ? (
                 <span role="button" tabIndex={0} title="مسح الفلاتر"
@@ -466,7 +466,7 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
         <div className="usr-row-grid" style={{ gap: 22 }}>
           {/* Avatar — nationality flag (falls back to initial) */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 64 }}>
-            <div title={nat?.name_ar || ''} style={{ width: 52, height: 52, borderRadius: 14, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, fontWeight: 800, color: accent, flexShrink: 0 }}>
+            <div title={nat?.name_ar || ''} style={{ width: 52, height: 52, borderRadius: 14, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, fontWeight: 600, color: accent, flexShrink: 0 }}>
               {flagUrl ? <img src={flagUrl} alt={nat?.name_ar || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial}
             </div>
           </div>
@@ -478,8 +478,8 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
           <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{name}</span>
-              {u.role && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: accent + '20', color: accent }}>{u.role.name_ar}</span>}
-              {isMe && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: 'rgba(212,160,23,.14)', color: C.gold, letterSpacing: '.3px' }}>أنت</span>}
+              {u.role && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: accent + '20', color: accent }}>{u.role.name_ar}</span>}
+              {isMe && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: 'rgba(176,125,0,.14)', color: C.gold, letterSpacing: '.3px' }}>أنت</span>}
             </div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 14, fontSize: 11, color: 'var(--tx3)', fontWeight: 600, flexWrap: 'wrap' }}>
               {u.person?.name_en && (
@@ -582,7 +582,7 @@ function Seg({ value, options, onChange, disabled }) {
         const on = o.v === value
         return (
           <button key={o.v} type="button" disabled={disabled} onClick={() => onChange(o.v)}
-            style={{ padding: '5px 11px', borderRadius: 7, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: on ? 'rgba(212,160,23,.16)' : 'transparent', color: on ? C.gold : 'var(--tx3)', transition: '.15s' }}>
+            style={{ padding: '5px 11px', borderRadius: 7, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', background: on ? 'rgba(176,125,0,.16)' : 'transparent', color: on ? C.gold : 'var(--tx3)', transition: '.15s' }}>
             {o.l}
           </button>
         )
@@ -742,7 +742,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
           </button>
           <span style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0, cursor: 'pointer' }}
             onClick={() => setOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: shown ? 'var(--tx)' : 'var(--tx3)' }}>{label}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: shown ? 'var(--tx)' : 'var(--tx3)' }}>{label}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10, fontWeight: 600, color: 'var(--tx5)', flexWrap: 'wrap' }}>
               {gTot > 0 && <span><span style={{ color: gOn ? C.ok : 'var(--tx5)' }}>{gOn}</span>/{gTot} صلاحية</span>}
               {!isRole && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Building2 size={9} />{officeLabel(id)}</span>}
@@ -762,7 +762,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
             <div style={{ paddingTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                 <Building2 size={13} color={C.gold} />
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>المكاتب المسموح بها</span>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>المكاتب المسموح بها</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 <Seg value={pol.mode} disabled={busy || userIsGM}
@@ -782,7 +782,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                   <Layers size={13} color={C.gold} />
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>أنواع الخدمات المسموح بها</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>أنواع الخدمات المسموح بها</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   <Seg value={svcPol.mode} disabled={busy || userIsGM}
@@ -802,7 +802,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                   <SlidersHorizontal size={13} color={C.gold} />
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>كروت الإحصاء</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>كروت الإحصاء</span>
                 </div>
                 <Seg value={statMode} disabled={busy || userIsGM} onChange={(m) => setStatsMode(id, m)}
                   options={[{ v: 'real', l: 'أرقام حقيقية' }, { v: 'zero', l: 'أصفار دائماً' }, { v: 'hidden', l: 'مخفية' }]} />
@@ -814,7 +814,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                   <MousePointerClick size={13} color={C.gold} />
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>الأزرار والصلاحيات</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>الأزرار والصلاحيات</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 7 }}>
                   {mod.perms.map(p => (
@@ -849,7 +849,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
         <div style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <ShieldCheck size={20} color={C.gold} />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>مدير عام — صلاحية كاملة</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>مدير عام — صلاحية كاملة</div>
             <div style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, marginTop: 3 }}>يملك هذا المستخدم كل الصلاحيات على جميع التبويبات والمكاتب تلقائياً.</div>
           </div>
         </div>
@@ -864,7 +864,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid var(--bd)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                    <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--tx2)' }}>{n.l}</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--tx2)' }}>{n.l}</span>
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                     {hubOn ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
@@ -1001,7 +1001,7 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
         <div style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <ShieldCheck size={20} color={C.gold} />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)' }}>مدير عام — صلاحية كاملة</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>مدير عام — صلاحية كاملة</div>
             <div style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, marginTop: 3 }}>يملك هذا المستخدم كل الصلاحيات على جميع الأقسام والمكاتب تلقائياً.</div>
           </div>
         </div>
@@ -1010,7 +1010,7 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
           {/* Assigned roles — each with its branch scope */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx2)' }}>الأدوار المُسندة</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>الأدوار المُسندة</span>
               <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>لكل دور نطاق فروع — يمكن إسناد دور مختلف لفرع مختلف</span>
             </div>
             {!rows ? (
@@ -1024,7 +1024,7 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
                   return (
                     <div key={row.role_id} style={{ padding: '11px 13px', borderRadius: 11, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', borderRadius: 999, background: c + '1a', border: `1px solid ${c}44`, color: c, fontSize: 12, fontWeight: 800 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', borderRadius: 999, background: c + '1a', border: `1px solid ${c}44`, color: c, fontSize: 12, fontWeight: 600 }}>
                           <ShieldCheck size={12} /> {r?.name_ar || '—'}
                         </span>
                         {canManage && (
@@ -1068,7 +1068,7 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid var(--bd)' }}>
               <Eye size={13} color={C.gold} />
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>ملخّص الوصول</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>ملخّص الوصول</span>
               <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>ما يراه ويفعله بناءً على أدواره</span>
             </div>
             {!eff ? (
@@ -1081,10 +1081,10 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 8 }}>
                 {eff.map(m => (
                   <div key={m.module} style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tx)', marginBottom: 6 }}>{m.label || m.module}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', marginBottom: 6 }}>{m.label || m.module}</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                       {m.acts.map((a, i) => (
-                        <span key={i} style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(39,160,70,.1)', color: '#3ec46a' }}>{a}</span>
+                        <span key={i} style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(39,160,70,.1)', color: '#3ec46a' }}>{a}</span>
                       ))}
                     </div>
                   </div>
@@ -1136,7 +1136,7 @@ function FieldList({ tabId, groupKey, fields, vis, disabled, parentShown, onTogg
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed var(--bd)', opacity: parentShown ? 1 : .4 }}>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
         <SlidersHorizontal size={9} color="var(--tx5)" />
-        <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)' }}>الحقول</span>
+        <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)' }}>الحقول</span>
       </div>
       {list.map(f => {
         const fVis = vis[`field:${tabId}:${f.key}`] !== false
@@ -1181,13 +1181,13 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
         <Layers size={13} color={C.gold} />
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>بطاقات صفحة التفاصيل</span>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>بطاقات صفحة التفاصيل</span>
         <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>رؤية كل كرت وأزراره وحقوله</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {groupKeys.map(gk => (
           <div key={gk}>
-            {multiGroup && <div style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, marginBottom: 6, opacity: .85 }}>{CARD_GROUP_LABELS[gk] || gk}</div>}
+            {multiGroup && <div style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, marginBottom: 6, opacity: .85 }}>{CARD_GROUP_LABELS[gk] || gk}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
               {groups[gk].map(c => {
                 const shown = vis[`card:${tabId}:${c.key}`] !== false
@@ -1197,7 +1197,7 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                         {shown ? <Eye size={12} color={C.ok} /> : <EyeOff size={12} color="var(--tx5)" />}
-                        <span style={{ fontSize: 12, fontWeight: 700, color: shown ? 'var(--tx)' : 'var(--tx4)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.label_ar}>{c.label_ar}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: shown ? 'var(--tx)' : 'var(--tx4)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.label_ar}>{c.label_ar}</span>
                       </span>
                       <VisToggle on={shown} locked={disabled} onClick={() => onToggle(tabId, c.key)} />
                     </div>
@@ -1236,7 +1236,7 @@ function StagesSection({ tabId, stages, fields, vis, disabled, onToggleStage, on
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
         <Wand2 size={13} color={C.gold} />
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>مراحل الحاسبة</span>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>مراحل الحاسبة</span>
         <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>رؤية كل مرحلة وحقولها</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
@@ -1247,7 +1247,7 @@ function StagesSection({ tabId, stages, fields, vis, disabled, onToggleStage, on
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                   {shown ? <Eye size={12} color={C.ok} /> : <EyeOff size={12} color="var(--tx5)" />}
-                  <span style={{ fontSize: 12, fontWeight: 700, color: shown ? 'var(--tx)' : 'var(--tx4)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.label_ar}>{s.label_ar}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: shown ? 'var(--tx)' : 'var(--tx4)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.label_ar}>{s.label_ar}</span>
                 </span>
                 <VisToggle on={shown} locked={disabled} onClick={() => onToggleStage(tabId, s.key)} />
               </div>
@@ -1266,7 +1266,7 @@ function ModalsSection({ tabId, modals, vis, disabled, onToggleModal }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
         <AppWindow size={13} color={C.gold} />
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>النوافذ المنبثقة</span>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>النوافذ المنبثقة</span>
         <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>السماح بفتح كل نافذة</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 7 }}>
@@ -1311,7 +1311,7 @@ function InfoSectionCard({ title, items, pwNode, headerAction }) {
               {f.chips ? (
                 <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', flex: 1, minWidth: 0 }}>
                   {f.chips.length ? f.chips.map((c, ci) => (
-                    <span key={ci} style={{ fontSize: 13, fontWeight: 700, color: C.gold, fontFamily: 'monospace', direction: 'ltr', whiteSpace: 'nowrap' }}>{c}</span>
+                    <span key={ci} style={{ fontSize: 13, fontWeight: 600, color: C.gold, fontFamily: 'monospace', direction: 'ltr', whiteSpace: 'nowrap' }}>{c}</span>
                   )) : <span style={{ fontSize: 13, color: 'var(--tx5)', fontWeight: 600 }}>—</span>}
                 </span>
               ) : (
@@ -1338,9 +1338,9 @@ function InfoSectionCard({ title, items, pwNode, headerAction }) {
 function EditAction({ onEdit }) {
   return (
     <button onClick={onEdit}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.12)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-      style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+      style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
       تعديل
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
     </button>
@@ -1349,7 +1349,7 @@ function EditAction({ onEdit }) {
 function ActiveToggleAction({ isActive, isMe, busy, onToggleActive }) {
   return (
     <div style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? C.ok : 'var(--tx5)' }}>{isActive ? 'نشط' : 'معطّل'}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? C.ok : 'var(--tx5)' }}>{isActive ? 'نشط' : 'معطّل'}</span>
       <button type="button" disabled={isMe || busy} onClick={onToggleActive} title={isMe ? 'لا يمكنك تعطيل حسابك' : (isActive ? 'تعطيل الحساب' : 'تفعيل الحساب')}
         style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: isActive ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'var(--bd)', cursor: (isMe || busy) ? 'not-allowed' : 'pointer', opacity: (isMe || busy) ? .55 : 1, position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, boxShadow: isActive ? `0 2px 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.18)' }}>
         <span style={{ position: 'absolute', width: 18, height: 18, borderRadius: '50%', background: '#fff', top: 3, right: isActive ? 3 : 23, transition: '.2s', boxShadow: '0 2px 4px rgba(0,0,0,.3)' }} />
@@ -1447,8 +1447,8 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
             <circle cx="12" cy="7" r="4" />
           </svg>
           <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{name}</div>
-          {u.role && <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: accent + '20', color: accent }}>{u.role.name_ar}</span>}
-          {isMe && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: 'rgba(212,160,23,.14)', color: C.gold, letterSpacing: '.3px' }}>أنت</span>}
+          {u.role && <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: accent + '20', color: accent }}>{u.role.name_ar}</span>}
+          {isMe && <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: 'rgba(176,125,0,.14)', color: C.gold, letterSpacing: '.3px' }}>أنت</span>}
         </div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>عرض بيانات المستخدم وتعديلها، والتحكم بصلاحياته وحالة حسابه.</div>
       </div>
@@ -1609,7 +1609,7 @@ export function Drop({ value, onChange, options, placeholder }) {
     <>
       <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
         style={{ width: '100%', height: 42, padding: '0 34px', borderRadius: 9, cursor: 'pointer',
-          border: `1px solid ${open ? 'rgba(212,160,23,.45)' : 'transparent'}`,
+          border: `1px solid ${open ? 'rgba(176,125,0,.45)' : 'transparent'}`,
           background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
           color: selected ? 'var(--tx)' : 'var(--tx5)', fontFamily: F, fontSize: 14, fontWeight: 600,
           display: 'flex', alignItems: 'center', gap: 8, position: 'relative', outline: 'none', boxSizing: 'border-box', transition: '.2s' }}>
@@ -1634,8 +1634,8 @@ export function Drop({ value, onChange, options, placeholder }) {
                 const sel = o.v === value
                 return (
                   <div key={o.v} onClick={() => pick(o.v)}
-                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: sel ? 800 : 600, color: sel ? C.gold : 'var(--tx)', background: sel ? 'rgba(212,160,23,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', textAlign: 'center' }}
-                    onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
+                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: sel ? 600 : 600, color: sel ? C.gold : 'var(--tx)', background: sel ? 'rgba(176,125,0,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', textAlign: 'center' }}
+                    onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(176,125,0,.08)' }}
                     onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}>
                     {o.l}
                   </div>
@@ -1675,7 +1675,7 @@ export function MultiDrop({ value, onChange, options, placeholder }) {
           (with add/remove) lives in the dropdown so the field never grows or scrolls. */}
       <button ref={btnRef} type="button" onClick={() => setOpen(o => !o)}
         style={{ width: '100%', height: 42, padding: '0 34px 0 12px', borderRadius: 9, cursor: 'pointer',
-          border: `1px solid ${open ? 'rgba(212,160,23,.45)' : 'transparent'}`,
+          border: `1px solid ${open ? 'rgba(176,125,0,.45)' : 'transparent'}`,
           background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)',
           color: 'var(--tx)', fontFamily: F, fontSize: 14, fontWeight: 600,
           display: 'flex', alignItems: 'center', gap: 7, position: 'relative', outline: 'none', boxSizing: 'border-box', justifyContent: chosen.length ? 'flex-start' : 'center', overflow: 'hidden', transition: '.2s' }}>
@@ -1683,13 +1683,13 @@ export function MultiDrop({ value, onChange, options, placeholder }) {
           ? <span style={{ flex: 1, textAlign: 'center', color: 'var(--tx5)' }}>{placeholder || '—'}</span>
           : (
             <>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: 'rgba(212,160,23,.14)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, fontSize: 11.5, fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: 'rgba(176,125,0,.14)', border: '1px solid rgba(176,125,0,.3)', color: C.gold, fontSize: 11.5, fontWeight: 600, flexShrink: 0, whiteSpace: 'nowrap' }}>
                 {primary.l}
-                <span style={{ fontSize: 8.5, fontWeight: 700, opacity: .75 }}>رئيسي</span>
+                <span style={{ fontSize: 8.5, fontWeight: 600, opacity: .75 }}>رئيسي</span>
                 <span onClick={e => { e.stopPropagation(); toggle(primary.v) }} style={{ cursor: 'pointer', display: 'inline-flex' }}><X size={11} /></span>
               </span>
               {chosen.length > 1 && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', flexShrink: 0 }}>+{chosen.length - 1} مكتب</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', flexShrink: 0 }}>+{chosen.length - 1} مكتب</span>
               )}
             </>
           )}
@@ -1713,8 +1713,8 @@ export function MultiDrop({ value, onChange, options, placeholder }) {
                 const on = sel.has(o.v)
                 return (
                   <div key={o.v} onClick={() => toggle(o.v)}
-                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: on ? 800 : 600, color: on ? C.gold : 'var(--tx)', background: on ? 'rgba(212,160,23,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }}
-                    onMouseEnter={e => { if (!on) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
+                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: on ? 600 : 600, color: on ? C.gold : 'var(--tx)', background: on ? 'rgba(176,125,0,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }}
+                    onMouseEnter={e => { if (!on) e.currentTarget.style.background = 'rgba(176,125,0,.08)' }}
                     onMouseLeave={e => { if (!on) e.currentTarget.style.background = 'transparent' }}>
                     <span style={{ width: 17, height: 17, borderRadius: 5, flexShrink: 0, border: on ? '1px solid ' + C.gold : '1.5px solid var(--bd)', background: on ? C.gold : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {on && <Check size={12} color="#000" strokeWidth={3} />}

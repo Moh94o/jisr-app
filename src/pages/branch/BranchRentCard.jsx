@@ -4,7 +4,7 @@ import { can as canPerm, canCardBtn } from '../../lib/permissions.js'
 import { Modal as FKModal, ModalSection as FKSection, TextField, CurrencyField, DateField, Select as FKSelect, FileField, SuccessView, ScrollBox, ActionButton, GRID, ConfirmDialog } from '../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const GOLD = '#D4A017'
+const GOLD = '#B07D00'
 const C = { gold: GOLD, ok: '#2ecc71', warn: '#eab308', red: '#e87265', blue: '#5dade2', gray: '#95a5a6' }
 const MONO = "'JetBrains Mono','Cairo',sans-serif"
 
@@ -106,9 +106,9 @@ export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contr
         </span>
         {canEdit && (obligation ? canCardEdit : canCardCreate) && (
           <button onClick={() => setModal(true)}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.12)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-            style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
             {obligation ? 'تعديل' : 'عقد إيجار جديد'}
             {obligation
               ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -136,9 +136,9 @@ export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contr
                 { l: 'بداية العقد', v: obligation.start_date, mono: true },
                 { l: 'نهاية العقد', v: obligation.end_date, mono: true },
               ].map((t, i) => (
-                <div key={i} style={{ padding: '12px 14px', borderRadius: 11, background: t.gold ? 'rgba(212,160,23,.07)' : 'rgba(255,255,255,.03)', border: `1px solid ${t.gold ? 'rgba(212,160,23,.2)' : 'rgba(255,255,255,.07)'}` }}>
-                  <div style={{ fontSize: 12, color: t.gold ? 'rgba(212,160,23,.8)' : 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginBottom: 5 }}>{t.l}</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: t.gold ? GOLD : (t.v ? 'rgba(255,255,255,.88)' : 'var(--tx5)'), direction: t.mono ? 'ltr' : 'rtl', textAlign: 'right', fontFamily: t.mono ? MONO : F }}>{t.v || '—'}</div>
+                <div key={i} style={{ padding: '12px 14px', borderRadius: 11, background: t.gold ? 'rgba(176,125,0,.07)' : 'rgba(255,255,255,.03)', border: `1px solid ${t.gold ? 'rgba(176,125,0,.2)' : 'rgba(255,255,255,.07)'}` }}>
+                  <div style={{ fontSize: 12, color: t.gold ? 'rgba(176,125,0,.8)' : 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginBottom: 5 }}>{t.l}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: t.gold ? GOLD : (t.v ? 'rgba(255,255,255,.88)' : 'var(--tx5)'), direction: t.mono ? 'ltr' : 'rtl', textAlign: 'right', fontFamily: t.mono ? MONO : F }}>{t.v || '—'}</div>
                 </div>
               ))}
             </div>
@@ -147,22 +147,22 @@ export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contr
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
               {obligation.document_url ? (
                 <a href={obligation.document_url} target="_blank" rel="noreferrer"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 34, padding: '0 14px', borderRadius: 9, background: 'rgba(93,173,226,.1)', border: '1px solid rgba(93,173,226,.3)', color: C.blue, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 34, padding: '0 14px', borderRadius: 9, background: 'rgba(93,173,226,.1)', border: '1px solid rgba(93,173,226,.3)', color: C.blue, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
                   عرض عقد الإيجار
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                 </a>
               ) : <span style={{ fontSize: 11.5, color: 'var(--tx5)' }}>لم يُرفع ملف العقد</span>}
               <span style={{ marginInlineStart: 'auto', fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>
-                المتبقي غير المسدد: <span style={{ color: GOLD, fontWeight: 800, fontFamily: MONO, direction: 'ltr' }}>{fmtAmt(pendingTotal)}</span>
+                المتبقي غير المسدد: <span style={{ color: GOLD, fontWeight: 600, fontFamily: MONO, direction: 'ltr' }}>{fmtAmt(pendingTotal)}</span>
               </span>
             </div>
 
             {/* Payment schedule */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>جدول السداد ({payments.length})</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>جدول السداد ({payments.length})</span>
               {canEdit && canCardCreate && (
                 <button onClick={() => setPayModal({ due_date: todayIso(), amount: '' })}
-                  style={{ fontSize: 11, fontWeight: 700, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F }}>+ دفعة</button>
+                  style={{ fontSize: 11, fontWeight: 600, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F }}>+ دفعة</button>
               )}
             </div>
             {payments.length === 0 ? (
@@ -174,15 +174,15 @@ export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contr
                   return (
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.c, flexShrink: 0 }} />
-                      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', fontFamily: MONO, direction: 'ltr' }}>{p.due_date}</span>
-                      <span style={{ fontSize: 12.5, fontWeight: 800, color: GOLD, fontFamily: MONO, direction: 'ltr' }}>{fmtAmt(p.amount)}</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: `${st.c}1a`, color: st.c, border: `1px solid ${st.c}33` }}>{st.l}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', fontFamily: MONO, direction: 'ltr' }}>{p.due_date}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: GOLD, fontFamily: MONO, direction: 'ltr' }}>{fmtAmt(p.amount)}</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: `${st.c}1a`, color: st.c, border: `1px solid ${st.c}33` }}>{st.l}</span>
                       <span style={{ marginInlineStart: 'auto', display: 'inline-flex', gap: 6 }}>
                         {canEdit && p.status !== 'paid' && (
-                          <button onClick={() => markPaid(p)} title="تسجيل سداد" style={{ fontSize: 11, fontWeight: 700, color: C.ok, background: 'rgba(46,204,113,.1)', border: '1px solid rgba(46,204,113,.3)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: F }}>سداد</button>
+                          <button onClick={() => markPaid(p)} title="تسجيل سداد" style={{ fontSize: 11, fontWeight: 600, color: C.ok, background: 'rgba(46,204,113,.1)', border: '1px solid rgba(46,204,113,.3)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: F }}>سداد</button>
                         )}
                         {canEdit && p.status === 'paid' && (
-                          <button onClick={() => unpay(p)} title="تراجع" style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)', background: 'transparent', border: '1px solid rgba(255,255,255,.12)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: F }}>تراجع</button>
+                          <button onClick={() => unpay(p)} title="تراجع" style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', background: 'transparent', border: '1px solid rgba(255,255,255,.12)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: F }}>تراجع</button>
                         )}
                         {canDelete && canCardDelete && (
                           <button onClick={() => setDelPayTarget(p)} title="حذف" style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(192,57,43,.25)', background: 'rgba(192,57,43,.1)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>

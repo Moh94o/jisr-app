@@ -107,14 +107,14 @@ export const STAGE_DEFS = {
     ],
   },
   iqama_print: {
-    ar: 'طباعة الإقامة', en: 'Iqama Print', c: '#d4a017',
+    ar: 'طباعة الإقامة', en: 'Iqama Print', c: '#B07D00',
     fields: [
       { key: 'receipt_date', label_ar: 'تاريخ الاستلام', label_en: 'Receipt Date', type: 'date', required: true },
       { key: 'iqama_photo',  label_ar: 'صورة الإقامة',   label_en: 'Iqama Photo',  type: 'file', accept: 'image' },
     ],
   },
   documents: {
-    ar: 'المستندات', en: 'Documents', c: '#d4a017',
+    ar: 'المستندات', en: 'Documents', c: '#B07D00',
     fields: [
       { key: 'document_file', label_ar: 'المستند', label_en: 'Document', type: 'file', accept: 'image' },
     ],

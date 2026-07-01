@@ -17,7 +17,7 @@
 // `role` ties the department to an existing roles row when one already exists;
 // `isNew` flags the four departments we still need to create as roles.
 export const DEPARTMENTS = [
-  { code: 'dept_billing',  ar: 'الاستقبال والفوترة', en: 'Intake & Billing',      color: '#D4A017', icon: 'invoice',  role: 'مصدر فواتير', isNew: false },
+  { code: 'dept_billing',  ar: 'الاستقبال والفوترة', en: 'Intake & Billing',      color: '#B07D00', icon: 'invoice',  role: 'مصدر فواتير', isNew: false },
   { code: 'dept_visa',     ar: 'قسم التأشيرات',       en: 'Visas Dept.',           color: '#5dade2', icon: 'calendar', role: null,          isNew: true  },
   { code: 'dept_iqama',    ar: 'قسم الإقامات',        en: 'Iqama Dept.',           color: '#2ecc71', icon: 'role',     role: null,          isNew: true  },
   { code: 'dept_transfer', ar: 'قسم النقل وقوى',      en: 'Transfer & Qiwa Dept.', color: '#f39c12', icon: 'broker',   role: null,          isNew: true  },

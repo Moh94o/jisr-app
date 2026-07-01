@@ -11,7 +11,7 @@ import { can, cardVisible, canCardBtn, tabModule } from '../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
-  gold: '#D4A017', goldSoft: '#e8c77a',
+  gold: '#B07D00', goldSoft: '#e8c77a',
   blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
   ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
@@ -83,7 +83,7 @@ const SVC_THEME = {
   ajeer:          { c: C.purple, bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'أجير',        label_en: 'Ajeer' },
   iqama_renewal:  { c: C.cyan,   bg: 'rgba(22,160,133,.12)',  bd: 'rgba(22,160,133,.32)',  label_ar: 'تجديد إقامة', label_en: 'Iqama Renewal' },
   other:          { c: C.gray,   bg: 'rgba(149,165,166,.12)', bd: 'rgba(149,165,166,.32)', label_ar: 'الغرفة التجارية', label_en: 'Chamber of Commerce' },
-  supplier_payroll:           { c: '#D4A017', bg: 'rgba(212,160,23,.12)',  bd: 'rgba(212,160,23,.32)',  label_ar: 'رواتب سبلاير',     label_en: 'Supplier Payroll' },
+  supplier_payroll:           { c: '#B07D00', bg: 'rgba(176,125,0,.12)',  bd: 'rgba(176,125,0,.32)',  label_ar: 'رواتب سبلاير',     label_en: 'Supplier Payroll' },
   external_transfer_approval: { c: C.orange,  bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'موافقة نقل خارجي', label_en: 'External Transfer' },
   general:        { c: '#7f8c8d',bg: 'rgba(127,140,141,.12)', bd: 'rgba(127,140,141,.32)', label_ar: 'خدمة عامة',   label_en: 'General' },
 }
@@ -153,7 +153,7 @@ function StatusCell({ st, statusLabel, dur, isSettled, isAr, sideBar }) {
   if (sideBar) {
     return (
       <div title={tip} style={{ display: 'inline-flex', flexDirection: 'column', gap: 4, minWidth: 100, borderInlineStart: `3px solid ${c}`, background: `${c}10`, padding: '8px 11px', direction: isAr ? 'rtl' : 'ltr', textAlign: isAr ? 'right' : 'left' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: c, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: c, whiteSpace: 'nowrap' }}>
           {liveDot && <span className="txn-dot-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />}{statusLabel}
         </span>
         {dur && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{dur}</span>}
@@ -769,11 +769,11 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
         <div style={{ borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
           <style>{`
 .txn-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:var(--card-bg);border-radius:10px;border:1px solid var(--bd)}
-.txn-tbl thead th{position:sticky;top:0;background:var(--card-bg);color:var(--tx);font-size:14.5px;font-weight:600;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.txn-tbl thead th{position:sticky;top:0;background:var(--card-bg);color:var(--tx);font-size:14.5px;font-weight:600;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
 .txn-tbl tbody td{padding:13px 12px;font-size:12px;color:var(--tx);text-align:center;vertical-align:middle;border-bottom:1px solid var(--bd2)}
 .txn-tbl tbody tr{cursor:pointer;transition:background .12s}
 .txn-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-.txn-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+.txn-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
 .txn-tbl tbody tr:last-child td{border-bottom:none}
 .txn-name{display:inline-block;max-width:180px;overflow:hidden;white-space:nowrap;vertical-align:bottom}
 .txn-name>span{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
@@ -914,7 +914,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                     <td>
                       {isChamberStyle ? (
                         <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
-                          <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontSize: 14.5, letterSpacing: '.3px', color: officeCode === '—' ? 'var(--tx4)' : C.gold }}>{officeCode}</span>
+                          <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, fontSize: 14.5, letterSpacing: '.3px', color: officeCode === '—' ? 'var(--tx4)' : C.gold }}>{officeCode}</span>
                           <span style={{ direction: 'ltr', fontFamily: 'monospace', color: 'var(--tx4)', fontWeight: 500, fontSize: 10, fontVariantNumeric: 'tabular-nums' }}>{date}</span>
                         </div>
                       ) : (
@@ -1021,7 +1021,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                           return (
                             <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
                               {subs.map((s, i) => (
-                                <span key={s.id || i} style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5, color: clr(s), direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{s.ref_no}</span>
+                                <span key={s.id || i} style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12.5, color: clr(s), direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{s.ref_no}</span>
                               ))}
                             </span>
                           )
@@ -1032,12 +1032,12 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                         {/* العقد = رقم العقد · فاتورة العقد = رقم فاتورة عقد أجير — كلاهما يُدخَل في صفحة المعاملة. */}
                         <td>
                           {oa1?.details?.contract_number
-                            ? <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5, color: 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '.3px' }}>{oa1.details.contract_number}</span>
+                            ? <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12.5, color: 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '.3px' }}>{oa1.details.contract_number}</span>
                             : <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>—</span>}
                         </td>
                         <td>
                           {oa1?.details?.contract_invoice_no
-                            ? <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '.3px' }}>{oa1.details.contract_invoice_no}</span>
+                            ? <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12.5, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '.3px' }}>{oa1.details.contract_invoice_no}</span>
                             : <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>—</span>}
                         </td>
                       </>
@@ -1073,7 +1073,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
         const toN = Math.min(total,(page+1)*PAGE)
         return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid var(--bd)', margin: '4px 4px 14px' }}>
           <style>{`
-            .tx-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
+            .tx-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(176,125,0,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
             .tx-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
             .tx-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:var(--bd)}
             .tx-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:600;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
@@ -1556,7 +1556,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
     const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }
     const dateStyle = { fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }
     return (
-      <div style={{ marginTop: 2, paddingTop: 12, borderTop: '1px solid rgba(212,160,23,.18)', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <div style={{ marginTop: 2, paddingTop: 12, borderTop: '1px solid rgba(176,125,0,.18)', display: 'flex', flexDirection: 'column', gap: 7 }}>
         {info && (
           <div style={rowStyle}>
             <span style={lbl}>
@@ -1576,8 +1576,8 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
           </div>
         )}
         {onEdit && (
-          <button type="button" onClick={onEdit} style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, height: 26, padding: '0 10px', borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 700 }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.2)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)' }}>
+          <button type="button" onClick={onEdit} style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, height: 26, padding: '0 10px', borderRadius: 7, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 600 }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.2)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.1)' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             {T('تعديل','Edit')}
           </button>
@@ -1705,14 +1705,14 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
             const fm = v => Number(v || 0).toLocaleString('en-US')
             const pillS = c => ({ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 999, color: c, background: c + '1f', border: '1px solid ' + c + '55' })
             const numChip = (n) => (
-              <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(212,160,23,.15)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+              <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(176,125,0,.15)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
             )
             const SecLabel = ({ children }) => (
               <span style={{ fontSize: 11, color: C.gold, fontWeight: 600, letterSpacing: '.4px' }}>{children}</span>
             )
             const CardActionBtn = ({ onClick, disabled = false, color = C.gold, children }) => (
               <button type="button" disabled={disabled} onClick={onClick}
-                style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + (disabled ? 'var(--bd)' : color + '80'), color: disabled ? 'var(--tx4)' : color, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 7, flexDirection: 'row-reverse', whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}
+                style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed ' + (disabled ? 'var(--bd)' : color + '80'), color: disabled ? 'var(--tx4)' : color, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7, flexDirection: 'row-reverse', whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}
                 onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = color + '1f' }}
                 onMouseLeave={e => { if (!disabled) e.currentTarget.style.background = 'transparent' }}>
                 {children}
@@ -1788,10 +1788,10 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               const dbF = est.facility
               if (!dbF) return (
                 <button type="button" onClick={() => guardEdit(() => setFacModal(est.key))}
-                  style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(212,160,23,.38)', background: 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))', borderRadius: 16, padding: '26px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 13, transition: 'border-color .15s ease, background .15s ease, transform .15s ease' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.7)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.1),rgba(255,255,255,.022))' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.38)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))' }}>
-                  <div style={{ position: 'relative', width: 54, height: 54, borderRadius: 15, background: 'rgba(212,160,23,.09)', border: '1.5px dashed rgba(212,160,23,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(176,125,0,.38)', background: 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))', borderRadius: 16, padding: '26px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 13, transition: 'border-color .15s ease, background .15s ease, transform .15s ease' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.7)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.1),rgba(255,255,255,.022))' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.38)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))' }}>
+                  <div style={{ position: 'relative', width: 54, height: 54, borderRadius: 15, background: 'rgba(176,125,0,.09)', border: '1.5px dashed rgba(176,125,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Building2 size={27} color={C.gold} strokeWidth={1.6} />
                     <span style={{ position: 'absolute', insetInlineEnd: -5, bottom: -5, width: 19, height: 19, borderRadius: '50%', background: C.gold, color: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #242424' }}>
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1810,9 +1810,9 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                 { label: T('رقم الموارد البشرية','HRSD No'), value: dbF.hrsd_number },
               ].filter(c => c.value)
               return (
-                <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(176,125,0,.1)', border: '1.5px solid rgba(176,125,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Building2 size={24} color={C.gold} strokeWidth={1.8} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1820,7 +1820,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       {dbF.name_en && dbF.name_ar && dbF.name_en !== dbF.name_ar && <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: 'right', opacity: .7 }}>{dbF.name_en}</span>}
                     </div>
                     <button type="button" onClick={() => guardEdit(() => setFacModal(est.key))} title={T('تغيير','Change')} aria-label={T('تغيير','Change')} style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: 'transparent', border: 'none', color: C.gold, cursor: 'pointer' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.16)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.16)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                     </button>
                   </div>
@@ -1885,10 +1885,10 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       </div>
                     ) : !canCardBtn(user, tabId, 'visa_file', 'issue_visa') ? null : (
                       <button type="button" onClick={() => guardEdit(() => setIssuanceModal(fn))}
-                        style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(212,160,23,.38)', background: 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, transition: 'border-color .15s ease, background .15s ease' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.7)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.1),rgba(255,255,255,.022))' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.38)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))' }}>
-                        <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 13, background: 'rgba(212,160,23,.09)', border: '1.5px dashed rgba(212,160,23,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(176,125,0,.38)', background: 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, transition: 'border-color .15s ease, background .15s ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.7)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.1),rgba(255,255,255,.022))' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.38)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))' }}>
+                        <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 13, background: 'rgba(176,125,0,.09)', border: '1.5px dashed rgba(176,125,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <FileTextIco size={23} color={C.gold} strokeWidth={1.6} />
                           <span style={{ position: 'absolute', insetInlineEnd: -5, bottom: -5, width: 19, height: 19, borderRadius: '50%', background: C.gold, color: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #242424' }}>
                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1931,7 +1931,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             </div>
                             {canCardBtn(user, tabId, 'visa_file', 'edit') && (
                             <button type="button" onClick={() => guardEdit(() => setIssuanceModal(fn))} title={T('تعديل','Edit')} aria-label={T('تعديل','Edit')} style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: 'transparent', border: 'none', color: C.gold, cursor: 'pointer' }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.16)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.16)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                             </button>
                             )}
@@ -2105,10 +2105,10 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                         </div>
                         {canCardBtn(user, tabId, 'establishment_distribute', 'distribute') && (
                         <button type="button" onClick={() => guardEdit(() => setDistModal(true))}
-                          style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(212,160,23,.42)', background: 'linear-gradient(135deg,rgba(212,160,23,.06),rgba(255,255,255,.012))', borderRadius: 14, padding: '18px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, transition: 'border-color .15s ease, background .15s ease' }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.75)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.11),rgba(255,255,255,.022))' }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.42)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.06),rgba(255,255,255,.012))' }}>
-                          <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: 'rgba(212,160,23,.09)', border: '1.5px dashed rgba(212,160,23,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(176,125,0,.42)', background: 'linear-gradient(135deg,rgba(176,125,0,.06),rgba(255,255,255,.012))', borderRadius: 14, padding: '18px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, transition: 'border-color .15s ease, background .15s ease' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.75)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.11),rgba(255,255,255,.022))' }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.42)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.06),rgba(255,255,255,.012))' }}>
+                          <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: 'rgba(176,125,0,.09)', border: '1.5px dashed rgba(176,125,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Building2 size={24} color={C.gold} strokeWidth={1.6} />
                             <span style={{ position: 'absolute', insetInlineEnd: -5, bottom: -5, width: 19, height: 19, borderRadius: '50%', background: C.gold, color: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #242424' }}>
                               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -2142,10 +2142,10 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                        وكل التأشيرات مُسندة (لا كرت منشأة فارغ). تأشيرة واحدة ⇒ لا يوجد ما يُوزَّع على منشأة ثانية. ── */}
                 {!isTemp && visaList.length > 1 && unissuedVisas.length > 0 && !establishments.some(e => !e.facility) && canCardBtn(user, tabId, 'establishment_distribute', 'distribute') && (
                   <button type="button" onClick={() => guardEdit(() => setDistModal(true))}
-                    style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(212,160,23,.45)', background: 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))', borderRadius: 16, padding: '15px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: C.gold, fontSize: 13, fontWeight: 700, transition: 'border-color .15s ease, background .15s ease' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.8)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.1),rgba(255,255,255,.02))' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))' }}>
-                    <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(212,160,23,.14)', border: '1px solid rgba(212,160,23,.4)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(176,125,0,.45)', background: 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))', borderRadius: 16, padding: '15px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: C.gold, fontSize: 13, fontWeight: 600, transition: 'border-color .15s ease, background .15s ease' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.8)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.1),rgba(255,255,255,.02))' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.45)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))' }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(176,125,0,.14)', border: '1px solid rgba(176,125,0,.4)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </span>
                     <span>{T('إضافة منشأة وتوزيع التأشيرات','Add establishment & distribute visas')}</span>
@@ -2193,7 +2193,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
             const natOf = r => (isAr ? r.nationality?.name_ar : (r.nationality?.name_en || r.nationality?.name_ar)) || ''
             const genOf = r => r.gender === 'female' ? T('أنثى','Female') : r.gender === 'male' ? T('ذكر','Male') : ''
             const doneCount = visaList.filter(v => iqamaRows[v.id]?.iqama_number).length
-            const iqChip = n => <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(212,160,23,.15)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+            const iqChip = n => <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(176,125,0,.15)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
             const renderIqamaSub = (visa, vi) => {
               const r = iqamaRows[visa.id]
               const visaDone = !!(visa.visa_number || visa.border_number)
@@ -2238,7 +2238,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             )}
                             {canCardBtn(user, tabId, 'iqama', 'edit') && (
                             <button type="button" onClick={() => guardEdit(() => setIqamaModalVisaId(visa.id))} title={T('تعديل','Edit')} aria-label={T('تعديل','Edit')} style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: 'transparent', border: 'none', color: C.gold, cursor: 'pointer' }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.16)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.16)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                             </button>
                             )}
@@ -2297,10 +2297,10 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       </div>
                     ) : payGate.iqamaReadyForVisa(visa.id) ? (!canCardBtn(user, tabId, 'iqama', 'register_iqama') ? null : (
                       <button type="button" onClick={() => guardEdit(() => setIqamaModalVisaId(visa.id))}
-                        style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(212,160,23,.38)', background: 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, transition: 'border-color .15s ease, background .15s ease' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.7)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.1),rgba(255,255,255,.022))' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.38)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))' }}>
-                        <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 13, background: 'rgba(212,160,23,.09)', border: '1.5px dashed rgba(212,160,23,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(176,125,0,.38)', background: 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, transition: 'border-color .15s ease, background .15s ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.7)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.1),rgba(255,255,255,.022))' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.38)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))' }}>
+                        <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 13, background: 'rgba(176,125,0,.09)', border: '1.5px dashed rgba(176,125,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <CreditCard size={23} color={C.gold} strokeWidth={1.6} />
                           <span style={{ position: 'absolute', insetInlineEnd: -5, bottom: -5, width: 19, height: 19, borderRadius: '50%', background: C.gold, color: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #242424' }}>
                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -2367,7 +2367,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             )}
                             {canCardBtn(user, tabId, 'work_permit', 'edit') && (
                             <button type="button" onClick={() => guardEdit(() => setWorkPermitModalVisaId(visa.id))} title={T('تعديل','Edit')} aria-label={T('تعديل','Edit')} style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: 'transparent', border: 'none', color: C.gold, cursor: 'pointer' }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.16)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.16)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                             </button>
                             )}
@@ -2397,10 +2397,10 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       </div>
                     ) : payGate.iqamaReadyForVisa(visa.id) ? (!canCardBtn(user, tabId, 'work_permit', 'edit') ? null : (
                       <button type="button" onClick={() => guardEdit(() => setWorkPermitModalVisaId(visa.id))}
-                        style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(212,160,23,.38)', background: 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, transition: 'border-color .15s ease, background .15s ease' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.7)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.1),rgba(255,255,255,.022))' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.38)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.05),rgba(255,255,255,.012))' }}>
-                        <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 13, background: 'rgba(212,160,23,.09)', border: '1.5px dashed rgba(212,160,23,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        style={{ width: '100%', cursor: 'pointer', fontFamily: F, border: '1.5px dashed rgba(176,125,0,.38)', background: 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, transition: 'border-color .15s ease, background .15s ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.7)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.1),rgba(255,255,255,.022))' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.38)'; e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.05),rgba(255,255,255,.012))' }}>
+                        <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 13, background: 'rgba(176,125,0,.09)', border: '1.5px dashed rgba(176,125,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <FileTextIco size={23} color={C.gold} strokeWidth={1.6} />
                           <span style={{ position: 'absolute', insetInlineEnd: -5, bottom: -5, width: 19, height: 19, borderRadius: '50%', background: C.gold, color: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #242424' }}>
                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -2501,7 +2501,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                               <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <span>{T('العامل السابق','Previous worker')}:</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                  <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{c.from_name}</span>
+                                  <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{c.from_name}</span>
                                   {c.from_iqama && <span style={{ fontFamily: 'monospace', direction: 'ltr', color: 'var(--tx3)' }}>{c.from_iqama}</span>}
                                 </div>
                               </div>
@@ -2522,7 +2522,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
-                          <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{sr.branch.branch_code}</span>
+                          <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{sr.branch.branch_code}</span>
                         </span>
                       </div>
                     )}
@@ -2603,7 +2603,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', flexDirection: 'column', gap: 2 }}>
                               <span>{T('العامل السابق','Previous worker')}:</span>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{c.from_name}</span>
+                                <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{c.from_name}</span>
                                 {c.from_iqama && <span style={{ fontFamily: 'monospace', direction: 'ltr', color: 'var(--tx3)' }}>{c.from_iqama}</span>}
                               </div>
                             </div>
@@ -2623,7 +2623,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
-                          <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{sr.branch.branch_code}</span>
+                          <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{sr.branch.branch_code}</span>
                         </span>
                       </div>
                     )}
@@ -2639,7 +2639,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       )}
                       {det.chamber_file?.url && (
                         <a href={det.chamber_file.url} target="_blank" rel="noopener noreferrer"
-                          style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.gold, fontSize: 12.5, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
+                          style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.gold, fontSize: 12.5, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                           <span>{T('عرض ملف المطبوعات المرفق','View attached printout')}</span>
                         </a>
@@ -2783,7 +2783,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                     {sr.branch?.branch_code && (
                       <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
-                        <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{sr.branch.branch_code}</span>
+                        <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{sr.branch.branch_code}</span>
                       </div>
                     )}
                     <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px' }}>
@@ -2919,7 +2919,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                                 {n.attachments.map((a, i) => (
                                   <a key={a.id || i} href={a.file_url} target="_blank" rel="noreferrer" title={a.file_name || T('مرفق','Attachment')}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: C.gold, textDecoration: 'none' }}>
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: C.gold, textDecoration: 'none' }}>
                                     <Paperclip size={12} strokeWidth={2} />
                                     <span style={{ textDecoration: 'underline', textUnderlineOffset: 3, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{a.file_name || (T('مرفق','Attachment') + ' ' + (i + 1))}</span>
                                   </a>
@@ -3045,7 +3045,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                           <span
                             onClick={invId ? openInvoice : undefined}
                             title={invId ? T('فتح تفاصيل الفاتورة','Open invoice details') : undefined}
-                            style={{ cursor: invId ? 'pointer' : 'default', textDecorationLine: invId ? 'underline' : 'none', textUnderlineOffset: 3, textDecorationColor: 'rgba(212,160,23,.45)' }}
+                            style={{ cursor: invId ? 'pointer' : 'default', textDecorationLine: invId ? 'underline' : 'none', textUnderlineOffset: 3, textDecorationColor: 'rgba(176,125,0,.45)' }}
                           >{invoiceNo}</span>
                         </span>
                       ))}
@@ -3069,7 +3069,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                 <div style={cardHeader}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
                   <span style={{ ...cardTitle, color: C.gold }}>{T('الدفعات','Installments')}</span>
-                  {installments.length > 0 && <span style={{ marginInlineStart: 'auto', fontSize: 16, color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>}
+                  {installments.length > 0 && <span style={{ marginInlineStart: 'auto', fontSize: 16, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>}
                 </div>
                 <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {installments.length === 0 ? (
@@ -3196,7 +3196,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             <span style={{
                               width: sz, height: sz, borderRadius: '50%',
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 14, fontWeight: 700, color: fg, background: bg,
+                              fontSize: 14, fontWeight: 600, color: fg, background: bg,
                               border: sc ? 'none' : '1px solid var(--bd)',
                               // الإطار: حلقة بلون الحالة مع فجوة بلون الكرت ثم هالة خفيفة — يميّز المرحلة الحالية بوضوح.
                               boxShadow: atNow
@@ -3206,7 +3206,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             }}>
                               {stoppedHere ? <Ban size={atNow ? 19 : 17} strokeWidth={2.4} /> : done ? <CheckCircle2 size={atNow ? 21 : 18} strokeWidth={2.6} /> : cur ? <Clock size={atNow ? 19 : 16} strokeWidth={2.4} /> : (i + 1)}
                             </span>
-                            <span style={{ fontSize: atNow ? 11 : 10, color: sc || 'var(--tx4)', fontWeight: atNow ? 700 : 600, textAlign: 'center', lineHeight: 1.3 }}>{s.label}</span>
+                            <span style={{ fontSize: atNow ? 11 : 10, color: sc || 'var(--tx4)', fontWeight: atNow ? 600 : 600, textAlign: 'center', lineHeight: 1.3 }}>{s.label}</span>
                           </div>
                           {i < STAGES.length - 1 && <span style={{ flex: 1, height: 3, borderRadius: 3, background: curIdx > i ? C.ok : 'var(--bd)', marginTop: atNow ? 19 : 16 }} />}
                         </React.Fragment>
@@ -3441,7 +3441,7 @@ function RequestActionModal({ type, sb, T, isAr, toast, sr, summary, user, onClo
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {summary.attachments.map((a, i) => (
                 <a key={a.id || i} href={a.file_url} target="_blank" rel="noreferrer" title={a.file_name || ''}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700, color: C.gold, textDecoration: 'none' }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: C.gold, textDecoration: 'none' }}>
                   <Paperclip size={12} strokeWidth={2} />
                   <span style={{ textDecoration: 'underline', textUnderlineOffset: 3, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{a.file_name || (T('مرفق', 'Attachment') + ' ' + (i + 1))}</span>
                 </a>
@@ -3517,7 +3517,7 @@ function ChamberFollowUpCard({ submissions, readOnly, onAdd, onDecide, onEdit, c
     const hhmm = d ? String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : ''
     return (
       <div style={{ flex: 1, display: 'flex', direction: 'rtl', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)', flexWrap: 'wrap' }}>
-        {name ? <span style={{ fontWeight: 700, color: C.gold }}>{name}</span> : <span />}
+        {name ? <span style={{ fontWeight: 600, color: C.gold }}>{name}</span> : <span />}
         {iso && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtGreg(iso)}</span><span>{hhmm}</span></span>}
       </div>
     )
@@ -3529,7 +3529,7 @@ function ChamberFollowUpCard({ submissions, readOnly, onAdd, onDecide, onEdit, c
         <span style={{ ...cardTitle, color: C.blue }}>{T('متابعة معاملة الغرفة التجارية', 'Chamber Follow-up')}</span>
         {baseCanAdd && (
           <button onClick={payOk ? onAdd : undefined} disabled={!payOk}
-            title={payOk ? undefined : T(`يتطلب سداد ٧٠٪ من الفاتورة لإضافة رقم المعاملة — المسدّد ${paymentPct}٪`, `Requires 70% of the invoice paid to add the transaction number — ${paymentPct}% paid`)}
+            title={payOk ? undefined : T(`يتطلب سداد ٧٠٪ من الفاتورة لإضافة رقم المعاملة — المدفوع ${paymentPct}٪`, `Requires 70% of the invoice paid to add the transaction number — ${paymentPct}% paid`)}
             style={{ ...pill(C.blue), marginInlineStart: 'auto', opacity: payOk ? 1 : 0.5, cursor: payOk ? 'pointer' : 'not-allowed' }}
             onMouseEnter={payOk ? (e => { e.currentTarget.style.background = C.blue + '1f' }) : undefined}
             onMouseLeave={payOk ? (e => { e.currentTarget.style.background = 'transparent' }) : undefined}>
@@ -3548,24 +3548,24 @@ function ChamberFollowUpCard({ submissions, readOnly, onAdd, onDecide, onEdit, c
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('رقم المعاملة', 'Transaction No.')}{subs.length > 1 ? ` (${i + 1})` : ''}</span>
-                  <span style={{ fontSize: 16, color: '#fff', fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}>{s.ref_no}</span>
+                  <span style={{ fontSize: 16, color: '#fff', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}>{s.ref_no}</span>
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   {canEdit && onEdit && (
                     <button type="button" onClick={() => onEdit(s)} title={T('تعديل رقم المعاملة', 'Edit transaction no.')}
-                      style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.18)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}>
+                      style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(176,125,0,.3)', background: 'rgba(176,125,0,.08)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.18)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.08)' }}>
                       <Pencil size={13} strokeWidth={2.2} />
                     </button>
                   )}
-                  <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 700, color: stt.c, padding: '5px 12px', borderRadius: 0, background: stt.c + '14', borderInlineStart: '3px solid ' + stt.c }}>{isAr ? stt.ar : stt.en}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 600, color: stt.c, padding: '5px 12px', borderRadius: 0, background: stt.c + '14', borderInlineStart: '3px solid ' + stt.c }}>{isAr ? stt.ar : stt.en}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid var(--bd)', paddingTop: 8 }}>
                 {stamp(s.created_by_name, s.created_at)}
                 {s.decided_at && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 10.5, color: stt.c, fontWeight: 700 }}>{isAr ? stt.ar : stt.en}:</span>
+                    <span style={{ fontSize: 10.5, color: stt.c, fontWeight: 600 }}>{isAr ? stt.ar : stt.en}:</span>
                     {stamp(s.decided_by_name, s.decided_at)}
                   </div>
                 )}
@@ -3579,7 +3579,7 @@ function ChamberFollowUpCard({ submissions, readOnly, onAdd, onDecide, onEdit, c
                 {/* الملف المُرسَل من الغرفة (عند القبول) */}
                 {s.status === 'accepted' && s.accepted_file?.url && (
                   <a href={s.accepted_file.url} target="_blank" rel="noopener noreferrer"
-                    style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.ok, fontSize: 12.5, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
+                    style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.ok, fontSize: 12.5, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
                     <Paperclip size={13} strokeWidth={2} />
                     <span>{s.accepted_file.name || T('عرض ملف الغرفة المرفق', 'View attached chamber file')}</span>
                   </a>
@@ -3605,7 +3605,7 @@ function ChamberFollowUpCard({ submissions, readOnly, onAdd, onDecide, onEdit, c
             <span style={{ width: 38, height: 38, borderRadius: '50%', background: C.ok + '29', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok }}>
               <CheckCircle2 size={21} strokeWidth={2.2} />
             </span>
-            <span style={{ fontSize: 14, color: C.ok, fontWeight: 700 }}>{T('تمّ قبول المعاملة', 'Transaction accepted')}</span>
+            <span style={{ fontSize: 14, color: C.ok, fontWeight: 600 }}>{T('تمّ قبول المعاملة', 'Transaction accepted')}</span>
             <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600 }}>{T('حالة الطلب الآن «منجز»', 'Request is now “Done”')}</span>
           </div>
         )}
@@ -3633,7 +3633,7 @@ function AjeerFollowUpCard({ det, canEdit, canAttach = canEdit, canEditBtn = can
     const hhmm = dt ? String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0') : ''
     return (
       <div style={{ flex: 1, display: 'flex', direction: 'rtl', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)', flexWrap: 'wrap' }}>
-        {name ? <span style={{ fontWeight: 700, color: C.gold }}>{name}</span> : <span />}
+        {name ? <span style={{ fontWeight: 600, color: C.gold }}>{name}</span> : <span />}
         {iso && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtGreg(iso)}</span><span>{hhmm}</span></span>}
       </div>
     )
@@ -3662,33 +3662,33 @@ function AjeerFollowUpCard({ det, canEdit, canAttach = canEdit, canEditBtn = can
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('رقم العقد', 'Contract No.')}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 16, color: '#fff', fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}>{saved.contract_number || '—'}</span>
+                    <span style={{ fontSize: 16, color: '#fff', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}>{saved.contract_number || '—'}</span>
                     {saved.contract_number && <CopyRefBtn value={saved.contract_number} title={T('نسخ', 'Copy')} />}
                   </span>
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   {canEditBtn && (
                     <button type="button" onClick={onEdit}
-                      title={T('تعديل', 'Edit')} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(212,160,23,.3)', background: 'rgba(212,160,23,.08)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.18)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}>
+                      title={T('تعديل', 'Edit')} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid rgba(176,125,0,.3)', background: 'rgba(176,125,0,.08)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.18)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.08)' }}>
                       <Pencil size={13} strokeWidth={2.2} />
                     </button>
                   )}
-                  <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 700, color: C.ok, padding: '5px 12px', borderRadius: 0, background: C.ok + '14', borderInlineStart: '3px solid ' + C.ok }}>{T('مقبول', 'Accepted')}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 600, color: C.ok, padding: '5px 12px', borderRadius: 0, background: C.ok + '14', borderInlineStart: '3px solid ' + C.ok }}>{T('مقبول', 'Accepted')}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--bd)', paddingTop: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700 }}>{T('رقم فاتورة العقد', 'Contract Invoice No.')}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('رقم فاتورة العقد', 'Contract Invoice No.')}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}>{saved.contract_invoice_no || '—'}</span>
+                    <span style={{ fontSize: 13, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}>{saved.contract_invoice_no || '—'}</span>
                     {saved.contract_invoice_no && <CopyRefBtn value={saved.contract_invoice_no} title={T('نسخ', 'Copy')} />}
                   </span>
                 </div>
                 {(saved.permit_start || saved.permit_end) && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 700 }}>{T('مدة التصريح', 'Permit period')}</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontSize: 12.5, color: '#fff', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('مدة التصريح', 'Permit period')}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontSize: 12.5, color: '#fff', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                       <span>{saved.permit_start ? fmtGreg(saved.permit_start) : '—'}</span>
                       <span style={{ color: 'var(--tx4)' }}>←</span>
                       <span>{saved.permit_end ? fmtGreg(saved.permit_end) : '—'}</span>
@@ -3697,13 +3697,13 @@ function AjeerFollowUpCard({ det, canEdit, canAttach = canEdit, canEditBtn = can
                 )}
                 {(saved.ajeer_saved_by_name || saved.ajeer_saved_at) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 10.5, color: C.ok, fontWeight: 700 }}>{T('مقبول', 'Accepted')}:</span>
+                    <span style={{ fontSize: 10.5, color: C.ok, fontWeight: 600 }}>{T('مقبول', 'Accepted')}:</span>
                     {stamp(saved.ajeer_saved_by_name, saved.ajeer_saved_at)}
                   </div>
                 )}
                 {saved.ajeer_permit_file?.url && (
                   <a href={saved.ajeer_permit_file.url} target="_blank" rel="noopener noreferrer"
-                    style={{ marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.ok, fontSize: 12.5, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
+                    style={{ marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.ok, fontSize: 12.5, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
                     <Paperclip size={13} strokeWidth={2} />
                     <span>{saved.ajeer_permit_file.name || T('عرض تصريح عقد أجير المرفق', 'View attached Ajeer permit')}</span>
                   </a>
@@ -3715,7 +3715,7 @@ function AjeerFollowUpCard({ det, canEdit, canAttach = canEdit, canEditBtn = can
               <span style={{ width: 38, height: 38, borderRadius: '50%', background: C.ok + '29', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok }}>
                 <CheckCircle2 size={21} strokeWidth={2.2} />
               </span>
-              <span style={{ fontSize: 14, color: C.ok, fontWeight: 700 }}>{T('تمّ قبول عقد أجير', 'Ajeer contract accepted')}</span>
+              <span style={{ fontSize: 14, color: C.ok, fontWeight: 600 }}>{T('تمّ قبول عقد أجير', 'Ajeer contract accepted')}</span>
               <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600 }}>{T('حالة الطلب الآن «منجز»', 'Request is now “Done”')}</span>
             </div>
           </>
@@ -4412,17 +4412,17 @@ function FacilityFields({ fac, T }) {
 
 /* ─────── Worker / facility hero cards — identical to the invoice's EntityHero ─────── */
 const EntityHero = ({ icon, primary, secondary, latin, cells, onEdit }) => (
-  <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+  <div style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
     {onEdit && (
       <button type="button" onClick={onEdit} title="تغيير" aria-label="تغيير"
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.18)' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)' }}
-        style={{ position: 'absolute', top: 10, insetInlineStart: 10, width: 28, height: 28, borderRadius: 8, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, transition: '.15s' }}>
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.18)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.1)' }}
+        style={{ position: 'absolute', top: 10, insetInlineStart: 10, width: 28, height: 28, borderRadius: 8, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, transition: '.15s' }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
       </button>
     )}
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
+      <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(176,125,0,.1)', border: '1.5px solid rgba(176,125,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
           {primary && <CopyRefBtn value={primary} title="نسخ" />}
@@ -4504,12 +4504,12 @@ function SaveBtn({ T, dirty, saving, onClick }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'rgba(212,160,23,.15)' }}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'rgba(176,125,0,.15)' }}
       onMouseLeave={e => { if (!disabled) e.currentTarget.style.background = 'transparent' }}
       style={{
         height: 38, padding: '0 20px', borderRadius: 9,
         background: 'transparent',
-        border: '1px solid ' + (disabled ? 'rgba(255,255,255,.08)' : 'rgba(212,160,23,.5)'),
+        border: '1px solid ' + (disabled ? 'rgba(255,255,255,.08)' : 'rgba(176,125,0,.5)'),
         color: disabled ? 'var(--tx4)' : C.gold,
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontFamily: F, fontSize: 12.5, fontWeight: 600,
@@ -4591,23 +4591,23 @@ function QiwaSubscriptionBox({ sb, sr, T, toast, user }) {
   }
   return (
     <div style={{ alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <label style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', userSelect: 'none', padding: '10px 14px', borderRadius: 9, background: open ? 'rgba(212,160,23,.10)' : 'transparent', border: '1px solid ' + (open ? 'rgba(212,160,23,.4)' : 'rgba(212,160,23,.25)'), transition: '.15s', boxSizing: 'border-box' }}
-        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(212,160,23,.06)' }}
+      <label style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', userSelect: 'none', padding: '10px 14px', borderRadius: 9, background: open ? 'rgba(176,125,0,.10)' : 'transparent', border: '1px solid ' + (open ? 'rgba(176,125,0,.4)' : 'rgba(176,125,0,.25)'), transition: '.15s', boxSizing: 'border-box' }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(176,125,0,.06)' }}
         onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent' }}>
-        <span style={{ width: 18, height: 18, borderRadius: 5, border: '1.5px solid ' + (open ? C.gold : 'rgba(212,160,23,.5)'), background: open ? C.gold : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>
+        <span style={{ width: 18, height: 18, borderRadius: 5, border: '1.5px solid ' + (open ? C.gold : 'rgba(176,125,0,.5)'), background: open ? C.gold : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>
           {open && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
         </span>
         <input type="checkbox" checked={open} onChange={e => setOpen(e.target.checked)} style={{ display: 'none' }} />
         <span style={{ fontFamily: F, fontSize: 12.5, fontWeight: 600, color: open ? C.gold : C.gold }}>{T('إضافة اشتراك قوى','Add Qiwa subscription')}</span>
       </label>
       {open && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(212,160,23,.25)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(176,125,0,.25)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px' }}>{T('رقم السداد','SADAD No')}</label>
               <input type="text" value={sadad} onChange={e => setSadad(e.target.value.replace(/[^\d]/g, ''))} placeholder="—"
                 style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: 'monospace', fontSize: 13, fontWeight: 600, direction: 'ltr', textAlign: 'center', outline: 'none' }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -4616,7 +4616,7 @@ function QiwaSubscriptionBox({ sb, sr, T, toast, user }) {
                 onChange={e => { const v = e.target.value.replace(/[^\d.]/g, ''); if (/^\d*\.?\d*$/.test(v)) setAmount(v) }}
                 placeholder="0.00"
                 style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: C.gold, fontFamily: F, fontSize: 14, fontWeight: 600, direction: 'ltr', textAlign: 'center', outline: 'none' }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.5)' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }} />
             </div>
           </div>
@@ -4624,12 +4624,12 @@ function QiwaSubscriptionBox({ sb, sr, T, toast, user }) {
             type="button"
             onClick={submit}
             disabled={!canSubmit}
-            onMouseEnter={e => { if (canSubmit) e.currentTarget.style.background = 'rgba(212,160,23,.15)' }}
+            onMouseEnter={e => { if (canSubmit) e.currentTarget.style.background = 'rgba(176,125,0,.15)' }}
             onMouseLeave={e => { if (canSubmit) e.currentTarget.style.background = 'transparent' }}
             style={{
               height: 38, padding: '0 20px', borderRadius: 9,
               background: 'transparent',
-              border: '1px solid ' + (canSubmit ? 'rgba(212,160,23,.5)' : 'rgba(255,255,255,.08)'),
+              border: '1px solid ' + (canSubmit ? 'rgba(176,125,0,.5)' : 'rgba(255,255,255,.08)'),
               color: canSubmit ? C.gold : 'var(--tx4)',
               cursor: canSubmit ? 'pointer' : 'not-allowed',
               fontFamily: F, fontSize: 12.5, fontWeight: 600,
@@ -4697,8 +4697,8 @@ function TxnWorkerPickModal({ sb, toast, T, isAr, appId, currentId, onClose, onS
     ]
     return (
       <div onClick={() => choose(w)}
-        style={{ border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, borderRadius: 12, background: active ? 'rgba(212,160,23,.06)' : 'var(--bd2)', padding: '11px 13px', marginBottom: 8, cursor: 'pointer', transition: '.15s' }}
-        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' } }}
+        style={{ border: `1px solid ${active ? 'rgba(176,125,0,.45)' : 'var(--bd)'}`, borderRadius: 12, background: active ? 'rgba(176,125,0,.06)' : 'var(--bd2)', padding: '11px 13px', marginBottom: 8, cursor: 'pointer', transition: '.15s' }}
+        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.25)' } }}
         onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'var(--bd)' } }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -4706,7 +4706,7 @@ function TxnWorkerPickModal({ sb, toast, T, isAr, appId, currentId, onClose, onS
             <span style={{ fontSize: 13.5, color: active ? C.gold : 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{(isAr ? (w.name_ar || w.name_en) : (w.name_en || w.name_ar)) || '—'}</span>
           </span>
           {isCur
-            ? <span style={{ flexShrink: 0, fontSize: 9.5, color: C.gold, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.35)' }}>{T('الحالي','Current')}</span>
+            ? <span style={{ flexShrink: 0, fontSize: 9.5, color: C.gold, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.35)' }}>{T('الحالي','Current')}</span>
             : <span style={{ flexShrink: 0, color: 'var(--tx5)', display: 'inline-flex' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg></span>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
@@ -4814,13 +4814,13 @@ function TxnFacilityPickModal({ sb, toast, T, isAr, isTemp, fileLabel, rows, fil
     ]
     return (
       <div onClick={() => choose(f)}
-        style={{ border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, borderRadius: 12, background: active ? 'rgba(212,160,23,.06)' : 'var(--bd2)', padding: '11px 13px', marginBottom: 8, cursor: 'pointer', transition: '.15s' }}
-        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' } }}
+        style={{ border: `1px solid ${active ? 'rgba(176,125,0,.45)' : 'var(--bd)'}`, borderRadius: 12, background: active ? 'rgba(176,125,0,.06)' : 'var(--bd2)', padding: '11px 13px', marginBottom: 8, cursor: 'pointer', transition: '.15s' }}
+        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.25)' } }}
         onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'var(--bd)' } }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{ fontSize: 13.5, color: active ? C.gold : 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{(isAr ? f.name_ar : (f.name_en || f.name_ar)) || '—'}</span>
           {isCur
-            ? <span style={{ flexShrink: 0, fontSize: 9.5, color: C.gold, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.35)' }}>{T('الحالية','Current')}</span>
+            ? <span style={{ flexShrink: 0, fontSize: 9.5, color: C.gold, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.35)' }}>{T('الحالية','Current')}</span>
             : <span style={{ flexShrink: 0, color: 'var(--tx5)', display: 'inline-flex' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg></span>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 7 }}>
@@ -4842,13 +4842,13 @@ function TxnFacilityPickModal({ sb, toast, T, isAr, isTemp, fileLabel, rows, fil
       { label: T('رقم الموارد البشرية','HRSD No'), value: f.hrsd_number },
     ].filter(c => c.value)
     return (
-      <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <button onClick={() => { setSelected(null); setErr('') }} title={T('تغيير المنشأة','Change facility')}
           style={{ position: 'absolute', top: 10, insetInlineEnd: 10, width: 28, height: 28, borderRadius: 8, background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.35)', color: C.red, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(176,125,0,.1)', border: '1.5px solid rgba(176,125,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Building2 size={24} color={C.gold} strokeWidth={1.8} />
           </div>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -5031,12 +5031,12 @@ function TxnIssuanceModal({ sb, user, toast, T, isAr, fileLabel, rows, metaOf, o
               const r = rows[0]
               const m = metaOf(r)
               const bv = borders[r.id] || ''
-              const fieldStyle = active => ({ width: '100%', height: 40, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: `1px solid ${active ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, color: 'var(--tx1)', fontFamily: F, fontSize: 13, outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' })
+              const fieldStyle = active => ({ width: '100%', height: 40, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: `1px solid ${active ? 'rgba(176,125,0,.45)' : 'var(--bd)'}`, color: 'var(--tx1)', fontFamily: F, fontSize: 13, outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' })
               const lblStyle = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6 }
               return (
-                <div style={{ border: '1px solid rgba(212,160,23,.3)', borderRadius: 12, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'rgba(212,160,23,.08)', borderBottom: '1px solid rgba(212,160,23,.18)' }}>
-                    <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(212,160,23,.18)', border: '1px solid rgba(212,160,23,.4)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{m.idx}</span>
+                <div style={{ border: '1px solid rgba(176,125,0,.3)', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'rgba(176,125,0,.08)', borderBottom: '1px solid rgba(176,125,0,.18)' }}>
+                    <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(176,125,0,.18)', border: '1px solid rgba(176,125,0,.4)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{m.idx}</span>
                     <span style={{ fontSize: 11.5, color: 'var(--tx1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nat}{m.sub ? <span style={{ color: 'var(--tx4)', fontWeight: 600 }}> · {m.sub}</span> : null}</span>
                   </div>
                   <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -5066,10 +5066,10 @@ function TxnIssuanceModal({ sb, user, toast, T, isAr, fileLabel, rows, metaOf, o
                   const bv = borders[r.id] || ''
                   return (
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
-                      <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(212,160,23,.15)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{m.idx}</span>
+                      <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(176,125,0,.15)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{m.idx}</span>
                       <div style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: 'var(--tx1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nat}{m.sub ? <span style={{ color: 'var(--tx4)', fontWeight: 600 }}> · {m.sub}</span> : null}</div>
                       <input value={bv} onChange={e => { const d = e.target.value.replace(/\D/g, '').slice(0, 10); setBorders(s => ({ ...s, [r.id]: d })); setErr(null) }} dir="ltr" inputMode="numeric" maxLength={10} placeholder={T('رقم الحدود','Border No.')}
-                        style={{ flexShrink: 0, width: 160, height: 34, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: `1px solid ${bv ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' }} />
+                        style={{ flexShrink: 0, width: 160, height: 34, padding: '0 12px', borderRadius: 8, background: 'var(--inputBg)', border: `1px solid ${bv ? 'rgba(176,125,0,.45)' : 'var(--bd)'}`, color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', direction: 'ltr', textAlign: 'center', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' }} />
                     </div>
                   )
                 })}
@@ -5155,7 +5155,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
     } catch { setErr(T('تعذر الحفظ','Save failed')) }
     finally { setSaving(false) }
   }
-  const Chip = ({ n }) => <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(212,160,23,.15)', border: '1px solid rgba(212,160,23,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+  const Chip = ({ n }) => <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(176,125,0,.15)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
   const facCells = f => [
     { label: T('الرقم الموحد','Unified'), value: f.unified_number },
     { label: T('رقم التأمينات','GOSI'), value: f.gosi_number },
@@ -5174,7 +5174,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
   const FacRow = ({ f }) => (
     <div onClick={() => { setFacility(f); setErr('') }}
       style={{ border: '1px solid var(--bd)', borderRadius: 11, background: 'var(--bd2)', padding: '10px 12px', marginBottom: 7, cursor: 'pointer', transition: '.15s' }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.25)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'var(--bd2)'; e.currentTarget.style.borderColor = 'var(--bd)' }}>
       <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 8 }}>{facName(f)}</div>
       <FacNums f={f} />
@@ -5184,7 +5184,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
   const facilityContent = (
     <ModalSection Icon={Building2} label={T('اختر المنشأة','Pick the establishment')} hint={T('ابحث عن منشأة جديدة أو اختر من منشآت المعاملة','Search a new facility or pick one from this transaction')}>
       {facility ? (
-        <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button type="button" onClick={() => { setFacility(null); setErr('') }} title={T('تغيير','Change')}
             style={{ position: 'absolute', top: 8, left: 8, height: 28, padding: '0 12px', borderRadius: 8, background: 'rgba(192,57,43,.12)', border: '1.3px dashed rgba(192,57,43,.55)', color: C.red, fontFamily: F, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.22)'; e.currentTarget.style.borderColor = 'rgba(192,57,43,.85)' }}
@@ -5192,7 +5192,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
             {T('تغيير','Change')}
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(176,125,0,.1)', border: '1.5px solid rgba(176,125,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Building2 size={20} color={C.gold} strokeWidth={1.8} />
             </div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{facName(facility)}</div>
@@ -5205,7 +5205,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
               {quick.map(qf => (
                 <button key={qf.id} type="button" onClick={() => { setFacility(qf); setErr('') }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999, background: 'rgba(212,160,23,.07)', border: '1px solid rgba(212,160,23,.32)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 600, maxWidth: 240 }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999, background: 'rgba(176,125,0,.07)', border: '1px solid rgba(176,125,0,.32)', color: C.gold, cursor: 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 600, maxWidth: 240 }}>
                   <Building2 size={11} color={C.gold} strokeWidth={2} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{facName(qf)}</span>
                 </button>
@@ -5246,7 +5246,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
   const visaContent = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
       {facility && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 11px', borderRadius: 9, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 11px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.25)' }}>
           <Building2 size={13} color={C.gold} strokeWidth={2} />
           <span style={{ fontSize: 12, fontWeight: 600, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{facName(facility)}</span>
           <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 600, color: capOver ? C.warn : 'var(--tx4)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{total}/4</span>
@@ -5254,9 +5254,9 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         <SecLabel extra={<>
-          <button type="button" onClick={() => setSelected(new Set(visas.map(v => v.id)))} style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, padding: 0 }}>{T('تحديد الكل','All')}</button>
+          <button type="button" onClick={() => setSelected(new Set(visas.map(v => v.id)))} style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, padding: 0 }}>{T('تحديد الكل','All')}</button>
           <span style={{ color: 'var(--tx5)', fontSize: 10 }}>·</span>
-          <button type="button" onClick={() => setSelected(new Set())} style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--tx4)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, padding: 0 }}>{T('مسح','Clear')}</button>
+          <button type="button" onClick={() => setSelected(new Set())} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: F, padding: 0 }}>{T('مسح','Clear')}</button>
           <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', fontVariantNumeric: 'tabular-nums' }}>{selected.size}/{visas.length}</span>
         </>}>{T('اختيار التأشيرات','Select visas')}</SecLabel>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -5266,7 +5266,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
             const curFac = v.main_facility ? facName(v.main_facility) : T('غير مُسندة','Unassigned')
             return (
               <button type="button" key={v.id} onClick={() => toggle(v.id)}
-                style={{ width: '100%', textAlign: 'start', display: 'grid', gridTemplateColumns: 'auto auto 1fr auto', alignItems: 'center', gap: 9, padding: '7px 11px', borderRadius: 9, background: checked ? 'rgba(212,160,23,.08)' : 'rgba(0,0,0,.18)', border: `1px solid ${checked ? 'rgba(212,160,23,.45)' : 'var(--bd)'}`, cursor: 'pointer', fontFamily: F, transition: '.15s' }}>
+                style={{ width: '100%', textAlign: 'start', display: 'grid', gridTemplateColumns: 'auto auto 1fr auto', alignItems: 'center', gap: 9, padding: '7px 11px', borderRadius: 9, background: checked ? 'rgba(176,125,0,.08)' : 'rgba(0,0,0,.18)', border: `1px solid ${checked ? 'rgba(176,125,0,.45)' : 'var(--bd)'}`, cursor: 'pointer', fontFamily: F, transition: '.15s' }}>
                 <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 6, background: checked ? C.gold : 'transparent', border: `1.5px solid ${checked ? C.gold : 'var(--bd)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a1a' }}>
                   {checked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                 </span>
@@ -5288,8 +5288,8 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
             const active = effGrouping === opt.key
             return (
               <button key={opt.key} type="button" disabled={opt.disabled} onClick={() => setGrouping(opt.key)}
-                style={{ textAlign: 'start', padding: '9px 12px', borderRadius: 10, cursor: opt.disabled ? 'not-allowed' : 'pointer', opacity: opt.disabled ? .4 : 1, background: active ? 'rgba(212,160,23,.1)' : 'rgba(0,0,0,.18)', border: `1.5px solid ${active ? 'rgba(212,160,23,.5)' : 'var(--bd)'}`, fontFamily: F, display: 'flex', flexDirection: 'column', gap: 2, transition: '.15s' }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: active ? C.gold : 'var(--tx1)' }}>{opt.t}</span>
+                style={{ textAlign: 'start', padding: '9px 12px', borderRadius: 10, cursor: opt.disabled ? 'not-allowed' : 'pointer', opacity: opt.disabled ? .4 : 1, background: active ? 'rgba(176,125,0,.1)' : 'rgba(0,0,0,.18)', border: `1.5px solid ${active ? 'rgba(176,125,0,.5)' : 'var(--bd)'}`, fontFamily: F, display: 'flex', flexDirection: 'column', gap: 2, transition: '.15s' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: active ? C.gold : 'var(--tx1)' }}>{opt.t}</span>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{opt.s}</span>
               </button>
             )
@@ -5566,14 +5566,14 @@ function DatePickerInput({ value, onChange }) {
         onChange={e => handleType(e.target.value)}
         placeholder="yyyy-mm-dd"
         style={{ width: '100%', height: 38, padding: '0 38px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box', direction: 'ltr', textAlign: 'center', fontVariantNumeric: 'tabular-nums', letterSpacing: '.5px' }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.4)' }}
         onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}
       />
       <button
         type="button"
         onClick={openPicker}
         aria-label="calendar"
-        style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28, border: 'none', background: open ? 'rgba(212,160,23,.14)' : 'transparent', cursor: 'pointer', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: 7, transition: '.15s' }}
+        style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28, border: 'none', background: open ? 'rgba(176,125,0,.14)' : 'transparent', cursor: 'pointer', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: 7, transition: '.15s' }}
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       </button>
@@ -5597,7 +5597,7 @@ function EditField({ label, value, onChange, type = 'text', mono = false, placeh
           onChange={e => onChange(e.target.value)}
           disabled={disabled}
           style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: value ? 'var(--tx1)' : 'var(--tx4)', fontFamily: mono ? 'monospace' : F, fontSize: 13, outline: 'none', boxSizing: 'border-box', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .45 : 1, direction: mono ? 'ltr' : undefined }}
-          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.4)' }}
           onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
           <option value="" style={{ background: 'var(--inputBg)', color: '#888' }}>{placeholder || '—'}</option>
           {options.map(o => <option key={o.value} value={o.value} style={{ background: 'var(--inputBg)', color: 'var(--tx)' }}>{o.label}</option>)}
@@ -5610,7 +5610,7 @@ function EditField({ label, value, onChange, type = 'text', mono = false, placeh
           placeholder={placeholder}
           disabled={disabled}
           style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: mono ? 'monospace' : F, fontSize: 13, outline: 'none', boxSizing: 'border-box', direction: mono ? 'ltr' : undefined, fontVariantNumeric: mono ? 'tabular-nums' : undefined, opacity: disabled ? .45 : 1, cursor: disabled ? 'not-allowed' : 'text' }}
-          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.4)' }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.4)' }}
           onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}
         />
       )}
@@ -5623,9 +5623,9 @@ function AttachField({ T, label, files, isUploading, onPick, allowImage = false,
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <span style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px' }}>{label}</span>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, border: '1px dashed rgba(212,160,23,.32)', background: 'rgba(212,160,23,.04)', cursor: disabled ? 'not-allowed' : (isUploading ? 'wait' : 'pointer'), transition: '.15s', opacity: disabled ? .45 : 1 }}
-        onMouseEnter={e => { if (!isUploading && !disabled) e.currentTarget.style.background = 'rgba(212,160,23,.08)' }}
-        onMouseLeave={e => { if (!isUploading && !disabled) e.currentTarget.style.background = 'rgba(212,160,23,.04)' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, border: '1px dashed rgba(176,125,0,.32)', background: 'rgba(176,125,0,.04)', cursor: disabled ? 'not-allowed' : (isUploading ? 'wait' : 'pointer'), transition: '.15s', opacity: disabled ? .45 : 1 }}
+        onMouseEnter={e => { if (!isUploading && !disabled) e.currentTarget.style.background = 'rgba(176,125,0,.08)' }}
+        onMouseLeave={e => { if (!isUploading && !disabled) e.currentTarget.style.background = 'rgba(176,125,0,.04)' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span style={{ fontSize: 12, color: isUploading ? 'var(--tx4)' : C.gold, fontWeight: 600, flex: 1 }}>{isUploading ? T('جارٍ الرفع…','Uploading…') : (hint || (allowImage ? T('انقر لاختيار صورة أو PDF','Click to choose image or PDF') : T('انقر لاختيار ملف PDF','Click to choose a PDF')))}</span>
         <input type="file" accept={accept} disabled={isUploading || disabled} onChange={e => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = '' }} style={{ display: 'none' }} />
@@ -5634,7 +5634,7 @@ function AttachField({ T, label, files, isUploading, onPick, allowImage = false,
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {files.map(a => (
             <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, background: 'var(--bd2)', border: '1px solid var(--bd2)', textDecoration: 'none', transition: '.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.35)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd2)' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.file_name || '—'}</span>
@@ -5660,7 +5660,7 @@ const cardTitle  = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing
 const SkCard = ({ titleW = 120, padding = 16, gap = 14, children }) => (
   <div style={cardChrome}>
     <div style={cardHeader}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(212,160,23,.5)' }} />
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(176,125,0,.5)' }} />
       <Shimmer w={titleW} h={15} />
     </div>
     <div style={{ padding, display: 'flex', flexDirection: 'column', gap }}>{children}</div>
@@ -5669,7 +5669,7 @@ const SkCard = ({ titleW = 120, padding = 16, gap = 14, children }) => (
 
 // Gold-framed entity hero placeholder — mirrors EntityHero (icon box + name + N cells).
 const EntityHeroSkeleton = ({ cells = 3 }) => (
-  <div style={{ border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+  <div style={{ border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', boxShadow: '0 4px 16px rgba(0,0,0,.28)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
       <Shimmer w={48} h={48} r={12} />
       <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}><Shimmer w="55%" h={16} /></div>
@@ -5756,7 +5756,7 @@ const OverviewSkeleton = () => (
 const StatusSkeleton = () => (
   <div style={{ ...cardChrome, order: -1 }}>
     <div style={cardHeader}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(212,160,23,.5)' }} />
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(176,125,0,.5)' }} />
       <Shimmer w={70} h={15} />
     </div>
     <div style={{ padding: 14, display: 'flex', alignItems: 'flex-start' }}>
@@ -5777,20 +5777,20 @@ const ChangeLog = ({ T, title, entries, actionLabel, renderDetail }) => {
   if (!Array.isArray(entries) || !entries.length) return null
   return (
     <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
-      <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
         {title}
       </span>
       {[...entries].reverse().map((c, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
-          <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+          <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </span>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
-                <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700 }}>{actionLabel}</span>
-                {c.by_name && <span style={{ fontSize: 11, color: C.gold, fontWeight: 700 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
+                <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{actionLabel}</span>
+                {c.by_name && <span style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
               </div>
               <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', flexShrink: 0 }}>{fmtDateTime(c.at)}</span>
             </div>
@@ -5806,7 +5806,7 @@ const FieldChanges = ({ T, changes, LBL, showVal }) => (
   <>{(Array.isArray(changes) ? changes : []).map((ch, j) => (
     <div key={j} style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
       <span>{T(LBL[ch.field]?.[0] || ch.field, LBL[ch.field]?.[1] || ch.field)}:</span>
-      <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{showVal ? showVal(ch.field, ch.to) : (ch.to || '—')}</span>
+      <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{showVal ? showVal(ch.field, ch.to) : (ch.to || '—')}</span>
       {ch.from
         ? <span style={{ color: 'var(--tx5)' }}>({T('كان', 'was')}: <span style={{ textDecoration: 'line-through' }}>{showVal ? showVal(ch.field, ch.from) : ch.from}</span>)</span>
         : <span style={{ color: 'var(--tx5)' }}>({T('جديد', 'new')})</span>}
@@ -5814,5 +5814,5 @@ const FieldChanges = ({ T, changes, LBL, showVal }) => (
   ))}</>
 )
 
-const btnFilter = (active) => ({ padding: '11px 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8 })
-const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })
+const btnFilter = (active) => ({ padding: '11px 16px', borderRadius: 12, background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(176,125,0,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8 })
+const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(176,125,0,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(176,125,0,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

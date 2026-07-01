@@ -9,7 +9,7 @@ import { SkeletonCards, SkeletonTable } from '../components/ui/Skeleton.jsx'
 //    to the four baladi service-type codes. Mirrors SbcCenterPage's layout. ──
 const F = "'Cairo','Tajawal',sans-serif"
 const MONO = "'JetBrains Mono','Cairo',sans-serif"
-const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046', purple: '#bb8fce', orange: '#f39c12', cyan: '#16a085', gray: '#95a5a6', warn: '#eab308' }
+const C = { gold: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046', purple: '#bb8fce', orange: '#f39c12', cyan: '#16a085', gray: '#95a5a6', warn: '#eab308' }
 const nm = v => Number(v || 0).toLocaleString('en-US')
 const tint = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})` }
 
@@ -36,7 +36,7 @@ function HeroStat({ tone, label, value, footer }) {
         <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-        <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+        <span style={{ fontSize: 42, fontWeight: 600, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
@@ -132,7 +132,7 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إصدار وتجديد رخص البلدية وشهادات السلامة للمنشآت. المعاملات تُضاف مباشرة من هذه الصفحة.</div>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary-modal"
-          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           إضافة معاملة
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
@@ -151,21 +151,21 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>التوزّع حسب الخدمة</span>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                  <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{nm(rows.length)}</span>معاملة
+                  <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{nm(rows.length)}</span>معاملة
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
                   <circle r={R} fill="none" stroke="var(--bd2)" strokeWidth="11" />
                   {dist.map((r) => { const dash = (r.cnt / total) * CIRC; const seg = (<circle key={r.code} r={R} fill="none" stroke={r.m.c} strokeWidth="11" strokeDasharray={`${dash} ${CIRC - dash}`} strokeDashoffset={-offset} style={{ transition: 'stroke-dasharray .3s' }}><title>{`${r.m.ar}: ${r.cnt}`}</title></circle>); offset += dash; return seg })}
-                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(rows.length)}</text>
+                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nm(rows.length)}</text>
                 </svg>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr', gap: 6, minWidth: 0 }}>
                   {dist.length === 0 ? <span style={{ fontSize: 11, color: 'var(--tx5)' }}>—</span> : dist.map((r) => (
                     <div key={r.code} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, minWidth: 0 }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: r.m.c, flexShrink: 0 }} />
                       <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.m.ar}</span>
-                      <span style={{ color: r.m.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{nm(r.cnt)}</span>
+                      <span style={{ color: r.m.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 600 }}>{nm(r.cnt)}</span>
                     </div>
                   ))}
                 </div>
@@ -186,7 +186,7 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
           const active = advOpen || hasFilters
           const clearAll = () => { setStatusFilter(''); setFacilityFilter(''); setFromDate(''); setToDate('') }
           return (
-            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(212,160,23,.4)' : '1px solid var(--bd)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(176,125,0,.4)' : '1px solid var(--bd)', color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
               تصفية
               {hasFilters ? (
                 <span role="button" tabIndex={0} title="مسح الفلاتر"
@@ -236,8 +236,8 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
       {filtered.length === 0 ? (
         <EmptyState
           icon={q
-            ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1Z" /><path d="M8 7h8" /><path d="M8 11h8" /><path d="M8 15h5" /></svg>}
+            ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1Z" /><path d="M8 7h8" /><path d="M8 11h8" /><path d="M8 15h5" /></svg>}
           title={q ? 'لا نتائج مطابقة' : 'لا توجد معاملات بعد'}
           desc={q ? undefined : 'اضغط «إضافة معاملة» لإضافة أول معاملة'} />
       ) : (
@@ -256,11 +256,11 @@ function BaladiTable({ rows, typeById, rowName, onRowClick }) {
     <div style={{ borderRadius: 10, overflow: 'hidden' }}>
       <style>{`
 .sbc-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-.sbc-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.sbc-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:600;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
 .sbc-tbl tbody td{padding:13px 12px;font-size:12px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
 .sbc-tbl tbody tr{cursor:pointer;transition:background .12s}
 .sbc-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-.sbc-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+.sbc-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
 .sbc-tbl tbody tr:last-child td{border-bottom:none}
       `}</style>
       <table className="sbc-tbl">
@@ -273,16 +273,16 @@ function BaladiTable({ rows, typeById, rowName, onRowClick }) {
             const st = STATUS_THEME[r.status?.code] || { c: C.gray, ar: r.status?.value_ar || '—' }
             return (
               <tr key={r.id} onClick={() => onRowClick(r.id)} title={rowName(r)}>
-                <td><span style={{ direction: 'ltr', fontFamily: MONO, color: 'var(--tx2)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(r.request_date)}</span></td>
+                <td><span style={{ direction: 'ltr', fontFamily: MONO, color: 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(r.request_date)}</span></td>
                 <td>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 11px', borderRadius: 7, background: m.c + '18', border: '1px solid ' + m.c + '38', color: m.c, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 11px', borderRadius: 7, background: m.c + '18', border: '1px solid ' + m.c + '38', color: m.c, fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap' }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.c, flexShrink: 0 }} />{m.ar}
                   </span>
                 </td>
-                <td><span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.92)' }}>{rowName(r)}</span></td>
-                <td><span style={{ direction: 'ltr', fontFamily: MONO, fontWeight: 700, color: C.gold }}>#{r.request_ref_no}</span></td>
+                <td><span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.92)' }}>{rowName(r)}</span></td>
+                <td><span style={{ direction: 'ltr', fontFamily: MONO, fontWeight: 600, color: C.gold }}>#{r.request_ref_no}</span></td>
                 <td>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: st.c, background: tint(st.c, 0.12), border: `1px solid ${tint(st.c, 0.3)}`, borderRadius: 8, padding: '5px 12px', whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: st.c, background: tint(st.c, 0.12), border: `1px solid ${tint(st.c, 0.3)}`, borderRadius: 8, padding: '5px 12px', whiteSpace: 'nowrap' }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.c }} />{st.ar}
                   </span>
                 </td>
@@ -435,9 +435,9 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
       <div style={{ marginBottom: 16 }}><BackButton onClick={onBack} label="رجوع" /></div>
       <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)' }}>{row.facility?.name_ar || meta(type?.code).ar}</div>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 11px', borderRadius: 7, background: m.c + '18', border: '1px solid ' + m.c + '38', color: m.c, fontSize: 11.5, fontWeight: 700 }}>{m.ar}</span>
-        <span style={{ direction: 'ltr', fontFamily: MONO, fontWeight: 700, color: C.gold }}>#{row.request_ref_no}</span>
-        <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: st.c, background: tint(st.c, .12), border: `1px solid ${tint(st.c, .3)}`, borderRadius: 8, padding: '5px 12px' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 11px', borderRadius: 7, background: m.c + '18', border: '1px solid ' + m.c + '38', color: m.c, fontSize: 11.5, fontWeight: 600 }}>{m.ar}</span>
+        <span style={{ direction: 'ltr', fontFamily: MONO, fontWeight: 600, color: C.gold }}>#{row.request_ref_no}</span>
+        <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: st.c, background: tint(st.c, .12), border: `1px solid ${tint(st.c, .3)}`, borderRadius: 8, padding: '5px 12px' }}>
           <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.c }} />{st.ar}
         </span>
       </div>
@@ -448,7 +448,7 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
           {fields.map((x, i) => (
             <div key={i} style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--bd2)', border: '1px solid var(--bd)' }}>
               <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{x.l}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx2)', direction: x.mono ? 'ltr' : 'rtl', textAlign: x.mono ? 'left' : 'right', fontFamily: x.mono ? MONO : F }}>{x.v}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)', direction: x.mono ? 'ltr' : 'rtl', textAlign: x.mono ? 'left' : 'right', fontFamily: x.mono ? MONO : F }}>{x.v}</div>
             </div>
           ))}
         </div>
@@ -461,7 +461,7 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
             const sel = row.status?.code === s.code; const th = STATUS_THEME[s.code]
             return (
               <button key={s.id} onClick={() => setStatus(s.id)}
-                style={{ padding: '7px 14px', borderRadius: 9, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 700, color: sel ? '#000' : th.c, background: sel ? th.c : tint(th.c, .12), border: `1px solid ${tint(th.c, .35)}` }}>
+                style={{ padding: '7px 14px', borderRadius: 9, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 600, color: sel ? '#000' : th.c, background: sel ? th.c : tint(th.c, .12), border: `1px solid ${tint(th.c, .35)}` }}>
                 {th.ar}
               </button>
             )
@@ -472,14 +472,14 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
       <div style={card}>
         <div style={cardHead}>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)' }}>المستندات</span>
-          <label style={{ height: 32, padding: '0 12px', borderRadius: 9, background: tint(C.gold, .1), border: `1px solid ${tint(C.gold, .35)}`, color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <label style={{ height: 32, padding: '0 12px', borderRadius: 9, background: tint(C.gold, .1), border: `1px solid ${tint(C.gold, .35)}`, color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {busy ? 'جارٍ الرفع…' : 'إرفاق ملف'}
             <input type="file" style={{ display: 'none' }} onChange={e => upload(e.target.files?.[0])} accept="image/*,application/pdf" />
           </label>
         </div>
         <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {atts.length === 0 ? <div style={{ color: 'var(--tx5)', fontSize: 12, textAlign: 'center', padding: 8 }}>لا توجد مستندات.</div> : atts.map(a => (
-            <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 9, background: 'var(--bd2)', border: '1px solid var(--bd)', color: C.blue, textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>
+            <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 9, background: 'var(--bd2)', border: '1px solid var(--bd)', color: C.blue, textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
               <span style={{ flex: 1, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.file_name}</span>
             </a>

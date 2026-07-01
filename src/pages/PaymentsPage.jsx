@@ -8,7 +8,7 @@ import { can, cardVisible, canCardBtn } from '../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
-  gold: '#D4A017', goldSoft: '#e8c77a',
+  gold: '#B07D00', goldSoft: '#e8c77a',
   blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
   ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
@@ -24,7 +24,7 @@ const SVC_THEME = {
   transfer:       { c: C.orange,  bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',      label_en: 'Transfer' },
   iqama_renewal:  { c: C.cyan,    bg: 'rgba(22,160,133,.12)',  bd: 'rgba(22,160,133,.32)',   label_ar: 'تجديد الإقامة',  label_en: 'Iqama Renewal' },
   ajeer:          { c: C.purple,  bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'عقد أجير',       label_en: 'Ajeer' },
-  other:          { c: C.gold,    bg: 'rgba(212,160,23,.12)',  bd: 'rgba(212,160,23,.32)',  label_ar: 'الغرفة التجارية', label_en: 'Chamber' },
+  other:          { c: C.gold,    bg: 'rgba(176,125,0,.12)',  bd: 'rgba(176,125,0,.32)',  label_ar: 'الغرفة التجارية', label_en: 'Chamber' },
   general:        { c: C.gray,    bg: 'rgba(149,165,166,.12)', bd: 'rgba(149,165,166,.32)', label_ar: 'خدمة عامة',     label_en: 'General' },
 }
 // Un-themed services show their REAL lookup name, never a generic "خدمات أخرى" bucket (that's only a wizard grouping).
@@ -40,7 +40,7 @@ const STATUS_THEME = {
   skipped: { c: C.gray, stamp_ar: 'متخطى',          stamp_en: 'SKIPPED' },
 }
 
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'var(--bd)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(176,125,0,.3)' : 'var(--bd)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
 
 /* ═════════════════════════════════════════════════════════════════════ */
 export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIcon }) {
@@ -274,11 +274,11 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
             <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('اليوم','Paid Today')}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, justifyContent: 'flex-start', direction: 'ltr' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, color: C.ok, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(stats.today_paid_amount)}</span>
+            <span style={{ fontSize: 42, fontWeight: 600, color: C.ok, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(stats.today_paid_amount)}</span>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
             <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد السدادات','Payments')}</span>
-            <span style={{ fontSize: 13, color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.today_paid_count)}</span>
+            <span style={{ fontSize: 13, color: C.ok, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(stats.today_paid_count)}</span>
           </div>
         </div>
 
@@ -309,7 +309,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
                 </div>
               </div>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', direction: 'ltr' }}>
-                <span style={{ fontSize: 20, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{fmtAmt(s.val)}</span>
+                <span style={{ fontSize: 20, fontWeight: 600, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{fmtAmt(s.val)}</span>
               </div>
             </div>
           ))}
@@ -331,7 +331,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('أنواع الرسوم — بانتظار السداد','Fee Kinds — Pending')}</span>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                  <span style={{ color: C.warn, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totCnt)}</span> {T('رسم','fee')}
+                  <span style={{ color: C.warn, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totCnt)}</span> {T('رسم','fee')}
                 </span>
               </div>
               {totCnt > 0 ? (
@@ -349,7 +349,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
                       const c = palette[i % palette.length]
                       return (
                         <div key={k.code} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600 }}>
-                          <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 20, textAlign: 'center', flexShrink: 0, fontWeight: 700 }}>{num(k.cnt)}</span>
+                          <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 20, textAlign: 'center', flexShrink: 0, fontWeight: 600 }}>{num(k.cnt)}</span>
                           <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isAr ? k.ar : k.en}</span>
                         </div>
                       )
@@ -464,14 +464,14 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid var(--bd)', margin: '4px 4px 14px' }}>
             <style>{`
-              .pay-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
+              .pay-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(176,125,0,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
               .pay-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
               .pay-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:var(--bd)}
-              .pay-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+              .pay-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:600;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
               .pay-pg-input::-webkit-outer-spin-button,.pay-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             `}</style>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 13, color: '#fff', fontWeight: 700, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
+              <span style={{ fontSize: 13, color: '#fff', fontWeight: 600, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
               <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500, fontFamily: F }}>{T('صفحة','Page')} {page + 1} {T('من','of')} {totalPages}</span>
             </div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -509,7 +509,7 @@ function FacilityNumRow({ color, label, value, T }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '3px 0' }} title={label}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr', minWidth: 0 }}>
-        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
         <button type="button" onClick={onCopy} title={T ? T('نُسخ','Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
           onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
           onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.3)' }}>
@@ -529,13 +529,13 @@ function FeesTable({ rows, isAr, T, onPay, onEdit }) {
     <div style={{ borderRadius: 10, overflow: 'hidden' }}>
       <style>{`
 .pay-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-.pay-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 10px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.pay-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:600;text-align:center;padding:14px 10px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
 .pay-tbl tbody td{padding:11px 10px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
 .pay-tbl tbody tr{cursor:pointer;transition:background .12s}
 .pay-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-.pay-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+.pay-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
 .pay-tbl tbody tr:last-child td{border-bottom:none}
-.pay-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-size:10.5px;font-weight:700;white-space:nowrap;line-height:1.5}
+.pay-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-size:10.5px;font-weight:600;white-space:nowrap;line-height:1.5}
 .pay-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
       `}</style>
       <table className="pay-tbl">
@@ -574,7 +574,7 @@ function FeesTable({ rows, isAr, T, onPay, onEdit }) {
               <tr key={fee.id} onClick={() => (isPaid ? onEdit(fee) : onPay(fee))} title={isPaid ? T('تعديل السداد','Edit payment') : T('تسجيل السداد','Record payment')}>
                 <td>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <span style={{ direction: 'ltr', fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{dateFmt}</span>
+                    <span style={{ direction: 'ltr', fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{dateFmt}</span>
                     {timeFmt && <span style={{ direction: 'ltr', fontSize: 10, color: 'var(--tx5)', fontVariantNumeric: 'tabular-nums' }}>{timeFmt}</span>}
                   </div>
                 </td>
@@ -584,17 +584,17 @@ function FeesTable({ rows, isAr, T, onPay, onEdit }) {
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                         {empName && <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }} title={empName}>{empName}</span>}
-                        <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>{sr?.branch?.branch_code || '—'}</span>
+                        <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 600, color: C.gold }}>{sr?.branch?.branch_code || '—'}</span>
                       </div>
                     )
                   })()}
                 </td>
-                <td style={{ fontWeight: 700, color: review ? C.red : stT.c }}>
+                <td style={{ fontWeight: 600, color: review ? C.red : stT.c }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                     <span>{feeLabel || '—'}</span>
                     {review && (
                       <span title={T('المبلغ تجاوز الحد الأعلى المحدد في الإدارة ← الرسوم','Amount exceeded the cap set in Admin → Fees')}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, color: C.red, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.45)' }}>
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 600, padding: '2px 8px', borderRadius: 999, color: C.red, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.45)' }}>
                         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         {T('تحتاج مراجعة','Needs review')}
                       </span>
@@ -613,7 +613,7 @@ function FeesTable({ rows, isAr, T, onPay, onEdit }) {
                 <td>
                   {worker ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }} title={worker.name_ar || worker.name_en || ''}>{worker.name_ar || worker.name_en || '—'}</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }} title={worker.name_ar || worker.name_en || ''}>{worker.name_ar || worker.name_en || '—'}</span>
                       {worker.iqama_number && <span style={{ fontSize: 10.5, color: 'var(--tx5)', direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{worker.iqama_number}</span>}
                     </div>
                   ) : <span style={{ color: 'var(--tx5)' }}>—</span>}
@@ -621,7 +621,7 @@ function FeesTable({ rows, isAr, T, onPay, onEdit }) {
                 <td onClick={e => e.stopPropagation()}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                     {sr?.service_type && (
-                      <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={isAr ? sr.service_type.value_ar : (sr.service_type.value_en || sr.service_type.value_ar)}>
+                      <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={isAr ? sr.service_type.value_ar : (sr.service_type.value_en || sr.service_type.value_ar)}>
                         {isAr ? sr.service_type.value_ar : (sr.service_type.value_en || sr.service_type.value_ar)}
                       </span>
                     )}
@@ -632,10 +632,10 @@ function FeesTable({ rows, isAr, T, onPay, onEdit }) {
                 </td>
                 <td>
                   {fee.sadad_no
-                    ? <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 700 }}>{fee.sadad_no}</span>
+                    ? <span style={{ direction: 'ltr', display: 'inline-block', fontFamily: 'monospace', fontWeight: 600 }}>{fee.sadad_no}</span>
                     : <span style={{ color: 'var(--tx5)' }}>—</span>}
                 </td>
-                <td style={{ fontWeight: 900, direction: 'ltr', color: review ? C.red : (isPaid ? C.ok : '#fff') }}>{fmtAmt(fee.amount)}</td>
+                <td style={{ fontWeight: 600, direction: 'ltr', color: review ? C.red : (isPaid ? C.ok : '#fff') }}>{fmtAmt(fee.amount)}</td>
                 <td>
                   <span className="pay-pill" style={{ color: stT.c, background: stT.c + '18', border: '1px solid ' + stT.c + '38' }}>
                     <span className="pay-dot" style={{ background: stT.c }} />
@@ -670,7 +670,7 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
     <div className="pay-card" style={{
       position: 'relative',
       borderRadius: 14,
-      background: review ? 'radial-gradient(ellipse at top, rgba(232,114,101,.08) 0%, #222 60%)' : 'radial-gradient(ellipse at top, rgba(212,160,23,.06) 0%, #222 60%)',
+      background: review ? 'radial-gradient(ellipse at top, rgba(232,114,101,.08) 0%, #222 60%)' : 'radial-gradient(ellipse at top, rgba(176,125,0,.06) 0%, #222 60%)',
       border: '1px solid ' + (review ? 'rgba(232,114,101,.4)' : 'rgba(255,255,255,.05)'),
       boxShadow: '0 4px 14px rgba(0,0,0,.22)',
       overflow: 'hidden', transition: 'all .15s',
@@ -685,14 +685,14 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
             {/* Name row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {fl ? <img src={fl} alt={nat?.name_ar || ''} title={nat?.name_ar || ''} style={{ width: 30, height: 21, objectFit: 'cover', flexShrink: 0, borderRadius: 3 }} /> : (em ? <span title={nat?.name_ar || ''} style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null)}
-              <span style={{ fontSize: 17, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>
+              <span style={{ fontSize: 17, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, letterSpacing: '-.2px' }}>
                 {sr?.client?.name_ar || sr?.client?.name_en || T('— بدون عميل —','— no client —')}
               </span>
             </div>
 
             {/* Sub line: service + ref + branch + phone */}
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 6, background: svc.bg, border: '1px solid ' + svc.bd, color: svc.c, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 6, background: svc.bg, border: '1px solid ' + svc.bd, color: svc.c, fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
                 {isAr ? svc.label_ar : svc.label_en}
               </span>
               {sr?.request_ref_no && (
@@ -717,7 +717,7 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
 
             {/* Fee label + paid info */}
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 13, color: stT.c, fontWeight: 700 }}>{feeLabel || T('رسم غير محدد','Unspecified fee')}</span>
+              <span style={{ fontSize: 13, color: stT.c, fontWeight: 600 }}>{feeLabel || T('رسم غير محدد','Unspecified fee')}</span>
               {fee.status === 'paid' && fee.sadad_no && (
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace' }}>SADAD: {fee.sadad_no}</span>
               )}
@@ -727,7 +727,7 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
                 </span>
               )}
               {fee.status === 'paid' && fee.payment_method && (
-                <span style={{ fontSize: 11, color: C.ok, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(46,204,113,.1)', border: '1px solid rgba(46,204,113,.28)' }}>
+                <span style={{ fontSize: 11, color: C.ok, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: 'rgba(46,204,113,.1)', border: '1px solid rgba(46,204,113,.28)' }}>
                   {isAr ? fee.payment_method.value_ar : fee.payment_method.value_en}
                 </span>
               )}
@@ -741,22 +741,22 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('المبلغ','Amount')}</span>
-              <span style={{ fontSize: 10, color: stT.c, fontWeight: 800, letterSpacing: '.3px', textTransform: 'uppercase' }}>{isAr ? stT.stamp_ar : stT.stamp_en}</span>
+              <span style={{ fontSize: 10, color: stT.c, fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{isAr ? stT.stamp_ar : stT.stamp_en}</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>
+            <div style={{ fontSize: 28, fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>
               {total > 0 ? fmtAmt(total) : <span style={{ fontSize: 13, color: 'var(--tx5)' }}>{T('أدخل المبلغ','Set amount')}</span>}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,.06)' }}>
               {fee.status === 'paid' ? (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                    <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('المسدّد','Paid')}</span>
-                    <span style={{ color: C.ok, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {fmtAmt(paid)}</span>
+                    <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('المدفوع','Paid')}</span>
+                    <span style={{ color: C.ok, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {fmtAmt(paid)}</span>
                   </div>
                   <button onClick={onEdit} style={{ marginTop: 4, height: 28, borderRadius: 7, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'var(--tx3)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: F }}>{T('تعديل','Edit')}</button>
                 </>
               ) : (
-                <button onClick={onPay} style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(46,204,113,.5)', background: 'linear-gradient(180deg,rgba(46,204,113,.22) 0%,rgba(46,204,113,.10) 100%)', color: C.ok, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, fontSize: 12, fontWeight: 700 }}>
+                <button onClick={onPay} style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(46,204,113,.5)', background: 'linear-gradient(180deg,rgba(46,204,113,.22) 0%,rgba(46,204,113,.10) 100%)', color: C.ok, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, fontSize: 12, fontWeight: 600 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   {T('تم السداد','Mark Paid')}
                 </button>

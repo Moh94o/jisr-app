@@ -2,7 +2,7 @@ import React from 'react'
 import { ArrowRight } from 'lucide-react'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
+const C = { gold: '#B07D00', ok: '#27a046', red: '#c0392b', blue: '#3483b4' }
 
 // Header that matches PersonsPage detail header spacing + back button style.
 export default function RoleLayout({ title, subtitle, color = C.gold, onBack, actions, children, backLabel = 'رجوع لملف الشخص' }) {
@@ -11,14 +11,14 @@ export default function RoleLayout({ title, subtitle, color = C.gold, onBack, ac
       <style>{`
         .prs-card { background: #141414; border: 1px solid rgba(255,255,255,.06); border-radius: 14px;
           padding: 16px; transition: .2s; }
-        .prs-card-title { font-size: 13px; font-weight: 800; color: var(--tx); margin-bottom: 12px;
+        .prs-card-title { font-size: 13px; font-weight:600; color: var(--tx); margin-bottom: 12px;
           display: flex; align-items: center; gap: 8px; padding-bottom: 10px;
           border-bottom: 1px solid rgba(255,255,255,.05) }
         .prs-kv { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0 }
-        .prs-kv-ico { width: 26px; height: 26px; border-radius: 7px; background: rgba(212,160,23,.08);
-          border: 1px solid rgba(212,160,23,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0 }
+        .prs-kv-ico { width: 26px; height: 26px; border-radius: 7px; background: rgba(176,125,0,.08);
+          border: 1px solid rgba(176,125,0,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0 }
         .prs-kv-text { flex: 1; min-width: 0 }
-        .prs-kv-l { font-size: 10px; color: var(--tx2); font-weight: 700; margin-bottom: 3px; letter-spacing: .2px }
+        .prs-kv-l { font-size: 10px; color: var(--tx2); font-weight:600; margin-bottom: 3px; letter-spacing: .2px }
         .prs-kv-v { font-size: 12.5px; color: var(--tx); font-weight: 600; word-break: break-word }
       `}</style>
 
@@ -30,13 +30,13 @@ export default function RoleLayout({ title, subtitle, color = C.gold, onBack, ac
               background: '#141414', border: '1px solid rgba(255,255,255,.06)',
               color: 'var(--tx2)', cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontFamily: F, fontSize: 11, fontWeight: 700, transition: '.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.1)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.3)'; e.currentTarget.style.color = C.gold }}
+              fontFamily: F, fontSize: 11, fontWeight: 600, transition: '.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.1)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.3)'; e.currentTarget.style.color = C.gold }}
             onMouseLeave={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.color = 'var(--tx2)' }}>
             <ArrowRight size={13} /> {backLabel}
           </button>
           <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
               {title}
             </div>
             {subtitle && (

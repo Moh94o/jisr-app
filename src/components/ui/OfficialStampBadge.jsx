@@ -8,7 +8,7 @@ import './OfficialStampBadge.css';
  * @param {string} employeeName  اسم الموظف اللي سوى الإجراء
  * @param {string} branchCode    كود الفرع (JUB / DAM / KHO)
  * @param {string|Date} date     تاريخ الإجراء — يتنسّق تلقائياً DD/MM/YY
- * @param {string} color         لون الختم (افتراضي: #c9a84c الذهبي)
+ * @param {string} color         لون الختم (افتراضي: #B07D00 الذهبي)
  * @param {number} rotate        زاوية الميلان بالدرجات (افتراضي: -5)
  */
 export default function OfficialStampBadge({
@@ -16,7 +16,7 @@ export default function OfficialStampBadge({
   employeeName,
   branchCode,
   date,
-  color = '#c9a84c',
+  color = '#B07D00',
   rotate = -5,
   variant = 'corners',
 }) {

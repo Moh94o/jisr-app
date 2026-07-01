@@ -31,7 +31,7 @@ export default function BrokerRolePage({ person, onBack, toast, countries, reloa
         <button onClick={() => setShowModal(true)}
           style={{ height: 34, padding: '0 14px', borderRadius: 8,
             border: `1px solid ${BROWN}55`, background: BROWN + '15',
-            color: BROWN, fontFamily: F, fontSize: 11, fontWeight: 800, cursor: 'pointer',
+            color: BROWN, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Edit2 size={12} /> تعديل
         </button>
@@ -57,11 +57,11 @@ export default function BrokerRolePage({ person, onBack, toast, countries, reloa
         <div style={{ padding: 60, textAlign: 'center',
           background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.06)', borderRadius: 12 }}>
           <UserCheck size={40} color={BROWN} style={{ opacity: .6 }} />
-          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 700, color: 'var(--tx2)' }}>لا يوجد ملف وسيط لهذا الشخص</div>
+          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>لا يوجد ملف وسيط لهذا الشخص</div>
           <button onClick={() => setShowModal(true)}
             style={{ marginTop: 16, height: 36, padding: '0 16px', borderRadius: 9,
               border: `1px solid ${BROWN}55`, background: BROWN + '15', color: BROWN,
-              fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+              fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Plus size={14} /> ربط ملف وسيط
           </button>

@@ -9,7 +9,7 @@ import React, { useState, useMemo } from 'react'
 // status, dates, source provenance, etc.) so this file stays purely presentational.
 
 const C = {
-  gold: '#D4A017',
+  gold: '#B07D00',
   blue: '#3483b4',
   green: '#27a046',
   red: '#c0392b',
@@ -38,7 +38,7 @@ function Tag({ color, children, small }) {
       fontSize: small ? 9 : 10,
       borderRadius: 999,
       background: `${color}1A`, color, border: `1px solid ${color}44`,
-      fontWeight: 800, whiteSpace: 'nowrap',
+      fontWeight: 600, whiteSpace: 'nowrap',
       letterSpacing: '.2px',
     }}>{children}</span>
   )
@@ -47,7 +47,7 @@ function Tag({ color, children, small }) {
 function PartnerDots({ count, color = C.gold }) {
   if (!count) return <span style={{ color: 'var(--tx5)', fontSize: 10 }}>—</span>
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--tx2)', fontWeight: 700 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
       {count}
     </span>
@@ -76,7 +76,7 @@ function ClassicTable({ rows, onRowClick, T, lang }) {
               <th key={i} style={{
                 position: 'sticky', top: 0, zIndex: 5,
                 padding: '12px 10px', textAlign: 'start',
-                fontWeight: 800, color: 'rgba(255,255,255,.72)',
+                fontWeight: 600, color: 'rgba(255,255,255,.72)',
                 fontSize: 10, textTransform: 'uppercase', letterSpacing: '.6px',
                 background: '#1b1b1b', borderBottom: '1px solid rgba(255,255,255,.08)',
                 ...extra,
@@ -95,11 +95,11 @@ function ClassicTable({ rows, onRowClick, T, lang }) {
                   borderTop: '1px solid rgba(255,255,255,.04)',
                   cursor: 'pointer', transition: 'background .12s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.06)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.06)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = i % 2 ? 'rgba(255,255,255,.02)' : 'transparent' }}>
-                <td style={{ padding: '10px 10px', fontWeight: 700, color: 'var(--tx)' }}>
+                <td style={{ padding: '10px 10px', fontWeight: 600, color: 'var(--tx)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingInlineStart: r._isBranch ? 18 : 0 }}>
-                    {r._isBranch && <span style={{ color: C.blue, fontSize: 11, fontWeight: 800 }}>↳</span>}
+                    {r._isBranch && <span style={{ color: C.blue, fontSize: 11, fontWeight: 600 }}>↳</span>}
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11.5 }}>
                       {r.entity_full_name_ar || '—'}
                     </span>
@@ -121,12 +121,12 @@ function ClassicTable({ rows, onRowClick, T, lang }) {
                   <PartnerDots count={(r._managers || []).length} color={C.cyan} />
                 </td>
                 <td style={{ padding: '10px 10px' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: stColor }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: stColor }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: stColor, boxShadow: `0 0 6px ${stColor}aa` }} />
                     {r._status || '—'}
                   </span>
                   {r.is_in_confirmation_period && (
-                    <div style={{ fontSize: 9.5, color: C.yellow, fontWeight: 700, marginTop: 3 }}>{T('فترة تأكيد', 'In confirm')}</div>
+                    <div style={{ fontSize: 9.5, color: C.yellow, fontWeight: 600, marginTop: 3 }}>{T('فترة تأكيد', 'In confirm')}</div>
                   )}
                 </td>
                 <td style={{ padding: '10px 10px', fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--tx3)', direction: 'ltr' }}>
@@ -174,8 +174,8 @@ function StackedCards({ rows, onRowClick, T, lang }) {
             {/* Name + tags */}
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                {r._isBranch && <span style={{ color: C.blue, fontSize: 13, fontWeight: 800 }}>↳</span>}
-                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {r._isBranch && <span style={{ color: C.blue, fontSize: 13, fontWeight: 600 }}>↳</span>}
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.entity_full_name_ar || '—'}
                 </div>
               </div>
@@ -210,20 +210,20 @@ function StackedCards({ rows, onRowClick, T, lang }) {
             </div>
 
             {/* People */}
-            <div style={{ display: 'flex', gap: 12, fontSize: 11, fontWeight: 700, color: 'var(--tx2)' }}>
+            <div style={{ display: 'flex', gap: 12, fontSize: 11, fontWeight: 600, color: 'var(--tx2)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <span style={{ fontSize: 16, color: C.purple, fontWeight: 800 }}>{(r._partners || []).length}</span>
+                <span style={{ fontSize: 16, color: C.purple, fontWeight: 600 }}>{(r._partners || []).length}</span>
                 <span style={{ fontSize: 9, color: 'var(--tx5)' }}>{T('شركاء', 'Partners')}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <span style={{ fontSize: 16, color: C.cyan, fontWeight: 800 }}>{(r._managers || []).length}</span>
+                <span style={{ fontSize: 16, color: C.cyan, fontWeight: 600 }}>{(r._managers || []).length}</span>
                 <span style={{ fontSize: 9, color: 'var(--tx5)' }}>{T('مدراء', 'Managers')}</span>
               </div>
             </div>
 
             {/* Status + dates */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, minWidth: 130 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 800, color: stColor }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: stColor }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: stColor, boxShadow: `0 0 8px ${stColor}aa` }} />
                 {r._status || '—'}
               </span>
@@ -267,7 +267,7 @@ function TileGrid({ rows, onRowClick, T, lang }) {
 
             <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--tx)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {r._isBranch && <span style={{ color: C.blue, marginInlineEnd: 4 }}>↳</span>}
                   {r.entity_full_name_ar || '—'}
                 </div>
@@ -288,7 +288,7 @@ function TileGrid({ rows, onRowClick, T, lang }) {
                 {r.has_ecommerce && <Tag color={C.cyan} small>{T('إلكتروني', 'E-com')}</Tag>}
                 {r.is_in_confirmation_period && <Tag color={C.yellow} small>{T('تأكيد', 'Confirm')}</Tag>}
               </div>
-              <div style={{ display: 'flex', gap: 8, fontSize: 10, color: 'var(--tx4)', fontWeight: 700 }}>
+              <div style={{ display: 'flex', gap: 8, fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>
                 <span><span style={{ color: C.purple }}>●</span> {(r._partners || []).length}</span>
                 <span><span style={{ color: C.cyan }}>●</span> {(r._managers || []).length}</span>
               </div>
@@ -319,15 +319,15 @@ function RosterList({ rows, onRowClick, T, lang }) {
               borderBottom: i === rows.length - 1 ? 'none' : '1px solid rgba(255,255,255,.04)',
               cursor: 'pointer', transition: 'background .12s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.06)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.06)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
             {/* Status dot */}
             <span title={r._status || ''} style={{ width: 9, height: 9, borderRadius: '50%', background: stColor, boxShadow: `0 0 8px ${stColor}`, flexShrink: 0 }} />
 
             {/* Name */}
             <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 7 }}>
-              {r._isBranch && <span style={{ color: C.blue, fontSize: 11, fontWeight: 800 }}>↳</span>}
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {r._isBranch && <span style={{ color: C.blue, fontSize: 11, fontWeight: 600 }}>↳</span>}
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.entity_full_name_ar || '—'}
               </span>
               {r.is_main && <Tag color={C.gold} small>{T('رئيسي', 'Main')}</Tag>}
@@ -340,13 +340,13 @@ function RosterList({ rows, onRowClick, T, lang }) {
             </span>
 
             {/* People count */}
-            <span style={{ display: 'inline-flex', gap: 6, fontSize: 10, color: 'var(--tx4)', fontWeight: 700, flexShrink: 0, minWidth: 60, justifyContent: 'flex-end' }}>
+            <span style={{ display: 'inline-flex', gap: 6, fontSize: 10, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0, minWidth: 60, justifyContent: 'flex-end' }}>
               <span><span style={{ color: C.purple }}>●</span>{(r._partners || []).length}</span>
               <span><span style={{ color: C.cyan }}>●</span>{(r._managers || []).length}</span>
             </span>
 
             {/* Status text */}
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: stColor, flexShrink: 0, minWidth: 70, textAlign: 'end' }}>
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: stColor, flexShrink: 0, minWidth: 70, textAlign: 'end' }}>
               {r._status || '—'}
             </span>
 
@@ -393,9 +393,9 @@ function KanbanByStatus({ rows, onRowClick, T, lang }) {
           <div style={{ padding: '11px 14px', borderBottom: `1px solid ${g.color}26`, background: `${g.color}0E`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, boxShadow: `0 0 8px ${g.color}` }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: g.color }}>{g.key}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: g.color }}>{g.key}</span>
             </div>
-            <span style={{ fontSize: 11, fontWeight: 800, color: g.color, background: `${g.color}1A`, padding: '2px 8px', borderRadius: 999, direction: 'ltr' }}>{g.items.length}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: g.color, background: `${g.color}1A`, padding: '2px 8px', borderRadius: 999, direction: 'ltr' }}>{g.items.length}</span>
           </div>
 
           {/* Cards */}
@@ -413,16 +413,16 @@ function KanbanByStatus({ rows, onRowClick, T, lang }) {
                 onMouseEnter={e => { e.currentTarget.style.background = `${g.color}10`; e.currentTarget.style.borderColor = `${g.color}55` }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.025)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  {r._isBranch && <span style={{ color: C.blue, fontSize: 10, fontWeight: 800 }}>↳</span>}
-                  <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {r._isBranch && <span style={{ color: C.blue, fontSize: 10, fontWeight: 600 }}>↳</span>}
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                     {r.entity_full_name_ar || '—'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, fontSize: 10, color: 'var(--tx4)' }}>
                   <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{r.cr_national_number || '—'}</span>
                   <span style={{ display: 'inline-flex', gap: 5 }}>
-                    {r.is_main && <span style={{ color: C.gold, fontWeight: 700 }}>{T('رئيسي', 'M')}</span>}
-                    {r._isBranch && <span style={{ color: C.blue, fontWeight: 700 }}>{T('فرع', 'B')}</span>}
+                    {r.is_main && <span style={{ color: C.gold, fontWeight: 600 }}>{T('رئيسي', 'M')}</span>}
+                    {r._isBranch && <span style={{ color: C.blue, fontWeight: 600 }}>{T('فرع', 'B')}</span>}
                     <span style={{ color: C.purple }}>{(r._partners || []).length}</span>
                     <span style={{ color: C.cyan }}>{(r._managers || []).length}</span>
                   </span>
@@ -465,7 +465,7 @@ export default function SbcFacilityVariants({ rows, onRowClick, T, lang }) {
         display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
         boxShadow: '0 3px 10px rgba(0,0,0,.18)',
       }}>
-        <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--tx5)', letterSpacing: '.5px', textTransform: 'uppercase', marginInlineEnd: 6 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.5px', textTransform: 'uppercase', marginInlineEnd: 6 }}>
           {T('اختر التصميم', 'Pick a design')}
         </div>
         {variants.map(v => {
@@ -477,7 +477,7 @@ export default function SbcFacilityVariants({ rows, onRowClick, T, lang }) {
                 background: active ? `${C.gold}1A` : 'rgba(255,255,255,.025)',
                 border: `1px solid ${active ? `${C.gold}77` : 'rgba(255,255,255,.06)'}`,
                 color: active ? C.gold : 'var(--tx3)',
-                fontFamily: F, fontSize: 11.5, fontWeight: 800, cursor: 'pointer',
+                fontFamily: F, fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
                 display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1,
                 lineHeight: 1.2, transition: '.15s',
               }}>

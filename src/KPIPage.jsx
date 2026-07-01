@@ -5,7 +5,7 @@ import { Modal as FKModal, ModalSection, ActionButton, GRID, NumberField, Curren
 import { Shimmer } from './components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { dk: '#171717', md: '#222222', fm: '#1e1e1e', gold: '#D4A017', gl: '#dcc06e', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
+const C = { dk: '#171717', md: '#222222', fm: '#1e1e1e', gold: '#B07D00', gl: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
 const num = v => Number(v || 0).toLocaleString('en-US')
 
 const GLASS = {
@@ -243,7 +243,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
           {T('تحديث', 'Refresh')}
         </button>
         <button onClick={openEditor}
-          style={{ height: 40, padding: '0 18px', borderRadius: 11, border: '1px solid rgba(212,160,23,.45)', background: 'linear-gradient(180deg,rgba(212,160,23,.22) 0%,rgba(212,160,23,.10) 100%)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(212,160,23,.18), inset 0 1px 0 rgba(212,160,23,.18)', transition: '.2s' }}>
+          style={{ height: 40, padding: '0 18px', borderRadius: 11, border: '1px solid rgba(176,125,0,.45)', background: 'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)', transition: '.2s' }}>
           + {T('تحديد الأهداف', 'Set Targets')}
         </button>
       </div>
@@ -251,7 +251,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
 
     {/* شهر الأهداف */}
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-      <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.gold, border: '2px solid rgba(212,160,23,.25)', flexShrink: 0 }} />
+      <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.gold, border: '2px solid rgba(176,125,0,.25)', flexShrink: 0 }} />
       <div style={{ fontSize: 13, fontWeight: 600, color: C.gold }}>{monthLabel}</div>
       <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.07)' }} />
     </div>
@@ -307,7 +307,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
             {/* الأرقام - inner stat pill */}
             <div style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: clr, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
+                <div style={{ fontSize: 20, fontWeight: 600, color: clr, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
                   {m.unit === 'currency' ? num(t.actual_value) : Number(t.actual_value || 0).toLocaleString()}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--tx5)', direction: 'ltr' }}>
@@ -329,7 +329,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: clr, direction: 'ltr' }}>{p}%</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: clr, direction: 'ltr' }}>{p}%</span>
               <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx5)' }}>
                 {m.invert
                   ? (p <= 100 ? T('ضمن الحد', 'Within limit') : T('تجاوز الحد', 'Over limit'))
@@ -358,7 +358,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
               labelStyle={{ color: 'rgba(255,255,255,.5)', fontSize: 10 }}
               formatter={(v) => [num(v) + T(' ر.س', ' SAR')]}
             />
-            <Bar dataKey="target" name={T('الهدف', 'Target')} fill="rgba(212,160,23,.2)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="target" name={T('الهدف', 'Target')} fill="rgba(176,125,0,.2)" radius={[4, 4, 0, 0]} />
             <Bar dataKey="actual" name={T('الفعلي', 'Actual')} fill={C.gold} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -390,7 +390,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
           </div>
           <div style={{ padding: '7px 14px', borderRadius: 10, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: oc, boxShadow: '0 0 5px ' + oc }} />
-            <div style={{ fontSize: 20, fontWeight: 700, color: oc, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: oc, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
               {overallPct}%
             </div>
           </div>

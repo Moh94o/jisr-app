@@ -7,7 +7,7 @@ import { FileText, Plus } from 'lucide-react'
 // license_type, stored in branch_licenses. Shows number / issue / expiry / file + an
 // expiry badge, with an add/edit popup built from the canonical FormKit components.
 const F = "'Cairo','Tajawal',sans-serif"
-const GOLD = '#D4A017'
+const GOLD = '#B07D00'
 const MONO = "'JetBrains Mono','Cairo',sans-serif"
 const C = { ok: '#2ecc71', warn: '#eab308', red: '#e87265', blue: '#5dade2' }
 
@@ -49,12 +49,12 @@ export default function BranchLicenseCard({ sb, branch, user, cardKey = 'municip
           {title}
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          {st && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: `${st.c}1a`, color: st.c, border: `1px solid ${st.c}33` }}>{st.l}</span>}
+          {st && <span style={{ fontSize: 10.5, fontWeight: 600, padding: '3px 9px', borderRadius: 6, background: `${st.c}1a`, color: st.c, border: `1px solid ${st.c}33` }}>{st.l}</span>}
           {canEdit && (lic ? canCardEdit : canCardCreate) && (
             <button onClick={() => setModal(true)}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.12)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-              style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               {lic ? 'تعديل' : addLabel}
               {lic
                 ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -78,12 +78,12 @@ export default function BranchLicenseCard({ sb, branch, user, cardKey = 'municip
               ].map((x, i) => (
                 <div key={i} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
                   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{x.l}</div>
-                  <div style={{ fontSize: 13.5, fontWeight: 800, color: x.c || 'var(--tx2)', direction: x.mono ? 'ltr' : 'rtl', textAlign: x.mono ? 'left' : 'right', fontFamily: x.mono ? MONO : F }}>{x.v || '—'}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: x.c || 'var(--tx2)', direction: x.mono ? 'ltr' : 'rtl', textAlign: x.mono ? 'left' : 'right', fontFamily: x.mono ? MONO : F }}>{x.v || '—'}</div>
                 </div>
               ))}
             </div>
             {lic.document_url && (
-              <a href={lic.document_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: C.blue, textDecoration: 'none' }}>
+              <a href={lic.document_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: C.blue, textDecoration: 'none' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                 عرض الملف
               </a>
@@ -160,11 +160,11 @@ function LicenseModal({ sb, branch, licenseType, title, accent, existing, onClos
             onDragOver={e => { e.preventDefault(); if (!drag) setDrag(true) }}
             onDragLeave={e => { e.preventDefault(); setDrag(false) }}
             onDrop={e => { e.preventDefault(); setDrag(false); const fl = e.dataTransfer?.files?.[0]; if (fl) set('_file', fl) }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, height: 46, padding: '0 14px', borderRadius: 9, cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 700, color: f._file ? C.ok : ac, border: `1px dashed ${drag ? ac : (f._file ? 'rgba(46,160,67,.4)' : ac + '66')}`, background: drag ? ac + '1f' : (f._file ? 'rgba(46,160,67,.06)' : ac + '0d'), transition: '.18s' }}>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, height: 46, padding: '0 14px', borderRadius: 9, cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 600, color: f._file ? C.ok : ac, border: `1px dashed ${drag ? ac : (f._file ? 'rgba(46,160,67,.4)' : ac + '66')}`, background: drag ? ac + '1f' : (f._file ? 'rgba(46,160,67,.06)' : ac + '0d'), transition: '.18s' }}>
             <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => set('_file', e.target.files?.[0] || null)} />
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
             <span style={{ maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f._file ? f._file.name : (drag ? 'أفلت الملف هنا…' : (existing?.document_url ? 'استبدال الملف (اختياري)' : 'إرفاق ملف (صورة أو PDF)'))}</span>
-            {f._file && <span onClick={e => { e.preventDefault(); set('_file', null) }} style={{ color: C.red, cursor: 'pointer', fontSize: 11.5, fontWeight: 700 }}>إزالة</span>}
+            {f._file && <span onClick={e => { e.preventDefault(); set('_file', null) }} style={{ color: C.red, cursor: 'pointer', fontSize: 11.5, fontWeight: 600 }}>إزالة</span>}
           </label>
         </div>
       </div>

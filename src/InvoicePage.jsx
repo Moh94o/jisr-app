@@ -16,7 +16,7 @@ import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTE
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
-  gold: '#D4A017', goldSoft: '#e8c77a',
+  gold: '#B07D00', goldSoft: '#e8c77a',
   blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
   ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
@@ -78,7 +78,7 @@ const SVC_THEME = {
   transfer:       { c: C.orange, bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',      label_en: 'Transfer' },
   iqama_renewal:  { c: C.cyan,   bg: 'rgba(22,160,133,.12)',  bd: 'rgba(22,160,133,.32)',  label_ar: 'تجديد الإقامة',  label_en: 'Iqama Renewal' },
   ajeer:          { c: C.purple, bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'عقد أجير',       label_en: 'Ajeer Contract' },
-  other:          { c: C.gold,   bg: 'rgba(212,160,23,.12)',  bd: 'rgba(212,160,23,.32)',  label_ar: 'الغرفة التجارية', label_en: 'Chamber' },
+  other:          { c: C.gold,   bg: 'rgba(176,125,0,.12)',  bd: 'rgba(176,125,0,.32)',  label_ar: 'الغرفة التجارية', label_en: 'Chamber' },
   general:        { c: C.gray,   bg: 'rgba(149,165,166,.12)', bd: 'rgba(149,165,166,.32)', label_ar: 'خدمة عامة',     label_en: 'General Service' },
 }
 // Resolve a service's display theme. Codes with an explicit entry above keep their short label/color;
@@ -256,7 +256,7 @@ const StageTimelineTip = ({ title, stages, T }) => { const { dir } = useFKLang()
   <div style={{ width: 196, background: 'linear-gradient(#2a2a2a,#222)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10, padding: '9px 11px', boxShadow: '0 8px 24px rgba(0,0,0,.5)', fontFamily: F, direction: dir }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-      <span style={{ fontSize: 11.5, fontWeight: 700, color: C.gold }}>{title}</span>
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: C.gold }}>{title}</span>
       <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.06)' }} />
     </div>
     <div style={{ position: 'relative', paddingInlineStart: 5 }}>
@@ -353,9 +353,9 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   if (isPaid) statusList.push({ color: C.ok, label: T('مدفوعة بالكامل', 'PAID IN FULL'), amount: d.paid })
   const statusTab = (st, i) => (
     <div key={i} style={{ position: 'absolute', top: 0, bottom: 0, insetInlineEnd: i * 32, width: 30, background: st.color + '1f', borderInlineStart: '1px solid ' + st.color + '59', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3, pointerEvents: 'none' }}>
-      <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: st.color, fontSize: 10.5, fontWeight: 800, letterSpacing: '.5px', display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}>
+      <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: st.color, fontSize: 10.5, fontWeight: 600, letterSpacing: '.5px', display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}>
         <span>{st.label}</span>
-        <span style={{ fontWeight: 900 }}>{num(st.amount)}</span>
+        <span style={{ fontWeight: 600 }}>{num(st.amount)}</span>
       </span>
     </div>
   )
@@ -367,7 +367,7 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const InvNo = ({ color = C.gold, size = S.inv }) => (
     <span style={{ fontSize: size, color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
       {/* number on the right, copy icon on the left — matches the invoice-details copy (hover gold / click green, no toast). */}
-      <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 700 }}>{noDash(d.invoiceNo)}</span>
+      <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 600 }}>{noDash(d.invoiceNo)}</span>
       <CopyBtn text={noDash(d.invoiceNo)} />
     </span>
   )
@@ -533,22 +533,22 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
           {rightCol}
           {/* الخدمات الصفرية (رواتب سبلاير/المستندات): فاتورة صفرية — نُخفي العمود المالي (الإجمالي/المسدّد/المتبقي). */}
           {!isSP && (<>
-          <div style={{ width: 1.5, alignSelf: 'stretch', background: 'linear-gradient(to bottom, transparent, rgba(212,160,23,.45), transparent)', minHeight: 60 }} />
+          <div style={{ width: 1.5, alignSelf: 'stretch', background: 'linear-gradient(to bottom, transparent, rgba(176,125,0,.45), transparent)', minHeight: 60 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* تاقات حالة المعاملة أعلى كتلة المبلغ. */}
             {reqTag && <div style={{ display: 'flex', justifyContent: 'flex-end', minHeight: 24, alignItems: 'center' }}>{reqTag}</div>}
             {/* «الإجمالي» والمبلغ في صفّ واحد. */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: S.total, fontWeight: 700, color: C.gold, fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{num(d.total)}</span>
+              <span style={{ fontSize: S.total, fontWeight: 600, color: C.gold, fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{num(d.total)}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid var(--bd)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: S.pay }}>
-                <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المسدّد', 'Paid')}</span>
-                <span style={{ color: d.paid > 0 ? C.ok : 'var(--tx)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.paid > 0 ? '+ ' + num(d.paid) : num(0)}</span>
+                <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المدفوع', 'Paid')}</span>
+                <span style={{ color: d.paid > 0 ? C.ok : 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.paid > 0 ? '+ ' + num(d.paid) : num(0)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: S.pay }}>
                 <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المتبقي', 'Remaining')}</span>
-                <span style={{ color: d.remaining > 0 ? C.red : 'var(--tx)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.remaining > 0 ? '− ' + num(d.remaining) : num(0)}</span>
+                <span style={{ color: d.remaining > 0 ? C.red : 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.remaining > 0 ? '− ' + num(d.remaining) : num(0)}</span>
               </div>
             </div>
           </div>
@@ -570,7 +570,7 @@ const Pill = ({ count, label, color, money }) => (
     background: 'var(--inputBg)', border: '1px solid var(--bd)',
   }}>
     <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, boxShadow: '0 0 6px ' + color }} />
-    <span style={{ fontSize: money ? 14 : 18, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{count}</span>
+    <span style={{ fontSize: money ? 14 : 18, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{count}</span>
     <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>{label}</span>
   </div>
 )
@@ -600,7 +600,7 @@ const StatCard = ({ label, value, sub, color, sup }) => {
 
       {/* Big value — centered vertically in available space, right-aligned in RTL */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'flex-start', gap: 5, padding: '6px 0' }}>
-        <div style={{ fontSize: 32, fontWeight: 700, color: c, letterSpacing: '-1px', lineHeight: 1, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+        <div style={{ fontSize: 32, fontWeight: 600, color: c, letterSpacing: '-1px', lineHeight: 1, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
         {sup && <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{sup}</span>}
       </div>
 
@@ -641,7 +641,7 @@ function Sparkline({ points, width = 360, height = 90 }) {
 /* ═══════════════════════════════════════════════════════════════ */
 // Full invoice row shape used by the list and by deep-link open-by-id.
 const INVOICE_SELECT = `
-        id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, pricing_breakdown, created_at, last_activity_at,
+        id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, pricing_breakdown, created_at, last_activity_at, created_by,
         note_public, note_log, pricing_log, payment_log, cancel_log, service_log,
         creator:created_by(person:person_id(name_ar,name_en)),
         payments(amount,is_valid,deleted_at,payment_date,payment_method:payment_method_id(value_ar,value_en)),
@@ -649,8 +649,8 @@ const INVOICE_SELECT = `
         status:status_id(code,value_ar,value_en),
         branch:branch_id(id,branch_code,phone,city:city_id(name_ar)),
         agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
-        transfer_calculation(transfer_only,stage_data,deleted_at),
-        iqama_renewal_calculation(stage_data,deleted_at),
+        transfer_calculation(transfer_only,stage_data,deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months,worker_name,phone),
+        iqama_renewal_calculation(stage_data,deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months,worker_name,phone),
         service_request:service_request_id(
           id, request_ref_no, request_date, quantity, cancelled_reason, completion_note, completed_at, cancelled_at,
           accountant_status, accountant_note, accountant_at,
@@ -716,9 +716,9 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
         <div style={{ position: 'relative', flex: 1, padding: '16px 34px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'right' }}>
           <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدًا', 'Cash')}</span>
           <div style={{ direction: 'ltr', textAlign: 'right' }}>
-            <span style={{ fontSize: 46, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(cashSum)}</span>
+            <span style={{ fontSize: 46, fontWeight: 600, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(cashSum)}</span>
           </div>
-          <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات', 'Receipts')} <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cashCnt)}</span></span>
+          <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات', 'Receipts')} <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cashCnt)}</span></span>
         </div>
         <div style={{ position: 'relative', width: 72, background: `linear-gradient(180deg, ${C.gold}1a, ${C.gold}08)`, borderInlineStart: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Wallet size={30} color={C.gold} />
@@ -736,7 +736,7 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
                 <span style={{ fontSize: 12, color: s.cnt > 0 ? C.gold : 'var(--tx4)', fontWeight: 600 }}>({num(s.cnt)})</span>
               </div>
               <div style={{ direction: 'ltr', textAlign: 'right' }}>
-                <span style={{ fontSize: 22, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{num(s.val)}</span>
+                <span style={{ fontSize: 22, fontWeight: 600, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{num(s.val)}</span>
               </div>
             </div>
             <div style={{ width: 52, background: `linear-gradient(180deg, ${s.c}1a, ${s.c}08)`, borderInlineStart: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: s.c }}>
@@ -752,7 +752,7 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الخدمات', 'Services')}</span>
             <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-              <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(svcTotal)}</span> {T(svcTotal >= 3 && svcTotal <= 10 ? 'خدمات' : 'خدمة', 'services')}
+              <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(svcTotal)}</span> {T(svcTotal >= 3 && svcTotal <= 10 ? 'خدمات' : 'خدمة', 'services')}
             </span>
           </div>
           {svcTotal > 0 && (
@@ -763,7 +763,7 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px 16px', alignContent: 'center' }}>
             {svcs.map(s => { const th = statsSvcTheme(s.code); const z = s.cnt === 0; return (
               <div key={s.code} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, opacity: z ? .45 : 1 }}>
-                <span style={{ color: z ? 'var(--tx4)' : th.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 700 }}>{num(s.cnt)}</span>
+                <span style={{ color: z ? 'var(--tx4)' : th.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 600 }}>{num(s.cnt)}</span>
                 <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{T(th.label_ar, th.label_en).replace('وإقامة ', '')}</span>
               </div>
             )})}
@@ -1100,7 +1100,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
           </div>
           {onNewInvoice && canPerm(user, 'invoices.create') && (
             <button onClick={onNewInvoice} className="btn-primary-modal"
-              style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+              style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
               {T('فاتورة جديدة','New Invoice')}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
@@ -1163,17 +1163,17 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
           { l: T('هذا الأسبوع','This week'), f: dShift(todayStr, -new Date(todayStr + 'T12:00:00Z').getUTCDay()), t: todayStr }, // من الأحد (بداية الأسبوع) إلى اليوم
           { l: T('هذا الشهر','This month'), f: todayStr.slice(0, 8) + '01', t: todayStr },
         ]
-        const chip = (active) => ({ height: 30, padding: '0 14px', borderRadius: 8, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: '.15s', border: `1px solid ${active ? 'var(--accent)' : 'var(--bd)'}`, background: active ? 'var(--accent-bg)' : 'var(--inputBg)', color: active ? 'var(--accent)' : 'var(--tx2)' })
+        const chip = (active) => ({ height: 30, padding: '0 14px', borderRadius: 8, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: '.15s', border: `1px solid ${active ? 'var(--accent)' : 'var(--bd)'}`, background: active ? 'var(--accent-bg)' : 'var(--inputBg)', color: active ? 'var(--accent)' : 'var(--tx2)' })
         return (
           <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: 'var(--shadow-md)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid var(--bd)', paddingBottom: 2, marginBottom: 14 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginInlineEnd: 8, paddingBottom: 8 }}>{T('فترة سريعة','Quick period')}</span>
               {datePresets.map(p => {
                 const a = from === p.f && to === p.t
-                return <button key={p.l} type="button" onClick={() => { setFrom(p.f); setTo(p.t); setPage(0) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: a ? 800 : 600, color: a ? C.gold : 'var(--tx2)', padding: '4px 12px 8px', position: 'relative', transition: '.18s', borderBottom: `2px solid ${a ? C.gold : 'transparent'}`, marginBottom: -1 }}>{p.l}</button>
+                return <button key={p.l} type="button" onClick={() => { setFrom(p.f); setTo(p.t); setPage(0) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: a ? 600 : 600, color: a ? C.gold : 'var(--tx2)', padding: '4px 12px 8px', position: 'relative', transition: '.18s', borderBottom: `2px solid ${a ? C.gold : 'transparent'}`, marginBottom: -1 }}>{p.l}</button>
               })}
               {(from || to) && (
-                <button type="button" onClick={() => { setFrom(''); setTo(''); setPage(0) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 700, color: C.red, padding: '4px 10px 8px', marginInlineStart: 'auto' }}>{T('مسح التاريخ','Clear dates')}</button>
+                <button type="button" onClick={() => { setFrom(''); setTo(''); setPage(0) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 600, color: C.red, padding: '4px 10px 8px', marginInlineStart: 'auto' }}>{T('مسح التاريخ','Clear dates')}</button>
               )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
@@ -1270,9 +1270,20 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   const refs = tp.filter(p => !p.is_valid || Number(p.amount) < 0)
                   const mLabel = p => (isAr ? p.payment_method?.value_ar : (p.payment_method?.value_en || p.payment_method?.value_ar)) || p.payment_method?.value_ar
                   const cancelledToday = r.status?.code === 'cancelled' && businessDayKey(r.last_activity_at || r.created_at) === dayKey
+                  // تفصيل المقبوضات حسب طريقة الدفع (نقد/حوالة…): المبلغ + عدد الدفعات لكل طريقة ذلك اليوم.
+                  const recvBreakdown = (() => {
+                    const map = new Map()
+                    for (const p of recv) {
+                      const k = mLabel(p) || '—'
+                      const e = map.get(k) || { method: k, amount: 0, count: 0 }
+                      e.amount += Number(p.amount || 0); e.count += 1; map.set(k, e)
+                    }
+                    return [...map.values()]
+                  })()
                   return {
                     received: recv.reduce((a, p) => a + Number(p.amount || 0), 0),
                     recvMethods: [...new Set(recv.map(mLabel).filter(Boolean))],
+                    recvBreakdown,
                     refunded: refs.reduce((a, p) => a + (!p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)), 0),
                     refundMethods: [...new Set(refs.map(mLabel).filter(Boolean))],
                     cancelledToday,
@@ -1412,14 +1423,14 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         const toN = Math.min(total,(page+1)*PAGE)
         return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid var(--bd)', margin: '4px 4px 14px' }}>
           <style>{`
-            .inv-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(212,160,23,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
+            .inv-pg-btn{width:32px;height:32px;border-radius:50%;background:rgba(176,125,0,.1);border:none;color:${C.gold};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;font-family:${F}}
             .inv-pg-btn:hover:not(:disabled){background:${C.gold};color:#000}
             .inv-pg-btn:disabled{cursor:not-allowed;color:var(--tx4);background:rgba(255,255,255,.06)}
-            .inv-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:700;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+            .inv-pg-input{width:42px;height:32px;background:transparent;border:none;outline:none;color:${C.gold};font-family:${F};font-size:14px;font-weight:600;text-align:center;direction:ltr;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
             .inv-pg-input::-webkit-outer-spin-button,.inv-pg-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
           `}</style>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 700, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
+            <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600, fontFamily: F }}><span style={{ color: C.gold }}>{fromN}–{toN}</span> {T('من','of')} {num(total)}</span>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500, fontFamily: F }}>{T('صفحة','Page')} {page+1} {T('من','of')} {totalPages}</span>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1745,7 +1756,14 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   const iqamasAllIssued = stageVisaSrc.length > 0 && stageVisaSrc.every(visaIqamaDone)
   // Branch gate: the user's role must grant invoices in THIS invoice's branch.
   const invBranchCan = canTabBranch(user, 'invoices', inv.branch_id || inv.branch?.id || null)
-  const canStageEdit = !cancelledRO && invBranchCan && canPerm(user, 'invoices.edit')
+  // منشئ الفاتورة: يملك دوماً أزرار المعاملة داخل تفاصيل فاتورته — يتجاوز حجب الأدوار/الصلاحيات
+  // (صلاحية التعديل + صلاحية المكتب + إظهار النوافذ) على أزرار المراحل فقط، لا على المالية.
+  const isCreator = !!(user?.id && inv.created_by && String(inv.created_by) === String(user.id))
+  const canStageEdit = !cancelledRO && (isCreator || (invBranchCan && canPerm(user, 'invoices.edit')))
+  // بوابة إظهار نافذة مرحلة: مسموحة لمنشئ الفاتورة دائماً، وإلا حسب صلاحيات الدور.
+  const stageModalOk = (key) => isCreator || modalAllowed(user, 'invoices', key)
+  // صلاحية التعديل لأغراض أزرار المراحل — يتجاوزها المنشئ.
+  const canStagePerm = isCreator || canPerm(user, 'invoices.edit')
 
   // المراحل تنقسم لقسمين بحسب طلب التصميم:
   //   • stageActions = الأزرار القابلة للضغط (مرحلة لم تُنجَز بعد) → تُعرض في الهيدر بتصميم زر «تسجيل دفعة».
@@ -1770,7 +1788,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       stageStatus.push(<StageRow key="iqama" done icon={<DoneCheckIco />} label={T(stageVisaSrc.length > 1 ? 'تم إصدار الإقامات' : 'تم إصدار الإقامة', stageVisaSrc.length > 1 ? 'Iqamas issued' : 'Iqama issued')} />)
     } else {
       // زر «بيانات التأشيرات» — للتأشيرات التي لم يُدخَل لها رقم حدود بعد (النافذة تعرض غير المكتملة فقط).
-      if (anyPending && modalAllowed(user, 'invoices', 'inv_border_numbers')) {
+      if (anyPending && stageModalOk('inv_border_numbers')) {
         stageActions.push(<StageRow key="visa" color={C.gold} label={visaDataLabel} icon={<VisaDataIco />}
           disabled={!canStageEdit || data.loading || !issuancePaid}
           title={!issuancePaid ? T('ادفع دفعة «إصدار التأشيرة» أولاً','Pay the visa-issuance installment first') : undefined}
@@ -1780,7 +1798,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         stageStatus.push(<StageRow key="visa" done icon={<DoneCheckIco />} label={T(stageVisaSrc.length > 1 ? 'تم إصدار التأشيرات' : 'تم إصدار التأشيرة', stageVisaSrc.length > 1 ? 'Visas issued' : 'Visa issued')} />)
       }
       // زر «بيانات الإقامات» — يظهر بمجرد جاهزية تأشيرة واحدة (رقم حدودها مُدخَل وإقامتها لم تُصدر).
-      if (anyReadyForIqama && modalAllowed(user, 'invoices', 'inv_iqama_issue')) {
+      if (anyReadyForIqama && stageModalOk('inv_iqama_issue')) {
         stageActions.push(<StageRow key="iqama" color={C.gold} label={T(stageVisaSrc.length > 1 ? 'الإقامات' : 'الإقامة', stageVisaSrc.length > 1 ? 'Iqamas' : 'Iqama')} icon={<IqamaDataIco />} disabled={!canStageEdit || data.loading} onClick={() => setIqamaModal(true)} />)
       }
     }
@@ -1793,9 +1811,9 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       const wpAllDone = issuedVisas.length > 0 && issuedVisas.every(v => !!stageDataOf(v.id).work_permit)
       if (!data.loading && issuedVisas.length > 0) {
         if (insAllDone) stageStatus.push(<StageRow key="st-ins" done icon={<DoneCheckIco />} label={T('تم إدخال بيانات التأمين', 'Insurance saved')} />)
-        else if (canStageEdit && modalAllowed(user, 'invoices', 'inv_visa_stage_insurance')) stageActions.push(<StageRow key="ins" color={C.gold} label={T('التأمين', 'Insurance')} icon={<RenewalDataIco />} onClick={() => setInsuranceModal(true)} />)
+        else if (canStageEdit && stageModalOk('inv_visa_stage_insurance')) stageActions.push(<StageRow key="ins" color={C.gold} label={T('التأمين', 'Insurance')} icon={<RenewalDataIco />} onClick={() => setInsuranceModal(true)} />)
         if (wpAllDone) stageStatus.push(<StageRow key="st-wp" done icon={<DoneCheckIco />} label={T('تم إدخال رخصة العمل', 'Work permit saved')} />)
-        else if (canStageEdit && modalAllowed(user, 'invoices', 'inv_visa_stage_work_permit')) stageActions.push(<StageRow key="wp" color={C.gold} label={T('رخصة العمل', 'Work permit')} icon={<RenewalDataIco />} onClick={() => setWorkPermitModal(true)} />)
+        else if (canStageEdit && stageModalOk('inv_visa_stage_work_permit')) stageActions.push(<StageRow key="wp" color={C.gold} label={T('رخصة العمل', 'Work permit')} icon={<RenewalDataIco />} onClick={() => setWorkPermitModal(true)} />)
       }
     }
   } else if (!data.loading) {
@@ -1808,13 +1826,13 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       const salaryPhase = (Array.isArray(data?.det) ? data.det[0] : null)?.details?.salary_phase
       if (baseSvcCode(_c) === 'name_translation' && salaryPhase === 'awaiting_return') {
         stageStatus.push(<StageRow key="done" done icon={<DoneCheckIco />} label={T('منجزة · بانتظار إرجاع الراتب الأساسي','Completed · awaiting base-salary return')} />)
-        if (!cancelledRO && !reqCancelled && canPerm(user, 'invoices.edit') && modalAllowed(user, 'invoices', 'inv_action_salary_return')) {
+        if (!cancelledRO && !reqCancelled && canStagePerm && stageModalOk('inv_action_salary_return')) {
           stageActions.push(<StageRow key="salreturn" color={C.gold} label={T('إرجاع الراتب','Salary Return')} icon={<RenewalDataIco />} onClick={onReturnSalary} />)
         }
       } else {
         stageStatus.push(<StageRow key="done" done icon={<DoneCheckIco />} label={T('المعاملة منجزة','Transaction completed')} />)
       }
-    } else if (!cancelledRO && !reqCancelled && !acctRejected && canPerm(user, 'invoices.edit') && modalAllowed(user, 'invoices', 'inv_action_done')) {
+    } else if (!cancelledRO && !reqCancelled && !acctRejected && canStagePerm && stageModalOk('inv_action_done')) {
       // زر المرحلة يخصّ كل خدمة: نقل الكفالة يفتح «بيانات التجديد» (مهنة + انتهاء الإقامة + ملف مقيم)،
       // وبقية الخدمات (رواتب سبلاير/المستندات/النقل الخارجي) تفتح نافذة «حالة المعاملة».
       const isTransferStage = baseSvcCode(_c) === 'transfer'
@@ -1901,7 +1919,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
             const showQty = isVisa && qty > 0
             return (
               <span style={{ color: C.gold, fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-                {showQty && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 800 }}>×{qty}</span>}
+                {showQty && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>×{qty}</span>}
                 <span>{full}</span>
               </span>
             )
@@ -1909,12 +1927,12 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}>
             <CopyBtn text={noDash(inv.invoice_no)} />
-            <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 700, fontSize: 14 }}>{noDash(inv.invoice_no)}</span>
+            <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 600, fontSize: 14 }}>{noDash(inv.invoice_no)}</span>
           </span>
           {inv.branch?.branch_code && (
             <>
               <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
-              <span title={T('المكتب','Branch')} style={{ color: C.gold, fontWeight: 700, fontSize: 13.5, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span title={T('المكتب','Branch')} style={{ color: C.gold, fontWeight: 600, fontSize: 13.5, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <span>{inv.branch.branch_code}</span>
               </span>
             </>
@@ -1931,7 +1949,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           {overdueCount > 0 && (
             <>
               <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'rgba(255,255,255,.2)' }} />
-              <span style={{ padding: '4px 11px', borderRadius: 999, background: 'rgba(229,134,122,.10)', border: '1px solid ' + C.red, color: C.red, fontSize: 11.5, fontWeight: 800, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ padding: '4px 11px', borderRadius: 999, background: 'rgba(229,134,122,.10)', border: '1px solid ' + C.red, color: C.red, fontSize: 11.5, fontWeight: 600, letterSpacing: '.3px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <span>{overdueCount} {T(overdueCount === 1 ? 'دفعة متأخرة' : 'دفعات متأخرة', overdueCount === 1 ? 'overdue payment' : 'overdue payments')}</span>
               </span>
@@ -1947,7 +1965,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         const reason = (last?.reason || '').trim()
         return (
           <div style={{ position: 'relative', overflow: 'hidden', marginBottom: 18, borderRadius: 14, background: 'rgba(232,114,101,.07)', border: '1px solid rgba(232,114,101,.28)', padding: '15px 18px' }}>
-            <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%,-50%) rotate(-18deg)', fontSize: 52, fontWeight: 800, color: 'rgba(232,114,101,.10)', border: '3px solid rgba(232,114,101,.13)', borderRadius: 14, padding: '6px 38px', pointerEvents: 'none', whiteSpace: 'nowrap', fontFamily: F }}>
+            <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%,-50%) rotate(-18deg)', fontSize: 52, fontWeight: 600, color: 'rgba(232,114,101,.10)', border: '3px solid rgba(232,114,101,.13)', borderRadius: 14, padding: '6px 38px', pointerEvents: 'none', whiteSpace: 'nowrap', fontFamily: F }}>
               {T('ملغاة','VOID')}
             </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: 12, borderInlineStart: '3px solid ' + C.red, paddingInlineStart: 13 }}>
@@ -2127,7 +2145,7 @@ const renderBankAcctCell = (accent, T) => (a, sel) => (
     <span style={{ fontSize: 14, fontWeight: 600, color: sel ? accent : 'var(--tx)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <Landmark size={13} strokeWidth={2} style={{ flexShrink: 0, opacity: .85 }} />
       {a.bank_name || '—'}
-      {a.is_primary && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.3)', borderRadius: 5, padding: '1px 6px' }}>{T('رئيسي', 'Primary')}</span>}
+      {a.is_primary && <span style={{ fontSize: 9.5, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 5, padding: '1px 6px' }}>{T('رئيسي', 'Primary')}</span>}
     </span>
     {a.account_name && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)' }}>{a.account_name}</span>}
     {a.iban && <span style={{ fontSize: 11, color: 'var(--tx3)', direction: 'ltr', fontFamily: 'ui-monospace, monospace', letterSpacing: '.4px' }}>{a.iban}</span>}
@@ -2235,13 +2253,13 @@ const InstallmentPicker = ({ T, isAr, color, insts, selectedId, onSelect, locked
             title={locked ? T('تُفتح بعد سداد الدفعة السابقة بالكامل', 'Unlocks once the previous installment is fully paid')
               : noBorder ? T('أدخِل رقم الحدود للتأشيرة أولاً', 'Enter the visa border number first') : undefined}
             style={{ textAlign: 'start', cursor: blocked ? 'not-allowed' : 'pointer', opacity: blocked ? .55 : 1, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: active ? color + '14' : 'var(--hoverBg)', border: '1.5px solid ' + (active ? color : 'var(--bd)'), transition: '.15s', fontFamily: F }}>
-            <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: active ? color : 'var(--tx6)', color: active ? '#10240f' : 'var(--tx3)', border: active ? 'none' : '1px solid var(--bd)' }}>
+            <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, background: active ? color : 'var(--tx6)', color: active ? '#10240f' : 'var(--tx3)', border: active ? 'none' : '1px solid var(--bd)' }}>
               {blocked
                 ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 : ins.installment_order}
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: active ? color : 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: active ? color : 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
               {(() => {
                 // بعد إصدار الإقامة لهذه التأشيرة نعرض رقم الإقامة؛ وإلا رقم الحدود؛ وإلا «بانتظار رقم الحدود».
                 const iqArr = Array.isArray(ins.visa_application?.iqama_issuance_applications) ? ins.visa_application.iqama_issuance_applications : (ins.visa_application?.iqama_issuance_applications ? [ins.visa_application.iqama_issuance_applications] : [])
@@ -2277,7 +2295,7 @@ const InstallmentPicker = ({ T, isAr, color, insts, selectedId, onSelect, locked
             </div>
             <div style={{ flexShrink: 0, textAlign: 'end' }}>
               <div style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المتبقي', 'Remaining')}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: active ? color : 'var(--tx2)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(insRemaining)}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: active ? color : 'var(--tx2)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(insRemaining)}</div>
             </div>
           </button>
         )
@@ -2359,7 +2377,7 @@ const VisaRefundDistForm = ({ T, isAr, color, visa, sharedInsts, residenceInst, 
   const sumRow = (label, value, c) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
-      <span style={{ fontSize: 15, fontWeight: 800, color: c, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
+      <span style={{ fontSize: 15, fontWeight: 600, color: c, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
     </div>
   )
   if (part === 'summary') {
@@ -2368,8 +2386,8 @@ const VisaRefundDistForm = ({ T, isAr, color, visa, sharedInsts, residenceInst, 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {residenceInst && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '11px 13px', borderRadius: 10, background: color + '12', border: `1px dashed ${color}55` }}>
-              <span style={{ fontSize: 12, color, fontWeight: 700 }}>{T('دفعة إصدار الإقامة — تُحذف واحدة', 'Residence installment — one removed')}</span>
-              <span style={{ fontSize: 14, color, fontWeight: 800, direction: 'ltr' }}>−{num(Number(residenceInst.total_amount) || 0)}</span>
+              <span style={{ fontSize: 12, color, fontWeight: 600 }}>{T('دفعة إصدار الإقامة — تُحذف واحدة', 'Residence installment — one removed')}</span>
+              <span style={{ fontSize: 14, color, fontWeight: 600, direction: 'ltr' }}>−{num(Number(residenceInst.total_amount) || 0)}</span>
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '13px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
@@ -2388,7 +2406,7 @@ const VisaRefundDistForm = ({ T, isAr, color, visa, sharedInsts, residenceInst, 
         {/* بطاقة التأشيرة — سطر واحد مدمج */}
         {visa && (
           <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 9, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{visaPickLabel(visa, isAr, T)}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{visaPickLabel(visa, isAr, T)}</span>
             {sub && <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>· {sub}</span>}
           </div>
         )}
@@ -2402,7 +2420,7 @@ const VisaRefundDistForm = ({ T, isAr, color, visa, sharedInsts, residenceInst, 
           return (
             <div key={it.id} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{milestoneLabel(it) || T('دفعة', 'Installment')}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{milestoneLabel(it) || T('دفعة', 'Installment')}</span>
                 <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: 'right' }}>{T('مدفوع', 'Paid')} {num(paid)} / {num(total)}</span>
               </div>
               <div style={{ flexShrink: 0, width: 150 }}>
@@ -2452,8 +2470,8 @@ const CancelReasonForm = ({ T, reason, setReason }) => (
 const IIRow = ({ accent, label, value, color, big }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: big ? '13px 14px' : '11px 14px', borderRadius: 10, background: big ? accent + '14' : FKC.inputBg, border: '1px solid ' + (big ? accent + '55' : 'rgba(255,255,255,.05)') }}>
     <span style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: accent, flexShrink: 0 }} />
-    <span style={{ flex: 1, fontSize: big ? 13 : 12, color: big ? FKC.tx : FKC.tx3, fontWeight: big ? 800 : 600 }}>{label}</span>
-    <span style={{ fontSize: big ? 20 : 15, fontWeight: 800, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.3px' }}>{value}</span>
+    <span style={{ flex: 1, fontSize: big ? 13 : 12, color: big ? FKC.tx : FKC.tx3, fontWeight: big ? 600 : 600 }}>{label}</span>
+    <span style={{ fontSize: big ? 20 : 15, fontWeight: 600, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.3px' }}>{value}</span>
   </div>
 )
 const InvoiceInfoSection = ({ T, type, total, paid, remaining }) => {
@@ -3248,11 +3266,17 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           .eq('id', inv.id).select('id')
         if (error) throw error
         if (!upd || upd.length === 0) { setActErr(T('تعذّر إلغاء الفاتورة — تحقق من الصلاحيات', 'Could not cancel the invoice — check permissions')); return }
-        // إلغاء الفاتورة لا يمسّ المعاملة المرتبطة: حالة المعاملة (التاق) تخصّ المعاملة لا الفاتورة،
-        // ولها إجراء إلغاء مستقل («إلغاء المعاملة»). فنغيّر حالة الفاتورة فقط ونترك حالة الطلب كما هي.
+        // إلغاء الفاتورة لا يمسّ حالة الطلب/المعاملة (التاق) — لها إجراء إلغاء مستقل.
+        // لكنه يُلغي الحسبة المرتبطة (نقل/تجديد): حسبةٌ فاتورتها ملغاة لم تعد «سارية»، ويجب
+        // أن تظهر «ملغاة» ولا تحجب إصدار حسبة جديدة لنفس العامل. تُختم بمن ألغى ومتى والسبب.
+        try {
+          const calcCancel = { status: 'cancelled', cancelled_at: nowIso, cancelled_by: user?.id || null, cancel_reason: (cancelReason || '').trim() || T('إلغاء الفاتورة', 'Invoice cancelled'), updated_at: nowIso }
+          await sb.from('transfer_calculation').update(calcCancel).eq('invoice_id', inv.id).is('deleted_at', null).neq('status', 'cancelled')
+          await sb.from('iqama_renewal_calculation').update(calcCancel).eq('invoice_id', inv.id).is('deleted_at', null).neq('status', 'cancelled')
+        } catch { /* إلغاء الحسبة المرتبطة أفضل-جهد — لا يُفشل إلغاء الفاتورة */ }
         successInfo = {
           title: T('تم إلغاء الفاتورة بنجاح', 'Invoice cancelled'),
-          desc: T('تم تغيير حالة الفاتورة إلى ملغاة. المعاملة تبقى كما هي.', 'The invoice status was changed to cancelled. The transaction is unchanged.'),
+          desc: T('تم تغيير حالة الفاتورة إلى ملغاة وإلغاء الحسبة المرتبطة. المعاملة تبقى كما هي.', 'The invoice was cancelled and its linked quote was cancelled too. The transaction is unchanged.'),
           rows: [],
         }
       } else if (type === 'done') {
@@ -3938,7 +3962,7 @@ const cardSub    = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }
 
 const ActionToolbar = ({ T, onRecordPayment, onRefund, onCancelInv, onPrint }) => {
   const btn = (color, bgLight, bdLight) => ({
-    height: 40, padding: '0 16px', borderRadius: 11, background: bgLight, border: '1px solid ' + bdLight, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 700, transition: '.18s', boxShadow: 'var(--shadow-sm)'
+    height: 40, padding: '0 16px', borderRadius: 11, background: bgLight, border: '1px solid ' + bdLight, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 600, transition: '.18s', boxShadow: 'var(--shadow-sm)'
   })
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -3991,7 +4015,7 @@ const ClientRows = ({ inv, T, user }) => {
           <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {T('الاسم','Name')}
             {isWorker && (
-              <span title={T('العامل هو العميل','Worker is the client')} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 4, background: 'rgba(212,160,23,.10)', border: '1px solid rgba(212,160,23,.32)', color: C.gold, fontSize: 9, fontWeight: 700 }}>
+              <span title={T('العامل هو العميل','Worker is the client')} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 4, background: 'rgba(176,125,0,.10)', border: '1px solid rgba(176,125,0,.32)', color: C.gold, fontSize: 9, fontWeight: 600 }}>
                 <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
                 {T('العامل هو العميل','worker = client')}
               </span>
@@ -4033,9 +4057,9 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle 
     onKeyDown={onOpen ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }) : undefined}
     onMouseEnter={onOpen ? (e => { const n = e.currentTarget.querySelector('[data-hero-name]'); if (n) n.style.textDecoration = 'underline' }) : undefined}
     onMouseLeave={onOpen ? (e => { const n = e.currentTarget.querySelector('[data-hero-name]'); if (n) n.style.textDecoration = 'none' }) : undefined}
-    style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: 'var(--shadow-md)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, cursor: onOpen ? 'pointer' : 'default' }}>
+    style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', boxShadow: 'var(--shadow-md)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, cursor: onOpen ? 'pointer' : 'default' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
+      <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(176,125,0,.1)', border: '1.5px solid rgba(176,125,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
           <CopyBtn text={primary} />
@@ -4179,12 +4203,12 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
     return (
       <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '11px 12px', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 9, marginBottom: tiles.length || muq || vf ? 10 : 0 }}>
-          <span style={{ flexShrink: 0, alignSelf: 'stretch', width: 22, borderRadius: 6, background: svc.c + '1a', border: '1px solid ' + svc.c + '40', color: svc.c, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+          <span style={{ flexShrink: 0, alignSelf: 'stretch', width: 22, borderRadius: 6, background: svc.c + '1a', border: '1px solid ' + svc.c + '40', color: svc.c, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 700 }}>{compVis ? natOf(r) : ''}</div>
+            <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{compVis ? natOf(r) : ''}</div>
             {compVis && sub && <div style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, marginTop: 2 }}>{sub}</div>}
           </div>
-          {name && <span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 700 }}>{name}</span>}
+          {name && <span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600 }}>{name}</span>}
         </div>
         {tiles.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(tiles.length, 3)},1fr)`, gap: 8 }}>
@@ -4202,11 +4226,11 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
         )}
         {(vf || muq) && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 10 }}>
-            {vf && <a href={vf.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.gold, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {vf && <a href={vf.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.gold, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               {T('ملف التأشيرة', 'Visa file')}
             </a>}
-            {muq && <a href={muq.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.ok, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {muq && <a href={muq.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.ok, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               {T('ملف مقيم', 'Muqeem file')}
             </a>}
@@ -4235,7 +4259,7 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
             <>
               {single.file_number != null && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 2px 8px' }}>
-                  <span style={{ fontSize: 11.5, color: C.cyan, fontWeight: 700 }}>{T('ملف واحد','One File')}</span>
+                  <span style={{ fontSize: 11.5, color: C.cyan, fontWeight: 600 }}>{T('ملف واحد','One File')}</span>
                   <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: isAr ? 'rtl' : 'ltr' }}>1 {T('تأشيرة','visa')}</span>
                 </div>
               )}
@@ -4260,7 +4284,7 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
                 <div key={fn} style={{ marginTop: idx === 0 ? 0 : 6 }}>
                   {showFiles && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 2px 8px' }}>
-                      <span style={{ fontSize: 11.5, color: C.cyan, fontWeight: 700 }}>{fileLabel(idx)}</span>
+                      <span style={{ fontSize: 11.5, color: C.cyan, fontWeight: 600 }}>{fileLabel(idx)}</span>
                       <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: isAr ? 'rtl' : 'ltr' }}>{items.length} {visaWord(items.length, T)}</span>
                     </div>
                   )}
@@ -4305,12 +4329,12 @@ const PassportRow = ({ T, att, borderNo }) => {
   const isImg = /\.(png|jpe?g|gif|webp|bmp)$/i.test(att.file_name || url)
   return (
     <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-      <span style={{ flex: 1, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 700 }}>
+      <span style={{ flex: 1, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>
         {T('صورة جواز العامل', 'Worker Passport')}
         {borderNo ? <span style={{ color: 'var(--tx4)', fontWeight: 600 }}> · {T('رقم الحدود', 'Border')} <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{borderNo}</span></span> : ''}
       </span>
       {isImg && <a href={url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, lineHeight: 0 }}><img src={url} alt="" style={{ width: 42, height: 30, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--bd)' }} /></a>}
-      <a href={url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, fontSize: 11.5, color: C.gold, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <a href={url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, fontSize: 11.5, color: C.gold, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
         {T('فتح', 'Open')}
       </a>
@@ -4521,7 +4545,7 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
       <div style={boxStyle}>
         <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcName}</span>
         {workerName && !isZeroSvc(code) && !SELF_PARTY_DONE_SVCS.includes(code) && (
-          <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 700, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>{workerName}</span>
+          <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>{workerName}</span>
         )}
         {/* نوع التصديق ونص الطلب صارا يُعرضان أسفل (بعد splCells) — مثل التأمين الطبي */}
         {/* طباعة الإقامة: سبب الطلب المُدخل في النموذج */}
@@ -4543,7 +4567,7 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, direction: c.mono ? 'ltr' : 'rtl', ...(c.mono ? { justifyContent: 'flex-end' } : {}) }}>
                   {c.mono && <CopyBtn text={c.value} />}
-                  <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: (c.gold || c.color) ? 700 : 600, direction: c.mono ? 'ltr' : 'rtl', whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
+                  <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: (c.gold || c.color) ? 600 : 600, direction: c.mono ? 'ltr' : 'rtl', whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
                 </span>
               </div>
             ))}
@@ -4556,7 +4580,7 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
         {/* ملف المطبوعات المرفق — رابط نصّي بسيط، أسفل «نوع التصديق» */}
         {d?.details?.chamber_file?.url && (
           <a href={d.details.chamber_file.url} target="_blank" rel="noopener noreferrer"
-            style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.gold, fontSize: 12.5, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
+            style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.gold, fontSize: 12.5, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             <span>{T('عرض ملف المطبوعات المرفق','View attached printout')}</span>
           </a>
@@ -4575,7 +4599,7 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                 {c.mono && <CopyBtn text={c.value} />}
-                <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: c.gold || c.color ? 700 : 600, wordBreak: 'break-word', direction: c.mono ? 'ltr' : 'rtl', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
+                <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: c.gold || c.color ? 600 : 600, wordBreak: 'break-word', direction: c.mono ? 'ltr' : 'rtl', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
               </span>
             </div>
           ))}
@@ -4599,8 +4623,8 @@ const FinPill = ({ color, label, value, unit }) => {
       <div style={{ position: 'absolute', top: 0, bottom: 0, insetInlineStart: 0, width: 4, background: color }} />
       <div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, marginBottom: 5 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, direction: 'ltr', justifyContent: 'flex-start' }}>
-        {unit && <span style={{ fontSize: 11, fontWeight: 700, color, opacity: .72 }}>{unit}</span>}
-        <span style={{ fontSize: 19, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</span>
+        {unit && <span style={{ fontSize: 11, fontWeight: 600, color, opacity: .72 }}>{unit}</span>}
+        <span style={{ fontSize: 19, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</span>
       </div>
     </div>
   )
@@ -4608,7 +4632,7 @@ const FinPill = ({ color, label, value, unit }) => {
 const FinMetaRow = ({ label, value, valueColor = 'var(--tx2)', ltr = false }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, gap: 10 }}>
     <span style={{ color: 'var(--tx4)' }}>{label}</span>
-    <span style={{ color: valueColor, fontWeight: 700, ...(ltr ? { direction: 'ltr', fontVariantNumeric: 'tabular-nums' } : {}) }}>{value}</span>
+    <span style={{ color: valueColor, fontWeight: 600, ...(ltr ? { direction: 'ltr', fontVariantNumeric: 'tabular-nums' } : {}) }}>{value}</span>
   </div>
 )
 
@@ -4632,11 +4656,11 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
   return (
     <div style={cardChrome}>
       {/* رأس متدرّج ذهبي — العنوان + إجمالي الفاتورة */}
-      <div style={{ position: 'relative', padding: '16px 22px 20px', background: `linear-gradient(135deg, ${C.gold} 0%, #b8860b 100%)`, overflow: 'hidden' }}>
+      <div style={{ position: 'relative', padding: '16px 22px 20px', background: `linear-gradient(135deg, ${C.gold} 0%, #B07D00 100%)`, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: -34, insetInlineEnd: -18, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,.10)' }} />
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#000' }} />
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#000', letterSpacing: '.2px' }}>{T('المبلغ الإجمالي', 'Total Amount')}</span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: '#000', letterSpacing: '.2px' }}>{T('المبلغ الإجمالي', 'Total Amount')}</span>
           {twoNames && (
             <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.14)', color: '#000', fontSize: 9.5, fontWeight: 600 }}>
               {twoNames}
@@ -4645,8 +4669,8 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
         </div>
         {visTotal && (
         <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6, marginTop: 2 }}>
-          <span style={{ fontSize: 32, fontWeight: 900, color: '#000', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px' }}>{num(total)}</span>
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#000' }}>{SAR(T)}</span>
+          <span style={{ fontSize: 32, fontWeight: 600, color: '#000', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px' }}>{num(total)}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#000' }}>{SAR(T)}</span>
         </div>
         )}
       </div>
@@ -4662,7 +4686,7 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
       <div style={{ padding: '0 18px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--tx3)' }}>
           <span>{T('نسبة السداد', 'Paid')}</span>
-          <span style={{ color: payT.c, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
+          <span style={{ color: payT.c, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
         </div>
         <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${payT.c}, ${payT.c}dd)`, transition: 'width .3s' }} />
@@ -4770,18 +4794,18 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
       </span>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-          {visAmount && <span style={{ fontSize: 19, color: accent, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(Math.abs(p.amount))}</span>}
-          {visAmount && <span style={{ fontSize: 12, color: accent, fontWeight: 700 }}>{SAR(T)}</span>}
-          {method && visMethod && <span style={{ fontSize: 9.5, fontWeight: 700, color: accent, background: tint + '.1)', padding: '2px 8px', borderRadius: 999 }}>{method}</span>}
+          {visAmount && <span style={{ fontSize: 19, color: accent, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(Math.abs(p.amount))}</span>}
+          {visAmount && <span style={{ fontSize: 12, color: accent, fontWeight: 600 }}>{SAR(T)}</span>}
+          {method && visMethod && <span style={{ fontSize: 9.5, fontWeight: 600, color: accent, background: tint + '.1)', padding: '2px 8px', borderRadius: 999 }}>{method}</span>}
           {isRefund && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 800, color: '#1a1a1a', background: accent, padding: '3px 9px', borderRadius: 6, letterSpacing: '.3px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 600, color: '#1a1a1a', background: accent, padding: '3px 9px', borderRadius: 6, letterSpacing: '.3px' }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
               {T('استرجاع','Refund')}
             </span>
           )}
-          {!valid && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.red, background: 'rgba(232,114,101,.1)', padding: '2px 8px', borderRadius: 999 }}>{T('ملغاة','Voided')}</span>}
+          {!valid && <span style={{ fontSize: 9.5, fontWeight: 600, color: C.red, background: 'rgba(232,114,101,.1)', padding: '2px 8px', borderRadius: 999 }}>{T('ملغاة','Voided')}</span>}
           {overflow > 0 && (
-            <span style={{ fontSize: 9.5, padding: '2px 8px', borderRadius: 999, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.32)', color: C.gold, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 9.5, padding: '2px 8px', borderRadius: 999, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.32)', color: C.gold, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               <span>+{num(overflow)} {T('للدفعة التالية','to next')}</span>
             </span>
@@ -4789,7 +4813,7 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 10, color: 'var(--tx4)' }}>
           {twoNames && visCreator && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: C.gold, fontWeight: 700 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: C.gold, fontWeight: 600 }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               <span>{twoNames}</span>
             </span>
@@ -4798,13 +4822,13 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
         </div>
         {visaRef && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 10.5 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: accent, fontWeight: 700, background: tint + '.1)', border: '1px solid ' + tint + '.28)', padding: '2px 8px', borderRadius: 6 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: accent, fontWeight: 600, background: tint + '.1)', border: '1px solid ' + tint + '.28)', padding: '2px 8px', borderRadius: 6 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4M14 14h4"/></svg>
               <span>{visaRef.nat || T('تأشيرة', 'Visa')}</span>
               {visaRef.file && <span style={{ opacity: .8 }}>· {T('ملف', 'File')} {visaRef.file}</span>}
             </span>
             <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>
-              {T('رقم الحدود', 'Border')}: <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', color: 'var(--tx2)', fontWeight: 700 }}>{visaRef.border || '—'}</span>
+              {T('رقم الحدود', 'Border')}: <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', color: 'var(--tx2)', fontWeight: 600 }}>{visaRef.border || '—'}</span>
             </span>
           </div>
         )}
@@ -4820,7 +4844,7 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
             {p.receipts.map((r, i) => (
               <a key={r.id || i} href={r.file_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                 title={r.file_name || T('إيصال الحوالة','Transfer Receipt')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: accent, textDecoration: 'none' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: accent, textDecoration: 'none' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>
                 <span style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>{T('الإيصال','Receipt')}{p.receipts.length > 1 ? ` ${i + 1}` : ''}</span>
               </a>
@@ -4836,22 +4860,22 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
       )}
       {onEdit && valid && (
         <button onClick={() => onEdit(p)} title={T('تعديل الدفعة','Edit payment')}
-          style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         </button>
       )}
     </div>
     {/* سجل تعديل هذه الدفعة — أسلوب ثانوي واضح (ليس كرت دفعة): خيط منقّط جانبي + نص مصغّر. */}
     {hasLog && (
-      <div style={{ marginTop: 3, marginInlineStart: 22, paddingInlineStart: 10, borderInlineStart: '2px dashed rgba(212,160,23,.35)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ marginTop: 3, marginInlineStart: 22, paddingInlineStart: 10, borderInlineStart: '2px dashed rgba(176,125,0,.35)', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {editLog.map((c, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 10, color: 'var(--tx4)' }}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-            <span style={{ color: C.gold, fontWeight: 700 }}>{T('تعديل','Edited')}</span>
+            <span style={{ color: C.gold, fontWeight: 600 }}>{T('تعديل','Edited')}</span>
             {(c.changes || []).map((ch, j) => (
               <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <span>{ch.field === 'amount' ? T('المبلغ','Amount') : ch.field === 'method' ? T('الطريقة','Method') : T('الملاحظة','Note')}:</span>
-                <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{ch.to || '—'}</span>
+                <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{ch.to || '—'}</span>
                 {ch.from && <span style={{ color: 'var(--tx5)', textDecoration: 'line-through' }}>{ch.from}</span>}
               </span>
             ))}
@@ -4870,8 +4894,8 @@ const deriveInstMeta = (ins, T, isAr) => {
   const insTotal = Number(ins.total_amount || 0)
   const insPaid = Number(ins.paid_amount || 0)
   const state = insPaid >= insTotal && insTotal > 0 ? 'paid' : (insPaid > 0 ? 'partial' : 'unpaid')
-  const stateC = state === 'paid' ? C.ok : (state === 'partial' ? C.gold : 'rgba(255,255,255,.32)')
-  const stateBg = state === 'paid' ? 'rgba(46,204,113,.16)' : (state === 'partial' ? 'rgba(212,160,23,.14)' : 'rgba(255,255,255,.05)')
+  const stateC = state === 'paid' ? C.ok : (state === 'partial' ? C.gold : 'var(--tx3)')
+  const stateBg = state === 'paid' ? 'rgba(46,204,113,.16)' : (state === 'partial' ? 'rgba(176,125,0,.14)' : 'var(--tx6)')
   const stateLabel = state === 'paid' ? T('مسدّد','Paid') : (state === 'partial' ? T('جزئي','Partial') : T('لم يُسدد','Unpaid'))
   const milestone = ins.payment_milestone
     ? (isAr ? ins.payment_milestone.value_ar : (ins.payment_milestone.value_en || ins.payment_milestone.value_ar))
@@ -4892,24 +4916,24 @@ const InstallmentRow = ({ ins, n, last, single, T, isAr, user }) => { const m = 
   const visExpected = fieldVisible(user, 'invoices', 'installment_expected_date')
   return (
   <div style={{ position: 'relative', paddingBottom: last ? 0 : 18 }}>
-    <span style={{ position: 'absolute', insetInlineStart: -22, top: 4, width: 24, height: 24, borderRadius: '50%', background: m.stateBg, border: '2px solid ' + m.stateC, color: m.stateC, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>{m.state === 'paid' ? <CheckIcon/> : n}</span>
+    <span style={{ position: 'absolute', insetInlineStart: -22, top: 4, width: 24, height: 24, borderRadius: '50%', background: m.stateBg, border: '2px solid ' + m.stateC, color: m.stateC, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>{m.state === 'paid' ? <CheckIcon/> : n}</span>
     <div style={{ paddingInlineStart: 12 }}>
-      {visOrder && <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 700, marginBottom: 4 }}>{m.milestone || (single ? T('دفعة واحدة', 'Single payment') : instOrdinalLabel(ins.installment_order, isAr))}</div>}
+      {visOrder && <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, marginBottom: 4 }}>{m.milestone || (single ? T('دفعة واحدة', 'Single payment') : instOrdinalLabel(ins.installment_order, isAr))}</div>}
       {visAmount && <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 22, color: m.state === 'paid' ? C.ok : C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(m.insTotal)}</span>
-        <span style={{ fontSize: 13, color: C.gold, fontWeight: 700 }}>{SAR(T)}</span>
+        <span style={{ fontSize: 22, color: m.state === 'paid' ? C.ok : C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(m.insTotal)}</span>
+        <span style={{ fontSize: 13, color: C.gold, fontWeight: 600 }}>{SAR(T)}</span>
         {/* «جزئي» يُخفى لأن شريط التقدّم أسفله يوضّح المدفوع/المتبقي — تبقى «مسدّد»/«لم يُسدد» لباقي الحالات */}
-        {m.state !== 'partial' && visStatus && <span style={{ fontSize: 10, color: m.stateC, fontWeight: 700 }}>{m.stateLabel}</span>}
+        {m.state !== 'partial' && visStatus && <span style={{ fontSize: 10, color: m.stateC, fontWeight: 600 }}>{m.stateLabel}</span>}
       </div>}
       {visStatus && m.state === 'partial' && (() => {
         const insRemaining = Math.max(0, m.insTotal - m.insPaid)
         const insPct = m.insTotal ? Math.min(100, Math.round((m.insPaid / m.insTotal) * 100)) : 0
         return (
           <div style={{ marginTop: 6 }}>
-            <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.07)', overflow: 'hidden' }}>
+            <div style={{ height: 6, borderRadius: 999, background: 'var(--tx6)', overflow: 'hidden' }}>
               <div style={{ width: insPct + '%', height: '100%', background: C.ok, borderRadius: 999, transition: 'width .3s' }} />
             </div>
-            <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, fontWeight: 700 }}>
+            <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, fontWeight: 600 }}>
               <span style={{ color: C.ok }}><span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(m.insPaid)}</span> {T('مدفوع','Paid')}</span>
               <span style={{ color: C.gold }}><span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(insRemaining)}</span> {T('متبقٍ','Remaining')}</span>
             </div>
@@ -4929,14 +4953,14 @@ const InstallmentRow = ({ ins, n, last, single, T, isAr, user }) => { const m = 
 }
 const TimelineCol = ({ items, T, isAr, user }) => (
   <div style={{ position: 'relative', paddingInlineStart: 22 }}>
-    {items.length > 1 && <div style={{ position: 'absolute', insetInlineStart: 13, top: 14, bottom: 14, width: 2, background: 'rgba(255,255,255,.06)' }} />}
+    {items.length > 1 && <div style={{ position: 'absolute', insetInlineStart: 11, top: 14, bottom: 14, width: 2, background: 'var(--bd)' }} />}
     {items.map((ins, i) => <InstallmentRow key={ins.id} ins={ins} n={i + 1} last={i === items.length - 1} single={false} T={T} isAr={isAr} user={user} />)}
   </div>
 )
 const TimelineHead = ({ icon, title, sub }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 7, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.3)', color: C.gold, flexShrink: 0 }}>{icon}</span>
-    <span style={{ fontSize: 12.5, fontWeight: 700, color: C.gold }}>{title}</span>
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 7, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.3)', color: C.gold, flexShrink: 0 }}>{icon}</span>
+    <span style={{ fontSize: 12.5, fontWeight: 600, color: C.gold }}>{title}</span>
     {sub && <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{sub}</span>}
   </div>
 )
@@ -4947,7 +4971,7 @@ const InstallmentTimeline = ({ insts, T, isAr, user }) => {
   const txnInsts = insts.filter(x => !x.visa_application_id)
   if (!visaInsts.length) return (
     <div style={{ position: 'relative', paddingInlineStart: 22 }}>
-      {insts.length > 1 && <div style={{ position: 'absolute', insetInlineStart: 13, top: 14, bottom: 14, width: 2, background: 'rgba(255,255,255,.06)' }} />}
+      {insts.length > 1 && <div style={{ position: 'absolute', insetInlineStart: 11, top: 14, bottom: 14, width: 2, background: 'var(--bd)' }} />}
       {insts.map((ins, i) => <InstallmentRow key={ins.id} ins={ins} n={ins.installment_order} last={i === insts.length - 1} single={insts.length === 1} T={T} isAr={isAr} user={user} />)}
     </div>
   )
@@ -5002,7 +5026,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
       <span style={cardTitle}>{T('التسعير','Pricing')}</span>
       {onEdit && (
         <button onClick={onEdit} title={T('تعديل التسعير','Edit pricing')}
-          style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
           <span>{T('تعديل','Edit')}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         </button>
@@ -5036,12 +5060,12 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
             <>
               {visBreakdown && lineItems.map((it, i) => <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', minHeight: 26 }}><span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{it[0]}</span><span style={{ fontSize: 12.5, color: it[2] || 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(it[1])}</span></div>)}
               <div style={{ marginTop: 8, borderTop: '1px solid var(--bd)', paddingTop: 10 }}>
-                {officeFeeV > 0 && visOfficeFee && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: 'var(--tx3)', fontWeight: 600 }}>{T('رسوم المكتب', 'Office Fees')}</span><span style={{ fontSize: 14, color: 'var(--tx)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(officeFeeV)}</span></div>}
-                {visBreakdown && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span><span style={{ fontSize: 14, color: C.gold, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(subtotalV)}</span></div>}
-                {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
-                {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
+                {officeFeeV > 0 && visOfficeFee && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: 'var(--tx3)', fontWeight: 600 }}>{T('رسوم المكتب', 'Office Fees')}</span><span style={{ fontSize: 14, color: 'var(--tx)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(officeFeeV)}</span></div>}
+                {visBreakdown && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span><span style={{ fontSize: 14, color: C.gold, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(subtotalV)}</span></div>}
+                {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
+                {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
               </div>
-              {visTotal && <div style={{ margin: '10px 0 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}><span style={{ color: C.gold, fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{num(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>}
+              {visTotal && <div style={{ margin: '10px 0 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}><span style={{ color: C.gold, fontWeight: 600, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 600, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{num(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>}
             </>
           )
         }
@@ -5071,10 +5095,10 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
               {officeFeeV > 0 && visOfficeFee && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{T('رسوم المكتب', 'Office Fees')}</span><span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(officeFeeV)}</span></div>}
               {cover > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 12, color: '#27a046', fontWeight: 600 }}>{T('خصم عام', 'General Discount')}</span><span style={{ fontSize: 12.5, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(cover)}</span></div>}
               {((Number(tc.absher_discount || 0) > 0 && visAbsher) || (Number(tc.manual_discount || 0) > 0 && visOfficeDisc)) && <div style={{ marginTop: 4, borderTop: '1px solid var(--bd)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
-                {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
+                {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
+                {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
               </div>}
-              {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 700 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totalV)}</span></div>}
+              {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totalV)}</span></div>}
             </div>
           )
         }
@@ -5115,7 +5139,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
           {visBreakdown && breakdown.map((l, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 14 }}>
               <span style={{ color: 'var(--tx2)', fontWeight: 600, fontSize: 12.5 }}>{((l.label === 'رسوم عقد أجير' || l.label === 'رسوم أساسية') ? T('رسوم العقد', 'Contract Fee') : fmtLineLabel(l.label, T)) + monthSuffix(l.label)}</span>
-              <span style={{ color: 'var(--tx1)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(l.amount)}</span>
+              <span style={{ color: 'var(--tx1)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(l.amount)}</span>
             </div>
           ))}
           {disc > 0 ? (
@@ -5123,26 +5147,26 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
               {visBreakdown && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 9, borderTop: '1px solid var(--bd)' }}>
                 <span style={{ fontSize: 13, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي','Subtotal')}</span>
-                <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(lineSum)}</span>
+                <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(lineSum)}</span>
               </div>
               )}
               {absherDisc > 0 && visAbsher && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر','Absher Discount')}</span>
-                  <span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(absherDisc)}</span>
+                  <span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(absherDisc)}</span>
                 </div>
               )}
               {officeDisc > 0 && visOfficeDisc && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   {/* تغيير المهنة/خروج وعودة: الخصم اليدوي هو «رصيد أبشر» المُدخل، فيُسمّى «خصم أبشر» لا «خصم المكتب». */}
                   <span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{(svcCode === 'profession_change' || svcCode === 'exit_reentry_visa') ? T('خصم أبشر','Absher Discount') : T('خصم المكتب','Office Discount')}</span>
-                  <span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(officeDisc)}</span>
+                  <span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(officeDisc)}</span>
                 </div>
               )}
               {visTotal && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 3, padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}>
-                <span style={{ fontSize: 14.5, color: C.gold, fontWeight: 700 }}>{T('الإجمالي النهائي','Final Total')}</span>
-                <span style={{ fontSize: 18, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
+                <span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي','Final Total')}</span>
+                <span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
               </div>
               )}
             </>
@@ -5150,7 +5174,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
             visTotal && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 9, borderTop: '1px solid var(--bd)' }}>
               <span style={{ fontSize: 16, color: C.gold, fontWeight: 600 }}>{T('الإجمالي','Total')}</span>
-              <span style={{ fontSize: 16, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
+              <span style={{ fontSize: 16, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
             </div>
             )
           )}
@@ -5160,12 +5184,12 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
           {[
             visTotal ? { label: T('الإجمالي','Total'), value: total, c: C.gold } : null,
-            { label: T('المسدّد','Paid'), value: paid, c: C.ok },
+            { label: T('المدفوع','Paid'), value: paid, c: C.ok },
             { label: T('المتبقي','Remaining'), value: remaining, c: remaining > 0 ? C.red : 'var(--tx2)' },
           ].filter(Boolean).map((s, i) => (
             <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{s.label}</span>
-              <span style={{ fontSize: 15, color: s.c, fontWeight: 800, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(s.value)}</span>
+              <span style={{ fontSize: 15, color: s.c, fontWeight: 600, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(s.value)}</span>
             </div>
           ))}
         </div>
@@ -5194,7 +5218,7 @@ const InstallmentsWithPayments = ({ data, breakdown, total = 0, paid = 0, remain
   return (
     <div style={{ padding: '4px 22px 14px' }}>
       {/* Installments — target breakdown */}
-      <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px', margin: '6px 0 4px' }}>
+      <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px', margin: '6px 0 4px' }}>
         {T('الدفعات','Installments')} ({insts.length})
       </div>
       {insts.length === 0 ? (
@@ -5204,7 +5228,7 @@ const InstallmentsWithPayments = ({ data, breakdown, total = 0, paid = 0, remain
       )}
 
       {/* Payments — all actual payments */}
-      <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, letterSpacing: '.3px', margin: '16px 0 4px' }}>
+      <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px', margin: '16px 0 4px' }}>
         {T('المدفوعات','Payments')} ({pays.length})
       </div>
       {pays.length === 0 ? (
@@ -5221,10 +5245,10 @@ const InstallmentsWithPayments = ({ data, breakdown, total = 0, paid = 0, remain
 
 const HeaderChips = ({ inv, isAr, T, svc, payT }) => (
   <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-    <span style={{ padding: '4px 12px', borderRadius: 8, background: svc.bg, border: '1px solid ' + svc.bd, color: svc.c, fontSize: 12, fontWeight: 700 }}>{isAr ? svc.label_ar : svc.label_en}</span>
-    <span style={{ padding: '4px 12px', borderRadius: 999, border: '1.5px solid ' + payT.c, color: payT.c, fontSize: 11, fontWeight: 800, letterSpacing: 1 }}>{isAr ? payT.stamp_ar : payT.stamp_en}</span>
+    <span style={{ padding: '4px 12px', borderRadius: 8, background: svc.bg, border: '1px solid ' + svc.bd, color: svc.c, fontSize: 12, fontWeight: 600 }}>{isAr ? svc.label_ar : svc.label_en}</span>
+    <span style={{ padding: '4px 12px', borderRadius: 999, border: '1.5px solid ' + payT.c, color: payT.c, fontSize: 11, fontWeight: 600, letterSpacing: 1 }}>{isAr ? payT.stamp_ar : payT.stamp_en}</span>
     <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{fmtGreg(inv.created_at, isAr)}</span>
-    {inv.branch?.branch_code && <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--bd)', color: 'var(--tx3)', direction: 'ltr', fontWeight: 700 }}>{inv.branch.branch_code}</span>}
+    {inv.branch?.branch_code && <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--bd)', color: 'var(--tx3)', direction: 'ltr', fontWeight: 600 }}>{inv.branch.branch_code}</span>}
   </div>
 )
 
@@ -5373,14 +5397,14 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
     return (
       <div onClick={() => { setErr(''); setSelected(w) }}
         style={{ cursor: 'pointer', position: 'relative', border: '1px solid var(--bd)', background: 'linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))', boxShadow: 'var(--shadow-md)', transition: 'all .22s ease', padding: 14, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 12 }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(212,160,23,.08),rgba(255,255,255,.02))'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.25)' }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(176,125,0,.08),rgba(255,255,255,.02))'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.25)' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {flagEl(w, 48)}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 15.5, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{nm}</span>
-              {isCur && <span style={{ fontSize: 9.5, fontWeight: 600, color: C.gold, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.3)', borderRadius: 20, padding: '2px 8px' }}>{T('الحالي','Current')}</span>}
+              {isCur && <span style={{ fontSize: 9.5, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 20, padding: '2px 8px' }}>{T('الحالي','Current')}</span>}
               {w.worker_type === 'temporary' && <span style={{ fontSize: 9.5, fontWeight: 600, color: '#5dade2', background: 'rgba(93,173,226,.12)', border: '1px solid rgba(93,173,226,.3)', borderRadius: 20, padding: '2px 8px' }}>{T('مؤقت','Temporary')}</span>}
             </span>
             {w.name_en && nm !== w.name_en && <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', opacity: .7 }}>{w.name_en}</span>}
@@ -5396,7 +5420,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
   }
   // إطار بيانات (عامل/منشأة) — حدّ ذهبي + عنوان عائم يقطع الحدّ (نفس نافذة الإنشاء).
   const Fieldset = ({ label, children }) => (
-    <div style={{ marginTop: 19, padding: '14px 14px 12px', borderRadius: 12, border: '1.5px solid rgba(212,160,23,.35)', position: 'relative' }}>
+    <div style={{ marginTop: 19, padding: '14px 14px 12px', borderRadius: 12, border: '1.5px solid rgba(176,125,0,.35)', position: 'relative' }}>
       <div style={{ position: 'absolute', top: -9, right: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, maxWidth: 'calc(100% - 28px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
       {children}
     </div>
@@ -5414,7 +5438,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
     const facilityLabel = fac?.name_ar || fac?.name_en || T('بيانات المنشأة','Facility Info')
     return (
       <>
-        <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(255,255,255,.02))', boxShadow: 'var(--shadow-md)', padding: 14, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', boxShadow: 'var(--shadow-md)', padding: 14, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
           <button onClick={() => { setSelected(null) }} title={T('تغيير العامل','Change worker')}
             style={{ position: 'absolute', top: 8, left: 8, width: 28, height: 28, borderRadius: 8, background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.35)', color: C.red, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, transition: '.15s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.22)' }}
@@ -5425,7 +5449,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 15.5, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{nm}</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 600, color: C.gold, background: 'rgba(212,160,23,.12)', border: '1px solid rgba(212,160,23,.3)', borderRadius: 20, padding: '2px 8px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 20, padding: '2px 8px' }}>
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>{T('محدد','Selected')}
               </span>
               {w.worker_type === 'temporary' && <span style={{ fontSize: 9.5, fontWeight: 600, color: '#5dade2', background: 'rgba(93,173,226,.12)', border: '1px solid rgba(93,173,226,.3)', borderRadius: 20, padding: '2px 8px' }}>{T('مؤقت','Temporary')}</span>}
@@ -5500,7 +5524,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {q.trim().length < 2 && <div style={{ padding: '16px', fontSize: 11.5, color: 'var(--tx5)', textAlign: 'center' }}>{T('اكتب حرفين على الأقل للبحث…','Type at least two characters…')}</div>}
                 {q.trim().length >= 2 && searching && <div style={{ padding: '16px', fontSize: 12, color: 'var(--tx4)', textAlign: 'center' }}>{T('جارٍ البحث…','Searching…')}</div>}
-                {q.trim().length >= 2 && !searching && results.length === 0 && <div style={{ padding: 14, borderRadius: 10, background: 'rgba(212,160,23,.05)', border: '1px dashed rgba(212,160,23,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}><div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('لا يوجد عامل بهذا البحث','No worker matches this search')}</div></div>}
+                {q.trim().length >= 2 && !searching && results.length === 0 && <div style={{ padding: 14, borderRadius: 10, background: 'rgba(176,125,0,.05)', border: '1px dashed rgba(176,125,0,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}><div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('لا يوجد عامل بهذا البحث','No worker matches this search')}</div></div>}
                 {!searching && results.map(w => <WkResult key={w.id} w={w} />)}
               </div>
             )}
@@ -5609,7 +5633,7 @@ function ClientEditModal({ sb, toast, T, client, workerIsClient = false, linkedW
   const content = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
       {lock && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 13px', borderRadius: 10, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.28)', color: C.goldSoft, fontSize: 11.5, fontWeight: 600, fontFamily: F }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 13px', borderRadius: 10, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.28)', color: C.goldSoft, fontSize: 11.5, fontWeight: 600, fontFamily: F }}>
           <Link2 size={14} strokeWidth={2.2} style={{ flexShrink: 0 }} />
           <span>{T('العميل هو نفس العامل — يمكن تعديل رقم الجوال فقط، وبقية البيانات تتبع سجل العامل.','Client is the worker — only the phone can be edited; the rest follows the worker record.')}</span>
         </div>
@@ -5855,10 +5879,10 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
               )}
               {/* الملف المرفق حالياً — يظهر في كلا النوعين كي لا يضيع، مع رابط لفتحه. */}
               {existingFile?.url && (
-                <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.22)' }}>
+                <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)' }}>
                   <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{T('الملف المرفق حالياً','Current attached file')}:</span>
                   <a href={existingFile.url} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: C.gold, fontSize: 12, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: C.gold, fontSize: 12, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{existingFile.name || T('عرض الملف','View file')}</span>
                   </a>
@@ -6019,7 +6043,7 @@ const MarqueeValue = ({ value, ltr, color }) => {
         WebkitMaskImage: over && !hov ? `linear-gradient(${ltr ? 'to right' : 'to left'}, #000 80%, transparent)` : 'none',
         maskImage: over && !hov ? `linear-gradient(${ltr ? 'to right' : 'to left'}, #000 80%, transparent)` : 'none' }}>
       <span ref={txtRef}
-        style={{ display: 'inline-block', color: color || 'var(--tx2)', fontWeight: 700,
+        style={{ display: 'inline-block', color: color || 'var(--tx2)', fontWeight: 600,
           transform: hov && over ? `translateX(${ltr ? -over : over}px)` : 'translateX(0)',
           transition: `transform ${dur}s linear` }}>
         {value || '—'}
@@ -6444,7 +6468,7 @@ const StageRow = ({ label, onClick, disabled = false, done = false, title, color
   <button onClick={onClick} disabled={disabled} title={title}
     onMouseEnter={e => { if (!disabled) e.currentTarget.style.filter = 'brightness(.93)' }}
     onMouseLeave={e => { if (!disabled) e.currentTarget.style.filter = 'none' }}
-    style={{ flex: 1, minWidth: 120, height: 36, padding: '0 12px', borderRadius: 8, background: disabled ? 'transparent' : 'linear-gradient(160deg,#23201a,#141210)', border: `1px solid ${disabled ? 'var(--bd)' : 'rgba(212,160,23,.5)'}`, color: disabled ? 'var(--tx4)' : '#F0CB6A', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, fontSize: 12, fontWeight: 700, boxShadow: disabled ? 'none' : '0 5px 16px rgba(0,0,0,.26), inset 0 1px 0 rgba(212,160,23,.18)', transition: 'filter .15s ease' }}>
+    style={{ flex: 1, minWidth: 120, height: 36, padding: '0 12px', borderRadius: 8, background: disabled ? 'transparent' : 'linear-gradient(160deg,#23201a,#141210)', border: `1px solid ${disabled ? 'var(--bd)' : 'rgba(176,125,0,.5)'}`, color: disabled ? 'var(--tx4)' : '#F0CB6A', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, fontSize: 12, fontWeight: 600, boxShadow: disabled ? 'none' : '0 5px 16px rgba(0,0,0,.26), inset 0 1px 0 rgba(176,125,0,.18)', transition: 'filter .15s ease' }}>
     <span>{label}</span>
     {icon || <CheckBadgeIco />}
   </button>
@@ -6661,7 +6685,7 @@ function IqamaIssueModal({ sb, toast, T, isAr, inv, user, visas, iqamaSet, iqama
                       value={fOf(v.id).muqeemFile || null} onChange={val => setField(v.id, { muqeemFile: val })} />
                   </div>
                 ) : (
-                  <div style={{ fontSize: 11.5, color: m.c, fontWeight: 700, textAlign: 'center', padding: '4px 0' }}>{m.label}</div>
+                  <div style={{ fontSize: 11.5, color: m.c, fontWeight: 600, textAlign: 'center', padding: '4px 0' }}>{m.label}</div>
                 )}
               </div>
             </ModalSection>
@@ -6957,12 +6981,12 @@ function PricingEditModal({ sb, toast, T, inv, paid = 0, onClose, onSaved, user 
               </div>
             ))}
             {editBreakdown && <button type="button" onClick={addLine}
-              style={{ alignSelf: 'flex-end', height: 36, padding: '0 14px', borderRadius: 9, border: '1px dashed var(--accent-bd)', background: 'rgba(212,160,23,.06)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, direction: 'ltr' }}>
+              style={{ alignSelf: 'flex-end', height: 36, padding: '0 14px', borderRadius: 9, border: '1px dashed var(--accent-bd)', background: 'rgba(176,125,0,.06)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, direction: 'ltr' }}>
               <Plus size={14} /> <span>{T('إضافة بند','Add item')}</span>
             </button>}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--bd)' }}>
-              <span style={{ fontSize: 15, color: C.gold, fontWeight: 700 }}>{T('الإجمالي','Total')}</span>
-              <span style={{ fontSize: 16, color: C.gold, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(computedTotal)}</span>
+              <span style={{ fontSize: 15, color: C.gold, fontWeight: 600 }}>{T('الإجمالي','Total')}</span>
+              <span style={{ fontSize: 16, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(computedTotal)}</span>
             </div>
           </div>
         ) : (
@@ -6989,20 +7013,20 @@ const ChangeLog = ({ T, title, entries, actionLabel, renderDetail }) => {
   if (!Array.isArray(entries) || !entries.length) return null
   return (
     <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
-      <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
         {title}
       </span>
       {[...entries].reverse().map((c, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
-          <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+          <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </span>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
-                <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 700 }}>{actionLabel}</span>
-                {c.by_name && <span style={{ fontSize: 11, color: C.gold, fontWeight: 700 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
+                <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{actionLabel}</span>
+                {c.by_name && <span style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
               </div>
               <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', flexShrink: 0 }}>{fmtDateTime(c.at)}</span>
             </div>
@@ -7019,7 +7043,7 @@ const FieldChanges = ({ T, changes, LBL, showVal }) => (
   <>{(Array.isArray(changes) ? changes : []).map((ch, j) => (
     <div key={j} style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
       <span>{T(LBL[ch.field]?.[0] || ch.field, LBL[ch.field]?.[1] || ch.field)}:</span>
-      <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{showVal ? showVal(ch.field, ch.to) : (ch.to || '—')}</span>
+      <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{showVal ? showVal(ch.field, ch.to) : (ch.to || '—')}</span>
       {ch.from
         ? <span style={{ color: 'var(--tx5)' }}>({T('كان', 'was')}: <span style={{ textDecoration: 'line-through' }}>{showVal ? showVal(ch.field, ch.from) : ch.from}</span>)</span>
         : <span style={{ color: 'var(--tx5)' }}>({T('جديد', 'new')})</span>}
@@ -7053,7 +7077,7 @@ const PricingChanges = ({ T, entry }) => {
       {tot && Number(tot.from) !== Number(tot.to) && (
         <div style={rowS}>
           <span style={{ color: C.gold }}>{T('الإجمالي', 'Total')}:</span>
-          <span style={{ color: 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(tot.to)}</span>
+          <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(tot.to)}</span>
           <span style={{ color: 'var(--tx5)' }}>({T('كان', 'was')}: <span style={{ textDecoration: 'line-through', direction: 'ltr' }}>{num(tot.from)}</span>)</span>
         </div>
       )}
@@ -7061,9 +7085,9 @@ const PricingChanges = ({ T, entry }) => {
         <div key={j} style={rowS}>
           <span>{ch.label}{ch.fromLabel ? <span style={{ color: 'var(--tx5)' }}> ({T('كان', 'was')}: <span style={{ textDecoration: 'line-through' }}>{ch.fromLabel}</span>)</span> : ''}:</span>
           {ch.to == null
-            ? <span style={{ color: C.red, fontWeight: 700 }}>{T('حُذف', 'removed')} <span style={{ color: 'var(--tx5)', fontWeight: 600 }}>(<span style={{ textDecoration: 'line-through', direction: 'ltr' }}>{num(ch.from)}</span>)</span></span>
+            ? <span style={{ color: C.red, fontWeight: 600 }}>{T('حُذف', 'removed')} <span style={{ color: 'var(--tx5)', fontWeight: 600 }}>(<span style={{ textDecoration: 'line-through', direction: 'ltr' }}>{num(ch.from)}</span>)</span></span>
             : <>
-                <span style={{ color: 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(ch.to)}</span>
+                <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(ch.to)}</span>
                 {ch.from == null
                   ? <span style={{ color: 'var(--tx5)' }}>({T('جديد', 'new')})</span>
                   : <span style={{ color: 'var(--tx5)' }}>({T('كان', 'was')}: <span style={{ textDecoration: 'line-through', direction: 'ltr' }}>{num(ch.from)}</span>)</span>}
@@ -7380,7 +7404,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
         </div>
         {groups.length < 4 && (
           <button type="button" onClick={addGroup} title={T('إضافة مجموعة', 'Add group')}
-            style={{ height: 30, padding: '0 13px', background: 'rgba(212,160,23,.06)', border: '1.3px dashed var(--accent-bd)', borderRadius: 9, color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            style={{ height: 30, padding: '0 13px', background: 'rgba(176,125,0,.06)', border: '1.3px dashed var(--accent-bd)', borderRadius: 9, color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span>{T('مجموعة', 'Group')}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -7405,7 +7429,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
         const g = activeGroup
         const filteredEm = g.nationality ? lkEmbassies.filter(e => e.country_id === g.nationality) : []
         return (
-          <div style={{ border: '1.5px solid rgba(212,160,23,.35)', borderRadius: 12, padding: '18px 14px 12px', marginTop: groups.length > 1 ? 14 : 12, position: 'relative', display: 'flex', flexDirection: 'column', gap: 10, width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ border: '1.5px solid rgba(176,125,0,.35)', borderRadius: 12, padding: '18px 14px 12px', marginTop: groups.length > 1 ? 14 : 12, position: 'relative', display: 'flex', flexDirection: 'column', gap: 10, width: '100%', boxSizing: 'border-box' }}>
             <div style={{ position: 'absolute', top: -9, insetInlineStart: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F }}>{T('المجموعة', 'Group')} {(isAr ? ORD_AR_F[activeIdx] : null) || (activeIdx + 1)}</div>
             {groups.length > 1 && (
               <button type="button" onClick={() => removeGroup(g.id)} title={T('حذف', 'Delete')}
@@ -7485,7 +7509,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
               <div key={f.id}
                 onDragOver={e => { if (isValidDrop) { e.preventDefault(); e.dataTransfer.dropEffect = 'move' } }}
                 onDrop={e => { if (!dragInfo || dragInfo.fileId === f.id) return; e.preventDefault(); moveVisa(dragInfo.fileId, f.id, dragInfo.groupId); setDragInfo(null) }}
-                style={{ position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: 215, borderRadius: 12, border: `1.5px ${isValidDrop ? 'dashed' : 'solid'} ${isValidDrop ? 'rgba(52,152,219,.6)' : full ? 'rgba(46,160,67,.35)' : c > 0 ? 'rgba(212,160,23,.25)' : 'rgba(255,255,255,.08)'}`, background: isValidDrop ? 'rgba(52,152,219,.1)' : full ? 'rgba(46,160,67,.05)' : c > 0 ? 'rgba(212,160,23,.04)' : 'rgba(255,255,255,.015)', overflow: 'hidden', transition: '.2s', opacity: isDragSource ? .55 : 1 }}>
+                style={{ position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: 215, borderRadius: 12, border: `1.5px ${isValidDrop ? 'dashed' : 'solid'} ${isValidDrop ? 'rgba(52,152,219,.6)' : full ? 'rgba(46,160,67,.35)' : c > 0 ? 'rgba(176,125,0,.25)' : 'rgba(255,255,255,.08)'}`, background: isValidDrop ? 'rgba(52,152,219,.1)' : full ? 'rgba(46,160,67,.05)' : c > 0 ? 'rgba(176,125,0,.04)' : 'rgba(255,255,255,.015)', overflow: 'hidden', transition: '.2s', opacity: isDragSource ? .55 : 1 }}>
                 {files.length > 1 && (
                   <button type="button" onClick={() => removeFile(f.id)} title={T('حذف', 'Delete')}
                     style={{ position: 'absolute', top: 6, left: 6, width: 20, height: 20, borderRadius: 5, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 2 }}>
@@ -7514,7 +7538,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
                           onDragStart={e => { if (cnt <= 0) { e.preventDefault(); return } setDragInfo({ fileId: f.id, groupId: g.id }); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', `visa:${f.id}:${g.id}`) } catch (_) {} }}
                           onDragEnd={() => setDragInfo(null)}
                           title={cnt > 0 ? T('اسحب لنقل تأشيرة', 'Drag to move a visa') : ''}
-                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 5px', borderRadius: 6, background: isDraggingThis ? 'rgba(52,152,219,.15)' : cnt > 0 ? 'rgba(212,160,23,.08)' : 'rgba(255,255,255,.015)', border: `1px solid ${isDraggingThis ? 'rgba(52,152,219,.5)' : cnt > 0 ? 'rgba(212,160,23,.18)' : 'rgba(255,255,255,.04)'}`, cursor: cnt > 0 ? 'grab' : 'default', opacity: isDraggingThis ? .6 : 1 }}>
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 5px', borderRadius: 6, background: isDraggingThis ? 'rgba(52,152,219,.15)' : cnt > 0 ? 'rgba(176,125,0,.08)' : 'rgba(255,255,255,.015)', border: `1px solid ${isDraggingThis ? 'rgba(52,152,219,.5)' : cnt > 0 ? 'rgba(176,125,0,.18)' : 'rgba(255,255,255,.04)'}`, cursor: cnt > 0 ? 'grab' : 'default', opacity: isDraggingThis ? .6 : 1 }}>
                           <button type="button" onClick={() => decGroup(f.id, g.id)} disabled={!canDec} title={T('إنقاص', 'Decrease')}
                             style={{ width: 20, height: 20, borderRadius: 5, border: 'none', background: canDec ? 'rgba(192,57,43,.12)' : 'transparent', color: canDec ? C.red : 'var(--tx6)', cursor: canDec ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>−</button>
                           <span style={{ fontSize: 12, fontWeight: 600, color: cnt > 0 ? C.gold : 'var(--tx5)', minWidth: 12, textAlign: 'center', flexShrink: 0 }}>{cnt}</span>
@@ -7572,7 +7596,7 @@ const OfficeCodeBox = ({ code, T }) => !code ? null : (
   <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
     <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
-      <span style={{ fontSize: 14, color: C.gold, fontWeight: 700, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{code}</span>
+      <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{code}</span>
     </span>
   </div>
 )
@@ -7582,7 +7606,7 @@ const OfficeCodeBox = ({ code, T }) => !code ? null : (
 const InvoiceDetailSkeleton = () => {
   const SkHead = () => (
     <div style={cardHeader}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(212,160,23,.45)', flexShrink: 0 }} />
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(176,125,0,.45)', flexShrink: 0 }} />
       <Shimmer w={130} h={16} />
     </div>
   )
@@ -7641,7 +7665,7 @@ const InvoiceDetailSkeleton = () => {
       <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* الملخّص المالي — صندوق الإجمالي الذهبي + شريط نسبة السداد + مؤشّرات */}
         <div style={cardChrome}>
-          <div style={{ background: 'linear-gradient(135deg, rgba(212,160,23,.18), rgba(212,160,23,.06))', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: 'linear-gradient(135deg, rgba(176,125,0,.18), rgba(176,125,0,.06))', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Shimmer w="45%" h={14} style={{ background: 'linear-gradient(90deg, rgba(0,0,0,.10) 25%, rgba(0,0,0,.18) 37%, rgba(0,0,0,.10) 63%)', backgroundSize: '400% 100%' }} />
             <Shimmer w="60%" h={30} />
           </div>
@@ -7710,7 +7734,7 @@ function InvoiceCommentsCard({ sb, T, isAr, toast, inv, user }) {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                     {n.attachments.map((a, i) => (
                       <a key={a.id || i} href={a.file_url} target="_blank" rel="noreferrer" title={a.file_name || T('مرفق','Attachment')}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: C.gold, textDecoration: 'none' }}>
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: C.gold, textDecoration: 'none' }}>
                         <Paperclip size={12} strokeWidth={2} />
                         <span style={{ textDecoration: 'underline', textUnderlineOffset: 3, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{a.file_name || (T('مرفق','Attachment') + ' ' + (i + 1))}</span>
                       </a>
@@ -7834,7 +7858,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
           })()}
           {!!onEditClient && !!inv.service_request?.client && canCardBtn(user, 'invoices', 'client', 'edit') && (
             <button onClick={onEditClient} title={T('تعديل بيانات العميل','Edit client')}
-              style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               <span>{T('تعديل','Edit')}</span>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
@@ -7896,14 +7920,14 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
               <span style={cardTitle}>{T('العامل والمنشأة','Worker & Facility')}</span>
               {workerIsClient && (
-                <span title={T('العامل هو العميل','Worker is the client')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 7, background: 'rgba(212,160,23,.16)', border: '1px solid rgba(212,160,23,.42)', color: C.goldSoft, fontSize: 10.5, fontWeight: 700 }}>
+                <span title={T('العامل هو العميل','Worker is the client')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 7, background: 'rgba(176,125,0,.16)', border: '1px solid rgba(176,125,0,.42)', color: C.goldSoft, fontSize: 10.5, fontWeight: 600 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
                   {T('= العميل','= client')}
                 </span>
               )}
               {editable && (
                 <button onClick={onEditWorker} title={T('تغيير العامل','Change worker')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{T('تعديل','Edit')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
@@ -7917,7 +7941,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span>{T('العامل السابق','Previous worker')}:</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <span style={{ color: 'var(--tx2)', fontWeight: 700 }}>{c.from_name}</span>
+                      <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{c.from_name}</span>
                       {c.from_iqama && <span style={{ fontFamily: 'monospace', direction: 'ltr', color: 'var(--tx3)' }}>{c.from_iqama}</span>}
                     </div>
                   </div>
@@ -7939,14 +7963,14 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
             <span style={cardTitle}>{T('الخدمة','Service')}</span>
             {bordersEditable && (
               <button onClick={onEditBorders} title={T('إدخال أرقام الحدود','Enter border numbers')}
-                style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                 <span>{T('أرقام الحدود','Border numbers')}</span>
                 <Hash size={13} strokeWidth={2.4} />
               </button>
             )}
             {visaEditable && (
               <button onClick={onEditVisa} title={T('تعديل التأشيرات','Edit visas')}
-                style={{ marginInlineStart: bordersEditable ? 0 : 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                style={{ marginInlineStart: bordersEditable ? 0 : 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                 <span>{T('تعديل','Edit')}</span>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
               </button>
@@ -8004,14 +8028,14 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <span style={cardTitle}>{T('الخدمة','Service')}</span>
               {svcEditable && (
                 <button onClick={onEditService} title={T('تعديل الخدمة','Edit service')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{T('تعديل','Edit')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
               )}
               {officeEditable && (
                 <button onClick={onEditOffice} title={T('تعديل المكتب','Edit office')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{T('تعديل المكتب','Edit office')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
@@ -8056,7 +8080,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <span style={cardTitle}>{isZeroSvc(data?.code || inv.service_type?.code) ? T('الملاحظة','Note') : T('ملاحظة الفاتورة','Invoice Note')}</span>
               {onEditNote && canCardBtn(user, 'invoices', 'notes', 'edit') && (
                 <button onClick={onEditNote} title={T('تعديل الملاحظة','Edit note')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{notePublic ? T('تعديل','Edit') : T('إضافة','Add')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
@@ -8095,7 +8119,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 : (em ? <span title={nat?.name_ar || ''} style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null)}
               {!!onEditAgent && !!agent.id && canCardBtn(user, 'invoices', 'agent', 'edit') && (
                 <button onClick={onEditAgent} title={T('تعديل بيانات الوسيط','Edit agent')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(212,160,23,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <span>{T('تعديل','Edit')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
@@ -8211,13 +8235,13 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 <div style={{ marginTop: 6, fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl' }}>{note}</div>
               )}
               {docFile && (
-                <a href={docFile.file_url} target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, color: C.gold, fontSize: 12, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                <a href={docFile.file_url} target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, color: C.gold, fontSize: 12, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                   {docLabel || T('عرض المستند المرفق', 'View attached document')}
                 </a>
               )}
               {atts.map((a, i) => (
-                <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, color: C.gold, fontSize: 12, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, color: C.gold, fontSize: 12, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                   {a.label}
                 </a>
@@ -8239,7 +8263,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 return twoNames ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0, whiteSpace: 'nowrap' }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold, flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: C.goldSoft }}>{twoNames}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.goldSoft }}>{twoNames}</span>
                   </span>
                 ) : null
               })()}
@@ -8315,11 +8339,11 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               }
               if (!groups.length) return null
               return (
-                <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(212,160,23,.05)', border: '1px solid rgba(212,160,23,.12)' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.goldSoft, marginBottom: 8, letterSpacing: '.2px' }}>{T('بيانات المعاملة', 'Transaction Data')}</div>
+                <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(176,125,0,.05)', border: '1px solid rgba(176,125,0,.12)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.goldSoft, marginBottom: 8, letterSpacing: '.2px' }}>{T('بيانات المعاملة', 'Transaction Data')}</div>
                   {groups.map((g, gi) => (
                     <div key={gi} style={gi > 0 ? { marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--bd)' } : undefined}>
-                      {g.title && <div style={{ fontSize: 11.5, fontWeight: 700, color: C.goldSoft, marginBottom: 6 }}>{g.title}</div>}
+                      {g.title && <div style={{ fontSize: 11.5, fontWeight: 600, color: C.goldSoft, marginBottom: 6 }}>{g.title}</div>}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         {g.rows.map(([lbl, val, mono, color, copy], i) => (
                           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
@@ -8424,7 +8448,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                         {visas.length > 1 && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                             <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold, flexShrink: 0 }} />
-                            <span style={{ fontSize: 12.5, fontWeight: 700, color: C.goldSoft }}>{T('التأشيرة', 'Visa')} {i + 1}</span>
+                            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.goldSoft }}>{T('التأشيرة', 'Visa')} {i + 1}</span>
                             {v.border_number && <span style={{ fontSize: 11, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginInlineStart: 'auto' }}>#{v.border_number}</span>}
                           </div>
                         )}
@@ -8785,7 +8809,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
           </div>
           )}
           {showGmNote && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.18)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.18)' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx2)', lineHeight: 1.5 }}>{T('المعاملة منجزة — إلغاء أو استرجاع الفاتورة يتطلب صلاحية المدير العام.', 'Transaction completed — cancelling or refunding requires the General Manager.')}</span>
             </div>
@@ -8796,7 +8820,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       {canPerm(user, 'invoices.print') && modalAllowed(user, 'invoices', 'inv_action_print') && (<>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: C.gold }}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        <span style={{ fontSize: 11, fontWeight: 700, color: C.gold, letterSpacing: '.3px' }}>{T('طباعة','Print')}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: C.gold, letterSpacing: '.3px' }}>{T('طباعة','Print')}</span>
         <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
       </div>
       {/* كل لغات الطباعة معاً — اثنتان في كل صف، والأخيرة منفردة. (مكتب الفاتورة ثنائي اللغة + لغة العامل: هندي/أردو/بنغالي) */}
@@ -8829,7 +8853,7 @@ const TxnStatusBar = ({ T, stage, phase, label }) => {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderInlineStart: '3px solid ' + m.c, background: m.c + '10', padding: '8px 12px', color: m.c, fontSize: 12.5, fontWeight: 600, fontFamily: F }}>
       <span className="txn-dot-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: m.c, flexShrink: 0 }} />
-      {phase && <span style={{ fontSize: 10.5, fontWeight: 700, opacity: .85, padding: '2px 7px', borderRadius: 6, background: m.c + '24', flexShrink: 0 }}>{phase}</span>}
+      {phase && <span style={{ fontSize: 10.5, fontWeight: 600, opacity: .85, padding: '2px 7px', borderRadius: 6, background: m.c + '24', flexShrink: 0 }}>{phase}</span>}
       <span>{label || m.label}</span>
       <span style={{ marginInlineStart: 'auto', display: 'inline-flex' }}>{icon}</span>
     </div>
@@ -8855,7 +8879,7 @@ const ElapsedCounter = ({ at, to, accent = C.gold, T }) => {
   const hours = totalH % 24
   const box = (val, lbl) => (
     <div style={{ flex: 1, textAlign: 'center', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 4px' }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: accent, direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{val}</div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: accent, direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{val}</div>
       <div style={{ fontSize: 9, color: 'var(--tx4)', fontWeight: 600 }}>{lbl}</div>
     </div>
   )
@@ -8871,9 +8895,9 @@ const ElapsedCounter = ({ at, to, accent = C.gold, T }) => {
 // Single print-language button: office flag + native language name, triggers printInvoice in that language.
 const PrintLangButton = ({ o, T, onPrint }) => (
   <button onClick={onPrint} title={T('طباعة بـ ','Print in ') + o.l}
-    style={{ height: 40, padding: '0 10px', borderRadius: 10, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.22)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 700, transition: '.15s' }}
-    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.14)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)' }}
-    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.06)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.22)' }}>
+    style={{ height: 40, padding: '0 10px', borderRadius: 10, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.15s' }}
+    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.45)' }}
+    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.06)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.22)' }}>
     <img src={`https://flagcdn.com/w40/${o.cc}.png`} alt="" width="18" height="13" style={{ display: 'block', borderRadius: 2, objectFit: 'cover', flexShrink: 0 }} />
     <span>{o.l}</span>
   </button>
@@ -8885,7 +8909,7 @@ const ActionGridButton = ({ onClick, color, label, children }) => (
     onClick={onClick}
     onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(.93)' }}
     onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
-    style={{ height: 44, padding: '0 14px', borderRadius: 9, background: color, border: '1px solid ' + color, color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 700, boxShadow: '0 3px 7px rgba(0,0,0,.2)', transition: 'filter .15s ease' }}
+    style={{ height: 44, padding: '0 14px', borderRadius: 9, background: color, border: '1px solid ' + color, color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, boxShadow: '0 3px 7px rgba(0,0,0,.2)', transition: 'filter .15s ease' }}
   >
     <span>{label}</span>
     {children}
@@ -8894,7 +8918,7 @@ const ActionGridButton = ({ onClick, color, label, children }) => (
 
 const Section = ({ title, children }) => (
   <div style={{ padding: '18px 28px', borderBottom: '1px solid var(--bd2)' }}>
-    <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, marginBottom: 12, letterSpacing: 1, textTransform: 'uppercase' }}>{title}</div>
+    <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 12, letterSpacing: 1, textTransform: 'uppercase' }}>{title}</div>
     {children}
   </div>
 )
@@ -8930,7 +8954,7 @@ const Row = ({ label, value, mono, color, copy }) => (
 const SectionLabel = ({ label, color = C.gold }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 0 6px', marginTop: 4 }}>
     <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}aa` }} />
-    <span style={{ fontSize: 10.5, color: color, fontWeight: 700, letterSpacing: '.6px' }}>{label}</span>
+    <span style={{ fontSize: 10.5, color: color, fontWeight: 600, letterSpacing: '.6px' }}>{label}</span>
     <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
   </div>
 )
@@ -8940,7 +8964,7 @@ const BorderRow = ({ T, borderNo, visaUsed, visaNo }) => (
     <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('رقم الحدود','Border No')}</span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {(visaNo || borderNo) && <span style={{
-        padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 800, letterSpacing: '.4px',
+        padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 600, letterSpacing: '.4px',
         background: visaUsed ? 'rgba(46,204,113,.12)' : 'rgba(255,255,255,.04)',
         border: '1px solid ' + (visaUsed ? 'rgba(46,204,113,.32)' : 'rgba(255,255,255,.08)'),
         color: visaUsed ? C.ok : 'var(--tx4)',
@@ -8951,5 +8975,5 @@ const BorderRow = ({ T, borderNo, visaUsed, visaNo }) => (
 )
 
 const selS = { padding: '9px 12px', background: 'rgba(255,255,255,.04)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx1)', fontSize: 13, fontFamily: F, minWidth: 130 }
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
-const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
+const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(176,125,0,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(176,125,0,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

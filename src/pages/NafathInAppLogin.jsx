@@ -16,7 +16,7 @@ import { buildNafathBookmarklet } from './nafathSyncBookmarklet.js'
 // `persons` row is patched server-side and the parent re-renders into the
 // post-sync state (handled by the Wallet card in SyncHub).
 
-const C = { gold: '#D4A017', green: '#22c55e' }
+const C = { gold: '#B07D00', green: '#22c55e' }
 const F = "'Cairo','Tajawal',sans-serif"
 const HUB_CARD = {
   background: 'linear-gradient(180deg, #1d1d1d 0%, #181818 100%)',
@@ -39,7 +39,7 @@ function BookmarkletDrag({ href, title, children, style }) {
         display: 'inline-flex', alignItems: 'center', gap: 8,
         padding: '0 18px', height: 42, borderRadius: 11,
         background: C.gold, color: '#1a1a1a',
-        textDecoration: 'none', fontFamily: F, fontSize: 13, fontWeight: 900,
+        textDecoration: 'none', fontFamily: F, fontSize: 13, fontWeight: 600,
         cursor: 'grab',
         boxShadow: `0 6px 18px ${C.gold}55, inset 0 1px 0 rgba(255,255,255,.3)`,
         ...style,
@@ -60,7 +60,7 @@ export default function NafathInAppLogin({ T, lang, operator }) {
       {/* ─── Action side ─── */}
       <div style={{ ...HUB_CARD, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14, borderColor: `${C.gold}55` }}>
         <div>
-          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--tx)', lineHeight: 1.3 }}>
+          <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.3 }}>
             {T('وثّق هويتك من نفاذ', 'Verify your identity with Nafath')}
           </div>
           <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 500, marginTop: 6, lineHeight: 1.7 }}>
@@ -86,7 +86,7 @@ export default function NafathInAppLogin({ T, lang, operator }) {
               padding: '0 16px', height: 42, borderRadius: 11,
               background: 'rgba(255,255,255,.04)', color: 'var(--tx)',
               border: `1.5px solid ${C.gold}66`, textDecoration: 'none',
-              fontFamily: F, fontSize: 13, fontWeight: 800, cursor: 'pointer',
+              fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               transition: '.15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.background = `${C.gold}14`; e.currentTarget.style.borderColor = `${C.gold}aa` }}
@@ -115,7 +115,7 @@ export default function NafathInAppLogin({ T, lang, operator }) {
                 width: 22, height: 22, borderRadius: '50%',
                 background: `${C.gold}1A`, border: `1px solid ${C.gold}66`,
                 color: C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 900, flexShrink: 0, marginTop: 1,
+                fontSize: 11, fontWeight: 600, flexShrink: 0, marginTop: 1,
               }}>{s.n}</span>
               <span style={{ fontSize: 12, color: 'var(--tx3)', lineHeight: 1.7, fontWeight: 500 }}>{s.t}</span>
             </div>
@@ -126,8 +126,8 @@ export default function NafathInAppLogin({ T, lang, operator }) {
         <div style={{
           marginTop: 4, padding: '9px 12px',
           borderRadius: 8,
-          background: 'rgba(212,160,23,.06)',
-          border: '1px solid rgba(212,160,23,.18)',
+          background: 'rgba(176,125,0,.06)',
+          border: '1px solid rgba(176,125,0,.18)',
           fontSize: 11, color: 'var(--tx4)', lineHeight: 1.7,
           display: 'flex', alignItems: 'flex-start', gap: 8,
         }}>
@@ -151,7 +151,7 @@ export default function NafathInAppLogin({ T, lang, operator }) {
         <div style={{ position: 'absolute', insetInlineEnd: -60, top: -60, width: 200, height: 200, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}1A 0%, transparent 65%)`, pointerEvents: 'none' }} />
 
         <div style={{ position: 'relative', padding: '18px 18px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 9.5, fontWeight: 900, color: C.gold, letterSpacing: '1px', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 9.5, fontWeight: 600, color: C.gold, letterSpacing: '1px', textTransform: 'uppercase' }}>
             {T('بطاقة نفاذ', 'Nafath Card')}
           </div>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.gold}1A`, border: `1px solid ${C.gold}55`, color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -170,13 +170,13 @@ export default function NafathInAppLogin({ T, lang, operator }) {
             T('الجوال', 'Mobile'),
           ].map(k => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)', letterSpacing: '.3px' }}>{k}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.3px' }}>{k}</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx5)', opacity: .55 }}>— — —</span>
             </div>
           ))}
         </div>
 
-        <div style={{ position: 'relative', padding: '12px 18px', borderTop: '1px dashed rgba(255,255,255,.06)', fontSize: 9.5, fontWeight: 700, color: 'var(--tx5)', letterSpacing: '.5px', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ position: 'relative', padding: '12px 18px', borderTop: '1px dashed rgba(255,255,255,.06)', fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)', letterSpacing: '.5px', display: 'flex', justifyContent: 'space-between' }}>
           <span>{T('مصدر', 'Source')}: <b style={{ color: C.gold }}>iam.gov.sa</b></span>
           <span style={{ direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>...pending</span>
         </div>

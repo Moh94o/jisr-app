@@ -215,12 +215,15 @@ export const fieldVisible = (user, tabId, fieldKey) => {
   if (!sectionViewable(user, tabId)) return false
   return user?.ui_visibility?.[`field:${tabId}:${fieldKey}`] !== false
 }
-export const fieldEditable = (user, tabId, fieldKey) => {
+// `action` is the capability the field's editability keys off — defaults to
+// 'edit' (editing an existing record). Create-only wizards pass 'create' so a
+// user who may build a new record (but not edit existing ones) can fill it in.
+export const fieldEditable = (user, tabId, fieldKey, action = 'edit') => {
   if (isGM(user)) return true
-  // Must be visible, the section must grant editing, and the field must not be
-  // explicitly locked for this user.
+  // Must be visible, the section must grant the capability, and the field must
+  // not be explicitly locked for this user.
   if (!fieldVisible(user, tabId, fieldKey)) return false
-  if (!hasPerm(user, tabModule(tabId), 'edit')) return false
+  if (!hasPerm(user, tabModule(tabId), action)) return false
   return user?.ui_visibility?.[`fieldedit:${tabId}:${fieldKey}`] !== false
 }
 // Per-tab bound builders (mirror cardGate) — convenient inside one page.

@@ -513,7 +513,7 @@ ${durLabel ? `<div class="hero-fact full"><div class="k">${lab('expectedDuration
 </div>
 </section></div>`
 
-    const statusBlk = `<div class="office-code">${lab('status')}: <span style="color:var(--gold);font-weight:700;margin-inline-start:6px">${lab(stKey)}</span></div>`
+    const statusBlk = `<div class="office-code">${lab('status')}: <span style="color:var(--gold);font-weight:600;margin-inline-start:6px">${lab(stKey)}</span></div>`
 
     const idLine = (iqamaNo && iqamaNo !== '—') ? kvRow(lab('iqamaNo'), num2(iqamaNo)) : ''
     const phoneLine = (phone && phone !== '—') ? kvRow(lab('phoneLbl'), num2(phone)) : ''
@@ -620,8 +620,8 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .inv-id{display:flex;flex-direction:column}
 .inv-id .office-code{margin-top:8px;align-self:flex-end}
 .brand{display:flex;flex-direction:column;align-items:flex-start}
-.brand .group{font-family:'Playfair Display',serif;font-weight:700;font-size:23px;color:var(--gold);letter-spacing:.5px;direction:ltr;line-height:1.05;margin-bottom:16px}
-.brand .name-ar{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:16.5px;color:var(--gold-soft);letter-spacing:.3px;line-height:1.2}
+.brand .group{font-family:'Playfair Display',serif;font-weight:600;font-size:23px;color:var(--gold);letter-spacing:.5px;direction:ltr;line-height:1.05;margin-bottom:16px}
+.brand .name-ar{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:16.5px;color:var(--gold-soft);letter-spacing:.3px;line-height:1.2}
 .brand .name-en{font-family:'Reem Kufi',sans-serif;font-weight:500;font-size:11px;color:#9b9482;letter-spacing:2.2px;margin-top:6px}
 .brand .meta{margin-top:auto;padding-top:10px;font-size:12px;color:#d8d2c2;line-height:1.45}
 .brand .meta .ar{display:block}
@@ -631,14 +631,14 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .inv-id .tag{font-family:'Reem Kufi',sans-serif;font-size:13.5px;letter-spacing:1px;color:#fff;font-weight:600}
 .inv-id .no-box{margin-top:7px;border:1px solid var(--gold);background:rgba(212,175,55,.07);padding:6px 14px;display:inline-block}
 .inv-id .no-lbl{font-size:9.5px;color:#b9b09a;letter-spacing:1.5px}
-.inv-id .no-val{font-family:'Reem Kufi',sans-serif;font-size:18px;color:var(--gold);font-weight:700}
+.inv-id .no-val{font-family:'Reem Kufi',sans-serif;font-size:18px;color:var(--gold);font-weight:600}
 .inv-id .date-line{margin-top:6px;font-size:10.5px;color:#cfc8b6}
-.inv-id .date-line .num{color:#fff;font-weight:700}
+.inv-id .date-line .num{color:#fff;font-weight:600}
 .office-code{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:5px 13px;border:1px solid var(--gold);background:rgba(212,175,55,.08);color:var(--gold-soft);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;letter-spacing:1px}
-.office-code .num{color:var(--gold);font-weight:700;font-size:13.5px}
+.office-code .num{color:var(--gold);font-weight:600;font-size:13.5px}
 .hero-wrap{padding:5mm 14mm 0}
 .svc-type{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:3.5mm}
-.svc-type .svc-name{font-family:'Reem Kufi',sans-serif;font-size:24px;font-weight:700;color:var(--charcoal);letter-spacing:.3px}
+.svc-type .svc-name{font-family:'Reem Kufi',sans-serif;font-size:24px;font-weight:600;color:var(--charcoal);letter-spacing:.3px}
 .hero{background:linear-gradient(140deg,#1c1810 0%,#14110b 60%,#0c0904 100%);color:#fff;position:relative;padding:3.5mm 8mm 3.5mm;display:flex;gap:8mm;align-items:center;border:1px solid #2c2517}
 .hero::before{content:"";position:absolute;inset:0;border:1px solid rgba(212,175,55,.32);margin:5px;pointer-events:none}
 .hero .corner{position:absolute;width:20px;height:20px;z-index:2}
@@ -647,33 +647,33 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .hero .corner.bl{bottom:0;right:0;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold)}
 .hero .corner.br{bottom:0;left:0;border-bottom:2px solid var(--gold);border-left:2px solid var(--gold)}
 .hero-main{flex:0 0 auto;min-width:72mm;position:relative;z-index:1}
-.hero-eyebrow{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:15.5px;letter-spacing:.5px;color:var(--gold-soft)}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:15.5px;letter-spacing:.5px;color:var(--gold-soft)}
 .hero-eyebrow .star{color:var(--gold);font-size:14.5px}
 .hero-amount{display:flex;align-items:baseline;gap:9px;margin-top:3px}
-.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:40px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:40px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
 .hero-amount .cur{font-size:19px;color:var(--gold-soft);font-weight:500;font-family:'Reem Kufi',sans-serif}
 .riyal{margin-inline-start:5px;white-space:nowrap}
 .flag{width:21px;height:14px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.18);vertical-align:middle;margin-inline-start:7px}
 .nat-txt{font-size:11px;color:var(--gold-deep);font-weight:600;margin-inline-start:6px}
 .hero-sub{margin-top:7px;font-size:11px;color:#cdc6b4}
-.hero-sub b{color:#fff;font-weight:700}
+.hero-sub b{color:#fff;font-weight:600}
 .hero-side{flex:1;position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;align-content:center;border-inline-start:1px solid rgba(212,175,55,.25);padding-inline-start:8mm;margin-inline-start:2mm}
 .hero-fact{padding:4px 10px 4px 0}
 .hero-fact .k{font-size:10.5px;color:var(--gold-soft);letter-spacing:1.2px;font-family:'Reem Kufi',sans-serif;font-weight:600}
-.hero-fact .v{font-size:14px;color:#fff;font-weight:700;margin-top:2px}
+.hero-fact .v{font-size:14px;color:#fff;font-weight:600;margin-top:2px}
 .hero-fact.full{grid-column:1 / -1;border-top:1px solid rgba(255,255,255,.08);margin-top:3px;padding-top:6px}
 .hero-fact.full .k{color:var(--gold-soft);font-size:10.5px;font-weight:600}
 .hero-fact .v.remain{color:var(--gold);font-family:'Reem Kufi',sans-serif;font-size:19px}
 .hero-fact .dur-note{font-size:8.5px;color:#b9a86a;font-weight:400;margin-top:2px;letter-spacing:.2px}
 .sec-title{display:flex;align-items:center;gap:9px;margin:4.5mm 0 2.5mm}
 .sec-title .bar{width:4px;height:14px;background:var(--gold)}
-.sec-title h3{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:14px;color:var(--charcoal);letter-spacing:.3px}
+.sec-title h3{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:14px;color:var(--charcoal);letter-spacing:.3px}
 .sec-title .ln{flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--hair))}
 [dir=ltr] .sec-title .ln{background:linear-gradient(90deg,var(--hair),transparent)}
 .cards{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
 .card{border:1px solid var(--line);background:#fff;padding:3.5mm 4mm 3mm}
 .wh-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
-.wh-name{font-size:13px;font-weight:700;color:var(--ink);display:inline-flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
+.wh-name{font-size:13px;font-weight:600;color:var(--ink);display:inline-flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
 .wh-tag{font-size:9px;color:#9a917b;letter-spacing:.5px;white-space:nowrap;flex:0 0 auto}
 .wh-line{flex:1;height:1px;background:#ece5d3;min-width:8px;align-self:center}
 .wh-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 6mm}
@@ -685,7 +685,7 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .kv:last-child{border-bottom:0}
 .kv .k{color:var(--ink-soft);font-size:11px;white-space:nowrap}
 .kv .v{color:var(--ink);font-weight:500;font-size:11.5px;text-align:end}
-.kv .v.strong{font-weight:700}
+.kv .v.strong{font-weight:600}
 table{width:100%;border-collapse:collapse}
 thead th{background:var(--charcoal);color:var(--gold-soft);font-family:'Reem Kufi',sans-serif;font-weight:500;font-size:10.5px;letter-spacing:.5px;padding:5.5px 9px;text-align:start}
 thead th.l{text-align:end}
@@ -693,13 +693,13 @@ tbody td{padding:5.5px 9px;font-size:11.5px;border-bottom:1px solid var(--line);
 tbody td.l{text-align:end}
 tbody tr:nth-child(even){background:#faf7ee}
 .price-summary{display:grid;grid-template-columns:1.25fr 1fr;gap:6mm;align-items:start}
-.price-table .total-row td{background:var(--charcoal);color:var(--gold);font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:14px;border-bottom:0}
+.price-table .total-row td{background:var(--charcoal);color:var(--gold);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:14px;border-bottom:0}
 .price-table .total-row td.l{white-space:nowrap}
 .price-table .total-row td .num{color:var(--gold-soft)}
 .summary-card{border:1px solid var(--charcoal);background:linear-gradient(160deg,#1c1810,#14110b);color:#fff;padding:5mm}
 .summary-card .sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.09)}
 .summary-card .sum-row .k{font-size:11.5px;color:#c9c0aa;font-family:'Reem Kufi',sans-serif}
-.summary-card .sum-row .v{font-size:14.5px;font-weight:700;color:#E6B43C}
+.summary-card .sum-row .v{font-size:14.5px;font-weight:600;color:#E6B43C}
 .summary-card .sum-row.paid .v{color:#2FA85A}
 .summary-card .sum-row.remain{border-bottom:0;margin-top:2px;padding-top:7px;border-top:1.5px solid var(--gold)}
 .summary-card .sum-row.remain .k{color:var(--gold-soft);font-size:13px}
@@ -711,7 +711,7 @@ tbody tr:nth-child(even){background:#faf7ee}
 .notice .en{font-size:9.5px;line-height:1.5;color:#9b937e;direction:ltr;text-align:left;margin-top:4px;border-top:1px solid rgba(255,255,255,.08);padding-top:4px}
 .footer-bar{display:flex;justify-content:space-between;align-items:center;padding:4mm 0;font-size:10px;color:#8a826b}
 .footer-bar .kufi{color:var(--gold-deep);letter-spacing:1px}
-.cancel-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:120px;font-weight:700;color:rgba(154,47,47,.10);letter-spacing:8px;white-space:nowrap;pointer-events:none;z-index:5}
+.cancel-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:120px;font-weight:600;color:rgba(154,47,47,.10);letter-spacing:8px;white-space:nowrap;pointer-events:none;z-index:5}
 @media print{html,body{background:#fff}.page{box-shadow:none;margin:0}}
 </style></head><body>
 <div class="page page2">
@@ -768,7 +768,7 @@ ${noticeBlk}
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx3)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('كروت الإحصاء إجمالي تراكمي دائم يشمل جميع التسعيرات (غير مرتبطة بيوم أو أسبوع)', 'The stat cards are all-time totals across every quote (not daily or weekly)')}</div>
         </div>
         {canPerm(user, 'renewal_calc.create') && <button onClick={() => onNewCalc?.()} className="btn-primary-modal"
-          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           {T('حسبة تجديد إقامة', 'New Renewal Quote')}
           <RefreshCw size={16} strokeWidth={2.2} />
         </button>}
@@ -797,7 +797,7 @@ ${noticeBlk}
     const srcLabel = m => (m.l[lang === 'en' ? 'en' : 'ar'])
     // زر «تعديل» موحّد لرأس الكرت — مُقيَّد بصلاحية تعديل الكرت + السماح بفتح نافذة التعديل
     const EDIT_CARD_MAP = { worker: 'worker_data', professional: 'worker_data', renewal: 'renewal_options', pricing: 'pricing' }
-    const editBtn = (card) => { const ck = EDIT_CARD_MAP[card] || card; return (!canCardBtn(user, 'renewal_calc', ck, 'edit') || !modalAllowed(user, 'renewal_calc', 'edit_card')) ? null : <button onClick={() => openCardEdit(card)} style={{ marginInlineStart: 'auto', height: 28, padding: '0 12px', borderRadius: 8, background: 'transparent', border: '1px dashed ' + C.gold + '80', color: C.gold, fontFamily: F, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.background = C.gold + '1a' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>{T('تعديل', 'Edit')}</button> }
+    const editBtn = (card) => { const ck = EDIT_CARD_MAP[card] || card; return (!canCardBtn(user, 'renewal_calc', ck, 'edit') || !modalAllowed(user, 'renewal_calc', 'edit_card')) ? null : <button onClick={() => openCardEdit(card)} style={{ marginInlineStart: 'auto', height: 28, padding: '0 12px', borderRadius: 8, background: 'transparent', border: '1px dashed ' + C.gold + '80', color: C.gold, fontFamily: F, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.background = C.gold + '1a' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>{T('تعديل', 'Edit')}</button> }
     // سجل تغييرات الكرت — يجمع قيود iqama_renewal_calculation_audit لحقول الكرت (الشخص · كان→صار · التاريخ والوقت)
     const fmtAuditVal = (k, v) => {
       if (v === null || v === undefined || v === '') return '—'
@@ -812,7 +812,7 @@ ${noticeBlk}
       if (!entries.length) return null
       entries.sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
       return <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>{T('سجل التغييرات', 'Change Log')}</div>
+        <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>{T('سجل التغييرات', 'Change Log')}</div>
         {entries.map((a, i) => { const who = nameOf(usersById[a.changed_by]); const dt = new Date(a.changed_at); const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); return <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 9, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.7, wordBreak: 'break-word' }}>{rcFieldLabel(a._k)}: <span style={{ color: 'var(--tx4)' }}>{T('كان', 'was')} </span><span style={{ color: '#e5867a', textDecoration: 'line-through' }}>{fmtAuditVal(a._k, a.old_value)}</span><span style={{ color: 'var(--tx4)' }}> {T('صار', '→')} </span><span style={{ color: '#27a046' }}>{fmtAuditVal(a._k, a.new_value)}</span></div>
           <div style={{ display: 'flex', direction: dir, justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--tx5)' }}>{who ? <span style={{ fontWeight: 600, color: C.gold }}>{who}</span> : <span />}<span style={{ display: 'inline-flex', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtD(a.changed_at)}</span><span>{hhmm}</span></span></div>
@@ -843,7 +843,7 @@ ${noticeBlk}
             {ff.map((f, i) => <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{f.label}</span>{srcBadge(f.key)}</span>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, direction: 'ltr' }}>
-                {f.tag && <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', flexShrink: 0 }}>{f.tag}</span>}
+                {f.tag && <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.08)', borderRadius: 20, padding: '3px 10px', direction: 'rtl', flexShrink: 0 }}>{f.tag}</span>}
                 <CopyBtn text={f.copy != null ? f.copy : f.value} lang={lang} />
                 <span style={{ fontSize: 13, color: f.color || 'var(--tx2)', fontWeight: 600, lineHeight: 1.4, wordBreak: 'break-word', minWidth: 0, ...(f.mono ? { fontFamily: 'monospace', direction: 'ltr', fontVariantNumeric: 'tabular-nums' } : { direction: 'rtl', textAlign: 'right' }) }}>{f.value || '—'}</span>
               </span>
@@ -856,9 +856,9 @@ ${noticeBlk}
 
     // بطاقة «هيرو» للعامل/المنشأة — مطابقة لتصميم كرت «العامل والمنشأة» في تفاصيل الفاتورة.
     const EntityHero = ({ icon, primary, secondary, latin, cells }) => (
-      <div style={{ position: 'relative', border: '1px solid rgba(212,160,23,.4)', background: 'linear-gradient(135deg,rgba(212,160,23,.12),rgba(212,160,23,.02))', boxShadow: 'var(--shadow-md)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ position: 'relative', border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(176,125,0,.02))', boxShadow: 'var(--shadow-md)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(212,160,23,.1)', border: '1.5px solid rgba(212,160,23,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>{icon}</div>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(176,125,0,.1)', border: '1.5px solid rgba(176,125,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>{icon}</div>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
               <CopyBtn text={primary} lang={lang} />
@@ -886,14 +886,20 @@ ${noticeBlk}
     // بطاقة التسعير — سطر لكل رسم، ثم الإجمالي
     const feeLine = (label, amount, opts = {}) => { if (!amount && !opts.always) return null; return <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed var(--bd)', gap: 10 }}>
       <span style={{ fontSize: 12.5, fontWeight: 600, color: opts.color || 'var(--tx2)' }}>{label}</span>
-      <span style={{ fontSize: 13.5, fontWeight: 700, color: opts.color || 'var(--tx)', direction: 'rtl', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{opts.neg ? '− ' : ''}{nm(Math.abs(amount))}</span> <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+      <span style={{ fontSize: 13.5, fontWeight: 600, color: opts.color || 'var(--tx)', direction: 'rtl', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{opts.neg ? '− ' : ''}{nm(Math.abs(amount))}</span> <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
     </div> }
     const extras = Array.isArray(r.extras) ? r.extras.filter(e => Number(e?.amount) > 0) : []
 
     const doneStamps = (() => {
       const done = s => (['priced', 'approved', 'invoiced', 'completed'].includes(r.status) && s === 'priced') || (['approved', 'invoiced', 'completed'].includes(r.status) && s === 'approved') || (['invoiced', 'completed'].includes(r.status) && s === 'invoiced')
       const s = []
-      if (r.status === 'cancelled') { s.push({ lbl: stLabel.cancelled, clr: stClr.cancelled, by: nameOf(r.priced_user || r.created_user) }) }
+      if (r.status === 'cancelled') {
+        // الحسبة الملغاة تُبقي أختام المراحل التي تمّت فعلاً (تُقرأ من طوابعها الزمنية) ثم يُضاف ختم «ملغاة».
+        if (r.priced_at) s.push({ lbl: stLabel.priced, clr: stClr.priced, by: nameOf(r.priced_user || r.created_user) })
+        if (r.approved_at) s.push({ lbl: stLabel.approved, clr: stClr.approved, by: nameOf(r.approved_user) })
+        if (r.invoiced_at || r.invoice_id) s.push({ lbl: stLabel.invoiced, clr: stClr.invoiced, by: nameOf(r.invoiced_user) })
+        s.push({ lbl: stLabel.cancelled, clr: stClr.cancelled, by: nameOf(r.cancelled_user) || nameOf(r.priced_user || r.created_user) })
+      }
       else {
         if (done('priced')) s.push({ lbl: stLabel.priced, clr: stClr.priced, by: nameOf(r.priced_user || r.created_user) })
         if (done('approved')) s.push({ lbl: stLabel.approved, clr: stClr.approved, by: nameOf(r.approved_user) })
@@ -915,12 +921,12 @@ ${noticeBlk}
             </div>
             <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 11, flexWrap: 'wrap', fontSize: 13, color: 'var(--tx3)' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}>
-                <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 700, fontSize: 14 }}>{noDash(quoteNo)}</span>
+                <span style={{ color: C.gold, fontFamily: 'monospace', fontWeight: 600, fontSize: 14 }}>{noDash(quoteNo)}</span>
                 <button onClick={() => { navigator.clipboard?.writeText(noDash(quoteNo)); setCopied(true); setTimeout(() => setCopied(false), 1500) }} title={T('نسخ رقم التسعيرة', 'Copy quote no')} style={{ width: 20, height: 20, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, color: copied ? C.ok : 'var(--tx4)' }}>
                   {copied ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>}
                 </button>
               </span>
-              {branchCode && <><span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'var(--bd)' }} /><span title={T('المكتب', 'Branch')} style={{ color: C.gold, fontWeight: 700, fontSize: 13.5, direction: 'ltr' }}>{branchCode}</span></>}
+              {branchCode && <><span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'var(--bd)' }} /><span title={T('المكتب', 'Branch')} style={{ color: C.gold, fontWeight: 600, fontSize: 13.5, direction: 'ltr' }}>{branchCode}</span></>}
               <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'var(--bd)' }} />
               <span style={{ color: 'var(--tx4)', fontSize: 12.5 }}>{fmtD(r.created_at)}</span>
             </div>
@@ -928,8 +934,8 @@ ${noticeBlk}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
             {doneStamps.length > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'center', flexShrink: 0 }}>
               {doneStamps.map((s, i) => <div key={i} style={{ transform: 'rotate(-5deg)', border: `2.5px solid ${s.clr}`, borderRadius: 8, color: s.clr, padding: '6px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, opacity: .92, boxShadow: `inset 0 0 0 2px ${s.clr}33`, flexShrink: 0 }}>
-                <span style={{ fontSize: 15, fontWeight: 900, letterSpacing: '1.5px', lineHeight: 1.1 }}>{s.lbl}</span>
-                {s.by && <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '.3px', opacity: .85 }}>{s.by}</span>}
+                <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '1.5px', lineHeight: 1.1 }}>{s.lbl}</span>
+                {s.by && <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: '.3px', opacity: .85 }}>{s.by}</span>}
               </div>)}
             </div>}
             {/* عدّاد صلاحية التسعيرة (5 أيام) — يظهر فقط قبل الفوترة وأثناء الحالات النشطة */}
@@ -946,7 +952,7 @@ ${noticeBlk}
                     <circle cx="37" cy="37" r="32" fill="none" stroke={ringClr} strokeWidth="5" strokeLinecap="round" strokeDasharray={2 * Math.PI * 32} strokeDashoffset={2 * Math.PI * 32 * (1 - progress)} style={{ transition: 'stroke-dashoffset .5s ease' }} />
                   </svg>
                   <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', color: ringClr, lineHeight: 1 }}>
-                    <span style={{ fontSize: 23, fontWeight: 700, lineHeight: 1 }}>{expired ? '!' : remDays}</span>
+                    <span style={{ fontSize: 23, fontWeight: 600, lineHeight: 1 }}>{expired ? '!' : remDays}</span>
                     <span style={{ fontSize: 8.5, fontWeight: 600, opacity: .78, marginTop: 2 }}>{expired ? T('انتهت', 'exp') : T('من 5 أيام', 'of 5d')}</span>
                   </div>
                 </div>
@@ -1035,10 +1041,10 @@ ${noticeBlk}
                   {cover > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', minHeight: 26 }}><span style={{ fontSize: 12, color: '#27a046', fontWeight: 600 }}>{T('الخصم', 'Discount')}</span><span style={{ fontSize: 12.5, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(cover)}</span></div>}
                 </div>
                 {(Number(r.absher_discount || 0) > 0 || Number(r.manual_discount || 0) > 0) && <div style={{ margin: '8px 22px 0', borderTop: '1px solid var(--bd)', paddingTop: 10 }}>
-                  {Number(r.absher_discount || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(r.absher_discount || 0))}</span></div>}
-                  {Number(r.manual_discount || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(r.manual_discount || 0))}</span></div>}
+                  {Number(r.absher_discount || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(r.absher_discount || 0))}</span></div>}
+                  {Number(r.manual_discount || 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(r.manual_discount || 0))}</span></div>}
                 </div>}
-                <div style={{ margin: '10px 22px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'linear-gradient(135deg,#d4a017,#bd8a13)', borderRadius: 12, borderInlineStart: '3px solid #9c7610' }}><span style={{ color: '#1a1a1a', fontWeight: 700, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: '#1a1a1a', fontWeight: 800, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{nm(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>
+                <div style={{ margin: '10px 22px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'linear-gradient(135deg, rgba(176,125,0,.15) 0%, rgba(176,125,0,.04) 100%)', borderRadius: 12, border: '1px solid rgba(176,125,0,.45)', boxShadow: 'inset 0 1px 0 var(--bd)' }}><span style={{ color: C.gold, fontWeight: 600, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 700, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{nm(totalV)} <span style={{ fontSize: 12, fontWeight: 600, opacity: .7 }}>{T('ريال', 'SAR')}</span></span></div>
                 <div style={{ padding: '0 22px 16px' }}>{auditLog(CARD_FIELDS.pricing)}</div>
               </>
             })()}
@@ -1054,6 +1060,7 @@ ${noticeBlk}
                   { ts: r.priced_at, label: T('تم التسعير', 'Priced'), color: '#eab308' },
                   { ts: r.approved_at, label: T('تم التصديق', 'Approved'), color: C.blue },
                   { ts: r.invoiced_at, label: T('تمت الفوترة', 'Invoiced'), color: C.ok },
+                  { ts: r.cancelled_at, label: T('تم الإلغاء', 'Cancelled'), color: C.red },
                 ].filter(m => m.ts).map(m => ({ kind: 'ms', ...m }))
                 const timeline = [...quoteNotes.map(n => ({ kind: 'note', ts: n.created_at, n })), ...milestones].sort((a, b) => new Date(a.ts) - new Date(b.ts))
                 return timeline.map((ev, i) => {
@@ -1061,7 +1068,7 @@ ${noticeBlk}
                     <div key={'ms-' + i} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0', direction: dir }}>
                       <span style={{ flex: 1, height: 1, background: ev.color + '33' }} />
                       <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '0 6px', flexShrink: 0 }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: ev.color }} /><span style={{ fontSize: 11, fontWeight: 700, color: ev.color }}>{ev.label}</span></span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: ev.color }} /><span style={{ fontSize: 11, fontWeight: 600, color: ev.color }}>{ev.label}</span></span>
                         <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmtD(ev.ts)} · {mhhmm}</span>
                       </span>
                       <span style={{ flex: 1, height: 1, background: ev.color + '33' }} />
@@ -1069,7 +1076,7 @@ ${noticeBlk}
                   const n = ev.n; const who = (nameOf(usersById[n.created_by]) || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' '); const dt = new Date(n.created_at); const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); return (
                     <div key={n.id} style={{ background: 'var(--inputBg)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--bd)' }}>
                       <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>
-                      {Array.isArray(n.attachments) && n.attachments.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{n.attachments.map((a, j) => <a key={a.id || j} href={a.file_url} target="_blank" rel="noreferrer" title={a.file_name || T('مرفق', 'Attachment')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: C.gold, textDecoration: 'none' }}><Paperclip size={12} strokeWidth={2} /><span style={{ textDecoration: 'underline', textUnderlineOffset: 3, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{a.file_name || (T('مرفق', 'Attachment') + ' ' + (j + 1))}</span></a>)}</div>}
+                      {Array.isArray(n.attachments) && n.attachments.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{n.attachments.map((a, j) => <a key={a.id || j} href={a.file_url} target="_blank" rel="noreferrer" title={a.file_name || T('مرفق', 'Attachment')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: C.gold, textDecoration: 'none' }}><Paperclip size={12} strokeWidth={2} /><span style={{ textDecoration: 'underline', textUnderlineOffset: 3, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{a.file_name || (T('مرفق', 'Attachment') + ' ' + (j + 1))}</span></a>)}</div>}
                       <div style={{ display: 'flex', direction: dir, justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)' }}>{who ? <span style={{ fontWeight: 600, color: C.gold }}>{who}</span> : <span />}<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}><span>{fmtD(n.created_at)}</span><span>{hhmm}</span></span></div>
                     </div>) })
               })()}
@@ -1102,29 +1109,29 @@ ${noticeBlk}
                 <div style={{ position: 'absolute', top: 0, bottom: 0, insetInlineStart: 0, width: 4, background: color }} />
                 <div style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, marginBottom: 5 }}>{label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, direction: 'rtl' }}>
-                  <span style={{ fontSize: 19, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px', direction: 'ltr', unicodeBidi: 'isolate' }}>{value}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color, opacity: .72 }}>{T('ريال', 'SAR')}</span>
+                  <span style={{ fontSize: 19, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px', direction: 'ltr', unicodeBidi: 'isolate' }}>{value}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color, opacity: .72 }}>{T('ريال', 'SAR')}</span>
                 </div>
               </div>
             )
             const Meta = ({ label, value, color = 'var(--tx2)' }) => (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, gap: 10 }}>
                 <span style={{ color: 'var(--tx4)' }}>{label}</span>
-                <span style={{ color, fontWeight: 700 }}>{value}</span>
+                <span style={{ color, fontWeight: 600 }}>{value}</span>
               </div>
             )
             return <div style={cardChrome}>
               {/* رأس ذهبي متدرّج — العنوان + المُسعِّر + الإجمالي */}
-              <div style={{ position: 'relative', padding: '16px 22px 20px', background: `linear-gradient(135deg, ${C.gold} 0%, #b8860b 100%)`, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', padding: '16px 22px 20px', background: `linear-gradient(135deg, ${C.gold} 0%, #B07D00 100%)`, overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: -34, insetInlineEnd: -18, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,.10)' }} />
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#000' }} />
-                  <span style={{ fontSize: 16, fontWeight: 700, color: '#000', letterSpacing: '.2px' }}>{T('الملخص المالي', 'Financial Summary')}</span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: '#000', letterSpacing: '.2px' }}>{T('الملخص المالي', 'Financial Summary')}</span>
                   {twoNames && <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.14)', color: '#000', fontSize: 9.5, fontWeight: 600 }}>{twoNames}</span>}
                 </div>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6, marginTop: 2 }}>
-                  <span style={{ fontSize: 32, fontWeight: 900, color: '#000', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px' }}>{nm(Math.round(total))}</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: '#000' }}>{T('ريال', 'SAR')}</span>
+                  <span style={{ fontSize: 32, fontWeight: 600, color: '#000', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px' }}>{nm(Math.round(total))}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#000' }}>{T('ريال', 'SAR')}</span>
                 </div>
               </div>
               {/* بطاقتا رسوم المكتب + الزائد الحكومي */}
@@ -1163,25 +1170,25 @@ ${noticeBlk}
             return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
               {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), discValue: '', approval_note: '' }) }} disabled={expired}
-                onMouseEnter={e => { if (!expired) e.currentTarget.style.background = 'rgba(52,131,180,.18)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(52,131,180,.1)' }}
-                style={{ flex: 1, height: 44, padding: '0 18px', borderRadius: 11, background: 'rgba(52,131,180,.1)', border: '1px solid rgba(52,131,180,.32)', boxShadow: 'var(--shadow-sm)', color: C.blue, cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
+                onMouseEnter={e => { if (!expired) e.currentTarget.style.filter = 'brightness(.93)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
+                style={{ flex: 1, height: 44, padding: '0 14px', borderRadius: 9, background: C.blue, border: '1px solid ' + C.blue, boxShadow: '0 3px 7px rgba(0,0,0,.2)', color: '#fff', cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
                 <span>{T('تصديق الحسبة', 'Approve Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </button>}
               {showCancel && <button onClick={() => { setCancelSaved(false); setCancelForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, reason: '' }) }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,57,43,.18)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(192,57,43,.1)' }}
-                style={{ flex: 1, height: 44, padding: '0 18px', borderRadius: 11, background: 'rgba(192,57,43,.1)', border: '1px solid rgba(192,57,43,.3)', boxShadow: 'var(--shadow-sm)', color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .15s ease, border-color .15s ease' }}>
+                onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(.93)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
+                style={{ flex: 1, height: 44, padding: '0 14px', borderRadius: 9, background: C.red, border: '1px solid ' + C.red, boxShadow: '0 3px 7px rgba(0,0,0,.2)', color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
                 <span>{T('إلغاء الحسبة', 'Cancel Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
               </button>}
               </div>}
               {/* رأس قسم الطباعة */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: (showApprove || showCancel) ? 6 : 0, paddingBottom: 2 }}>
                 <Printer size={13} strokeWidth={2} style={{ color: C.gold }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.gold, letterSpacing: '.3px' }}>{T('طباعة', 'Print')}</span>
-                <span style={{ flex: 1, height: 1, background: 'rgba(212,160,23,.18)' }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: C.gold, letterSpacing: '.3px' }}>{T('طباعة', 'Print')}</span>
+                <span style={{ flex: 1, height: 1, background: 'rgba(176,125,0,.18)' }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {[{ k: 'ar', l: 'عربي', cc: 'sa' }, { k: 'en', l: 'English', cc: 'gb' }, { k: 'hi', l: 'हिन्दी', cc: 'in' }, { k: 'ur', l: 'اردو', cc: 'pk' }, { k: 'bn', l: 'বাংলা', cc: 'bd' }].map(o => (
-                  <button key={o.k} onClick={() => printRenewalDoc(r, o.k)} title={T('طباعة بـ ', 'Print in ') + o.l} style={{ height: 40, padding: '0 10px', borderRadius: 10, background: 'rgba(212,160,23,.06)', border: '1px solid rgba(212,160,23,.22)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 700, transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.14)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.45)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,160,23,.06)'; e.currentTarget.style.borderColor = 'rgba(212,160,23,.22)' }}>
+                  <button key={o.k} onClick={() => printRenewalDoc(r, o.k)} title={T('طباعة بـ ', 'Print in ') + o.l} style={{ height: 40, padding: '0 10px', borderRadius: 10, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.45)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.06)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.22)' }}>
                     <img src={`https://flagcdn.com/w40/${o.cc}.png`} alt="" width="18" height="13" style={{ display: 'block', borderRadius: 2, objectFit: 'cover', flexShrink: 0 }} />
                     <span>{o.l}</span>
                   </button>
@@ -1205,17 +1212,17 @@ ${noticeBlk}
           pages={[{ valid: !belowFloor, content: (
             <ModalSection Icon={BadgeCheck} label={T('تأكيد التصديق', 'Confirm Approval')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 10, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 10, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('إجمالي التسعيرة', 'Quote Total')}</span>
-                  <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 18, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.round(Number(f._total || 0)))}</span><span style={{ fontSize: 11, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                  <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 18, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.round(Number(f._total || 0)))}</span><span style={{ fontSize: 11, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
                 </div>
                 {discountEnabled && d && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('خصم المكتب', 'Office Discount')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
                       <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: `1px solid ${belowFloor ? 'rgba(192,57,43,.55)' : 'var(--bd)'}`, borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(212,160,23,.3)' }}>
-                        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
-                        <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 800, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(176,125,0,.3)' }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
+                        <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
                       </div>
                     </div>
                 )}
@@ -1273,7 +1280,7 @@ ${noticeBlk}
         </div></ModalSection>
         else content = <ModalSection Icon={Banknote} label={T('الرسوم', 'Fees')}><div style={GRID}>
           {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخّر الإقامة', 'Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
-          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 700, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee', 'gov_excess'].reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
+          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee', 'gov_excess'].reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
         </div></ModalSection>
         return <FKModal open onClose={() => { if (!cardSaving) setCardEdit(null) }} width={560} variant="edit" title={titles[f.card]} Icon={FileText}
           onSubmit={saveCardEdit} submitting={cardSaving} submitLabel={T('حفظ', 'Save')} pages={[{ valid: true, content }]} />
@@ -1338,11 +1345,11 @@ ${noticeBlk}
           <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('المتوسط', 'Average')}</span>
         </div>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-          <span style={{ fontSize: 42, fontWeight: 800, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{nm(avgStats.value)}</span>
+          <span style={{ fontSize: 42, fontWeight: 600, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{nm(avgStats.value)}</span>
         </div>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
           <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد التسعيرات', 'Quotes')}</span>
-          <span style={{ fontSize: 13, color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(avgStats.count)}</span>
+          <span style={{ fontSize: 13, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(avgStats.count)}</span>
         </div>
       </div>
 
@@ -1357,7 +1364,7 @@ ${noticeBlk}
               <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600 }}>{s.l}</span>
             </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', direction: 'ltr' }}>
-              <span style={{ fontSize: 22, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{nm(s.v)}</span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{nm(s.v)}</span>
             </div>
           </div>
         })}
@@ -1370,14 +1377,14 @@ ${noticeBlk}
         return <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 190 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الحالات', 'Statuses')}</span>
-            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}><span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(totalSt)}</span> {T('تسعيرة', 'quotes')}</span>
+            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}><span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(totalSt)}</span> {T('تسعيرة', 'quotes')}</span>
           </div>
           {totalSt > 0 && <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'var(--bd2)' }}>
             {STATUSES.filter(s => (sCounts[s.k] || 0) > 0).map(s => { const cnt = sCounts[s.k] || 0; const pct = (cnt / totalSt) * 100; return <div key={s.k} title={`${s.l}: ${cnt}`} style={{ width: pct + '%', background: s.c, transition: 'width .3s' }} /> })}
           </div>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 16px' }}>
             {STATUSES.map(s => { const cnt = sCounts[s.k] || 0; const isZero = cnt === 0; const isActive = listFilter === s.k; return <div key={s.k} onClick={() => setListFilter(isActive ? 'all' : s.k)} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, opacity: isZero ? 0.45 : 1, cursor: 'pointer', color: isActive ? s.c : undefined, transition: '.15s' }}>
-              <span style={{ color: isZero ? 'var(--tx4)' : s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 700 }}>{nm(cnt)}</span>
+              <span style={{ color: isZero ? 'var(--tx4)' : s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', minWidth: 14, textAlign: 'center', flexShrink: 0, fontWeight: 600 }}>{nm(cnt)}</span>
               <span style={{ color: isActive ? s.c : 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.l}</span>
             </div> })}
           </div>
@@ -1393,7 +1400,7 @@ ${noticeBlk}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
         <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={T('ابحث باسم العامل أو رقم الإقامة أو رقم التسعيرة...', 'Search by worker name, iqama, or quote no...')} style={{ width: '100%', height: 44, paddingBlock: 0, paddingInlineStart: 14, paddingInlineEnd: 38, background: 'var(--search-bg)', border: '1px solid transparent', borderRadius: 12, fontFamily: F, fontSize: 13, fontWeight: 400, color: 'var(--tx)', outline: 'none', direction: dir, boxSizing: 'border-box', transition: '.2s' }} />
       </div>
-      <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, border: advOpen || hasAdv ? '1px solid var(--accent-bd)' : '1px solid transparent', background: advOpen || hasAdv ? 'var(--accent-soft)' : 'var(--search-bg)', color: advOpen || hasAdv ? 'var(--accent)' : 'var(--tx2)', fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0, transition: '.2s', boxSizing: 'border-box', boxShadow: advOpen || hasAdv ? 'var(--shadow-sm)' : 'none' }}>
+      <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, border: advOpen || hasAdv ? '1px solid var(--accent-bd)' : '1px solid transparent', background: advOpen || hasAdv ? 'var(--accent-soft)' : 'var(--search-bg)', color: advOpen || hasAdv ? 'var(--accent)' : 'var(--tx2)', fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0, transition: '.2s', boxSizing: 'border-box', boxShadow: advOpen || hasAdv ? 'var(--shadow-sm)' : 'none' }}>
         {T('تصفية', 'Filter')}
         <span style={{ width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{!hasAdv ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6" /><line x1="18" y1="6" x2="20" y2="6" /><circle cx="16" cy="6" r="2" /><line x1="4" y1="12" x2="8" y2="12" /><line x1="12" y1="12" x2="20" y2="12" /><circle cx="10" cy="12" r="2" /><line x1="4" y1="18" x2="16" y2="18" /><line x1="20" y1="18" x2="20" y2="18" /><circle cx="18" cy="18" r="2" /></svg> : <span role="button" tabIndex={0} title={T('مسح الفلاتر', 'Clear filters')} onClick={e => { e.stopPropagation(); setAdvFilter({ from: '', to: '', status: '', employee: '', officeMin: '', officeMax: '' }) }} onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }} onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }} style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg></span>}</span>
       </button>
@@ -1443,7 +1450,7 @@ ${noticeBlk}
               onMouseEnter={e => { e.currentTarget.style.borderColor = sc + '55' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = isExpired ? 'rgba(192,57,43,.35)' : 'var(--bd)' }}>
               {/* مؤشّر الصلاحية (5 أيام) */}
-              <div title={showValidity ? (isExpired ? T('انتهت الصلاحية', 'Expired') : T('صالحة ضمن 5 أيام', 'Valid within 5 days')) : isCancelled ? T('ملغاة', 'Cancelled') : T('تفاصيل التسعيرة', 'Quote details')} style={{ position: 'absolute', top: 10, insetInlineEnd: 10, width: 28, height: 28, borderRadius: '50%', background: showValidity ? 'transparent' : (isCancelled ? 'rgba(192,57,43,.12)' : isInvoiced ? 'rgba(39,160,70,.12)' : 'rgba(212,160,23,.12)'), border: showValidity ? 'none' : '1px solid ' + (isCancelled ? 'rgba(192,57,43,.35)' : isInvoiced ? 'rgba(39,160,70,.35)' : 'rgba(212,160,23,.3)'), color: isCancelled ? C.red : isInvoiced ? '#27a046' : C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 2 }}>
+              <div title={showValidity ? (isExpired ? T('انتهت الصلاحية', 'Expired') : T('صالحة ضمن 5 أيام', 'Valid within 5 days')) : isCancelled ? T('ملغاة', 'Cancelled') : T('تفاصيل التسعيرة', 'Quote details')} style={{ position: 'absolute', top: 10, insetInlineEnd: 10, width: 28, height: 28, borderRadius: '50%', background: showValidity ? 'transparent' : (isCancelled ? 'rgba(192,57,43,.12)' : isInvoiced ? 'rgba(39,160,70,.12)' : 'rgba(176,125,0,.12)'), border: showValidity ? 'none' : '1px solid ' + (isCancelled ? 'rgba(192,57,43,.35)' : isInvoiced ? 'rgba(39,160,70,.35)' : 'rgba(176,125,0,.3)'), color: isCancelled ? C.red : isInvoiced ? '#27a046' : C.gold, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 2 }}>
                 {showValidity ? (() => {
                   const total = 5; const active = isExpired ? 0 : Math.min(total, Math.ceil(remainingMs / 86400000))
                   const sw = 2.4, size = 24, rr = (size - sw) / 2, cx = size / 2, cy = size / 2
@@ -1467,7 +1474,7 @@ ${noticeBlk}
                   {gcell(idIco, T('رقم الإقامة', 'Iqama No'), r.iqama_number ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{r.iqama_number}</span> : null)}
                   {gcell(phIco, T('الجوال', 'Phone'), phoneVal ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{phoneVal}</span> : null)}
                   {gcell(brIco, T('المكتب', 'Branch'), branchCode ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{branchCode}</span> : null)}
-                  {gcell(svcIco, T('الخدمة', 'Service'), svcPrimary ? <span style={{ fontSize: 11.5, color: C.gold, fontWeight: 700 }}>{svcPrimary}</span> : null)}
+                  {gcell(svcIco, T('الخدمة', 'Service'), svcPrimary ? <span style={{ fontSize: 11.5, color: C.gold, fontWeight: 600 }}>{svcPrimary}</span> : null)}
                   {gcell(invIco, invoiceNo ? T('رقم الفاتورة', 'Invoice no') : T('رقم التسعيرة', 'Quote no'), <span style={{ fontSize: 11.5, color: invoiceNo ? C.ok : C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{noDash(invoiceNo || r.quote_no || '')}</span>)}
                 </div>
               </div>

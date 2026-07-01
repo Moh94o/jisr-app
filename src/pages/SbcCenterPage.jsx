@@ -5,7 +5,7 @@ import { FileText, User, Users, CreditCard, Pencil, Info } from 'lucide-react'
 import { SkeletonCards, SkeletonTable } from '../components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', red: '#c0392b', blue: '#3483b4', ok: '#27a046', purple: '#bb8fce', orange: '#f39c12', cyan: '#16a085', gray: '#95a5a6', warn: '#eab308' }
+const C = { gold: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046', purple: '#bb8fce', orange: '#f39c12', cyan: '#16a085', gray: '#95a5a6', warn: '#eab308' }
 const nm = v => Number(v || 0).toLocaleString('en-US')
 const tint = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})` }
 
@@ -52,7 +52,7 @@ function HeroStat({ tone, label, value, footer }) {
         <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-        <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+        <span style={{ fontSize: 42, fontWeight: 600, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
@@ -87,9 +87,9 @@ function InfoSectionCard({ title, items, headerAction }) {
 function EditAction({ onEdit, label = 'تعديل' }) {
   return (
     <button onClick={onEdit}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.12)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-      style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+      style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
       {label}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
     </button>
@@ -167,7 +167,7 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
         .sbc-hero-grid{display:grid;grid-template-columns:1.8fr 1fr;gap:14px;margin-bottom:24px}
         @media (max-width:720px){.sbc-hero-grid{grid-template-columns:1fr}}
         .sbc-row{transition:all .15s}
-        .sbc-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(212,160,23,.22) !important}
+        .sbc-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.34) !important;border-color:rgba(176,125,0,.22) !important}
         .sbc-row-grid{display:grid;grid-template-columns:auto 1px 1fr auto;gap:18px;align-items:center}
         @media (max-width:720px){.sbc-row-grid{grid-template-columns:1fr;gap:12px}.sbc-row-vdiv{display:none}}
         .sbc-row-vdiv{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%);min-height:46px}
@@ -180,7 +180,7 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>إدارة السجل التجاري والكيان النظامي للمنشآت عبر المركز السعودي للأعمال. المعاملات تُضاف مباشرة من هذه الصفحة.</div>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary-modal"
-          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+          style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
           إضافة معاملة
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
         </button>
@@ -200,21 +200,21 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>التوزّع حسب الخدمة</span>
                 <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-                  <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{nm(rows.length)}</span>معاملة
+                  <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{nm(rows.length)}</span>معاملة
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
                   <circle r={R} fill="none" stroke="var(--bd2)" strokeWidth="11" />
                   {dist.map((r) => { const dash = (r.cnt / total) * CIRC; const seg = (<circle key={r.code} r={R} fill="none" stroke={r.meta.c} strokeWidth="11" strokeDasharray={`${dash} ${CIRC - dash}`} strokeDashoffset={-offset} style={{ transition: 'stroke-dasharray .3s' }}><title>{`${r.meta.ar}: ${r.cnt}`}</title></circle>); offset += dash; return seg })}
-                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{nm(rows.length)}</text>
+                  <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)" style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nm(rows.length)}</text>
                 </svg>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr', gap: 6, minWidth: 0 }}>
                   {dist.length === 0 ? <span style={{ fontSize: 11, color: 'var(--tx5)' }}>—</span> : dist.map((r) => (
                     <div key={r.code} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, minWidth: 0 }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: r.meta.c, flexShrink: 0 }} />
                       <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.meta.ar}</span>
-                      <span style={{ color: r.meta.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{nm(r.cnt)}</span>
+                      <span style={{ color: r.meta.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 600 }}>{nm(r.cnt)}</span>
                     </div>
                   ))}
                 </div>
@@ -255,11 +255,11 @@ function SbcTable({ rows, typeById, onRowClick }) {
     <div style={{ borderRadius: 10, overflow: 'hidden' }}>
       <style>{`
 .sbc-tbl{width:100%;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-.sbc-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:700;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(212,160,23,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+.sbc-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:600;text-align:center;padding:14px 12px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
 .sbc-tbl tbody td{padding:13px 12px;font-size:12px;color:#fff;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.03)}
 .sbc-tbl tbody tr{cursor:pointer;transition:background .12s}
 .sbc-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-.sbc-tbl tbody tr:hover td{background:rgba(212,160,23,.06)}
+.sbc-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
 .sbc-tbl tbody tr:last-child td{border-bottom:none}
       `}</style>
       <table className="sbc-tbl">
@@ -280,22 +280,22 @@ function SbcTable({ rows, typeById, onRowClick }) {
             return (
               <tr key={r.id} onClick={() => onRowClick(r.id)} title={title}>
                 <td>
-                  <span style={{ direction: 'ltr', fontFamily: 'monospace', color: 'var(--tx2)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(r.request_date)}</span>
+                  <span style={{ direction: 'ltr', fontFamily: 'monospace', color: 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtGreg(r.request_date)}</span>
                 </td>
                 <td>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 11px', borderRadius: 7, background: meta.c + '18', border: '1px solid ' + meta.c + '38', color: meta.c, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 11px', borderRadius: 7, background: meta.c + '18', border: '1px solid ' + meta.c + '38', color: meta.c, fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap' }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: meta.c, flexShrink: 0 }} />
                     {meta.ar}
                   </span>
                 </td>
                 <td>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.92)' }}>{title}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.92)' }}>{title}</span>
                 </td>
                 <td>
-                  <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, color: C.gold }}>#{r.request_ref_no}</span>
+                  <span style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 600, color: C.gold }}>#{r.request_ref_no}</span>
                 </td>
                 <td>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: sTheme.c, background: tint(sTheme.c, 0.12), border: `1px solid ${tint(sTheme.c, 0.3)}`, borderRadius: 8, padding: '5px 12px', whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: sTheme.c, background: tint(sTheme.c, 0.12), border: `1px solid ${tint(sTheme.c, 0.3)}`, borderRadius: 8, padding: '5px 12px', whiteSpace: 'nowrap' }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: sTheme.c }} />
                     {sTheme.ar}
                   </span>
@@ -472,8 +472,8 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={meta.c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /><path d="M8 13h8M8 17h6" /></svg>
           <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{row.trade_name || row.cr_number || meta.ar}</div>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: meta.c + '20', color: meta.c }}>{meta.ar}</span>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: tint(sTheme.c, 0.14), color: sTheme.c }}>{sTheme.ar}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: meta.c + '20', color: meta.c }}>{meta.ar}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: tint(sTheme.c, 0.14), color: sTheme.c }}>{sTheme.ar}</span>
         </div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>عرض تفاصيل المعاملة وتعديلها، وتحديث حالتها وإرفاق المستندات.</div>
       </div>
@@ -486,8 +486,8 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
           <InfoSectionCard title="تفاصيل المعاملة" items={detailItems}
             headerAction={editing
               ? <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 8 }}>
-                  <button onClick={() => { setEditing(false); setForm({ trade_name: row.trade_name || '', cr_number: row.cr_number || '', note: row.note || '' }) }} style={{ height: 32, padding: '0 12px', borderRadius: 9, background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx3)', fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>إلغاء</button>
-                  <button onClick={saveFields} disabled={busy} style={{ height: 32, padding: '0 16px', borderRadius: 9, background: `linear-gradient(180deg,${C.gold},#b8881a)`, border: 'none', color: '#1a1a1a', fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{busy ? '…' : 'حفظ'}</button>
+                  <button onClick={() => { setEditing(false); setForm({ trade_name: row.trade_name || '', cr_number: row.cr_number || '', note: row.note || '' }) }} style={{ height: 32, padding: '0 12px', borderRadius: 9, background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx3)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>إلغاء</button>
+                  <button onClick={saveFields} disabled={busy} style={{ height: 32, padding: '0 16px', borderRadius: 9, background: `linear-gradient(180deg,${C.gold},#b8881a)`, border: 'none', color: '#1a1a1a', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{busy ? '…' : 'حفظ'}</button>
                 </div>
               : <EditAction onEdit={() => setEditing(true)} />} />
 
@@ -495,7 +495,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
           {isCrOpen && (facility ? (
             <div style={cardChrome}>
               <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok }} /><span style={cardTitle}>المنشأة</span>
-                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 700, color: C.ok, background: 'rgba(39,160,70,.14)', borderRadius: 6, padding: '4px 10px' }}>تم الإنجاز</span>
+                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 600, color: C.ok, background: 'rgba(39,160,70,.14)', borderRadius: 6, padding: '4px 10px' }}>تم الإنجاز</span>
               </div>
               <div style={{ padding: '6px 22px 14px' }}>
                 {[
@@ -518,7 +518,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
           ) : fee?.status === 'paid' ? (
             <div style={{ ...cardChrome, border: `1px solid ${C.gold}44` }}>
               <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>إكمال فتح السجل</span>
-                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.14)', borderRadius: 6, padding: '4px 10px' }}>تم السداد — مطلوب الإكمال</span>
+                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.14)', borderRadius: 6, padding: '4px 10px' }}>تم السداد — مطلوب الإكمال</span>
               </div>
               <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div><div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6 }}>الرقم الموحد <span style={{ color: C.red }}>*</span></div>
@@ -535,7 +535,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{crFile ? crFile.name : 'إرفاق ملف السجل'}</span>
                   </button></div>
-                <button onClick={completeCrOpen} disabled={completing} style={{ height: 42, borderRadius: 10, background: `linear-gradient(180deg,${C.gold},#b8881a)`, border: 'none', color: '#1a1a1a', fontFamily: F, fontSize: 13.5, fontWeight: 800, cursor: completing ? 'default' : 'pointer', marginTop: 4 }}>{completing ? 'جارٍ الإنجاز…' : 'إنجاز المعاملة وإضافة المنشأة'}</button>
+                <button onClick={completeCrOpen} disabled={completing} style={{ height: 42, borderRadius: 10, background: `linear-gradient(180deg,${C.gold},#b8881a)`, border: 'none', color: '#1a1a1a', fontFamily: F, fontSize: 13.5, fontWeight: 600, cursor: completing ? 'default' : 'pointer', marginTop: 4 }}>{completing ? 'جارٍ الإنجاز…' : 'إنجاز المعاملة وإضافة المنشأة'}</button>
               </div>
             </div>
           ) : (
@@ -551,7 +551,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
           {isDocuments && (row.status?.code === 'done' ? (
             <div style={cardChrome}>
               <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok }} /><span style={cardTitle}>الوثيقة</span>
-                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 700, color: C.ok, background: 'rgba(39,160,70,.14)', borderRadius: 6, padding: '4px 10px' }}>تم الإنجاز</span>
+                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 600, color: C.ok, background: 'rgba(39,160,70,.14)', borderRadius: 6, padding: '4px 10px' }}>تم الإنجاز</span>
               </div>
               <div style={{ padding: '12px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {docFacility && <div style={{ fontSize: 12.5, color: 'var(--tx3)', lineHeight: 1.6 }}>أُضيفت إلى «ملفات السجل» في منشأة «{docFacility.name_ar}».</div>}
@@ -566,7 +566,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
           ) : fee?.status === 'paid' ? (
             <div style={{ ...cardChrome, border: `1px solid ${C.gold}44` }}>
               <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>إرفاق مستخرج السجل</span>
-                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 700, color: C.gold, background: 'rgba(212,160,23,.14)', borderRadius: 6, padding: '4px 10px' }}>تم السداد — مطلوب الإرفاق</span>
+                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.14)', borderRadius: 6, padding: '4px 10px' }}>تم السداد — مطلوب الإرفاق</span>
               </div>
               <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div><div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6 }}>ملف مستخرج السجل التجاري <span style={{ color: C.red }}>*</span></div>
@@ -575,7 +575,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{crFile ? crFile.name : 'إرفاق ملف المستخرج'}</span>
                   </button></div>
-                <button onClick={completeDocuments} disabled={completing} style={{ height: 42, borderRadius: 10, background: `linear-gradient(180deg,${C.gold},#b8881a)`, border: 'none', color: '#1a1a1a', fontFamily: F, fontSize: 13.5, fontWeight: 800, cursor: completing ? 'default' : 'pointer', marginTop: 4 }}>{completing ? 'جارٍ الإنجاز…' : 'إنجاز المعاملة وإرفاق المستخرج'}</button>
+                <button onClick={completeDocuments} disabled={completing} style={{ height: 42, borderRadius: 10, background: `linear-gradient(180deg,${C.gold},#b8881a)`, border: 'none', color: '#1a1a1a', fontFamily: F, fontSize: 13.5, fontWeight: 600, cursor: completing ? 'default' : 'pointer', marginTop: 4 }}>{completing ? 'جارٍ الإنجاز…' : 'إنجاز المعاملة وإرفاق المستخرج'}</button>
               </div>
             </div>
           ) : (
@@ -602,7 +602,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>المرفقات</span>
               <input ref={fileRef} type="file" accept="application/pdf,image/*" style={{ display: 'none' }} onChange={e => { uploadFile(e.target.files?.[0]); e.target.value = '' }} />
-              <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>{uploading ? 'جارٍ الرفع…' : 'إرفاق ملف'}</button>
+              <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>{uploading ? 'جارٍ الرفع…' : 'إرفاق ملف'}</button>
             </div>
             <div style={{ padding: '12px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {atts.length === 0 ? <div style={{ fontSize: 12, color: 'var(--tx5)', padding: '6px 0' }}>لا توجد مرفقات</div> :
@@ -627,7 +627,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
                 return (
                   <button key={s.id} onClick={() => changeStatus(s.id)} disabled={busy} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'start', background: on ? tint(th.c, 0.12) : 'var(--bd2)', border: `1px solid ${on ? tint(th.c, 0.4) : 'var(--bd)'}`, fontFamily: F }}>
                     <span style={{ width: 9, height: 9, borderRadius: '50%', background: th.c, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: on ? 800 : 600, color: on ? th.c : 'var(--tx3)' }}>{th.ar}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: on ? 600 : 600, color: on ? th.c : 'var(--tx3)' }}>{th.ar}</span>
                     {on && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={th.c} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
                   </button>
                 )
@@ -638,7 +638,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
             <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>القسم</span></div>
             <div style={{ padding: '14px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>المسؤول</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>المركز السعودي</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.gold }}>المركز السعودي</span>
             </div>
           </div>
         </div>
@@ -1021,7 +1021,7 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
             </ScrollBox>
             {basicChanges.length < AMEND_BASIC_FIELDS.length && (
               <button type="button" onClick={() => setBasicChanges(arr => [...arr, { field: '', value: '' }])}
-                style={{ marginTop: 10, height: 34, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ إضافة حقل</button>
+                style={{ marginTop: 10, height: 34, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: C.gold, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ إضافة حقل</button>
             )}
           </div>
         )}

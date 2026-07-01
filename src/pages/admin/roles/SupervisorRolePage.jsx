@@ -16,7 +16,7 @@ function AssignedPill({ text, onUnassign }) {
       border: `1px solid ${okColor}55`, background: `${okColor}14`,
       boxShadow: `inset 0 0 0 1px ${okColor}1a, 0 0 12px ${okColor}18` }}>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8,
-        padding: '0 14px', color: okColor, fontFamily: F, fontSize: 12, fontWeight: 800 }}>
+        padding: '0 14px', color: okColor, fontFamily: F, fontSize: 12, fontWeight: 600 }}>
         <CheckCircle2 size={14} strokeWidth={2.5} />
         {text}
       </div>
@@ -127,7 +127,7 @@ export default function SupervisorRolePage({ person, onBack, toast, countries, r
           ))}
           {endedRows.length > 0 && (
             <>
-              <div style={{ marginTop: 18, fontSize: 11, fontWeight: 800, color: 'var(--tx5)' }}>السجلات المنتهية</div>
+              <div style={{ marginTop: 18, fontSize: 11, fontWeight: 600, color: 'var(--tx5)' }}>السجلات المنتهية</div>
               {endedRows.map(r => (
                 <FacilityCard key={r.id} facility={r.facility} color="#777" isActive={false}
                   fields={[

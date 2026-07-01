@@ -13,7 +13,7 @@ import {
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
-  gold: '#D4A017', goldSoft: '#e8c77a',
+  gold: '#B07D00', goldSoft: '#e8c77a',
   blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
   ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
@@ -68,7 +68,7 @@ function HeroStat({ tone, label, value, footer }) {
         <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
-        <span style={{ fontSize: 42, fontWeight: 800, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+        <span style={{ fontSize: 42, fontWeight: 600, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
@@ -95,7 +95,7 @@ function NatDonutCard({ items, totalLabel, title }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{title}</span>
         <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
-          <span style={{ color: C.gold, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{num(total)}</span>{totalLabel}
+          <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', marginLeft: 6 }}>{num(total)}</span>{totalLabel}
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
@@ -115,7 +115,7 @@ function NatDonutCard({ items, totalLabel, title }) {
             return seg
           })}
           <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)"
-            style={{ fill: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+            style={{ fill: '#fff', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
             {num(total)}
           </text>
         </svg>
@@ -126,7 +126,7 @@ function NatDonutCard({ items, totalLabel, title }) {
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, minWidth: 0 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
                 <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 700 }}>{num(r.cnt)}</span>
+                <span style={{ color: c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, fontWeight: 600 }}>{num(r.cnt)}</span>
               </div>
             )
           }) : <span style={{ fontSize: 12, color: 'var(--tx4)' }}>لا توجد بيانات</span>}
@@ -179,7 +179,7 @@ function InfoSectionCard({ title, items, headerAction }) {
 const AmountBox = ({ label, value, color }) => (
   <div style={{ padding: '14px 12px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
     {label && <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.5px' }}>{label}</div>}
-    <div style={{ fontSize: 17, fontWeight: 700, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
+    <div style={{ fontSize: 17, fontWeight: 600, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
   </div>
 )
 
@@ -301,7 +301,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
       <style>{`
         .clp-hero { display: grid; grid-template-columns: 1.8fr 1fr; gap: 14px; }
         .cl-row { transition: all .15s; }
-        .cl-row:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.34) !important; border-color: rgba(212,160,23,.22) !important; }
+        .cl-row:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.34) !important; border-color: rgba(176,125,0,.22) !important; }
         .cl-row-vdiv { width: 1px; align-self: stretch; background: linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%); min-height: 46px; }
         @media (max-width: 720px) { .clp-hero { grid-template-columns: 1fr; } .cl-row-vdiv { display: none; } }
       `}</style>
@@ -381,7 +381,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
       {!loading && total > PAGE && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24 }}>
           <div style={{ fontSize: 12, color: 'var(--tx3)' }}>
-            {T('صفحة', 'Page')} <span style={{ color: GOLD, fontWeight: 700 }}>{page + 1}</span> / {totalPages} · {num(total)}
+            {T('صفحة', 'Page')} <span style={{ color: GOLD, fontWeight: 600 }}>{page + 1}</span> / {totalPages} · {num(total)}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} style={btnPg(page === 0)}>{T('السابق', 'Prev')}</button>
@@ -411,16 +411,16 @@ function AgentRow({ agent, agentStats, onClick, T, isAr }) {
   const totalDisp = num(Math.round(totalCom))
 
   const flagAvatar = (size = 42, radius = 12) => (
-    <div title={agent.nationality?.name_ar || ''} style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.42), fontWeight: 800, flexShrink: 0 }}>
+    <div title={agent.nationality?.name_ar || ''} style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.42), fontWeight: 600, flexShrink: 0 }}>
       {agent.nationality?.flag_url ? <img src={agent.nationality.flag_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial(name)}
     </div>
   )
   const pill = (icon, label, color, bg, bd) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: bg, border: `1px solid ${bd}`, color, fontSize: 10, fontWeight: 700 }}>{icon}{label}</span>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: bg, border: `1px solid ${bd}`, color, fontSize: 10, fontWeight: 600 }}>{icon}{label}</span>
   )
   const baseBg = `linear-gradient(135deg, ${accent}0e 0%, #232323 50%, #1f1f1f 100%)`
 
-  const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 700, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+  const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 600, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
   const idText = agent.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><IdCard size={13} color="rgba(255,255,255,.45)" /><span style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace' }}>{agent.id_number}</span></span> : null
   const phoneBit = agent.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><Phone size={12} color="rgba(255,255,255,.45)" /><span style={{ fontFamily: 'monospace', color: 'var(--tx4)' }}>{fmtPhone(agent.phone)}</span></span> : null
   const mline = (children, gap = 12) => <div style={{ display: 'inline-flex', alignItems: 'center', gap, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, flexWrap: 'wrap' }}>{children}</div>
@@ -435,16 +435,16 @@ function AgentRow({ agent, agentStats, onClick, T, isAr }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{nameText(15)}</div>
             {mline(<>{idText}{phoneBit}</>, 10)}
             <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-              {pill(<FileText size={11} />, `${num(reqCount)} ${T('طلب', 'req')}`, GOLD, 'rgba(212,160,23,.10)', 'rgba(212,160,23,.28)')}
+              {pill(<FileText size={11} />, `${num(reqCount)} ${T('طلب', 'req')}`, GOLD, 'rgba(176,125,0,.10)', 'rgba(176,125,0,.28)')}
               {paidCount > 0 && pill(<Check size={11} />, `${num(paidCount)} ${T('مدفوعة', 'paid')}`, C.ok, 'rgba(46,204,113,.10)', 'rgba(46,204,113,.28)')}
             </div>
           </div>
         </div>
         <div className="cl-row-vdiv" />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', borderRadius: 10, background: `linear-gradient(160deg, ${ps.c}14 0%, rgba(0,0,0,.25) 100%)`, border: `1px solid ${ps.c}26` }}>
-          <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.4px' }}>{T('إجمالي العمولات', 'Commissions')}</span>
-          <span style={{ fontSize: 24, fontWeight: 800, color: ps.c, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{totalDisp}</span>
-          <span style={{ fontSize: 10.5, fontWeight: 700, direction: 'ltr', color: due > 0 ? C.warn : C.ok }}>{due > 0 ? `− ${num(Math.round(due))}` : (totalCom > 0 ? `✓ ${T('مدفوعة بالكامل', 'fully paid')}` : '—')}</span>
+          <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.4px' }}>{T('إجمالي العمولات', 'Commissions')}</span>
+          <span style={{ fontSize: 24, fontWeight: 600, color: ps.c, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{totalDisp}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 600, direction: 'ltr', color: due > 0 ? C.warn : C.ok }}>{due > 0 ? `− ${num(Math.round(due))}` : (totalCom > 0 ? `✓ ${T('مدفوعة بالكامل', 'fully paid')}` : '—')}</span>
         </div>
       </div>
     </div>
@@ -534,9 +534,9 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
           <InfoSectionCard title={T('بيانات الوسيط', 'Agent')} items={infoItems}
             headerAction={!canCardBtn(user, 'admin_agents', 'agent_info', 'edit') ? null : (
               <button onClick={() => setEditing(true)}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.12)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.12)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(212,160,23,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
+                style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'background .15s ease, border-color .15s ease' }}>
                 {T('تعديل', 'Edit')}
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
               </button>
@@ -574,13 +574,13 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
             <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('الملخص المالي', 'Financial Summary')}</span></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>
               <AmountBox label={T('الفوترة', 'Invoiced')} value={num(Math.round(invTotal))} color={GOLD} />
-              <AmountBox label={T('المسدّد', 'Paid')} value={num(Math.round(invPaid))} color={C.ok} />
+              <AmountBox label={T('المدفوع', 'Paid')} value={num(Math.round(invPaid))} color={C.ok} />
               <AmountBox label={T('المتبقي', 'Remaining')} color={invDue > 0 ? C.red : 'var(--tx)'} value={num(Math.round(invDue))} />
             </div>
             <div style={{ padding: '14px 22px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--tx3)' }}>
                 <span>{T('نسبة السداد', 'Paid')}</span>
-                <span style={{ color: invPs.c, fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{invPct}%</span>
+                <span style={{ color: invPs.c, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{invPct}%</span>
               </div>
               <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${invPct}%`, background: `linear-gradient(90deg, ${invPs.c}, ${invPs.c}dd)`, transition: 'width .3s' }} />
@@ -601,7 +601,7 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
               ].map((row, i, arr) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
                   <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><row.Icon size={13} color="rgba(255,255,255,.4)" />{row.label}</span>
-                  <span style={{ fontSize: 13, color: row.color || 'var(--tx2)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
+                  <span style={{ fontSize: 13, color: row.color || 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
                 </div>
               ))}
             </div>
@@ -631,20 +631,20 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
 
   const noBtn = (size = 13) => (
     <button type="button" onClick={() => openInvoice(invoice.id)} title={T('فتح تفاصيل الفاتورة', 'Open invoice')}
-      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: size, color: GOLD, fontFamily: 'monospace', fontWeight: 700, direction: 'ltr', textDecoration: 'underline', textUnderlineOffset: 3 }}>{invNo}</button>
+      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: size, color: GOLD, fontFamily: 'monospace', fontWeight: 600, direction: 'ltr', textDecoration: 'underline', textUnderlineOffset: 3 }}>{invNo}</button>
   )
   const isVisa = (invoice.service_type?.code || '').includes('work_visa')
   const serviceChip = invoice.service_type ? (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: sClr, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: sClr + '1a', border: `1px solid ${sClr}40` }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: sClr, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: sClr + '1a', border: `1px solid ${sClr}40` }}>
       {isVisa && invoice.quantity > 0 && <>
-        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 800 }}>×{num(invoice.quantity)}</span>
+        <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>×{num(invoice.quantity)}</span>
         <span style={{ width: 1, height: 12, background: `${sClr}80`, flexShrink: 0 }} />
       </>}
       {svcName}
     </span>
   ) : null
-  const branchChip = invoice.branch?.branch_code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: GOLD, direction: 'ltr' }}><Building2 size={10} />{invoice.branch.branch_code}</span> : null
-  const paidLabel = <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: C.ok, fontWeight: 700 }}>{T('تم السداد بالكامل', 'Fully paid')}<Check size={11} /></span>
+  const branchChip = invoice.branch?.branch_code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: GOLD, direction: 'ltr' }}><Building2 size={10} />{invoice.branch.branch_code}</span> : null
+  const paidLabel = <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: C.ok, fontWeight: 600 }}>{T('تم السداد بالكامل', 'Fully paid')}<Check size={11} /></span>
 
   const amtPill = (label, value, color) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)' }}>
@@ -757,5 +757,5 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
   )
 }
 
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(212,160,23,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(212,160,23,.3)' : 'rgba(255,255,255,.05)'), color: active ? GOLD : 'var(--tx2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
-const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(212,160,23,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(212,160,23,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : GOLD, fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(176,125,0,.3)' : 'rgba(255,255,255,.05)'), color: active ? GOLD : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
+const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(176,125,0,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(176,125,0,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : GOLD, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

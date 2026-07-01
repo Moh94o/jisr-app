@@ -4,7 +4,7 @@ import { ShieldCheck, ChevronDown, Plus, Minus, Lock } from 'lucide-react'
 import * as userProfileService from '../../../services/userProfileService.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const GOLD = '#D4A017'
+const GOLD = '#B07D00'
 const GOLD_SOFT = '#e8c77a'
 
 // Resolve a Lucide icon from its string name (e.g. "Building2" → component).
@@ -19,8 +19,8 @@ const ActionChip = ({ perm, canToggle, saving, onToggle }) => {
   const granted = !!perm.is_granted
   const isUserGrant = perm.source === 'user_grant'
   const isUserDeny = perm.source === 'user_deny'
-  const bg = granted ? 'rgba(212,160,23,.12)' : 'rgba(255,255,255,.03)'
-  const border = granted ? 'rgba(212,160,23,.35)' : 'rgba(255,255,255,.06)'
+  const bg = granted ? 'rgba(176,125,0,.12)' : 'rgba(255,255,255,.03)'
+  const border = granted ? 'rgba(176,125,0,.35)' : 'rgba(255,255,255,.06)'
   const color = granted ? GOLD_SOFT : 'rgba(255,255,255,.35)'
 
   const scopeText = perm.scope && perm.scope !== 'all' ? `النطاق: ${perm.scope}` : null
@@ -44,7 +44,7 @@ const ActionChip = ({ perm, canToggle, saving, onToggle }) => {
         display: 'inline-flex', alignItems: 'center', gap: 6,
         padding: '5px 10px', borderRadius: 7,
         background: bg, border: `1px solid ${border}`,
-        fontFamily: F, fontSize: 11, fontWeight: 700, color,
+        fontFamily: F, fontSize: 11, fontWeight: 600, color,
         textDecoration: granted ? 'none' : 'line-through',
         cursor: canToggle ? (saving ? 'wait' : 'pointer') : 'default',
         opacity: saving ? .55 : 1,
@@ -74,7 +74,7 @@ const ActionChip = ({ perm, canToggle, saving, onToggle }) => {
       {hover && hasTooltip && (
         <span style={{
           position: 'absolute', bottom: 'calc(100% + 6px)', right: 0,
-          background: '#0a0a0a', border: '1px solid rgba(212,160,23,.3)',
+          background: '#0a0a0a', border: '1px solid rgba(176,125,0,.3)',
           borderRadius: 7, padding: '6px 10px', minWidth: 140, maxWidth: 260,
           fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.85)',
           whiteSpace: 'normal', zIndex: 10, textDecoration: 'none',
@@ -115,7 +115,7 @@ const ModuleCard = ({ row, defaultOpen, canToggle, savingIds, onToggle }) => {
           <Icon size={16} color={GOLD} strokeWidth={2} />
         </div>
         <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tx)', lineHeight: 1.3 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.3 }}>
             {row.module_label_ar || row.module}
           </div>
           <div style={{
@@ -134,7 +134,7 @@ const ModuleCard = ({ row, defaultOpen, canToggle, savingIds, onToggle }) => {
           padding: '3px 8px', borderRadius: 6,
           background: granted ? `${GOLD}14` : 'rgba(255,255,255,.04)',
           border: `1px solid ${granted ? GOLD + '33' : 'rgba(255,255,255,.06)'}`,
-          fontSize: 11, fontWeight: 800,
+          fontSize: 11, fontWeight: 600,
           color: granted ? GOLD_SOFT : 'rgba(255,255,255,.4)',
           direction: 'ltr', flexShrink: 0,
         }}>
@@ -150,7 +150,7 @@ const ModuleCard = ({ row, defaultOpen, canToggle, savingIds, onToggle }) => {
           display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 12,
         }}>
           {perms.length === 0 ? (
-            <div style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 700, padding: '8px 0' }}>
+            <div style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600, padding: '8px 0' }}>
               لا توجد صلاحيات في هذا الموديول
             </div>
           ) : perms.map(p => (
@@ -246,7 +246,7 @@ export default function UserPermissionsCard({ userId, viewerId, toast }) {
             <span style={{
               marginInlineStart: 6, padding: '2px 8px', borderRadius: 6,
               background: `${GOLD}14`, border: `1px solid ${GOLD}33`,
-              fontSize: 10.5, fontWeight: 800, color: GOLD_SOFT, direction: 'ltr',
+              fontSize: 10.5, fontWeight: 600, color: GOLD_SOFT, direction: 'ltr',
             }}>
               {totals.granted} / {totals.total}
             </span>
@@ -265,7 +265,7 @@ export default function UserPermissionsCard({ userId, viewerId, toast }) {
           borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         }}>
           <Lock size={22} color={GOLD} style={{ opacity: .5 }} />
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx4)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx4)' }}>
             لا توجد صلاحيات مُسندة لهذا المستخدم
           </div>
         </div>
@@ -287,8 +287,8 @@ export default function UserPermissionsCard({ userId, viewerId, toast }) {
                   paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,.06)',
                 }}>
                   <span style={{ width: 4, height: 16, borderRadius: 3, background: GOLD }}/>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px' }}>{sec.label_ar}</span>
-                  <span style={{ marginInlineStart: 'auto', padding: '2px 8px', borderRadius: 6, background: `${GOLD}10`, border: `1px solid ${GOLD}22`, fontSize: 10, fontWeight: 800, color: GOLD_SOFT, direction: 'ltr' }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px' }}>{sec.label_ar}</span>
+                  <span style={{ marginInlineStart: 'auto', padding: '2px 8px', borderRadius: 6, background: `${GOLD}10`, border: `1px solid ${GOLD}22`, fontSize: 10, fontWeight: 600, color: GOLD_SOFT, direction: 'ltr' }}>
                     {grantedSec} / {totalSec}
                   </span>
                 </div>

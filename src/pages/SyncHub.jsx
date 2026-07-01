@@ -10,10 +10,10 @@ import * as rolesService from '../services/rolesService.js'
 import { Shimmer, SkeletonList } from '../components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const C = { gold: '#D4A017', ok: '#27a046', red: '#c0392b', blue: '#3483b4', purple: '#9b59b6' }
+const C = { gold: '#B07D00', ok: '#27a046', red: '#c0392b', blue: '#3483b4', purple: '#9b59b6' }
 
 // Person color palette — used when a sync_person row has no color set yet.
-const PERSON_PALETTE = ['#D4A017', '#3483b4', '#27a046', '#e67e22', '#9b59b6', '#ec4899', '#06b6d4', '#c0392b', '#f59e0b', '#14b8a6']
+const PERSON_PALETTE = ['#B07D00', '#3483b4', '#27a046', '#e67e22', '#9b59b6', '#ec4899', '#06b6d4', '#c0392b', '#f59e0b', '#14b8a6']
 
 const fmtRelative = (iso, lang) => {
   if (!iso) return '—'
@@ -83,7 +83,7 @@ function BookmarkletLink({ href, title, children, style }) {
       ref={ref}
       title={title}
       onClick={e => e.preventDefault()}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: C.gold, color: '#1a1a1a', textDecoration: 'none', fontFamily: F, fontSize: 13, fontWeight: 900, borderRadius: 10, cursor: 'grab', boxShadow: '0 2px 8px rgba(212,160,23,.3)', ...style }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: C.gold, color: '#1a1a1a', textDecoration: 'none', fontFamily: F, fontSize: 13, fontWeight: 600, borderRadius: 10, cursor: 'grab', boxShadow: '0 2px 8px rgba(176,125,0,.3)', ...style }}
     >
       {children}
     </a>
@@ -113,7 +113,7 @@ function HeaderBookmarklet({ url, accent, label, buttonLabel, onMoreOptions, T }
         style={{
           height: 34, padding: '0 14px', borderRadius: 8,
           background: 'transparent', border: `1px solid ${accent}`, color: accent,
-          textDecoration: 'none', fontFamily: F, fontSize: 11, fontWeight: 800,
+          textDecoration: 'none', fontFamily: F, fontSize: 11, fontWeight: 600,
           cursor: 'grab', display: 'inline-flex', alignItems: 'center', gap: 6,
           transition: '.15s', userSelect: 'none',
         }}
@@ -157,7 +157,7 @@ function HeaderBookmarklet({ url, accent, label, buttonLabel, onMoreOptions, T }
 }
 
 const SOURCE_GRADIENT = {
-  sbc: 'linear-gradient(135deg, rgba(212,160,23,.12), rgba(212,160,23,.02))',
+  sbc: 'linear-gradient(135deg, rgba(176,125,0,.12), rgba(176,125,0,.02))',
   qiwa: 'linear-gradient(135deg, rgba(39,160,70,.12), rgba(39,160,70,.02))',
   gosi: 'linear-gradient(135deg, rgba(52,131,180,.12), rgba(52,131,180,.02))',
   muqeem: 'linear-gradient(135deg, rgba(155,89,182,.12), rgba(155,89,182,.02))',
@@ -436,7 +436,7 @@ function Header({ T, lang, focusedSource, runs, changes, onSync, bookmarkletUrl,
                 style={{ height: 34, padding: '0 14px', borderRadius: 8,
                   background: 'transparent',
                   border: `1px solid ${accent}`, color: accent,
-                  fontFamily: F, fontSize: 11, fontWeight: 800,
+                  fontFamily: F, fontSize: 11, fontWeight: 600,
                   cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
                   transition: '.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.background = `${accent}14` }}
@@ -466,7 +466,7 @@ function Header({ T, lang, focusedSource, runs, changes, onSync, bookmarkletUrl,
         <button onClick={onManagePersons}
           style={{ height: 36, padding: '0 14px', borderRadius: 9,
             background: `${C.gold}14`, border: `1px solid ${C.gold}55`, color: C.gold,
-            fontFamily: F, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+            fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, transition: '.15s' }}
           onMouseEnter={e => { e.currentTarget.style.background = `${C.gold}22` }}
           onMouseLeave={e => { e.currentTarget.style.background = `${C.gold}14` }}>
@@ -475,7 +475,7 @@ function Header({ T, lang, focusedSource, runs, changes, onSync, bookmarkletUrl,
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
           {T('المشغّل', 'Operator')}
-          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: `${C.gold}25`, fontFamily: 'ui-monospace, monospace', fontWeight: 700 }}>
+          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: `${C.gold}25`, fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>
             {personsCount || 0}
           </span>
         </button>
@@ -533,8 +533,8 @@ function HubStatsBar({ totalFacilities, coveredFacilities, operatorsCount, activ
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12, marginBottom: 18 }}>
       {tiles.map(t => (
         <div key={t.label} style={{ ...HUB_CARD, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)', letterSpacing: '.3px' }}>{t.label}</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: t.accent, letterSpacing: '-.5px', direction: 'ltr', lineHeight: 1.1 }}>{t.value}</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.3px' }}>{t.label}</div>
+          <div style={{ fontSize: 28, fontWeight: 600, color: t.accent, letterSpacing: '-.5px', direction: 'ltr', lineHeight: 1.1 }}>{t.value}</div>
           <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx5)' }}>{t.sub}</div>
         </div>
       ))}
@@ -576,7 +576,7 @@ function FacilitiesOverviewCard({ totalFacilities, coveredFacilities, onOpen, T,
           </svg>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--tx)', letterSpacing: '-.2px' }}>
+          <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>
             {T('المنشآت', 'Facilities')}
           </div>
         </div>
@@ -588,12 +588,12 @@ function FacilitiesOverviewCard({ totalFacilities, coveredFacilities, onOpen, T,
       {/* Big number + coverage */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr' }}>
-          <span style={{ fontSize: 56, fontWeight: 700, color: 'var(--tx)', letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{totalFacilities.toLocaleString('en-US')}</span>
+          <span style={{ fontSize: 56, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{totalFacilities.toLocaleString('en-US')}</span>
           <span style={{ fontSize: 14, color: 'var(--tx4)', fontWeight: 600 }}>{T('منشأة', 'facilities')}</span>
         </div>
         <div style={{ textAlign: 'end' }}>
-          <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 700, marginBottom: 4, letterSpacing: '.3px' }}>{T('التغطية', 'Coverage')}</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: pct ? accent : 'var(--tx5)', direction: 'ltr' }}>{pct}%</div>
+          <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4, letterSpacing: '.3px' }}>{T('التغطية', 'Coverage')}</div>
+          <div style={{ fontSize: 20, fontWeight: 600, color: pct ? accent : 'var(--tx5)', direction: 'ltr' }}>{pct}%</div>
           <div style={{ fontSize: 10.5, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', marginTop: 2 }}>{coveredFacilities} / {totalFacilities}</div>
         </div>
       </div>
@@ -655,7 +655,7 @@ function SyncActivitiesCard({ runs, changes, sources, persons, T, lang }) {
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tx)', letterSpacing: '-.2px' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>
               {T('أنشطة المزامنة', 'Sync Activities')}
             </div>
             <div style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600, marginTop: 2 }}>
@@ -665,7 +665,7 @@ function SyncActivitiesCard({ runs, changes, sources, persons, T, lang }) {
         </div>
         {allRuns.length > 8 && (
           <button onClick={() => setShowAll(s => !s)}
-            style={{ height: 30, padding: '0 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx3)', fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ height: 30, padding: '0 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,.1)', color: 'var(--tx3)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
             {showAll ? T('عرض أقل', 'Show less') : T(`عرض الكل (${allRuns.length})`, `View all (${allRuns.length})`)}
           </button>
         )}
@@ -701,12 +701,12 @@ function SyncActivitiesCard({ runs, changes, sources, persons, T, lang }) {
                     <span style={{ position: 'absolute', bottom: -2, insetInlineEnd: -2, width: 8, height: 8, borderRadius: '50%', background: statusColor, border: '2px solid #181818' }} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tx)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>
                       {s?.name_ar || r.source_id}
                       <span style={{ color: 'var(--tx5)', fontWeight: 500, marginInline: 6 }}>·</span>
-                      <span style={{ color: pClr, fontWeight: 700 }}>{p ? personDisplayName(p, 'short') : T('بدون مشغّل', 'unattributed')}</span>
-                      {isFailed && <span style={{ marginInlineStart: 8, fontSize: 9.5, padding: '1px 6px', borderRadius: 5, background: 'rgba(239,68,68,.15)', color: '#ef4444', fontWeight: 800, border: '1px solid rgba(239,68,68,.3)' }}>{T('فشلت', 'failed')}</span>}
-                      {isRunning && <span style={{ marginInlineStart: 8, fontSize: 9.5, padding: '1px 6px', borderRadius: 5, background: 'rgba(245,158,11,.15)', color: '#f59e0b', fontWeight: 800, border: '1px solid rgba(245,158,11,.3)' }}>{T('قيد التشغيل', 'running')}</span>}
+                      <span style={{ color: pClr, fontWeight: 600 }}>{p ? personDisplayName(p, 'short') : T('بدون مشغّل', 'unattributed')}</span>
+                      {isFailed && <span style={{ marginInlineStart: 8, fontSize: 9.5, padding: '1px 6px', borderRadius: 5, background: 'rgba(239,68,68,.15)', color: '#ef4444', fontWeight: 600, border: '1px solid rgba(239,68,68,.3)' }}>{T('فشلت', 'failed')}</span>}
+                      {isRunning && <span style={{ marginInlineStart: 8, fontSize: 9.5, padding: '1px 6px', borderRadius: 5, background: 'rgba(245,158,11,.15)', color: '#f59e0b', fontWeight: 600, border: '1px solid rgba(245,158,11,.3)' }}>{T('قيد التشغيل', 'running')}</span>}
                     </div>
                     <div style={{ fontSize: 10, color: 'var(--tx4)', marginTop: 2, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontFamily: 'ui-monospace, monospace' }}>{fmtRelative(r.started_at, lang)}</span>
@@ -714,15 +714,15 @@ function SyncActivitiesCard({ runs, changes, sources, persons, T, lang }) {
                       <span style={{ direction: 'ltr' }}>{r.records_fetched || 0} {T('سجل', 'records')}</span>
                       {runChanges.length > 0 && (<>
                         <span style={{ opacity: .4 }}>·</span>
-                        <span style={{ color: C.gold, fontWeight: 700 }}>{runChanges.length} {T('تغيير', 'changes')}</span>
+                        <span style={{ color: C.gold, fontWeight: 600 }}>{runChanges.length} {T('تغيير', 'changes')}</span>
                       </>)}
                     </div>
                   </div>
                   {hasDiffs && (
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                      {added > 0 && <span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 999, background: 'rgba(34,197,94,.12)', color: '#22c55e', fontWeight: 800, border: '1px solid rgba(34,197,94,.3)' }}>+{added}</span>}
-                      {modified > 0 && <span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,158,11,.12)', color: '#f59e0b', fontWeight: 800, border: '1px solid rgba(245,158,11,.3)' }}>✎{modified}</span>}
-                      {removed > 0 && <span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.12)', color: '#ef4444', fontWeight: 800, border: '1px solid rgba(239,68,68,.3)' }}>−{removed}</span>}
+                      {added > 0 && <span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 999, background: 'rgba(34,197,94,.12)', color: '#22c55e', fontWeight: 600, border: '1px solid rgba(34,197,94,.3)' }}>+{added}</span>}
+                      {modified > 0 && <span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,158,11,.12)', color: '#f59e0b', fontWeight: 600, border: '1px solid rgba(245,158,11,.3)' }}>✎{modified}</span>}
+                      {removed > 0 && <span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.12)', color: '#ef4444', fontWeight: 600, border: '1px solid rgba(239,68,68,.3)' }}>−{removed}</span>}
                     </div>
                   )}
                   {canExpand && (
@@ -741,7 +741,7 @@ function SyncActivitiesCard({ runs, changes, sources, persons, T, lang }) {
                       return (
                         <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 0',
                           borderBottom: i < Math.min(runChanges.length, 30) - 1 ? '1px dashed rgba(255,255,255,.04)' : 'none' }}>
-                          <span style={{ width: 18, height: 18, borderRadius: 5, background: `${tone}1A`, color: tone, fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${tone}33`, marginTop: 1 }}>{glyph}</span>
+                          <span style={{ width: 18, height: 18, borderRadius: 5, background: `${tone}1A`, color: tone, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${tone}33`, marginTop: 1 }}>{glyph}</span>
                           <div style={{ fontSize: 11.5, color: 'var(--tx2)', lineHeight: 1.55, flex: 1, minWidth: 0 }}>
                             {changeLabel(c, T)}
                             <span style={{ color: 'var(--tx5)', fontSize: 10, marginInlineStart: 6, fontFamily: 'ui-monospace, monospace' }}>· {fmtTime(c.detected_at)}</span>
@@ -809,7 +809,7 @@ export function SyncActivitiesPage({ sb, lang }) {
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.95)', letterSpacing: '-.3px' }}>{T('الأنشطة', 'Activities')}</div>
+        <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.95)', letterSpacing: '-.3px' }}>{T('الأنشطة', 'Activities')}</div>
         <div style={{ marginTop: 8, fontSize: 13, color: 'var(--tx3)', lineHeight: 1.7, maxWidth: 720 }}>
           {T('سجل كل عمليات المزامنة والتغييرات التي حصلت في كل مصدر.', 'A log of every sync run and the changes it made, per source.')}
         </div>
@@ -919,7 +919,7 @@ function RolePersonTabs({ sb, toast, allowedRoles, T, tabs, setTabs, active, set
             <div key={p.person_id} onClick={() => setActive(p.person_id)}
               style={{ padding: '10px 16px 9px', cursor: 'pointer',
                 color: isActive ? c : 'var(--tx3)',
-                fontSize: 13, fontWeight: isActive ? 800 : 600,
+                fontSize: 13, fontWeight: isActive ? 600 : 600,
                 borderBottom: isActive ? `2px solid ${c}` : '2px solid transparent',
                 marginBottom: -1, transition: '.15s', fontFamily: F,
                 display: 'inline-flex', alignItems: 'center', gap: 7 }}>
@@ -943,7 +943,7 @@ function RolePersonTabs({ sb, toast, allowedRoles, T, tabs, setTabs, active, set
       <button onClick={openPicker} title={T('إضافة شخص', 'Add person')}
         style={{ alignSelf: 'center', height: 30, padding: '0 12px', borderRadius: 8,
           border: `1px solid ${C.gold}55`, background: `${C.gold}10`, color: C.gold,
-          fontFamily: F, fontSize: 11, fontWeight: 800, cursor: 'pointer',
+          fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer',
           display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         {T('إضافة شخص', 'Add person')}
@@ -1022,9 +1022,9 @@ function SbcDrilldown({ sb, toast, user, lang, persons, syncPersonId, onBack, fi
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/>
               </svg>
-              <span style={{ fontSize: 13, fontWeight: 800 }}>{T('تغييرات المركز السعودي للأعمال', 'SBC Changes')}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{T('تغييرات المركز السعودي للأعمال', 'SBC Changes')}</span>
               <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
-                background: `${C.gold}1A`, color: C.gold, fontWeight: 800,
+                background: `${C.gold}1A`, color: C.gold, fontWeight: 600,
                 border: `1px solid ${C.gold}40` }}>{filteredChanges.length}</span>
             </div>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -1128,7 +1128,7 @@ function GosiPanel({ T }) {
 function ComingSoonPanel({ sourceId, sourceName, onBack, T }) {
   return (
     <div style={{ padding: 40, borderRadius: 14, background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.08)', textAlign: 'center' }}>
-      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx)', marginBottom: 8 }}>{sourceName}</div>
+      <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--tx)', marginBottom: 8 }}>{sourceName}</div>
       <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{T('قيد التطوير — سيتم تفعيل المزامنة قريباً.', 'Under development — sync will be enabled soon.')}</div>
     </div>
   )

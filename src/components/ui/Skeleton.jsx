@@ -139,7 +139,7 @@ export function SkeletonList({ rows = 6 }) {
 export function LoadingBadge({ label = 'جارٍ التحميل…' }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2.4" strokeLinecap="round" style={{ animation: 'sk-spin .8s linear infinite' }}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="2.4" strokeLinecap="round" style={{ animation: 'sk-spin .8s linear infinite' }}>
         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
       </svg>
       {label}

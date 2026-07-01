@@ -8,7 +8,7 @@ import { TXN_SERVICES } from '../pages/txnServices.js'
 import { DONE_INPUTS, SELF_PARTY_DONE_SVCS } from './doneInputs.js'
 
 const C = {
-  gold: '#D4A017', goldSoft: '#e8c77a',
+  gold: '#B07D00', goldSoft: '#e8c77a',
   blue: '#5dade2', purple: '#bb8fce', cyan: '#16a085', orange: '#f39c12', gray: '#95a5a6',
   ok: '#2ecc71', warn: '#eab308', red: '#e87265',
 }
@@ -27,7 +27,7 @@ const SVC_THEME = {
   transfer:       { c: C.orange, bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',      label_en: 'Transfer' },
   iqama_renewal:  { c: C.cyan,   bg: 'rgba(22,160,133,.12)',  bd: 'rgba(22,160,133,.32)',  label_ar: 'تجديد الإقامة',  label_en: 'Iqama Renewal' },
   ajeer:          { c: C.purple, bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'عقد أجير',       label_en: 'Ajeer Contract' },
-  other:          { c: C.gold,   bg: 'rgba(212,160,23,.12)',  bd: 'rgba(212,160,23,.32)',  label_ar: 'الغرفة التجارية', label_en: 'Chamber' },
+  other:          { c: C.gold,   bg: 'rgba(176,125,0,.12)',  bd: 'rgba(176,125,0,.32)',  label_ar: 'الغرفة التجارية', label_en: 'Chamber' },
   general:        { c: C.gray,   bg: 'rgba(149,165,166,.12)', bd: 'rgba(149,165,166,.32)', label_ar: 'خدمة عامة',     label_en: 'General Service' },
 }
 const svcThemeFor = (st) => {
@@ -145,6 +145,10 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     invoiceNoLbl: { ar: 'رقم الفاتورة', en: 'Invoice No.', hi: 'चालान संख्या', ur: 'انوائس نمبر', bn: 'চালান নম্বর' },
     issueDate: { ar: 'تاريخ الإصدار', en: 'Issue Date', hi: 'जारी तिथि', ur: 'تاریخ اجرا', bn: 'ইস্যু তারিখ' },
     lastPayment: { ar: 'آخر دفعة مستلمة', en: 'Latest Payment', hi: 'अंतिम भुगतान', ur: 'آخری ادائیگی', bn: 'সর্বশেষ পেমেন্ট' },
+    todayPayment: { ar: 'دفعة اليوم', en: "Today's Collection", hi: 'आज का संग्रह', ur: 'آج کی وصولی', bn: 'আজকের আদায়' },
+    paymentsWord: { ar: 'دفعات', en: 'payments', hi: 'भुगतान', ur: 'ادائیگیاں', bn: 'পেমেন্ট' },
+    multiMethod: { ar: 'متعددة', en: 'Multiple', hi: 'विविध', ur: 'متعدد', bn: 'একাধিক' },
+    noPaymentsToday: { ar: 'لا توجد دفعات اليوم', en: 'No payments today', hi: 'आज कोई भुगतान नहीं', ur: 'آج کوئی ادائیگی نہیں', bn: 'আজ কোনো পেমেন্ট নেই' },
     against: { ar: 'مقابل', en: 'For', hi: 'के लिए', ur: 'بمقابل', bn: 'বাবদ' },
     method: { ar: 'الطريقة', en: 'Method', hi: 'तरीका', ur: 'طریقہ', bn: 'পদ্ধতি' },
     date: { ar: 'التاريخ', en: 'Date', hi: 'तारीख', ur: 'تاریخ', bn: 'তারিখ' },
@@ -370,29 +374,34 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     return (k ? lab(k) : null) || localize(it.payment_milestone) || (insts.length === 1 ? lab('singlePayment') : instOrdLabel(ord))
   }
 
-  // ── HERO: آخر دفعة (latest payment) ──
-  const lastPay = pays.length ? pays[pays.length - 1] : null
-  const heroIsRefund = !!(lastPay && Number(lastPay.amount) < 0)
-  const heroMethod = lastPay ? (localize(lastPay.payment_method) || lab('payment')) : ''
-  const activeInst =
-    insts.find(it => { const t = +it.total_amount || 0, p = +it.paid_amount || 0; return p > 0 && p < t }) ||
-    insts.slice().reverse().find(it => (+it.paid_amount || 0) > 0) ||
-    insts.find(it => (+it.paid_amount || 0) <= 0) || null
-  const heroAgainst = activeInst ? milestoneOf(activeInst, insts.indexOf(activeInst)) : ''
+  // ── HERO: دفعة اليوم (صافي المحصّل اليومي) ──
+  // يوم العمل يبدأ 5:00 فجراً بتوقيت الرياض (= 02:00 UTC): نزيح الطابع الزمني -2 ساعة ثم نأخذ تاريخ UTC،
+  // تماماً كمنطق businessDayKey في صفحة الفواتير. الاسترجاع/الإلغاء مُسجَّل كمبالغ سالبة فيُخصم تلقائياً
+  // عند الجمع — فالقيمة المعروضة هي صافي محصّل اليوم (جمعاً ونقصاً).
+  const bdayKey = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d.getTime()) ? '' : new Date(d.getTime() - 2 * 3600 * 1000).toISOString().slice(0, 10) }
+  const todayKey = bdayKey(new Date().toISOString())
+  const todayPays = pays.filter(p => p.is_valid !== false && bdayKey(p.payment_date) === todayKey)
+  const todayNet = todayPays.reduce((s, p) => s + Number(p.amount || 0), 0)
+  const todayCount = todayPays.length
+  const lastToday = todayCount ? todayPays[todayCount - 1] : null
+  const heroIsRefund = todayNet < 0
+  const methodsToday = Array.from(new Set(todayPays.map(p => localize(p.payment_method) || lab('payment')).filter(Boolean)))
+  const heroMethod = methodsToday.length > 1 ? lab('multiMethod') : (methodsToday[0] || '')
+  const heroCountSub = todayCount === 1 ? lab('singlePayment') : `${num2(nm(todayCount))} ${lab('paymentsWord')}`
   const heroBlk = `
     <div class="hero-wrap">
       <div class="svc-type"><span class="svc-name">${esc(svcName || '—')}</span>${showQty ? `<span class="svc-qty">×${esc(qty)}</span>` : ''}</div>
       <section class="hero">
       <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
       <div class="hero-main">
-        <div class="hero-eyebrow">${lab(heroIsRefund ? 'refund' : 'lastPayment')} <span class="star">★</span></div>
-        ${lastPay
-      ? `<div class="hero-amount"><span class="val">${num2(nm(Math.abs(Number(lastPay.amount || 0))))}</span><span class="cur">${curTxt}</span></div>${heroAgainst ? `<div class="hero-sub">${lab('against')} <b>${esc(heroAgainst)}</b></div>` : ''}`
-      : `<div class="hero-amount"><span class="val" style="font-size:32px">—</span></div><div class="hero-sub">${lab('noPayments')}</div>`}
+        <div class="hero-eyebrow">${lab('todayPayment')} <span class="star">★</span></div>
+        ${todayCount > 0
+      ? `<div class="hero-amount"><span class="val">${heroIsRefund ? '−' : ''}${num2(nm(Math.abs(todayNet)))}</span><span class="cur">${curTxt}</span></div><div class="hero-sub">${lab('against')} <b>${heroCountSub}</b></div>`
+      : `<div class="hero-amount"><span class="val" style="font-size:32px">—</span></div><div class="hero-sub">${lab('noPaymentsToday')}</div>`}
       </div>
       <div class="hero-side">
-        ${lastPay ? `<div class="hero-fact"><div class="k">${lab('date')}</div><div class="v">${num2(fmtD(lastPay.payment_date))}</div></div><div class="hero-fact"><div class="k">${lab('method')}</div><div class="v">${esc(heroMethod)}</div></div>` : ''}
-        <div class="hero-fact full"><div class="k">${lab(lastPay ? 'remainingAfter' : 'remaining')}</div><div class="v remain">${num2(nm(remA))} ${cur}</div></div>
+        ${todayCount > 0 ? `<div class="hero-fact"><div class="k">${lab('date')}</div><div class="v">${num2(fmtD(lastToday.payment_date))}</div></div><div class="hero-fact"><div class="k">${lab('method')}</div><div class="v">${esc(heroMethod)}</div></div>` : ''}
+        <div class="hero-fact full"><div class="k">${lab('remaining')}</div><div class="v remain">${num2(nm(remA))} ${cur}</div></div>
       </div>
     </section></div>`
 
@@ -690,7 +699,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     let inner = ''
     if (needsAcct) {
       const acctWhen = (acct === 'approved' || acct === 'rejected') ? whenTxt(sr?.accountant_at) : ''
-      const acctT = acct === 'approved' ? statusTag(lab('stApprovedShort'), GOLD, 'rgba(212,160,23,.10)', lab('phaseAccountant'), true, acctWhen)
+      const acctT = acct === 'approved' ? statusTag(lab('stApprovedShort'), GOLD, 'rgba(176,125,0,.10)', lab('phaseAccountant'), true, acctWhen)
         : acct === 'rejected' ? statusTag(lab('stRejectedShort'), RED, 'rgba(192,57,43,.08)', lab('phaseAccountant'), true, acctWhen)
         : statusTag(lab('stPendingShort'), BLUE, 'rgba(56,189,248,.12)', lab('phaseAccountant'), true)
       inner += `<div>${acctT}</div>`
@@ -726,7 +735,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
       // المرحلة ١
       const m1When = mod1Done ? whenTxt(sr?.completed_at) : cancelled ? whenTxt(sr?.cancelled_at) : ''
       const m1Tag = cancelled ? statusTag(lab('stCancelledShort'), RED, 'rgba(192,57,43,.08)', lab('phaseSalaryEdit'), true, m1When)
-        : mod1Done ? statusTag(lab('salaryEditedNew'), GOLD, 'rgba(212,160,23,.10)', lab('phaseSalaryEdit'), true, m1When)
+        : mod1Done ? statusTag(lab('salaryEditedNew'), GOLD, 'rgba(176,125,0,.10)', lab('phaseSalaryEdit'), true, m1When)
         : statusTag(lab('stNew'), BLUE, 'rgba(56,189,248,.12)', lab('phaseSalaryEdit'), true)
       inner += `<div>${m1Tag}</div>`
       if (mod1Done) {
@@ -1064,8 +1073,8 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .inv-id .office-code{margin-top:7px;align-self:stretch;justify-content:center}
 .brand{display:flex;flex-direction:column;align-items:flex-start}
 .logo{width:120px;height:auto;display:block;margin-bottom:5px}
-.brand .group{font-family:'Playfair Display',serif;font-weight:700;font-size:23px;color:var(--gold);letter-spacing:.5px;direction:ltr;line-height:1.05;margin-bottom:16px}
-.brand .name-ar{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:16.5px;color:var(--gold-soft);letter-spacing:.3px;line-height:1.2}
+.brand .group{font-family:'Playfair Display',serif;font-weight:600;font-size:23px;color:var(--gold);letter-spacing:.5px;direction:ltr;line-height:1.05;margin-bottom:16px}
+.brand .name-ar{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:16.5px;color:var(--gold-soft);letter-spacing:.3px;line-height:1.2}
 .brand .name-en{font-family:'Reem Kufi',sans-serif;font-weight:500;font-size:11px;color:#9b9482;letter-spacing:2.2px;margin-top:6px}
 .brand .meta{margin-top:auto;padding-top:10px;font-size:12px;color:#d8d2c2;line-height:1.45}
 .brand .meta .ar{display:block}
@@ -1076,15 +1085,15 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .inv-id .tag-en{font-size:9.5px;letter-spacing:3px;color:#9b9482;display:block;margin-top:1px}
 .inv-id .no-box{margin-top:7px;border:1px solid var(--gold);background:rgba(212,175,55,.07);padding:6px 14px;display:block;text-align:center}
 .inv-id .no-lbl{font-size:9.5px;color:#b9b09a;letter-spacing:1.5px;display:block;text-align:left}
-.inv-id .no-val{font-family:'Reem Kufi',sans-serif;font-size:18px;color:var(--gold);font-weight:700}
+.inv-id .no-val{font-family:'Reem Kufi',sans-serif;font-size:18px;color:var(--gold);font-weight:600}
 .inv-id .date-line{margin-top:6px;font-size:10.5px;color:#cfc8b6}
-.inv-id .date-line .num{color:#fff;font-weight:700}
+.inv-id .date-line .num{color:#fff;font-weight:600}
 .office-code{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:4px 14px;border:1px solid var(--gold);background:rgba(212,175,55,.08);color:var(--gold-soft);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;letter-spacing:1px}
-.office-code .num{color:var(--gold);font-weight:700;font-size:13.5px}
+.office-code .num{color:var(--gold);font-weight:600;font-size:13.5px}
 .hero-wrap{padding:3.5mm 14mm 0}
 .svc-type{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:3.5mm}
-.svc-type .svc-name{font-family:'Reem Kufi',sans-serif;font-size:24px;font-weight:700;color:var(--charcoal);letter-spacing:.3px}
-.svc-type .svc-qty{font-family:'Reem Kufi',sans-serif;font-size:13.5px;font-weight:700;color:var(--gold);background:var(--charcoal);padding:2px 10px}
+.svc-type .svc-name{font-family:'Reem Kufi',sans-serif;font-size:24px;font-weight:600;color:var(--charcoal);letter-spacing:.3px}
+.svc-type .svc-qty{font-family:'Reem Kufi',sans-serif;font-size:13.5px;font-weight:600;color:var(--gold);background:var(--charcoal);padding:2px 10px}
 .hero{background:linear-gradient(140deg,#1c1810 0%,#14110b 60%,#0c0904 100%);color:#fff;position:relative;padding:4mm 8mm 3.5mm;display:flex;gap:8mm;align-items:stretch;border:1px solid #2c2517}
 .hero::before{content:"";position:absolute;inset:0;border:1px solid rgba(212,175,55,.32);margin:5px;pointer-events:none}
 .hero .corner{position:absolute;width:20px;height:20px;z-index:2}
@@ -1093,27 +1102,27 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .hero .corner.bl{bottom:0;right:0;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold)}
 .hero .corner.br{bottom:0;left:0;border-bottom:2px solid var(--gold);border-left:2px solid var(--gold)}
 .hero-main{flex:0 0 auto;min-width:72mm;position:relative;z-index:1}
-.hero-eyebrow{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:15.5px;letter-spacing:.5px;color:var(--gold-soft)}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:15.5px;letter-spacing:.5px;color:var(--gold-soft)}
 .hero-eyebrow .star{color:var(--gold);font-size:14.5px}
 .hero-eyebrow .en{font-family:'Reem Kufi',sans-serif;font-size:9.5px;letter-spacing:2.5px;color:#8d856f}
 .hero-amount{display:flex;align-items:baseline;gap:9px;margin-top:3px}
-.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:42px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:42px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
 .hero-amount .cur{font-size:19px;color:var(--gold-soft);font-weight:500;font-family:'Reem Kufi',sans-serif}
 .riyal{margin-inline-start:5px;white-space:nowrap}
 .flag{width:21px;height:14px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.18);vertical-align:middle;margin-inline-start:7px}
 .nat-txt{font-size:11px;color:var(--gold-deep);font-weight:600;margin-inline-start:6px}
 .hero-sub{margin-top:5px;font-size:11px;color:#cdc6b4}
-.hero-sub b{color:#fff;font-weight:700}
+.hero-sub b{color:#fff;font-weight:600}
 .hero-side{flex:1;position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;align-content:center;border-inline-start:1px solid rgba(212,175,55,.25);padding-inline-start:8mm;margin-inline-start:2mm}
 .hero-fact{padding:4px 10px 4px 0}
 .hero-fact .k{font-size:10.5px;color:var(--gold-soft);letter-spacing:1.2px;font-family:'Reem Kufi',sans-serif;font-weight:600}
-.hero-fact .v{font-size:14px;color:#fff;font-weight:700;margin-top:2px}
+.hero-fact .v{font-size:14px;color:#fff;font-weight:600;margin-top:2px}
 .hero-fact.full{grid-column:1 / -1;border-top:1px solid rgba(255,255,255,.08);margin-top:3px;padding-top:6px}
 .hero-fact.full .k{color:var(--gold-soft);font-size:10.5px;font-weight:600}
 .hero-fact .v.remain{color:#D83A3A;font-family:'Reem Kufi',sans-serif;font-size:19px}
 .sec-title{display:flex;align-items:center;gap:9px;margin:4.5mm 0 2.5mm}
 .sec-title .bar{width:4px;height:14px;background:var(--gold)}
-.sec-title h3{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:14px;color:var(--charcoal);letter-spacing:.3px}
+.sec-title h3{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:14px;color:var(--charcoal);letter-spacing:.3px}
 .sec-title .ln{flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--hair))}
 [dir=ltr] .sec-title .ln{background:linear-gradient(90deg,var(--hair),transparent)}
 .sec-title .en{font-size:9.5px;letter-spacing:2px;color:#a99a6c;font-family:'Reem Kufi',sans-serif}
@@ -1128,40 +1137,40 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .status-when{margin-inline-start:auto;font-size:9.5px;font-weight:600;opacity:.85}
 /* الشارتان تبدآن من نفس الحافّة وبعرض متساوٍ (عموديًّا) — stretch يوحّد عرضهما. */
 .status-stack{display:inline-flex;flex-direction:column;gap:4px;align-items:stretch;flex-shrink:0}
-.phase-chip{font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.05);opacity:.9}
+.phase-chip{font-size:8.5px;font-weight:600;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.05);opacity:.9}
 .card h4{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;color:var(--gold-deep);margin-bottom:2.5mm;letter-spacing:.3px;display:flex;justify-content:flex-start;align-items:center}
 .card h4 .en{font-size:9px;letter-spacing:1.5px;color:#b3a576;font-weight:400}
 .kv{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;border-bottom:1px dotted #ece5d3}
 .kv:last-child{border-bottom:0}
 .kv .k{color:var(--ink-soft);font-size:11px;white-space:nowrap}
 .kv .v{color:var(--ink);font-weight:500;font-size:11.5px;text-align:end}
-.kv .v.strong{font-weight:700}
+.kv .v.strong{font-weight:600}
 .est-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 7mm}
 .service-row{display:flex;justify-content:space-between;align-items:center}
 .service-name{font-family:'Reem Kufi',sans-serif;font-size:14.5px;color:var(--charcoal);font-weight:600}
 .service-en{font-size:9.5px;color:#a99a6c;letter-spacing:1px;margin-top:1px}
-.qty-badge{background:var(--charcoal);color:var(--gold);font-family:'Reem Kufi',sans-serif;font-weight:700;padding:5px 14px;font-size:14px;display:flex;align-items:center;gap:7px}
+.qty-badge{background:var(--charcoal);color:var(--gold);font-family:'Reem Kufi',sans-serif;font-weight:600;padding:5px 14px;font-size:14px;display:flex;align-items:center;gap:7px}
 .qty-badge .lbl{font-size:9.5px;color:#c9bf9f;font-weight:400;letter-spacing:1px}
 .fd{margin-top:1mm}
 .fd-file{margin-bottom:2mm}
 .fd-flabel{display:flex;justify-content:space-between;align-items:baseline;font-family:'Reem Kufi',sans-serif;font-size:11.5px;color:var(--gold-deep);font-weight:600;margin-bottom:1mm}
 .fd-count{font-size:9.5px;color:#a99a6c}
 .fd-item{display:flex;justify-content:space-between;font-size:11px;color:var(--ink);padding:1px 0}
-.fd-x{font-weight:700;direction:ltr}
+.fd-x{font-weight:600;direction:ltr}
 .fd-v{padding:2mm 0 0;margin-top:1.5mm;border-top:1px dotted #ece5d3}
 .fd-v:first-child{border-top:0;margin-top:0.5mm}
 .fd-vhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:1.5mm}
-.fd-vname{font-size:11.5px;color:var(--ink);font-weight:700}
+.fd-vname{font-size:11.5px;color:var(--ink);font-weight:600}
 .fd-vsub{font-size:10px;color:#6b6048;font-weight:600}
-.fd-worker{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink);font-weight:700;margin-bottom:1.5mm}
+.fd-worker{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink);font-weight:600;margin-bottom:1.5mm}
 .fd-dot{width:5px;height:5px;border-radius:50%;background:var(--gold-deep);flex-shrink:0}
 .fd-grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}
 .fd-cell{background:#fff;padding:1.5mm 2.5mm}
 .fd-cell-k{font-size:8.5px;color:#a99a6c;margin-bottom:1px}
 .fd-cell-v{font-size:11px;color:var(--ink);font-weight:600;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
-.fd-tag{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:700;padding:3px 10px;letter-spacing:.2px;line-height:1.5;white-space:nowrap;flex-shrink:0;border-inline-start-width:3px;border-inline-start-style:solid}
+.fd-tag{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:600;padding:3px 10px;letter-spacing:.2px;line-height:1.5;white-space:nowrap;flex-shrink:0;border-inline-start-width:3px;border-inline-start-style:solid}
 .fd-tdot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
-.fd-tchk{font-weight:800;font-size:10.5px}
+.fd-tchk{font-weight:600;font-size:10.5px}
 .fd-tag.ok{color:var(--ok);background:var(--ok-bg);border-inline-start-color:var(--ok)}
 .fd-tag.visa{color:var(--warn);background:var(--warn-bg);border-inline-start-color:var(--warn)}
 .fd-tag.pending{color:#1f7bc4;background:#e6f1fb;border-inline-start-color:#1f7bc4}
@@ -1175,7 +1184,7 @@ tbody td.l{text-align:end}
 tbody tr:nth-child(even){background:#faf7ee}
 tbody td .milestone{font-weight:500}
 tbody td .stage{font-family:'Reem Kufi',sans-serif;font-size:10px;color:var(--gold-deep);letter-spacing:.3px}
-td .amt{font-weight:700}
+td .amt{font-weight:600}
 .pill{display:inline-block;font-family:'Reem Kufi',sans-serif;font-weight:500;font-size:10px;padding:2.5px 9px;border:1px solid transparent;letter-spacing:.3px;white-space:nowrap}
 .pill.ok{background:var(--ok-bg);color:var(--ok);border-color:#bcdcc7}
 .pill.partial{background:var(--warn-bg);color:var(--warn);border-color:#e6cf8f}
@@ -1186,16 +1195,16 @@ td .amt{font-weight:700}
 .latest-tag.no{background:var(--no);color:#fff}
 .price-summary{display:grid;grid-template-columns:1.25fr 1fr;gap:6mm;align-items:start}
 .price-table tbody td{font-size:11.5px}
-.price-table .total-row td{background:var(--charcoal);color:var(--gold);font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:14px;border-bottom:0}
+.price-table .total-row td{background:var(--charcoal);color:var(--gold);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:14px;border-bottom:0}
 .price-table .total-row td .num{color:var(--gold-soft)}
-.price-table .sub-row td{background:var(--gold-faint);color:var(--gold-deep);font-weight:700;font-size:12.5px}
+.price-table .sub-row td{background:var(--gold-faint);color:var(--gold-deep);font-weight:600;font-size:12.5px}
 .price-table .sub-row td .num{color:var(--gold-deep)}
-.price-table .disc-row td{color:var(--ok);font-weight:700}
+.price-table .disc-row td{color:var(--ok);font-weight:600}
 .price-table .disc-row td .num{color:var(--ok)}
 .summary-card{border:1px solid var(--charcoal);background:linear-gradient(160deg,#1c1810,#14110b);color:#fff;padding:3mm 5mm}
 .summary-card .sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.09)}
 .summary-card .sum-row .k{font-size:11.5px;color:#c9c0aa;font-family:'Reem Kufi',sans-serif}
-.summary-card .sum-row .v{font-size:14.5px;font-weight:700;color:#E6B43C}
+.summary-card .sum-row .v{font-size:14.5px;font-weight:600;color:#E6B43C}
 .summary-card .sum-row.paid .v{color:#2FA85A}
 .summary-card .sum-row.paid .k{color:#2FA85A}
 .summary-card .sum-row.remain{border-bottom:0;margin-top:1px;padding-top:5px;border-top:1.5px solid var(--gold)}
@@ -1225,20 +1234,20 @@ td .amt{font-weight:700}
 .mini-head::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2.5px;background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-deep))}
 .mini-head .l-side{display:flex;align-items:center;gap:11px}
 .mini-head .logo{width:78px;margin-bottom:0}
-.mini-head .mh-name{font-family:'Reem Kufi',sans-serif;font-weight:700;color:var(--gold);font-size:14.5px}
+.mini-head .mh-name{font-family:'Reem Kufi',sans-serif;font-weight:600;color:var(--gold);font-size:14.5px}
 .mini-head .mh-en{font-size:9px;color:#9b9482;letter-spacing:2px}
 .mini-head .mh-inv{text-align:left}
 .mini-head .mh-inv .l{font-size:9.5px;color:#b9b09a;letter-spacing:1px}
-.mini-head .mh-inv .v{font-family:'Reem Kufi',sans-serif;color:var(--gold);font-weight:700;font-size:14.5px}
+.mini-head .mh-inv .v{font-family:'Reem Kufi',sans-serif;color:var(--gold);font-weight:600;font-size:14.5px}
 .page-num{text-align:center;font-size:9.5px;color:#a99a6c;letter-spacing:1px;padding:5mm 14mm 7mm}
 .page-num .kufi{color:var(--gold-deep)}
-.cancel-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:120px;font-weight:700;color:rgba(154,47,47,.10);letter-spacing:8px;white-space:nowrap;pointer-events:none;z-index:5}
-.paid-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:96px;font-weight:700;color:rgba(28,122,74,.10);letter-spacing:6px;white-space:nowrap;pointer-events:none;z-index:5}
+.cancel-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:120px;font-weight:600;color:rgba(154,47,47,.10);letter-spacing:8px;white-space:nowrap;pointer-events:none;z-index:5}
+.paid-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:96px;font-weight:600;color:rgba(28,122,74,.10);letter-spacing:6px;white-space:nowrap;pointer-events:none;z-index:5}
 .zero-banner{border:1.4px solid var(--hair);border-radius:11px;overflow:hidden;display:flex;align-items:stretch;background:#fff}
 .zero-banner .zb-left{background:var(--charcoal);padding:5mm 7mm;display:flex;align-items:center;justify-content:center;text-align:center;min-width:46mm}
-.zero-banner .zb-badge{font-family:'Reem Kufi',sans-serif;font-weight:700;font-size:15px;letter-spacing:1px;color:var(--gold)}
+.zero-banner .zb-badge{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:15px;letter-spacing:1px;color:var(--gold)}
 .zero-banner .zb-right{flex:1;padding:5mm 7mm;display:flex;flex-direction:column;justify-content:center}
-.zero-banner .zb-svc{font-family:'Reem Kufi',sans-serif;font-size:17px;font-weight:700;color:var(--charcoal);margin-bottom:2mm}
+.zero-banner .zb-svc{font-family:'Reem Kufi',sans-serif;font-size:17px;font-weight:600;color:var(--charcoal);margin-bottom:2mm}
 .zero-banner .zb-note{font-size:11px;color:var(--ink-soft);line-height:1.55}
 @media print{html,body{background:#fff}.page{box-shadow:none;margin:0}.page+.page{margin-top:0}}
 </style></head><body>${isSupplierPayroll ? onePageBody : twoPageBody}

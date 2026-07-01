@@ -30,7 +30,7 @@ function body({ personId, syncPersonId }) {
     let d = document.getElementById('_jisr_nafath_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_nafath_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#D4A017;padding:14px 20px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:rtl;text-align:right;border:1px solid rgba(212,160,23,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:14px 20px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
     if (color) d.style.color = color;

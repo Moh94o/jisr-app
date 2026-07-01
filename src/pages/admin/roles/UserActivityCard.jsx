@@ -7,7 +7,7 @@ import * as userProfileService from '../../../services/userProfileService.js'
 import { Modal, ModalSection, ScrollBox, InfoRow, InfoGrid, C } from '../../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
-const GOLD = '#D4A017'
+const GOLD = '#B07D00'
 const GOLD_SOFT = '#e8c77a'
 
 const TONE = {
@@ -67,11 +67,11 @@ const FilterSelect = ({ label, value, onChange, options }) => {
           border: `1px solid ${active ? GOLD + '55' : 'rgba(255,255,255,.08)'}`,
           background: active ? `${GOLD}10` : 'rgba(0,0,0,.18)',
           color: active ? GOLD_SOFT : 'var(--tx2)',
-          fontFamily: F, fontSize: 11, fontWeight: 700,
+          fontFamily: F, fontSize: 11, fontWeight: 600,
           cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
           transition: '.15s',
         }}>
-        {label}: <strong style={{ fontWeight: 800 }}>{selected?.label || 'الكل'}</strong>
+        {label}: <strong style={{ fontWeight: 600 }}>{selected?.label || 'الكل'}</strong>
         <ChevronDown size={11} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: '.15s' }} />
       </button>
       {open && (
@@ -87,7 +87,7 @@ const FilterSelect = ({ label, value, onChange, options }) => {
               <div key={String(o.value)} onClick={() => { onChange(o.value); setOpen(false) }}
                 style={{
                   padding: '7px 10px', borderRadius: 6, cursor: 'pointer',
-                  fontSize: 11.5, fontWeight: 700,
+                  fontSize: 11.5, fontWeight: 600,
                   color: sel ? GOLD_SOFT : 'rgba(255,255,255,.85)',
                   background: sel ? `${GOLD}14` : 'transparent',
                   transition: '.12s',
@@ -137,14 +137,14 @@ const TimelineItem = ({ row, isLast, onOpen }) => {
           border: '1px solid rgba(255,255,255,.04)',
           transition: '.15s',
         }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,160,23,.04)'; e.currentTarget.style.borderColor = `${GOLD}22` }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.04)'; e.currentTarget.style.borderColor = `${GOLD}22` }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.04)' }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx)', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.5 }}>
             {row.description || `${row.action_label_ar || row.action} — ${row.entity_label_ar || ''}`}
           </div>
           <div style={{
             marginTop: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
-            fontSize: 10.5, fontWeight: 700, color: 'var(--tx5)',
+            fontSize: 10.5, fontWeight: 600, color: 'var(--tx5)',
           }}>
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -367,7 +367,7 @@ export default function UserActivityCard({ userId, toast }) {
           borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         }}>
           <Activity size={22} color={GOLD} style={{ opacity: .5 }} />
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx4)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx4)' }}>
             لا يوجد نشاط مسجّل
           </div>
         </div>
@@ -388,7 +388,7 @@ export default function UserActivityCard({ userId, toast }) {
             </div>
           )}
           {exhausted && items.length > 0 && (
-            <div style={{ padding: 12, textAlign: 'center', fontSize: 10.5, color: 'var(--tx5)', fontWeight: 700 }}>
+            <div style={{ padding: 12, textAlign: 'center', fontSize: 10.5, color: 'var(--tx5)', fontWeight: 600 }}>
               — نهاية السجل —
             </div>
           )}

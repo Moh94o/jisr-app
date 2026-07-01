@@ -22,6 +22,8 @@ const INVOICE_SELECT = `
   status:status_id(code,value_ar,value_en),
   branch:branch_id(id,branch_code,phone,city:city_id(name_ar)),
   agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
+  transfer_calculation(transfer_only,deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months),
+  iqama_renewal_calculation(deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months),
   service_request:service_request_id(
     id, request_ref_no, request_date, quantity,
     status:status_id(code,value_ar,value_en),

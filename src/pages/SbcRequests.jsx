@@ -3,10 +3,10 @@ import BackButton from '../components/BackButton'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
-  gold: '#D4A017', ok: '#22c55e', warn: '#f59e0b', red: '#ef4444',
+  gold: '#B07D00', ok: '#22c55e', warn: '#f59e0b', red: '#ef4444',
   blue: '#3b82f6', cyan: '#06b6d4', purple: '#a78bfa', teal: '#16a085',
   zatca: '#0f766e', spl: '#06b6d4', chamber: '#0ea5e9', sca: '#f59e0b',
-  hrsd: '#16a085', moj: '#8b5cf6', mc: '#D4A017', gosi: '#22c55e',
+  hrsd: '#16a085', moj: '#8b5cf6', mc: '#B07D00', gosi: '#22c55e',
 }
 
 const cardChrome = {
@@ -21,7 +21,7 @@ const cardHeader = {
   padding: '12px 22px',
   borderBottom: '1px solid var(--bd)',
 }
-const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 700, letterSpacing: '.2px' }
+const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }
 
 const fmtDate = (s) => {
   if (!s) return '—'
@@ -56,7 +56,7 @@ function CopyableNumber({ value, onToast, copyLabel }) {
   }
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
-      <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--tx)', fontWeight: 800 }}>{value}</span>
+      <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--tx)', fontWeight: 600 }}>{value}</span>
       <button type="button" onClick={onCopy} title={copyLabel || 'Copy'} style={{ width: 18, height: 18, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, transition: 'color .15s' }}
         onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
         onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'var(--tx4)' }}>
@@ -86,7 +86,7 @@ function AuthorityCard({ ar, en, num, color, statusAr, statusEn, bucket, lang, o
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tx)', lineHeight: 1.3 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.3 }}>
           {isAr ? ar : (en || ar)}
         </div>
       </div>
@@ -192,22 +192,22 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.gold, letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 6 }}>
                   {T(detail.service_name_ar, detail.service_name_en) || T('طلب', 'Request')}
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--tx)' }}>
+                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)' }}>
                   {detail.mc_company_name || detail.request_reference || '—'}
                 </div>
                 <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 12, fontSize: 12 }}>
-                  <div><span style={{ color: 'var(--tx5)' }}>{T('رقم الطلب', 'Request no.')} </span><span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: 'var(--tx)' }}>{detail.request_reference || '—'}</span></div>
-                  {detail.cr_national_number && <div><span style={{ color: 'var(--tx5)' }}>{T('الرقم الموحد', 'Unified no.')} </span><span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: 'var(--tx)' }}>{detail.cr_national_number}</span></div>}
-                  {detail.company_type_ar && <div><span style={{ color: 'var(--tx5)' }}>{T('نوع الطلب', 'Type')} </span><span style={{ fontWeight: 700, color: 'var(--tx)' }}>{isAr ? detail.company_type_ar : (detail.company_type_en || detail.company_type_ar)}</span></div>}
-                  {detail.creation_time && <div><span style={{ color: 'var(--tx5)' }}>{T('تاريخ', 'Date')} </span><span style={{ fontWeight: 700, color: 'var(--tx)' }}>{fmtDate(detail.creation_time)}</span></div>}
+                  <div><span style={{ color: 'var(--tx5)' }}>{T('رقم الطلب', 'Request no.')} </span><span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 600, color: 'var(--tx)' }}>{detail.request_reference || '—'}</span></div>
+                  {detail.cr_national_number && <div><span style={{ color: 'var(--tx5)' }}>{T('الرقم الموحد', 'Unified no.')} </span><span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 600, color: 'var(--tx)' }}>{detail.cr_national_number}</span></div>}
+                  {detail.company_type_ar && <div><span style={{ color: 'var(--tx5)' }}>{T('نوع الطلب', 'Type')} </span><span style={{ fontWeight: 600, color: 'var(--tx)' }}>{isAr ? detail.company_type_ar : (detail.company_type_en || detail.company_type_ar)}</span></div>}
+                  {detail.creation_time && <div><span style={{ color: 'var(--tx5)' }}>{T('تاريخ', 'Date')} </span><span style={{ fontWeight: 600, color: 'var(--tx)' }}>{fmtDate(detail.creation_time)}</span></div>}
                 </div>
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: theme.bg, border: '1px solid ' + theme.border }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme.fg, boxShadow: `0 0 8px ${theme.fg}aa` }} />
-                <span style={{ fontSize: 13, fontWeight: 800, color: theme.fg }}>{isAr ? (detail.status_name_ar || detail.status_name_en) : (detail.status_name_en || detail.status_name_ar)}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: theme.fg }}>{isAr ? (detail.status_name_ar || detail.status_name_en) : (detail.status_name_en || detail.status_name_ar)}</span>
               </div>
             </div>
           </div>
@@ -218,7 +218,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok }} />
               <span style={cardTitle}>{T('خدمات تم تسجيلكم بها · مكتمل', 'Registered · Completed')}</span>
-              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.ok, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: 'rgba(34,197,94,.14)' }}>{done.length}</span>
+              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.ok, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(34,197,94,.14)' }}>{done.length}</span>
             </div>
             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
               {done.map(a => <AuthorityCard key={a.slot} {...a} lang={lang} onCopy={toast} />)}
@@ -231,7 +231,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.warn }} />
               <span style={cardTitle}>{T('جاري المعالجة', 'Under Processing')}</span>
-              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.warn, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: 'rgba(245,158,11,.14)' }}>{processing.length}</span>
+              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.warn, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(245,158,11,.14)' }}>{processing.length}</span>
             </div>
             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
               {processing.map(a => <AuthorityCard key={a.slot} {...a} lang={lang} onCopy={toast} />)}
@@ -260,7 +260,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
             <div style={{ padding: '14px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 12, color: 'var(--tx5)' }}>{T('رابط بوابة أعمالي', 'Aamaly portal link')}</span>
               <a href={detail.mc_aamaly_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 12, fontWeight: 700, color: C.gold, textDecoration: 'none', padding: '6px 14px', borderRadius: 8, background: 'rgba(212,160,23,.1)', border: '1px solid rgba(212,160,23,.3)' }}>
+                style={{ fontSize: 12, fontWeight: 600, color: C.gold, textDecoration: 'none', padding: '6px 14px', borderRadius: 8, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.3)' }}>
                 {T('فتح', 'Open')}
               </a>
             </div>
@@ -275,7 +275,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
     <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--tx)' }}>{T('طلبات SBC', 'SBC Requests')}</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--tx)' }}>{T('طلبات SBC', 'SBC Requests')}</h2>
           <div style={{ fontSize: 11.5, color: 'var(--tx5)', marginTop: 4 }}>{T('متابعة حالة الملفات لدى الجهات', 'Track sub-service registration progress')}</div>
         </div>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder={T('بحث برقم الطلب أو اسم الشركة...', 'Search by request no. or company...')}
@@ -292,9 +292,9 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
           const active = statusFilter === k
           return (
             <button key={k} onClick={() => setStatusFilter(k)}
-              style={{ height: 36, padding: '0 14px', borderRadius: 10, background: active ? 'rgba(212,160,23,.14)' : 'var(--inputBg)', border: '1px solid ' + (active ? 'rgba(212,160,23,.35)' : 'var(--bd)'), color: active ? C.gold : 'var(--tx2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ height: 36, padding: '0 14px', borderRadius: 10, background: active ? 'rgba(176,125,0,.14)' : 'var(--inputBg)', border: '1px solid ' + (active ? 'rgba(176,125,0,.35)' : 'var(--bd)'), color: active ? C.gold : 'var(--tx2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               {l}
-              <span style={{ fontSize: 10.5, color: active ? C.gold : 'var(--tx5)', fontWeight: 800 }}>{n}</span>
+              <span style={{ fontSize: 10.5, color: active ? C.gold : 'var(--tx5)', fontWeight: 600 }}>{n}</span>
             </button>
           )
         })}
@@ -304,7 +304,7 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
       {err && <div style={{ padding: 14, color: C.red, fontSize: 12 }}>{err}</div>}
       {!loading && filtered.length === 0 && (
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx5)', background: 'var(--bd2)', borderRadius: 12, border: '1px dashed var(--bd)' }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>{T('لا توجد طلبات', 'No requests')}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{T('لا توجد طلبات', 'No requests')}</div>
           <div style={{ fontSize: 11.5 }}>{T('شغّل مزامنة SBC لجلب طلباتك من البوابة', 'Run an SBC sync to fetch your portal requests')}</div>
         </div>
       )}
@@ -319,15 +319,15 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
           return (
             <div key={r.request_uuid} onClick={() => setDetail(r)}
               style={{ ...cardChrome, cursor: 'pointer', transition: '.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,160,23,.35)' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.35)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
               <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--bd)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 10.5, color: C.gold, fontWeight: 700, letterSpacing: '.3px', marginBottom: 4, textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: 10.5, color: C.gold, fontWeight: 600, letterSpacing: '.3px', marginBottom: 4, textTransform: 'uppercase' }}>
                       {isAr ? (r.service_name_ar || r.service_name_en) : (r.service_name_en || r.service_name_ar)}
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.mc_company_name || r.request_reference || '—'}
                     </div>
                     <div style={{ fontSize: 10.5, color: 'var(--tx5)', marginTop: 4, fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>
@@ -336,14 +336,14 @@ export default function SbcRequests({ sb, toast, lang, personFilter }) {
                   </div>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: theme.bg, border: '1px solid ' + theme.border, whiteSpace: 'nowrap' }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: theme.fg }} />
-                    <span style={{ fontSize: 10.5, fontWeight: 800, color: theme.fg }}>{isAr ? (r.status_name_ar || r.status_name_en) : (r.status_name_en || r.status_name_ar)}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.fg }}>{isAr ? (r.status_name_ar || r.status_name_en) : (r.status_name_en || r.status_name_ar)}</span>
                   </span>
                 </div>
               </div>
               <div style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11.5 }}>
                 <div style={{ display: 'flex', gap: 12 }}>
-                  <span style={{ color: C.ok, fontWeight: 700 }}>● {done} {T('مكتمل', 'done')}</span>
-                  {proc > 0 && <span style={{ color: C.warn, fontWeight: 700 }}>● {proc} {T('جاري', 'processing')}</span>}
+                  <span style={{ color: C.ok, fontWeight: 600 }}>● {done} {T('مكتمل', 'done')}</span>
+                  {proc > 0 && <span style={{ color: C.warn, fontWeight: 600 }}>● {proc} {T('جاري', 'processing')}</span>}
                 </div>
                 <span style={{ color: 'var(--tx5)' }}>{fmtDate(r.creation_time)}</span>
               </div>
