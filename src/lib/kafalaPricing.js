@@ -15,6 +15,9 @@ export const KAFALA_DEFAULTS={
   iqamaOfficeDiscountEnabled:true,
   // سياسات نقل الكفالة (مطابقة للتجديد): أساس رخصة العمل · قاعدة المنتهية من مدة طويلة · وضع رسوم المكتب · الخصم
   kafalaWpBasis:'iqama',kafalaWpResetEnabled:false,kafalaWpResetAfterDays:365,kafalaWpIssuanceDays:5,kafalaOfficeFeeMode:'flat',kafalaOfficeDiscountEnabled:true,
+  // أرضية الخصم الافتراضية (سياسة الأدمن): تُملأ في نافذة تصديق نقل الكفالة وتُفرض كحدّ أدنى لرسوم المكتب بعد الخصم.
+  // 'none' بدون أرضية · 'fixed' مبلغ ثابت = kafalaFloorFixed · 'daily' سعر اليوم (officeDailyRate) × أيام التجديد.
+  kafalaFloorMode:'daily',kafalaFloorFixed:0,
   profChange:1000,profChangeFreeOccupations:['2381e970-e939-4c6b-a7a9-8862f2133d41','1b4568be-0ea5-4079-bc90-ecca71d30adb'],officeFee:6500,officeDailyRate:18.06,
   // وضع حساب رسوم المكتب لتجديد الإقامة: 'flat' سعر ثابت · 'daily' سعر اليوم × أيام التجديد
   iqamaOfficeFeeMode:'flat',
