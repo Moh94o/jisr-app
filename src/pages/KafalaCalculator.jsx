@@ -891,7 +891,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const mqLocked = !!muqeemData
   // تاريخ انتهاء الإقامة + المهنة تظهر فقط بعد أن تستقر نتيجة فحص مقيم:
   //   متاحة (ok) → عرض فقط (MqLocked) ، غير متاحة/خطأ → إدخال يدوي. أثناء idle/loading تبقى مخفية.
-  const mqResolved = muqeemFetchStatus === 'ok' || muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error'
+  const mqResolved = muqeemFetchStatus === 'ok' || muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error' || muqeemFetchStatus === 'notfound'
   const MqLocked = ({ label, value, sub, req }) => (
     <div>
       {label && <Lbl req={req}>{label}</Lbl>}
@@ -1071,11 +1071,21 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       if (data.code === 'NO_SESSION' || data.code === 'SESSION_EXPIRED' || data.code === 'SESSION_INVALID') {
         return { ok: false, code: data.code, error: data.error }
       }
-      if (!res.ok || !data.ok) return { ok: false, error: data.error || `HTTP ${res.status}` }
+      if (!res.ok || !data.ok) return { ok: false, error: data.error || `HTTP ${res.status}`, status: data.status }
       return { ok: true, result: data.result }
     } catch (e) {
       return { ok: false, error: e.message }
     }
+  }
+
+  // خريطة نتيجة الفشل إلى حالة العرض:
+  //   جلسة غير صالحة/منتهية ⇒ unavailable (يُعاد المحاولة)
+  //   رفض مقيم للرقم (HTTP 400) ⇒ notfound (لا سجل قابل للاستعلام — إقامة منتهية/غير منقولة — أدخل يدوياً)
+  //   غير ذلك ⇒ error (تعذّر الاتصال)
+  const muqeemFailStatus = (r) => {
+    if (r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID') return 'unavailable'
+    if (r.status === 400) return 'notfound'
+    return 'error'
   }
 
   // Apply the Muqeem result to the form. Muqeem does NOT return the worker name — HRSD does.
@@ -1105,10 +1115,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       setMuqeemRetry(attempt)
       const r = await queryMuqeem(iq)
       if (r.ok) { applyMuqeemToForm(r.result); setMuqeemFetchStatus('ok'); setMuqeemRetry(0); return }
-      // خطأ غير متعلّق بالجلسة (لا فائدة من التكرار)
-      if (!(r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID')) {
-        setMuqeemFetchStatus('error'); setMuqeemRetry(0); return
-      }
+      // فشل غير متعلّق بالجلسة (رفض الرقم أو خطأ) — لا فائدة من التكرار
+      const st = muqeemFailStatus(r)
+      if (st !== 'unavailable') { setMuqeemFetchStatus(st); setMuqeemRetry(0); return }
       if (attempt < MAX) await new Promise(res => setTimeout(res, GAP))
     }
     setMuqeemFetchStatus('unavailable'); setMuqeemRetry(0)
@@ -1133,10 +1142,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       if (r.ok) {
         applyMuqeemToForm(r.result)
         setMuqeemFetchStatus('ok')
-      } else if (r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID') {
-        setMuqeemFetchStatus('unavailable')
       } else {
-        setMuqeemFetchStatus('error')
+        setMuqeemFetchStatus(muqeemFailStatus(r))
       }
     }, 500)
     return () => { cancelled = true; clearTimeout(timer) }
@@ -1377,15 +1384,18 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               {(muqeemFetchStatus !== 'idle' || muqeemRetry > 0) && (() => {
                 const spinner = <span style={{ width: 10, height: 10, border: '1.7px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite', flexShrink: 0 }} />
                 const busy = muqeemRetry > 0 || muqeemFetchStatus === 'loading'
+                const isNotFound = !busy && muqeemFetchStatus === 'notfound'
                 const isErr = !busy && (muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error')
                 return (
                 <div style={{ position: 'absolute', top: -3, insetInlineEnd: 0, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 999, direction: dir, pointerEvents: 'none', transition: '.15s',
                   ...(busy ? { background: 'rgba(52,131,180,.12)', color: C.blue, border: '1px solid rgba(52,131,180,.28)' }
                     : muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046', border: '1px solid rgba(39,160,70,.28)' }
+                    : isNotFound ? { background: 'var(--bd)', color: 'var(--tx3)', border: '1px solid var(--bd)' }
                     : { background: 'rgba(214,158,46,.14)', color: '#B7791F', border: '1px solid rgba(214,158,46,.42)' }) }}>
                   {muqeemRetry > 0 && <><span>{T(`جاري إعادة المحاولة… (${muqeemRetry}/5)`,`Retrying… (${muqeemRetry}/5)`)}</span>{spinner}</>}
                   {muqeemRetry === 0 && muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span>{spinner}</>}
                   {muqeemRetry === 0 && muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
+                  {isNotFound && <><Info size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} /><span>{T('لا توجد بيانات لهذا العامل في مقيم — أدخلها يدوياً','No Muqeem record for this worker — enter manually')}</span></>}
                   {isErr && (
                     <>
                       <AlertCircle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
