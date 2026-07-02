@@ -1132,12 +1132,22 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       const payQ = sb.from('payments')
         .select('amount,is_valid,payment_method:payment_method_id(code),invoice:invoice_id(created_at,branch_id,status:status_id(code))')
         .is('deleted_at', null).gte('payment_date', start.toISOString())
-      const [{ data: created, error: e1 }, { data: pays, error: e2 }] = await Promise.all([invQ, payQ])
-      if (e1 || e2) throw (e1 || e2)
+      // الفواتير المُلغاة اليوم — بصرف النظر عن تاريخ إنشائها (يُعتمد تاريخ الإلغاء لا الإنشاء).
+      let cxlQ = sb.from('invoices')
+        .select('id,paid_amount,cancel_log,updated_at,status:status_id!inner(code)')
+        .is('deleted_at', null).eq('status.code', 'cancelled').gte('updated_at', start.toISOString())
+      if (officeScope) cxlQ = cxlQ.in('branch_id', officeScope)
+      const [{ data: created, error: e1 }, { data: pays, error: e2 }, { data: cxl, error: e3 }] = await Promise.all([invQ, payQ, cxlQ])
+      if (e1 || e2 || e3) throw (e1 || e2 || e3)
 
       // الفواتير الجديدة = المنشأة اليوم غير الملغاة (الملغاة لها سطرها الخاص أسفل الرسالة).
       const live = (created || []).filter(r => r.status?.code !== 'cancelled')
-      const cancelledRows = (created || []).filter(r => r.status?.code === 'cancelled')
+      // الملغاة اليوم = حالتها «ملغاة» وآخر قيد إلغاء في cancel_log ضمن يوم العمل (fallback: عُدِّلت اليوم).
+      const cancelledRows = (cxl || []).filter(r => {
+        const log = Array.isArray(r.cancel_log) ? r.cancel_log : []
+        const at = log.length ? log[log.length - 1]?.at : null
+        return at ? new Date(at) >= start : true
+      })
       const svcMap = new Map()
       for (const r of live) {
         const code = r.service_type?.code || 'general'
@@ -1149,9 +1159,10 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         svcMap.set(code, e)
       }
 
-      // المقبوضات: نفس منطق كروت الإحصاء — دفعات صحيحة موجبة، مستثنى منها دفعات الفواتير الملغاة.
-      const scoped = (pays || []).filter(p => p.invoice && (!officeScope || officeScope.includes(p.invoice.branch_id)) && p.invoice.status?.code !== 'cancelled')
-      const recv = scoped.filter(p => p.is_valid && Number(p.amount) > 0)
+      // دفعات اليوم ضمن قيد المكتب. المقبوضات تستثني الفواتير الملغاة (لا تُحتسب كإيراد)،
+      // أما المرتجعات فتُحتسب حتى لو أُلغيت الفاتورة (الاسترداد فعليًا حصل اليوم).
+      const officeScoped = (pays || []).filter(p => p.invoice && (!officeScope || officeScope.includes(p.invoice.branch_id)))
+      const recv = officeScoped.filter(p => p.invoice.status?.code !== 'cancelled' && p.is_valid && Number(p.amount) > 0)
       const sumOf = arr => arr.reduce((s, p) => s + Number(p.amount || 0), 0)
       const cashP = recv.filter(p => p.payment_method?.code === 'cash')
       const bankP = recv.filter(p => p.payment_method?.code === 'bank_transfer' || p.payment_method?.code === 'pos')
@@ -1159,11 +1170,11 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       const oldP = recv.filter(p => businessDayKey(p.invoice.created_at) !== todayStr)
       // مقدار الاسترداد لدفعة: دفعة صحيحة سالبة (مرتجع) أو دفعة أُبطلت (غير صحيحة).
       const refundMag = p => !p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)
-      const refundSum = scoped.reduce((s, p) => s + refundMag(p), 0)
-      const refundCnt = scoped.filter(p => !p.is_valid || Number(p.amount) < 0).length
+      const refundSum = officeScoped.reduce((s, p) => s + refundMag(p), 0)
+      const refundCnt = officeScoped.filter(p => !p.is_valid || Number(p.amount) < 0).length
       // الاسترداد موزّعاً حسب طريقة الدفع — لحساب الصافي نقدًا/تحويلات.
-      const cashRefund = scoped.filter(p => p.payment_method?.code === 'cash').reduce((s, p) => s + refundMag(p), 0)
-      const bankRefund = scoped.filter(p => p.payment_method?.code === 'bank_transfer' || p.payment_method?.code === 'pos').reduce((s, p) => s + refundMag(p), 0)
+      const cashRefund = officeScoped.filter(p => p.payment_method?.code === 'cash').reduce((s, p) => s + refundMag(p), 0)
+      const bankRefund = officeScoped.filter(p => p.payment_method?.code === 'bank_transfer' || p.payment_method?.code === 'pos').reduce((s, p) => s + refundMag(p), 0)
 
       const msg = buildDaySummaryWaMessage({
         dateStr: todayStr,
