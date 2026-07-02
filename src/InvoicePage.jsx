@@ -1076,13 +1076,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       const { active, ...f } = statFilters
       const { data: idRows, error: e1 } = await sb.rpc('search_invoice_ids', { ...f, p_limit: PAGE, p_offset: page * PAGE })
       if (!alive) return
-      if (e1) { setErr(e1.message); setLoading(false); return }
+      if (e1) { console.warn('[invoices] list load failed', e1); setErr(T('تعذّر تحميل الفواتير — حاول مرة أخرى', 'Could not load invoices — please try again')); setLoading(false); return }
       const ids = (idRows || []).map(r => r.id)
       const totalCount = (idRows && idRows.length) ? Number(idRows[0].total) : 0
       if (!ids.length) { setRows([]); setTotal(0); setLoading(false); return }
       const { data, error: e2 } = await sb.from('invoices').select(INVOICE_SELECT).in('id', ids).is('deleted_at', null)
       if (!alive) return
-      if (e2) { setErr(e2.message); setLoading(false); return }
+      if (e2) { console.warn('[invoices] detail load failed', e2); setErr(T('تعذّر تحميل الفواتير — حاول مرة أخرى', 'Could not load invoices — please try again')); setLoading(false); return }
       const pos = new Map(ids.map((id, idx) => [id, idx]))
       const sorted = (data || []).slice().sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0))
       setRows(sorted); setTotal(totalCount); setLoading(false)
