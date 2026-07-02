@@ -1172,9 +1172,11 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       const refundMag = p => !p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)
       const refundSum = officeScoped.reduce((s, p) => s + refundMag(p), 0)
       const refundCnt = officeScoped.filter(p => !p.is_valid || Number(p.amount) < 0).length
-      // الاسترداد موزّعاً حسب طريقة الدفع — لحساب الصافي نقدًا/تحويلات.
-      const cashRefund = officeScoped.filter(p => p.payment_method?.code === 'cash').reduce((s, p) => s + refundMag(p), 0)
-      const bankRefund = officeScoped.filter(p => p.payment_method?.code === 'bank_transfer' || p.payment_method?.code === 'pos').reduce((s, p) => s + refundMag(p), 0)
+
+      // «المُعاد للعميل» = المرتجعات + مبالغ الفواتير الملغاة اليوم — كلاهما فلوس نقدية تُعاد للعميل.
+      // paid_amount للفاتورة الملغاة صافٍ من أي مرتجع مُسجّل عليها (تريغر paid_amount)، فلا ازدواج بالحساب.
+      const cancelledSum = cancelledRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
+      const returnedToCustomer = refundSum + cancelledSum
 
       const msg = buildDaySummaryWaMessage({
         dateStr: todayStr,
@@ -1185,11 +1187,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         bank: { cnt: bankP.length, sum: sumOf(bankP) },
         oldPays: { cnt: oldP.length, sum: sumOf(oldP) },
         refunded: { cnt: refundCnt, sum: refundSum },
-        cancelled: { cnt: cancelledRows.length, sum: cancelledRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0) },
+        cancelled: { cnt: cancelledRows.length, sum: cancelledSum },
+        returned: { sum: returnedToCustomer },
         net: {
-          total: (sumOf(cashP) + sumOf(bankP)) - refundSum,
-          cash: sumOf(cashP) - cashRefund,
-          bank: sumOf(bankP) - bankRefund,
+          // المُعاد للعميل يُعامل كخروج نقدي (فلوس تُسلَّم للعميل نقدًا).
+          total: (sumOf(cashP) + sumOf(bankP)) - returnedToCustomer,
+          cash: sumOf(cashP) - returnedToCustomer,
+          bank: sumOf(bankP),
         },
       })
       navigator.clipboard?.writeText(msg)

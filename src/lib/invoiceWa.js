@@ -251,7 +251,7 @@ export function buildInvoiceWaMessage(inv, day = null) {
 // يُنسخ من زر الواتساب أعلى صفحة الفواتير بعد ما يخلص الموظف إرسال فواتير اليوم:
 // عدد الفواتير الجديدة + الخدمات (الكمية x النوع — المبلغ) + المقبوضات (نقد/تحويلات)
 // + المسترد والملغى. نفس أرقام كروت الإحصاء (invoice_period_stats) ونفس صيغة رسالة الفاتورة.
-export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [], cash, bank, refunded, cancelled, oldPays, net }) {
+export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [], cash, bank, refunded, cancelled, oldPays, net, returned }) {
   const cur = M.currency
   // التاريخ بالصيغة العالمية يوم-شهر-سنة
   const dateDisp = /^\d{4}-\d{2}-\d{2}$/.test(dateStr || '') ? dateStr.split('-').reverse().join('-') : dateStr
@@ -271,13 +271,20 @@ export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [],
     // دفعات اليوم على فواتير صادرة أيامًا سابقة — تُحسب ضمن المقبوضات لا ضمن الفواتير الجديدة.
     if ((oldPays?.cnt || 0) > 0) recv.push(` 💳 منها دفعات على فواتير سابقة: ${num(oldPays.sum)} ${cur} (${oldPays.cnt} ${payLbl(oldPays.cnt)})`)
   }
+  // المُعاد للعميل = مرتجعات + فواتير ملغاة — كلاهما فلوس نقدية تُسلَّم للعميل، فتُعرض معًا وتُخصم من الصافي.
+  const refundedSum = refunded?.sum || 0
+  const cancelledSum = cancelled?.sum || 0
+  const returnedTotal = returned ? (returned.sum || 0) : (refundedSum + cancelledSum)
   const neg = []
-  if ((refunded?.sum || 0) > 0) neg.push(`↩️ ${M.amount_refunded}: ${num(refunded.sum)} ${cur} (${refunded.cnt})`)
-  if ((cancelled?.cnt || 0) > 0) neg.push(`❌ فواتير ملغاة: ${cancelled.cnt} — ${num(cancelled.sum)} ${cur}`)
-  // الصافي النهائي = المقبوض − المسترد، موزّعاً نقدًا/تحويلات. يظهر متى وُجد مقبوض أو مسترد.
-  const netTotal = net ? (net.total || 0) : (receivedTotal - (refunded?.sum || 0))
+  if (returnedTotal > 0 || (cancelled?.cnt || 0) > 0) {
+    neg.push(`↩️ *المُعاد للعميل نقدًا: ${num(returnedTotal)} ${cur}*`)
+    if (refundedSum > 0) neg.push(` مرتجعات: ${num(refundedSum)} ${cur} (${refunded.cnt})`)
+    if ((cancelled?.cnt || 0) > 0) neg.push(`❌ فواتير ملغاة: ${cancelled.cnt} — ${num(cancelledSum)} ${cur}`)
+  }
+  // الصافي النهائي = المقبوض − المُعاد للعميل، موزّعاً نقدًا/تحويلات. يظهر متى وُجدت حركة.
+  const netTotal = net ? (net.total || 0) : (receivedTotal - returnedTotal)
   const netBlock = []
-  if (receivedTotal > 0 || (refunded?.sum || 0) > 0) {
+  if (receivedTotal > 0 || returnedTotal > 0) {
     netBlock.push(`🟢 *الصافي النهائي: ${num(netTotal)} ${cur}*`)
     netBlock.push(` نقدًا: ${num(net ? (net.cash || 0) : (cash?.sum || 0))} ${cur}`)
     netBlock.push(` تحويلات بنكية: ${num(net ? (net.bank || 0) : (bank?.sum || 0))} ${cur}`)
