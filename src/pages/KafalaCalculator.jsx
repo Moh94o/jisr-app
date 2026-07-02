@@ -1386,27 +1386,33 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 const busy = muqeemRetry > 0 || muqeemFetchStatus === 'loading'
                 const isNotFound = !busy && muqeemFetchStatus === 'notfound'
                 const isErr = !busy && (muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error')
+                // التاق (الحالة) وزر «إعادة الاتصال» عنصران منفصلان جنبًا إلى جنب — الزر ليس داخل التاق.
+                // يظهر الزر فقط عند انقطاع الاتصال (غير متاحة/تعذّر الاتصال)، وأثناء إعادة المحاولة (مُعطّلاً).
+                // لا يظهر عند: النجاح، الجلب الأولي، أو «لا توجد بيانات» (رفض الرقم — لا فائدة من الاتصال).
+                const showReconnect = isErr || muqeemRetry > 0
+                const iqValid = /^[12]\d{9}$/.test((f.iqama || '').trim())
+                const tagStyle = busy ? { background: 'rgba(52,131,180,.12)', color: C.blue, border: '1px solid rgba(52,131,180,.28)' }
+                  : muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046', border: '1px solid rgba(39,160,70,.28)' }
+                  : isNotFound ? { background: 'var(--bd)', color: 'var(--tx3)', border: '1px solid var(--bd)' }
+                  : { background: 'rgba(214,158,46,.14)', color: '#B7791F', border: '1px solid rgba(214,158,46,.42)' }
                 return (
-                <div style={{ position: 'absolute', top: -3, insetInlineEnd: 0, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 999, direction: dir, pointerEvents: 'none', transition: '.15s',
-                  ...(busy ? { background: 'rgba(52,131,180,.12)', color: C.blue, border: '1px solid rgba(52,131,180,.28)' }
-                    : muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046', border: '1px solid rgba(39,160,70,.28)' }
-                    : isNotFound ? { background: 'var(--bd)', color: 'var(--tx3)', border: '1px solid var(--bd)' }
-                    : { background: 'rgba(214,158,46,.14)', color: '#B7791F', border: '1px solid rgba(214,158,46,.42)' }) }}>
-                  {muqeemRetry > 0 && <><span>{T(`جاري إعادة المحاولة… (${muqeemRetry}/5)`,`Retrying… (${muqeemRetry}/5)`)}</span>{spinner}</>}
-                  {muqeemRetry === 0 && muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span>{spinner}</>}
-                  {muqeemRetry === 0 && muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
-                  {isNotFound && <><Info size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} /><span>{T('لا توجد بيانات لهذا العامل في مقيم — أدخلها يدوياً','No Muqeem record for this worker — enter manually')}</span></>}
-                  {isErr && (
-                    <>
-                      <AlertCircle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
-                      <span>{muqeemFetchStatus === 'unavailable' ? T('خدمة مقيم غير متاحة مؤقتاً','Muqeem temporarily unavailable') : T('تعذّر الاتصال بمقيم','Muqeem connection failed')}</span>
-                      <button type="button" onClick={retryMuqeem} title={T('إعادة محاولة الاتصال بمقيم','Retry Muqeem connection')}
-                        onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000'; e.currentTarget.style.borderColor = C.gold }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = 'rgba(176,125,0,.4)' }}
-                        style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, marginInlineStart: 3, padding: '4px 11px', borderRadius: 999, border: '1px solid rgba(176,125,0,.4)', background: 'rgba(176,125,0,.14)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: '.15s' }}>
-                        <RefreshCw size={11} strokeWidth={2.6} /> {T('إعادة المحاولة','Retry')}
-                      </button>
-                    </>
+                <div style={{ position: 'absolute', top: -3, insetInlineEnd: 0, display: 'inline-flex', alignItems: 'center', gap: 7, direction: dir, pointerEvents: 'none' }}>
+                  {/* ① التاق: الحالة فقط (بدون أزرار) */}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 999, transition: '.15s', ...tagStyle }}>
+                    {muqeemRetry > 0 && <><span>{T(`جاري إعادة المحاولة… (${muqeemRetry}/5)`,`Retrying… (${muqeemRetry}/5)`)}</span>{spinner}</>}
+                    {muqeemRetry === 0 && muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span>{spinner}</>}
+                    {muqeemRetry === 0 && muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
+                    {isNotFound && <><Info size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} /><span>{T('لا توجد بيانات لهذا العامل في مقيم — أدخلها يدوياً','No Muqeem record for this worker — enter manually')}</span></>}
+                    {isErr && <><AlertCircle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} /><span>{muqeemFetchStatus === 'unavailable' ? T('خدمة مقيم غير متاحة مؤقتاً','Muqeem temporarily unavailable') : T('تعذّر الاتصال بمقيم','Muqeem connection failed')}</span></>}
+                  </div>
+                  {/* ② زر «إعادة الاتصال» — عنصر مستقل بجانب التاق، دائم الظهور (يُعطَّل أثناء المحاولة) */}
+                  {showReconnect && (
+                    <button type="button" onClick={retryMuqeem} disabled={busy || !iqValid} title={T('إعادة الاتصال بمقيم','Reconnect to Muqeem')}
+                      onMouseEnter={e => { if (busy || !iqValid) return; e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000'; e.currentTarget.style.borderColor = C.gold }}
+                      onMouseLeave={e => { if (busy || !iqValid) return; e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = 'rgba(176,125,0,.4)' }}
+                      style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(176,125,0,.4)', background: 'rgba(176,125,0,.14)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: (busy || !iqValid) ? 'default' : 'pointer', opacity: (busy || !iqValid) ? 0.55 : 1, transition: '.15s', whiteSpace: 'nowrap' }}>
+                      {busy ? spinner : <RefreshCw size={11} strokeWidth={2.6} />} {T('إعادة الاتصال','Reconnect')}
+                    </button>
                   )}
                 </div>
                 )
