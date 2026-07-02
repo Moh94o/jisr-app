@@ -467,7 +467,7 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
         service_type:service_type_id(code,value_ar,value_en),
         status:status_id(code,value_ar,value_en),
         branch:branch_id(branch_code),
-        invoice:invoices(id,invoice_no,total_amount,paid_amount,remaining_amount,created_at)
+        invoice:invoices(id,invoice_no,total_amount,paid_amount,remaining_amount,created_at,status:status_id(code,value_ar,value_en))
       )
     `).eq('agent_id', agent.id).is('service_request.deleted_at', null)
       .then(({ data }) => {
@@ -486,12 +486,15 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
     .map(r => { const sr = r.service_request; const inv = sr?.invoice?.[0]; return inv ? { ...inv, service_type: sr.service_type, quantity: sr.quantity, branch: sr.branch } : null })
     .filter(Boolean)
   const openInvoice = (id) => { if (id) window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) }
-  const invTotal = invoiceRows.reduce((s, r) => s + Number(r.total_amount || 0), 0)
-  const invPaid = invoiceRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
+  // الفواتير الملغاة تُستثنى من كل الحسابات المالية والإحصاءات (تظهر في السجل فقط بختم «ملغاة»)
+  const isCancelled = (r) => (r.status?.code || '') === 'cancelled'
+  const activeInvoices = invoiceRows.filter(r => !isCancelled(r))
+  const invTotal = activeInvoices.reduce((s, r) => s + Number(r.total_amount || 0), 0)
+  const invPaid = activeInvoices.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
   const invDue = Math.max(0, invTotal - invPaid)
   const invPct = invTotal > 0 ? Math.min(100, Math.round((invPaid / invTotal) * 100)) : 0
   const invPs = payState(invTotal, invPaid)
-  const lastInvoiceIso = (() => { const ds = invoiceRows.map(r => r.created_at).filter(Boolean); return ds.length ? ds.slice().sort().slice(-1)[0] : null })()
+  const lastInvoiceIso = (() => { const ds = activeInvoices.map(r => r.created_at).filter(Boolean); return ds.length ? ds.slice().sort().slice(-1)[0] : null })()
 
   const branchCode = agent.branch?.branch_code || branches.find(b => b.id === agent.branch_id)?.branch_code
 
@@ -594,7 +597,7 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
             <div style={{ padding: '6px 22px 12px' }}>
               {[
                 { Icon: FileText, label: T('عدد الطلبات', 'Requests'), value: links === null ? '…' : num(reqCount) },
-                { Icon: Wallet, label: T('عدد الفواتير', 'Invoices'), value: links === null ? '…' : num(invoiceRows.length) },
+                { Icon: Wallet, label: T('عدد الفواتير', 'Invoices'), value: links === null ? '…' : num(activeInvoices.length) },
                 { Icon: Coins, label: T('إجمالي العمولات', 'Commissions'), value: links === null ? '…' : num(Math.round(totalCom)), color: GOLD },
                 { Icon: Coins, label: T('العمولة الافتراضية', 'Default commission'), value: Number(agent.default_commission_amount || 0) > 0 ? num(agent.default_commission_amount) : '—' },
                 { Icon: Calendar, label: T('آخر فاتورة', 'Last invoice'), value: lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—', color: GOLD },
@@ -624,14 +627,16 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
   const total = Number(invoice.total_amount || 0)
   const paid = Number(invoice.paid_amount || 0)
   const remaining = Number(invoice.remaining_amount || 0)
+  const cancelled = (invoice.status?.code || '') === 'cancelled'
   const ps = payState(total, paid)
+  const accent = cancelled ? C.red : ps.c
   const sClr = svcColor(invoice.service_type?.code)
   const invNo = noDash(invoice.invoice_no) || `#${String(invoice.id).slice(0, 8)}`
   const svcName = isAr ? invoice.service_type?.value_ar : (invoice.service_type?.value_en || invoice.service_type?.value_ar)
 
   const noBtn = (size = 13) => (
     <button type="button" onClick={() => openInvoice(invoice.id)} title={T('فتح تفاصيل الفاتورة', 'Open invoice')}
-      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: size, color: GOLD, fontFamily: 'monospace', fontWeight: 600, direction: 'ltr', textDecoration: 'underline', textUnderlineOffset: 3 }}>{invNo}</button>
+      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: size, color: cancelled ? 'var(--tx3)' : GOLD, fontFamily: 'monospace', fontWeight: 600, direction: 'ltr', textDecoration: cancelled ? 'line-through' : 'underline', textUnderlineOffset: 3, opacity: cancelled ? .85 : 1 }}>{invNo}</button>
   )
   const isVisa = (invoice.service_type?.code || '').includes('work_visa')
   const serviceChip = invoice.service_type ? (
@@ -643,7 +648,13 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
       {svcName}
     </span>
   ) : null
-  const branchChip = invoice.branch?.branch_code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: GOLD, direction: 'ltr' }}><Building2 size={10} />{invoice.branch.branch_code}</span> : null
+  const cancelChip = cancelled ? (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.red, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(192,57,43,.12)', border: `1px solid rgba(192,57,43,.35)` }}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+      {T('ملغاة', 'Cancelled')}
+    </span>
+  ) : null
+  const branchChip = invoice.branch?.branch_code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: cancelled ? 'var(--tx4)' : GOLD, direction: 'ltr' }}><Building2 size={10} />{invoice.branch.branch_code}</span> : null
   const paidLabel = <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: C.ok, fontWeight: 600 }}>{T('تم السداد بالكامل', 'Fully paid')}<Check size={11} /></span>
 
   const amtPill = (label, value, color) => (
@@ -653,23 +664,28 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
   )
 
   return (
-    <div style={{ padding: '12px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.05)' }}>
+    <div
+      onMouseEnter={e => { if (cancelled) return; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.borderColor = accent + '55'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)' }}
+      style={{ position: 'relative', padding: '13px 15px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', transition: 'transform .16s ease, border-color .16s ease, box-shadow .16s ease', overflow: 'hidden', opacity: cancelled ? .68 : 1 }}>
       <div style={{ display: 'flex' }}>
-        <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: ps.c, marginInlineEnd: 12 }} />
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: cancelled ? `repeating-linear-gradient(45deg, ${C.red}, ${C.red} 4px, transparent 4px, transparent 8px)` : accent, marginInlineEnd: 13, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 11 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>{noBtn()}<div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{serviceChip}</div></div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>{noBtn()}<div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{serviceChip}{cancelChip}</div></div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('الإجمالي', 'Total')}</span>
-              <b style={{ fontSize: 18, lineHeight: 1, color: GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</b>
+              <b style={{ fontSize: 18, lineHeight: 1, color: cancelled ? 'var(--tx3)' : GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums', textDecoration: cancelled ? 'line-through' : 'none' }}>{num(total)}</b>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             {branchChip || <span />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              {remaining > 0
-                ? <>{amtPill(T('المدفوع', 'Paid'), paid, C.ok)}{amtPill(T('المتبقي', 'Remaining'), remaining, C.red)}</>
-                : paidLabel}
+              {cancelled
+                ? <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{T('غير محتسبة', 'Not counted')}</span>
+                : remaining > 0
+                  ? <>{amtPill(T('المدفوع', 'Paid'), paid, C.ok)}{amtPill(T('المتبقي', 'Remaining'), remaining, C.red)}</>
+                  : paidLabel}
             </div>
           </div>
         </div>
