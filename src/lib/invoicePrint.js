@@ -923,7 +923,8 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
         billed = d > 0 ? mm + 1 : mm
       }
     }
-    return billed
+    // رسوم الإقامة تُباع بمضاعفات 3 أشهر — أي كسر يُقرّب لأعلى لأقرب مضاعف لـ3 (7→9، 20→21…).
+    return billed > 0 ? Math.ceil(billed / 3) * 3 : billed
   })()
   const monthSuffix = raw => {
     if (!monthsTc) return ''

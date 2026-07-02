@@ -800,17 +800,19 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   // Any residual day (even 1) rounds UP to the next full month. When iqama is still valid, bill just renewalMonths.
   // هذه هي الأشهر المحسوبة فعليًا في رسوم التجديد (تشمل أشهر التأخير) — تُعرض في ملخص التكاليف بدل الأشهر المطلوبة.
   const billedRenewalMonths = useMemo(() => {
+    // رسوم الإقامة تُباع بمضاعفات 3 أشهر — أي كسر يُقرّب لأعلى لأقرب مضاعف لـ3 (7→9، 20→21…).
+    const ceil3 = (n) => n > 0 ? Math.ceil(n / 3) * 3 : 0
     const renewalMos = parseInt(f.renewalMonths) || 0
     const exp = f.iqamaExpiry ? new Date(f.iqamaExpiry) : null
-    if (!exp || isNaN(exp)) return renewalMos
+    if (!exp || isNaN(exp)) return ceil3(renewalMos)
     const today = new Date(); today.setHours(0, 0, 0, 0)
     exp.setHours(0, 0, 0, 0)
-    if (exp >= today) return renewalMos
+    if (exp >= today) return ceil3(renewalMos)
     const end = new Date(today); end.setMonth(end.getMonth() + renewalMos)
     let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
     let d = end.getDate() - exp.getDate()
     if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
-    return d > 0 ? m + 1 : m
+    return ceil3(d > 0 ? m + 1 : m)
   }, [f.iqamaExpiry, f.renewalMonths])
   useEffect(() => {
     const renewalBase = billedRenewalMonths * (parseFloat(cfg.iqamaPerMonth) || 0)

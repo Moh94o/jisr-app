@@ -5051,7 +5051,8 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
           const renSuffix = ren > 0 ? T(` (${ren} شهر)`, ` (${ren} mo)`) : ''
           // أشهر تجديد الإقامة المحتسبة (تشمل المتأخرة) — نفس صيغة كرت التسعيرة في الحسبة.
           const billedMos = (() => { let billed = ren; const exp = tc.iqama_expiry_gregorian ? new Date(tc.iqama_expiry_gregorian) : null; if (exp && !isNaN(exp)) { const refD = tc.priced_at ? new Date(tc.priced_at) : new Date(); refD.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0); if (exp < refD) { const end = new Date(refD); end.setMonth(end.getMonth() + ren); let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth()); let d = end.getDate() - exp.getDate(); if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() } billed = d > 0 ? m + 1 : m } } return billed })()
-          const renIqamaSuffix = billedMos > 0 ? T(` (${billedMos} شهر)`, ` (${billedMos} mo)`) : ''
+          const billedMos3 = billedMos > 0 ? Math.ceil(billedMos / 3) * 3 : 0 // رسوم الإقامة بمضاعفات 3 أشهر — تقريب لأعلى
+          const renIqamaSuffix = billedMos3 > 0 ? T(` (${billedMos3} شهر)`, ` (${billedMos3} mo)`) : ''
           const lateFine = Number(tc.late_fine_amount || 0)
           const officeFeeV = Number(tc.office_fee || 0)
           const subtotalV = Number(tc.subtotal || 0)

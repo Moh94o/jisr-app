@@ -2774,7 +2774,7 @@ tc.change_profession?{fk:'new_occupation_name_ar',label:T('المهنة الجد
 const billedMos=tc.billed_renewal_months!=null?Number(tc.billed_renewal_months):(()=>{let billed=ren;const exp=tc.iqama_expiry_gregorian?new Date(tc.iqama_expiry_gregorian):null;if(exp&&!isNaN(exp)){const ref=tc.priced_at?new Date(tc.priced_at):new Date();ref.setHours(0,0,0,0);exp.setHours(0,0,0,0);if(exp<ref){const end=new Date(ref);end.setMonth(end.getMonth()+ren);let m=(end.getFullYear()-exp.getFullYear())*12+(end.getMonth()-exp.getMonth());let d=end.getDate()-exp.getDate();if(d<0){m-=1;d+=new Date(end.getFullYear(),end.getMonth(),0).getDate()}billed=d>0?m+1:m}}return billed})();
 // لا نُظهر لاحقة الأشهر إلا إذا اختير تجديد فعلي (renewal_months>0)؛ السجلات المجلوبة بـ renewal_months=0 تبقى بلا لاحقة
 // (الحساب الاحتياطي كان يُلفّق «1 شهر» من أيام تأخّر الإقامة بين انتهائها وتاريخ التسعير).
-const renIqamaSuffix=(ren>0&&billedMos>0)?T(` (${billedMos} شهر)`,` (${billedMos} mo)`):'';
+const billedMos3=billedMos>0?Math.ceil(billedMos/3)*3:0;/* رسوم الإقامة بمضاعفات 3 أشهر — تقريب لأعلى */const renIqamaSuffix=(ren>0&&billedMos3>0)?T(` (${billedMos3} شهر)`,` (${billedMos3} mo)`):'';
 const lateFine=Number(tc.late_fine_amount||0);const officeFeeV=Number(tc.office_fee||0);const subtotalV=Number(tc.subtotal||0);const discountV=Number(tc.absher_discount||0)+Number(tc.manual_discount||0);const totalV=Number(tc.total_amount||0);
 const lineItems=[
 Number(tc.transfer_fee||0)>0?[T('رسوم نقل الكفالة','Sponsorship Transfer Fee'),tc.transfer_fee,null]:null,
