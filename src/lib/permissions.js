@@ -270,7 +270,10 @@ export const tabOffices = (user, tabId) => {
   // An explicit per-user office override (advanced) wins.
   const { mode, ids } = tabOfficePolicy(user, tabId)
   if (mode === 'all') return null
-  if (mode === 'specific') return ids
+  // 'specific' with at least one office ⇒ those offices. An empty specific list
+  // is a misconfiguration (restrict-to-nothing) — treat it as "not set" and fall
+  // through to the account's own offices so the user is never locked out.
+  if (mode === 'specific' && ids.length) return ids
   // Default: the branches where the user's role(s) grant this tab's view/access.
   const mod = tabModule(tabId)
   let scope = permBranchScope(user, mod, 'view')
@@ -306,7 +309,9 @@ export const tabServicePolicy = (user, tabId) => {
 export const tabServiceTypes = (user, tabId) => {
   if (isGM(user)) return null
   const { mode, ids } = tabServicePolicy(user, tabId)
-  return mode === 'specific' ? ids : null
+  // Only an explicit, non-empty specific list restricts. Empty specific
+  // (restrict-to-nothing) is a misconfiguration ⇒ treat as no restriction.
+  return (mode === 'specific' && ids.length) ? ids : null
 }
 export const canTabService = (user, tabId, serviceTypeId) => {
   if (isGM(user)) return true

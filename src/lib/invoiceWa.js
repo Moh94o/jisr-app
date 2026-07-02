@@ -253,6 +253,8 @@ export function buildInvoiceWaMessage(inv, day = null) {
 // + المسترد والملغى. نفس أرقام كروت الإحصاء (invoice_period_stats) ونفس صيغة رسالة الفاتورة.
 export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [], cash, bank, refunded, cancelled, oldPays }) {
   const cur = M.currency
+  // التاريخ بالصيغة العالمية يوم-شهر-سنة
+  const dateDisp = /^\d{4}-\d{2}-\d{2}$/.test(dateStr || '') ? dateStr.split('-').reverse().join('-') : dateStr
   const invLbl = n => (n >= 3 && n <= 10) ? 'فواتير' : 'فاتورة'
   const visaLbl = n => (n >= 3 && n <= 10) ? 'تأشيرات' : 'تأشيرة'
   const payLbl = n => (n >= 3 && n <= 10) ? 'دفعات' : 'دفعة'
@@ -274,7 +276,7 @@ export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [],
   if ((cancelled?.cnt || 0) > 0) neg.push(`❌ فواتير ملغاة: ${cancelled.cnt} — ${num(cancelled.sum)} ${cur}`)
   const empty = !newCount && !svcLines.length && !recv.length && !neg.length
   return [
-    `📊 *ملخص حركة اليوم* | \`${dateStr}\``,
+    `📊 *ملخص حركة اليوم* | \`${dateDisp}\``,
     ' يوم العمل يبدأ 5:00 فجراً بتوقيت الرياض',
     DIV_SQ,
     `🧾 *الفواتير الجديدة: ${num(newCount)} ${invLbl(newCount)}*`,

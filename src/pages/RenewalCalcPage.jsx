@@ -369,7 +369,10 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       })
       if (card === 'worker' && patch.nationality_id) { const n = (nationalities || []).find(x => x.id === patch.nationality_id); if (n) patch.nationality = n.name_ar }
       if (card === 'pricing') {
-        const sum = ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee', 'gov_excess'].reduce((s, k) => s + (Number(cardEdit[k]) || 0), 0)
+        // الإجمالي = رسوم المكتب + الزائد الحكومي (gov_excess) + الغرامة + تغيير المهنة + الإضافات — نفس صيغة الحاسبة (RenewalCalculator).
+        // لا تُضاف رسوم الإقامة/الرخصة/التأمين منفردةً لأنها ممثَّلة أصلاً ضمن gov_excess/التغطية، وإلا انحسبت مرّتين.
+        const extrasTotal = (Array.isArray(r.extras) ? r.extras : []).reduce((s, e) => s + (Number(e?.amount) || 0), 0)
+        const sum = ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee'].reduce((s, k) => s + (Number(cardEdit[k]) || 0), 0) + extrasTotal
         const newTotal = Math.max(0, sum - (Number(cardEdit.absher_discount) || 0) - (Number(cardEdit.manual_discount) || 0))
         patch.subtotal = sum
         patch.total_amount = newTotal
