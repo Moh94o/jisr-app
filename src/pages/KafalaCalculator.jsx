@@ -634,6 +634,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   // Muqeem-fetched worker data (iqama expiry, occupation, status, sponsor changes). No name — HRSD provides that.
   const [muqeemData, setMuqeemData] = useState(null)
   const [muqeemFetchStatus, setMuqeemFetchStatus] = useState('idle') // idle | loading | ok | error | unavailable
+  const [muqeemRetry, setMuqeemRetry] = useState(0) // 0 = ليست قيد إعادة المحاولة؛ >0 = رقم المحاولة الحالية
 
   // Success modal shown after "إصدار" — carries the saved quote info + copy/navigate actions.
   const [issuedQuote, setIssuedQuote] = useState(null) // { quoteNo, workerName, iqNo, total }
@@ -1094,19 +1095,23 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   // إعادة محاولة الاتصال بمقيم يدويًا (زر «إعادة الاتصال») — يُستخدم حين تكون الخدمة غير متاحة
   // أو تعذّر الاتصال، فالـ useEffect لا يُعاد تشغيله لأن رقم الإقامة لم يتغيّر.
+  // جلسة مقيم قد تكون قيد التحديث لحظة الضغط (البوت يُعيد تسجيل الدخول)، لذا نُعيد المحاولة
+  // عدة مرات بمهلة قصيرة بدل محاولة واحدة — فتُلتقط الجلسة تلقائياً بمجرد عودتها.
   async function retryMuqeem() {
     const iq = (f.iqama || '').trim()
-    if (!/^[12]\d{9}$/.test(iq) || muqeemFetchStatus === 'loading') return
-    setMuqeemFetchStatus('loading')
-    const r = await queryMuqeem(iq)
-    if (r.ok) {
-      applyMuqeemToForm(r.result)
-      setMuqeemFetchStatus('ok')
-    } else if (r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID') {
-      setMuqeemFetchStatus('unavailable')
-    } else {
-      setMuqeemFetchStatus('error')
+    if (!/^[12]\d{9}$/.test(iq) || muqeemFetchStatus === 'loading' || muqeemRetry > 0) return
+    const MAX = 5, GAP = 6000
+    for (let attempt = 1; attempt <= MAX; attempt++) {
+      setMuqeemRetry(attempt)
+      const r = await queryMuqeem(iq)
+      if (r.ok) { applyMuqeemToForm(r.result); setMuqeemFetchStatus('ok'); setMuqeemRetry(0); return }
+      // خطأ غير متعلّق بالجلسة (لا فائدة من التكرار)
+      if (!(r.code === 'NO_SESSION' || r.code === 'SESSION_EXPIRED' || r.code === 'SESSION_INVALID')) {
+        setMuqeemFetchStatus('error'); setMuqeemRetry(0); return
+      }
+      if (attempt < MAX) await new Promise(res => setTimeout(res, GAP))
     }
+    setMuqeemFetchStatus('unavailable'); setMuqeemRetry(0)
   }
 
   // Auto-fetch Muqeem data the moment a valid iqama is typed. Silent + debounced.
@@ -1369,27 +1374,33 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
               <Lbl req>{T('رقم الإقامة','Iqama Number')}</Lbl>
               {/* مؤشّر مقيم — عائم (absolute) فوق صف العنوان فلا يزيح الحقول عند ظهوره/اختفائه */}
-              {muqeemFetchStatus !== 'idle' && (
-                <div style={{ position: 'absolute', top: -2, insetInlineEnd: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 7, direction: dir, pointerEvents: 'none',
-                  ...(muqeemFetchStatus === 'loading' ? { background: 'rgba(52,131,180,.12)', color: C.blue }
-                    : muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046' }
-                    : muqeemFetchStatus === 'unavailable' ? { background: 'var(--bd)', color: 'var(--tx4)' }
-                    : { background: 'rgba(192,57,43,.12)', color: C.red }) }}>
-                  {muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span><span style={{ width: 9, height: 9, border: '1.6px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite' }} /></>}
-                  {muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
-                  {(muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error') && (
+              {(muqeemFetchStatus !== 'idle' || muqeemRetry > 0) && (() => {
+                const spinner = <span style={{ width: 10, height: 10, border: '1.7px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'mq-spin .7s linear infinite', flexShrink: 0 }} />
+                const busy = muqeemRetry > 0 || muqeemFetchStatus === 'loading'
+                const isErr = !busy && (muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error')
+                return (
+                <div style={{ position: 'absolute', top: -3, insetInlineEnd: 0, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 999, direction: dir, pointerEvents: 'none', transition: '.15s',
+                  ...(busy ? { background: 'rgba(52,131,180,.12)', color: C.blue, border: '1px solid rgba(52,131,180,.28)' }
+                    : muqeemFetchStatus === 'ok' ? { background: 'rgba(39,160,70,.12)', color: '#27a046', border: '1px solid rgba(39,160,70,.28)' }
+                    : { background: 'rgba(214,158,46,.14)', color: '#B7791F', border: '1px solid rgba(214,158,46,.42)' }) }}>
+                  {muqeemRetry > 0 && <><span>{T(`جاري إعادة المحاولة… (${muqeemRetry}/5)`,`Retrying… (${muqeemRetry}/5)`)}</span>{spinner}</>}
+                  {muqeemRetry === 0 && muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span>{spinner}</>}
+                  {muqeemRetry === 0 && muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
+                  {isErr && (
                     <>
-                      <span>{muqeemFetchStatus === 'unavailable' ? T('خدمة مقيم غير متاحة','Muqeem unavailable') : T('تعذّر الاتصال بمقيم','Muqeem connection failed')}</span>
-                      <button type="button" onClick={retryMuqeem} title={T('إعادة الاتصال بمقيم','Reconnect to Muqeem')}
-                        onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.12)'; e.currentTarget.style.color = C.gold }}
-                        style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, marginInlineStart: 2, padding: '3px 9px', borderRadius: 6, border: '1px solid rgba(176,125,0,.35)', background: 'rgba(176,125,0,.12)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: '.15s' }}>
-                        <RefreshCw size={11} strokeWidth={2.5} /> {T('إعادة الاتصال','Reconnect')}
+                      <AlertCircle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+                      <span>{muqeemFetchStatus === 'unavailable' ? T('خدمة مقيم غير متاحة مؤقتاً','Muqeem temporarily unavailable') : T('تعذّر الاتصال بمقيم','Muqeem connection failed')}</span>
+                      <button type="button" onClick={retryMuqeem} title={T('إعادة محاولة الاتصال بمقيم','Retry Muqeem connection')}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000'; e.currentTarget.style.borderColor = C.gold }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = 'rgba(176,125,0,.4)' }}
+                        style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, marginInlineStart: 3, padding: '4px 11px', borderRadius: 999, border: '1px solid rgba(176,125,0,.4)', background: 'rgba(176,125,0,.14)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: '.15s' }}>
+                        <RefreshCw size={11} strokeWidth={2.6} /> {T('إعادة المحاولة','Retry')}
                       </button>
                     </>
                   )}
                 </div>
-              )}
+                )
+              })()}
               {stageVisible(user,'transfer_calc','w_worker_data') && fieldVisible(user,'transfer_calc','w_iqama') && (
               <Inp value={f.iqama} onChange={v => {
                 const cleaned = v.replace(/\D/g,'').slice(0,10)
