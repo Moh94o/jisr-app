@@ -3,7 +3,13 @@
 // «نسخ رسالة الواتساب» + «طباعة» buttons byte-for-byte identical to what the bot
 // posts to the group / renders as the PDF. Arabic only (group feed = Arabic).
 
-const num = v => { const n = Math.round((Number(v) || 0) * 100) / 100; return (n < 0 ? '-' : '') + Math.abs(n).toLocaleString('en-US') }
+// الأرقام السالبة تُغلَّف بعزل اتجاهي LTR (U+2066…U+2069) حتى تبقى علامة «−» على يسار الرقم
+// داخل النص العربي (RTL)، وإلا انزاحت لليمين لأنها محرف محايد اتجاهيًا.
+const num = v => {
+  const n = Math.round((Number(v) || 0) * 100) / 100
+  const s = Math.abs(n).toLocaleString('en-US')
+  return n < 0 ? `⁦-${s}⁩` : s
+}
 const noDash = v => String(v ?? '').replace(/-/g, '')
 const pickWorker = rel => (Array.isArray(rel) ? rel[0]?.worker : rel?.worker)
 
