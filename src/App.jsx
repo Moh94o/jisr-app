@@ -1745,7 +1745,8 @@ const renSuffix=renMoV>0?` (${num2(renMoV)} ${moWord})`:''
 const dateVal=tc.priced_at||r.priced_at||r.created_at
 // أشهر تجديد الإقامة المحسوبة (تشمل الفترة المتأخرة عند انتهاء الإقامة) — نفس صيغة شاشة التسعيرة، قد تكون أكبر من أشهر التجديد المختارة.
 const billedMosV=tc.billed_renewal_months!=null?Number(tc.billed_renewal_months):(()=>{let billed=renMoV;const exp=iqExpG?new Date(iqExpG):null;if(exp&&!isNaN(exp)){const ref=dateVal?new Date(dateVal):new Date();ref.setHours(0,0,0,0);exp.setHours(0,0,0,0);if(exp<ref){const end=new Date(ref);end.setMonth(end.getMonth()+renMoV);let mm=(end.getFullYear()-exp.getFullYear())*12+(end.getMonth()-exp.getMonth());let d=end.getDate()-exp.getDate();if(d<0){mm-=1;d+=new Date(end.getFullYear(),end.getMonth(),0).getDate()}billed=d>0?mm+1:mm}}return billed})()
-const renIqamaSuffix=billedMosV>0?` (${num2(billedMosV)} ${moWord})`:''
+const billedMosV3=billedMosV>0?Math.ceil(billedMosV/3)*3:0;/* رسوم الإقامة بمضاعفات 3 أشهر — نفس تقريب التسعيرة */
+const renIqamaSuffix=billedMosV3>0?` (${num2(billedMosV3)} ${moWord})`:''
 const residentCombined=[tc.resident_status_ar,tc.hrsd_worker_status].filter(s=>s&&String(s).trim()).map(tVal).join(' · ')
 const cancelled=r.status==='cancelled'
 const stKey=r.status==='approved'?'statusApproved':(r.status==='invoiced'||r.status==='completed')?'statusInvoiced':r.status==='cancelled'?'cancelled':'statusPricedAwait'
