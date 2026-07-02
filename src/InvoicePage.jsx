@@ -1157,8 +1157,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       const bankP = recv.filter(p => p.payment_method?.code === 'bank_transfer' || p.payment_method?.code === 'pos')
       // دفعة على فاتورة سابقة = فاتورتها أُنشئت قبل بداية يوم العمل الحالي.
       const oldP = recv.filter(p => businessDayKey(p.invoice.created_at) !== todayStr)
-      const refundSum = scoped.reduce((s, p) => s + (!p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)), 0)
+      // مقدار الاسترداد لدفعة: دفعة صحيحة سالبة (مرتجع) أو دفعة أُبطلت (غير صحيحة).
+      const refundMag = p => !p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)
+      const refundSum = scoped.reduce((s, p) => s + refundMag(p), 0)
       const refundCnt = scoped.filter(p => !p.is_valid || Number(p.amount) < 0).length
+      // الاسترداد موزّعاً حسب طريقة الدفع — لحساب الصافي نقدًا/تحويلات.
+      const cashRefund = scoped.filter(p => p.payment_method?.code === 'cash').reduce((s, p) => s + refundMag(p), 0)
+      const bankRefund = scoped.filter(p => p.payment_method?.code === 'bank_transfer' || p.payment_method?.code === 'pos').reduce((s, p) => s + refundMag(p), 0)
 
       const msg = buildDaySummaryWaMessage({
         dateStr: todayStr,
@@ -1170,6 +1175,11 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         oldPays: { cnt: oldP.length, sum: sumOf(oldP) },
         refunded: { cnt: refundCnt, sum: refundSum },
         cancelled: { cnt: cancelledRows.length, sum: cancelledRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0) },
+        net: {
+          total: (sumOf(cashP) + sumOf(bankP)) - refundSum,
+          cash: sumOf(cashP) - cashRefund,
+          bank: sumOf(bankP) - bankRefund,
+        },
       })
       navigator.clipboard?.writeText(msg)
       setWaSumCopied(true); setTimeout(() => setWaSumCopied(false), 1500)

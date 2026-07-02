@@ -251,7 +251,7 @@ export function buildInvoiceWaMessage(inv, day = null) {
 // يُنسخ من زر الواتساب أعلى صفحة الفواتير بعد ما يخلص الموظف إرسال فواتير اليوم:
 // عدد الفواتير الجديدة + الخدمات (الكمية x النوع — المبلغ) + المقبوضات (نقد/تحويلات)
 // + المسترد والملغى. نفس أرقام كروت الإحصاء (invoice_period_stats) ونفس صيغة رسالة الفاتورة.
-export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [], cash, bank, refunded, cancelled, oldPays }) {
+export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [], cash, bank, refunded, cancelled, oldPays, net }) {
   const cur = M.currency
   // التاريخ بالصيغة العالمية يوم-شهر-سنة
   const dateDisp = /^\d{4}-\d{2}-\d{2}$/.test(dateStr || '') ? dateStr.split('-').reverse().join('-') : dateStr
@@ -274,7 +274,15 @@ export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [],
   const neg = []
   if ((refunded?.sum || 0) > 0) neg.push(`↩️ ${M.amount_refunded}: ${num(refunded.sum)} ${cur} (${refunded.cnt})`)
   if ((cancelled?.cnt || 0) > 0) neg.push(`❌ فواتير ملغاة: ${cancelled.cnt} — ${num(cancelled.sum)} ${cur}`)
-  const empty = !newCount && !svcLines.length && !recv.length && !neg.length
+  // الصافي النهائي = المقبوض − المسترد، موزّعاً نقدًا/تحويلات. يظهر متى وُجد مقبوض أو مسترد.
+  const netTotal = net ? (net.total || 0) : (receivedTotal - (refunded?.sum || 0))
+  const netBlock = []
+  if (receivedTotal > 0 || (refunded?.sum || 0) > 0) {
+    netBlock.push(`🟢 *الصافي النهائي: ${num(netTotal)} ${cur}*`)
+    netBlock.push(` نقدًا: ${num(net ? (net.cash || 0) : (cash?.sum || 0))} ${cur}`)
+    netBlock.push(` تحويلات بنكية: ${num(net ? (net.bank || 0) : (bank?.sum || 0))} ${cur}`)
+  }
+  const empty = !newCount && !svcLines.length && !recv.length && !neg.length && !netBlock.length
   return [
     `📊 *ملخص حركة اليوم* | \`${dateDisp}\``,
     ' يوم العمل يبدأ 5:00 فجراً بتوقيت الرياض',
@@ -284,6 +292,7 @@ export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [],
     ...(svcLines.length ? [DIV_DOT, ...svcLines] : []),
     ...(recv.length ? [DIV_DOT, ...recv] : []),
     ...(neg.length ? [DIV_DOT, ...neg] : []),
+    ...(netBlock.length ? [DIV_SQ, ...netBlock] : []),
     DIV_SQ,
   ].join('\n')
 }
