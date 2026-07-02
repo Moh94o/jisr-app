@@ -244,6 +244,7 @@ const IQAMA_EXTRA_FIELDS=[
   {k:'iqamaWpIssuanceDays',l:'أيام إصدار الرخصة الجديدة',d:5,sfx:'يوم'},
   {k:'iqamaOfficeFeeMode',l:'طريقة حساب رسوم المكتب',d:'flat',t:'mode'},
   {k:'iqamaWpBasis',l:'أساس احتساب رخصة العمل',d:'iqama',t:'mode'},
+  {k:'iqamaExemptionMode',l:'سياسة الإعفاء في الحاسبة',d:'free',t:'mode'},
   {k:'iqamaOfficeDiscountEnabled',l:'السماح بخصم المكتب عند التصديق',d:true,t:'bool'},
 ]
 const IQAMA_FIELDS=[...KAFALA_FIELDS.filter(f=>!['transferFee1','transferFee2','transferFee3'].includes(f.k)),...WP_NO_EXEMPT_FIELDS,...IQAMA_EXTRA_FIELDS]
@@ -1922,14 +1923,29 @@ const renderIqamaInlineEditor=(s,opts={})=>{
   const content=(title,ed)=>{
     if(title==='الرسوم الحكومية لتجديد الإقامة')return ed?grid(2,[fld('iqamaPerMonth',1),fld('iqamaGovCover',1)]):grid(2,[Stat('سعر الشهر',fmtThousands(v.iqamaPerMonth??0),'ريال/شهر'),Stat('حد التغطية',fmtThousands(v.iqamaGovCover??0),'ريال')])
     if(title==='المهلة والغرامات')return ed?grid(3,[fld('iqamaGraceDays',1),fld('iqamaFine1',1),fld('iqamaFine2',1)]):grid(3,[Stat('أيام المهلة',v.iqamaGraceDays??'—','يوم'),Stat('غرامة أولى',fmtThousands(v.iqamaFine1??0),'ريال'),Stat('غرامة ثانية',fmtThousands(v.iqamaFine2??0),'ريال')])
-    if(title==='كرت العمل (رخصة العمل)'){const wc=v.iqamaWpBasis==='workcard';const rst=v.iqamaWpResetEnabled===true;return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+    if(title==='كرت العمل (رخصة العمل)'){const wc=v.iqamaWpBasis==='workcard';const rst=v.iqamaWpResetEnabled===true;const exm=v.iqamaExemptionMode||'free';return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
       {sub('أساس الاحتساب')}{ed?seg('iqamaWpBasis',[{val:'iqama',l:'انتهاء الإقامة',sub:'الافتراضي'},{val:'workcard',l:'انتهاء كرت العمل',sub:'تاريخ مستقل'}]):pill(wc?'الأساس: كرت العمل':'الأساس: الإقامة',C.gold)}
+      {sub('سياسة الإعفاء في الحاسبة')}{ed?seg('iqamaExemptionMode',[{val:'free',l:'يختار المستخدم',sub:'نعم/لا'},{val:'exempt',l:'دائماً بإعفاء',sub:'مقفل'},{val:'noexempt',l:'دائماً بدون إعفاء',sub:'مقفل'}]):pill(exm==='exempt'?'الإعفاء: دائماً بإعفاء':exm==='noexempt'?'الإعفاء: دائماً بدون إعفاء':'الإعفاء: يختار المستخدم',exm==='free'?C.gold:C.ok)}
       {sub('بالإعفاء · السعر الثابت')}{ed?grid(4,[fld('workPermit3M',1),fld('workPermit6M',1),fld('workPermit9M',1),fld('workPermit12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.workPermit3M??0)),Stat('٦ أشهر',fmtThousands(v.workPermit6M??0)),Stat('٩ أشهر',fmtThousands(v.workPermit9M??0)),Stat('١٢ شهر',fmtThousands(v.workPermit12M??0))])}
       {sub('بدون إعفاء')}{ed?grid(4,[fld('workPermitNoExempt3M',1),fld('workPermitNoExempt6M',1),fld('workPermitNoExempt9M',1),fld('workPermitNoExempt12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.workPermitNoExempt3M??0)),Stat('٦ أشهر',fmtThousands(v.workPermitNoExempt6M??0)),Stat('٩ أشهر',fmtThousands(v.workPermitNoExempt9M??0)),Stat('١٢ شهر',fmtThousands(v.workPermitNoExempt12M??0))])}
       {sub('التسعير اليومي وبداية الفترة')}{ed?grid(3,[fld('workPermitDailyAfter',1),fld('workPermitCutoffDate',1),fld('workPermitProcDays',1)]):grid(3,[Stat('سعر اليوم',fmtThousands(v.workPermitDailyAfter??0),'ريال/يوم'),Stat('تاريخ التفعيل',v.workPermitCutoffDate||'—'),Stat('أيام المعالجة',v.workPermitProcDays??'—','يوم')])}
       <div style={{display:'flex',flexDirection:'column',gap:8,padding:'11px 13px',borderRadius:10,background:rst?'rgba(176,125,0,.05)':'rgba(255,255,255,.02)',border:`1px solid ${rst?C.gold+'33':'rgba(255,255,255,.07)'}`}}>
         {ed?sw('iqamaWpResetEnabled','قاعدة المنتهية من مدة طويلة: مفعّلة','قاعدة المنتهية من مدة طويلة: معطّلة'):pill(rst?'قاعدة المنتهية من مدة طويلة: مفعّلة':'قاعدة المنتهية من مدة طويلة: معطّلة',rst?C.ok:C.red)}
         {rst&&(ed?grid(2,[fld('iqamaWpResetAfterDays',1),fld('iqamaWpIssuanceDays',1)]):<span style={{fontSize:11,color:'var(--tx4)',fontWeight:600}}>بعد {v.iqamaWpResetAfterDays??365} يوم ← إصدار جديد من اليوم + {v.iqamaWpIssuanceDays??5} أيام</span>)}
+      </div>
+      {/* توثيق قاعدة قوى: خيارات مدة تجديد رخصة العمل + التجديد المبكر (مفروضة تلقائياً في الحاسبة). */}
+      <div style={{display:'flex',flexDirection:'column',gap:8,padding:'12px 14px',borderRadius:10,background:'rgba(176,125,0,.05)',border:`1px solid ${C.gold}33`}}>
+        <span style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,color:C.gold}}><BadgeCheck size={14}/> قاعدة قوى لخيارات مدة التجديد</span>
+        <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,lineHeight:1.9}}>
+          يُقاس التأخّر على المدة المنقضية من آخر رخصة عمل مستحقة غير مدفوعة — لا على تاريخ الانتهاء وحده:
+          <br/>• الرخصة <b>سارية</b> ← تُتاح كل المدد (٣ / ٦ / ٩ / ١٢).
+          <br/>• تجاوز التأخّر <b>٣ أشهر</b> ← يُلغى خيار <b>٣ أشهر</b>.
+          <br/>• تجاوز التأخّر <b>٦ أشهر</b> ← يُلغى خيار <b>٦ أشهر</b>.
+          <br/>• تجاوز التأخّر <b>٩ أشهر</b> ← يُلغى خيار <b>٩ أشهر</b> (يبقى ١٢ دائماً).
+          <br/>السبب: الرسوم تُحتسب على كامل الفترة المنقضية، فلا يُسمح بتجديد أقصر منها.
+          <br/>• <b>التجديد المبكر:</b> يُسمح بتجديد رخصة العمل إذا تبقّى <b>١٨٠ يوماً</b> (٦ أشهر) أو أقل على انتهائها.
+        </span>
+        <span style={{fontSize:9.5,color:'var(--tx5)',fontWeight:600}}>المصدر: منصة قوى — تُطبَّق هذه القاعدة تلقائياً في حاسبة تجديد الإقامة.</span>
       </div></div>)}
     if(title==='رسوم تغيير المهنة'){const fc=Array.isArray(v.profChangeFreeOccupations)?v.profChangeFreeOccupations.length:0;return(<div style={{display:'flex',flexDirection:'column',gap:10}}>{ed?fld('profChange',1):grid(2,[Stat('رسوم تغيير المهنة',fmtThousands(v.profChange??0),'ريال'),Stat('مهن معفاة',fc,'مهنة')])}{ed?renderProfChangeFreePicker():null}</div>)}
     if(title==='رسوم المكتب'){const daily=v.iqamaOfficeFeeMode==='daily';return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -1945,7 +1961,7 @@ const renderIqamaInlineEditor=(s,opts={})=>{
   const saveMap={
     'الرسوم الحكومية لتجديد الإقامة':{keys:['iqamaPerMonth','iqamaGovCover']},
     'المهلة والغرامات':{keys:['iqamaGraceDays','iqamaFine1','iqamaFine2']},
-    'كرت العمل (رخصة العمل)':{keys:['workPermit3M','workPermit6M','workPermit9M','workPermit12M','workPermitNoExempt3M','workPermitNoExempt6M','workPermitNoExempt9M','workPermitNoExempt12M','workPermitDailyAfter','workPermitCutoffDate','workPermitProcDays','iqamaWpBasis','iqamaWpResetEnabled','iqamaWpResetAfterDays','iqamaWpIssuanceDays']},
+    'كرت العمل (رخصة العمل)':{keys:['workPermit3M','workPermit6M','workPermit9M','workPermit12M','workPermitNoExempt3M','workPermitNoExempt6M','workPermitNoExempt9M','workPermitNoExempt12M','workPermitDailyAfter','workPermitCutoffDate','workPermitProcDays','iqamaWpBasis','iqamaExemptionMode','iqamaWpResetEnabled','iqamaWpResetAfterDays','iqamaWpIssuanceDays']},
     'رسوم تغيير المهنة':{keys:['profChange'],extra:['profChangeFreeOccupations']},
     'رسوم المكتب':{keys:['officeFee','officeDailyRate','iqamaOfficeFeeMode','iqamaOfficeDiscountEnabled']},
     'التأمين الطبي':{keys:['medicalGraceMonths','medicalGraceDays','medGovCover'],extra:['medicalBrackets']},

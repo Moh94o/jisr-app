@@ -35,8 +35,10 @@ export function computeRenewalDerived(row = {}) {
   // المرجع الزمني = تاريخ التسعير إن وُجد، وإلا الآن (يثبّت الحساب «كما في يوم التسعير»)
   const refDate = row.priced_at ? new Date(row.priced_at) : new Date()
 
-  // أشهر تجديد الإقامة المحتسبة — المدى من انتهاء الإقامة حتى (المرجع + أشهر التجديد) عند انتهاء الإقامة
-  let billed_renewal_months = renMo
+  // أشهر تجديد الإقامة المحتسبة — المدى من انتهاء الإقامة حتى (المرجع + أشهر التجديد) عند انتهاء الإقامة.
+  // رسوم الإقامة تُباع بمضاعفات 3 أشهر — أي كسر يُقرّب لأعلى لأقرب مضاعف لـ3 (4→6) — مطابقةً لحسبة نقل الكفالة.
+  const ceil3 = n => n > 0 ? Math.ceil(n / 3) * 3 : 0
+  let billed_renewal_months = ceil3(renMo)
   const exp = row.iqama_expiry_gregorian ? new Date(row.iqama_expiry_gregorian) : null
   if (exp && !isNaN(exp)) {
     const ref = new Date(refDate); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0)
@@ -45,7 +47,7 @@ export function computeRenewalDerived(row = {}) {
       let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
       let d = end.getDate() - exp.getDate()
       if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
-      billed_renewal_months = d > 0 ? m + 1 : m
+      billed_renewal_months = ceil3(d > 0 ? m + 1 : m)
     }
   }
 

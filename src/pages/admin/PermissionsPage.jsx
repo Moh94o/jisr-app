@@ -1558,6 +1558,9 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
 // ═══════════════════════════════════════════════════════════════════
 function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
   const [f, setF] = useState({
+    name_ar: user.person?.name_ar || '',
+    name_en: user.person?.name_en || '',
+    id_number: user.person?.id_number || '',
     role_id: user.role_id || '',
     branch_ids: (user.branch_ids && user.branch_ids.length) ? user.branch_ids : (user.primary_branch_id ? [user.primary_branch_id] : []),
     personal_phone: (user.personal_phone || '').replace(/^\+?966/, '').replace(/^0/, ''),
@@ -1581,6 +1584,12 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
   }, [done])
 
   const save = async () => {
+    const nameAr = (f.name_ar || '').trim()
+    const nameEn = (f.name_en || '').trim()
+    const idDigits = (f.id_number || '').replace(/\D/g, '')
+    if (!nameAr) { setErrMsg('الاسم بالعربي مطلوب'); return }
+    if (!nameEn) { setErrMsg('الاسم بالإنجليزي مطلوب'); return }
+    if (!/^\d{10}$/.test(idDigits)) { setErrMsg('رقم الهوية يجب أن يكون 10 أرقام'); return }
     if (!f.role_id) { setErrMsg('الدور مطلوب'); return }
     // GM has no office; everyone else must have at least one.
     const branchIds = isGM ? [] : f.branch_ids
@@ -1597,6 +1606,18 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
     if (phone9) {
       const { data: dupPhone } = await sb.from('users').select('id').eq('personal_phone', '+966' + phone9).neq('id', user.id).is('deleted_at', null).limit(1)
       if (dupPhone?.length) { setErrMsg('رقم الجوال مسجّل مسبقاً'); setSaving(false); return }
+    }
+    // ID number must stay unique across persons.
+    if (user.person?.id && idDigits !== (user.person?.id_number || '')) {
+      const { data: dupId } = await sb.from('persons').select('id').eq('id_number', idDigits).neq('id', user.person.id).is('deleted_at', null).limit(1)
+      if (dupId?.length) { setErrMsg('رقم الهوية مسجّل مسبقاً'); setSaving(false); return }
+    }
+    // Name + ID live on the linked person record, not the users row.
+    if (user.person?.id) {
+      const { error: pErr } = await sb.from('persons').update({
+        name_ar: nameAr, name_en: nameEn, id_number: idDigits, updated_at: new Date().toISOString(),
+      }).eq('id', user.person.id)
+      if (pErr) { setErrMsg(pErr.message.slice(0, 100)); setSaving(false); return }
     }
     // Email is changed via the edge function (keeps auth + profile in sync), so it's excluded here.
     const { data, error } = await sb.from('users').update({
@@ -1635,6 +1656,10 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
       footer={<ActionButton onClick={save} disabled={saving}>{saving ? 'جارٍ التعديل…' : 'تعديل'}</ActionButton>}>
       <ModalSection Icon={User} label="بيانات العمل">
         <div style={GRID}>
+          <TextField label="الاسم بالعربي" req value={f.name_ar} onChange={v => set('name_ar', v)} />
+          <TextField label="الاسم بالإنجليزي" req dir="ltr" value={f.name_en} onChange={v => set('name_en', v)} />
+          <TextField label="رقم الهوية" req dir="ltr" placeholder="10 أرقام"
+            value={f.id_number} onChange={v => set('id_number', (v || '').replace(/\D/g, '').slice(0, 10))} />
           <Select label="الدور" req placeholder="— اختر —"
             value={f.role_id} onChange={v => set('role_id', v)}
             options={roles.filter(r => ASSIGNABLE_ROLES.includes(r.name_ar) || r.id === f.role_id)}

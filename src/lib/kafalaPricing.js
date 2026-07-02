@@ -11,6 +11,9 @@ export const KAFALA_DEFAULTS={
   iqamaWpResetEnabled:false,iqamaWpResetAfterDays:365,iqamaWpIssuanceDays:5,
   // أساس احتساب رخصة العمل (سياسة الأدمن): 'iqama' انتهاء الإقامة · 'workcard' انتهاء كرت العمل
   iqamaWpBasis:'iqama',
+  // سياسة «هل يوجد إعفاء؟» في حاسبة التجديد (سياسة الأدمن):
+  //  'free' يختار المستخدم نعم/لا · 'exempt' دائماً بإعفاء (مقفل) · 'noexempt' دائماً بدون إعفاء (مقفل)
+  iqamaExemptionMode:'free',
   // السماح بخصم المكتب عند تصديق التجديد (سياسة الأدمن)
   iqamaOfficeDiscountEnabled:true,
   // سياسات نقل الكفالة (مطابقة للتجديد): أساس رخصة العمل · قاعدة المنتهية من مدة طويلة · وضع رسوم المكتب · الخصم

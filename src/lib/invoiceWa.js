@@ -226,11 +226,15 @@ export async function fetchInvoicePrintData(sb, inv) {
   const sel = SELECTS[baseSvcCode(code)] || SELECTS.other
   const branchId = inv.branch?.id
 
-  const [insts, pays, det, banks] = await Promise.all([
+  const [insts, pays, det, banks, calcQ] = await Promise.all([
     sb.from('installments').select('id,installment_order,total_amount,paid_amount,expected_date,paid_date,receipt_no,bank_reference,notes,visa_application_id,visa_application:visa_application_id(border_number,file_number,gender,nationality:nationality_id(name_ar,name_en),occupation:occupation_id(name_ar,name_en),embassy:embassy_id(name_ar,name_en)),payment_method:payment_method_id(value_ar,value_en),payment_milestone:payment_milestone_id(value_ar,value_en)').eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order'),
     sb.from('payments').select('id,amount,payment_date,is_valid,receipt_no,bank_reference,notes,payment_method:payment_method_id(value_ar,value_en,code),installment_id,creator:created_by(person:person_id(name_ar,name_en))').eq('invoice_id', inv.id).is('deleted_at', null).order('payment_date', { ascending: false }),
     (tbl && srId) ? sb.from(tbl).select(sel).eq('service_request_id', srId) : Promise.resolve({ data: [] }),
     branchId ? sb.from('bank_account_branches').select('account_purpose,bank_accounts!inner(bank_name,bank_name_en,account_name,account_name_en,account_number,iban,swift_code,is_active,deleted_at)').eq('branch_id', branchId).is('bank_accounts.deleted_at', null) : Promise.resolve({ data: [] }),
+    // حسبة النقل/التجديد المرتبطة — تُغذّي أشهر البنود وقسم المعاملة في الطباعة (نفس جلب صفحة التفاصيل).
+    baseSvcCode(code) === 'transfer' ? sb.from('transfer_calculation').select('*').eq('invoice_id', inv.id).is('deleted_at', null).maybeSingle()
+      : baseSvcCode(code) === 'iqama_renewal' ? sb.from('iqama_renewal_calculation').select('*').eq('invoice_id', inv.id).is('deleted_at', null).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   const officeAccounts = (() => {
@@ -246,5 +250,5 @@ export async function fetchInvoicePrintData(sb, inv) {
     return out
   })()
 
-  return { loading: false, insts: insts.data || [], pays: pays.data || [], det: det.data || [], code, quote: null, officeAccounts, passports: {} }
+  return { loading: false, insts: insts.data || [], pays: pays.data || [], det: det.data || [], code, quote: calcQ?.data?.quote_no || null, tc: calcQ?.data || null, officeAccounts, passports: {} }
 }

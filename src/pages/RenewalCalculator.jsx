@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { RefreshCw, User, Search, Calendar, Briefcase, Building2, Calculator, Plus, X, Check, Send, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, ShieldAlert, BadgeCheck, IdCard, Copy, Hash, CheckCircle2, Circle, Phone, Globe, HeartPulse, Wallet } from 'lucide-react'
+import { RefreshCw, User, Search, Calendar, Briefcase, Building2, Calculator, Plus, X, Check, Send, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, ShieldAlert, BadgeCheck, IdCard, Copy, Hash, CheckCircle2, Circle, Phone, Globe, HeartPulse, Wallet, Lock } from 'lucide-react'
 import { Modal as FKModal, C, F, ActionButton, Select } from '../components/ui/FormKit.jsx'
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { noDash } from '../lib/utils.js'
@@ -118,10 +118,10 @@ const KCard = ({ Icon, label, hint, children, span, style, bodyStyle }) => (
 const ToggleGroup = ({ options, value, onChange, height = 42 }) => (
   <div style={{ display: 'flex', gap: 6, height }}>
     {options.map(o => {
-      const sel = value === o.v; const clr = o.c || C.gold
+      const sel = value === o.v; const clr = o.c || C.gold; const dis = !!o.disabled
       return (
-        <button key={String(o.v)} type="button" onClick={() => onChange(o.v)} style={{ flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'var(--bd)'}`, background: sel ? clr + '14' : C.inputBg, color: sel ? clr : C.tx3, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, cursor: 'pointer', transition: '.18s', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: sel ? 'none' : 'none' }}>
-          {sel ? <CheckCircle2 size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
+        <button key={String(o.v)} type="button" disabled={dis} onClick={() => { if (!dis) onChange(o.v) }} title={dis ? 'غير متاح — قاعدة قوى' : undefined} style={{ flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'var(--bd)'}`, background: sel ? clr + '14' : C.inputBg, color: sel ? clr : C.tx3, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, cursor: dis ? 'not-allowed' : 'pointer', opacity: dis ? .38 : 1, transition: '.18s', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, position: 'relative', textDecoration: dis ? 'line-through' : 'none' }}>
+          {dis ? <Lock size={14} strokeWidth={2} style={{ flexShrink: 0, opacity: .7 }} /> : sel ? <CheckCircle2 size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
           <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
             <span>{o.l}</span>
             {o.sub && <span style={{ fontSize: 10, opacity: .6 }}>{o.sub}</span>}
@@ -200,6 +200,14 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   }, [sb, worker?.iqama_number])
 
   const cfg = useMemo(() => getIqamaRenewalPricingConfig(user?.branch_id || user?.primary_branch_id || null), [user])
+  // سياسة الإعفاء (سياسة الأدمن): 'free' يختار المستخدم · 'exempt'/'noexempt' قيمة ثابتة مقفلة في الحاسبة.
+  const exemptionMode = cfg.iqamaExemptionMode || 'free'
+  const exemptionLocked = exemptionMode === 'exempt' || exemptionMode === 'noexempt'
+  // فرض القيمة الثابتة على حقل الإعفاء عندما تكون السياسة مقفلة.
+  useEffect(() => {
+    if (exemptionMode === 'exempt' && f.exemption !== true) setF(p => ({ ...p, exemption: true }))
+    else if (exemptionMode === 'noexempt' && f.exemption !== false) setF(p => ({ ...p, exemption: false }))
+  }, [exemptionMode, f.exemption])
   useEffect(() => { if (!sb) return; sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').then(({ data }) => setNationalities(data || [])) }, [sb])
   // قائمة المهن (نفس مصدر تسعيرة التنازل) — لقائمة المهنة الجديدة عند تغيير المهنة
   useEffect(() => {
@@ -323,13 +331,15 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     const exp = worker.iqama_expiry_date ? new Date(worker.iqama_expiry_date) : null
     if (exp && !isNaN(exp)) exp.setHours(0, 0, 0, 0)
     const expired = !!(exp && !isNaN(exp) && exp < today)
-    let billedMonths = renewalMonths
+    // رسوم الإقامة تُباع بمضاعفات 3 أشهر — أي كسر يُقرّب لأعلى لأقرب مضاعف لـ3 (4→6، 7→9…) — مطابقةً لحسبة نقل الكفالة.
+    const ceil3 = n => n > 0 ? Math.ceil(n / 3) * 3 : 0
+    let billedMonths = ceil3(renewalMonths)
     if (expired) {
       const end = new Date(today); end.setMonth(end.getMonth() + renewalMonths)
       let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
       let d = end.getDate() - exp.getDate()
       if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
-      billedMonths = d > 0 ? m + 1 : m
+      billedMonths = ceil3(d > 0 ? m + 1 : m)
     }
     const grace = parseFloat(cfg.iqamaGraceDays) || 7
     const daysLeft = exp && !isNaN(exp) ? Math.round((exp - today) / 86400000) : Infinity
@@ -352,15 +362,14 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     const wpResetEnabled = cfg.iqamaWpResetEnabled === true
     const wpResetAfterDays = parseFloat(cfg.iqamaWpResetAfterDays) || 365
     const wpLongExpired = wpResetEnabled && wpExpired && daysSinceWpExp > wpResetAfterDays
-    // شهور رخصة العمل: منتهية حديثًا → شهور التأخّر + التجديد؛ سارية أو إصدار جديد (مدة طويلة) → شهور التجديد فقط
-    let wpBilledMonths = renewalMonths
-    if (wpExpired && !wpLongExpired) {
-      const wend = new Date(today); wend.setMonth(wend.getMonth() + renewalMonths)
-      let wm = (wend.getFullYear() - wpExp.getFullYear()) * 12 + (wend.getMonth() - wpExp.getMonth())
-      let wd = wend.getDate() - wpExp.getDate()
-      if (wd < 0) { wm -= 1; wd += new Date(wend.getFullYear(), wend.getMonth(), 0).getDate() }
-      wpBilledMonths = wd > 0 ? wm + 1 : wm
-    }
+    // قاعدة قوى لخيارات مدة التجديد: عند تأخّر رخصة العمل تُلغى المدد الأقصر من فترة التأخّر المستحقة —
+    // تجاوز 3 أشهر يُلغي «3»، وتجاوز 6 يُلغي «6»، وتجاوز 9 يُلغي «9» (يبقى «12» دائماً). القياس بالأشهر الميلادية
+    // من انتهاء الرخصة. في حالة الإصدار الجديد (منتهية من مدة طويلة) تُتاح كل المدد لأنها إصدار مستأنف من اليوم.
+    const wpPeriodExceeds = n => { if (!wpExpired || !wpExp || isNaN(wpExp)) return false; const t = new Date(wpExp); t.setMonth(t.getMonth() + n); return today > t }
+    const disabledPeriods = (wpExpired && !wpLongExpired) ? [3, 6, 9].filter(wpPeriodExceeds) : []
+    // شهور رخصة العمل = مدة التجديد المختارة دائماً — التأخّر لا يضيف شهوراً على الفوترة؛
+    // قاعدة قوى تعالجه بتعطيل المدد الأقصر من فترة التأخّر (disabledPeriods أدناه)، فالمدة المتاحة المختارة تغطيه أصلاً.
+    const wpBilledMonths = ceil3(renewalMonths)
     const wpStart = (() => {
       if (wpExp && !isNaN(wpExp) && wpExp > today) return new Date(wpExp)   // سارية → من تاريخ الانتهاء
       // منتهية: تبدأ من اليوم + أيام الإصدار الجديد (للمدة الطويلة) أو أيام المعالجة (للحديثة)
@@ -376,13 +385,13 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     else if (wpStart >= cutoff) workPermit = Math.ceil((wpEnd - wpStart) / 86400000) * dailyRate
     else workPermit = bracketFee + Math.ceil((wpEnd - cutoff) / 86400000) * dailyRate
     workPermit = Math.round(workPermit)
-    // بدون إعفاء: السعر الثابت للمدة (الجدول) + شهور التأخّر × سعر الشهر (مثل الإقامة). سعر الشهر = سعر 12 شهر ÷ 12.
+    // بدون إعفاء: تُحتسب الرخصة بعدد الأشهر المفوترة (مضاعف 3، يشمل التأخّر) — سعر الشريحة المطابقة إن وُجدت
+    // (3/6/9/12) وإلا عددها × سعر الشهر (سعر 12 شهر ÷ 12) للمُدد الأطول. لا وجود لشريحة «4 أشهر».
     if (f.exemption === false) {
-      const noExBracket = Number(cfg['workPermitNoExempt' + months + 'M']) || 0
-      if (noExBracket > 0) {
-        const noExPerMonth = (Number(cfg.workPermitNoExempt12M) || 0) / 12
-        const overdueMonths = Math.max(0, wpBilledMonths - renewalMonths)
-        workPermit = Math.round(noExBracket + overdueMonths * noExPerMonth)
+      const noExPerMonth = (Number(cfg.workPermitNoExempt12M) || 0) / 12
+      const noExBracket = Number(cfg['workPermitNoExempt' + wpBilledMonths + 'M']) || 0
+      if (noExBracket > 0 || noExPerMonth > 0) {
+        workPermit = Math.round(noExBracket > 0 ? noExBracket : wpBilledMonths * noExPerMonth)
       }
     }
     // التأمين الطبي: تأمين ساري متبقٍّ ≥ «المهلة» (قابلة للتعديل من الإعدادات: أشهر + أيام، الافتراضي شهرين و10 أيام) ← لا رسم
@@ -426,8 +435,17 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     const expBase = (exp && !isNaN(exp) && exp > today) ? new Date(exp) : new Date(today)
     const expectedExpiryDate = new Date(expBase); expectedExpiryDate.setMonth(expectedExpiryDate.getMonth() + renewalMonths)
     const expectedExpiry = expectedExpiryDate.toISOString().slice(0, 10)
-    return { expired, inGrace, renewalBase, fine, workPermit, medical, officeFee, profChange, iqamaExcess, wpExcess, medExcess, govExcess, extrasTotal, subtotal, billedMonths, expectedExpiry, coverIqama, coverWorkPermit, medGovCover, medInsuredValid, medDaysLeft, wpBilledMonths, wpExpired, wpBasisFellBack, wpLongExpired, profChangeIsFree, officeMode, officeDays, officeDailyRate, officeFloor }
+    return { expired, inGrace, renewalBase, fine, workPermit, medical, officeFee, profChange, iqamaExcess, wpExcess, medExcess, govExcess, extrasTotal, subtotal, billedMonths, expectedExpiry, coverIqama, coverWorkPermit, medGovCover, medInsuredValid, medDaysLeft, wpBilledMonths, wpExpired, wpBasisFellBack, wpLongExpired, disabledPeriods, profChangeIsFree, officeMode, officeDays, officeDailyRate, officeFloor }
   }, [worker, f, cfg])
+
+  // قاعدة قوى: إن أصبحت مدة التجديد المختارة غير متاحة (أقصر من تأخّر الرخصة) انتقل تلقائياً لأصغر مدة مسموحة.
+  useEffect(() => {
+    const disabled = calc?.disabledPeriods || []
+    if (disabled.length && disabled.includes(parseInt(f.renewalMonths))) {
+      const next = ['3', '6', '9', '12'].find(m => !disabled.includes(parseInt(m)))
+      if (next && next !== f.renewalMonths) setF(p => ({ ...p, renewalMonths: next }))
+    }
+  }, [calc?.disabledPeriods, f.renewalMonths])
 
   const absher = f.absher_on ? (parseFloat(f.absher) || 0) : 0
   const grandTotal = Math.max(0, (calc?.subtotal || 0) - absher)
@@ -806,17 +824,37 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
       {tab === 2 && calc && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 13, flex: 1, minHeight: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 12px', flex: 1, alignContent: 'start' }}>
-            {/* هل يوجد إعفاء؟ — «لا» تُحوّل رخصة العمل لسعر ثابت بدون إعفاء */}
+            {/* هل يوجد إعفاء؟ — «لا» تُحوّل رخصة العمل لسعر ثابت بدون إعفاء. تُقفل على قيمة ثابتة حسب سياسة الإدارة. */}
             {stShow('rw_renewal_options') && fShow('rw_exemption') && (
-            <KCard Icon={BadgeCheck} label={T('هل يوجد إعفاء؟', 'Exemption?')} hint={f.exemption === false ? T('رخصة العمل بسعر بدون إعفاء', 'no-exemption work-permit rate') : T('حساب رخصة العمل الاعتيادي', 'standard work-permit calc')} span={2}>
-              <YesNo value={f.exemption !== false} onChange={v => set('exemption', v)} lang={lang} height={50} />
+            <KCard Icon={BadgeCheck} label={T('هل يوجد إعفاء؟', 'Exemption?')} hint={exemptionLocked ? T('محدَّد بسياسة الإدارة — غير قابل للتغيير', 'set by admin policy — locked') : (f.exemption === false ? T('رخصة العمل بسعر بدون إعفاء', 'no-exemption work-permit rate') : T('حساب رخصة العمل الاعتيادي', 'standard work-permit calc'))} span={2}>
+              {exemptionLocked ? (
+                <div style={{ display: 'flex', gap: 6, height: 50 }}>
+                  {[true, false].map(val => {
+                    const sel = (f.exemption !== false) === val; const clr = val ? C.ok : C.blue
+                    return (
+                      <div key={String(val)} style={{ flex: 1, borderRadius: 9, border: `1px solid ${sel ? clr + '80' : 'var(--bd)'}`, background: sel ? clr + '14' : C.inputBg, color: sel ? clr : C.tx3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, opacity: sel ? 1 : .4, cursor: 'not-allowed' }}>
+                        {sel ? <Lock size={13} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
+                        <span>{val ? T('نعم', 'Yes') : T('لا', 'No')}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <YesNo value={f.exemption !== false} onChange={v => set('exemption', v)} lang={lang} height={50} />
+              )}
             </KCard>
             )}
-            {/* مدة التجديد */}
+            {/* مدة التجديد — قاعدة قوى: تُعطَّل المدد الأقصر من فترة تأخّر رخصة العمل المستحقة */}
             {stShow('rw_renewal_options') && fShow('rw_period') && (
             <KCard Icon={Calendar} label={T('مدة التجديد', 'Renewal Period')} span={2}>
               <ToggleGroup value={f.renewalMonths} onChange={v => set('renewalMonths', v)} height={60}
-                options={['3', '6', '9', '12'].map(m => ({ v: m, l: m, sub: T('شهر', 'mo') }))} />
+                options={['3', '6', '9', '12'].map(m => ({ v: m, l: m, sub: T('شهر', 'mo'), disabled: (calc.disabledPeriods || []).includes(parseInt(m)) }))} />
+              {(calc.disabledPeriods || []).length > 0 && (
+                <div style={{ marginTop: 9, display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 10.5, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.07)', border: '1px solid rgba(176,125,0,.25)', borderRadius: 8, padding: '8px 10px', lineHeight: 1.6 }}>
+                  <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+                  {T('قاعدة قوى: لا يمكن التجديد لمدة أقصر من فترة تأخّر رخصة العمل المستحقة — أُلغيت المدد الأقصر.', 'Qiwa rule: cannot renew for a period shorter than the overdue work-permit dues — shorter options removed.')}
+                </div>
+              )}
             </KCard>
             )}
             {/* تغيير المهنة */}
@@ -900,7 +938,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
               const grossSubtotal = calc.renewalBase + calc.workPermit + calc.medical + calc.profChange + calc.fine + calc.extrasTotal + calc.officeFee
               const items = [
                 {
-                  label: T('تجديد الإقامة', 'Iqama Renewal'),
+                  // نُلحق عدد الأشهر المفوترة فعليًا (مضاعف 3، يشمل التأخير) بجانب البند — مطابقةً لحسبة نقل الكفالة.
+                  label: T('تجديد الإقامة', 'Iqama Renewal') + (calc.billedMonths > 0 ? ` (${calc.billedMonths} ${lang === 'en' ? (calc.billedMonths === 1 ? 'month' : 'months') : 'شهر'})` : ''),
                   value: calc.renewalBase,
                   note: calc.iqamaExcess > 0 ? T(`زائد عن حد ${nm(calc.coverIqama)}`, `over ${nm(calc.coverIqama)} cap`) : withinNote,
                   color: null,

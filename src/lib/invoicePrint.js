@@ -907,11 +907,13 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     ? `<tr class="sub-row"><td>${lab('subtotalInitial')}</td><td class="l">${amtCell(lineSum)}</td></tr>${absherDisc > 0 ? `<tr class="disc-row"><td>${lab('absherDiscount')}</td><td class="l">${amtCell(absherDisc)}</td></tr>` : ''}${officeDisc > 0 ? `<tr class="disc-row"><td>${lab((code === 'profession_change' || code === 'exit_reentry_visa') ? 'absherDiscount' : 'officeDiscount')}</td><td class="l">${amtCell(officeDisc)}</td></tr>` : ''}<tr class="total-row"><td>${lab('finalTotal')}</td><td class="l">${amtCell(totalA)}</td></tr>`
     : `<tr class="total-row"><td>${lab('total')}</td><td class="l">${amtCell(totalA)}</td></tr>`
   // عدد الأشهر بجانب بنود تجديد الإقامة (الأشهر المُحتسبة، تشمل المتأخرة) ورسوم كرت العمل (أشهر التجديد) — نفس طباعة الحسبة.
-  const monthsTc = (code === 'transfer' && data?.tc) ? data.tc : null
+  const monthsTc = ((code === 'transfer' || code === 'iqama_renewal') && data?.tc) ? data.tc : null
   const moW = n => printLang === 'ar' ? ((n >= 3 && n <= 9) ? 'شهر' : 'شهور') : printLang === 'en' ? (n === 1 ? 'month' : 'months') : printLang === 'hi' ? 'माह' : printLang === 'bn' ? 'মাস' : 'ماہ'
   const renMo = monthsTc ? Number(monthsTc.renewal_months || 0) : 0
   const billedMo = (() => {
     if (!monthsTc || renMo <= 0) return renMo
+    // مجمّد في عمود الحسبة وقت الإصدار — الحساب أدناه احتياطي للسجلات القديمة فقط.
+    if (monthsTc.billed_renewal_months != null) return Number(monthsTc.billed_renewal_months)
     let billed = renMo
     const iqExp = monthsTc.iqama_expiry_gregorian ? new Date(monthsTc.iqama_expiry_gregorian) : null
     if (iqExp && !isNaN(iqExp)) {

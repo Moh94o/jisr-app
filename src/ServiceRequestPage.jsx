@@ -1896,7 +1896,7 @@ downPaymentInstId=(instData||[]).slice().sort((a,b)=>(a.installment_order||0)-(b
 
 // 5. Down-payment — record an actual payment row so the receipts log stays consistent
 if(paidNum>0){
-const{error:payErr}=await sb.from('payments').insert({
+const{data:payRow,error:payErr}=await sb.from('payments').insert({
 invoice_id:createdInvId,
 service_request_id:sr.id,
 branch_id:userBranchId,
@@ -1908,8 +1908,30 @@ bank_reference:paymentMethod==='bank'?(transferReference||null):null,
 bank_account_id:paymentMethod==='bank'?(selBankAcc||null):null,
 is_valid:true,
 created_by:user?.id||null,
-})
+}).select('id').single()
 if(payErr)throw payErr
+// Persist the bank-transfer receipt, linking it to the payment (entity_type='payment') so it
+// shows in the payments/deposits view — same pattern as the «تسجيل دفعة» flow on InvoicePage.
+if(paymentMethod==='bank'&&payRow?.id&&transferReceipt){
+try{
+const f=transferReceipt
+const safe=(f.name||'file').replace(/[^\w.\-]+/g,'_')
+const path=`payments/${payRow.id}/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${safe}`
+const{error:upErr}=await sb.storage.from('attachments').upload(path,f,{cacheControl:'3600',upsert:false})
+if(upErr)throw upErr
+const{data:pub}=sb.storage.from('attachments').getPublicUrl(path)
+const{error:insErr}=await sb.from('attachments').insert({
+entity_type:'payment',entity_id:payRow.id,
+file_name:f.name,file_url:pub?.publicUrl||path,storage_path:path,
+mime_type:f.type||null,size_bytes:f.size||null,
+notes:'bank_transfer_receipt',uploaded_by:user?.id||null,
+})
+if(insErr)throw insErr
+}catch(rcErr){
+// best-effort — never block invoice creation, but keep the failure visible for diagnosis.
+console.error('تعذّر حفظ إيصال الحوالة لهذه الدفعة',rcErr)
+}
+}
 }
 
 // Link this invoice back to its certified transfer quote (تسعيرة التنازل) via transfer_calculation.invoice_id,
