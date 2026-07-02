@@ -796,32 +796,29 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     const daysLeft = Math.round((exp - today) / 86400000)
     return daysLeft <= (parseFloat(cfg.iqamaGraceDays) || 7)
   })()
-  // Billed months = total calendar span from iqama expiry → (today + renewalMonths).
+  // Billed renewal months = total calendar span from iqama expiry → (today + renewalMonths).
   // Any residual day (even 1) rounds UP to the next full month. When iqama is still valid, bill just renewalMonths.
-  useEffect(() => {
+  // هذه هي الأشهر المحسوبة فعليًا في رسوم التجديد (تشمل أشهر التأخير) — تُعرض في ملخص التكاليف بدل الأشهر المطلوبة.
+  const billedRenewalMonths = useMemo(() => {
     const renewalMos = parseInt(f.renewalMonths) || 0
-    let billedMonths = renewalMos
     const exp = f.iqamaExpiry ? new Date(f.iqamaExpiry) : null
-    if (exp && !isNaN(exp)) {
-      const today = new Date(); today.setHours(0, 0, 0, 0)
-      exp.setHours(0, 0, 0, 0)
-      if (exp < today) {
-        const end = new Date(today); end.setMonth(end.getMonth() + renewalMos)
-        let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
-        let d = end.getDate() - exp.getDate()
-        if (d < 0) {
-          m -= 1
-          d += new Date(end.getFullYear(), end.getMonth(), 0).getDate()
-        }
-        billedMonths = d > 0 ? m + 1 : m
-      }
-    }
-    const renewalBase = billedMonths * (parseFloat(cfg.iqamaPerMonth) || 0)
+    if (!exp || isNaN(exp)) return renewalMos
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    exp.setHours(0, 0, 0, 0)
+    if (exp >= today) return renewalMos
+    const end = new Date(today); end.setMonth(end.getMonth() + renewalMos)
+    let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
+    let d = end.getDate() - exp.getDate()
+    if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
+    return d > 0 ? m + 1 : m
+  }, [f.iqamaExpiry, f.renewalMonths])
+  useEffect(() => {
+    const renewalBase = billedRenewalMonths * (parseFloat(cfg.iqamaPerMonth) || 0)
     const fine = iqamaInGracePeriod
       ? (f.renewalAdd500 ? (parseFloat(cfg.iqamaFine2) || 0) : (parseFloat(cfg.iqamaFine1) || 0))
       : 0
     setF(p => ({ ...p, iqamaRenewalFee: String(Math.round(renewalBase + fine)) }))
-  }, [f.iqamaExpiry, f.renewalMonths, iqamaInGracePeriod, f.renewalAdd500, cfg])
+  }, [billedRenewalMonths, iqamaInGracePeriod, f.renewalAdd500, cfg])
 
   // Work permit fee — driven by selected renewal months (3/6/9/12).
   //   - Bracket pricing (workPermit3M/6M/9M/12M) for periods entirely before cutoff date.
@@ -1762,6 +1759,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               const monthLbl = (n) => lang === 'en' ? (n === 1 ? 'month' : 'months') : 'شهر'
               const dayLbl = (n) => lang === 'en' ? (n === 1 ? 'day' : 'days') : 'يوم'
               const renewalLabelSuffix = (!f.transferOnly && renewalMos > 0) ? ` (${renewalMos} ${monthLbl(renewalMos)})` : ''
+              // تجديد الإقامة يُسعّر بالأشهر المفوترة فعليًا (تشمل التأخير)، لا الأشهر المطلوبة — فيظهر العدد المحسوب في الرسوم.
+              const iqamaRenewalLabelSuffix = (!f.transferOnly && billedRenewalMonths > 0) ? ` (${billedRenewalMonths} ${monthLbl(billedRenewalMonths)})` : ''
               const officeMos = iqamaRemainderParts.months + renewalMos
               const officeDays = iqamaRemainderParts.days
               const officeLabelSuffix = officeMos > 0 || officeDays > 0 ? ` (${officeMos} ${monthLbl(officeMos)}${officeDays > 0 ? ' ' + (lang === 'en' ? 'and' : 'و') + ' ' + officeDays + ' ' + dayLbl(officeDays) : ''})` : ''
@@ -1771,7 +1770,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 const sum = f.extras.reduce((s, ex) => s + (Number(ex.amount) || 0), 0)
                 return [[T('مجموع الرسوم الإضافية','Additional Fees Total'), sum]]
               })()
-              const items = [[T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee, 'transferFee'], [T('تجديد الإقامة','Iqama Renewal') + renewalLabelSuffix, iqamaRenewalFee, 'iqamaRenewal'], [T('رخصة العمل','Work Permit') + renewalLabelSuffix, workPermitFee], ...(profChangeFee > 0 ? [[T('تغيير المهنة','Change Occupation'), profChangeFee]] : []), [T('التأمين الطبي','Medical Insurance'), medicalFee], [T('رسوم المكتب','Office Fees'), officeFee], ...extrasRows]
+              const items = [[T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee, 'transferFee'], [T('تجديد الإقامة','Iqama Renewal') + iqamaRenewalLabelSuffix, iqamaRenewalFee, 'iqamaRenewal'], [T('رخصة العمل','Work Permit') + renewalLabelSuffix, workPermitFee], ...(profChangeFee > 0 ? [[T('تغيير المهنة','Change Occupation'), profChangeFee]] : []), [T('التأمين الطبي','Medical Insurance'), medicalFee], [T('رسوم المكتب','Office Fees'), officeFee], ...extrasRows]
               const subtotal = items.reduce((s, [, v]) => s + (Number(v) || 0), 0)
               const absherOn = !!f.absherBalance_on
               const absher = absherOn ? (parseFloat(f.absherBalance) || 0) : 0
