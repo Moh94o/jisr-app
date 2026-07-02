@@ -1244,7 +1244,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {/* زر واتساب — نفس أيقونة كرت الفاتورة لكن للملخص الشامل: ينسخ حركة اليوم كاملة (5 فجراً → 5 فجراً) */}
             <button title={T('نسخ ملخص اليوم (واتساب)', 'Copy day summary (WhatsApp)')} onClick={copyDaySummary} disabled={waSumBusy}
-              style={{ width: 42, height: 42, borderRadius: 11, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: waSumCopied ? C.ok : '#25D366', cursor: waSumBusy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s', flexShrink: 0, opacity: waSumBusy ? .5 : 1, padding: 0 }}
+              style={{ width: 42, height: 42, borderRadius: 11, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: waSumCopied ? C.ok : '#25D366', cursor: waSumBusy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s', flexShrink: 0, opacity: waSumBusy ? .5 : 1, padding: 0, boxShadow: '0 5px 16px rgba(0,0,0,.26), inset 0 1px 0 rgba(176,125,0,.18)' }}
               onMouseEnter={ev => { if (waSumBusy) return; ev.currentTarget.style.background = '#25D3661f'; ev.currentTarget.style.borderColor = '#25D36666' }}
               onMouseLeave={ev => { ev.currentTarget.style.background = 'var(--inputBg)'; ev.currentTarget.style.borderColor = 'var(--bd)' }}>
               {waSumCopied
