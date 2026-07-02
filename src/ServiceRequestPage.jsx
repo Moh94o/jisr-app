@@ -1817,6 +1817,11 @@ const items=arr.filter(l=>l&&typeof l.label==='string'&&(Number(l.amount)||0)>0)
 return items.length?items:null
 })()
 
+// الحالة الأولية للفاتورة — كانت تُترك NULL فتسقط الفاتورة من فلاتر الحالة وبعض التقارير.
+// نفس منطق invoiceStatusPatch: مدفوعة بالكامل إذا غطّت الدفعة المقدمة كامل الإجمالي، وإلا نشطة.
+const initStatusCode=(total>0&&paidNum>=total-0.005)?'fully_paid':'active'
+const{data:stRow}=await sb.from('lookup_items').select('id,category:lookup_categories!inner(category_key)').eq('code',initStatusCode).eq('category.category_key','invoice_status').maybeSingle()
+
 const{data:inv,error:invErr}=await sb.from('invoices').insert({
 invoice_no:invNo,
 service_request_id:sr.id,
@@ -1825,6 +1830,7 @@ service_type_id:svcTypeRow.id,
 service_quantity:qty,
 total_amount:total,
 paid_amount:paidNum,
+status_id:stRow?.id||null,
 payment_plan:planCount>1?'installment':'cash',
 installments_count:planCount>1?planCount:0,
 pricing_breakdown:pricingBreakdown,
