@@ -318,7 +318,7 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const dayIn = dm.cancelledToday ? 0 : Number(dm.received || 0)
   const dayOut = Number(dm.refunded || 0) + Number(dm.cancelledAmt || 0)
   const moneyChip = (amount, color, sign, title) => (
-    <span title={title} onClick={stopClick} style={{ height: 26, padding: '0 8px', borderRadius: 7, border: '1px solid ' + color + '59', background: color + '14', color, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, boxSizing: 'border-box', cursor: 'default' }}>
+    <span title={title} onClick={e => e.stopPropagation()} style={{ height: 26, padding: '0 8px', borderRadius: 7, border: '1px solid ' + color + '59', background: color + '14', color, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, boxSizing: 'border-box', cursor: 'default' }}>
       <span>{sign}</span><span>{num(amount)}</span>
     </span>
   )
