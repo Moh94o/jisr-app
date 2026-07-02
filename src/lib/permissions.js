@@ -262,6 +262,17 @@ export const tabOfficePolicy = (user, tabId) => {
   return { mode: 'inherit', ids: [] }
 }
 
+// The «منشىء فواتير» (Invoice Issuer) role is permanently office-bound: a holder
+// only ever sees their own office's invoices, even if the role is assigned with an
+// "all branches" grant or an 'all' office policy. Enforced here AND in the DB RLS
+// function current_user_invoice_office_scope().
+const INVOICE_ISSUER_ROLE_AR = 'منشىء فواتير'
+export const isInvoiceIssuer = (user) => {
+  if (isGM(user)) return false
+  if (Array.isArray(user?.roleNames) && user.roleNames.length) return user.roleNames.includes(INVOICE_ISSUER_ROLE_AR)
+  return user?.role?.name_ar === INVOICE_ISSUER_ROLE_AR
+}
+
 // The concrete list of office ids a user may operate in for a tab. GM ⇒ null
 // (meaning "no restriction — all offices"). For non-GM: 'all' ⇒ null,
 // 'specific' ⇒ the chosen ids, 'inherit' ⇒ the account's own offices.
@@ -269,6 +280,13 @@ export const tabOffices = (user, tabId) => {
   if (isGM(user)) return null
   // An explicit per-user office override (advanced) wins.
   const { mode, ids } = tabOfficePolicy(user, tabId)
+  // Permanent rule: invoice issuers are always capped to their own office(s),
+  // regardless of an all-branches role assignment or an 'all' office policy.
+  if (tabId === 'invoices' && isInvoiceIssuer(user)) {
+    const own = userOffices(user)
+    if (own.length) return (mode === 'specific' && ids.length) ? own.filter(id => ids.includes(id)) : own
+    // No assigned office → fall through to the normal logic (never lock out).
+  }
   if (mode === 'all') return null
   // 'specific' with at least one office ⇒ those offices. An empty specific list
   // is a misconfiguration (restrict-to-nothing) — treat it as "not set" and fall
